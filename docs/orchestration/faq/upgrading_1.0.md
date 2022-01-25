@@ -32,11 +32,11 @@ $ prefect agent [agent-type] start --key [api-key] --tenant-id [tenant-id]
 
 ## Support for environments
 
-Flow environments, deprecated since Prefect 0.14.0, have been removed completely. Use `RunConfig` objects to define where and how a flow run should be executed as described in [Run Configuration](/orchestration/flow_config/run_configs.html).
+Flow environments, deprecated since Prefect 0.14.0, have been removed completely. Use `RunConfig` objects to define where and how a flow run should be executed as described in [Run Configuration](/orchestration/flow_config/run_configs.md).
 
 If you do not have `flow.environment` configured explicitly on your flow, there is no impact on your flows and no migration steps are needed.
 
-If you still have environment configurations, the topic [Upgrading from Prefect < 0.14.0](/orchestration/flow_config/upgrade.html) provides detailed instructions for migrating to `RunConfig`.
+If you still have environment configurations, the topic [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) provides detailed instructions for migrating to `RunConfig`.
 
 ## Registering and running flows with the CLI
 
