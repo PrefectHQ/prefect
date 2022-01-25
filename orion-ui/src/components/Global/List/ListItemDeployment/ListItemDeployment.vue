@@ -129,12 +129,15 @@ import { secondsToString } from '@/util/util'
 import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
 import media from '@/utilities/media'
+import Drawer from '@/components/Global/Drawer/Drawer.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 
 class Props {
   item = prop<Deployment>({ required: true })
 }
 
 @Options({
+  components: { ListItem, Drawer },
   watch: {
     parametersDrawerActive() {
       this.search = ''
