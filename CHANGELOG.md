@@ -28,6 +28,26 @@
 <!-- config changes -->
 - The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
 
+## 0.15.13 <Badge text="beta" type="success" />
+
+Released on January 25, 2022.
+
+### Enhancements
+
+- Ensure that maximum log payload sizes are not exceeded - [#5316](https://github.com/PrefectHQ/prefect/pull/5316)
+
+### Fixes
+
+- Fix bug where logout was required before logging in with a new key if the new key does not have access to the old tenant - [#5355](https://github.com/PrefectHQ/prefect/pull/5355)
+
+### Server
+
+- Upgrade Hasura to v2.1.1 which includes support for Apple M1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)
+
+### Task Library
+
+- Fix bug where the Airbyte sync job failure would not be reflected in the task state - [#5362](https://github.com/PrefectHQ/prefect/pull/5362)
+
 ## 0.15.12 <Badge text="beta" type="success" />
 
 Released on January 12, 2022.

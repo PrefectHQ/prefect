@@ -33,8 +33,8 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
     "task_run_id",
 )
 
-MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
+MAX_LOG_SIZE = 1_000_000  # 1 MB - max size of a single log record
+MAX_BATCH_LOG_SIZE = 4_000_000  # 4 MB - max total batch size for log records
 
 
 class LogManager:
@@ -103,13 +103,15 @@ class LogManager:
         # large a payload at once. This call will continue to loop until
         # the queue is empty or an error occurs on upload (usually only one
         # iteration is sufficient)
+        max_batch_length = max(MAX_BATCH_LOG_SIZE - MAX_LOG_SIZE, MAX_LOG_SIZE)
         cont = True
         while cont:
             try:
-                while self.pending_length < MAX_BATCH_LOG_LENGTH:
+                while self.pending_length < max_batch_length:
                     log = self.queue.get_nowait()
-                    self.pending_length += len(log.get("message", ""))
+                    self.pending_length += sys.getsizeof(log)
                     self.pending_logs.append(log)
+
             except Empty:
                 cont = False
 
@@ -124,7 +126,7 @@ class LogManager:
                     warnings.warn(
                         f"Failed to write logs with error: {exc!r}, "
                         f"Pending log length: {self.pending_length:,}, "
-                        f"Max batch log length: {MAX_BATCH_LOG_LENGTH:,}, "
+                        f"Max batch log length: {MAX_BATCH_LOG_SIZE:,}, "
                         f"Queue size: {self.queue.qsize():,}"
                     )
                     cont = False
@@ -159,14 +161,6 @@ class CloudHandler(logging.Handler):
             return
 
         msg = self.format(record)
-        if len(msg) > MAX_LOG_LENGTH:
-            get_logger("prefect.logging").warning(
-                "Received a log message of %d bytes, exceeding the limit of %d. "
-                "The output will be truncated",
-                len(msg),
-                MAX_LOG_LENGTH,
-            )
-            msg = msg[:MAX_LOG_LENGTH]
 
         log = {
             "flow_run_id": context.get("flow_run_id"),
@@ -178,6 +172,18 @@ class CloudHandler(logging.Handler):
             "level": getattr(record, "levelname", None),
             "message": msg,
         }
+
+        # The dictionary size is greater than the size after json.dumps so this will
+        # always overestimate log size which is ideal for avoiding hitting real limits
+        log_size = sys.getsizeof(log)
+        if log_size > MAX_LOG_SIZE:
+            warnings.warn(
+                "Received a log of size %d bytes, exceeding the limit of %d. "
+                "The message will be truncated." % (log_size, MAX_LOG_SIZE)
+            )
+            # Account for 150 bytes of overhead for the non-message fields
+            log["message"] = msg[: MAX_LOG_SIZE - 150]
+
         LOG_MANAGER.enqueue(log)
 
 
