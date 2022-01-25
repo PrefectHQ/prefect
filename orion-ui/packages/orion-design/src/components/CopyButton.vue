@@ -1,9 +1,9 @@
 <template>
   <button class="copy-button" @click="copy">
     <i class="pi pi-file-copy-line pi-sm" />
-    <template v-if="label.length || $slots.default">
+    <template v-if="label == null || $slots.default">
       <span class="copy-button__label">
-        <slot>{{ label }}</slot>
+        <slot>{{ labelOrDefault }}</slot>
       </span>
     </template>
   </button>
@@ -20,7 +20,7 @@ export default defineComponent({
     },
     label: {
       type: String,
-      default: 'Copy'
+      default: null
     },
     toast: {
       type: String,
@@ -29,6 +29,11 @@ export default defineComponent({
     timeout: {
       type: Number,
       default: 5000
+    }
+  },
+  computed: {
+    labelOrDefault() {
+      return this.label ?? 'Copy'
     }
   },
   methods: {
@@ -62,6 +67,7 @@ export default defineComponent({
   text-decoration: none;
   transition: all 50ms;
   user-select: none;
+  font-family: var(--font-primary);
 
   &:hover,
   &:focus {

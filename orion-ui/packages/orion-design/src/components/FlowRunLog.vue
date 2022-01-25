@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts">
-  import CopyButton from '@/components/Global/CopyButton.vue'
+  import CopyButton from './CopyButton.vue'
   import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
   import { formatDateTimeNumeric, formatTimeNumeric } from '..'
