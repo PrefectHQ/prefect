@@ -1,13 +1,13 @@
 <template>
   <div class="main-grid">
-    <Card class="details" shadow="sm">
+    <m-card class="details" shadow="sm">
       <div class="d-flex align-center justify-space-between py-1 px-2">
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
             <span class="d-inline-flex align-center text-truncate">
               <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-              <Tags :tags="tags" class="mr-1 caption" />
+              <m-tags :tags="tags" class="mr-1 caption" />
               <div
                 class="
                   caption
@@ -84,15 +84,15 @@
           {{ duration }}
         </div>
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
+    <m-card class="timeline d-flex flex-column" width="auto" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Timeline</div>
 
           <router-link :to="`/flow-run/${id}/timeline`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -107,15 +107,15 @@
           background-color="blue-5"
         />
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="radar" shadow="sm">
+    <m-card class="radar" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Radar</div>
 
           <router-link :to="`/flow-run/${id}/radar`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -123,7 +123,7 @@
       <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
         <MiniRadarView :id="id" />
       </div>
-    </Card>
+    </m-card>
   </div>
 
   <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />

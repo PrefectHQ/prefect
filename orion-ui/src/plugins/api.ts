@@ -8,6 +8,67 @@ import {
   TaskRunsHistoryFilter
 } from '@prefecthq/orion-design'
 import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
+import {
+  FlowFilter,
+  DeploymentFilter,
+  FlowRunFilter,
+  TaskRunFilter
+} from '@/typings/filters'
+
+interface Endpoint {
+  method: 'POST' | 'GET' | 'DELETE' | 'PUT'
+  url: string
+  interpolate?: boolean
+}
+
+interface CreateFlowRunBody {
+  name?: string
+  flow_id: string
+  deployment_id?: string
+  flow_version?: string
+  parameters?: { [key: string]: any }
+  idempotency_key?: string
+  context?: { [key: string]: any }
+  tags?: string[]
+  parent_task_run_id?: string
+  state?: {
+    type: string
+    name?: string
+    message?: string
+    data?: any
+    state_details?: {
+      flow_run_id?: string
+      task_run_id?: string
+      child_flow_run_id?: string
+      scheduled_time?: string
+      cache_key?: string
+      cache_expiration?: string
+    }
+  }
+}
+
+interface CreateDeploymentFlowRunBody {
+  id: string
+  name?: string
+  parameters?: { [key: string]: any }
+  idempotency_key?: string
+  context?: { [key: string]: any }
+  tags?: string[]
+  state?: {
+    type: string
+    name?: string
+    message?: string
+    data?: any
+    state_details?: {
+      flow_run_id?: string
+      task_run_id?: string
+      child_flow_run_id?: string
+      scheduled_time?: string
+      cache_key?: string
+      cache_expiration?: string
+    }
+  }
+}
 
 export interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT'

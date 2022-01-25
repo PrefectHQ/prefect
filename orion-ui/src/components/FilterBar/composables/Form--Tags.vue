@@ -5,7 +5,7 @@
       {{ title }}
     </div>
 
-    <Input
+    <m-input
       v-model="input"
       @keyup.enter="addTag"
       placeholder="Press enter to add a tag"

@@ -5,7 +5,7 @@
 
       <div class="tag-container nowrap d-flex align-bottom">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-        <Tags :tags="tags" class="caption" />
+        <m-tags :tags="tags" class="caption" />
       </div>
     </div>
 

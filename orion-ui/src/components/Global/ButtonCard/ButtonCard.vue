@@ -1,6 +1,6 @@
 <template>
   <button class="button-card">
-    <Card
+    <m-card
       :shadow="shadow"
       :height="height"
       :width="width"
@@ -10,7 +10,7 @@
       <div class="button-card-content pa-1">
         <slot />
       </div>
-    </Card>
+    </m-card>
   </button>
 </template>
 
