@@ -43,7 +43,7 @@ with Flow("parent-flow") as flow:
 Oftentimes different people are responsible for maintaining different flows; in this case it can be useful
 to construct a Flow-of-Flows that specifies execution order dependencies between various Flows.  
 The `wait_for_flow_run` task allows you to specify that the task should wait until the triggered flow run completes
-and reflect the flow run state as the task state.
+and reflect the flow run state as the task state [Note: executor=LocalDaskExecutor() is needed in the 'parent-flow' for sub flows to run in parallel].
 
 The following example creates the following Flow-of-Flows that runs every weekday:
 
@@ -53,6 +53,7 @@ The following example creates the following Flow-of-Flows that runs every weekda
 from prefect import Flow
 from prefect.schedules import CronSchedule
 from prefect.tasks.prefect import create_flow_run, wait_for_flow_run
+from prefect.executors import LocalDaskExecutor
 
 
 weekday_schedule = CronSchedule(
@@ -60,7 +61,10 @@ weekday_schedule = CronSchedule(
 )
 
 
-with Flow("parent-flow", schedule=weekday_schedule) as flow:
+with Flow("parent-flow",
+          schedule=weekday_schedule,
+          executor=LocalDaskExecutor() # this is needed to parallize flow B and C
+          ) as flow:
     
     # assumes you have registered the following flows in a project named "examples"
     flow_a = create_flow_run(flow_name="A", project_name="examples")
