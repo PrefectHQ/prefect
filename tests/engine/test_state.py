@@ -763,3 +763,5 @@ def test_state_sizeof(mock_super):
     # to account for.
     # Instead call __sizeof__ directly
     assert state.__sizeof__() == 55 + sys.getsizeof(state.result)
+    assert sys.getsizeof(state) > 55 + sys.getsizeof(state.result)
+    assert sys.getsizeof(state) >= state.__sizeof__()
