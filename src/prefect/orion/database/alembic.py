@@ -1,4 +1,3 @@
-from argparse import Namespace
 from pathlib import Path
 
 import prefect
@@ -16,36 +15,32 @@ def alembic_config():
     return alembic_cfg
 
 
-def alembic_upgrade(n: str = None):
+def alembic_upgrade(n: str = None, sql: bool = False):
     """
     Run alembic upgrades on Orion database
 
     Args:
         n: The argument to `alembic upgrade`. If not provided, runs all.
+        sql: run migrations in offline mode and send sql statements to stdout
     """
     # lazy import for performance
     import alembic.command
 
-    alembic.command.upgrade(
-        alembic_config(),
-        f"{n}" if n else "heads",
-    )
+    alembic.command.upgrade(alembic_config(), f"{n}" if n else "heads", sql=sql)
 
 
-def alembic_downgrade(n: str = None):
+def alembic_downgrade(n: str = None, sql: bool = False):
     """
     Run alembic downgrades on Orion database
 
     Args:
         n: The argument to `alembic downgrade`. If not provided, runs all.
+        sql: run migrations in offline mode and send sql statements to stdout
     """
     # lazy import for performance
     import alembic.command
 
-    alembic.command.downgrade(
-        alembic_config(),
-        f"{n}" if n else "base",
-    )
+    alembic.command.downgrade(alembic_config(), f"{n}" if n else "base", sql=sql)
 
 
 def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
