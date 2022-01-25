@@ -82,8 +82,8 @@ import {
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
 import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-import { computed, defineProps, nextTick, ref, watch } from 'vue'
-import CopyButton from './Global/CopyButton.vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { CopyButton } from '@prefecthq/orion-design'
 
 const props = defineProps({
   flowRunId: {
