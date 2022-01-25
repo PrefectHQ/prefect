@@ -4,13 +4,17 @@
 
 Released on January 25, 2022.
 
-### Server
+### Enhancements
 
-- Upgrade Hasura to v2.1.1 which includes support for Apple M1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)
+- Ensure that maximum log payload sizes are not exceeded - [#5316](https://github.com/PrefectHQ/prefect/pull/5316)
 
 ### Fixes
 
 - Fix bug where logout was required before logging in with a new key if the new key does not have access to the old tenant - [#5355](https://github.com/PrefectHQ/prefect/pull/5355)
+
+### Server
+
+- Upgrade Hasura to v2.1.1 which includes support for Apple M1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)
 
 ### Task Library
 
