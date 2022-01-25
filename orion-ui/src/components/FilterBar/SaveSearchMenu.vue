@@ -27,14 +27,10 @@
       <m-input label="Name" placeholder="New Filter" v-model="name" />
 
       <div class="my-4">
-        <m-tag
-          v-for="(filter, i) in filters"
-          :key="i"
-          class="mr--half mb--half"
-        >
+        <Tag v-for="(filter, i) in filters" :key="i" class="mr--half mb--half">
           <i class="pi pi-xs mr--half" :class="filter.icon" />
           {{ filter.label }}
-        </m-tag>
+        </Tag>
       </div>
     </div>
 
