@@ -70,3 +70,13 @@ def setup_logging(settings: Settings) -> None:
     )
 
     logging.config.dictConfig(config)
+
+    # Copy configuration of the 'prefect.extra' logger to the extra loggers
+    prefect_logger = logging.getLogger("prefect.extra")
+
+    for logger_name in settings.logging.get_extra_loggers():
+        logger = logging.getLogger(logger_name)
+        for handler in prefect_logger.handlers:
+            logger.addHandler(handler)
+            if logger.level == logging.NOTSET:
+                logger.setLevel(prefect_logger.level)

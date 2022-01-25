@@ -237,7 +237,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    OrionHandler.flush()
+    OrionHandler.flush(block=True)
 
     return terminal_state
 
