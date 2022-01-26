@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
 
+import httpx
 import pendulum
 import pytest
 from pydantic import BaseModel
@@ -86,6 +87,27 @@ async def test_read_deployment_by_name(orion_client):
     assert lookup.name == "test-deployment"
     assert lookup.flow_data == flow_data
     assert lookup.schedule == schedule
+
+
+async def test_create_then_read_concurrency_limit(orion_client):
+    cl = await orion_client.create_concurrency_limit(
+        tag="client-created", concurrency_limit=12345
+    )
+
+    lookup = await orion_client.read_concurrency_limit_by_tag("client-created")
+    assert lookup.id == cl.id
+    assert lookup.concurrency_limit == 12345
+
+
+async def test_deleting_concurrency_limits(orion_client):
+    cl = await orion_client.create_concurrency_limit(
+        tag="dead-limit-walking", concurrency_limit=10
+    )
+
+    assert await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
+    await orion_client.delete_concurrency_limit_by_tag("dead-limit-walking")
+    with pytest.raises(httpx.HTTPStatusError, match="404"):
+        await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
 
 
 async def test_create_then_read_flow_run(orion_client):
