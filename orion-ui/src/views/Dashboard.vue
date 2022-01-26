@@ -119,33 +119,26 @@ import {
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
-import { ResultsListTabs } from '@prefecthq/orion-design'
-
-import {
-  Api,
-  Endpoints,
-  Query,
-  FlowsFilter,
+import type {
+  UnionFilters,
   FlowRunsHistoryFilter,
   DeploymentsFilter,
-  FlowRunsFilter,
-  TaskRunsFilter,
-  BaseFilter
-} from '@/plugins/api'
+  ResultsListTab
+} from '@prefecthq/orion-design'
+
+import { Api, Endpoints, Query } from '@/plugins/api'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
 import router from '@/router'
-import { ResultsListTab } from '@prefecthq/orion-design'
+import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
 
 const store = useStore()
 const route = useRoute()
 
 const resultsTab: Ref<string> = ref('flows')
 
-const filter = computed<
-  FlowsFilter | FlowRunsFilter | TaskRunsFilter | DeploymentsFilter
->(() => {
-  return { ...store.getters.composedFilter }
+const filter = computed<UnionFilters>(() => {
+  return buildFilter(store.getters.globalFilter)
 })
 
 const deploymentFilterOff = ref(false)
@@ -171,8 +164,8 @@ const end = computed<Date>(() => {
 const countsFilter = (
   state_name: string,
   state_type: string
-): ComputedRef<BaseFilter> => {
-  return computed<BaseFilter>((): BaseFilter => {
+): ComputedRef<UnionFilters> => {
+  return computed<UnionFilters>((): UnionFilters => {
     let start_time: { after_?: string; before_?: string } | undefined =
       undefined
 
@@ -182,18 +175,19 @@ const countsFilter = (
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
 
-    const composedFilter = store.getters.composedFilter
+    const countsFilter = buildFilter(store.getters.globalFilter)
 
     const stateType = state_name == 'Failed'
-    composedFilter.flow_runs.state = {
-      [stateType ? 'type' : 'name']: {
-        any_: [stateType ? state_type : state_name]
+    countsFilter.flow_runs = {
+      ...countsFilter.flow_runs,
+      state: {
+        [stateType ? 'type' : 'name']: {
+          any_: [stateType ? state_type : state_name]
+        }
       }
     }
 
-    return {
-      ...composedFilter
-    }
+    return countsFilter
   })
 }
 
@@ -304,7 +298,7 @@ const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval.value,
-    ...store.getters.composedFilter
+    ...buildFilter(store.getters.globalFilter)
   }
 })
 
@@ -312,7 +306,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
     history_interval_seconds: interval.value * 2,
-    ...store.getters.composedFilter
+    ...buildFilter(store.getters.globalFilter)
   }
 })
 
