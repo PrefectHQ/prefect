@@ -22,7 +22,10 @@ setup(
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    package_data={"": ["*/alembic.ini"]},
+    package_data={"": ["src/orion/database/alembic.ini",
+                       "src/orion/database/migrations/*",
+                       "src/orion/database/migrations/versions/*",
+                       "src/orion/database/migrations/versions/*/*"]},
     include_package_data=True,
     # CLI
     entry_points={
