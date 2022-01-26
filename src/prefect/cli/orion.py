@@ -21,7 +21,10 @@ from prefect.orion.database.alembic_commands import (
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
 
-orion_app = typer.Typer(name="orion")
+orion_app = typer.Typer(
+    name="orion",
+    help="Commands for interacting with backend services.",
+)
 database_app = typer.Typer(name="database")
 orion_app.add_typer(database_app)
 app.add_typer(orion_app)
