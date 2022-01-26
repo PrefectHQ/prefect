@@ -8,10 +8,11 @@ export default defineConfig(({ mode }: { mode: string }) => {
     return ['components', 'models', 'services', 'utilities'].includes(mode)
   }
 
-  const lib = {
-    entry: resolve(__dirname, isFolder(mode) ? `src/${mode}/index.ts` : 'src/index.ts'),
-    name: isFolder(mode) ? `Orion Design ${mode}` : 'Orion Design',
-    fileName: (format) => isFolder(mode) ? `orion-design-${mode}.${format}.js` : `orion-design.${format}.js`,
+  const entry = resolve(__dirname, isFolder(mode) ? `src/${mode}/index.ts` : 'src/index.ts')
+  const name = isFolder(mode) ? `Orion Design ${mode}` : 'Orion Design'
+
+  function fileName(format: string): string {
+    return isFolder(mode) ? `orion-design-${mode}.${format}.js` : `orion-design.${format}.js`
   }
 
   const options: UserConfig = {
@@ -26,7 +27,11 @@ export default defineConfig(({ mode }: { mode: string }) => {
     plugins: [vue()],
     build: {
       emptyOutDir: false,
-      lib,
+      lib: {
+        entry,
+        name,
+        fileName,
+      },
       rollupOptions: {
         external: ['vue'],
         output: {
