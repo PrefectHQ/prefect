@@ -38,7 +38,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { TaskRunsFilter, FlowsFilter } from '@prefecthq/orion-design'
+import type { UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
@@ -69,7 +69,7 @@ const end = computed(() => {
   return new Date(props.item.end_time)
 })
 
-const flow_runs_filter_body: TaskRunsFilter = {
+const flow_runs_filter_body: UnionFilters = {
   sort: 'START_TIME_DESC',
   flow_runs: {
     id: {
@@ -83,7 +83,7 @@ const flow_runs_filter_body: TaskRunsFilter = {
   }
 }
 
-const flow_filter_body: FlowsFilter = {
+const flow_filter_body: FlowRunsFilter = {
   flow_runs: {
     id: {
       any_: [props.item.id]
