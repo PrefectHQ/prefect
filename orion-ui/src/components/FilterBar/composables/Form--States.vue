@@ -12,7 +12,7 @@
       Select All
     </a>
 
-    <Checkbox
+    <m-checkbox
       v-for="state in availableStates"
       :key="state.type"
       :modelValue="!!states.find((s) => s.type == state.type)"
@@ -20,7 +20,7 @@
       @change="toggleState(state)"
     >
       <span>{{ state.name }}</span>
-    </Checkbox>
+    </m-checkbox>
   </div>
 </template>
 

@@ -7,7 +7,7 @@ export function formatDateTimeNumeric(date: Date | string): string {
   return format(parsed, 'yyyy/MM/dd hh:mm:ss a')
 }
 
-export function addTimeUnitValue(
+export function subtractTimeUnitValue(
   unit: TimeUnit,
   value: number,
   date: Date = new Date()
@@ -29,7 +29,7 @@ export function addTimeUnitValue(
   return date
 }
 
-export function subtractTimeUnitValue(
+export function addTimeUnitValue(
   unit: TimeUnit,
   value: number,
   date: Date = new Date()

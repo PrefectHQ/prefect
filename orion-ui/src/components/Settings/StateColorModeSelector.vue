@@ -1,5 +1,5 @@
 <template>
-  <SimpleSelect v-model="colorMode" :options="colorModes" search>
+  <m-simple-select v-model="colorMode" :options="colorModes" search>
     <template v-slot:selected-option-label="{ label }">
       <div class="theme-option d-flex align-center">
         <i class="pi pi-palette-line mr-1" />
@@ -27,7 +27,7 @@
         </div>
       </div>
     </template>
-  </SimpleSelect>
+  </m-simple-select>
 </template>
 
 <script lang="ts">

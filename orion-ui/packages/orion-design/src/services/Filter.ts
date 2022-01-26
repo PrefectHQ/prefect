@@ -4,20 +4,22 @@ import { isNonEmptyArray } from '@/utilities/arrays'
 import { isSubState } from '@/utilities/states'
 import { calculateEnd, calculateStart, isValidTimeFrame } from '@/utilities/timeFrame'
 
+type StringKeys<T extends Filter> = Extract<keyof T, string>
 interface Sortable<T extends Filter> {
-  sort?: [keyof T],
+  sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
 }
 
-export type DeploymentsFilter = { deployments?: DeploymentFilter } & Sortable<DeploymentFilter>
-export type FlowsFilter = { flows?: FlowFilter } & Sortable<FlowFilter>
-export type TaskRunsFilter = { task_runs?: TaskRunFilter } & Sortable<TaskRunFilter>
-export type FlowRunsFilter = { flow_runs?: FlowRunFilter } & Sortable<FlowRunFilter>
+export type DeploymentsFilter = { deployments?: DeploymentFilter }
+export type FlowsFilter = { flows?: FlowFilter }
+export type TaskRunsFilter = { task_runs?: TaskRunFilter }
+export type FlowRunsFilter = { flow_runs?: FlowRunFilter }
 
 export type UnionFilters =
   & FlowsFilter
   & DeploymentsFilter
   & FlowRunsFilter
   & TaskRunsFilter
+  & Sortable<FlowFilter & DeploymentFilter & TaskRunFilter & FlowRunFilter>
 
 interface Historical {
   history_start: string,
@@ -48,8 +50,8 @@ function buildBaseFilter(baseFilter: BaseFilter): Filter {
 }
 
 function buildTimeFrameFilter(timeFrame: RunTimeFrame | undefined): TimeFrameFilter | undefined {
-  if (timeFrame === undefined) {
-    return timeFrame
+  if (!timeFrame || !isValidTimeFrame(timeFrame.from) && !isValidTimeFrame(timeFrame.from)) {
+    return undefined
   }
 
   let filter: TimeFrameFilter = {}
@@ -66,8 +68,8 @@ function buildTimeFrameFilter(timeFrame: RunTimeFrame | undefined): TimeFrameFil
 }
 
 function buildStateFilter(states: RunState[] | undefined): StateFilter | undefined {
-  if (states === undefined || !isNonEmptyArray(states)) {
-    return states
+  if (!states || !isNonEmptyArray(states)) {
+    return undefined
   }
 
   let filter: StateFilter = {}
@@ -108,8 +110,15 @@ function buildFlowFilter(globalFilter: GlobalFilter): FlowFilter {
 function buildFlowRunFilter(globalFilter: GlobalFilter): FlowRunFilter {
   const filter: FlowRunFilter = buildBaseFilter(globalFilter.flow_runs)
 
-  filter.expected_start_time = buildTimeFrameFilter(globalFilter.flow_runs.timeframe)
-  filter.state = buildStateFilter(globalFilter.flow_runs.states)
+  const startTime = buildTimeFrameFilter(globalFilter.flow_runs.timeframe)
+  if (startTime) {
+    filter.expected_start_time = startTime
+  }
+
+  const state = buildStateFilter(globalFilter.flow_runs.states)
+  if (state) {
+    filter.state = state
+  }
 
   return filter
 }
@@ -117,8 +126,15 @@ function buildFlowRunFilter(globalFilter: GlobalFilter): FlowRunFilter {
 function buildTaskRunFilter(globalFilter: GlobalFilter): TaskRunFilter {
   const filter: TaskRunFilter = buildBaseFilter(globalFilter.task_runs)
 
-  filter.start_time = buildTimeFrameFilter(globalFilter.task_runs.timeframe)
-  filter.state = buildStateFilter(globalFilter.task_runs.states)
+  const startTime = buildTimeFrameFilter(globalFilter.task_runs.timeframe)
+  if (startTime) {
+    filter.start_time = startTime
+  }
+
+  const state = buildStateFilter(globalFilter.task_runs.states)
+  if (state) {
+    filter.state = state
+  }
 
   return filter
 }

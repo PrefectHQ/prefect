@@ -1,17 +1,16 @@
 from contextvars import ContextVar
-from uuid import uuid4
 
 import pytest
 from pendulum.datetime import DateTime
 
 from prefect import flow, task
-from prefect.client import OrionClient
 from prefect.context import (
     ContextModel,
     FlowRunContext,
     TaskRunContext,
     get_run_context,
 )
+from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
 
 
@@ -87,6 +86,9 @@ async def test_get_run_context(orion_client):
     task_run = await orion_client.create_task_run(bar, flow_run.id, dynamic_key="")
 
     with pytest.raises(RuntimeError):
+        get_run_context()
+
+    with pytest.raises(MissingContextError):
         get_run_context()
 
     with FlowRunContext(
