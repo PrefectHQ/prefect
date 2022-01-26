@@ -100,7 +100,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
-import type { TaskRunsFilter } from '@prefecthq/orion-design'
+import type { UnionFilters } from '@prefecthq/orion-design'
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { RadarNode } from '@/typings/radar'
 import { State, FlowRun } from '@/typings/objects'
@@ -118,7 +118,7 @@ const flowRunId = computed<string>(() => {
   return props.node.data.state.state_details.child_flow_run_id
 })
 
-const task_runs_count_filter_body: TaskRunsFilter = {
+const task_runs_count_filter_body: UnionFilters = {
   flow_runs: {
     id: {
       any_: [flowRunId.value]
@@ -131,7 +131,7 @@ const task_runs_count_filter_body: TaskRunsFilter = {
   }
 }
 
-const flow_runs_count_filter_body: TaskRunsFilter = {
+const flow_runs_count_filter_body: UnionFilters = {
   flow_runs: {
     id: {
       any_: [flowRunId.value]
