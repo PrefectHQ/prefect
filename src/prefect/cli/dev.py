@@ -22,7 +22,7 @@ Commands for development.
 
 Note that many of these commands require extra dependencies (such as npm and MkDocs) to function properly.
 """
-dev_app = typer.Typer(name="dev", short_help="Commands for development", help=DEV_HELP)
+dev_app = typer.Typer(name="dev", short_help="Commands for development.", help=DEV_HELP)
 app.add_typer(dev_app)
 
 
