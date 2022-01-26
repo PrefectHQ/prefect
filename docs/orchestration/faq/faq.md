@@ -6,7 +6,7 @@ The questions listed here are specific to using Prefect to orchestrate flows. Th
 
 ### How do I set a task to be an upstream task?
 
-When there is no data dependency between tasks, upstream tasks can be set in two ways.
+When there is no data dependency between tasks, upstream tasks can be set in two ways. They are equivalent, so choose what works best for your coding style.
 
 Method 1 (`upstream_tasks` argument):
 ```python
