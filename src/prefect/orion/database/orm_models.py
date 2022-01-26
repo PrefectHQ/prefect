@@ -696,7 +696,7 @@ class ORMLog:
 @declarative_mixin
 class ORMConcurrencyLimit:
     tag = sa.Column(sa.String, nullable=False, index=True, unique=True)
-    concurrency_limit = sa.Column(sa.SmallInteger, nullable=False)
+    concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
 
