@@ -25,7 +25,9 @@ orion_app = typer.Typer(
     name="orion",
     help="Commands for interacting with backend services.",
 )
-database_app = typer.Typer(name="database")
+database_app = typer.Typer(
+    name="database", help="Commands for interacting with the database"
+)
 orion_app.add_typer(database_app)
 app.add_typer(orion_app)
 
@@ -138,8 +140,15 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
 @sync_compatible
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
-    n: str = typer.Option(None, "-n", help="The argument passed to alembic upgrade"),
-    sql: bool = False,
+    revision: str = typer.Option(
+        "head",
+        "-r",
+        help="The revision to pass to `alembic upgrade`. If not provided, runs all migrations",
+    ),
+    sql: bool = typer.Option(
+        False,
+        help="Flag to run migrations in 'offline mode'. Will emit sql statements to stdout without applying them",
+    ),
 ):
     """Upgrade the Orion database"""
     if not yes:
@@ -148,7 +157,7 @@ async def upgrade(
             exit_with_error("Database upgrade aborted")
 
     console.print("Running upgrade migrations ...")
-    await run_sync_in_worker_thread(alembic_upgrade, n=n, sql=sql)
+    await run_sync_in_worker_thread(alembic_upgrade, revision=revision, sql=sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database upgraded!")
 
@@ -157,8 +166,15 @@ async def upgrade(
 @sync_compatible
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
-    n: str = typer.Option(None, "-n", help="The argument passed to alembic upgrade"),
-    sql: bool = False,
+    revision: str = typer.Option(
+        "base",
+        "-r",
+        help="The revision to pass to `alembic downgrade`. If not provided, runs all migrations",
+    ),
+    sql: bool = typer.Option(
+        False,
+        help="Flag to run migrations in 'offline mode'. Will emit sql statements to stdout without applying them",
+    ),
 ):
     """Downgrade the Orion database"""
     if not yes:
@@ -169,7 +185,7 @@ async def downgrade(
             exit_with_error("Database downgrade aborted")
 
     console.print("Running downgrade migrations ...")
-    await run_sync_in_worker_thread(alembic_downgrade, n=n, sql=sql)
+    await run_sync_in_worker_thread(alembic_downgrade, revision=revision, sql=sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database downgraded!")
 
