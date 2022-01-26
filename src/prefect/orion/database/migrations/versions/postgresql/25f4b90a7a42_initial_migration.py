@@ -705,8 +705,75 @@ def upgrade():
         ondelete="SET NULL",
     )
 
+    # functional ordered indexes are skipped by auto generation and need to be created manually
+    op.create_index(
+        "ix_flow_run__end_time_desc",
+        "flow_run",
+        [sa.text("end_time DESC")],
+        unique=False,
+    )
+    op.create_index(
+        "ix_flow_run__expected_start_time_desc",
+        "flow_run",
+        [sa.text("expected_start_time DESC")],
+        unique=False,
+    )
+    op.create_index(
+        "ix_flow_run__next_scheduled_start_time_asc",
+        "flow_run",
+        [sa.text("next_scheduled_start_time ASC")],
+        unique=False,
+    )
+    op.create_index(
+        "uq_flow_run_state__flow_run_id_timestamp_desc",
+        "flow_run_state",
+        ["flow_run_id", sa.text("timestamp DESC")],
+        unique=True,
+    )
+    op.create_index(
+        "ix_task_run__expected_start_time_desc",
+        "task_run",
+        [sa.text("expected_start_time DESC")],
+        unique=False,
+    )
+    op.create_index(
+        "ix_task_run__next_scheduled_start_time_asc",
+        "task_run",
+        [sa.text("next_scheduled_start_time ASC")],
+        unique=False,
+    )
+    op.create_index(
+        "ix_task_run__end_time_desc",
+        "task_run",
+        [sa.text("end_time DESC")],
+        unique=False,
+    )
+    op.create_index(
+        "uq_task_run_state__task_run_id_timestamp_desc",
+        "task_run_state",
+        ["task_run_id", sa.text("timestamp DESC")],
+        unique=True,
+    )
+    op.create_index(
+        "ix_task_run_state_cache__cache_key_created_desc",
+        "task_run_state_cache",
+        ["cache_key", sa.text("created DESC")],
+        unique=False,
+    )
+
 
 def downgrade():
+    # functional ordered indexes are skipped by auto generation and need to be dropped manually
+    op.drop_index('ix_task_run_state_cache__cache_key_created_desc', table_name='task_run_state_cache')
+    op.drop_index('uq_task_run_state__task_run_id_timestamp_desc', table_name='task_run_state')
+    op.drop_index('ix_task_run__next_scheduled_start_time_asc', table_name='task_run')
+    op.drop_index('ix_task_run__expected_start_time_desc', table_name='task_run')
+    op.drop_index('ix_task_run__end_time_desc', table_name='task_run')
+    op.drop_index('uq_flow_run_state__flow_run_id_timestamp_desc', table_name='flow_run_state')
+    op.drop_index('ix_flow_run__next_scheduled_start_time_asc', table_name='flow_run')
+    op.drop_index('ix_flow_run__expected_start_time_desc', table_name='flow_run')
+    op.drop_index('ix_flow_run__end_time_desc', table_name='flow_run')
+
     # Foreign Keys do not automatically get created when `use_alter` is set, need to drop manually created keys
     op.drop_constraint(
         constraint_name="fk_flow_run__parent_task_run_id__task_run",
