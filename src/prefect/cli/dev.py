@@ -17,7 +17,12 @@ from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
 from prefect.cli.orion import open_process_and_stream_output
 
-dev_app = typer.Typer(name="dev")
+DEV_HELP = """
+Commands for development.
+
+Note that many of these commands require extra dependencies (such as npm and MkDocs) to function properly.
+"""
+dev_app = typer.Typer(name="dev", short_help="Commands for development", help=DEV_HELP)
 app.add_typer(dev_app)
 
 
@@ -46,7 +51,16 @@ def build_docs(
     console.print(f"OpenAPI schema written to {schema_path}")
 
 
-@dev_app.command()
+BUILD_UI_HELP = f"""
+Installs dependencies and builds UI locally.
+
+The built UI will be located at {prefect.__root_path__ / "orion-ui"}
+
+Requires npm.
+"""
+
+
+@dev_app.command(help=BUILD_UI_HELP)
 def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
@@ -72,6 +86,9 @@ def build_ui():
 @dev_app.command()
 @sync_compatible
 async def ui():
+    """
+    Starts a hot-reloading dev UI.
+    """
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             console.print("Installing npm packages...")
@@ -85,7 +102,7 @@ async def ui():
 @sync_compatible
 async def start(agent: bool = True):
     """
-    Starts a dev server for the UI with hot module replacement and the Orion Server (without the static UI).
+    Starts a hot-reloading dev server and UI.
 
     Args:
         agent: Whether or not the Orion Server should spin up an agent
