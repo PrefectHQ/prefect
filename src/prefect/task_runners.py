@@ -615,6 +615,8 @@ class RayTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
+        # Ray does not support the submission of async functions and we must create a
+        # sync entrypoint
         self._ray_refs[task_run.id] = ray.remote(sync_compatible(run_fn)).remote(
             **run_kwargs
         )
@@ -635,6 +637,8 @@ class RayTaskRunner(BaseTaskRunner):
 
         ref = self._get_ray_ref(prefect_future)
         with anyio.move_on_after(timeout):
+            # We await the reference directly instead of using `ray.get` so we can
+            # avoid blocking the event loop
             return await ref
         return None
 
