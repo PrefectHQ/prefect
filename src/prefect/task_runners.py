@@ -437,7 +437,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     """
     A concurrent task runner that allows tasks to switch when blocking on IO.
     Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
-    
+
     Examples:
 
         Using a thread for concurrency
@@ -482,18 +482,18 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             task_run=task_run, task_runner=self, asynchronous=asynchronous
         )
 
-    async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
-        """
-        Simple utility to store the orchestration result in memory on completion
-        """
-        self._results[task_run_id] = await run_fn(**run_kwargs)
-
     async def wait(
         self,
         prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
         return await self._get_run_result(prefect_future.task_run.id, timeout)
+
+    async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
+        """
+        Simple utility to store the orchestration result in memory on completion
+        """
+        self._results[task_run_id] = await run_fn(**run_kwargs)
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
         """
@@ -528,7 +528,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     def __getstate__(self):
         """
-        Allow the `ParallelTaskRunner` to be serialized by dropping the task group
+        Allow the `ConcurrentTaskRunner` to be serialized by dropping the task group
         """
         data = self.__dict__.copy()
         data.update({k: None for k in {"_task_group"}})
