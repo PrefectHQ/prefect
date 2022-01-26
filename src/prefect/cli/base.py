@@ -11,7 +11,7 @@ console = rich.console.Console(highlight=False)
 
 @app.command()
 def version():
-    """Get the current Prefect version"""
+    """Get the current Prefect version."""
     import prefect
 
     console.print(prefect.__version__)
