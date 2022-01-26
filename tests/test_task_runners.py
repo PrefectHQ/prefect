@@ -1,5 +1,6 @@
 import sys
 import time
+import subprocess
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -41,9 +42,13 @@ def ray_task_runner_with_existing_cluster():
     """
     Generate a dask task runner that's connected to a local cluster
     """
-    ray.init()
-    yield RayTaskRunner(address="auto")
-    ray.shutdown()
+
+    subprocess.check_call(["ray", "start", "--head"])
+
+    try:
+        yield RayTaskRunner(address="ray://127.0.0.1:10001")
+    finally:
+        subprocess.run(["ray", "stop"])
 
 
 @contextmanager
