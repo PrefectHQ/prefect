@@ -1,9 +1,10 @@
 import datetime
-import os
 
+from prefect.orion.database.alembic_commands import alembic_upgrade, alembic_downgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.orion.database.orm_models import BaseORMConfiguration
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 class DBSingleton(type):
@@ -47,11 +48,11 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-        await self.orm.run_migration_upgrade()
+        await run_sync_in_worker_thread(alembic_upgrade)
 
     async def drop_db(self):
         """Drop the database"""
-        await self.orm.run_migration_downgrade()
+        await run_sync_in_worker_thread(alembic_downgrade)
 
     async def engine(
         self,

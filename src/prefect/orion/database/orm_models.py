@@ -1,5 +1,4 @@
 import datetime
-import os
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -12,11 +11,6 @@ import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, declarative_mixin, as_declarative
-from prefect.orion.database.alembic import (
-    alembic_upgrade,
-    alembic_downgrade,
-    alembic_revision,
-)
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
     UUID,
@@ -29,8 +23,6 @@ from prefect.orion.utilities.database import (
     interval_add,
     date_diff,
 )
-
-from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 class ORMBase:
@@ -875,24 +867,6 @@ class BaseORMConfiguration(ABC):
         """Directory containing migrations"""
         ...
 
-    async def run_migration_upgrade(self, n: str = None, sql: bool = False):
-        """Run database migration upgrade"""
-        await run_sync_in_worker_thread(alembic_upgrade, n=n, sql=sql)
-
-    async def run_migration_downgrade(self, n: str = None, sql: bool = False):
-        """Run database migration downgrade"""
-        await run_sync_in_worker_thread(alembic_downgrade, n=n, sql=sql)
-
-    async def run_migration_revision(
-        self, message: str = None, autogenerate: bool = False
-    ):
-        """Create a migration revision"""
-        await run_sync_in_worker_thread(
-            alembic_revision,
-            message=message,
-            autogenerate=autogenerate,
-        )
-
     @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
@@ -931,7 +905,9 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
         """Directory containing migrations"""
         return (
             Path(prefect.orion.database.__file__).parent
-            / "migrations/versions/postgresql"
+            / "migrations"
+            / "versions"
+            / "postgresql"
         )
 
 
@@ -942,5 +918,8 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
         return (
-            Path(prefect.orion.database.__file__).parent / "migrations/versions/sqlite"
+            Path(prefect.orion.database.__file__).parent
+            / "migrations"
+            / "versions"
+            / "sqlite"
         )

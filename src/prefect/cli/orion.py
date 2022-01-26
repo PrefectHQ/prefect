@@ -13,9 +13,13 @@ from anyio.streams.text import TextReceiveStream
 
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.orion.database.alembic_commands import (
+    alembic_downgrade,
+    alembic_upgrade,
+    alembic_revision,
+)
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.utilities.database import get_dialect
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
 
 orion_app = typer.Typer(name="orion")
 database_app = typer.Typer(name="database")
@@ -140,10 +144,8 @@ async def upgrade(
         if not confirm:
             exit_with_error("Database upgrade aborted")
 
-    db = provide_database_interface()
-
     console.print("Running upgrade migrations ...")
-    await db.orm.run_migration_upgrade(n, sql)
+    await run_sync_in_worker_thread(alembic_upgrade, n=n, sql=sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database upgraded!")
 
@@ -163,10 +165,8 @@ async def downgrade(
         if not confirm:
             exit_with_error("Database downgrade aborted")
 
-    db = provide_database_interface()
-
     console.print("Running downgrade migrations ...")
-    await db.orm.run_migration_downgrade(n, sql)
+    await run_sync_in_worker_thread(alembic_downgrade, n=n, sql=sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database downgraded!")
 
@@ -176,8 +176,10 @@ async def downgrade(
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
-    db = provide_database_interface()
-
     console.print("Running migration file creation ...")
-    await db.orm.run_migration_revision(message=message, autogenerate=autogenerate)
+    await run_sync_in_worker_thread(
+        alembic_revision,
+        message=message,
+        autogenerate=autogenerate,
+    )
     exit_with_success(f"Creating new migration file succeeded!")
