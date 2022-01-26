@@ -116,9 +116,9 @@ async def start(
     console.print("Orion stopped!")
 
 
-@orion_app.command()
+@database_app.command()
 @sync_compatible
-async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
+async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
     db = provide_database_interface()
     engine = await db.engine()
