@@ -223,11 +223,24 @@ def task_1():
 def task_2():
     pass
 
+@task
+def task_3():
+    pass
+    
+@task
+def task_4():
+    pass
+   
+    
 @flow
 def my_flow():
-    x = task_1()
-    # task_2 will wait for task_1 to complete
-    y = task_2(wait_for=[x])
+    a = task_1()
+    b  = task_2()
+    # task_3 will wait for task_1 to complete and task_2 to complete
+    c = task_3(wait_for=[a, b])
+    # if waiting for one task it must still be in a list
+    # task_4 will wait for task_3 to complete
+    d = task_4(wait_for=[c])
 ```
 
 ## Async tasks
