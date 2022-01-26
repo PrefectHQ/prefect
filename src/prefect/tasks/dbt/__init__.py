@@ -8,3 +8,5 @@ except ImportError as err:
     raise ImportError(
         "Using `prefect.tasks.dbt` requires dbt to be installed."
     ) from err
+
+__all__ = ["DbtShellTask", "DbtCloudRunJob"]

@@ -1,0 +1,2 @@
+enhancement:
+  - "Switched to a futures based implementation for LocalDaskExecutor - [#5046](https://github.com/PrefectHQ/prefect/issues/5046)"
