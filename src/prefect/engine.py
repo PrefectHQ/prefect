@@ -622,9 +622,11 @@ async def orchestrate_task_run(
                         f"Beginning execution...", extra={"state_message": True}
                     )
 
-                result = task.fn(*args, **kwargs)
                 if task.isasync:
-                    result = await result
+                    result = await task.fn(*args, **kwargs)
+                else:
+                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+
         except Exception as exc:
             logger.error(
                 f"Encountered exception during execution:",
