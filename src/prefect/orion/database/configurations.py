@@ -1,14 +1,11 @@
 import sqlalchemy as sa
 import sqlite3
-import os
-from asyncio import current_task, get_event_loop, AbstractEventLoop
-from sqlalchemy.orm import sessionmaker
+from asyncio import get_event_loop
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
-    async_scoped_session,
 )
 
-from typing import Hashable, Tuple, Dict, AsyncGenerator
+from typing import Hashable, Tuple
 from abc import ABC, abstractmethod
 from sqlalchemy.ext.asyncio import create_async_engine
 from functools import partial
