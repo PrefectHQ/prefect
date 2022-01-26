@@ -12,7 +12,7 @@ from prefect.orion.orchestration.core_policy import (
     PreventTransitionsFromTerminalStates,
     RenameReruns,
     RetryPotentialFailures,
-    ReturnTaskConcurrencySlots,
+    ReleaseTaskConcurrencySlots,
     SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
@@ -450,7 +450,7 @@ class TestTaskConcurrencyLimits:
         initialize_orchestration,
     ):
         await self.create_concurrency_limit(session, "some tag", 1)
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -537,7 +537,7 @@ class TestTaskConcurrencyLimits:
     ):
         # concurrency limits of 0 will deadlock without a short-circuit
         await self.create_concurrency_limit(session, "the worst limit", 0)
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
 
         ctx = await initialize_orchestration(
@@ -584,7 +584,7 @@ class TestTaskConcurrencyLimits:
 
         concurrency_policy = [
             SecureTaskConcurrencySlots,
-            ReturnTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
             StateMutatingRule,
         ]
 
@@ -613,7 +613,7 @@ class TestTaskConcurrencyLimits:
 
         concurrency_policy = [
             SecureTaskConcurrencySlots,
-            ReturnTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
         ]
 
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
@@ -658,7 +658,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "primary tag", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -756,7 +756,7 @@ class TestTaskConcurrencyLimits:
         await self.create_concurrency_limit(session, "big limit", 2)
         await self.create_concurrency_limit(session, "small limit", 1)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
 
         task1_running_ctx = await initialize_orchestration(
@@ -820,7 +820,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "changing limit", 1)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
 
         task1_running_ctx = await initialize_orchestration(
@@ -860,7 +860,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "shrinking limit", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
 
         task1_running_ctx = await initialize_orchestration(
@@ -901,7 +901,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "shrinking limit", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
 
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)

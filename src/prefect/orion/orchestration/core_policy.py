@@ -50,7 +50,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            ReturnTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
         ]
 
 
@@ -135,7 +135,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             cl.active_slots = list(active_slots)
 
 
-class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
+class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
     """
     Releases any concurrency slots held by a run upon exiting a Running state.
     """
