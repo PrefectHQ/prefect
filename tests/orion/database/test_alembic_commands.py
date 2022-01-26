@@ -15,7 +15,7 @@ class TestAlembicCommands:
         alembic_upgrade()
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
-        assert args[1] == "heads"
+        assert args[1] == "head"
         assert kwargs["sql"] is False
 
     @mock.patch("alembic.command.upgrade")
