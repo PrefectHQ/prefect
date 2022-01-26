@@ -176,13 +176,20 @@ import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
 import FormDateTime from './composables/Form--DateTime.vue'
 import media from '@/utilities/media'
+import { GlobalFilter, RunTimeFrame } from '@/typings/global'
 
 const emit = defineEmits(['close'])
 const store = useStore()
 
 const gf = readonly(store.state.filter)
 
-const defaultFilters = {
+const defaultTimeFrame: RunTimeFrame = {
+  dynamic: false,
+  from: { unit: 'minutes', value: 60, timestamp: undefined },
+  to: { unit: 'minutes', value: 60, timestamp: undefined }
+}
+
+const defaultFilters: GlobalFilter = {
   flows: {
     ids: [...(gf.flows.ids || [])],
     names: [...(gf.flows.names || [])],
@@ -198,11 +205,7 @@ const defaultFilters = {
     tags: [...(gf.flow_runs.tags || [])],
     states: [...(gf.flow_runs.states || [])],
     timeframe: {
-      ...(gf.flow_runs.timeframe || {
-        dynamic: false,
-        from: { unit: 'minutes', value: 60, timestamp: null },
-        to: { unit: 'minutes', value: 60, timestamp: null }
-      })
+      ...(gf.flow_runs.timeframe || defaultTimeFrame)
     }
   },
   task_runs: {
@@ -210,11 +213,7 @@ const defaultFilters = {
     tags: [...(gf.task_runs.tags || [])],
     states: [...(gf.task_runs.states || [])],
     timeframe: {
-      ...(gf.task_runs.timeframe || {
-        dynamic: false,
-        from: { unit: 'minutes', value: 60, timestamp: null },
-        to: { unit: 'minutes', value: 60, timestamp: null }
-      })
+      ...(gf.task_runs.timeframe || defaultTimeFrame)
     }
   }
 }
