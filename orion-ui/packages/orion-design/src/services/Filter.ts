@@ -4,8 +4,9 @@ import { isNonEmptyArray } from '@/utilities/arrays'
 import { isSubState } from '@/utilities/states'
 import { calculateEnd, calculateStart, isValidTimeFrame } from '@/utilities/timeFrame'
 
+type StringKeys<T extends Filter> = Extract<keyof T, string>
 interface Sortable<T extends Filter> {
-  sort?: [keyof T],
+  sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
 }
 
 export type DeploymentsFilter = { deployments?: DeploymentFilter } & Sortable<DeploymentFilter>
