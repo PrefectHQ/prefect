@@ -8,6 +8,7 @@ extra_css:
     - stylesheets/rest_ref.css
     - stylesheets/syntax_highlights.css
     - stylesheets/termynal.css
+    - stylesheets/extra.css
 extra_javascript:
     - js/termynal.js
     - js/custom.js
@@ -81,6 +82,7 @@ nav:
         - Flow Runners: concepts/flow-runners.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
+        - Logging: concepts/logs.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
