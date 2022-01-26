@@ -677,22 +677,29 @@ class RayTaskRunner(BaseTaskRunner):
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
-        # If `address` this returns a `ClientContext` otherwise it returns a `dict`
+        # When connecting to an out-of-process cluster, this returns a `ClientContext`
+        # otherwise it returns a `dict`
         context_or_metadata = self._ray.init(*init_args, **self.init_kwargs)
+        if isinstance(context_or_metadata, dict):
+            metadata = context_or_metadata
+            context = None
+        else:
+            metadata = None  # TODO: Some of this may be retrievable from the client ctx
+            context = context_or_metadata
 
-        # Wait for all futures before tearing down the client / cluster on exit
+        # Wait for all futures exiting
         exit_stack.push_async_callback(self._wait_for_all_futures)
 
-        if self.address:
-            exit_stack.push(context_or_metadata)
-
+        # Shutdown differs depending on the connection type
+        if context:
+            exit_stack.push(context)
         else:
             exit_stack.push_async_callback(self._shutdown_ray)
 
-            if context_or_metadata.get("webui_url"):
-                self.logger.info(
-                    f"The Ray UI is available at {context_or_metadata['webui_url']}",
-                )
+        if metadata and metadata.get("webui_url"):
+            self.logger.info(
+                f"The Ray UI is available at {context_or_metadata['webui_url']}",
+            )
 
     async def _shutdown_ray(self):
         self._ray.shutdown()

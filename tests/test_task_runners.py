@@ -8,9 +8,11 @@ from uuid import uuid4
 import anyio
 import cloudpickle
 import distributed
+import ray.cluster_utils
 import pytest
 import ray
 
+import prefect
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.futures import PrefectFuture
@@ -37,18 +39,50 @@ def dask_task_runner_with_existing_cluster():
             yield DaskTaskRunner(address=address)
 
 
-@contextmanager
-def ray_task_runner_with_existing_cluster():
+@pytest.fixture(scope="session")
+def machine_ray_instance():
     """
-    Generate a dask task runner that's connected to a local cluster
+    Starts a ray instance for the current machine
     """
-
     subprocess.check_call(["ray", "start", "--head"])
-
     try:
-        yield RayTaskRunner(address="ray://127.0.0.1:10001")
+        yield "ray://127.0.0.1:10001"
     finally:
         subprocess.run(["ray", "stop"])
+
+
+@pytest.fixture
+def ray_task_runner_with_existing_cluster(machine_ray_instance):
+    """
+    Generate a ray task runner that's connected to a ray instance running in a separate
+    process
+    """
+    yield RayTaskRunner(
+        address=machine_ray_instance,
+        # The working directory must be passed through to the worker or the test
+        # module will not be importable
+        init_kwargs={"runtime_env": {"working_dir": str(prefect.__root_path__)}},
+    )
+
+
+@pytest.fixture(scope="session")
+def inprocess_ray_cluster():
+    """
+    Starts a ray cluster in-process
+    """
+    cluster = ray.cluster_utils.Cluster(initialize_head=True)
+    try:
+        yield cluster
+    finally:
+        cluster.shutdown()
+
+
+@pytest.fixture
+def ray_task_runner_with_inprocess_cluster(inprocess_ray_cluster):
+    """
+    Generate a ray task runner that's connected to an in-process cluster
+    """
+    yield RayTaskRunner(address=inprocess_ray_cluster.address)
 
 
 @contextmanager
@@ -84,15 +118,20 @@ def task_runner(request):
     An indirect fixture that expects to receive one of the following
     - task_runner instance
     - task_runner type
+    - a pytest fixture
     - callable generator that yields an task_runner instance
 
-    Returns an task_runner instance that can be used in the test
+    Returns a task runner instance that can be used in the test
     """
+
     if isinstance(request.param, BaseTaskRunner):
         yield request.param
 
     elif isinstance(request.param, type) and issubclass(request.param, BaseTaskRunner):
         yield request.param()
+
+    elif hasattr(request.param, "_pytestfixturefunction"):
+        yield request.getfixturevalue(request.param.__name__)
 
     elif callable(request.param):
         with request.param() as task_runner:
@@ -101,7 +140,7 @@ def task_runner(request):
     else:
         raise TypeError(
             "Received invalid task_runner parameter. Expected task runner type, "
-            f"instance, or callable generator. Received {type(request.param).__name__}"
+            f"instance, fixture, or callable generator. Received {type(request.param).__name__}"
         )
 
 
@@ -113,6 +152,7 @@ parameterize_with_all_task_runners = pytest.mark.parametrize(
         ConcurrentTaskRunner,
         RayTaskRunner,
         ray_task_runner_with_existing_cluster,
+        ray_task_runner_with_inprocess_cluster,
         dask_task_runner_with_existing_cluster,
         dask_task_runner_with_process_pool,
         dask_task_runner_with_thread_pool,
@@ -128,6 +168,7 @@ parameterize_with_parallel_task_runners = pytest.mark.parametrize(
         ConcurrentTaskRunner,
         RayTaskRunner,
         dask_task_runner_with_existing_cluster,
+        ray_task_runner_with_existing_cluster,
     ],
     indirect=True,
 )
@@ -293,9 +334,19 @@ class TestTaskRunnerParallelism:
     If they run sequentially, 'bar' will be the final content of the file
     """
 
-    # Amount of time to sleep before writing 'foo'
-    # A larger value will decrease brittleness but increase test times
-    SLEEP_TIME = 0.25 if sys.platform == "darwin" else 1.5
+    def get_sleep_time(self, runner):
+        """
+        Amount of time to sleep before writing 'foo'
+        A larger value will decrease brittleness but increase test times
+        """
+        # CI machines are slow so we add time
+        sleep_time = 0.25 if sys.platform == "darwin" else 1.5
+
+        # Ray is slow
+        if isinstance(runner, RayTaskRunner):
+            sleep_time += 1.5
+
+        return sleep_time
 
     @pytest.fixture
     def tmp_file(self, tmp_path):
@@ -309,7 +360,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -331,7 +382,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -353,7 +404,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -375,7 +426,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -397,7 +448,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -420,7 +471,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
@@ -442,7 +493,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
@@ -464,7 +515,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
