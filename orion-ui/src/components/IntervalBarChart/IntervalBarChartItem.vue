@@ -1,5 +1,5 @@
 <template>
-  <Popover
+  <m-popover
     class="interval-bar-chart-item"
     :placement="['bottom', 'top', 'leftTop', 'rightTop']"
   >
@@ -44,7 +44,7 @@
         </slot>
       </div>
     </template>
-  </Popover>
+  </m-popover>
 </template>
 
 <script lang="ts" setup>
