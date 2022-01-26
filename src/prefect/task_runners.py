@@ -704,13 +704,8 @@ class RayTaskRunner(BaseTaskRunner):
         Waits for all futures to complete without timeout, ignoring any exceptions.
         """
         # Attempt to wait for all futures to complete
-        for task_run_id in self._task_run_ids:
+        for ref in self._ray_refs.values():
             try:
-                await self._get_run_result(task_run_id)
-            except Exception:
-                pass
-        for future in self._ray_refs.values():
-            try:
-                await future.result()
+                await ref
             except Exception:
                 pass
