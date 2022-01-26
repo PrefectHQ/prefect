@@ -60,7 +60,7 @@ There are two scenarios where this error happens. The first is when using a `Das
 
 The second way this can happen is through [Prefect results](/core/concepts/results.html#results). By default, task outputs are saved as LocalResults, and the default Serializer is the PickleSerializer, which uses cloudpickle. If you have a task that returns a client or connection, you can avoid this serialization by turning off checkpointing for that task which `@task(checkpoint=False)`.
 
-### [REVIEW] Why are the Dask logs not being shown in the Prefect UI?
+### Why are the Dask logs not being shown in the Prefect UI?
 
 Independent of Prefect, using Dask on a cluster [does not capture worker logs](https://github.com/dask/distributed/issues/2033) and send them back to the scheduler. The `LocalDaskExecutor` will show the logs in the Prefect UI because the `LocalDaskExecutor` just uses `dask` while the `DaskExecutor` uses `distributed`. 
 
@@ -71,7 +71,7 @@ There are several ways you could approach this.
 1. You could set up some log aggregation service to send Dask worker logs for debugging.
 2. You can view the worker logs directly.
 
-### [REVIEW] Is there an equivalent to Airflow sensors in Prefect? How do I trigger event-driven workflows?
+### Is there an equivalent to Airflow sensors in Prefect? How do I trigger event-driven workflows?
 
 Overall, there are a couple of ways how you could tackle it:
 
@@ -88,6 +88,18 @@ def my_sensor(**kwargs):
     # check some state of the world
     if condition_not_met:
         raise RETRY("Condition not met, retrying in 5 seconds.", start_time=pendulum.now().add(seconds=5))
+```
+
+This can also be done with a `while` loop inside a task.
+
+```python
+@task
+def my_sensor(**kwargs):
+    # check some state of the world
+    condition_not_met = True
+    while condition_not_met:
+        condition_not_met = check_condition()
+    return
 ```
 
 ### How do I set a dynamic default value for a Parameter like a callable?
@@ -160,7 +172,7 @@ or you can use the `config.toml` setting
 use_local_secrets = false
 ```
 
-### [REVIEW] Can I run a Docker agent in a container?
+### Can I run a Docker agent in a container?
 
 In general, the Docker agent is supposed to run in a local process (rather than in a docker container), and this local process is a layer between Prefect backend and a Docker Daemon.
 
