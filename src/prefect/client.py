@@ -505,7 +505,7 @@ class OrionClient:
         offset: int,
     ):
         """
-        Lists concurrencly limits set on task run tags.
+        Lists concurrency limits set on task run tags.
 
         Args:
             limit: the maximum number of concurrency limits returned
