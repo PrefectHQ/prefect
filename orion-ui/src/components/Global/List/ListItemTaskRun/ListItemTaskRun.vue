@@ -20,7 +20,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { TaskRunsFilter } from '@prefecthq/orion-design'
+import type { FlowRunsFilter } from '@prefecthq/orion-design'
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
@@ -30,7 +30,7 @@ import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
-const taskRunFilterBody = computed<TaskRunsFilter>(() => {
+const taskRunFilterBody = computed<FlowRunsFilter>(() => {
   return {
     flow_runs: {
       id: {
