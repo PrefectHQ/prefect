@@ -581,7 +581,7 @@ class RayTaskRunner(BaseTaskRunner):
         >>> @flow(task_runner=RayTaskRunner)
 
         Connecting to an existing ray instance
-        >>> RayTaskRunner(address="192.0.2.255:8786")
+        >>> RayTaskRunner(address="ray://192.0.2.255:8786")
     """
 
     def __init__(
@@ -673,22 +673,26 @@ class RayTaskRunner(BaseTaskRunner):
                 f"Connecting to an existing Ray instance at {self.address}"
             )
             init_args = (self.address,)
-            ray.init(self.address)
         else:
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
-        context = self._ray.init(*init_args, **self.init_kwargs)
+        # If `address` this returns a `ClientContext` otherwise it returns a `dict`
+        context_or_metadata = self._ray.init(*init_args, **self.init_kwargs)
 
         # Wait for all futures before tearing down the client / cluster on exit
         exit_stack.push_async_callback(self._wait_for_all_futures)
 
-        exit_stack.push_async_callback(self._shutdown_ray)
+        if self.address:
+            exit_stack.push(context_or_metadata)
 
-        if context.get("webui_url"):
-            self.logger.info(
-                f"The Ray UI is available at {context['webui_url']}",
-            )
+        else:
+            exit_stack.push_async_callback(self._shutdown_ray)
+
+            if context_or_metadata.get("webui_url"):
+                self.logger.info(
+                    f"The Ray UI is available at {context_or_metadata['webui_url']}",
+                )
 
     async def _shutdown_ray(self):
         self._ray.shutdown()
