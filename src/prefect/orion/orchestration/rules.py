@@ -691,7 +691,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # a rule that mutates state should not fizzle itself by default
+        # a rule that mutates state should not fizzle itself
         self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
@@ -721,7 +721,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # a rule that mutates state should not fizzle itself by default
+        # a rule that mutates state should not fizzle itself
         self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.WAIT
@@ -748,7 +748,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # a rule that mutates state should not fizzle itself by default
+        # a rule that mutates state should not fizzle itself
         self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.ABORT
