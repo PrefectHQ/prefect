@@ -10,7 +10,7 @@ from prefect.cli.base import app, console
 from prefect.utilities.asyncio import sync_compatible
 
 agent_app = typer.Typer(
-    name="agent", help="Commands for starting and interacting with Agent processes."
+    name="agent", help="Commands for starting and interacting with agent processes."
 )
 app.add_typer(agent_app)
 
