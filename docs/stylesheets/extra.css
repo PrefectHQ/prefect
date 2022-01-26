@@ -22,3 +22,6 @@ img {
 .md-typeset table:not([class]) th {
     padding: 0.5em 1.25em;
 }
+.no-wrap {
+    white-space: nowrap;
+}
