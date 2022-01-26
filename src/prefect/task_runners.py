@@ -435,26 +435,21 @@ class DaskTaskRunner(BaseTaskRunner):
 
 class ConcurrentTaskRunner(BaseTaskRunner):
     """
-    A concurrent task runner that submits tasks to a thread pool.
-
-    Args:
-        max_workers: the number of worker processes to start
-
+    A concurrent task runner that allows tasks to switch when blocking on IO.
+    Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
+    
     Examples:
 
-        Using a thread pool for concurrency
+        Using a thread for concurrency
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
-
-        Designate the max number of worker processes
-        >>> ConcurrentTaskRunner(max_workers=4)
     """
 
-    def __init__(self, max_workers: int = None):
+    def __init__(self):
 
         # Store settings
-        self.max_workers = max_workers
+        # TODO: Add `max_workers` support using anyio capacity limiters
 
         # Runtime attributes
         self._task_group: TaskGroup = None
