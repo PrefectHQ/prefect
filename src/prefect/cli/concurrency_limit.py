@@ -1,5 +1,5 @@
 """
-Command line interface for working with deployments.
+Command line interface for working with concurrency limits.
 """
 import httpx
 import typer
