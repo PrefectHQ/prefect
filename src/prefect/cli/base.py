@@ -5,7 +5,7 @@ import typer
 import rich.console
 
 
-app = typer.Typer(add_completion=False)
+app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = rich.console.Console(highlight=False)
 
 
