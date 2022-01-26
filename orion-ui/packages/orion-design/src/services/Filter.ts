@@ -4,20 +4,22 @@ import { isNonEmptyArray } from '@/utilities/arrays'
 import { isSubState } from '@/utilities/states'
 import { calculateEnd, calculateStart, isValidTimeFrame } from '@/utilities/timeFrame'
 
+type StringKeys<T extends Filter> = Extract<keyof T, string>
 interface Sortable<T extends Filter> {
-  sort?: [keyof T],
+  sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
 }
 
-export type DeploymentsFilter = { deployments?: DeploymentFilter } & Sortable<DeploymentFilter>
-export type FlowsFilter = { flows?: FlowFilter } & Sortable<FlowFilter>
-export type TaskRunsFilter = { task_runs?: TaskRunFilter } & Sortable<TaskRunFilter>
-export type FlowRunsFilter = { flow_runs?: FlowRunFilter } & Sortable<FlowRunFilter>
+export type DeploymentsFilter = { deployments?: DeploymentFilter }
+export type FlowsFilter = { flows?: FlowFilter }
+export type TaskRunsFilter = { task_runs?: TaskRunFilter }
+export type FlowRunsFilter = { flow_runs?: FlowRunFilter }
 
 export type UnionFilters =
   & FlowsFilter
   & DeploymentsFilter
   & FlowRunsFilter
   & TaskRunsFilter
+  & Sortable<FlowFilter & DeploymentFilter & TaskRunFilter & FlowRunFilter>
 
 interface Historical {
   history_start: string,
