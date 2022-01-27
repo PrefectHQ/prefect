@@ -471,7 +471,7 @@ class OrionClient:
     async def read_concurrency_limit_by_tag(
         self,
         tag: str,
-    ) -> UUID:
+    ):
         """
         Read the concurrency limit set on a specific tag.
 
