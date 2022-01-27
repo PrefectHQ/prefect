@@ -28,6 +28,6 @@ export function randomTaskRun(): TaskRun {
     state: mocker.create('state'),
     duration: mocker.create('number'),
     subflowRuns: mocker.create('boolean'),
-    tags: mocker.createMany('string'),
+    tags: mocker.createMany('string', 3),
   })
 }
