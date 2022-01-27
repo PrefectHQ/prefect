@@ -6,6 +6,7 @@
     ],
     "exclude": ["node_modules"],
     "compilerOptions": {
+        "declaration": true,
         "emitDeclarationOnly": true,
         "outFile": "dist/index.d.ts",
     }
