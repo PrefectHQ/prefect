@@ -1,4 +1,5 @@
-from logging.config import fileConfig
+# Originally generated from `alembic init`
+# https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
 
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -7,39 +8,16 @@ from prefect.utilities.asyncio import sync_compatible
 from prefect.orion.database.dependencies import provide_database_interface
 
 db_interface = provide_database_interface()
-
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
 config = context.config
-
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-fileConfig(config.config_file_name, disable_existing_loggers=False)
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-
 target_metadata = db_interface.Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
-
-def run_migrations_offline() -> None:
+def dry_run_migrations() -> None:
     """
-    Run migrations in 'offline' mode.
+    Perform a dry run of migrations.
 
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
+    This will create the sql statements without actually running them against the
+    database and output them to stdout.
     """
     url = db_interface.database_config.connection_url
     context.script.version_locations = [db_interface.orm.versions_dir]
@@ -58,10 +36,10 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: AsyncEngine) -> None:
     """
-    Run Alembic migrations using the connection
+    Run Alembic migrations using the connection.
 
     Args:
-        connection: a database engine
+        connection: a database engine.
     """
 
     context.configure(
@@ -75,14 +53,10 @@ def do_run_migrations(connection: AsyncEngine) -> None:
 
 
 @sync_compatible
-async def run_migrations_online() -> None:
-    """
-    Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
+async def apply_migrations() -> None:
     """
 
+    """
     engine = await db_interface.engine()
     context.script.version_locations = [db_interface.orm.versions_dir]
 
@@ -91,6 +65,6 @@ async def run_migrations_online() -> None:
 
 
 if context.is_offline_mode():
-    run_migrations_offline()
+    dry_run_migrations()
 else:
-    run_migrations_online()
+    apply_migrations()

@@ -17,6 +17,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
     alembic_upgrade,
     alembic_revision,
+    alembic_stamp,
 )
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
@@ -26,7 +27,7 @@ orion_app = typer.Typer(
     help="Commands for interacting with backend services.",
 )
 database_app = typer.Typer(
-    name="database", help="Commands for interacting with the database"
+    name="database", help="Commands for interacting with the database."
 )
 orion_app.add_typer(database_app)
 app.add_typer(orion_app)
@@ -71,6 +72,7 @@ async def start(
     ui: bool = settings.orion.ui.enabled,
 ):
     """Start an Orion server"""
+    # TODO - this logic should be abstracted in the interface
     # Run migrations - if configured for sqlite will create the db
     db = provide_database_interface()
     await db.create_db()
@@ -143,23 +145,23 @@ async def upgrade(
     revision: str = typer.Option(
         "head",
         "-r",
-        help="The revision to pass to `alembic upgrade`. If not provided, runs all migrations",
+        help="The revision to pass to `alembic upgrade`. If not provided, runs all migrations.",
     ),
-    sql: bool = typer.Option(
+    dry_run: bool = typer.Option(
         False,
-        help="Flag to run migrations in 'offline mode'. Will emit sql statements to stdout without applying them",
+        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
     ),
 ):
     """Upgrade the Orion database"""
     if not yes:
         confirm = typer.confirm("Are you sure you want to upgrade the Orion database?")
         if not confirm:
-            exit_with_error("Database upgrade aborted")
+            exit_with_error("Database upgrade aborted!")
 
     console.print("Running upgrade migrations ...")
-    await run_sync_in_worker_thread(alembic_upgrade, revision=revision, sql=sql)
+    await run_sync_in_worker_thread(alembic_upgrade, revision=revision, dry_run=dry_run)
     console.print("Migrations succeeded!")
-    exit_with_success(f"Orion database upgraded!")
+    exit_with_success("Orion database upgraded!")
 
 
 @database_app.command()
@@ -169,11 +171,11 @@ async def downgrade(
     revision: str = typer.Option(
         "base",
         "-r",
-        help="The revision to pass to `alembic downgrade`. If not provided, runs all migrations",
+        help="The revision to pass to `alembic downgrade`. If not provided, runs all migrations.",
     ),
-    sql: bool = typer.Option(
+    dry_run: bool = typer.Option(
         False,
-        help="Flag to run migrations in 'offline mode'. Will emit sql statements to stdout without applying them",
+        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
     ),
 ):
     """Downgrade the Orion database"""
@@ -182,12 +184,14 @@ async def downgrade(
             "Are you sure you want to downgrade the Orion database?"
         )
         if not confirm:
-            exit_with_error("Database downgrade aborted")
+            exit_with_error("Database downgrade aborted!")
 
     console.print("Running downgrade migrations ...")
-    await run_sync_in_worker_thread(alembic_downgrade, revision=revision, sql=sql)
+    await run_sync_in_worker_thread(
+        alembic_downgrade, revision=revision, dry_run=dry_run
+    )
     console.print("Migrations succeeded!")
-    exit_with_success(f"Orion database downgraded!")
+    exit_with_success("Orion database downgraded!")
 
 
 @database_app.command()
@@ -201,4 +205,14 @@ async def revision(message: str = None, autogenerate: bool = False):
         message=message,
         autogenerate=autogenerate,
     )
-    exit_with_success(f"Creating new migration file succeeded!")
+    exit_with_success("Creating new migration file succeeded!")
+
+
+@database_app.command()
+@sync_compatible
+async def stamp(revision: str):
+    """Stamp the revision table with the given revision; don’t run any migrations"""
+
+    console.print("Stamping database with revision ...")
+    await run_sync_in_worker_thread(alembic_stamp, revision=revision)
+    exit_with_success("Stamping database with revision succeeded!")
