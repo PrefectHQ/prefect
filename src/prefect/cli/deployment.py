@@ -25,7 +25,9 @@ from prefect.exceptions import FlowScriptError
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
-deployment_app = typer.Typer(name="deployment")
+deployment_app = typer.Typer(
+    name="deployment", help="Commands for working with deployments."
+)
 app.add_typer(deployment_app)
 
 
@@ -40,7 +42,7 @@ def assert_deployment_name_format(name: str) -> None:
 @sync_compatible
 async def inspect(name: str):
     """
-    View details about a deployment
+    View details about a deployment.
 
     \b
     Example:
@@ -75,7 +77,7 @@ async def inspect(name: str):
 @sync_compatible
 async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
-    View all deployments or deployments for specific flows
+    View all deployments or deployments for specific flows.
     """
     async with OrionClient() as client:
         deployments = await client.read_deployments(
@@ -151,9 +153,9 @@ async def create(
     ),
 ):
     """
-    Create or update a deployment from a file containing deployment specifications
+    Create or update a deployment from a file.
 
-    Deployments can be specified in Python or YAML
+    File must contain one or more deployment specifications in either Python or YAML
 
         \b
         ```python
