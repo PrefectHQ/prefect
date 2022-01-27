@@ -933,8 +933,8 @@ class TestTaskRunLogs:
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
 
 
-class TestTaskCopy:
-    def test_copy_allows_override_of_task_settings(self):
+class TestTaskWithOptions:
+    def test_with_options_allows_override_of_task_settings(self):
         def first_cache_key_fn(*_):
             return "first cache hit"
 
@@ -943,7 +943,7 @@ class TestTaskCopy:
 
         @task(
             name="Initial task",
-            description="Task before copy",
+            description="Task before with options",
             tags=["tag1", "tag2"],
             cache_key_fn=first_cache_key_fn,
             cache_expiration=datetime.timedelta(days=1),
@@ -953,7 +953,7 @@ class TestTaskCopy:
         def initial_task():
             pass
 
-        copied_task = initial_task.copy(
+        task_with_options = initial_task.with_options(
             name="Copied task",
             description="A copied task",
             tags=["tag3", "tag4"],
@@ -963,21 +963,21 @@ class TestTaskCopy:
             retry_delay_seconds=10
         )
 
-        assert copied_task.name == "Copied task"
-        assert copied_task.description == "A copied task"
-        assert set(copied_task.tags) == {"tag3", "tag4"}
-        assert copied_task.cache_key_fn is second_cache_key_fn
-        assert copied_task.cache_expiration == datetime.timedelta(days=2)
-        assert copied_task.retries == 5
-        assert copied_task.retry_delay_seconds == 10
+        assert task_with_options.name == "Copied task"
+        assert task_with_options.description == "A copied task"
+        assert set(task_with_options.tags) == {"tag3", "tag4"}
+        assert task_with_options.cache_key_fn is second_cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=2)
+        assert task_with_options.retries == 5
+        assert task_with_options.retry_delay_seconds == 10
 
-    def test_copy_uses_existing_settings_when_no_override(self):
+    def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
             return "cache hit"
 
         @task(
             name="Initial task",
-            description="Task before copy",
+            description="Task before with options",
             tags=["tag1", "tag2"],
             cache_key_fn=cache_key_fn,
             cache_expiration=datetime.timedelta(days=1),
@@ -987,22 +987,24 @@ class TestTaskCopy:
         def initial_task():
             pass
 
-        copied_task = initial_task.copy()
+        task_with_options = initial_task.with_options()
 
-        assert copied_task is not initial_task
-        assert copied_task.name == "Initial task"
-        assert copied_task.description == "Task before copy"
-        assert set(copied_task.tags) == {"tag1", "tag2"}
-        assert copied_task.tags is not initial_task.tags
-        assert copied_task.cache_key_fn is cache_key_fn
-        assert copied_task.cache_expiration == datetime.timedelta(days=1)
-        assert copied_task.retries == 2
-        assert copied_task.retry_delay_seconds == 5
+        assert task_with_options is not initial_task
+        assert task_with_options.name == "Initial task"
+        assert task_with_options.description == "Task before with options"
+        assert set(task_with_options.tags) == {"tag1", "tag2"}
+        assert task_with_options.tags is not initial_task.tags
+        assert task_with_options.cache_key_fn is cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=1)
+        assert task_with_options.retries == 2
+        assert task_with_options.retry_delay_seconds == 5
 
-    def test_copy_signature_aligns_with_task_signature(self):
-        task_params = dict(inspect.signature(Task.__init__).parameters)
-        copy_params = dict(inspect.signature(Task.copy).parameters)
-        # `copy` does not accept a new function
-        task_params.pop("fn")
-        assert task_params == copy_params
+    def test_with_options_signature_aligns_with_task_signature(self):
+        task_params = dict(inspect.signature(task).parameters)
+        with_options_params = dict(inspect.signature(Task.with_options).parameters)
+        # `with_options` does not accept a new function
+        task_params.pop("__fn")
+        # `self` isn't in task decorator
+        with_options_params.pop("self")
+        assert task_params == with_options_params
 
