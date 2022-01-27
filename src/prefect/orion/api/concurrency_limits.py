@@ -48,7 +48,11 @@ async def read_concurrency_limit(
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by id.
+
+    The `active slots` field contains a list of TaskRun IDs currently using a
+    concurrency slot for the specified tag.
     """
+
     model = await models.concurrency_limits.read_concurrency_limit(
         session=session, concurrency_limit_id=concurrency_limit_id
     )
@@ -66,6 +70,9 @@ async def read_concurrency_limit_by_tag(
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by tag.
+
+    The `active slots` field contains a list of TaskRun IDs currently using a
+    concurrency slot for the specified tag.
     """
 
     model = await models.concurrency_limits.read_concurrency_limit_by_tag(
@@ -89,6 +96,9 @@ async def read_concurrency_limits(
 ) -> List[schemas.core.ConcurrencyLimit]:
     """
     Query for concurrency limits.
+
+    For each concurrency limit the `active slots` field contains a list of TaskRun IDs
+    currently using a concurrency slot for the specified tag.
     """
 
     return await models.concurrency_limits.read_concurrency_limits(
