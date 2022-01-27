@@ -341,9 +341,12 @@ class LoggingSettings(BaseSettings):
 
     default_level: str = Field(
         "INFO" if not shared_settings.debug_mode else "DEBUG",
-        description="""The default logging level. If not overridden, this will
-        apply to all logging handlers defined in `logging.yml`. Defaults to
+        description="""The default logging level for Prefect loggers. Defaults to 
         "INFO" during normal operation and "DEBUG" during debug mode.""",
+    )
+
+    server_level: str = Field(
+        "WARNING", description="""The default logging level for the Orion API."""
     )
 
     settings_path: Path = Field(
