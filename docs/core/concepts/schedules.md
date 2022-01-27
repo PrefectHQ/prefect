@@ -102,7 +102,6 @@ Note that this behavior is different from the `IntervalClock`.
 For more ad-hoc schedules, Prefect provides a [`DatesClock`](/api/latest/schedules/clocks.html#datesclock) that only fires on specific, user-provided dates.
 
 ```python
-from datetime import timedelta
 import pendulum
 from prefect.schedules import Schedule
 from prefect.schedules.clocks import DatesClock
