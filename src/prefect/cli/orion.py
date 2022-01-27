@@ -16,7 +16,10 @@ from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible
 
-orion_app = typer.Typer(name="orion")
+orion_app = typer.Typer(
+    name="orion",
+    help="Commands for interacting with backend services.",
+)
 app.add_typer(orion_app)
 
 

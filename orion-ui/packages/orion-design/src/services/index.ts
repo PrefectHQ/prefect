@@ -1,4 +1,5 @@
 export * from './Api'
+export * from './Filter'
 export * from './LogsApi'
-export * from './TaskRunsApi'
 export * from './Mocker'
+export * from './TaskRunsApi'
