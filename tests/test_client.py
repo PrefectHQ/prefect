@@ -90,12 +90,12 @@ async def test_read_deployment_by_name(orion_client):
 
 
 async def test_create_then_read_concurrency_limit(orion_client):
-    cl = await orion_client.create_concurrency_limit(
+    cl_id = await orion_client.create_concurrency_limit(
         tag="client-created", concurrency_limit=12345
     )
 
     lookup = await orion_client.read_concurrency_limit_by_tag("client-created")
-    assert lookup.id == cl.id
+    assert lookup.id == cl_id
     assert lookup.concurrency_limit == 12345
 
 

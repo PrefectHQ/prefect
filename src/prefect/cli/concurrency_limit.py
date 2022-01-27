@@ -17,27 +17,32 @@ app.add_typer(concurrency_limit_app)
 @concurrency_limit_app.command()
 @sync_compatible
 async def create(tag: str, concurrency_limit: int):
+    """
+    Create a concurrency limit against a tag.
+
+    This limit controls how many task runs with that tag may simultaneously be in a
+    Running state.
+    """
 
     async with OrionClient() as client:
-        try:
-            cl = await client.create_concurrency_limit(
-                tag=tag, concurrency_limit=concurrency_limit
-            )
-        except httpx.HTTPStatusError as exc:
-            raise
+        await client.create_concurrency_limit(
+            tag=tag, concurrency_limit=concurrency_limit
+        )
+        result = await client.read_concurrency_limit_by_tag(tag)
 
-    console.print(Pretty(cl))
+    console.print(Pretty(result))
 
 
 @concurrency_limit_app.command()
 @sync_compatible
 async def read(tag: str):
+    """
+    View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
+    which are currently using a concurrency slot.
+    """
 
     async with OrionClient() as client:
-        try:
-            result = await client.read_concurrency_limit_by_tag(tag=tag)
-        except httpx.HTTPStatusError as exc:
-            raise
+        result = await client.read_concurrency_limit_by_tag(tag=tag)
 
     console.print(Pretty(result))
 
@@ -45,12 +50,12 @@ async def read(tag: str):
 @concurrency_limit_app.command()
 @sync_compatible
 async def ls(limit: int = 15, offset: int = 0):
+    """
+    View all concurrency limits.
+    """
 
     async with OrionClient() as client:
-        try:
-            result = await client.read_concurrency_limits(limit=limit, offset=offset)
-        except httpx.HTTPStatusError as exc:
-            raise
+        result = await client.read_concurrency_limits(limit=limit, offset=offset)
 
     console.print(Pretty(result))
 
@@ -58,12 +63,12 @@ async def ls(limit: int = 15, offset: int = 0):
 @concurrency_limit_app.command()
 @sync_compatible
 async def delete(tag: str):
+    """
+    Delete the concurrency limit set on the specified tag.
+    """
 
     async with OrionClient() as client:
-        try:
-            result = await client.delete_concurrency_limit_by_tag(tag=tag)
-        except httpx.HTTPStatusError as exc:
-            raise
+        result = await client.delete_concurrency_limit_by_tag(tag=tag)
 
     if result:
         console.print(Pretty(f"Deleted concurrency limit set on the tag: {tag}"))

@@ -466,8 +466,7 @@ class OrionClient:
         if not concurrency_limit_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(response.json())
-        return concurrency_limit
+        return concurrency_limit_id
 
     async def read_concurrency_limit_by_tag(
         self,
@@ -495,9 +494,7 @@ class OrionClient:
         if not concurrency_limit_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(response.json())
-
-        return concurrency_limit
+        return response.json()
 
     async def read_concurrency_limits(
         self,
@@ -521,9 +518,7 @@ class OrionClient:
         }
 
         response = await self.post("/concurrency_limits/filter", json=body)
-        return pydantic.parse_obj_as(
-            List[schemas.core.ConcurrencyLimit], response.json()
-        )
+        return pydantic.parse_obj_as(List, response.json())
 
     async def delete_concurrency_limit_by_tag(
         self,
