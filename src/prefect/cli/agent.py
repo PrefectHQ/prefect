@@ -27,12 +27,12 @@ ascii_name = r"""
 
 @agent_app.command()
 @sync_compatible
-async def start():
+async def start(host=settings.orion_host):
     """
     Start an agent process.
     """
-    if settings.orion_host:
-        console.print(f"Starting agent connected to {settings.orion_host}...")
+    if host:
+        console.print(f"Starting agent connected to {host}...")
     else:
         console.print("Starting agent with ephemeral API...")
 
