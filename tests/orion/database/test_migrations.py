@@ -5,12 +5,7 @@ from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 @pytest.fixture
-async def sample_db_data(
-    flow,
-    flow_run,
-    flow_run_state,
-    task_run
-):
+async def sample_db_data(flow, flow_run, flow_run_state, task_run):
     """Adds sample data to the database for testing migrations"""
 
 
