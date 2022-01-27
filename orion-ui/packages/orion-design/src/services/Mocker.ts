@@ -10,7 +10,7 @@ type CreateArguments<T extends Record<string, Generator>, K extends keyof T> = G
   ? [key: K, args?: GeneratorParams<T[K]>]
   : [key: K, args: GeneratorParams<T[K]>]
 type CreateManyArguments<T extends Record<string, Generator>, K extends keyof T> = GeneratorParamsRequired<T[K]> extends never[]
-  ? [key: K, count?: number, args?: GeneratorParams<T[K]>]
+  ? [key: K, count: number, args?: GeneratorParams<T[K]>]
   : [key: K, count: number, args: GeneratorParams<T[K]>]
 
 export class Mocker<T extends Record<string, Generator>> {
@@ -24,7 +24,7 @@ export class Mocker<T extends Record<string, Generator>> {
     return this.generators[key](...args ?? [])
   }
 
-  public createMany<K extends keyof T>(...[key, count = 3, args]: CreateManyArguments<T, K>): GeneratorReturns<T[K]>[] {
+  public createMany<K extends keyof T>(...[key, count, args]: CreateManyArguments<T, K>): GeneratorReturns<T[K]>[] {
     const generate = this.generators[key].bind(null, ...args ?? [])
 
     return new Array(count)
