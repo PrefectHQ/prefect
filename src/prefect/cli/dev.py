@@ -5,17 +5,14 @@ import json
 import os
 import shutil
 import subprocess
-from functools import partial
 from string import Template
 
 import anyio
 import typer
-import watchgod
 
 import prefect
 from prefect.cli.base import app, console
 from prefect.cli.orion import open_process_and_stream_output
-from prefect.cli.orion import start as start_orion
 from prefect.cli.agent import start as start_agent
 from prefect.flow_runners import get_prefect_image_name
 from prefect.utilities.asyncio import sync_compatible
@@ -141,6 +138,9 @@ async def agent(host: str = prefect.settings.orion_host):
     """
     Starts a hot-reloading development agent process.
     """
+    # Delayed import since this is only a 'dev' dependency
+    import watchgod
+
     await watchgod.arun_process(
         prefect.__module_path__, start_agent, kwargs=dict(host=host)
     )
