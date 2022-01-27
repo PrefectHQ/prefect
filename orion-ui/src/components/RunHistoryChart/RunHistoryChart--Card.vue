@@ -1,5 +1,5 @@
 <template>
-  <Card shadow="sm">
+  <m-card shadow="sm">
     <template v-slot:header>
       <div class="subheader py-1 px-2">Run History</div>
     </template>
@@ -15,12 +15,13 @@
       />
       <div v-else class="font--secondary subheader no-data"> -- </div>
     </div>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from './RunHistoryChart--Chart.vue'
-import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { computed } from 'vue'
 
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()

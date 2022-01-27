@@ -1,5 +1,5 @@
 <template>
-  <Card shadow="sm" class="interval-bar-chart-card">
+  <m-card shadow="sm" class="interval-bar-chart-card">
     <template v-slot:header>
       <div class="interval-bar-chart-card__header">
         <div class="subheader">{{ props.title }}</div>
@@ -23,13 +23,13 @@
         </template>
       </IntervalBarChart>
     </div>
-  </Card>
+  </m-card>
 </template>
 <script lang="ts" setup>
 import { computed } from 'vue'
 import IntervalBarChart from './IntervalBarChart.vue'
 import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
-import { FlowRunsHistoryFilter } from '@/plugins/api'
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 
 const props = defineProps<{
   filter: FlowRunsHistoryFilter
