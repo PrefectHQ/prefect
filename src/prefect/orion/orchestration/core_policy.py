@@ -20,6 +20,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.models import concurrency_limits
 from prefect.orion.schemas import states
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -75,7 +76,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        from prefect.orion.models import concurrency_limits
 
         self._applied_limits = []
         all_limits = await concurrency_limits.read_concurrency_limits(
@@ -124,7 +124,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        from prefect.orion.models import concurrency_limits
 
         for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
@@ -149,7 +148,6 @@ class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        from prefect.orion.models import concurrency_limits
 
         all_limits = await concurrency_limits.read_concurrency_limits(
             context.session, limit=None, offset=None
