@@ -58,7 +58,9 @@ async def read_concurrency_limit(
     concurrency_limit_id: UUID,
     db: OrionDBInterface,
 ):
-    return await session.get(db.ConcurrencyLimit, concurrency_limit_id)
+    return await session.get(
+        db.ConcurrencyLimit, concurrency_limit_id
+    ).with_for_update()
 
 
 @inject_db
@@ -67,7 +69,11 @@ async def read_concurrency_limit_by_tag(
     tag: str,
     db: OrionDBInterface,
 ):
-    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
+    query = (
+        sa.select(db.ConcurrencyLimit)
+        .where(db.ConcurrencyLimit.tag == tag)
+        .with_for_update()
+    )
 
     result = await session.execute(query)
     return result.scalar()
@@ -120,7 +126,11 @@ async def read_concurrency_limits(
         List[db.ConcurrencyLimit]: concurrency limits
     """
 
-    query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
+    query = (
+        sa.select(db.ConcurrencyLimit)
+        .order_by(db.ConcurrencyLimit.tag)
+        .with_for_update()
+    )
 
     if offset is not None:
         query = query.offset(offset)
