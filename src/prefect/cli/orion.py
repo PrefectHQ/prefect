@@ -3,16 +3,18 @@ Command line interface for working with Orion
 """
 import os
 import subprocess
+import textwrap
 from functools import partial
-from typing import Union, Sequence, Any
+from typing import Any, Sequence, Union
 
 import anyio
 import anyio.abc
 import typer
 from anyio.streams.text import TextReceiveStream
 
-from prefect import settings
+import prefect
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible
 
@@ -21,6 +23,53 @@ orion_app = typer.Typer(
     help="Commands for interacting with backend services.",
 )
 app.add_typer(orion_app)
+
+logger = get_logger(__name__)
+
+
+def generate_welcome_blub(base_url):
+    api_url = base_url + "/api"
+
+    blurb = textwrap.dedent(
+        f"""
+         ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
+        | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
+        |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
+        |_| |_|_\___|_| |___\___| |_|    \___/|_|_\___\___/|_|\_|
+
+        Configure Prefect to communicate with the server with:
+
+            PREFECT_ORION_HOST={api_url}
+        """
+    )
+
+    visit_dashboard = textwrap.dedent(
+        f"""
+        Check out the dashboard at {base_url}
+        """
+    )
+
+    dashboard_not_built = textwrap.dedent(
+        """
+        The dashboard is not built. It looks like you're on a development version. 
+        See `prefect dev` for development commands.
+        """
+    )
+
+    dashboard_disabled = textwrap.dedent(
+        """
+        The dashboard is disabled. Set `PREFECT_ORION_UI_ENABLED=1` to reenable it.
+        """
+    )
+
+    if not os.path.exists(prefect.__ui_static_path__):
+        blurb += dashboard_not_built
+    elif not prefect.settings.orion.ui.enabled:
+        blurb += dashboard_disabled
+    else:
+        blurb += visit_dashboard
+
+    return blurb
 
 
 async def open_process_and_stream_output(
@@ -37,29 +86,29 @@ async def open_process_and_stream_output(
             The task will report itself as started once the process is started.
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
-    async with await anyio.open_process(
-        command, stderr=subprocess.STDOUT, **kwargs
-    ) as process:
-        if task_status is not None:
-            task_status.started()
+    process = await anyio.open_process(command, stderr=subprocess.STDOUT, **kwargs)
+    if task_status:
+        task_status.started()
 
-        try:
-            async for text in TextReceiveStream(process.stdout):
-                print(text, end="")  # Output is already new-line terminated
-        except BaseException:
-            process.terminate()
-            raise
+    try:
+        async for text in TextReceiveStream(process.stdout):
+            print(text, end="")  # Output is already new-line terminated
+    except Exception:
+        logger.debug("Ignoring exception in subprocess text stream", exc_info=True)
+    except BaseException:
+        process.terminate()
+        raise
 
 
 @orion_app.command()
 @sync_compatible
 async def start(
-    host: str = settings.orion.api.host,
-    port: int = settings.orion.api.port,
-    log_level: str = settings.logging.default_level,
-    services: bool = True,  # Note this differs from the default of `settings.orion.services.run_in_app`
+    host: str = prefect.settings.orion.api.host,
+    port: int = prefect.settings.orion.api.port,
+    log_level: str = prefect.settings.logging.server_level,
+    services: bool = True,  # Note this differs from the default of `prefect.settings.orion.services.run_in_app`
     agent: bool = True,
-    ui: bool = settings.orion.ui.enabled,
+    ui: bool = prefect.settings.orion.ui.enabled,
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -71,11 +120,13 @@ async def start(
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
 
+    base_url = f"http://{host}:{port}"
+
     agent_env = os.environ.copy()
-    agent_env["PREFECT_ORION_HOST"] = f"http://{host}:{port}/api/"
+    agent_env["PREFECT_ORION_HOST"] = base_url + "/api"
 
     async with anyio.create_task_group() as tg:
-        console.print("Starting Orion API server...")
+        console.print("Starting...")
         await tg.start(
             partial(
                 open_process_and_stream_output,
@@ -93,17 +144,25 @@ async def start(
             )
         )
 
+        console.print(generate_welcome_blub(base_url))
+
         if agent:
             # The server may not be ready yet despite waiting for the process to begin
             await anyio.sleep(1)
-            console.print("Starting agent...")
             tg.start_soon(
                 partial(
                     open_process_and_stream_output,
-                    ["prefect", "agent", "start"],
+                    ["prefect", "agent", "start", "--hide-welcome"],
                     env=agent_env,
                 )
             )
+            console.print("An agent has been started alongside the server.")
+        else:
+            console.print(
+                "The agent has been disabled. Start an agent with `prefect agent start`."
+            )
+
+        console.print("\n")
 
     console.print("Orion stopped!")
 
