@@ -41,7 +41,7 @@ async def open_process_and_stream_output(
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
     async with await anyio.open_process(
-        command, stderr=subprocess.STDOUT, **kwargs
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs
     ) as process:
         if task_status is not None:
             task_status.started()
