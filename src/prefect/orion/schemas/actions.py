@@ -140,6 +140,15 @@ class SavedSearchCreate(
     """Data used by the Orion API to create a saved search."""
 
 
+class ConcurrencyLimitCreate(
+    schemas.core.ConcurrencyLimit.subclass(
+        name="ConcurrencyLimitCreate",
+        include_fields=["tag", "concurrency_limit"],
+    )
+):
+    """Data used by the Orion API to create a concurrency limit"""
+
+
 class LogCreate(
     schemas.core.Log.subclass(
         name="LogCreate",
