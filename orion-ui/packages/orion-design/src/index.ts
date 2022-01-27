@@ -1,5 +1,6 @@
 export * from './components'
-export * from './types'
 export * from './models'
+export * from './router'
 export * from './services'
+export * from './types'
 export * from './utilities'
