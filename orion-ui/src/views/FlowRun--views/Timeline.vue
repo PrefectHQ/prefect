@@ -1,5 +1,5 @@
 <template>
-  <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
+  <m-card class="timeline d-flex flex-column" width="auto" shadow="sm">
     <div class="timeline-content py-2 px-2 d-flex flex-grow-1">
       <Timeline
         v-if="taskRuns.length"
@@ -9,11 +9,12 @@
         background-color="blue-5"
       />
     </div>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
+import type { UnionFilters } from '@prefecthq/orion-design'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, TaskRun } from '@/typings/objects'
 import { computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
@@ -31,7 +32,7 @@ const flowRunBase: Query = await Api.query({
   }
 }).fetch()
 
-const taskRunsFilter = computed<BaseFilter>(() => {
+const taskRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {

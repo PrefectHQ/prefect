@@ -5,7 +5,7 @@
 
       <div class="tag-container nowrap d-flex align-bottom">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-        <Tags :tags="tags" class="caption" />
+        <m-tags :tags="tags" class="caption" />
       </div>
     </div>
 
@@ -26,7 +26,6 @@
         disable-popovers
       />
     </div>
-
     <div class="font--secondary item--duration mr-2">
       {{ duration }}
     </div>
@@ -39,14 +38,9 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import type { UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import {
-  Api,
-  Query,
-  Endpoints,
-  TaskRunsFilter,
-  FlowsFilter
-} from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
@@ -54,6 +48,9 @@ import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
@@ -72,7 +69,7 @@ const end = computed(() => {
   return new Date(props.item.end_time)
 })
 
-const flow_runs_filter_body: TaskRunsFilter = {
+const flow_runs_filter_body: UnionFilters = {
   sort: 'START_TIME_DESC',
   flow_runs: {
     id: {
@@ -86,7 +83,7 @@ const flow_runs_filter_body: TaskRunsFilter = {
   }
 }
 
-const flow_filter_body: FlowsFilter = {
+const flow_filter_body: FlowRunsFilter = {
   flow_runs: {
     id: {
       any_: [props.item.id]
