@@ -10,7 +10,10 @@ from prefect.client import OrionClient
 
 from prefect.utilities.asyncio import sync_compatible
 
-concurrency_limit_app = typer.Typer(name="concurrency-limit")
+concurrency_limit_app = typer.Typer(
+    name="concurrency-limit",
+    help="Commands for managing task-level concurrency limits",
+)
 app.add_typer(concurrency_limit_app)
 
 
