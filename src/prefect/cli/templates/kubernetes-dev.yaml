@@ -20,13 +20,17 @@ spec:
             - -c
             - >-
               pip install -e /opt/prefect/repo\[dev\] &&
-              prefect orion start --host 0.0.0.0
+              prefect dev start --no-ui
           imagePullPolicy: "IfNotPresent"
           ports:
             - containerPort: 4200
           volumeMounts:
             - mountPath: /opt/prefect/repo
               name: prefect-repository
+          env:
+            # Allow connections to the API
+            - name: PREFECT_ORION_API_HOST
+              value: 0.0.0.0
       volumes:
         - name: prefect-repository
           hostPath:

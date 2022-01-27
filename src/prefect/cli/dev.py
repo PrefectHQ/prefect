@@ -159,7 +159,12 @@ async def start(
         if not exclude_ui:
             tg.start_soon(ui)
         if not exclude_agent:
-            tg.start_soon(agent)
+            # Hook the agent to the hosted API if running
+            if not exclude_api:
+                host = f"http://{prefect.settings.orion.api.host}:{prefect.settings.orion.api.port}/api"
+            else:
+                host = prefect.settings.orion_host
+            tg.start_soon(agent, host)
 
 
 @dev_app.command()
