@@ -96,7 +96,8 @@ async def open_process_and_stream_output(
     except Exception:
         logger.debug("Ignoring exception in subprocess text stream", exc_info=True)
     except BaseException:
-        process.terminate()
+        with anyio.CancelScope(shield=True):
+            process.terminate()
         raise
 
 
@@ -156,7 +157,10 @@ async def start(
                     env=agent_env,
                 )
             )
-            console.print("An agent has been started alongside the server.")
+            console.print(
+                "An agent has been started alongside the server. It will watch for "
+                "scheduled flow runs."
+            )
         else:
             console.print(
                 "The agent has been disabled. Start an agent with `prefect agent start`."
