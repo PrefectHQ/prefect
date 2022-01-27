@@ -4,6 +4,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
     alembic_downgrade,
     alembic_revision,
+    alembic_stamp,
 )
 
 # These tests do not test the actual migration functionality, only that the commands are wrapped and called
@@ -16,14 +17,16 @@ class TestAlembicCommands:
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
         assert args[1] == "head"
+        # sql == dry_run
         assert kwargs["sql"] is False
 
     @mock.patch("alembic.command.upgrade")
     def test_alembic_upgrade_passed_params(self, mocked):
-        alembic_upgrade("revision123", sql=True)
+        alembic_upgrade("revision123", dry_run=True)
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
         assert args[1] == "revision123"
+        # sql == dry_run
         assert kwargs["sql"] is True
 
     @mock.patch("alembic.command.downgrade")
@@ -32,14 +35,16 @@ class TestAlembicCommands:
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
         assert args[1] == "base"
+        # sql == dry_run
         assert kwargs["sql"] is False
 
     @mock.patch("alembic.command.downgrade")
     def test_alembic_downgrade_passed_params(self, mocked):
-        alembic_downgrade("revision123", sql=True)
+        alembic_downgrade("revision123", dry_run=True)
         args, kwargs = mocked.call_args
         assert mocked.call_count == 1
         assert args[1] == "revision123"
+        # sql == dry_run
         assert kwargs["sql"] is True
 
     @mock.patch("alembic.command.revision")
@@ -57,3 +62,10 @@ class TestAlembicCommands:
         assert mocked.call_count == 1
         assert kwargs["message"] == "new_revision"
         assert kwargs["autogenerate"] is True
+
+    @mock.patch("alembic.command.stamp")
+    def test_alembic_stamp(self, mocked):
+        alembic_stamp(revision="abcdef")
+        _, kwargs = mocked.call_args
+        assert mocked.call_count == 1
+        assert kwargs["revision"] == "abcdef"
