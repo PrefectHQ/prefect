@@ -1,7 +1,3 @@
-// from orion-ui. everything here should eventually get moved into orion-design
-// eslint-disable-next-line import/export
-export * from '@/components/'
-
 export * from './ApplicationNav'
 export * from './FilterBar'
 export * from './Global'
