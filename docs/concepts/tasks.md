@@ -26,6 +26,8 @@ def my_flow():
     my_task()
 ```
 
+Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully-qualified name of the function, and any tags. If the task does not have a name specified, the name is derived from the task function.
+
 Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
 
 The future can be used to retrieve the current [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) of the task run or wait for the task run to enter a final state. See [States](/concepts/states/) for further information.
@@ -49,7 +51,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | retries | An optional number of times to retry on task run failure. |
 | retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
 
-For example, tasks can be uniquely identified by name. You can provide a `name` value for the task, but if not provided, the function name is used. Here we've used the optional `description` argument as well.
+For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
 ```python hl_lines="1"
 @task(name="hello-task", description="This task says hello.")
@@ -59,7 +61,7 @@ def my_task():
 
 ## Tags
 
-Sometimes, it is useful to group tasks in ways other than by name or flow context. Prefect provides tags for this purpose. 
+Sometimes, it is useful to group tasks in ways other than by name or flow. Prefect provides tags for this purpose. 
 
 Tags may be specified as an optional keyword argument on the task decorator.
 
@@ -86,7 +88,7 @@ def my_flow():
 
 ## Retries
 
-A key capability of Prefect tasks is the ability to automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
+Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
 
 ```python hl_lines="3"
 import requests
@@ -128,8 +130,10 @@ def hello_flow():
 
 You can also provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments: 
 
-- The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
+- The first argument corresponds to the `TaskRunContext`, which stores task run metadata in the attributes `task_run_id`, `flow_run_id`, and `task`.
 - The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
+
+Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
 ```python hl_lines="1-5"
 def static_cache_key(context, parameters):
@@ -159,95 +163,119 @@ running an expensive operation
 ```
 </div>
 
-Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same state, including the same return values.  
+When each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same COMPLETED state, including the same return values.  
 
-## Futures
-
-Coming soon.
-
-## Task ordering
-
-By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. You can also explicitly order task execution by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method on a task or the [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter, specifying upstream task dependencies.
-
-You can wait for a task to finish before continuing flow execution by using the `wait()` method on the future returned when the task is called.
+A real-world example might include the flow run ID from the context in the cache key so only repeated calls in the same flow run are cached.
 
 ```python
-@flow
-def my_flow():
-    my_task().wait()
+def cache_within_flow_run(context, parameters):
+    return f"{context.flow_run_id}-{task_input_hash(context, parameters)}"
+
+@task(cache_key_fn=cache_within_flow_run)
+def cached_task():
+    print('running an expensive operation')
+    return 42
 ```
 
-You can use `wait()` on the result of task, since there won't be a result until the task completes:
+## Using results from tasks
+
+By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
+
+When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) represents the state and result of a computation happening in a task runner.
 
 ```python
 @task
-def my_task():
-    return "hello"
+def say_hello(name):
+    return f"Hello {name}!"
 
 @flow
-def my_flow():
-    print(my_task().wait().result())
+def hello_world():
+    future = say_hello("Marvin")
+    print(f"variable 'future' is type {str(type(future))}")
 ```
 
-You can also assign the result of a task to a variable and use `wait()` on the variable. This example demonstrates the why specifying execution order matters, particularly when using arbitrary Python alongside tasks in your flow.
+You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
 
+<div class="termy">
+```
+>>> hello_world()
+variable 'future' is type <class 'prefect.futures.PrefectFuture'>
+```
+</div>
+
+But if we pass `future` to another task, the task receives only the value as a variable:
 
 ```python
-@flow
-def my_flow():
-    state = my_task()
-    print(type(state))
-    print(type(state.wait()))
-```
+@task
+def print_result(result):
+    print(type(result))
+    print(result)
 
-In this case, the first print statement can execute before `my_task()` completes and still represents a `PrefectFuture` for the task. The second print statement waits for the task to complete and now shows the result is a `State`, which contains a result.
-
-```bash
-$ python my_flow.py
 ...
-14:03:21.729 | INFO    | Task run 'my_task-ec9685da-0' - Finished in state Completed(None)
-<class 'prefect.futures.PrefectFuture'>
-<class 'prefect.orion.schemas.states.State'>
-14:03:21.753 | INFO    | Flow run 'nonchalant-lizard' - Finished in state 
-Completed('All states completed.')
+
+@flow(name="hello-flow")
+def hello_world():
+    future = say_hello("Marvin")
+    print_result(future)
 ```
 
-You can use the `wait_for` parameter to enforce ordering between tasks that do not exchange data.
+<div class="termy">
+```
+>>> hello_world()
+<class 'str'>
+Hello Marvin!
+```
+</div>
+
+Futures have a few useful methods. For example, [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state) retrieves the current state of the task run associated with a `PrefectFuture`.
+
+```python
+@flow
+def my_flow():
+    future = my_task()
+    state = future.get_state()
+```
+
+You can also explicitly wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method and retrieve the task's result:
+
+```python
+@flow
+def my_flow():
+    future = my_task()
+    final_state = future.wait()
+    result = final_state.result()
+```
+
+You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
 
 ```python
 @task
-def task_1():
+def task_a():
     pass
 
 @task
-def task_2():
+def task_b():
     pass
 
 @task
-def task_3():
+def task_c():
     pass
     
 @task
-def task_4():
+def task_d():
     pass
-   
-    
+
 @flow
 def my_flow():
-    a = task_1()
-    b  = task_2()
-    # task_3 will wait for task_1 to complete and task_2 to complete
-    c = task_3(wait_for=[a, b])
-    # if waiting for one task it must still be in a list
-    # task_4 will wait for task_3 to complete
-    d = task_4(wait_for=[c])
+    a = task_a()
+    b = task_b()
+    # Wait for task_a and task_2 to complete
+    c = task_c(wait_for=[a, b])
+    # If waiting for one task it must still be in a list
+    # task_d will wait for task_c to complete
+    d = task_d(wait_for=[c])
 ```
 
 ## Async tasks
 
 Coming soon.
-
-## Subclassing Task
-
-Coming soon.
-
