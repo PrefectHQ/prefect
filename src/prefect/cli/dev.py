@@ -8,6 +8,7 @@ import os
 
 import anyio
 from functools import partial
+from string import Template
 import typer
 
 import prefect
@@ -16,6 +17,7 @@ from prefect.cli.orion import start as start_orion
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
 from prefect.cli.orion import open_process_and_stream_output
+from prefect.flow_runners import get_prefect_image_name
 
 DEV_HELP = """
 Commands for development.
@@ -110,3 +112,26 @@ async def start(agent: bool = True):
     async with anyio.create_task_group() as tg:
         tg.start_soon(partial(start_orion, ui=False, agent=agent))
         tg.start_soon(ui)
+
+
+@dev_app.command()
+def kubernetes_manifest():
+    """
+    Generates a kubernetes manifest for development.
+
+    Example:
+        $ prefect dev kubernetes-manifest | kubectl apply -f -
+    """
+
+    template = Template(
+        (
+            prefect.__module_path__ / "cli" / "templates" / "kubernetes-dev.yaml"
+        ).read_text()
+    )
+    manifest = template.substitute(
+        {
+            "prefect_root_directory": prefect.__root_path__,
+            "image_name": get_prefect_image_name(),
+        }
+    )
+    print(manifest)
