@@ -47,6 +47,3 @@ async def start(host=settings.orion_host):
                 running = False
             await anyio.sleep(settings.agent.query_interval)
     console.print("Agent stopped!")
-
-
-from anyio import to_process

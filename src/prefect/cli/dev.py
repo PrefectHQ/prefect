@@ -91,7 +91,7 @@ def build_ui():
 @sync_compatible
 async def ui():
     """
-    Starts a hot-reloading dev UI.
+    Starts a hot-reloading development UI.
     """
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
@@ -110,6 +110,9 @@ async def api(
     log_level: str = "DEBUG",
     services: bool = True,
 ):
+    """
+    Starts a hot-reloading development API.
+    """
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = "False"
@@ -135,6 +138,9 @@ async def api(
 @dev_app.command()
 @sync_compatible
 async def agent(host: str = prefect.settings.orion_host):
+    """
+    Starts a hot-reloading development agent process.
+    """
     await watchgod.arun_process(
         prefect.__module_path__, start_agent, kwargs=dict(host=host)
     )
