@@ -54,9 +54,7 @@ def do_run_migrations(connection: AsyncEngine) -> None:
 
 @sync_compatible
 async def apply_migrations() -> None:
-    """
-
-    """
+    """ """
     engine = await db_interface.engine()
     context.script.version_locations = [db_interface.orm.versions_dir]
 
