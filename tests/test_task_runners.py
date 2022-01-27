@@ -44,7 +44,7 @@ def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
-    subprocess.check_call(["ray", "start", "--head"])
+    subprocess.check_call(["ray", "start", "--head"], cwd=str(prefect.__root_path__))
     try:
         yield "ray://127.0.0.1:10001"
     finally:
@@ -61,7 +61,12 @@ def ray_task_runner_with_existing_cluster(machine_ray_instance):
         address=machine_ray_instance,
         # The working directory must be passed through to the worker or the test
         # module will not be importable
-        init_kwargs={"runtime_env": {"working_dir": str(prefect.__root_path__)}},
+        init_kwargs={
+            "runtime_env": {
+                "working_dir": str(prefect.__root_path__),
+                "excludes": [str(prefect.__root_path__ / ".git")],
+            }
+        },
     )
 
 
