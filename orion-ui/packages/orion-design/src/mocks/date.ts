@@ -1,12 +1,10 @@
-import { MockGenerator } from '../mocks'
-
-export const randomDate: MockGenerator<Date> = (start?: Date, end?: Date) => {
+export function randomDate(start?: Date, end?: Date): Date {
   if (!start) {
-    start = new Date()
+    start = new Date(0)
   }
 
   if (!end) {
-    end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+    end = new Date()
   }
 
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))

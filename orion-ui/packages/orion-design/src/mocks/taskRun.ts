@@ -1,8 +1,7 @@
-import { MockGenerator } from '../mocks'
 import { TaskRun } from '../models'
 import { mocker } from '../services'
 
-export const randomTaskRun: MockGenerator<TaskRun> = () => {
+export function randomTaskRun(): TaskRun {
   return new TaskRun({
     id: mocker.create('string'),
     flowRunId: mocker.create('string'),

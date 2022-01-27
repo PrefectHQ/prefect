@@ -1,8 +1,7 @@
-import { MockGenerator } from '../mocks'
 import { Log } from '../models'
 import { mocker } from '../services'
 
-export const randomLog: MockGenerator<Log> = () => {
+export function randomLog(): Log {
   return new Log({
     id: mocker.create('string'),
     created: mocker.create('date'),

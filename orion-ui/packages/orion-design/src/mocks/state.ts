@@ -1,9 +1,8 @@
-import { MockGenerator } from '../mocks'
 import { IState } from '../models'
 import { mocker } from '../services'
 
-export const randomState: MockGenerator<IState> = () => {
-  const state: IState = {
+export function randomState(): IState {
+  return {
     id: mocker.create('string'),
     type: mocker.create('stateType'),
     message: mocker.create('string'),
@@ -12,6 +11,4 @@ export const randomState: MockGenerator<IState> = () => {
     timestamp: mocker.create('string'),
     name: mocker.create('string'),
   }
-
-  return state
 }
