@@ -6,12 +6,12 @@ export function randomChar(): typeof characters[number] {
   return characters[Math.floor(Math.random() * characters.length)]
 }
 
-export function randomString(len?: number): string {
-  if (!len) {
-    len = mocker.create('number', [5, 10])
+export function randomString(chars?: number): string {
+  if (!chars) {
+    chars = mocker.create('number', [5, 10])
   }
 
-  return new Array(len).fill(null).map(() => mocker.create('char')).join('')
+  return new Array(chars).fill(null).map(() => mocker.create('char')).join('')
 }
 
 export function randomSentence(words?: number): string {
@@ -24,14 +24,10 @@ export function randomSentence(words?: number): string {
   return `${first.charAt(0).toUpperCase()}${first.slice(1)} ${rest.join(' ')}.`
 }
 
-export function randomParagraph(paragraphs?: number): string {
-  if (!paragraphs) {
-    paragraphs = mocker.create('number', [5, 10])
+export function randomParagraph(sentences?: number): string {
+  if (!sentences) {
+    sentences = mocker.create('number', [2, 10])
   }
 
-  function getParagraph(): string {
-    return new Array(mocker.create('number', [2, 10])).fill(null).map(() => mocker.create('sentence')).join(' ')
-  }
-
-  return new Array(paragraphs).fill(null).map(getParagraph).join('\n\n')
+  return new Array(sentences).fill(null).map(() => mocker.create('sentence')).join(' ')
 }
