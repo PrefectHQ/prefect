@@ -9,6 +9,7 @@ type GeneratorParamsRequired<T extends Generator> = OnlyRequired<GeneratorParams
 type CreateArguments<T extends Record<string, Generator>, K extends keyof T> = GeneratorParamsRequired<T[K]> extends never[]
   ? [key: K, args?: GeneratorParams<T[K]>]
   : [key: K, args: GeneratorParams<T[K]>]
+
 type CreateManyArguments<T extends Record<string, Generator>, K extends keyof T> = GeneratorParamsRequired<T[K]> extends never[]
   ? [key: K, count: number, args?: GeneratorParams<T[K]>]
   : [key: K, count: number, args: GeneratorParams<T[K]>]
