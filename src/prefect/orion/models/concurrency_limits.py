@@ -58,9 +58,14 @@ async def read_concurrency_limit(
     concurrency_limit_id: UUID,
     db: OrionDBInterface,
 ):
-    return await session.get(
-        db.ConcurrencyLimit, concurrency_limit_id
-    ).with_for_update()
+    query = (
+        sa.select(db.ConcurrencyLimit)
+        .where(db.ConcurrencyLimit.id == concurrency_limit_id)
+        .with_for_update()
+    )
+
+    result = await session.execute(query)
+    return result.scalar()
 
 
 @inject_db
