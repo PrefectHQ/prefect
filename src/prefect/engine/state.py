@@ -10,6 +10,7 @@ class as follows:
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
+import sys
 import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
 
@@ -109,6 +110,9 @@ class State:
                 data["_result"] = new_result
 
         return data
+
+    def __sizeof__(self) -> int:
+        return super().__sizeof__() + sys.getsizeof(self.result)
 
     @property
     def result(self) -> Any:

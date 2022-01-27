@@ -10,28 +10,6 @@ Prefect does not store the _results_ of your task runs. The data that your task 
 
 ### Python
 
-::: warning Experimental
-<div class="experimental-warning">
-<svg
-    aria-hidden="true"
-    focusable="false"
-    role="img"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 448 512"
-    >
-<path
-fill="#e90"
-d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-13.3 0-24 10.7-24 24v16c0 13.3 10.7 24 24 24h8v151L10.8 403.5C-18.5 450.6 15.3 512 70.9 512h306.2c55.7 0 89.4-61.5 60.1-108.5zM137.9 320l48.2-77.6c3.7-5.2 5.8-11.6 5.8-18.4V64h64v160c0 6.9 2.2 13.2 5.8 18.4l48.2 77.6h-172z"
->
-</path>
-</svg>
-
-<div>
-The functionality here is experimental, and may change between versions without notice. Use at your own risk.
-</div>
-</div>
-:::
-
 The Prefect Core library provides an object for inspecting task runs without writing queries at `prefect.backend.TaskRunView`.
 
 #### Creating a `TaskRunView`
@@ -83,7 +61,7 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 
 #### Task run results
 
-Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastrucuture. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
+Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastructure. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
 
 `TaskRunView` provides a `get_result` method which will load and cache the return value of your task from the result location. 
 

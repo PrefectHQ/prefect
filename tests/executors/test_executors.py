@@ -22,17 +22,6 @@ from prefect.executors import (
 from prefect.engine.signals import SUCCESS
 
 
-@pytest.mark.parametrize(
-    "cls_name", ["LocalExecutor", "LocalDaskExecutor", "DaskExecutor"]
-)
-def test_deprecated_executors(cls_name):
-    old_cls = getattr(prefect.engine.executors, cls_name)
-    new_cls = getattr(prefect.executors, cls_name)
-    with pytest.warns(UserWarning, match="has been moved to"):
-        obj = old_cls()
-    assert isinstance(obj, new_cls)
-
-
 class TestBaseExecutor:
     def test_submit_raises_notimplemented(self):
         with pytest.raises(NotImplementedError):
@@ -158,7 +147,7 @@ class TestLocalDaskExecutor:
         self, scheduler, num_workers
     ):
         from dask.system import CPU_COUNT
-        from multiprocessing.pool import Pool, ThreadPool
+        from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
         e = LocalDaskExecutor(scheduler, num_workers=num_workers)
         with e.start():
@@ -166,9 +155,13 @@ class TestLocalDaskExecutor:
                 assert e._pool is None
             else:
                 sol = num_workers or CPU_COUNT
-                kind = ThreadPool if scheduler == "threads" else Pool
+                kind = (
+                    ThreadPoolExecutor
+                    if scheduler == "threads"
+                    else ProcessPoolExecutor
+                )
+                assert e._pool._max_workers == sol
                 assert isinstance(e._pool, kind)
-                assert e._pool._processes == sol
         assert e._pool is None
 
     @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])

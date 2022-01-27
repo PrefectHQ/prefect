@@ -457,7 +457,7 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
 
         def my_run_task(*args, **kwargs):
             with prefect.utilities.configuration.set_temporary_config(
-                {"cloud.send_flow_run_logs": False, "cloud.auth_token": ""}
+                {"cloud.send_flow_run_logs": False, "cloud.api_key": ""}
             ):
                 return run_task(*args, **kwargs)
 
@@ -491,14 +491,14 @@ def test_cloud_task_runners_submitted_to_remote_machines_respect_original_config
             logger.critical("important log right here")
             return (
                 prefect.context.config.special_key,
-                prefect.context.config.cloud.auth_token,
+                prefect.context.config.cloud.api_key,
             )
 
         with prefect.utilities.configuration.set_temporary_config(
             {
                 "cloud.send_flow_run_logs": True,
                 "special_key": 42,
-                "cloud.auth_token": "original",
+                "cloud.api_key": "original",
             }
         ):
             # captures config at init

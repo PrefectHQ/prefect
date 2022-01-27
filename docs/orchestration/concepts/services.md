@@ -43,7 +43,7 @@ Zombies are tasks that started running but -- for some reason -- are no longer i
 
 ### How does it work?
 
-Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
+Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is NOT in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
 
 ### Heartbeat configuration
 
