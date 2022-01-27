@@ -25,9 +25,11 @@ export class Mocker<T extends Record<string, Generator>> {
   }
 
   public createMany<K extends keyof T>(...[key, count = 3, args]: CreateManyArguments<T, K>): GeneratorReturns<T[K]>[] {
+    const generate = this.generators[key].bind(null, ...args ?? [])
+
     return new Array(count)
       .fill(null)
-      .map(() => this.generators[key](...args ?? []))
+      .map(generate)
   }
 }
 
