@@ -4,7 +4,7 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
-from copy import copy, deepcopy
+from copy import copy
 import datetime
 import logging
 import inspect
@@ -146,8 +146,9 @@ class Task(Generic[P, R]):
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-    def copy(
+    def with_options(
         self,
+        *,
         name: str = None,
         description: str = None,
         tags: Iterable[str] = None,
@@ -159,7 +160,7 @@ class Task(Generic[P, R]):
         retry_delay_seconds: Union[float, int] = 0,
     ):
         """
-        Method to copy a task and override any task settings.
+        Method to create a new task with the specified options overrides.
 
         Args:
             name: An optional name for the task; if not provided, the name will be inferred
@@ -183,15 +184,15 @@ class Task(Generic[P, R]):
 
         Examples:
 
-            Copy a task and update the name
+            Create a new task from an existing task and update the name
 
             >>> @task(name="My task")
             >>> def my_task():
             >>>     return 1
             >>>
-            >>> new_task = my_task.copy(name="My new task")
+            >>> new_task = my_task.with_options(name="My new task")
 
-            Copy a task and update the retry settings
+            Create a new task from an existing task and update the retry settings
 
             >>> from random import randint
             >>>
@@ -202,9 +203,9 @@ class Task(Generic[P, R]):
             >>>         raise ValueError("Retry me please!")
             >>>     return x
             >>>
-            >>> new_task = my_task.copy(retries=5, retry_delay_seconds=2)
+            >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
 
-            Use a copied a task within a flow
+            Use a task with updated options within a flow
 
             >>> @task(name="My task")
             >>> def my_task():
@@ -212,7 +213,7 @@ class Task(Generic[P, R]):
             >>>
             >>> @flow
             >>> my_flow():
-            >>>     new_task = my_task.copy(name="My new task")
+            >>>     new_task = my_task.with_options(name="My new task")
             >>>     new_task()
         """
         return Task(
