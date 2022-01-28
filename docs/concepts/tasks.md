@@ -107,7 +107,7 @@ Caching refers to the ability of a task run to reflect a finished state without 
 
 To determine whether a task run should retrieve a cached state, we use "cache keys". A cache key is a string value that indicates if a run should be considered identical to another. When a task run with a cache key finishes, we attach that cache key to the state. When each task run starts, we will look for states with a matching cache key. If we find a state with an identical key, we will use the cached state instead of running the task again.
 
-To enable caching, you must specify a `cache_key_fn` &mdash; a function that returns a cache key &mdash; on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. If you do not specify a `cache_expiration`, the cache key does not expire.
+To enable caching, specify a `cache_key_fn` &mdash; a function that returns a cache key &mdash; on your task. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. If you do not specify a `cache_expiration`, the cache key does not expire.
 
 You can define a task that is cached based on its inputs by using the Prefect `task_input_hash`. This is a task cache key implementation that hashes all inputs to the task using a JSON or cloudpickle serializer. If the task inputs do not change, the cached results are used rather than running the task until the cache expires.
 
