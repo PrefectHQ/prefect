@@ -103,6 +103,18 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     dictConfigMock.assert_called_once_with(expected_config)
 
 
+def test_setup_logging_changes_root_to_empty_string(tmp_path, dictConfigMock):
+    fake_settings = Settings(
+        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
+    )
+
+    setup_logging(fake_settings)
+
+    config = dictConfigMock.call_args[0][0]
+    assert "root" not in config["loggers"]
+    assert "" in config["loggers"]
+
+
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
     fake_settings = Settings(
         logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
@@ -110,6 +122,12 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     expected_config = load_logging_config(
         DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
     )
+
+    # Test setting a value for a simple key
+    monkeypatch.setenv(
+        LoggingSettings.Config.env_prefix + "HANDLERS_ORION_LEVEL", "ORION_LEVEL_VAL"
+    )
+    expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
 
     # Test setting a value for the root logger
     monkeypatch.setenv(
