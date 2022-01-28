@@ -1,15 +1,15 @@
-import { EntityStringFilter, EntityTagFilter } from '.'
+import { ObjectStringFilter, ObjectTagFilter } from '.'
 
 export type FlowFilter = {
-  entity: 'flow',
+  object: 'flow',
 } & Partial<(FlowStringFilter | FlowTagFilter)>
 
 export type FlowStringFilter = {
-  entity: 'flow',
+  object: 'flow',
   key: 'name',
-} & Partial<EntityStringFilter>
+} & Partial<ObjectStringFilter>
 
 export type FlowTagFilter = {
-  entity: 'flow',
+  object: 'flow',
   key: 'tag',
-} & Partial<EntityTagFilter>
+} & Partial<ObjectTagFilter>

@@ -1,25 +1,25 @@
-import { EntityStringFilter, EntityDateFilter, EntityTagFilter, EntityStateFilter } from '.'
+import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilter } from '.'
 
 export type FlowRunFilter = {
-  entity: 'flow_run',
+  object: 'flow_run',
 } & Partial<(FlowRunStringFilter | FlowRunDateFilter | FlowRunTagFilter | FlowRunStateFilter)>
 
 export type FlowRunStringFilter = {
-  entity: 'flow_run',
+  object: 'flow_run',
   key: 'name',
-} & Partial<EntityStringFilter>
+} & Partial<ObjectStringFilter>
 
 export type FlowRunDateFilter = {
-  entity: 'flow_run',
+  object: 'flow_run',
   key: 'start_date' | 'end_date',
-} & Partial<EntityDateFilter>
+} & Partial<ObjectDateFilter>
 
 export type FlowRunTagFilter = {
-  entity: 'flow_run',
+  object: 'flow_run',
   key: 'tag',
-} & Partial<EntityTagFilter>
+} & Partial<ObjectTagFilter>
 
 export type FlowRunStateFilter = {
-  entity: 'flow_run',
+  object: 'flow_run',
   key: 'state',
-} & Partial<EntityStateFilter>
+} & Partial<ObjectStateFilter>

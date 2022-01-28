@@ -1,10 +1,10 @@
-import { EntityStringFilter } from '.'
+import { ObjectStringFilter } from '.'
 
 export type TagFilter = {
-  entity: 'tag',
+  object: 'tag',
 } & Partial<TagStringFilter>
 
 export type TagStringFilter = {
-  entity: 'tag',
+  object: 'tag',
   key: 'name',
-} & Partial<EntityStringFilter>
+} & Partial<ObjectStringFilter>

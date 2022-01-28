@@ -17,31 +17,31 @@ import {
   TaskRunStateFilter,
   TaskRunDateFilter,
   TaskRunTagFilter,
-  EntityFilter,
-  EntityStringFilter,
-  EntityDateFilter,
-  EntityStateFilter,
-  EntityTagFilter
+  ObjectFilter,
+  ObjectStringFilter,
+  ObjectDateFilter,
+  ObjectStateFilter,
+  ObjectTagFilter
 } from '../types/filters'
 
 export function isFlowFilter(filter: Filter): filter is FlowFilter {
-  return filter.entity == 'flow'
+  return filter.object == 'flow'
 }
 
 export function isDeploymentFilter(filter: Filter): filter is DeploymentFilter {
-  return filter.entity === 'deployment'
+  return filter.object === 'deployment'
 }
 
 export function isFlowRunFilter(filter: Filter): filter is FlowRunFilter {
-  return filter.entity === 'flow_run'
+  return filter.object === 'flow_run'
 }
 
 export function isTaskRunFilter(filter: Filter): filter is TaskRunFilter {
-  return filter.entity === 'task_run'
+  return filter.object === 'task_run'
 }
 
 export function isTagFilter(filter: Filter): filter is TagFilter {
-  return filter.entity === 'tag'
+  return filter.object === 'tag'
 }
 
 export function isFlowStringFilter(filter: Filter): filter is FlowStringFilter {
@@ -92,18 +92,18 @@ export function isTaskRunTagFilter(filter: Filter): filter is TaskRunTagFilter {
   return isTaskRunFilter(filter) && filter.type === 'tag'
 }
 
-export function isEntityStringFilter(filter: EntityFilter): filter is EntityStringFilter {
+export function isObjectStringFilter(filter: ObjectFilter): filter is ObjectStringFilter {
   return filter.type == 'string'
 }
 
-export function isEntityDateFilter(filter: EntityFilter): filter is EntityDateFilter {
+export function isObjectDateFilter(filter: ObjectFilter): filter is ObjectDateFilter {
   return filter.type == 'date'
 }
 
-export function isEntityStateFilter(filter: EntityFilter): filter is EntityStateFilter {
+export function isObjectStateFilter(filter: ObjectFilter): filter is ObjectStateFilter {
   return filter.type == 'state'
 }
 
-export function isEntityTagFilter(filter: EntityFilter): filter is EntityTagFilter {
+export function isObjectTagFilter(filter: ObjectFilter): filter is ObjectTagFilter {
   return filter.type == 'tag'
 }
