@@ -35,7 +35,6 @@ export type ObjectNumberFilter = {
 }
 
 export type Filter = FlowFilter | DeploymentFilter | FlowRunFilter | TaskRunFilter | TagFilter
-
 export type FilterEntities = Filter['object']
 export type FilterOperations = Filter['operation']
 export type FilterTypes = Filter['type']
