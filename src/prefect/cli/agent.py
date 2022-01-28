@@ -15,35 +15,40 @@ agent_app = typer.Typer(
 app.add_typer(agent_app)
 
 
-ascii_name = r"""
- ____            __           _        _                    _
-|  _ \ _ __ ___ / _| ___  ___| |_     / \   __ _  ___ _ __ | |_
-| |_) | '__/ _ \ |_ / _ \/ __| __|   / _ \ / _` |/ _ \ '_ \| __|
-|  __/| | |  __/  _|  __/ (__| |_   / ___ \ (_| |  __/ | | | |_
-|_|   |_|  \___|_|  \___|\___|\__| /_/   \_\__, |\___|_| |_|\__|
-                                           |___/
+ascii_name = """
+  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____ 
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |  
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_| 
+
 """
 
 
 @agent_app.command()
 @sync_compatible
-async def start(host=settings.orion_host):
+async def start(
+    hide_welcome: bool = typer.Option(False, "--hide-welcome"),
+    host: str = settings.orion_host,
+):
     """
     Start an agent process.
     """
-    if host:
-        console.print(f"Starting agent connected to {host}...")
-    else:
-        console.print("Starting agent with ephemeral API...")
+    if not hide_welcome:
+        if settings.orion_host:
+            console.print(f"Starting agent connected to {host}...")
+        else:
+            console.print("Starting agent with ephemeral API...")
 
     running = True
     async with OrionAgent() as agent:
-        console.print(ascii_name)
-        console.print("Agent started! Checking for flow runs...")
+        if not hide_welcome:
+            console.print(ascii_name)
+            console.print("Agent started!")
         while running:
             try:
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
             await anyio.sleep(settings.agent.query_interval)
+
     console.print("Agent stopped!")
