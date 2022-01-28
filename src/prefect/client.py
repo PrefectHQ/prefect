@@ -534,7 +534,7 @@ class OrionClient:
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            httpx.RequestError: if the concurrency limit was not found
+            httpx.RequestError
 
         Returns:
             True if the concurrency limit was deleted, False otherwise
