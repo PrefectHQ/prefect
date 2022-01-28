@@ -1,6 +1,4 @@
 import datetime
-from unicodedata import name
-from tests.fixtures.database import session
 import time
 from uuid import uuid4
 
@@ -521,6 +519,33 @@ class TestScheduledRuns:
             session, deployment_id=deployment.id, max_runs=3
         )
         assert scheduled_runs == []
+
+    async def test_schedule_runs_respects_flow_runner(
+        self, flow, flow_function, session
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                flow_runner=schemas.core.FlowRunnerSettings(
+                    type="test", config={"foo": "bar"}
+                ),
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=1
+        )
+        assert len(scheduled_runs) == 1
+        scheduled_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=scheduled_runs[0]
+        )
+        assert scheduled_run.flow_runner_type == "test"
+        assert scheduled_run.flow_runner_config == {"foo": "bar"}
 
     @pytest.mark.parametrize("tags", [[], ["foo"]])
     async def test_schedule_runs_applies_tags(self, tags, flow, flow_function, session):
