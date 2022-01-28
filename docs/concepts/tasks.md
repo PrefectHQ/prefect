@@ -191,7 +191,7 @@ def say_hello(name):
 @flow
 def hello_world():
     future = say_hello("Marvin")
-    print(f"variable 'future' is type {str(type(future))}")
+    print(f"variable 'future' is type {type(future)}")
 ```
 
 You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
