@@ -61,7 +61,7 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { useStore } from 'vuex'
+import { useStore } from '@/store'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
 import { showToast } from '@prefecthq/miter-design'
@@ -80,7 +80,7 @@ const close = () => {
 
 const save = async () => {
   loading.value = true
-  const gf = JSON.parse(JSON.stringify(store.getters.globalFilter))
+  const gf = JSON.parse(JSON.stringify(store.state.filter))
 
   const query = await Api.query({
     endpoint: Endpoints.save_search,
@@ -106,7 +106,7 @@ const save = async () => {
 }
 
 const filters = computed<FilterObject[]>(() => {
-  return parseFilters(store.getters.globalFilter)
+  return parseFilters(store.state.filter)
 })
 </script>
 
