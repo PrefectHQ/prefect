@@ -1,3 +1,5 @@
-export function randomNumber(min: number = 0, max: number = 100): number {
+import { MockFunction } from '../services'
+
+export const randomNumber: MockFunction<number> = function(min: number = 0, max: number = 100) {
   return Math.floor(Math.random() * (max - min + 1) + min)
 }

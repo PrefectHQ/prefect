@@ -1,15 +1,15 @@
 import { Deployment } from '../models'
-import { mocker } from '../services'
+import { MockFunction } from '../services'
 
-export function randomDeployment(): Deployment {
+export const randomDeployment: MockFunction<Deployment> = function() {
   return {
-    id: mocker.create('string'),
-    created: mocker.create('date'),
-    updated: mocker.create('date'),
-    name: mocker.create('string'),
-    flowId: mocker.create('string'),
-    isScheduleActive: mocker.create('boolean'),
-    tags: mocker.createMany('string', 3),
+    id: this.create('string'),
+    created: this.create('date'),
+    updated: this.create('date'),
+    name: this.create('string'),
+    flowId: this.create('string'),
+    isScheduleActive: this.create('boolean'),
+    tags: this.createMany('string', 3),
     flowData: null,
     schedule: null,
     parameters: null,
