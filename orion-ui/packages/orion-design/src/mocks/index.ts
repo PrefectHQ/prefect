@@ -5,7 +5,7 @@ import { randomFlowRun } from './flowRun'
 import { randomLog } from './log'
 import { randomNumber } from './number'
 import { randomState } from './state'
-import { randomStateType } from './StateType'
+import { randomStateType } from './stateType'
 import { randomChar, randomString, randomSentence, randomParagraph } from './string'
 import { randomTaskRun } from './taskRun'
 
