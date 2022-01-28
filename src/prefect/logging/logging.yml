@@ -81,7 +81,20 @@ loggers:
         level: NOTSET
         handlers: [orion, console_task_runs]
         propagate: no
-    
+
+    prefect.orion:
+        level: "{{server_level}}"
+
+    uvicorn:
+        level: "{{server_level}}"
+        handlers: [console]
+        propagate: no
+
+    fastapi:
+        level: "{{server_level}}"
+        handlers: [console]
+        propagate: no
+
     # The root logger: any logger without propagation disabled sends to here as well
     root:
         # By default, we display warning level logs from any library in the console
