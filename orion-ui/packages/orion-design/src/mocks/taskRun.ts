@@ -1,7 +1,7 @@
 import { TaskRun } from '../models'
-import { MockerFunction } from '../services'
+import { MockFunction } from '../services'
 
-export const randomTaskRun: MockerFunction<TaskRun> = function() {
+export const randomTaskRun: MockFunction<TaskRun> = function() {
   return new TaskRun({
     id: this.create('string'),
     flowRunId: this.create('string'),

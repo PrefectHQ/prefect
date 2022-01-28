@@ -1,7 +1,7 @@
 import { IState } from '../models'
-import { MockerFunction } from '../services'
+import { MockFunction } from '../services'
 
-export const randomState: MockerFunction<IState> = function() {
+export const randomState: MockFunction<IState> = function() {
   return {
     id: this.create('string'),
     type: this.create('stateType'),
