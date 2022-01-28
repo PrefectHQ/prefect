@@ -345,7 +345,7 @@ async def _generate_scheduled_flow_runs(
         max_runs: a maximum amount of runs to schedule
 
     Returns:
-        a list of dictionaries representations of the `FlowRun` objects to schedule
+        a list of dictionary representations of the `FlowRun` objects to schedule
     """
     runs = []
 
@@ -360,23 +360,27 @@ async def _generate_scheduled_flow_runs(
     )
 
     for date in dates:
-        run = schemas.core.FlowRun(
-            flow_id=deployment.flow_id,
-            deployment_id=deployment_id,
-            parameters=deployment.parameters,
-            flow_runner=deployment.flow_runner,
-            idempotency_key=f"scheduled {deployment.id} {date}",
-            tags=["auto-scheduled"] + deployment.tags,
-            auto_scheduled=True,
-            state=schemas.states.Scheduled(
-                scheduled_time=date,
-                message="Flow run scheduled",
-            ),
-            state_type=schemas.states.StateType.SCHEDULED,
-            next_scheduled_start_time=date,
-            expected_start_time=date,
+        flow_runner = deployment.flow_runner
+        runs.append(
+            {
+                "id": uuid4(),
+                "flow_id": deployment.flow_id,
+                "deployment_id": deployment_id,
+                "parameters": deployment.parameters,
+                "flow_runner_type": flow_runner.type if flow_runner else None,
+                "flow_runner_config": flow_runner.config if flow_runner else None,
+                "idempotency_key": f"scheduled {deployment.id} {date}",
+                "tags": ["auto-scheduled"] + deployment.tags,
+                "auto_scheduled": True,
+                "state": schemas.states.Scheduled(
+                    scheduled_time=date,
+                    message="Flow run scheduled",
+                ).dict(),
+                "state_type": schemas.states.StateType.SCHEDULED,
+                "next_scheduled_start_time": date,
+                "expected_start_time": date,
+            }
         )
-        runs.append(run.dict())
 
     return runs
 
@@ -401,21 +405,13 @@ async def _insert_scheduled_flow_runs(
     if not runs:
         return []
 
-    bulk_insert_values = []
-    for run in runs:
-        run_insert_values = {k: run[k] for k in run if k not in {"created", "updated"}}
-        flow_runner = run_insert_values.pop("flow_runner", {})
-        run_insert_values["flow_runner_type"] = flow_runner.get("type")
-        run_insert_values["flow_runner_config"] = flow_runner.get("config")
-        bulk_insert_values.append(run_insert_values)
-
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
     insert = await db.insert(db.FlowRun)
     await session.execute(
         insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
-        bulk_insert_values,
+        runs,
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with
