@@ -76,7 +76,9 @@ class MarkLateRuns(LoopService):
 
     @inject_db
     def _get_select_late_flow_runs_query(self, db: OrionDBInterface):
-        """Returns a sqlalchemy query for late flow runs."""
+        """
+        Returns a sqlalchemy query for late flow runs.
+        """
         query = (
             sa.select(
                 db.FlowRun.id,
@@ -105,9 +107,7 @@ class MarkLateRuns(LoopService):
         """
         Mark a flow run as late.
 
-        Args:
-            session: a database session
-            flow_run: the flow run orm model to mark as late
+        Pass-through method for overrides.
         """
         await models.flow_runs.set_flow_run_state(
             session=session,
