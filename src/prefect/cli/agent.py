@@ -26,13 +26,16 @@ ascii_name = """
 
 @agent_app.command()
 @sync_compatible
-async def start(hide_welcome: bool = typer.Option(False, "--hide-welcome")):
+async def start(
+    hide_welcome: bool = typer.Option(False, "--hide-welcome"),
+    host: str = settings.orion_host,
+):
     """
     Start an agent process.
     """
     if not hide_welcome:
         if settings.orion_host:
-            console.print(f"Starting agent connected to {settings.orion_host}...")
+            console.print(f"Starting agent connected to {host}...")
         else:
             console.print("Starting agent with ephemeral API...")
 
@@ -49,6 +52,3 @@ async def start(hide_welcome: bool = typer.Option(False, "--hide-welcome")):
             await anyio.sleep(settings.agent.query_interval)
 
     console.print("Agent stopped!")
-
-
-from anyio import to_process
