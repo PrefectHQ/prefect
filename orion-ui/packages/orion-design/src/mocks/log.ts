@@ -1,7 +1,7 @@
 import { Log } from '../models'
-import { mocker } from '../services'
+import { mocker as Mocker } from '../services'
 
-export function randomLog(): Log {
+export function randomLog(mocker: typeof Mocker): Log {
   return new Log({
     id: mocker.create('string'),
     created: mocker.create('date'),

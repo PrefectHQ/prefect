@@ -22,11 +22,13 @@ export class Mocker<T extends Record<string, Generator>> {
   }
 
   public create<K extends keyof T>(...[key, args]: CreateArguments<T, K>): GeneratorReturns<T[K]> {
-    return this.generators[key](...args ?? [])
+    const generate = this.generators[key].bind(this, ...args ?? [])
+
+    return generate()
   }
 
   public createMany<K extends keyof T>(...[key, count, args]: CreateManyArguments<T, K>): GeneratorReturns<T[K]>[] {
-    const generate = this.generators[key].bind(null, ...args ?? [])
+    const generate = this.generators[key].bind(this, ...args ?? [])
 
     return new Array(count)
       .fill(null)
@@ -35,3 +37,4 @@ export class Mocker<T extends Record<string, Generator>> {
 }
 
 export const mocker = new Mocker(mocks)
+export type MockerFunction<T> = (this: typeof mocker, ...args: any[]) => T

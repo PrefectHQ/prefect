@@ -1,14 +1,14 @@
 import { IState } from '../models'
-import { mocker } from '../services'
+import { MockerFunction } from '../services'
 
-export function randomState(): IState {
+export const randomState: MockerFunction<IState> = function() {
   return {
-    id: mocker.create('string'),
-    type: mocker.create('stateType'),
-    message: mocker.create('string'),
+    id: this.create('string'),
+    type: this.create('stateType'),
+    message: this.create('string'),
     stateDetails: {},
     data: {},
-    timestamp: mocker.create('string'),
-    name: mocker.create('string'),
+    timestamp: this.create('string'),
+    name: this.create('string'),
   }
 }

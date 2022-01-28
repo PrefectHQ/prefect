@@ -1,33 +1,33 @@
-import { mocker } from '../services'
+import { MockerFunction } from '../services'
 
 const characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'] as const
 
-export function randomChar(): typeof characters[number] {
+export const randomChar: MockerFunction<typeof characters[number]> = function() {
   return characters[Math.floor(Math.random() * characters.length)]
 }
 
-export function randomString(chars?: number): string {
+export const randomString: MockerFunction<string> = function(chars?: number) {
   if (!chars) {
-    chars = mocker.create('number', [5, 10])
+    chars = this.create('number', [5, 10])
   }
 
-  return new Array(chars).fill(null).map(() => mocker.create('char')).join('')
+  return new Array(chars).fill(null).map(() => this.create('char')).join('')
 }
 
-export function randomSentence(words?: number): string {
+export const randomSentence: MockerFunction<string> = function(words?: number) {
   if (!words) {
-    words = mocker.create('number', [5, 10])
+    words = this.create('number', [5, 10])
   }
 
-  const [first, ...rest] = new Array(words).fill(null).map(() => mocker.create('string'))
+  const [first, ...rest] = new Array(words).fill(null).map(() => this.create('string'))
 
   return `${first.charAt(0).toUpperCase()}${first.slice(1)} ${rest.join(' ')}.`
 }
 
-export function randomParagraph(sentences?: number): string {
+export const randomParagraph: MockerFunction<string> = function(sentences?: number) {
   if (!sentences) {
-    sentences = mocker.create('number', [2, 10])
+    sentences = this.create('number', [2, 10])
   }
 
-  return new Array(sentences).fill(null).map(() => mocker.create('sentence')).join(' ')
+  return new Array(sentences).fill(null).map(() => this.create('sentence')).join(' ')
 }
