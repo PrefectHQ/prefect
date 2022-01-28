@@ -1,4 +1,5 @@
 import inspect
+from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
@@ -128,6 +129,10 @@ async def test_injecting_really_dumb_orm_configuration():
     class UselessORMConfiguration(BaseORMConfiguration):
         def run_migrations(self):
             ...
+
+        @property
+        def versions_dir(self):
+            return Path("")
 
     class UselessBaseMixin:
         my_string_column = sa.Column(
