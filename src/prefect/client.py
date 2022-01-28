@@ -142,6 +142,24 @@ class OrionClient:
         response.raise_for_status()
         return response
 
+    async def delete(self, route: str, **kwargs) -> httpx.Response:
+        """
+        Send a DELETE request to the provided route.
+
+        Args:
+            route: the path to make the request to
+            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
+
+        Raises:
+            httpx.HTTPStatusError: if a non-200 status code is returned
+
+        Returns:
+            an `httpx.Response` object
+        """
+        response = await self._client.delete(route, **kwargs)
+        response.raise_for_status()
+        return response
+
     async def get(
         self,
         route: str,
@@ -413,6 +431,125 @@ class OrionClient:
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
+
+    async def create_concurrency_limit(
+        self,
+        tag: str,
+        concurrency_limit: int,
+    ) -> UUID:
+        """
+        Create a tag concurrency limit in Orion. These limits govern concurrently
+        running tasks.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+            concurrency_limit: the maximum number of concurrent task runs for a given tag
+
+        Raises:
+            httpx.RequestError: if the concurrency limit was not created for any reason
+
+        Returns:
+            the ID of the concurrency limit in the backend
+        """
+
+        concurrency_limit_create = schemas.actions.ConcurrencyLimitCreate(
+            tag=tag,
+            concurrency_limit=concurrency_limit,
+        )
+        response = await self.post(
+            "/concurrency_limits/",
+            json=concurrency_limit_create.dict(json_compatible=True),
+        )
+
+        concurrency_limit_id = response.json().get("id")
+
+        if not concurrency_limit_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(concurrency_limit_id)
+
+    async def read_concurrency_limit_by_tag(
+        self,
+        tag: str,
+    ):
+        """
+        Read the concurrency limit set on a specific tag.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+            concurrency_limit: the maximum number of concurrent task runs for a given tag
+
+        Raises:
+            httpx.RequestError: if the concurrency limit was not created for any reason
+
+        Returns:
+            the concurrency limit set on a specific tag
+        """
+        response = await self.get(
+            f"/concurrency_limits/tag/{tag}",
+        )
+
+        concurrency_limit_id = response.json().get("id")
+
+        if not concurrency_limit_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        concurrency_limit = schemas.core.ConcurrencyLimit.parse_obj(response.json())
+        return concurrency_limit
+
+    async def read_concurrency_limits(
+        self,
+        limit: int,
+        offset: int,
+    ):
+        """
+        Lists concurrency limits set on task run tags.
+
+        Args:
+            limit: the maximum number of concurrency limits returned
+            offset: the concurrency limit query offset
+
+        Returns:
+            a list of concurrency limits
+        """
+
+        body = {
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = await self.post("/concurrency_limits/filter", json=body)
+        return pydantic.parse_obj_as(
+            List[schemas.core.ConcurrencyLimit], response.json()
+        )
+
+    async def delete_concurrency_limit_by_tag(
+        self,
+        tag: str,
+    ):
+        """
+        Delete the concurrency limit set on a specific tag.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            True if the concurrency limit was deleted, False otherwise
+        """
+        try:
+            response = await self.delete(
+                f"/concurrency_limits/tag/{tag}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
 
     async def create_deployment(
         self,
