@@ -116,21 +116,10 @@ class Scheduler(LoopService):
         db: OrionDBInterface,
     ) -> List[Dict]:
         """
-        Given a `deployment_id` and schedule, generates a list of flow run objects and
+        Given a `deployment_id` and schedule params, generates a list of flow run objects and
         associated scheduled states that represent scheduled flow runs.
 
-        This method does NOT insert generated runs into the database.
-
-        Args:
-            session: a database session
-            deployment_id: the id of the deployment to schedule
-            start_time: the time from which to start scheduling runs
-            end_time: a limit on how far in the future runs will be scheduled
-            max_runs: a maximum amount of runs to schedule
-
-        Returns:
-            a list of dictionaries representing flow runs to schedule for
-                the deployment specified
+        Pass-through method for overrides.
         """
         return await models.deployments._generate_scheduled_flow_runs(
             session=session,
@@ -152,11 +141,7 @@ class Scheduler(LoopService):
         inserts them into the database. Note this is a separate method to facilitate batch
         operations on many scheduled runs.
 
-        Args:
-            session: a database session
-            runs: a list of dictionaries representing flow runs to insert
-
-        Returns a list of flow run ids that were inserted
+        Pass-through method for overrides.
         """
         return await models.deployments._insert_scheduled_flow_runs(
             session=session, runs=runs
