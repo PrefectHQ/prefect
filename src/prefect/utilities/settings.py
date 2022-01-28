@@ -328,18 +328,17 @@ class LoggingSettings(BaseSettings):
        example, to set the orion log level, one could set
        `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=DEBUG`
     3. Any setting in `logging.yml` can refer to a setting in this global
-       logging config, for convenience. For example, the Orion handler's default
-       value is set to `"{{default_value}}"`, which means it will adopt this
-       config's `default_level` value unless overidden. In addition, this means
-       it can be set by provided by the environment variable
-       `PREFECT_LOGGING_DEFAULT_LEVEL`.
+       logging config, for convenience. For example, the Prefect logger's default
+       value is set to `"{{level}}"`, which means it will adopt this config's `level`
+       value unless overidden. In addition, this means it can be set by provided by
+       the environment variable `PREFECT_LOGGING_LEVEL`.
     """
 
     class Config:
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
-    default_level: str = Field(
+    level: str = Field(
         "INFO" if not shared_settings.debug_mode else "DEBUG",
         description="""The default logging level for Prefect loggers. Defaults to 
         "INFO" during normal operation and "DEBUG" during debug mode.""",

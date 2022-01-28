@@ -43,14 +43,12 @@ async def setup_db(database_engine, db):
     """Create all database objects prior to running tests, and drop them when tests are done."""
     try:
         # build the database
-        async with database_engine.begin() as conn:
-            await conn.run_sync(db.Base.metadata.create_all)
+        await db.create_db()
         yield
 
     finally:
-        # tear down the databse
-        async with database_engine.begin() as conn:
-            await conn.run_sync(db.Base.metadata.drop_all)
+        # tear down the database
+        await db.drop_db()
 
 
 @pytest.fixture(autouse=True)

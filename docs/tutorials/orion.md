@@ -53,7 +53,7 @@ $ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/t
 If at any point in your testing you'd like to reset your database, run the CLI command:  
 
 ```bash
-$ prefect orion reset-db
+$ prefect orion database reset
 ```
 
 This will completely clear all data and reapply the schema.
