@@ -97,6 +97,47 @@ def upgrade():
     op.create_index(op.f("ix_log__timestamp"), "log", ["timestamp"], unique=False)
     op.create_index(op.f("ix_log__updated"), "log", ["updated"], unique=False)
     op.create_table(
+        "concurrency_limit",
+        sa.Column(
+            "id",
+            prefect.orion.utilities.database.UUID(),
+            server_default=sa.text(
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "created",
+            prefect.orion.utilities.database.Timestamp(timezone=True),
+            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated",
+            prefect.orion.utilities.database.Timestamp(timezone=True),
+            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            nullable=False,
+        ),
+        sa.Column("tag", sa.String(), nullable=False),
+        sa.Column("concurrency_limit", sa.Integer(), nullable=False),
+        sa.Column(
+            "active_slots",
+            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
+            server_default="[]",
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_concurrency_limit")),
+    )
+    op.create_index(
+        op.f("ix_concurrency_limit__tag"), "concurrency_limit", ["tag"], unique=True
+    )
+    op.create_index(
+        op.f("ix_concurrency_limit__updated"),
+        "concurrency_limit",
+        ["updated"],
+        unique=False,
+    )
+    op.create_table(
         "saved_search",
         sa.Column(
             "id",
@@ -807,6 +848,9 @@ def downgrade():
     op.drop_table("task_run_state_cache")
     op.drop_index(op.f("ix_saved_search__updated"), table_name="saved_search")
     op.drop_table("saved_search")
+    op.drop_index(op.f("ix_concurrency_limit__updated"), table_name="concurrency_limit")
+    op.drop_index(op.f("ix_concurrency_limit__tag"), table_name="concurrency_limit")
+    op.drop_table("concurrency_limit")
     op.drop_index(op.f("ix_log__updated"), table_name="log")
     op.drop_index(op.f("ix_log__timestamp"), table_name="log")
     op.drop_index(op.f("ix_log__task_run_id"), table_name="log")
