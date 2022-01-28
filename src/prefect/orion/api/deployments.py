@@ -27,8 +27,9 @@ async def create_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
-    """Gracefully creates a new deployment from the provided schema. If a deployment with the
-    same name and flow_id already exists, the deployment is updated.
+    """
+    Gracefully creates a new deployment from the provided schema. If a deployment with
+    the same name and flow_id already exists, the deployment is updated.
 
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
