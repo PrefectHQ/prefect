@@ -31,6 +31,7 @@ import ListItemDeployment from '@/components/Global/List/ListItemDeployment/List
 import ListItemFlow from '@/components/Global/List/ListItemFlow/ListItemFlow.vue';
 import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue';
 import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFlowRun.vue';
+import ListItemSubFlowRun from '@/components/Global/List/ListItemSubFlowRun/ListItemSubFlowRun.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -120,6 +121,7 @@ const listComponent = computed(() => {
     'ListItemFlow': ListItemFlow,
     'ListItemTaskRun': ListItemTaskRun,
     'ListItemFlowRun': ListItemFlowRun,
+    'ListItemSubFlowRun': ListItemSubFlowRun,
   }[props.component]
 })
 
