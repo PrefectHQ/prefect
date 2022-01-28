@@ -55,12 +55,12 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class RequiredFlowPolicy(BaseOrchestrationPolicy):
+class MinimalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return []
 
 
-class RequiredTaskPolicy(BaseOrchestrationPolicy):
+class MinimalTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             ReleaseTaskConcurrencySlots,  # always release concurrency slots
