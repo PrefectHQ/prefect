@@ -85,7 +85,7 @@ class Scheduler(LoopService):
                         break
                     else:
                         # record the last deployment ID
-                        last_id = deployment_ids[-1].id
+                        last_id = deployment_ids[-1]
 
             self.logger.info(f"Scheduled {total_inserted_runs} runs.")
 
