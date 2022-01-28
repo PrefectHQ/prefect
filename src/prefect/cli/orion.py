@@ -5,6 +5,7 @@ import os
 import subprocess
 import textwrap
 from functools import partial
+from string import Template
 from typing import Any, Sequence, Union
 
 import anyio
@@ -14,6 +15,7 @@ from anyio.streams.text import TextReceiveStream
 
 import prefect
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible
@@ -189,3 +191,23 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     console.print("Creating tables...")
     await db.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
+
+
+@orion_app.command()
+def kubernetes_manifest():
+    """
+    Generates a kubernetes manifest for to deploy Orion to a cluster.
+
+    Example:
+        $ prefect orion kubernetes-manifest | kubectl apply -f -
+    """
+
+    template = Template(
+        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
+    )
+    manifest = template.substitute(
+        {
+            "image_name": get_prefect_image_name(),
+        }
+    )
+    print(manifest)

@@ -11,4 +11,5 @@ flake8
 pytest-env
 requests
 virtualenv
+watchgod
 mock; python_version < '3.8'
