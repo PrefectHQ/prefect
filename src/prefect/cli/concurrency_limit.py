@@ -5,7 +5,7 @@ import httpx
 import typer
 from rich.pretty import Pretty
 
-from prefect.cli.base import app, console
+from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.client import OrionClient
 
 from prefect.utilities.asyncio import sync_compatible
@@ -74,6 +74,6 @@ async def delete(tag: str):
         result = await client.delete_concurrency_limit_by_tag(tag=tag)
 
     if result:
-        console.print(Pretty(f"Deleted concurrency limit set on the tag: {tag}"))
+        exit_with_success(f"Deleted concurrency limit set on the tag: {tag}")
     else:
-        console.print(Pretty(f"No concurrency limit found for the tag: {tag}"))
+        exit_with_failure(f"No concurrency limit found for the tag: {tag}")
