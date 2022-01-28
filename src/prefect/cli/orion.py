@@ -59,7 +59,7 @@ async def open_process_and_stream_output(
 async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
-    log_level: str = settings.logging.default_level,
+    log_level: str = settings.logging.level,
     services: bool = True,  # Note this differs from the default of `settings.orion.services.run_in_app`
     agent: bool = True,
     ui: bool = settings.orion.ui.enabled,

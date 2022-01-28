@@ -196,7 +196,7 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    fake_settings = Settings(logging=LoggingSettings(default_level="WARNING"))
+    fake_settings = Settings(logging=LoggingSettings(level="WARNING"))
 
     expected_config = load_logging_config(
         DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging

@@ -54,8 +54,9 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
         flat_config[key_tup] = val
 
     parsed_config = flatdict_to_dict(flat_config)
-    # Cast the root logger to Python's expected empty string
-    if "loggers" in parsed_config:
+    # Cast the root logger to Python's expected empty string unless the user has
+    # explicitly included a `""` logger
+    if "loggers" in parsed_config and "" not in parsed_config["loggers"]:
         parsed_config["loggers"][""] = parsed_config["loggers"].pop("root", {})
 
     return parsed_config
