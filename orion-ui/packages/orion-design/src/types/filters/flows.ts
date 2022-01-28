@@ -6,7 +6,7 @@ export type FlowFilter = {
 
 export type FlowStringFilter = {
   entity: 'flow',
-  key: 'name' | 'title',
+  key: 'name',
 } & Partial<EntityStringFilter>
 
 export type FlowTagFilter = {
