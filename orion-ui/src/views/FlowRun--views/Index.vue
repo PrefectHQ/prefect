@@ -153,7 +153,7 @@
         v-else-if="resultsTab == 'task_runs'"
         key="task_runs"
         :filter="taskRunsFilter"
-        component="list-item-task-run"
+        component="ListItemTaskRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
@@ -162,7 +162,7 @@
         v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-sub-flow-run"
+        component="ListItemSubFlowRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
