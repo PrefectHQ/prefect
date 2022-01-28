@@ -1,5 +1,6 @@
 aiofiles >= 0.7.0
 aiosqlite >= 0.17.0
+alembic >= 1.7.5
 anyio >= 3.2.1
 asyncpg >= 0.23
 coolname >= 1.0.4
