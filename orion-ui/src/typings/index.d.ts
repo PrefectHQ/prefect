@@ -6,7 +6,3 @@ declare module '@vue/runtime-core' {
     $toast: Toast
   }
 }
-declare interface GlobalFilter {
-  start?: Date
-  end?: Date
-}

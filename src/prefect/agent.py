@@ -50,6 +50,8 @@ class OrionAgent:
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
+        self.logger.debug("Checking for flow runs...")
+
         submittable_runs = await self.client.read_flow_runs(
             sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
             flow_run_filter=self.flow_run_query_filter(),
