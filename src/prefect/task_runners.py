@@ -447,9 +447,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     """
 
     def __init__(self):
-
-        # Store settings
-        # TODO: Add `max_workers` support using anyio capacity limiters
+        # TODO: Consider adding `max_workers` support using anyio capacity limiters
 
         # Runtime attributes
         self._task_group: TaskGroup = None
@@ -469,6 +467,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
+        if not self._task_group:
+            raise RuntimeError(
+                "The concurrent task runner cannot be used to submit work after "
+                "serialization."
+            )
 
         # Rely on the event loop for concurrency
         self._task_group.start_soon(
@@ -487,6 +490,12 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
+        if not self._task_group:
+            raise RuntimeError(
+                "The concurrent task runner cannot be used to wait for work after "
+                "serialization."
+            )
+
         return await self._get_run_result(prefect_future.task_run.id, timeout)
 
     async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
