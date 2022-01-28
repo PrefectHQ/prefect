@@ -48,10 +48,18 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-        await run_sync_in_worker_thread(alembic_upgrade)
+        await self.run_migrations_upgrade()
 
     async def drop_db(self):
         """Drop the database"""
+        await self.run_migrations_downgrade()
+
+    async def run_migrations_upgrade(self):
+        """Run all upgrade migrations"""
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+    async def run_migrations_downgrade(self):
+        """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
     async def engine(
