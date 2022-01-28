@@ -55,6 +55,18 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
+class RequiredFlowPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return []
+
+
+class RequiredTaskPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            ReleaseTaskConcurrencySlots,  # always release concurrency slots
+        ]
+
+
 class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     """
     Checks relevant concurrency slots are available before entering a Running state.
