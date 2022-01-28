@@ -1,7 +1,3 @@
-export type StateType =
-  | 'COMPLETED'
-  | 'RUNNING'
-  | 'SCHEDULED'
-  | 'PENDING'
-  | 'FAILED'
-  | 'CANCELLED'
+import { stateType } from '../models'
+
+export type StateType = typeof stateType[number]

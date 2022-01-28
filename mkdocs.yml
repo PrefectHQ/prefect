@@ -8,6 +8,7 @@ extra_css:
     - stylesheets/rest_ref.css
     - stylesheets/syntax_highlights.css
     - stylesheets/termynal.css
+    - stylesheets/extra.css
 extra_javascript:
     - js/termynal.js
     - js/custom.js

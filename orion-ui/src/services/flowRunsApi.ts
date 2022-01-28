@@ -1,6 +1,6 @@
 import FlowRunHistory from '@/models/flowRunHistory'
 import { IFlowRunStateHistory } from '@/models/flowRunStateHistory'
-import { HistoryFilter } from '@/plugins/api'
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 import { createApi } from '@/utilities/api'
 import { AxiosResponse } from 'axios'
 
@@ -27,7 +27,9 @@ function flowRunHistoryResponseMapper(
 }
 
 export default class FlowRunsApi {
-  public static History(filter: HistoryFilter): Promise<FlowRunHistory[]> {
+  public static History(
+    filter: FlowRunsHistoryFilter
+  ): Promise<FlowRunHistory[]> {
     return API.post<IFlowRunHistoryResponse[]>('/history', filter).then(
       flowRunHistoryResponseMapper
     )
