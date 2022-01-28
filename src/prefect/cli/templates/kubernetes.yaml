@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion
+spec:
+  selector:
+    matchLabels:
+      app: orion
+  replicas: 1  # We're using SQLite, so we should only run 1 pod
+  template:
+    metadata:
+      labels:
+        app: orion
+    spec:
+      containers:
+      - name: prefect
+        image: ${image_name}
+        command: ["prefect", "orion", "start", "--host", "0.0.0.0"]
+        imagePullPolicy: "IfNotPresent"
+        ports:
+        - containerPort: 4200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion
+  labels:
+    app: orion
+spec:
+  ports:
+    - port: 4200
+      protocol: TCP
+  selector:
+    app: orion
