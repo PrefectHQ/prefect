@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
-import store from './store'
+import store, { key } from './store'
 import api from './plugins/api'
 
 if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
@@ -44,7 +44,7 @@ const defaultClass = 'default-color-mode'
 const colorMode = storedMode ? storedMode + '-color-mode' : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
+const app = createApp(App).use(MiterDesign).use(store, key).use(router).use(api)
 
 app.component('ButtonCard', ButtonCard)
 app.component('BreadCrumb', BreadCrumb)
