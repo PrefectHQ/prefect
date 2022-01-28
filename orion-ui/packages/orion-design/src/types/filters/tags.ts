@@ -6,5 +6,5 @@ export type TagFilter = {
 
 export type TagStringFilter = {
   object: 'tag',
-  key: 'name',
+  property: 'name',
 } & Partial<ObjectStringFilter>
