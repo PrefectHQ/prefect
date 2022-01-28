@@ -4,7 +4,7 @@
       v-for="[key, item] in items"
       :key="key"
       :item="item"
-      :is="props.component"
+      :is="listComponent"
       :ref="(el) => createItemRef(key, el as any)"
     />
 
@@ -35,7 +35,7 @@ import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFl
 const props = withDefaults(
   defineProps<{
     filter: FilterBody
-    component: string | typeof ListItemDeployment | typeof ListItemFlow | typeof ListItemTaskRun | typeof ListItemFlowRun
+    component: 'ListItemDeployment' | 'ListItemFlow' | 'ListItemTaskRun' | 'ListItemFlowRun'
     endpoint: string
     pollInterval?: number
   }>(),
@@ -113,6 +113,15 @@ const handleIntersectionObserver = (entries: IntersectionObserverEntry[]) => {
     }
   })
 }
+
+const listComponent = computed(() => {
+  return {
+    'ListItemDeployment': ListItemDeployment,
+    'ListItemFlow': ListItemFlow,
+    'ListItemTaskRun': ListItemTaskRun,
+    'ListItemFlowRun': ListItemFlowRun,
+  }[props.component]
+})
 
 onMounted(() => {
   const options = {
