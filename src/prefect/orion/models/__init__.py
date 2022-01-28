@@ -1,4 +1,5 @@
 import prefect.orion.models.deployments
+import prefect.orion.models.concurrency_limits
 import prefect.orion.models.flow_run_states
 import prefect.orion.models.flow_runs
 import prefect.orion.models.flows
