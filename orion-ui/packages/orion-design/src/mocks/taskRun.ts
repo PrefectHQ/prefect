@@ -14,7 +14,7 @@ export function randomTaskRun(): TaskRun {
     estimatedStartTimeDelta: mocker.create('number'),
     totalRunTime: mocker.create('number'),
     expectedStartTime: mocker.create('date'),
-    nextScheduledStartTime: mocker.create('boolean') ? mocker.create('string') : null,
+    nextScheduledStartTime: mocker.create('boolean') ? mocker.create('date') : null,
     runCount: mocker.create('number'),
     name: mocker.create('string'),
     taskInputs: {},
