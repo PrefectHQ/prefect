@@ -177,7 +177,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
@@ -186,6 +186,7 @@ import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import type { UnionFilters, FlowsFilter } from '@prefecthq/orion-design'
 import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
 import { toPluralString } from '@/utilities/strings'
@@ -242,7 +243,7 @@ const parentFlowFilter = computed<FlowsFilter>(() => {
   }
 })
 
-const taskRunsFilter = computed<BaseFilter>(() => {
+const taskRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {
@@ -252,7 +253,7 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   }
 })
 
-const subFlowRunsFilter = computed<BaseFilter>(() => {
+const subFlowRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {

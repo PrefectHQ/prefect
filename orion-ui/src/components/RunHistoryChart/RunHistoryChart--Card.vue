@@ -19,8 +19,9 @@
 </template>
 
 <script lang="ts" setup>
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from './RunHistoryChart--Chart.vue'
-import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { computed } from 'vue'
 
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()

@@ -697,7 +697,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_status = SetStateStatus.REJECT
         self.context.response_details = StateRejectDetails(reason=reason)
 
-    async def delay_transition(self, delay_seconds: int, reason: str):
+    async def delay_transition(
+        self,
+        delay_seconds: int,
+        reason: str,
+    ):
         """
         Delays a proposed transition before the transition is validated.
 
@@ -705,7 +709,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         `None`, signaling to the `OrchestrationContext` that no state should be
         written to the database. The number of seconds a transition should be delayed is
         passed to the `OrchestrationContext`. A reason for delaying the transition is
-        also provided.
+        also provided. Rules that delay the transition will not fizzle, despite the
+        proposed state type changing.
 
         Args:
             delay_seconds: The number of seconds the transition should be delayed
@@ -732,7 +737,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         occur for this run. The proposed state is set to `None`, signaling to the
         `OrchestrationContext` that no state should be written to the database. A
         reason for aborting the transition is also provided. Rules that abort the
-        transition will not fizzle, despite the proposed state type changing.
+        transition will not fizzle, despite the proposed state type changing. Rules that
+        abort the transition will not fizzle, despite the proposed state type changing.
 
         Args:
             reason: The reason for aborting the transition

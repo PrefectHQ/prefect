@@ -20,7 +20,7 @@
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        :interval-seconds="store.getters['filter/baseInterval']"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
@@ -39,7 +39,8 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
+import type { FlowRunsFilter } from '@prefecthq/orion-design'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import { Buckets } from '@/typings/run_history'

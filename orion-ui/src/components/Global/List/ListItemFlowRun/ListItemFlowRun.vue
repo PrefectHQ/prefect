@@ -20,7 +20,7 @@
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        :interval-seconds="store.getters['filter/baseInterval']"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
@@ -38,17 +38,12 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useStore } from '@/store'
+import type { UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import {
-  Api,
-  Query,
-  Endpoints,
-  TaskRunsFilter,
-  FlowsFilter
-} from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
-import { useStore } from 'vuex'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import media from '@/utilities/media'
@@ -74,7 +69,7 @@ const end = computed(() => {
   return new Date(props.item.end_time)
 })
 
-const flow_runs_filter_body: TaskRunsFilter = {
+const flow_runs_filter_body: UnionFilters = {
   sort: 'START_TIME_DESC',
   flow_runs: {
     id: {
@@ -88,7 +83,7 @@ const flow_runs_filter_body: TaskRunsFilter = {
   }
 }
 
-const flow_filter_body: FlowsFilter = {
+const flow_filter_body: FlowRunsFilter = {
   flow_runs: {
     id: {
       any_: [props.item.id]
