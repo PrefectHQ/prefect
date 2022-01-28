@@ -27,11 +27,15 @@ import {
 import Observer from '@/components//Global/IntersectionObserver/IntersectionObserver.vue'
 import { Api, Endpoints, FilterBody, Query } from '@/plugins/api'
 import List from '@/components/Global/List/List.vue'
+import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue';
+import ListItemFlow from '@/components/Global/List/ListItemFlow/ListItemFlow.vue';
+import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue';
+import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFlowRun.vue';
 
 const props = withDefaults(
   defineProps<{
     filter: FilterBody
-    component: string
+    component: string | typeof ListItemDeployment | typeof ListItemFlow | typeof ListItemTaskRun | typeof ListItemFlowRun
     endpoint: string
     pollInterval?: number
   }>(),
