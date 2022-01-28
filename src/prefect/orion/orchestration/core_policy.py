@@ -89,26 +89,22 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                 limit = cl.concurrency_limit
                 if limit == 0:
                     # limits of 0 will deadlock, and the transition needs to abort
-                    for tag in self._applied_limits:
-                        cl = await concurrency_limits.read_concurrency_limit_by_tag(
-                            context.session, tag
-                        )
-                        active_slots = set(cl.active_slots)
+                    for stale_tag in self._applied_limits:
+                        stale_limit = limits_by_tag.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
                         active_slots.discard(str(context.run.id))
-                        cl.active_slots = list(active_slots)
+                        stale_limit.active_slots = list(active_slots)
 
                     await self.abort_transition(
                         reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
                     )
                 elif len(cl.active_slots) >= limit:
                     # if the limit has already been reached, delay the transition
-                    for tag in self._applied_limits:
-                        cl = await concurrency_limits.read_concurrency_limit_by_tag(
-                            context.session, tag
-                        )
-                        active_slots = set(cl.active_slots)
+                    for stale_tag in self._applied_limits:
+                        stale_limit = limits_by_tag.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
                         active_slots.discard(str(context.run.id))
-                        cl.active_slots = list(active_slots)
+                        stale_limit.active_slots = list(active_slots)
 
                     await self.delay_transition(
                         30,
@@ -127,7 +123,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-
         for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
