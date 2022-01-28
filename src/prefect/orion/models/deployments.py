@@ -345,8 +345,7 @@ async def _generate_scheduled_flow_runs(
         max_runs: a maximum amount of runs to schedule
 
     Returns:
-        a list of dictionaries representing flow runs to schedule for
-            the deployment specified
+        a list of dictionaries representations of the `FlowRun` objects to schedule
     """
     runs = []
 
