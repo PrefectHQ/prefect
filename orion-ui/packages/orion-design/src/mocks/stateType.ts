@@ -1,7 +1,7 @@
 import { stateType } from '../models'
-import { MockerFunction } from '../services'
+import { MockFunction } from '../services'
 import type { StateType } from '../types'
 
-export const randomStateType: MockerFunction<StateType> = function() {
+export const randomStateType: MockFunction<StateType> = function() {
   return stateType[Math.floor(Math.random() * stateType.length)]
 }
