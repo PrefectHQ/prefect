@@ -44,8 +44,8 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            SecureTaskConcurrencySlots,
             CacheRetrieval,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
