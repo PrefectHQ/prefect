@@ -205,6 +205,9 @@ jobs:
             --title "Publish code from Orion release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
             --base orion --repo prefecthq/prefect
+        env:
+          GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
+          MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
   publish-release:
     name: Publish release to PyPI
@@ -228,7 +231,7 @@ jobs:
 
   publish-docker-images:
     name: Publish Docker images
-    needs: [publish-release, build-docker-images]
+    needs: [build-docker-images, build-release, publish-test-release]
     environment: 'prod'
 
     runs-on: ubuntu-latest

@@ -17,13 +17,12 @@
         {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
-
     <div v-if="media.md" class="list-item-flow__chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
-        :interval-start="store.getters.start"
-        :interval-end="store.getters.end"
-        :interval-seconds="store.getters.baseInterval * 2"
+        :interval-start="start"
+        :interval-end="end"
+        :interval-seconds="baseInterval * 2"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
         disable-popovers
@@ -34,13 +33,16 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import { useStore } from '@/store'
+import type { FlowsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
-import { useStore } from 'vuex'
 import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 
 const store = useStore()
 const props = defineProps<{ item: Flow }>()
@@ -53,11 +55,17 @@ const flows: FlowsFilter = {
   }
 }
 
+const start = computed<Date>(() => store.getters['filter/start'])
+const end = computed<Date>(() => store.getters['filter/end'])
+const baseInterval = computed<number>(
+  () => store.getters['filter/baseInterval']
+)
+
 const flowRunHistoryFilter = computed(() => {
   return {
-    history_start: store.getters.start.toISOString(),
-    history_end: store.getters.end.toISOString(),
-    history_interval_seconds: store.getters.baseInterval * 2,
+    history_start: start.value.toISOString(),
+    history_end: end.value.toISOString(),
+    history_interval_seconds: baseInterval.value * 2,
     flows: flows.flows
   }
 })

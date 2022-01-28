@@ -1,5 +1,5 @@
 <template>
-  <Card class="menu font--primary" height="100%" tabindex="0">
+  <m-card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3
@@ -9,7 +9,7 @@
           Save Search
         </h3>
 
-        <IconButton
+        <m-icon-button
           icon="pi-close-line"
           height="34px"
           width="34px"
@@ -24,7 +24,7 @@
     </template>
 
     <div class="menu-content pa-2">
-      <Input label="Name" placeholder="New Filter" v-model="name" />
+      <m-input label="Name" placeholder="New Filter" v-model="name" />
 
       <div class="my-4">
         <Tag v-for="(filter, i) in filters" :key="i" class="mr--half mb--half">
@@ -36,7 +36,7 @@
 
     <template v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
-        <Button
+        <m-button
           v-if="media.md"
           flat
           height="35px"
@@ -44,8 +44,8 @@
           @click="close"
         >
           Cancel
-        </Button>
-        <Button
+        </m-button>
+        <m-button
           color="primary"
           height="35px"
           :width="!media.md ? '100%' : 'auto'"
@@ -53,15 +53,15 @@
           @click="save"
         >
           Save
-        </Button>
+        </m-button>
       </CardActions>
     </template>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
-import { useStore } from 'vuex'
+import { useStore } from '@/store'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
 import { showToast } from '@prefecthq/miter-design'
@@ -80,7 +80,7 @@ const close = () => {
 
 const save = async () => {
   loading.value = true
-  const gf = JSON.parse(JSON.stringify(store.getters.globalFilter))
+  const gf = JSON.parse(JSON.stringify(store.state.filter))
 
   const query = await Api.query({
     endpoint: Endpoints.save_search,
@@ -106,7 +106,7 @@ const save = async () => {
 }
 
 const filters = computed<FilterObject[]>(() => {
-  return parseFilters(store.getters.globalFilter)
+  return parseFilters(store.state.filter)
 })
 </script>
 

@@ -6,22 +6,22 @@
     </div>
 
     <form class="my-2 d-flex">
-      <Radio
+      <m-radio
         v-model="timeframeSelector"
         value="simple"
         :checked="timeframeSelector == 'simple'"
         class="mr-2"
       >
         Simple
-      </Radio>
+      </m-radio>
 
-      <Radio
+      <m-radio
         v-model="timeframeSelector"
         value="custom"
         :checked="timeframeSelector == 'custom'"
       >
         Custom
-      </Radio>
+      </m-radio>
     </form>
 
     <div v-if="timeframeSelector == 'simple'">
@@ -29,13 +29,13 @@
         Past
       </div>
       <div class="d-flex">
-        <NumberInput
+        <m-number-input
           v-model="fromValue"
           step="1"
           class="d-inline-block selector"
         />
 
-        <SimpleSelect
+        <m-simple-select
           v-model="fromUnit"
           :options="unitOptions"
           class="ml-2 d-inline-block selector"
@@ -46,13 +46,13 @@
         Upcoming
       </div>
       <div class="d-flex">
-        <NumberInput
+        <m-number-input
           v-model="toValue"
           step="1"
           class="d-inline-block selector"
         />
 
-        <SimpleSelect
+        <m-simple-select
           v-model="toUnit"
           :options="unitOptions"
           class="ml-2 d-inline-block selector"
@@ -60,7 +60,7 @@
       </div>
     </div>
     <div v-else>
-      <Input
+      <m-input
         :value="fromTimestamp?.toLocaleString()"
         type="date"
         label="Start Date"
@@ -71,32 +71,32 @@
       <teleport to=".application" v-if="showFromDateTimeMenu">
         <div class="date-picker pa-2">
           <h2 class="font-weight-semibold mb-2">Timeframe Start</h2>
-          <DatePicker v-model="tempFromTimestamp" />
-          <TimePicker v-model="tempFromTimestamp" class="py-1" />
+          <m-date-picker v-model="tempFromTimestamp" />
+          <m-time-picker v-model="tempFromTimestamp" class="py-1" />
 
           <hr />
           <div class="mt-2 d-flex align-center justify-end">
-            <Button
+            <m-button
               flat
               height="36px"
               class="ml-auto mr-1"
               @click="showFromDateTimeMenu = false"
             >
               Cancel
-            </Button>
-            <Button
+            </m-button>
+            <m-button
               color="primary"
               height="36px"
               @click="applyTempFromTimestamp"
             >
               Apply
-            </Button>
+            </m-button>
           </div>
         </div>
         <div class="overlay" @click="showFromDateTimeMenu = false" />
       </teleport>
 
-      <Input
+      <m-input
         :value="toTimestamp?.toLocaleString()"
         type="date"
         label="End Date"
@@ -106,22 +106,26 @@
       <teleport to=".application" v-if="showToDateTimeMenu">
         <div class="date-picker pa-2">
           <h2 class="font-weight-semibold">Timeframe End</h2>
-          <DatePicker v-model="tempToTimestamp" />
-          <TimePicker v-model="tempToTimestamp" class="py-1" />
+          <m-date-picker v-model="tempToTimestamp" />
+          <m-time-picker v-model="tempToTimestamp" class="py-1" />
 
           <hr />
           <div class="mt-2 d-flex align-center justify-end">
-            <Button
+            <m-button
               flat
               height="36px"
               class="ml-auto mr-1"
               @click="showToDateTimeMenu = false"
             >
               Cancel
-            </Button>
-            <Button color="primary" height="36px" @click="applyTempToTimestamp">
+            </m-button>
+            <m-button
+              color="primary"
+              height="36px"
+              @click="applyTempToTimestamp"
+            >
               Apply
-            </Button>
+            </m-button>
           </div>
         </div>
         <div class="overlay" @click="showToDateTimeMenu = false" />
@@ -131,15 +135,12 @@
 </template>
 
 <script lang="ts" setup>
+import { RunTimeFrame } from '@/typings/global';
 import { ref, watch, computed, withDefaults } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    modelValue?: {
-      dynamic: boolean
-      from: { timestamp: Date; unit: string; value: number }
-      to: { timestamp: Date; unit: string; value: number }
-    }
+    modelValue?: RunTimeFrame
     title?: string
     icon?: string
   }>(),
