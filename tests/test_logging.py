@@ -103,6 +103,18 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     dictConfigMock.assert_called_once_with(expected_config)
 
 
+def test_setup_logging_changes_root_to_empty_string(tmp_path, dictConfigMock):
+    fake_settings = Settings(
+        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
+    )
+
+    setup_logging(fake_settings)
+
+    config = dictConfigMock.call_args[0][0]
+    assert "root" not in config["loggers"]
+    assert "" in config["loggers"]
+
+
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
     fake_settings = Settings(
         logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
@@ -111,11 +123,17 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
         DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
     )
 
-    # Test setting a simple value
+    # Test setting a value for a simple key
+    monkeypatch.setenv(
+        LoggingSettings.Config.env_prefix + "HANDLERS_ORION_LEVEL", "ORION_LEVEL_VAL"
+    )
+    expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
+
+    # Test setting a value for the root logger
     monkeypatch.setenv(
         LoggingSettings.Config.env_prefix + "LOGGERS_ROOT_LEVEL", "ROOT_LEVEL_VAL"
     )
-    expected_config["loggers"]["root"]["level"] = "ROOT_LEVEL_VAL"
+    expected_config["loggers"][""]["level"] = "ROOT_LEVEL_VAL"
 
     # Test setting a value where the a key contains underscores
     monkeypatch.setenv(
@@ -196,14 +214,14 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    fake_settings = Settings(logging=LoggingSettings(default_level="WARNING"))
+    fake_settings = Settings(logging=LoggingSettings(level="WARNING"))
 
     expected_config = load_logging_config(
         DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
     )
 
-    assert expected_config["handlers"]["console"]["level"] == "WARNING"
-    assert expected_config["handlers"]["orion"]["level"] == "WARNING"
+    assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
+    assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
 
     setup_logging(fake_settings)
     dictConfigMock.assert_called_once_with(expected_config)
