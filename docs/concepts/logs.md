@@ -42,7 +42,7 @@ As mentioned earlier, by default, Prefect displays `INFO`-level and above loggin
 
 You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting. 
 
-For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_DEFAULT_LEVEL="DEBUG"`.
+For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_LEVEL="DEBUG"`.
 
 Prefect's log levels are governed by `PREFECT_LOGGING_LOGGERS_ROOT_LEVEL`, which defaults to `INFO`. However, this setting only affects Prefect loggers, not Python or other loggers globally.
 

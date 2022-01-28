@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.5",
+    "version": "0.1.11",
     "private": false,
     "keywords": [
         "prefect",
@@ -8,8 +8,16 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vite build --watch",
-        "build": "vite build & vue-tsc",
+        "dev": "vite build --watch && npm run dev-components && npm run dev-models && npm run dev-services && npm run dev-utilities",
+        "build": "vue-tsc && vite build && npm run build-components && npm run build-models && npm run build-services && npm run build-utilities",
+        "build-components": "vite build --mode components",
+        "build-models": "vite build --mode models",
+        "build-services": "vite build --mode services",
+        "build-utilities": "vite build --mode utilities",
+        "dev-components": "vite build --mode components --watch",
+        "dev-models": "vite build --mode models --watch",
+        "dev-services": "vite build --mode services --watch",
+        "dev-utilities": "vite build --mode utilities --watch",
         "postbuild": "node scripts/fix-types.js"
     },
     "main": "./dist/orion-design.umd.js",
@@ -18,6 +26,22 @@
         ".": {
             "import": "./dist/orion-design.es.js",
             "require": "./dist/orion-design.umd.js"
+        },
+        "./components":{
+            "import": "./dist/orion-design-components.es.js",
+            "require": "./dist/orion-design-components.umd.js"
+        },
+        "./models":{
+            "import": "./dist/orion-design-models.es.js",
+            "require": "./dist/orion-design-models.umd.js"
+        },
+        "./services":{
+            "import": "./dist/orion-design-services.es.js",
+            "require": "./dist/orion-design-services.umd.js"
+        },
+        "./utilities":{
+            "import": "./dist/orion-design-utilities.es.js",
+            "require": "./dist/orion-design-utilities.umd.js"
         },
         "./dist/style.css": "./dist/style.css"
     },
@@ -32,12 +56,13 @@
         "core-js": "^3.6.5",
         "d3": "^7.0.0",
         "vue": "^3.0.5",
+        "vue-router": "^4.0.12",
         "vuex": "^4.0.2"
     },
     "devDependencies": {
         "@babel/helper-compilation-targets": "^7.16.3",
         "@babel/runtime": "^7.16.3",
-        "@prefecthq/eslint-config": "1.0.11",
+        "@prefecthq/eslint-config": "1.0.12",
         "@types/d3": "^7.0.0",
         "@types/node": "^15.14.1",
         "@vitejs/plugin-vue": "^1.2.5",

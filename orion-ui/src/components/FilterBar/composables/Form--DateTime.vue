@@ -135,15 +135,12 @@
 </template>
 
 <script lang="ts" setup>
+import { RunTimeFrame } from '@/typings/global';
 import { ref, watch, computed, withDefaults } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    modelValue?: {
-      dynamic: boolean
-      from: { timestamp: Date; unit: string; value: number }
-      to: { timestamp: Date; unit: string; value: number }
-    }
+    modelValue?: RunTimeFrame
     title?: string
     icon?: string
   }>(),
