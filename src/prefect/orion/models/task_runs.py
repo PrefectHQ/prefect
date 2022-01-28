@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.core_policy import CoreTaskPolicy, RequiredTaskPolicy
+from prefect.orion.orchestration.core_policy import CoreTaskPolicy, MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.rules import (
     OrchestrationResult,
@@ -286,7 +286,7 @@ async def set_task_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     if force or task_policy is None:
-        task_policy = RequiredTaskPolicy
+        task_policy = MinimalTaskPolicy
 
     orchestration_rules = task_policy.compile_transition_rules(*intended_transition)
     global_rules = GlobalTaskPolicy.compile_transition_rules(*intended_transition)
