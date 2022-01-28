@@ -463,14 +463,19 @@ class TestScheduledRuns:
         )
 
         db_scheduled_runs = query_result.scalars().all()
-        assert {r.id for r in db_scheduled_runs} == {r.id for r in scheduled_runs}
+        assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
             pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100)
         }
-        assert {
-            r.state.state_details.scheduled_time for r in db_scheduled_runs
-        } == expected_times
+
+        actual_times = set()
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            actual_times.add(run.state.state_details.scheduled_time)
+        assert actual_times == expected_times
 
     async def test_schedule_runs_is_idempotent(self, flow, deployment, session, db):
         scheduled_runs = await models.deployments.schedule_runs(
@@ -535,7 +540,10 @@ class TestScheduledRuns:
             session, deployment_id=deployment.id, max_runs=2
         )
         assert len(scheduled_runs) == 2
-        for run in scheduled_runs:
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
             assert run.tags == ["auto-scheduled"] + tags
 
     @pytest.mark.parametrize("parameters", [{}, {"foo": "bar"}])
@@ -558,7 +566,10 @@ class TestScheduledRuns:
             session, deployment_id=deployment.id, max_runs=2
         )
         assert len(scheduled_runs) == 2
-        for run in scheduled_runs:
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
             assert run.parameters == parameters
 
     async def test_schedule_runs_with_end_time(self, flow, deployment, session):
@@ -581,9 +592,13 @@ class TestScheduledRuns:
         expected_times = {
             pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 150)
         }
-        assert {
-            r.state.state_details.scheduled_time for r in scheduled_runs
-        } == expected_times
+        actual_times = set()
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            actual_times.add(run.state.state_details.scheduled_time)
+        assert actual_times == expected_times
 
     async def test_schedule_runs_with_times_and_max_number(
         self, flow, deployment, session
@@ -600,9 +615,13 @@ class TestScheduledRuns:
         expected_times = {
             pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 103)
         }
-        assert {
-            r.state.state_details.scheduled_time for r in scheduled_runs
-        } == expected_times
+        actual_times = set()
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            actual_times.add(run.state.state_details.scheduled_time)
+        assert actual_times == expected_times
 
     async def test_backfill(self, flow, deployment, session):
         # backfills are just schedules for past dates...
@@ -618,9 +637,14 @@ class TestScheduledRuns:
             pendulum.now("UTC").start_of("day").subtract(days=i)
             for i in range(950, 1000)
         }
-        assert {
-            r.state.state_details.scheduled_time for r in scheduled_runs
-        } == expected_times
+
+        actual_times = set()
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            actual_times.add(run.state.state_details.scheduled_time)
+        assert actual_times == expected_times
 
     async def test_run_details_are_applied_to_scheduled_runs(self, deployment, session):
         await models.deployments.schedule_runs(
