@@ -1,10 +1,12 @@
 import datetime
 import uuid
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import List, Union, Dict, Tuple, Hashable
 from coolname import generate_slug
 
 import pendulum
+import prefect
 import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -874,9 +876,10 @@ class BaseORMConfiguration(ABC):
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
 
+    @property
     @abstractmethod
-    def run_migrations(self):
-        """Run database migrations"""
+    def versions_dir(self):
+        """Directory containing migrations"""
         ...
 
     @property
@@ -917,12 +920,26 @@ class BaseORMConfiguration(ABC):
 class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     """Postgres specific orm configuration"""
 
-    def run_migrations(self):
-        ...
+    @property
+    def versions_dir(self) -> Path:
+        """Directory containing migrations"""
+        return (
+            Path(prefect.orion.database.__file__).parent
+            / "migrations"
+            / "versions"
+            / "postgresql"
+        )
 
 
 class AioSqliteORMConfiguration(BaseORMConfiguration):
     """SQLite specific orm configuration"""
 
-    def run_migrations(self):
-        ...
+    @property
+    def versions_dir(self) -> Path:
+        """Directory containing migrations"""
+        return (
+            Path(prefect.orion.database.__file__).parent
+            / "migrations"
+            / "versions"
+            / "sqlite"
+        )
