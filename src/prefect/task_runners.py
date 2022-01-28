@@ -240,6 +240,8 @@ class DaskTaskRunner(BaseTaskRunner):
         >>> from prefect import flow
         >>> from prefect.task_runners import DaskTaskRunner
         >>> @flow(task_runner=DaskTaskRunner)
+        >>> def my_flow():
+        >>>     ...
 
         Using a temporary cluster running elsewhere. Any Dask cluster class should
         work, here we use [dask-cloudprovider](https://cloudprovider.dask.org)
@@ -444,6 +446,8 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
+        >>> def my_flow():
+        >>>     ...
     """
 
     def __init__(self):
