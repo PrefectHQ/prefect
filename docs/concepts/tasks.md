@@ -181,7 +181,7 @@ def cached_task():
 
 By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
 
-When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) represents the state and result of a computation happening in a task runner.
+When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) provides access to a computation happening in a task runner.
 
 ```python
 @task
