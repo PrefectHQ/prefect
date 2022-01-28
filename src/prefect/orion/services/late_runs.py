@@ -52,26 +52,7 @@ class MarkLateRuns(LoopService):
                 last_id = None
                 while True:
 
-                    query = (
-                        sa.select(
-                            db.FlowRun.id,
-                            db.FlowRun.next_scheduled_start_time,
-                        )
-                        .select_from(db.FlowRun)
-                        .join(
-                            db.FlowRunState,
-                            db.FlowRun.state_id == db.FlowRunState.id,
-                        )
-                        .where(
-                            # the next scheduled start time is in the past
-                            db.FlowRun.next_scheduled_start_time
-                            < date_add(now(), self.mark_late_after),
-                            db.FlowRunState.type == states.StateType.SCHEDULED,
-                            db.FlowRunState.name == "Scheduled",
-                        )
-                        .order_by(db.FlowRun.id)
-                        .limit(self.batch_size)
-                    )
+                    query = self._get_select_late_flow_runs_query(db=db)
 
                     # use cursor based pagination
                     if last_id:
@@ -82,14 +63,7 @@ class MarkLateRuns(LoopService):
 
                     # mark each run as late
                     for run in runs:
-                        await models.flow_runs.set_flow_run_state(
-                            session=session,
-                            flow_run_id=run.id,
-                            state=states.Late(
-                                scheduled_time=run.next_scheduled_start_time
-                            ),
-                            force=True,
-                        )
+                        await self._mark_flow_run_as_late(session=session, flow_run=run)
 
                     # if no runs were found, exit the loop
                     if len(runs) < self.batch_size:
@@ -99,6 +73,48 @@ class MarkLateRuns(LoopService):
                         last_id = runs[-1].id
 
             self.logger.info(f"Finished monitoring for late runs.")
+
+    @inject_db
+    def _get_select_late_flow_runs_query(self, db: OrionDBInterface):
+        """Returns a sqlalchemy query for late flow runs."""
+        query = (
+            sa.select(
+                db.FlowRun.id,
+                db.FlowRun.next_scheduled_start_time,
+            )
+            .select_from(db.FlowRun)
+            .join(
+                db.FlowRunState,
+                db.FlowRun.state_id == db.FlowRunState.id,
+            )
+            .where(
+                # the next scheduled start time is in the past
+                db.FlowRun.next_scheduled_start_time
+                < date_add(now(), self.mark_late_after),
+                db.FlowRunState.type == states.StateType.SCHEDULED,
+                db.FlowRunState.name == "Scheduled",
+            )
+            .order_by(db.FlowRun.id)
+            .limit(self.batch_size)
+        )
+        return query
+
+    async def _mark_flow_run_as_late(
+        self, session: sa.orm.Session, flow_run: OrionDBInterface.FlowRun
+    ) -> None:
+        """
+        Mark a flow run as late.
+
+        Args:
+            session: a database session
+            flow_run: the flow run orm model to mark as late
+        """
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=states.Late(scheduled_time=flow_run.next_scheduled_start_time),
+            force=True,
+        )
 
 
 if __name__ == "__main__":
