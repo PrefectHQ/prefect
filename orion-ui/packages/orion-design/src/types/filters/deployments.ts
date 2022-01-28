@@ -1,15 +1,15 @@
-import { EntityStringFilter, EntityTagFilter } from '.'
+import { ObjectStringFilter, ObjectTagFilter } from '.'
 
 export type DeploymentFilter = {
-  entity: 'deployment',
+  object: 'deployment',
 } & Partial<(DeploymentStringFilter | DeploymentTagFilter)>
 
 export type DeploymentStringFilter = {
-  entity: 'deployment',
+  object: 'deployment',
   key: 'name',
-} & Partial<EntityStringFilter>
+} & Partial<ObjectStringFilter>
 
 export type DeploymentTagFilter = {
-  entity: 'deployment',
+  object: 'deployment',
   key: 'tag',
-} & Partial<EntityTagFilter>
+} & Partial<ObjectTagFilter>
