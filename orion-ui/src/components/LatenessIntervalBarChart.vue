@@ -39,7 +39,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { FlowRunsHistoryFilter } from '@/plugins/api'
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import { secondsToApproximateString } from '@/util/util'
 import StateBucketIntervalBarChart from './StateBucketIntervalBarChart.vue'

@@ -1,18 +1,39 @@
-import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
 import {
-  FlowFilter,
-  DeploymentFilter,
-  FlowRunFilter,
-  TaskRunFilter
-} from '@/typings/filters'
+  UnionFilters,
+  FlowsFilter,
+  DeploymentsFilter,
+  FlowRunsFilter,
+  FlowRunsHistoryFilter,
+  TaskRunsFilter,
+  TaskRunsHistoryFilter
+} from '@prefecthq/orion-design'
+import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
 
-interface Endpoint {
+export interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT'
   url: string
   interpolate?: boolean
 }
 
-interface CreateFlowRunBody {
+export interface LimitOffsetFilter {
+  limit?: number
+  offset?: number
+}
+
+export interface DatabaseClearBody {
+  confirm: boolean
+}
+
+export interface InterpolationBody {
+  id: string
+}
+
+export interface SaveSearchBody {
+  name: string
+  filters: any
+}
+
+export interface CreateFlowRunBody {
   name?: string
   flow_id: string
   deployment_id?: string
@@ -38,7 +59,7 @@ interface CreateFlowRunBody {
   }
 }
 
-interface CreateDeploymentFlowRunBody {
+export interface CreateDeploymentFlowRunBody {
   id: string
   name?: string
   parameters?: { [key: string]: any }
@@ -61,64 +82,21 @@ interface CreateDeploymentFlowRunBody {
   }
 }
 
-export interface BaseFilter {
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
-}
-
-export interface LimitOffsetFilter {
-  limit?: number
-  offset?: number
-}
-export interface SortableFilter extends BaseFilter {
-  // TODO: We can improve this by using keyof[Object]
-  sort?: string
-}
-
-export interface HistoryFilter extends BaseFilter {
-  history_start: string
-  history_end: string
-  history_interval_seconds: number
-}
-
-export type DeploymentsFilter = SortableFilter
-export type FlowsFilter = SortableFilter
-export type TaskRunsFilter = SortableFilter
-export type FlowRunsFilter = SortableFilter
-
-export type FlowRunsHistoryFilter = HistoryFilter
-export type TaskRunsHistoryFilter = HistoryFilter
-
-export interface DatabaseClearBody {
-  confirm: boolean
-}
-
-export interface InterpolationBody {
-  id: string
-}
-
-export interface SaveSearchBody {
-  name: string
-  filters: any
-}
-
 export type Filters = {
   flow: InterpolationBody
   flows: FlowsFilter
   flows_count: FlowsFilter
   flow_run: InterpolationBody
   flow_runs: FlowRunsFilter
-  flow_runs_count: BaseFilter
+  flow_runs_count: UnionFilters
   flow_runs_history: FlowRunsHistoryFilter
   task_run: InterpolationBody
   task_runs: TaskRunsFilter
-  task_runs_count: BaseFilter
+  task_runs_count: UnionFilters
   task_runs_history: TaskRunsHistoryFilter
   deployment: InterpolationBody
   deployments: DeploymentsFilter
-  deployments_count: BaseFilter
+  deployments_count: UnionFilters
   create_flow_run: CreateFlowRunBody
   create_flow_run_from_deployment: CreateDeploymentFlowRunBody
   set_schedule_inactive: InterpolationBody

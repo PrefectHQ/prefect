@@ -108,9 +108,9 @@
 
 <script lang="ts" setup>
 import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
+import { useStore } from '@/store'
 import { Api, Endpoints } from '@/plugins/api'
 import { showToast } from '@prefecthq/miter-design'
-import { useStore } from 'vuex'
 import media from '@/utilities/media'
 
 const store = useStore()
@@ -187,7 +187,7 @@ const applyFilter = () => {
     )
   }
 
-  store.commit('globalFilter', selectedSearch.value?.filters)
+  store.commit('filter/setFilter', selectedSearch.value?.filters)
   emit('close')
 }
 

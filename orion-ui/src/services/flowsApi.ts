@@ -1,5 +1,5 @@
 import Flow from '@/models/flow'
-import { FlowsFilter } from '@/plugins/api'
+import type { FlowsFilter } from '@prefecthq/orion-design'
 import { createApi } from '@/utilities/api'
 import { AxiosResponse } from 'axios'
 
