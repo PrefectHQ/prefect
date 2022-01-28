@@ -94,6 +94,45 @@ def upgrade():
     op.create_index(op.f("ix_log__timestamp"), "log", ["timestamp"], unique=False)
     op.create_index(op.f("ix_log__updated"), "log", ["updated"], unique=False)
     op.create_table(
+        "concurrency_limit",
+        sa.Column(
+            "id",
+            prefect.orion.utilities.database.UUID(),
+            server_default=sa.text("(GEN_RANDOM_UUID())"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created",
+            prefect.orion.utilities.database.Timestamp(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated",
+            prefect.orion.utilities.database.Timestamp(timezone=True),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+            nullable=False,
+        ),
+        sa.Column("tag", sa.String(), nullable=False),
+        sa.Column("concurrency_limit", sa.Integer(), nullable=False),
+        sa.Column(
+            "active_slots",
+            prefect.orion.utilities.database.JSON(astext_type=Text()),
+            server_default="[]",
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_concurrency_limit")),
+    )
+    op.create_index(
+        op.f("ix_concurrency_limit__tag"), "concurrency_limit", ["tag"], unique=True
+    )
+    op.create_index(
+        op.f("ix_concurrency_limit__updated"),
+        "concurrency_limit",
+        ["updated"],
+        unique=False,
+    )
+    op.create_table(
         "saved_search",
         sa.Column(
             "id",
@@ -830,6 +869,9 @@ def downgrade():
         op.f("ix_task_run_state_cache__updated"), table_name="task_run_state_cache"
     )
     op.drop_table("task_run_state_cache")
+    op.drop_index(op.f("ix_concurrency_limit__updated"), table_name="concurrency_limit")
+    op.drop_index(op.f("ix_concurrency_limit__tag"), table_name="concurrency_limit")
+    op.drop_table("concurrency_limit")
     op.drop_index(op.f("ix_saved_search__updated"), table_name="saved_search")
     op.drop_table("saved_search")
     op.drop_index(op.f("ix_log__updated"), table_name="log")

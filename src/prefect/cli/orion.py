@@ -15,13 +15,13 @@ from anyio.streams.text import TextReceiveStream
 import prefect
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.flow_runners import get_prefect_image_name
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
     alembic_upgrade,
     alembic_revision,
     alembic_stamp,
 )
-from prefect.flow_runners import get_prefect_image_name
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
 
@@ -119,6 +119,26 @@ async def start(
             )
 
     console.print("Orion stopped!")
+
+
+@orion_app.command()
+def kubernetes_manifest():
+    """
+    Generates a kubernetes manifest for to deploy Orion to a cluster.
+
+    Example:
+        $ prefect orion kubernetes-manifest | kubectl apply -f -
+    """
+
+    template = Template(
+        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
+    )
+    manifest = template.substitute(
+        {
+            "image_name": get_prefect_image_name(),
+        }
+    )
+    print(manifest)
 
 
 @database_app.command()
@@ -219,23 +239,3 @@ async def stamp(revision: str):
     console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
     exit_with_success("Stamping database with revision succeeded!")
-
-
-@orion_app.command()
-def kubernetes_manifest():
-    """
-    Generates a kubernetes manifest for to deploy Orion to a cluster.
-
-    Example:
-        $ prefect orion kubernetes-manifest | kubectl apply -f -
-    """
-
-    template = Template(
-        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
-    )
-    manifest = template.substitute(
-        {
-            "image_name": get_prefect_image_name(),
-        }
-    )
-    print(manifest)
