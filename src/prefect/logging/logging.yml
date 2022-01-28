@@ -38,29 +38,37 @@ formatters:
         # class: your_module.FilterClass
 
 handlers:
+
+    # The handler we define here will output all logs they receieve by default
+    # but we include the `level` so it can be overridden by environment
+
     console:
+        level: 0
         class: logging.StreamHandler
         formatter: standard
 
     console_flow_runs:
+        level: 0
         class: logging.StreamHandler
         formatter: flow_runs
 
     console_task_runs:
+        level: 0
         class: logging.StreamHandler
         formatter: task_runs
 
     orion:
+        level: 0
         class: prefect.logging.handlers.OrionHandler
 
 loggers:
     prefect:
-        level: "{{default_level}}"
+        level: "{{level}}"
         handlers: [console]
         propagate: no
 
     prefect.extra:
-        level: "{{default_level}}"
+        level: "{{level}}"
         handlers: [orion, console]
         propagate: no
 
