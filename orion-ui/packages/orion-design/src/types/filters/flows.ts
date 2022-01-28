@@ -6,10 +6,10 @@ export type FlowFilter = {
 
 export type FlowStringFilter = {
   object: 'flow',
-  key: 'name',
+  property: 'name',
 } & Partial<ObjectStringFilter>
 
 export type FlowTagFilter = {
   object: 'flow',
-  key: 'tag',
+  property: 'tag',
 } & Partial<ObjectTagFilter>

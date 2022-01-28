@@ -6,20 +6,20 @@ export type FlowRunFilter = {
 
 export type FlowRunStringFilter = {
   object: 'flow_run',
-  key: 'name',
+  property: 'name',
 } & Partial<ObjectStringFilter>
 
 export type FlowRunDateFilter = {
   object: 'flow_run',
-  key: 'start_date' | 'end_date',
+  property: 'start_date' | 'end_date',
 } & Partial<ObjectDateFilter>
 
 export type FlowRunTagFilter = {
   object: 'flow_run',
-  key: 'tag',
+  property: 'tag',
 } & Partial<ObjectTagFilter>
 
 export type FlowRunStateFilter = {
   object: 'flow_run',
-  key: 'state',
+  property: 'state',
 } & Partial<ObjectStateFilter>

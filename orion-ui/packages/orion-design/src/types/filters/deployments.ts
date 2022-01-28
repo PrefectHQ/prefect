@@ -6,10 +6,10 @@ export type DeploymentFilter = {
 
 export type DeploymentStringFilter = {
   object: 'deployment',
-  key: 'name',
+  property: 'name',
 } & Partial<ObjectStringFilter>
 
 export type DeploymentTagFilter = {
   object: 'deployment',
-  key: 'tag',
+  property: 'tag',
 } & Partial<ObjectTagFilter>

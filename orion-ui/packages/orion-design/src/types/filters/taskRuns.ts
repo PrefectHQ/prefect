@@ -6,20 +6,20 @@ export type TaskRunFilter = {
 
 export type TaskRunStringFilter = {
   object: 'task_run',
-  key: 'name',
+  property: 'name',
 } & Partial<ObjectStringFilter>
 
 export type TaskRunDateFilter = {
   object: 'task_run',
-  key: 'start_date' | 'end_date',
+  property: 'start_date' | 'end_date',
 } & Partial<ObjectDateFilter>
 
 export type TaskRunTagFilter = {
   object: 'task_run',
-  key: 'tag',
+  property: 'tag',
 } & Partial<ObjectTagFilter>
 
 export type TaskRunStateFilter = {
   object: 'task_run',
-  key: 'state',
+  property: 'state',
 } & Partial<ObjectStateFilter>
