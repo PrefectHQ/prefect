@@ -53,7 +53,13 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
         # reassign the updated value
         flat_config[key_tup] = val
 
-    return flatdict_to_dict(flat_config)
+    parsed_config = flatdict_to_dict(flat_config)
+    # Cast the root logger to Python's expected empty string unless the user has
+    # explicitly included a `""` logger
+    if "loggers" in parsed_config and "" not in parsed_config["loggers"]:
+        parsed_config["loggers"][""] = parsed_config["loggers"].pop("root", {})
+
+    return parsed_config
 
 
 def setup_logging(settings: Settings) -> None:
@@ -72,11 +78,12 @@ def setup_logging(settings: Settings) -> None:
     logging.config.dictConfig(config)
 
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
-    prefect_logger = logging.getLogger("prefect.extra")
+    extra_config = logging.getLogger("prefect.extra")
 
     for logger_name in settings.logging.get_extra_loggers():
         logger = logging.getLogger(logger_name)
-        for handler in prefect_logger.handlers:
+        for handler in extra_config.handlers:
             logger.addHandler(handler)
             if logger.level == logging.NOTSET:
-                logger.setLevel(prefect_logger.level)
+                logger.setLevel(extra_config.level)
+            logger.propagate = extra_config.propagate
