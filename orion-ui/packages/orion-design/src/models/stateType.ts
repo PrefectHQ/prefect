@@ -6,3 +6,5 @@ export const stateType = [
   'FAILED',
   'CANCELLED',
 ] as const
+
+export type StateType = typeof stateType[number]
