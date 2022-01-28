@@ -51,9 +51,9 @@
           <template #empty>
             <p class="flow-run_logs-tab-content__empty">
               No logs to show.
-              <Button v-show="levelFilter" class="ml-2" @click="clearFilters">
+              <m-button v-show="levelFilter" class="ml-2" @click="clearFilters">
                 Try clearing your filter
-              </Button>
+              </m-button>
             </p>
           </template>
         </FlowRunLogs>
@@ -82,8 +82,8 @@ import {
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
 import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-import { computed, defineProps, nextTick, ref, watch } from 'vue'
-import CopyButton from './Global/CopyButton.vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { CopyButton } from '@prefecthq/orion-design'
 
 const props = defineProps({
   flowRunId: {

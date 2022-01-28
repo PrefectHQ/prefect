@@ -8,7 +8,7 @@
 
       <div class="list-item-task-run__tag-container">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-        <Tags :tags="tags" class="caption" />
+        <m-tags :tags="tags" class="caption" />
       </div>
     </div>
 
@@ -20,14 +20,17 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
+import type { FlowRunsFilter } from '@prefecthq/orion-design'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
-const taskRunFilterBody = computed<TaskRunsFilter>(() => {
+const taskRunFilterBody = computed<FlowRunsFilter>(() => {
   return {
     flow_runs: {
       id: {
