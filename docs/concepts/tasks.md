@@ -35,7 +35,7 @@ The future can be used to retrieve the current [`State`](/api-ref/orion/schemas/
 !!! note "How big should a task be?"
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
-    To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be trivially avoided by splitting the code into multiple dependent tasks.
+    To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
 
 ## Task arguments
 
@@ -181,7 +181,7 @@ def cached_task():
 
 By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
 
-When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) represents the state and result of a computation happening in a task runner.
+When tasks are called, they are submitted to a task runner, which creates a future for access to the state and result of the task. A [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) provides access to a computation happening in a task runner.
 
 ```python
 @task
@@ -191,7 +191,7 @@ def say_hello(name):
 @flow
 def hello_world():
     future = say_hello("Marvin")
-    print(f"variable 'future' is type {str(type(future))}")
+    print(f"variable 'future' is type {type(future)}")
 ```
 
 You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
