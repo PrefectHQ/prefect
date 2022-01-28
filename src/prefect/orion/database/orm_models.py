@@ -696,6 +696,13 @@ class ORMLog:
 
 
 @declarative_mixin
+class ORMConcurrencyLimit:
+    tag = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    concurrency_limit = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -731,6 +738,7 @@ class BaseORMConfiguration(ABC):
         deployment_mixin: deployment orm mixin, combined with Base orm class
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
+        concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
 
     TODO - example
     """
@@ -748,6 +756,7 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -786,6 +795,7 @@ class BaseORMConfiguration(ABC):
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
+            concurrency_limit_mixin=concurrency_limit_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -818,6 +828,7 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -851,6 +862,9 @@ class BaseORMConfiguration(ABC):
         class Log(log_mixin, self.Base):
             pass
 
+        class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -860,6 +874,7 @@ class BaseORMConfiguration(ABC):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
         self.Log = Log
+        self.ConcurrencyLimit = ConcurrencyLimit
 
     @property
     @abstractmethod
@@ -871,6 +886,11 @@ class BaseORMConfiguration(ABC):
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return [self.Deployment.flow_id, self.Deployment.name]
+
+    @property
+    def concurrency_limit_unique_upsert_columns(self):
+        """Unique columns for upserting a ConcurrencyLimit"""
+        return [self.ConcurrencyLimit.tag]
 
     @property
     def flow_run_unique_upsert_columns(self):
