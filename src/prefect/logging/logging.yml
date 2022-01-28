@@ -39,7 +39,7 @@ formatters:
 
 handlers:
 
-    # The handler we define here will output all logs they receieve by default
+    # The handlers we define here will output all logs they receieve by default
     # but we include the `level` so it can be overridden by environment
 
     console:
