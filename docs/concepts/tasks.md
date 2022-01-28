@@ -103,7 +103,9 @@ def get_page(url):
 
 ## Caching
 
-Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.  
+Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.
+
+To determine whether a task run should retrieve a cached state, we use "cache keys". Cache keys are a string value that indicate if two runs match. When a task run with a cache key finishes, we attach that cache key to the state. When each task run starts, we will look for states with a matching cache key. If we find a state with an identical key, we will use the cached state instead of running the task again.
 
 You must specify a `cache_key_fn` that returns a cache key. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. If you do not specify a `cache_expiration`, the cache key does not expire.
 
@@ -227,6 +229,8 @@ Hello Marvin!
 ```
 </div>
 
+When you pass a future into a task, we will wait for the upstream task it references to reach a final state before starting the downstream task.
+
 Futures have a few useful methods. For example, [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state) retrieves the current state of the task run associated with a `PrefectFuture`.
 
 ```python
@@ -236,7 +240,7 @@ def my_flow():
     state = future.get_state()
 ```
 
-You can also explicitly wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method and retrieve the task's result:
+You can also wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method and retrieve the task's result:
 
 ```python
 @flow
