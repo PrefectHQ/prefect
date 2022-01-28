@@ -3,43 +3,34 @@ export interface RunState {
   type: string
 }
 
+export type TimeUnit = 'minutes' | 'hours' | 'days'
+
+export type TimeFrame = {
+  timestamp?: Date
+  unit?: TimeUnit
+  value?: number
+}
+
 export interface RunTimeFrame {
   dynamic: boolean
-  from: {
-    timestamp?: Date
-    unit?: 'minutes' | 'hours' | 'days'
-    value?: number
-  }
-  to: {
-    timestamp?: Date
-    unit?: 'minutes' | 'hours' | 'days'
-    value?: number
-  }
+  from: TimeFrame
+  to: TimeFrame
+}
+
+export interface BaseFilter {
+  ids?: string[]
+  names?: string[]
+  tags?: string[]
+}
+
+export interface StatesFilter extends BaseFilter {
+  states?: RunState[]
+  timeframe?: RunTimeFrame
 }
 
 export interface GlobalFilter {
-  flows: {
-    ids?: string[]
-    names?: string[]
-    tags?: string[]
-  }
-  deployments: {
-    ids?: string[]
-    names?: string[]
-    tags?: string[]
-  }
-  flow_runs: {
-    ids?: string[]
-    names?: string[]
-    tags?: string[]
-    states?: RunState[]
-    timeframe?: RunTimeFrame
-  }
-  task_runs: {
-    ids?: string[]
-    names?: string[]
-    tags?: string[]
-    states?: RunState[]
-    timeframe?: RunTimeFrame
-  }
+  flows: BaseFilter
+  deployments: BaseFilter
+  flow_runs: StatesFilter
+  task_runs: StatesFilter
 }

@@ -874,6 +874,26 @@ class TestTaskRunLogs:
         logs = await orion_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
+    async def test_tracebacks_are_logged(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            try:
+                x + y
+            except:
+                logger.error("There was an issue", exc_info=True)
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        error_log = [log.message for log in logs if log.level == 40].pop()
+        assert "NameError" in error_log
+        assert "x + y" in error_log
+
     async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
         @task
         def my_task():
