@@ -12,9 +12,9 @@ import anyio
 import typer
 
 import prefect
-from prefect.cli.base import app, console, exit_with_error
-from prefect.cli.orion import open_process_and_stream_output
 from prefect.cli.agent import start as start_agent
+from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
@@ -148,6 +148,57 @@ async def agent(host: str = prefect.settings.orion_host):
 
 
 @dev_app.command()
+@sync_compatible
+async def start(
+    exclude_api: bool = typer.Option(False, "--no-api"),
+    exclude_ui: bool = typer.Option(False, "--no-ui"),
+    exclude_agent: bool = typer.Option(False, "--no-agent"),
+):
+    """
+    Starts a hot-reloading development server with API, UI, and agent processes.
+
+    Each service has an individual command if you wish to start them separately.
+    Each service can be excluded here as well.
+    """
+    async with anyio.create_task_group() as tg:
+        if not exclude_api:
+            tg.start_soon(api)
+        if not exclude_ui:
+            tg.start_soon(ui)
+        if not exclude_agent:
+            # Hook the agent to the hosted API if running
+            if not exclude_api:
+                host = f"http://{prefect.settings.orion.api.host}:{prefect.settings.orion.api.port}/api"
+            else:
+                host = prefect.settings.orion_host
+            tg.start_soon(agent, host)
+
+
+@dev_app.command()
+def build_image(platform: str = "amd64"):
+    tag = get_prefect_image_name()
+
+    # Here we use a subprocess instead of the docker-py client to easily stream output
+    # as it comes
+    try:
+        subprocess.check_call(
+            [
+                "docker",
+                "build",
+                str(prefect.__root_path__),
+                "--tag",
+                tag,
+                "--platform",
+                f"linux/{platform}",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        exit_with_error("Failed to build image!")
+    else:
+        exit_with_success(f"Built image {tag!r} for {platform}")
+
+
+@dev_app.command()
 def container(bg: bool = False, name="prefect-dev", api: bool = True):
     import docker
     from docker.models.containers import Container
@@ -209,33 +260,6 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
     finally:
         print("\nStopping container...")
         container.stop()
-
-
-@dev_app.command()
-@sync_compatible
-async def start(
-    exclude_api: bool = typer.Option(False, "--no-api"),
-    exclude_ui: bool = typer.Option(False, "--no-ui"),
-    exclude_agent: bool = typer.Option(False, "--no-agent"),
-):
-    """
-    Starts a hot-reloading development server with API, UI, and agent processes.
-
-    Each service has an individual command if you wish to start them separately.
-    Each service can be excluded here as well.
-    """
-    async with anyio.create_task_group() as tg:
-        if not exclude_api:
-            tg.start_soon(api)
-        if not exclude_ui:
-            tg.start_soon(ui)
-        if not exclude_agent:
-            # Hook the agent to the hosted API if running
-            if not exclude_api:
-                host = f"http://{prefect.settings.orion.api.host}:{prefect.settings.orion.api.port}/api"
-            else:
-                host = prefect.settings.orion_host
-            tg.start_soon(agent, host)
 
 
 @dev_app.command()
