@@ -64,7 +64,7 @@ def ray_task_runner_with_existing_cluster(machine_ray_instance):
         init_kwargs={
             "runtime_env": {
                 "working_dir": str(prefect.__root_path__),
-                "excludes": [str(prefect.__root_path__ / ".git")],
+                "excludes": ["**/.git"],
             }
         },
     )
