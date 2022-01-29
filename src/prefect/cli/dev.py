@@ -235,6 +235,8 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
             To connect to the container, run:
 
                 docker exec -it {container.name} /bin/bash
+
+            Note: Installation runs in the background and may not be complete yet.
             """
         )
     )
