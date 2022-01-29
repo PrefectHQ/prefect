@@ -148,7 +148,7 @@ async def agent(host: str = prefect.settings.orion_host):
 
 
 @dev_app.command()
-def container(bg: bool = False, name="prefect-dev"):
+def container(bg: bool = False, name="prefect-dev", api: bool = True):
     import docker
     from docker.models.containers import Container
 
@@ -162,12 +162,13 @@ def container(bg: bool = False, name="prefect-dev"):
             "the existing container."
         )
 
+    blocking_cmd = "prefect dev api" if api else "sleep infinity"
     container: Container = client.containers.create(
         image=get_prefect_image_name(),
         command=[
             "/bin/bash",
             "-c",
-            "pip install -e /opt/prefect/repo\\[dev\\] && sleep infinity",
+            f"pip install -e /opt/prefect/repo\\[dev\\] && {blocking_cmd}",
         ],
         name=name,
         auto_remove=True,
