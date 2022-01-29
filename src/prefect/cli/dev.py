@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import textwrap
+import time
 from string import Template
 
 import anyio
@@ -214,12 +215,14 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         )
 
     blocking_cmd = "prefect dev api" if api else "sleep infinity"
+    tag = get_prefect_image_name()
+
     container: Container = client.containers.create(
-        image=get_prefect_image_name(),
+        image=tag,
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && {blocking_cmd}",
+            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",
         ],
         name=name,
         auto_remove=True,
@@ -228,16 +231,29 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         shm_size="3G",
     )
 
+    print(f"Starting container for image {tag!r}...")
     container.start()
+
+    print("Waiting for installation to complete", end="", flush=True)
+    try:
+        ready = False
+        while not ready:
+            print(".", end="", flush=True)
+            result = container.exec_run("test -f /READY")
+            ready = result.exit_code == 0
+            if not ready:
+                time.sleep(3)
+    except:
+        print("\nInterrupted. Stopping container...")
+        container.stop()
+        raise
+
     print(
         textwrap.dedent(
             f"""
-            Started container {container.name!r} with your local code installed.
-            To connect to the container, run:
+            Container {container.name!r} is ready! To connect to the container, run:
 
                 docker exec -it {container.name} /bin/bash
-
-            Note: Installation runs in the background and may not be complete yet.
             """
         )
     )
@@ -252,10 +268,10 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
                 """
             )
         )
+        # Exit without stopping
         return
 
     try:
-
         print("Send a keyboard interrupt to exit...")
         container.wait()
     except KeyboardInterrupt:
