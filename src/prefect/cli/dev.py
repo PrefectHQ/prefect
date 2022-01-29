@@ -5,13 +5,14 @@ import json
 import os
 import shutil
 import subprocess
+import textwrap
 from string import Template
 
 import anyio
 import typer
 
 import prefect
-from prefect.cli.base import app, console
+from prefect.cli.base import app, console, exit_with_error
 from prefect.cli.orion import open_process_and_stream_output
 from prefect.cli.agent import start as start_agent
 from prefect.flow_runners import get_prefect_image_name
@@ -144,6 +145,69 @@ async def agent(host: str = prefect.settings.orion_host):
     await watchgod.arun_process(
         prefect.__module_path__, start_agent, kwargs=dict(host=host)
     )
+
+
+@dev_app.command()
+def container(bg: bool = False, name="prefect-dev"):
+    import docker
+    from docker.models.containers import Container
+
+    client = docker.from_env()
+
+    containers = client.containers.list()
+    container_names = {container.name for container in containers}
+    if name in container_names:
+        exit_with_error(
+            f"Container {name!r} already exists. Specify a different name or stop "
+            "the existing container."
+        )
+
+    container: Container = client.containers.create(
+        image=get_prefect_image_name(),
+        command=[
+            "/bin/bash",
+            "-c",
+            "pip install -e /opt/prefect/repo\\[dev\\] && sleep infinity",
+        ],
+        name=name,
+        auto_remove=True,
+        working_dir="/opt/prefect/repo",
+        volumes=[f"{prefect.__root_path__}:/opt/prefect/repo"],
+    )
+
+    container.start()
+    print(
+        textwrap.dedent(
+            f"""
+            Started container {container.name!r} with your local code installed.
+            To connect to the container, run: 
+
+                docker exec -it {container.name} /bin/bash
+            """
+        )
+    )
+
+    if bg:
+        print(
+            textwrap.dedent(
+                f"""
+                The container will run forever. Stop the container with:
+                
+                    docker stop {container.name}
+                """
+            )
+        )
+        return
+
+    try:
+
+        print("Send a keyboard interrupt to exit...")
+        container.wait()
+    except KeyboardInterrupt:
+        pass  # Avoid showing "Abort"
+    finally:
+        print("\nStopping container...")
+        container.stop()
 
 
 @dev_app.command()
