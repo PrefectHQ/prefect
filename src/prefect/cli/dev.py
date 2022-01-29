@@ -177,6 +177,9 @@ async def start(
 
 @dev_app.command()
 def build_image(platform: str = "amd64"):
+    """
+    Build a docker image for development.
+    """
     tag = get_prefect_image_name()
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
@@ -201,6 +204,9 @@ def build_image(platform: str = "amd64"):
 
 @dev_app.command()
 def container(bg: bool = False, name="prefect-dev", api: bool = True):
+    """
+    Run a docker container with local code mounted and installed.
+    """
     import docker
     from docker.models.containers import Container
 
