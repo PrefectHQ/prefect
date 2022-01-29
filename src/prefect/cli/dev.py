@@ -228,7 +228,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         auto_remove=True,
         working_dir="/opt/prefect/repo",
         volumes=[f"{prefect.__root_path__}:/opt/prefect/repo"],
-        shm_size="3G",
+        shm_size="4G",
     )
 
     print(f"Starting container for image {tag!r}...")
