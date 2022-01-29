@@ -41,11 +41,14 @@ RUN apt-get update && \
 # Pin the pip version
 RUN python -m pip install --no-cache-dir pip==21.3.1
 
-# Copy the sdist
 WORKDIR /opt/prefect
-COPY --from=builder /opt/prefect/dist ./
 
-# Install prefect
+# Install the base requirements separately so they cache
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+
+# Install prefect from the sdist
+COPY --from=builder /opt/prefect/dist ./
 RUN pip install --no-cache-dir ./prefect*.tar.gz
 
 # Setup entrypoint
