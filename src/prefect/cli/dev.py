@@ -232,7 +232,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         textwrap.dedent(
             f"""
             Started container {container.name!r} with your local code installed.
-            To connect to the container, run: 
+            To connect to the container, run:
 
                 docker exec -it {container.name} /bin/bash
             """
@@ -244,7 +244,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
             textwrap.dedent(
                 f"""
                 The container will run forever. Stop the container with:
-                
+
                     docker stop {container.name}
                 """
             )
