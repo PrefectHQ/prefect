@@ -10,7 +10,7 @@ export abstract class Api {
   private _config: AxiosRequestConfig | null = null
   private _instance: AxiosInstance | null = null
 
-  protected abstract route: string
+  protected abstract route: string | (() => string)
 
   public constructor(config?: AxiosRequestConfig) {
     if (config) {
@@ -31,8 +31,10 @@ export abstract class Api {
       return this._config
     }
 
+    const route = typeof this.route === 'function' ? this.route() : this.route
+
     return this._config = {
-      baseURL: `${this.server}${this.route}`,
+      baseURL: `${this.server}${route}`,
     }
   }
 
