@@ -52,7 +52,7 @@ def machine_ray_instance():
 
 
 @pytest.fixture
-def ray_task_runner_with_existing_cluster(machine_ray_instance):
+def ray_task_runner_with_existing_cluster(machine_ray_instance, use_hosted_orion):
     """
     Generate a ray task runner that's connected to a ray instance running in a separate
     process
