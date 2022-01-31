@@ -1,4 +1,6 @@
-export function randomDate(start?: Date, end?: Date): Date {
+import { MockFunction } from '../services'
+
+export const randomDate: MockFunction<Date> = function(start?: Date, end?: Date) {
   if (!start) {
     start = new Date(0)
   }
