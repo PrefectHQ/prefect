@@ -425,7 +425,7 @@ def test_starting_at_arbitrary_loop_index_from_cloud_context(client):
 
     @prefect.task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with prefect.Flow(name="looping", result=PrefectResult()) as f:
         inter = looper(10)
