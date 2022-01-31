@@ -14,9 +14,11 @@ import sys
 import threading
 import time
 import warnings
+import json
 from queue import Empty, Queue
 from typing import Any, List, Optional, Generator, Union
 from contextlib import contextmanager
+from uuid import uuid4
 
 import pendulum
 
@@ -35,6 +37,25 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 
 MAX_LOG_SIZE = 1_000_000  # 1 MB - max size of a single log record
 MAX_BATCH_LOG_SIZE = 4_000_000  # 4 MB - max total batch size for log records
+
+LOG_OVERHEAD = len(
+    # Calculate the expected overhead from a log record by serializing a record with
+    # metadata
+    json.dumps(
+        {
+            "flow_run_id": uuid4().hex,
+            "task_run_id": uuid4().hex,
+            "timestamp": pendulum.from_timestamp(time.time()).isoformat(),
+            "name": "X" * 100,
+            "level": "WARNING",
+            "message": "",
+        }
+    )
+)
+
+
+def getlogsize(log: dict) -> int:
+    return len(log.get("message", "")) + LOG_OVERHEAD
 
 
 class LogManager:
@@ -109,7 +130,7 @@ class LogManager:
             try:
                 while self.pending_length < max_batch_length:
                     log = self.queue.get_nowait()
-                    self.pending_length += sys.getsizeof(log)
+                    self.pending_length += getlogsize(log)
                     self.pending_logs.append(log)
 
             except Empty:
@@ -173,16 +194,13 @@ class CloudHandler(logging.Handler):
             "message": msg,
         }
 
-        # The dictionary size is greater than the size after json.dumps so this will
-        # always overestimate log size which is ideal for avoiding hitting real limits
-        log_size = sys.getsizeof(log)
+        log_size = getlogsize(log)
         if log_size > MAX_LOG_SIZE:
             warnings.warn(
                 "Received a log of size %d bytes, exceeding the limit of %d. "
                 "The message will be truncated." % (log_size, MAX_LOG_SIZE)
             )
-            # Account for 150 bytes of overhead for the non-message fields
-            log["message"] = msg[: MAX_LOG_SIZE - 150]
+            log["message"] = msg[: MAX_LOG_SIZE - LOG_OVERHEAD]
 
         LOG_MANAGER.enqueue(log)
 
