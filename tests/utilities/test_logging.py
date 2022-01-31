@@ -15,6 +15,8 @@ from prefect.utilities.logging import (
     LogManager,
     temporary_logger_config,
     get_logger,
+    LOG_OVERHEAD,
+    getlogsize,
 )
 
 
@@ -111,21 +113,34 @@ def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manag
     assert log_manager.thread is None
 
 
+def test_getlogsize_produces_realistic_estimate(monkeypatch, logger, log_manager):
+    logger.info("h" * 2000)
+
+    assert log_manager.enqueue.call_count == 1
+
+    enqueued_log = log_manager.enqueue.call_args_list[0][0][0]
+    size = len(json.dumps(enqueued_log))
+    estimated_size = getlogsize(enqueued_log)
+    assert estimated_size >= size
+    assert ((estimated_size - size) / size) < 0.1, "10 percent overstimate at most"
+
+
 def test_cloud_handler_emit_warns_and_truncates_long_messages(
     monkeypatch, logger, log_manager
 ):
     # Smaller value for testing
-    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_SIZE", 200)
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_SIZE", 1000)
 
     with pytest.warns(
         UserWarning,
-        match="Received a log of size 3[0-9][0-9] bytes, exceeding the limit of 200",
+        match=f"Received a log of size {1000 + LOG_OVERHEAD} bytes, exceeding the limit of 1000",
     ):
-        logger.info("h" * 220)
+        logger.info("h" * 1000)
 
     assert log_manager.enqueue.call_count == 1
     # Truncated log message, 200 - 150 overhead
-    assert log_manager.enqueue.call_args_list[0][0][0]["message"] == "h" * 50
+    message = log_manager.enqueue.call_args_list[0][0][0]["message"]
+    assert message == "h" * (1000 - LOG_OVERHEAD), f"Got length {len(message)}"
 
 
 @pytest.mark.parametrize(
