@@ -194,6 +194,8 @@ def build_image(platform: str = "amd64"):
                 tag,
                 "--platform",
                 f"linux/{platform}",
+                "--build-arg",
+                "PREFECT_EXTRAS=[dev]",
             ]
         )
     except subprocess.CalledProcessError:
