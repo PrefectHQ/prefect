@@ -78,8 +78,37 @@ The following is a list of the default names and contents of Prefect Secrets tha
 
 For example, when using local secrets, your Prefect installation can be configured to authenticate to AWS automatically by adding that specific `AWS_CREDENTIALS` key value pair into your secrets context like so:
 
-```
+```bash
 export PREFECT__CONTEXT__SECRETS__AWS_CREDENTIALS='{"ACCESS_KEY": "abcdef", "SECRET_ACCESS_KEY": "ghijklmn"}'
 ```
 
 Then all Prefect usages of AWS credentials will default to using the values in that dictionary.
+
+## External Secrets Engine
+
+### Hashicorp Vault
+
+The ability to use an existing [Hashicorp Vault](https://www.vaultproject.io/) instance to retrieve secrets is avaialable.
+
+The `VaultSecret` class works similarly to the base `Secrets` class, with the addition of Vault connection credentials supplied via an secret named `VAULT_CREDENTIALS`. With the supplied credentials a secret can be retrieved from the Vault instance using the `"<mount_point>/<path>"` of the remote secret.
+
+A Vault Client configuration is defined vua an environment variable. Both `VAULT_ADDR` and `vault_addr` supported.
+
+The available Vault authentication mechanisms are:
+
+- [token](https://www.vaultproject.io/docs/auth/token): `{ 'VAULT_TOKEN: '<token>' }`
+- [appRole](): `{ 'VAULT_ROLE_ID': '<role-id>', 'VAULT_SECRET_ID': '<secret-id>' }`
+- [kubernetesRole](https://www.vaultproject.io/docs/auth/kubernetes): `{ 'VAULT_KUBE_AUTH_ROLE': '<>', 'VAULT_KUBE_AUTH_PATH': '<>' 'VAULT_KUBE_TOKEN_FILE': '<>' }`
+
+For example, given the `VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>" }'`, the value `"token"` will be used to autheticate against the Vault instance identified by `VAULT_ADDR`.
+
+```bash
+export VAULT_ADDR='http://vault.example.com'
+export PREFECT__CONTEXT__SECRETS__VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>"}'
+```
+
+```python
+from prefect.tasks.secrets.vault_secret import VaultSecret
+
+secret = VaultSecret("secret/test/path/to/hello").run()
+```
