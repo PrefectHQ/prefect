@@ -1,4 +1,3 @@
-import sys
 import json
 from typing import Any, List
 
