@@ -1,16 +1,16 @@
 import { Log } from '../models'
-import { mocker } from '../services'
+import { MockFunction } from '../services'
 
-export function randomLog(): Log {
+export const randomLog: MockFunction<Log> = function() {
   return new Log({
-    id: mocker.create('string'),
-    created: mocker.create('date'),
-    updated: mocker.create('date'),
-    name: mocker.create('string'),
-    level: mocker.create('number'),
-    message: mocker.create('string'),
-    timestamp: mocker.create('date'),
-    flowRunId: mocker.create('string'),
-    taskRunId: mocker.create('string'),
+    id: this.create('string'),
+    created: this.create('date'),
+    updated: this.create('date'),
+    name: this.create('string'),
+    level: this.create('number'),
+    message: this.create('string'),
+    timestamp: this.create('date'),
+    flowRunId: this.create('string'),
+    taskRunId: this.create('string'),
   })
 }
