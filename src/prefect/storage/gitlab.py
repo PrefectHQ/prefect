@@ -31,7 +31,7 @@ class GitLab(Storage):
 
     - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
 
-    - Call `prefect register flow -f flow.py` to register this flow with GitLab storage.
+    - Call `prefect register -f flow.py` to register this flow with GitLab storage.
 
     Args:
         - repo (str): the project path (i.e., 'namespace/project') or ID

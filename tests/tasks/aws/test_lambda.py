@@ -13,7 +13,7 @@ class TestLambdaCreate:
     def test_initialization(self):
         task = LambdaCreate(
             function_name="test",
-            runtime="python3.6",
+            runtime="python3.7",
             role="aws_role",
             handler="file.handler",
             bucket="s3_bucket",
@@ -24,7 +24,7 @@ class TestLambdaCreate:
     def test_lambda_create_exposes_boto3_create_api(self, monkeypatch):
         task = LambdaCreate(
             function_name="test",
-            runtime="python3.6",
+            runtime="python3.7",
             role="aws_role",
             handler="file.handler",
         )
