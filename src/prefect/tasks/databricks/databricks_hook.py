@@ -11,20 +11,22 @@ import prefect
 
 from prefect.exceptions import PrefectException
 
-RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
+RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
 
-START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
+START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
 
-TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
+TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
 
 
-RUN_NOW_ENDPOINT = ("POST", "api/2.0/jobs/run-now")
+RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.0/jobs/runs/submit")
 
-GET_RUN_ENDPOINT = ("GET", "api/2.0/jobs/runs/get")
+SUBMIT_MULTI_TASK_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 
-CANCEL_RUN_ENDPOINT = ("POST", "api/2.0/jobs/runs/cancel")
+GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
+
+CANCEL_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/cancel")
 
 USER_AGENT_HEADER = {"user-agent": "prefect-{v}".format(v=prefect.__version__)}
 
@@ -210,7 +212,7 @@ class DatabricksHook:
 
     def run_now(self, json):
         """
-        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
 
         Args:
          - json (dict): The data used in the body of the request to the ``run-now`` endpoint.
@@ -232,6 +234,19 @@ class DatabricksHook:
             - str: the run_id as a string
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
+        return response["run_id"]
+
+    def submit_multi_task_run(self, json):
+        """
+        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
+
+        Args:
+            - json (dict): The data used in the body of the request to the ``submit`` endpoint.
+
+        Returns:
+            - str: the run_id as a string
+        """
+        response = self._do_api_call(SUBMIT_MULTI_TASK_RUN_ENDPOINT, json)
         return response["run_id"]
 
     def get_run_page_url(self, run_id: str) -> str:

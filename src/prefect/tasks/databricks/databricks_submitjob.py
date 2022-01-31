@@ -1,12 +1,49 @@
 import time
-from typing import List, Dict
+from typing import Dict, List, Union
 
+import six
+
+import prefect
 from prefect import Task
-from prefect.utilities.tasks import defaults_from_attrs
 from prefect.exceptions import PrefectException
-
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
-from prefect.tasks.databricks.utils import deep_string_coerce
+from prefect.tasks.databricks.models import (
+    AccessControlRequestForGroup,
+    AccessControlRequestForUser,
+    JobCluster,
+    JobTaskSettings,
+)
+from prefect.utilities.tasks import defaults_from_attrs
+
+
+def _deep_string_coerce(content, json_path="json"):
+    """
+    Coerces content or all values of content if it is a dict to a string. The
+    function will throw if content contains non-string or non-numeric types.
+
+    The reason why we have this function is because the `self.json` field must be a
+    dict with only string values. This is because `render_template` will fail
+    for numerical values.
+    """
+    if isinstance(content, six.string_types):
+        return content
+    elif isinstance(content, six.integer_types + (float,)):
+        # Databricks can tolerate either numeric or string types in the API backend.
+        return str(content)
+    elif isinstance(content, (list, tuple)):
+        return [
+            _deep_string_coerce(content=item, json_path=f"{json_path}[{i}]")
+            for i, item in enumerate(content)
+        ]
+    elif isinstance(content, dict):
+        return {
+            key: _deep_string_coerce(content=value, json_path="f{json_path}[{k}]")
+            for key, value in list(content.items())
+        }
+    else:
+        raise ValueError(
+            f"Type {type(content)} used for parameter {json_path} is not a number or a string"
+        )
 
 
 def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
@@ -192,7 +229,7 @@ class DatabricksSubmitRun(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         self.databricks_conn_secret = databricks_conn_secret
@@ -210,11 +247,14 @@ class DatabricksSubmitRun(Task):
 
         super().__init__(**kwargs)
 
-    def get_hook(self):
+    @staticmethod
+    def get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
         return DatabricksHook(
-            self.databricks_conn_secret,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
         )
 
     @defaults_from_attrs(
@@ -316,9 +356,13 @@ class DatabricksSubmitRun(Task):
 
         if json:
             self.json = json
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
 
         # Initialize Databricks Connections
-        hook = self.get_hook()
+        hook = self.get_hook(
+            databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+        )
 
         if spark_jar_task is not None:
             self.json["spark_jar_task"] = spark_jar_task
@@ -338,7 +382,7 @@ class DatabricksSubmitRun(Task):
             self.json["run_name"] = run_name or "Run Submitted by Prefect"
 
         # Validate the dictionary to a valid JSON object
-        self.json = deep_string_coerce(self.json)
+        self.json = _deep_string_coerce(self.json)
 
         # Submit the job
         submitted_run_id = hook.submit_run(self.json)
@@ -507,7 +551,7 @@ class DatabricksRunNow(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         self.databricks_conn_secret = databricks_conn_secret
@@ -523,11 +567,14 @@ class DatabricksRunNow(Task):
 
         super().__init__(**kwargs)
 
-    def get_hook(self):
+    @staticmethod
+    def get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
         return DatabricksHook(
-            self.databricks_conn_secret,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
         )
 
     @defaults_from_attrs(
@@ -632,9 +679,15 @@ class DatabricksRunNow(Task):
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
-        hook = self.get_hook()
+        hook = self.get_hook(
+            databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+        )
 
         run_now_json = json or {}
+        # Necessary be cause `_handle_databricks_task_execution` reads
+        # `polling_periods_seconds` off of the task instance
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
 
         if job_id is not None:
             run_now_json["job_id"] = job_id
@@ -650,10 +703,113 @@ class DatabricksRunNow(Task):
             run_now_json["jar_params"] = jar_params
 
         # Validate the dictionary to a valid JSON object
-        self.json = deep_string_coerce(run_now_json)
+        self.json = _deep_string_coerce(run_now_json)
 
         # Submit the job
         submitted_run_id = hook.run_now(self.json)
         _handle_databricks_task_execution(self, hook, self.logger, submitted_run_id)
+
+        return submitted_run_id
+
+
+class Databricks21SubmitMultiTaskJob(Task):
+    def __init__(
+        self,
+        databricks_conn_info: dict = None,
+        tasks: List[JobTaskSettings] = None,
+        job_clusters: List[JobCluster] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        idempotency_token: str = None,
+        access_control_list: List[
+            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+        ] = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+        **kwargs,
+    ):
+        self.databricks_conn_info = databricks_conn_info
+        self.tasks = tasks
+        self.job_clusters = job_clusters
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
+        self.idempotency_token = idempotency_token
+        self.access_control_list = access_control_list
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "databricks_conn_info",
+        "tasks",
+        "job_clusters",
+        "run_name",
+        "timeout_seconds",
+        "idempotency_token",
+        "access_control_list",
+        "polling_period_seconds",
+        "databricks_retry_limit",
+        "databricks_retry_delay",
+    )
+    def run(
+        self,
+        databricks_conn_info: dict = None,
+        tasks: List[JobTaskSettings] = None,
+        job_clusters: List[JobCluster] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        idempotency_token: str = None,
+        access_control_list: List[
+            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+        ] = None,
+        polling_period_seconds: int = None,
+        databricks_retry_limit: int = None,
+        databricks_retry_delay: float = None,
+    ):
+        if databricks_conn_info is None or not isinstance(databricks_conn_info, dict):
+            raise ValueError(
+                "Databricks connection info must be supplied as a dictionary."
+            )
+        if tasks is None:
+            raise ValueError("Please supply at least one Databricks task to be run.")
+        if job_clusters is None:
+            raise ValueError(
+                "Please supply at least one job cluster to use for this run."
+            )
+        run_name = (
+            run_name
+            or f"Job run created by Prefect flow run {prefect.context.flow_run_name}"
+        )
+        # Ensures that multiple job runs are not created on retries
+        idempotency_token = idempotency_token or prefect.context.flow_run_id
+
+        # Set polliing_period_seconds on task because _handle_databricks_task_execution expects it
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
+
+        databricks_client = DatabricksHook(
+            databricks_conn_info,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
+
+        # Set json on task instance because _handle_databricks_task_execution expects it
+        self.json = _deep_string_coerce(
+            dict(
+                tasks=tasks,
+                job_clusters=job_clusters,
+                run_name=run_name,
+                timeout_seconds=timeout_seconds,
+                idempotency_token=idempotency_token,
+                access_control_list=access_control_list,
+            )
+        )
+
+        submitted_run_id = databricks_client.submit_multi_task_run(self.json)
+        _handle_databricks_task_execution(
+            self, databricks_client, self.logger, submitted_run_id
+        )
 
         return submitted_run_id
