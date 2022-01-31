@@ -1,4 +1,6 @@
 ARG PYTHON_VERSION=${PYTHON_VERSION:-3.8}
+# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
+ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 
 # Build the distributable which generates a static version file.
 # Without this build step, versioneer cannot infer the version without git
@@ -15,7 +17,7 @@ COPY . ./
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python setup.py sdist
-
+RUN mv dist/$(python setup.py --fullname).tar.gz dist/prefect.tar.gz
 
 # Install into the requested Python version image
 FROM python:${PYTHON_VERSION}-slim
@@ -48,8 +50,8 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 # Install prefect from the sdist
-COPY --from=builder /opt/prefect/dist ./
-RUN pip install --no-cache-dir ./prefect*.tar.gz
+COPY --from=builder /opt/prefect/dist ./dist
+RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh

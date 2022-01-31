@@ -30,6 +30,7 @@ jobs:
           context: .
           build-args:
             PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
           outputs: type=docker,dest=/tmp/image.tar
 
