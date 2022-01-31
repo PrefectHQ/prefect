@@ -677,6 +677,10 @@ class RayTaskRunner(BaseTaskRunner):
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
+        import prefect.utilities.settings
+
+        self._ray.cloudpickle.register_pickle_by_value(prefect.utilities.settings)
+
         # When connecting to an out-of-process cluster, this returns a `ClientContext`
         # otherwise it returns a `dict`
         context_or_metadata = self._ray.init(*init_args, **self.init_kwargs)
