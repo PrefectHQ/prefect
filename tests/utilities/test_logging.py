@@ -113,7 +113,7 @@ def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manag
     assert log_manager.thread is None
 
 
-def test_getlogsize_produces_realistic_estimate(monkeypatch, logger, log_manager):
+def test_getlogsize_produces_realistic_estimate(logger, log_manager):
     logger.info("h" * 2000)
 
     assert log_manager.enqueue.call_count == 1
