@@ -46,7 +46,7 @@ class DatabricksRunNowTestOverride(DatabricksRunNow):
         self.mocked_response = mocked_response
         super().__init__(**kwargs)
 
-    def get_hook(self, *_):
+    def _get_hook(self, *_):
         return DatabricksHookTestOverride(self.mocked_response)
 
 

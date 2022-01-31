@@ -249,6 +249,16 @@ class DatabricksSubmitRun(Task):
 
         super().__init__(**kwargs)
 
+    @staticmethod
+    def _get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
+        return DatabricksHook(
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
+
     @defaults_from_attrs(
         "databricks_conn_secret",
         "json",
@@ -352,7 +362,7 @@ class DatabricksSubmitRun(Task):
             self.polling_period_seconds = polling_period_seconds
 
         # Initialize Databricks Connections
-        hook = DatabricksHook(
+        hook = self._get_hook(
             databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
         )
 
@@ -559,6 +569,16 @@ class DatabricksRunNow(Task):
 
         super().__init__(**kwargs)
 
+    @staticmethod
+    def _get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
+        return DatabricksHook(
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
+
     @defaults_from_attrs(
         "databricks_conn_secret",
         "job_id",
@@ -661,7 +681,7 @@ class DatabricksRunNow(Task):
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
-        hook = DatabricksHook(
+        hook = self._get_hook(
             databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
         )
 
