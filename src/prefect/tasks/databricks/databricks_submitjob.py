@@ -10,7 +10,6 @@ from prefect.tasks.databricks.databricks_hook import DatabricksHook
 from prefect.tasks.databricks.models import (
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
-    JobCluster,
     JobTaskSettings,
 )
 from prefect.utilities.tasks import defaults_from_attrs
@@ -712,12 +711,118 @@ class DatabricksRunNow(Task):
         return submitted_run_id
 
 
-class Databricks21SubmitMultiTaskJob(Task):
+class DatabricksSubmitMultitaskRun(Task):
+    """
+    Creates and triggers a one-time run via the Databricks submit run API endpoint. Supports
+    the execution of multiple Databricks tasks within the Databricks job run. Note: Databricks
+    tasks are distinct from Prefect tasks. All tasks configured will run as a single Prefect task.
+
+    For more information about the arguments of this task, refer to the [Databricks
+    submit run API documentation]
+    (https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit)
+
+    Args:
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
+            String. Structure must be a string of valid JSON. To use token based authentication, provide
+            the key `token` in the string for the connection and create the key `host`.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            OR
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+        - tasks (List[JobTaskSettings]):" A list containing the Databricks task configuration. Should
+            contain configuration for at least one task.
+        - timeout_seconds (int, optional):  An optional timeout applied to each run of this job.
+            The default behavior is to have no timeout.
+        - run_name (str, optional): An optional name for the run.
+            The default value is "Job run created by Prefect flow run {flow_run_name}".
+        - idempotency_token (str, optional): An optional token that can be used to guarantee
+            the idempotency of job run requests. Defaults to the flow run ID.
+        - access_control_list (List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]]):
+            List of permissions to set on the job.
+        - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+            this run. By default the task will poll every 30 seconds.
+        - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+            unreachable. Its value must be greater than or equal to 1.
+        - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+            might be a floating point number).
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+
+    Example:
+        Trigger an ad-hoc multitask run
+
+        ```
+        from prefect import flow
+        from prefect.tasks.databricks.models import JobTaskSettings, SparkJarTask, Library
+
+        submit_multitask_run = DatabricksSubmitMultitaskRun(
+            tasks=[
+                JobTaskSettings(
+                    task_key="Sessionize",
+                    description="Extracts session data from events",
+                    existing_cluster_id="0923-164208-meows279",
+                    spark_jar_task=SparkJarTask(
+                        main_class_name="com.databricks.Sessionize",
+                        parameters=["--data", "dbfs:/path/to/data.json"],
+                    ),
+                    libraries=[Library(jar="dbfs:/mnt/databricks/Sessionize.jar")],
+                    timeout_seconds=86400,
+                ),
+                JobTaskSettings(
+                    task_key="Orders_Ingest",
+                    description="Ingests order data",
+                    existing_cluster_id="0923-164208-meows279",
+                    spark_jar_task=SparkJarTask(
+                        main_class_name="com.databricks.OrdersIngest",
+                        parameters=["--data", "dbfs:/path/to/order-data.json"],
+                    ),
+                    libraries=[Library(jar="dbfs:/mnt/databricks/OrderIngest.jar")],
+                    timeout_seconds=86400,
+                ),
+                JobTaskSettings(
+                    task_key="Match",
+                    description="Matches orders with user sessions",
+                    depends_on=[
+                        TaskDependency(task_key="Orders_Ingest"),
+                        TaskDependency(task_key="Sessionize"),
+                    ],
+                    new_cluster=NewCluster(
+                        spark_version="7.3.x-scala2.12",
+                        node_type_id="i3.xlarge",
+                        spark_conf={"spark.speculation": True},
+                        aws_attributes=AwsAttributes(
+                            availability=AwsAvailability.SPOT, zone_id="us-west-2a"
+                        ),
+                        autoscale=AutoScale(min_workers=2, max_workers=16),
+                    ),
+                    notebook_task=NotebookTask(
+                        notebook_path="/Users/user.name@databricks.com/Match",
+                        base_parameters={"name": "John Doe", "age": "35"},
+                    ),
+                    timeout_seconds=86400,
+                ),
+            ],
+            run_name="A multitask job run",
+            timeout_seconds=86400,
+            access_control_list=[
+                AccessControlRequestForUser(
+                    user_name="jsmith@example.com", permission_level=CanManage.CAN_MANAGE
+                )
+            ],
+        )
+
+
+        with flow as f:
+            conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+            submit_multitask_run(databricks_conn_secret=conn)
+        ```
+    """
+
     def __init__(
         self,
         databricks_conn_info: dict = None,
         tasks: List[JobTaskSettings] = None,
-        job_clusters: List[JobCluster] = None,
         run_name: str = None,
         timeout_seconds: int = None,
         idempotency_token: str = None,
@@ -731,7 +836,6 @@ class Databricks21SubmitMultiTaskJob(Task):
     ):
         self.databricks_conn_info = databricks_conn_info
         self.tasks = tasks
-        self.job_clusters = job_clusters
         self.run_name = run_name
         self.timeout_seconds = timeout_seconds
         self.idempotency_token = idempotency_token
@@ -744,7 +848,6 @@ class Databricks21SubmitMultiTaskJob(Task):
     @defaults_from_attrs(
         "databricks_conn_info",
         "tasks",
-        "job_clusters",
         "run_name",
         "timeout_seconds",
         "idempotency_token",
@@ -757,7 +860,6 @@ class Databricks21SubmitMultiTaskJob(Task):
         self,
         databricks_conn_info: dict = None,
         tasks: List[JobTaskSettings] = None,
-        job_clusters: List[JobCluster] = None,
         run_name: str = None,
         timeout_seconds: int = None,
         idempotency_token: str = None,
@@ -768,16 +870,46 @@ class Databricks21SubmitMultiTaskJob(Task):
         databricks_retry_limit: int = None,
         databricks_retry_delay: float = None,
     ):
+        """
+        Task run method. Any values passed here will overwrite the values used when initializing the
+        task.
+
+        Args:
+            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
+                Connection String. Structure must be a string of valid JSON. To use token based
+                authentication, provide the key `token` in the string for the connection and create
+                the key `host`. `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+                OR
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            - tasks (List[JobTaskSettings]):" A list containing the Databricks task configuration. Should
+                contain configuration for at least one task.
+            - timeout_seconds (int, optional):  An optional timeout applied to each run of this job.
+                The default behavior is to have no timeout.
+            - run_name (str, optional): An optional name for the run.
+                The default value is "Job run created by Prefect flow run {flow_run_name}".
+            - idempotency_token (str, optional): An optional token that can be used to guarantee
+                the idempotency of job run requests. Defaults to the flow run ID.
+            - access_control_list (List[Union[AccessControlRequestForUser,
+                AccessControlRequestForGroup]]): List of permissions to set on the job.
+            - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+                this run. By default the task will poll every 30 seconds.
+            - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+                unreachable. Its value must be greater than or equal to 1.
+            - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+                might be a floating point number).
+
+        Returns:
+            - run_id (str): Run id of the submitted run
+
+        """
         if databricks_conn_info is None or not isinstance(databricks_conn_info, dict):
             raise ValueError(
                 "Databricks connection info must be supplied as a dictionary."
             )
         if tasks is None:
             raise ValueError("Please supply at least one Databricks task to be run.")
-        if job_clusters is None:
-            raise ValueError(
-                "Please supply at least one job cluster to use for this run."
-            )
         run_name = (
             run_name
             or f"Job run created by Prefect flow run {prefect.context.flow_run_name}"
@@ -785,7 +917,7 @@ class Databricks21SubmitMultiTaskJob(Task):
         # Ensures that multiple job runs are not created on retries
         idempotency_token = idempotency_token or prefect.context.flow_run_id
 
-        # Set polliing_period_seconds on task because _handle_databricks_task_execution expects it
+        # Set polling_period_seconds on task because _handle_databricks_task_execution expects it
         if polling_period_seconds:
             self.polling_period_seconds = polling_period_seconds
 
@@ -799,7 +931,6 @@ class Databricks21SubmitMultiTaskJob(Task):
         self.json = _deep_string_coerce(
             dict(
                 tasks=tasks,
-                job_clusters=job_clusters,
                 run_name=run_name,
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
