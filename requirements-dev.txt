@@ -1,4 +1,4 @@
-black
+black >= 20.8b0
 ipython
 mkdocs
 mkdocs-material
