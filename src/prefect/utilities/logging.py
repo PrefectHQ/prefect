@@ -109,7 +109,7 @@ class LogManager:
             try:
                 while self.pending_length < max_batch_length:
                     log = self.queue.get_nowait()
-                    self.pending_length += sys.getsizeof(log)
+                    self.pending_length += sys.getsizeof(log, len(log["message"] + 150))
                     self.pending_logs.append(log)
 
             except Empty:
@@ -175,7 +175,7 @@ class CloudHandler(logging.Handler):
 
         # The dictionary size is greater than the size after json.dumps so this will
         # always overestimate log size which is ideal for avoiding hitting real limits
-        log_size = sys.getsizeof(log)
+        log_size = sys.getsizeof(log, len(log["message"]) + 150)
         if log_size > MAX_LOG_SIZE:
             warnings.warn(
                 "Received a log of size %d bytes, exceeding the limit of %d. "
