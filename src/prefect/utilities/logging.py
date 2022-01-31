@@ -109,7 +109,7 @@ class LogManager:
             try:
                 while self.pending_length < max_batch_length:
                     log = self.queue.get_nowait()
-                    self.pending_length += sys.getsizeof(log, len(log["message"] + 150))
+                    self.pending_length += sys.getsizeof(log, len(log["message"]) + 150)
                     self.pending_logs.append(log)
 
             except Empty:
