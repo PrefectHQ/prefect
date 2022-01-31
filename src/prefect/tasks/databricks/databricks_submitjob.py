@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import time
 from typing import Dict, List, Union
 
@@ -29,6 +30,8 @@ def _deep_string_coerce(content, json_path="json"):
     elif isinstance(content, six.integer_types + (float,)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
+    elif content is None:
+        return content
     elif isinstance(content, (list, tuple)):
         return [
             _deep_string_coerce(content=item, json_path=f"{json_path}[{i}]")
@@ -908,7 +911,7 @@ class DatabricksSubmitMultitaskRun(Task):
             raise ValueError(
                 "Databricks connection info must be supplied as a dictionary."
             )
-        if tasks is None:
+        if tasks is None or len(tasks) < 1:
             raise ValueError("Please supply at least one Databricks task to be run.")
         run_name = (
             run_name
@@ -930,11 +933,13 @@ class DatabricksSubmitMultitaskRun(Task):
         # Set json on task instance because _handle_databricks_task_execution expects it
         self.json = _deep_string_coerce(
             dict(
-                tasks=tasks,
+                tasks=[asdict(task) for task in tasks],
                 run_name=run_name,
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
-                access_control_list=access_control_list,
+                access_control_list=[
+                    asdict(entry) for entry in access_control_list or []
+                ],
             )
         )
 
