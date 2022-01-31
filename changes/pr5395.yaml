@@ -1,0 +1,3 @@
+enhancement:
+  - Updates the `DatabricksRunNow` task to use the Databricks 2.1 jobs API - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+  - Adds `DatabricksSubmitMultitaskRun` task - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
