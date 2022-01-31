@@ -287,9 +287,8 @@ class StartFlowRun(Task):
     Args:
         - flow_name (str, optional): the name of the flow to schedule; this value may also be
             provided at run time
-        - project_name (str, optional): if running with Cloud as a backend, this is the project
-            in which the flow is located; this value may also be provided at runtime. If
-            running with Prefect Core's server as the backend, this should not be provided.
+        - project_name (str, optional): the name of the project in which the flow is located; 
+            this value may also be provided at runtime.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
         - run_config (RunConfig, optional): a run-config to use for this flow
@@ -375,9 +374,8 @@ class StartFlowRun(Task):
         Args:
             - flow_name (str, optional): the name of the flow to schedule; if not provided,
                 this method will use the flow name provided at initialization
-            - project_name (str, optional): the Cloud project in which the flow is located; if
-                not provided, this method will use the project provided at initialization. If
-                running with Prefect Core's server as the backend, this should not be provided.
+            - project_name (str, optional): the project in which the flow is located; if
+                not provided, this method will use the project provided at initialization.
             - parameters (dict, optional): the parameters to pass to the flow run being
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization
