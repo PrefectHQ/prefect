@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import box
 import pytest
+import uuid
 
 pytest.importorskip("google.cloud.aiplatform")
 
@@ -107,33 +108,29 @@ class TestEnvVars:
         expected["c"] = 2
         assert env == expected
 
-    @pytest.mark.parametrize("tenant_id", ["ID", None])
-    def test_environment_has_api_key_from_config(self, agent, tenant_id):
-        with set_temporary_config(
-            {
-                "cloud.api_key": "TEST_KEY",
-                "cloud.tenant_id": tenant_id,
-                "cloud.agent.auth_token": None,
-            }
-        ):
-            run_config = UniversalRun()
-            flow_run = graphql_result(run_config)
-            env = agent.populate_env_vars(flow_run)
+    def test_environment_has_api_key_from_config(self, agent, config_with_api_key):
+        run_config = UniversalRun()
+        flow_run = graphql_result(run_config)
+        env = agent.populate_env_vars(flow_run)
 
         expected = self.DEFAULT.copy()
-        expected["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-        expected["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        expected["PREFECT__CLOUD__TENANT_ID"] == "ID"
+        expected["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+        expected["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+        expected["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
         assert env == expected
 
-    def test_environment_has_agent_token_from_config(self, agent):
-        with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    def test_environment_has_tenant_id_from_server(self, agent, config_with_api_key):
+        tenant_id = uuid.uuid4()
+
+        with set_temporary_config({"cloud.tenant_id": None}):
             run_config = UniversalRun()
             flow_run = graphql_result(run_config)
             env = agent.populate_env_vars(flow_run)
 
         expected = self.DEFAULT.copy()
-        expected["PREFECT__CLOUD__AUTH_TOKEN"] = "TEST_TOKEN"
+        expected["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+        expected["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+        expected["PREFECT__CLOUD__TENANT_ID"] == tenant_id
         assert env == expected
 
 
@@ -259,7 +256,6 @@ class TestDeployFlow:
                                 "name": "PREFECT__CLOUD__API",
                                 "value": config.cloud.api,
                             },
-                            {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                             {"name": "PREFECT__CLOUD__API_KEY", "value": ""},
                             {"name": "PREFECT__CLOUD__TENANT_ID", "value": ""},
                             {"name": "PREFECT__CLOUD__AGENT__LABELS", "value": "[]"},
@@ -285,6 +281,7 @@ class TestDeployFlow:
                                 "value": "prefect.engine.cloud.CloudTaskRunner",
                             },
                             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
+                            {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                         ],
                     },
                 }

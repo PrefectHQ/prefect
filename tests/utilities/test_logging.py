@@ -2,6 +2,7 @@ import contextlib
 import datetime
 import logging
 import time
+import json
 from unittest.mock import MagicMock
 
 import click
@@ -14,6 +15,8 @@ from prefect.utilities.logging import (
     LogManager,
     temporary_logger_config,
     get_logger,
+    LOG_OVERHEAD,
+    getlogsize,
 )
 
 
@@ -87,21 +90,17 @@ def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
     assert log_manager.thread is None
 
 
-def test_cloud_handler_emit_noop_if_cloud_logging_disabled_deprecated(
-    logger, log_manager
-):
-    with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
-        logger.info("testing")
-    assert not log_manager.enqueue.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
-
-
 def test_cloud_handler_emit_noop_if_below_log_level(logger, log_manager):
     logger.debug("testing")
     assert not log_manager.enqueue.called
     assert log_manager.client is None
     assert log_manager.thread is None
+
+
+def test_cloud_handler_emit_ignores_removed_log_to_cloud_setting(logger, log_manager):
+    with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
+        logger.info("testing")
+    assert log_manager.enqueue.called
 
 
 def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manager):
@@ -114,24 +113,34 @@ def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manag
     assert log_manager.thread is None
 
 
+def test_getlogsize_produces_realistic_estimate(logger, log_manager):
+    logger.info("h" * 2000)
+
+    assert log_manager.enqueue.call_count == 1
+
+    enqueued_log = log_manager.enqueue.call_args_list[0][0][0]
+    size = len(json.dumps(enqueued_log))
+    estimated_size = getlogsize(enqueued_log)
+    assert estimated_size >= size
+    assert ((estimated_size - size) / size) < 0.1, "10 percent overstimate at most"
+
+
 def test_cloud_handler_emit_warns_and_truncates_long_messages(
-    monkeypatch, logger, log_manager, caplog
+    monkeypatch, logger, log_manager
 ):
     # Smaller value for testing
-    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_LENGTH", 100)
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_SIZE", 1000)
 
-    logger.info("h" * 120)
-    # warning about truncating long messages
-    assert any(
-        r.getMessage().startswith("Received a log message of 120 bytes")
-        for r in caplog.records
-    )
-    assert log_manager.enqueue.call_count == 2
-    assert log_manager.enqueue.call_args_list[0][0][0]["message"].startswith(
-        "Received a log message of 120 bytes"
-    )
-    # Truncated log message
-    assert log_manager.enqueue.call_args_list[1][0][0]["message"] == "h" * 100
+    with pytest.warns(
+        UserWarning,
+        match=f"Received a log of size {1000 + LOG_OVERHEAD} bytes, exceeding the limit of 1000",
+    ):
+        logger.info("h" * 1000)
+
+    assert log_manager.enqueue.call_count == 1
+    # Truncated log message, 200 - 150 overhead
+    message = log_manager.enqueue.call_args_list[0][0][0]["message"]
+    assert message == "h" * (1000 - LOG_OVERHEAD), f"Got length {len(message)}"
 
 
 @pytest.mark.parametrize(
@@ -223,10 +232,13 @@ def test_log_manager_startup_and_shutdown(logger, log_manager):
 
 
 def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
-    monkeypatch.setattr(prefect.utilities.logging, "MAX_BATCH_LOG_LENGTH", 100)
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_BATCH_LOG_SIZE", 1000)
+    monkeypatch.setattr(prefect.utilities.logging, "MAX_LOG_SIZE", 500)
+
     # Fill up log queue with multiple logs exceeding the total batch length
     for i in range(10):
         logger.info(str(i) * 50)
+
     time.sleep(0.5)
 
     assert log_manager.queue.empty()
@@ -237,6 +249,11 @@ def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
     ]
     assert messages == [f"{i}" * 50 for i in range(10)]
     assert log_manager.client.write_run_logs.call_count == 5
+
+    for upload in log_manager.client.write_run_logs.call_args_list:
+        log_entries = [log_entry for log_entry in upload[0][0]]
+        payload = json.dumps(log_entries)
+        assert len(payload) <= 1000, payload
 
 
 def test_log_manager_warns_and_retries_on_client_error(

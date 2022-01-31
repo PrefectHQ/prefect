@@ -91,7 +91,6 @@ class DockerAgent(Agent):
             from the listed registries.
         - docker_client_timeout (int, optional): The timeout to use for docker
             API calls, defaults to 60 seconds.
-        - docker_interface: This option has been deprecated and has no effect.
     """
 
     def __init__(
@@ -110,7 +109,6 @@ class DockerAgent(Agent):
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
-        docker_interface: bool = None,  # Deprecated in 0.14.18
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -143,13 +141,6 @@ class DockerAgent(Agent):
             self.container_mount_paths,
             self.host_spec,
         ) = self._parse_volume_spec(volumes or [])
-
-        if docker_interface is not None:
-            warnings.warn(
-                "DockerAgent `docker_interface` argument is deprecated and will be "
-                "removed from Prefect. Setting it has no effect.",
-                UserWarning,
-            )
 
         # Add containers to the given Docker networks
         self.networks = networks
@@ -587,16 +578,9 @@ class DockerAgent(Agent):
         env.update(
             {
                 "PREFECT__BACKEND": config.backend,
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    config.cloud.agent.get("auth_token")
-                    or self.flow_run_api_key
-                    or ""
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # A tenant id is only required when authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else ""
@@ -611,6 +595,8 @@ class DockerAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                # Backwards compatibility variable for containers on Prefect <1.0.0
+                "PREFECT__CLOUD__AUTH_TOKEN": self.flow_run_api_key or "",
             }
         )
         return env

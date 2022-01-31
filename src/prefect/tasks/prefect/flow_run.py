@@ -69,7 +69,14 @@ def create_flow_run(
     labels: Iterable[str] = None,
     run_name: str = None,
     run_config: Optional[RunConfig] = None,
-    scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
+    scheduled_start_time: Optional[
+        Union[
+            pendulum.DateTime,
+            datetime.datetime,
+            pendulum.Duration,
+            datetime.timedelta,
+        ]
+    ] = None,
     idempotency_key: str = None,
 ) -> str:
     """
@@ -136,6 +143,9 @@ def create_flow_run(
     if idempotency_key is None:
         idempotency_key = prefect.context.get("task_run_id", None)
 
+    if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
+        scheduled_start_time = pendulum.now("utc") + scheduled_start_time
+
     client = Client()
     flow_run_id = client.create_flow_run(
         flow_id=flow.flow_id,
@@ -148,7 +158,7 @@ def create_flow_run(
         idempotency_key=idempotency_key,
     )
 
-    run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+    run_url = client.get_cloud_url("flow-run", flow_run_id)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
 
     return flow_run_id
@@ -452,7 +462,7 @@ class StartFlowRun(Task):
         self.logger.debug(f"Flow Run {flow_run_id} created.")
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-        run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+        run_link = client.get_cloud_url("flow-run", flow_run_id)
         create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 

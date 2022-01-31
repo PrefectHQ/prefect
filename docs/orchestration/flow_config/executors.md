@@ -29,7 +29,7 @@ Prefect's different executors have different performance (and complexity)
 characteristics. Choosing a good configuration can greatly improve your flow's
 performance. Here's some general recommendations:
 
-- If your flow already runs "fast enough", or doesn't have opportunites for
+- If your flow already runs "fast enough", or doesn't have opportunities for
   parallelism (e.g. mapped tasks) you should use the
   [LocalExecutor](#localexecutor). It's the simplest option, and will be the
   easiest to manage.
