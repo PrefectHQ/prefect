@@ -1,4 +1,4 @@
-import { StateType } from '../types/StateType'
+import { StateType } from './StateType'
 import { IState } from './State'
 
 export interface ITaskRun {

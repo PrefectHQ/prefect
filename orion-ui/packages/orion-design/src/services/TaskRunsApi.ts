@@ -1,6 +1,6 @@
 import { AxiosResponse } from 'axios'
 import { TaskRun } from '../models/TaskRun'
-import { StateType } from '../types/StateType'
+import { StateType } from '../models/StateType'
 import { Api } from './Api'
 import { IStateResponse, States } from './StatesApi'
 
