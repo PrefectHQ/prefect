@@ -1,6 +1,0 @@
-
-fix:
-  - "AirbyteConnectionTask.run() requires parameters that should be optional - [#5260](https://github.com/PrefectHQ/prefect/pull/5260)"
-
-contributor:
-  - "[Michał Zawadzki](https://github.com/Trymzet)"

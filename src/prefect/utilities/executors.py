@@ -117,7 +117,6 @@ def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[N
             to_environment_variables(
                 prefect.context.config,
                 include={
-                    "cloud.auth_token",
                     "cloud.api_key",
                     "cloud.tenant_id",
                     "cloud.api",
@@ -316,7 +315,7 @@ def multiprocessing_safe_run_and_retrieve(
 
     try:
         logger.debug(
-            "%s: Pickling value of size %s...", name, sys.getsizeof(return_val)
+            "%s: Pickling value of size %s...", name, sys.getsizeof(return_val, -1)
         )  # Only calculate the size if debug logs are enabled
         pickled_val = cloudpickle.dumps(return_val)
         logger.debug(f"{name}: Pickling successful!")
