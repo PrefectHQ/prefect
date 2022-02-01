@@ -287,7 +287,7 @@ class StartFlowRun(Task):
     Args:
         - flow_name (str, optional): the name of the flow to schedule; this value may also be
             provided at run time
-        - project_name (str, optional): the name of the project in which the flow is located; 
+        - project_name (str, optional): the name of the project in which the flow is located;
             this value may also be provided at runtime.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
