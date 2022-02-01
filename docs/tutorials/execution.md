@@ -64,10 +64,8 @@ async def print_values(values):
 
 @flow
 async def async_flow():
-    await print_values([1, 2]) # runs immediately
-    coros = [] 
-    coros.append(print_values("abcd"))
-    coros.append(print_values("6789", "\n"))
+    await print_values([1, 2])  # runs immediately
+    coros = [print_values("abcd"), print_values("6789")]
 
     # asynchronously gather the tasks
     await asyncio.gather(*coros)
@@ -77,7 +75,7 @@ When we run this flow, we find that the coroutines that were gathered yield cont
 
 <div class="termy">
 ```
->>> await async_flow()
+>>> asyncio.run(async_flow())
 1 2 a 6 b 7 c 8 d 9
 ```
 </div>

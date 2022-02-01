@@ -3,12 +3,13 @@ from itertools import repeat
 from unittest.mock import MagicMock
 
 import pytest
+import inspect
 
-from prefect import flow, tags
+from prefect import flow, tags, get_run_logger
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-from prefect.tasks import task, task_input_hash
+from prefect.tasks import Task, task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
 from prefect.exceptions import ReservedArgumentError
 
@@ -357,11 +358,11 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
-    def test_cache_key_fn_context(self):
-        def stringed_context(context, args):
-            return str(context.flow_run_id)
+    def test_cache_key_fn_receives_context(self):
+        def get_flow_run_id(context, args):
+            return str(context.task_run.flow_run_id)
 
-        @task(cache_key_fn=stringed_context)
+        @task(cache_key_fn=get_flow_run_id)
         def foo(x):
             return x
 
@@ -855,3 +856,168 @@ class TestTaskWaitFor:
             @task
             def foo(wait_for):
                 pass
+
+
+@pytest.mark.enable_orion_handler
+class TestTaskRunLogs:
+    async def test_user_logs_are_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" in {log.message for log in logs}
+
+    async def test_tracebacks_are_logged(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            try:
+                x + y
+            except:
+                logger.error("There was an issue", exc_info=True)
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        error_log = [log.message for log in logs if log.level == 40].pop()
+        assert "NameError" in error_log
+        assert "x + y" in error_log
+
+    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!", extra={"send_to_orion": False})
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" not in {log.message for log in logs}
+
+    async def test_logs_are_given_correct_ids(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            return my_task()
+
+        state = my_flow()
+        task_state = state.result()
+        flow_run_id = state.state_details.flow_run_id
+        task_run_id = task_state.state_details.task_run_id
+
+        logs = await orion_client.read_logs()
+        assert logs, "There should be logs"
+        assert all([log.flow_run_id == flow_run_id for log in logs])
+        task_run_logs = [log for log in logs if log.task_run_id is not None]
+        assert task_run_logs, f"There should be task run logs in {logs}"
+        assert all([log.task_run_id == task_run_id for log in task_run_logs])
+
+
+class TestTaskWithOptions:
+    def test_with_options_allows_override_of_task_settings(self):
+        def first_cache_key_fn(*_):
+            return "first cache hit"
+
+        def second_cache_key_fn(*_):
+            return "second cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before with options",
+            tags=["tag1", "tag2"],
+            cache_key_fn=first_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(
+            name="Copied task",
+            description="A copied task",
+            tags=["tag3", "tag4"],
+            cache_key_fn=second_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=2),
+            retries=5,
+            retry_delay_seconds=10
+        )
+
+        assert task_with_options.name == "Copied task"
+        assert task_with_options.description == "A copied task"
+        assert set(task_with_options.tags) == {"tag3", "tag4"}
+        assert task_with_options.cache_key_fn is second_cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=2)
+        assert task_with_options.retries == 5
+        assert task_with_options.retry_delay_seconds == 10
+
+    def test_with_options_uses_existing_settings_when_no_override(self):
+        def cache_key_fn(*_):
+            return "cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before with options",
+            tags=["tag1", "tag2"],
+            cache_key_fn=cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options()
+
+        assert task_with_options is not initial_task
+        assert task_with_options.name == "Initial task"
+        assert task_with_options.description == "Task before with options"
+        assert set(task_with_options.tags) == {"tag1", "tag2"}
+        assert task_with_options.tags is not initial_task.tags
+        assert task_with_options.cache_key_fn is cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=1)
+        assert task_with_options.retries == 2
+        assert task_with_options.retry_delay_seconds == 5
+
+    def test_tags_are_copied_from_original_task(self):
+        "Ensure changes to the tags on the original task don't affect the new task"
+        @task(name="Initial task", tags=["tag1", "tag2"])
+        def initial_task():
+            pass
+
+        with_options_task = initial_task.with_options(name="With options task")
+        initial_task.tags.add("tag3")
+
+        assert initial_task.tags == {"tag1", "tag2", "tag3"}
+        assert with_options_task.tags == {"tag1", "tag2"}
+
+
+    def test_with_options_signature_aligns_with_task_signature(self):
+        task_params = dict(inspect.signature(task).parameters)
+        with_options_params = dict(inspect.signature(Task.with_options).parameters)
+        # `with_options` does not accept a new function
+        task_params.pop("__fn")
+        # `self` isn't in task decorator
+        with_options_params.pop("self")
+        assert task_params == with_options_params
+

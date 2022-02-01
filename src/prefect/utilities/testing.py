@@ -1,6 +1,7 @@
 """"
 Internal utilities for tests.
 """
+import sys
 
 
 def exceptions_equal(a, b):
@@ -12,3 +13,12 @@ def exceptions_equal(a, b):
     if a == b:
         return True
     return type(a) == type(b) and getattr(a, "args", None) == getattr(b, "args", None)
+
+
+# AsyncMock has a new import path in Python 3.8+
+
+if sys.version_info < (3, 8):
+    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
+    from mock import AsyncMock
+else:
+    from unittest.mock import AsyncMock

@@ -1,4 +1,7 @@
 import datetime
+import logging
+from uuid import uuid4
+
 import pendulum
 import pytest
 import sqlalchemy as sa
@@ -682,3 +685,54 @@ class TestExpectedStartTimeDelta:
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)
+
+
+class TestLog:
+    async def test_create_log_with_flow_run_id_and_task_run_id(self, session, db):
+        now = pendulum.now("UTC")
+        fifteen_mins_ago = now - datetime.timedelta(minutes=15)
+
+        log = db.Log(
+            name="prefect.flow_run",
+            level=logging.INFO,
+            message="Ahoy, captain",
+            timestamp=now,
+            flow_run_id=uuid4(),
+            task_run_id=uuid4(),
+        )
+
+        session.add(log)
+        await session.flush()
+
+        query = (
+            sa.select(db.Log)
+            .where(db.Log.timestamp > fifteen_mins_ago)
+            .execution_options(populate_existing=True)
+        )
+
+        result = await session.execute(query)
+        assert result.scalar() == log
+
+    async def test_create_log_without_task_run_id(self, session, db):
+        now = pendulum.now("UTC")
+        fifteen_mins_ago = now - datetime.timedelta(minutes=15)
+
+        log = db.Log(
+            name="prefect.flow_run",
+            level=logging.WARNING,
+            message="Black flag ahead, captain!",
+            flow_run_id=uuid4(),
+            timestamp=now,
+        )
+
+        session.add(log)
+        await session.flush()
+
+        query = (
+            sa.select(db.Log)
+            .where(db.Log.timestamp > fifteen_mins_ago)
+            .execution_options(populate_existing=True)
+        )
+
+        result = await session.execute(query)
+        assert result.scalar() == log

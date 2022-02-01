@@ -9,6 +9,8 @@ import prefect.orion.api.task_run_states
 import prefect.orion.api.deployments
 import prefect.orion.api.saved_searches
 import prefect.orion.api.dependencies
+import prefect.orion.api.logs
+import prefect.orion.api.concurrency_limits
 
 # import the server last because it loads all other modules
 import prefect.orion.api.server

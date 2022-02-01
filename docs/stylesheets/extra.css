@@ -1,0 +1,27 @@
+/* Prefect Overrides */
+
+/* Code block background and highlight */
+:root > * {
+    /* code blocks */
+    --md-code-hl-color: #eeeeee;
+    --md-code-bg-color: #f3f3f3;
+  }
+
+/* Image drop shadow, separates browser from background */
+img {
+    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+}
+
+/* Table formatting */
+.md-typeset table:not([class]) {
+    font-size: .8rem;
+}
+.md-typeset table:not([class]) td {
+    padding: 0.5em 1.25em;
+}
+.md-typeset table:not([class]) th {
+    padding: 0.5em 1.25em;
+}
+.no-wrap {
+    white-space: nowrap;
+}

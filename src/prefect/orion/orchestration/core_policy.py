@@ -20,6 +20,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.models import concurrency_limits
 from prefect.orion.schemas import states
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -44,12 +45,130 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             CacheRetrieval,
+            SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
+            ReleaseTaskConcurrencySlots,
         ]
+
+
+class MinimalFlowPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return []
+
+
+class MinimalTaskPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            ReleaseTaskConcurrencySlots,  # always release concurrency slots
+        ]
+
+
+class SecureTaskConcurrencySlots(BaseOrchestrationRule):
+    """
+    Checks relevant concurrency slots are available before entering a Running state.
+
+    This rule checks if concurrency limits have been set on the tags associated with a
+    TaskRun. If so, a concurrency slot will be secured against each concurrency limit
+    before being allowed to transition into a running state. If a concurrency limit has
+    been reached, the client will be instructed to delay the transition for 30 seconds
+    before trying again. If the concurrency limit set on a tag is 0, the transition will
+    be aborted to prevent deadlocks.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+
+        self._applied_limits = []
+        all_limits = await concurrency_limits.read_concurrency_limits(
+            context.session, limit=None, offset=None
+        )
+        limits_by_tag = {limit.tag: limit for limit in all_limits}
+        for tag in context.run.tags:
+            cl = limits_by_tag.get(tag, None)
+
+            if cl is not None:
+                limit = cl.concurrency_limit
+                if limit == 0:
+                    # limits of 0 will deadlock, and the transition needs to abort
+                    for stale_tag in self._applied_limits:
+                        stale_limit = limits_by_tag.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        stale_limit.active_slots = list(active_slots)
+
+                    await self.abort_transition(
+                        reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
+                    )
+                elif len(cl.active_slots) >= limit:
+                    # if the limit has already been reached, delay the transition
+                    for stale_tag in self._applied_limits:
+                        stale_limit = limits_by_tag.get(stale_tag, None)
+                        active_slots = set(stale_limit.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        stale_limit.active_slots = list(active_slots)
+
+                    await self.delay_transition(
+                        30,
+                        f"Concurrency limit for the {tag} tag has been reached",
+                    )
+                else:
+                    # log the TaskRun ID to active_slots
+                    self._applied_limits.append(tag)
+                    active_slots = set(cl.active_slots)
+                    active_slots.add(str(context.run.id))
+                    cl.active_slots = list(active_slots)
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        for tag in self._applied_limits:
+            cl = await concurrency_limits.read_concurrency_limit_by_tag(
+                context.session, tag
+            )
+            active_slots = set(cl.active_slots)
+            active_slots.discard(str(context.run.id))
+            cl.active_slots = list(active_slots)
+
+
+class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
+    """
+    Releases any concurrency slots held by a run upon exiting a Running state.
+    """
+
+    FROM_STATES = [states.StateType.RUNNING]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+
+        all_limits = await concurrency_limits.read_concurrency_limits(
+            context.session, limit=None, offset=None
+        )
+        limit_lookup = {limit.tag: limit for limit in all_limits}
+        for tag in context.run.tags:
+            cl = limit_lookup.get(tag, None)
+            if cl is not None:
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(context.run.id))
+                cl.active_slots = list(active_slots)
 
 
 class CacheInsertion(BaseOrchestrationRule):

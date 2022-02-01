@@ -1,5 +1,5 @@
 <template>
-  <Card class="menu font--primary" tabindex="0">
+  <m-card class="menu font--primary" tabindex="0">
     <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3 class="d-flex align-center font--secondary ml-auto">
@@ -7,7 +7,7 @@
           Search
         </h3>
 
-        <IconButton
+        <m-icon-button
           icon="pi-close-line"
           height="34px"
           width="34px"
@@ -32,7 +32,7 @@
             font--secondary
           "
         >
-          <Loader :loading="loading" />
+          <m-loader :loading="loading" />
         </div>
         <div
           v-else-if="error"
@@ -79,7 +79,7 @@
             >
               <div>{{ search.name }}</div>
 
-              <IconButton
+              <m-icon-button
                 flat
                 icon="pi-delete-bin-line text--grey-20 pi-sm"
                 :disabled="loadingIds.includes(search.id)"
@@ -93,27 +93,27 @@
 
     <template v-if="!media.md" v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
-        <Button
+        <m-button
           color="primary"
           height="35px"
           :width="!media.md ? '100%' : 'auto'"
           @click="applyFilter"
         >
           Apply
-        </Button>
+        </m-button>
       </CardActions>
     </template>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
-import { ref, getCurrentInstance, onBeforeMount, onBeforeUnmount } from 'vue'
+import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
+import { useStore } from '@/store'
 import { Api, Endpoints } from '@/plugins/api'
-import { useStore } from 'vuex'
+import { showToast } from '@prefecthq/miter-design'
 import media from '@/utilities/media'
 
 const store = useStore()
-const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 
 type SavedSearch = {
@@ -187,7 +187,7 @@ const applyFilter = () => {
     )
   }
 
-  store.commit('globalFilter', selectedSearch.value?.filters)
+  store.commit('filter/setFilter', selectedSearch.value?.filters)
   emit('close')
 }
 
@@ -232,9 +232,9 @@ const remove = async (id: string) => {
 
   const res = await query.fetch()
 
-  instance?.appContext.config.globalProperties.$toast.add({
+  showToast({
     type: res.error ? 'error' : 'success',
-    content: res.error ? `Error: ${res.error}` : 'Search removed',
+    message: res.error ? `Error: ${res.error}` : 'Search removed',
     timeout: 10000
   })
 

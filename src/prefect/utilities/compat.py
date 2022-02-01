@@ -18,18 +18,6 @@ if sys.version_info < (3, 9):
 else:
     from asyncio import to_thread as asyncio_to_thread
 
-
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-    try:
-        from mock import AsyncMock
-    except ImportError:
-        # This utility is only a `dev` requirement and may not be available
-        AsyncMock = None
-else:
-    from unittest.mock import AsyncMock
-
-
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/asyncio-policy.html#asyncio.ThreadedChildWatcher
     # `ThreadedChildWatcher` is the default child process watcher for Python 3.8+ but it

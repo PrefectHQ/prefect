@@ -5,8 +5,10 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.models import concurrency_limits, task_runs
+from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import Scheduled
+from prefect.orion.schemas.states import Scheduled, Running, Failed
 
 
 class TestCreateTaskRun:
@@ -671,3 +673,66 @@ class TestDeleteTaskRun:
         assert not (
             await models.task_runs.delete_task_run(session=session, task_run_id=uuid4())
         )
+
+
+class TestPreventOrphanedConcurrencySlots:
+    @pytest.fixture
+    async def task_run_1(self, session, flow_run):
+        model = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="my-key-1",
+                dynamic_key="0",
+                tags=["red"],
+            ),
+        )
+        await session.commit()
+        return model
+
+    @pytest.fixture
+    async def task_run_2(self, session, flow_run):
+        model = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="my-key-2",
+                dynamic_key="1",
+                tags=["red"],
+            ),
+        )
+        await session.commit()
+        return model
+
+    async def test_force_releases_concurrency(self, session, task_run_1, task_run_2):
+        await concurrency_limits.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimit(
+                tag="red", concurrency_limit=1
+            ),
+        )
+
+        await session.commit()
+
+        # take a concurrency slot
+        await task_runs.set_task_run_state(
+            session, task_run_1.id, Running(), task_policy=CoreTaskPolicy
+        )
+
+        # assert it is used up
+        result = await task_runs.set_task_run_state(
+            session, task_run_2.id, Running(), task_policy=CoreTaskPolicy
+        )
+        assert result.status.value == "WAIT"
+
+        # forcibly take the task out of a running state
+        # the force will disregard the provided task policy
+        await task_runs.set_task_run_state(
+            session, task_run_1.id, Failed(), force=True, task_policy=CoreTaskPolicy
+        )
+
+        # assert the slot is available
+        result2 = await task_runs.set_task_run_state(
+            session, task_run_2.id, Running(), task_policy=CoreTaskPolicy
+        )
+        assert result2.status.value == "ACCEPT"

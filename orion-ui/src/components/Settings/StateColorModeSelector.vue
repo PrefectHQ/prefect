@@ -1,5 +1,5 @@
 <template>
-  <SimpleSelect v-model="colorMode" :options="colorModes" search>
+  <m-simple-select v-model="colorMode" :options="colorModes" search>
     <template v-slot:selected-option-label="{ label }">
       <div class="theme-option d-flex align-center">
         <i class="pi pi-palette-line mr-1" />
@@ -27,7 +27,7 @@
         </div>
       </div>
     </template>
-  </SimpleSelect>
+  </m-simple-select>
 </template>
 
 <script lang="ts">
@@ -61,7 +61,7 @@ const storageKey = 'orion-color-mode'
 
       this.showToast({
         type: 'success',
-        content: 'Color theme saved'
+        message: 'Color theme saved'
       })
     }
   }
@@ -83,8 +83,8 @@ export default class StateColorModeSelector extends Vue {
 
   colorMap: { [key: string]: string[] } = {}
 
-  showToast(options: { type: string; content: any }): void {
-    this.$toast.add({ ...options, timeout: 10000 })
+  showToast(options: { type: string; message: any }): void {
+    this.$toast({ ...options, timeout: 10000 })
   }
 
   mounted(): void {

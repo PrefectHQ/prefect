@@ -5,7 +5,7 @@
       <aside v-if="modelValue" class="drawer pa-2 d-flex flex-column">
         <h2>
           <div class="d-flex justify-start align-center">
-            <IconButton
+            <m-icon-button
               class="mr-1"
               :icon="'pi-arrow-left-s-line'"
               @click="close"
@@ -34,7 +34,7 @@ class Props {
     required: false,
     type: Boolean
   })
-  target = prop<string>({ default: '.application', required: false })
+  target = prop<string>({ default: '#app', required: false })
 }
 
 @Options({

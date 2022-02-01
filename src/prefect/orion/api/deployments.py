@@ -27,8 +27,9 @@ async def create_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
-    """Gracefully creates a new deployment from the provided schema. If a deployment with the
-    same name and flow_id already exists, the deployment is updated.
+    """
+    Gracefully creates a new deployment from the provided schema. If a deployment with
+    the same name and flow_id already exists, the deployment is updated.
 
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
@@ -54,14 +55,6 @@ async def create_deployment(
         db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
-
-    # proactively schedule the deployment
-    if deployment.schedule and deployment.is_schedule_active:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=model.id,
-        )
-
     return model
 
 
@@ -202,13 +195,6 @@ async def set_schedule_active(
         )
     deployment.is_schedule_active = True
     await session.flush()
-
-    # proactively schedule the deployment
-    if deployment.schedule:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=deployment_id,
-        )
 
 
 @router.post("/{id}/set_schedule_inactive")
