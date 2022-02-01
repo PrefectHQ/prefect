@@ -36,8 +36,3 @@ export const useFiltersStore = defineStore('filters', {
     all: (state) => Object.values(state.filters),
   },
 })
-
-const filters = useFiltersStore()
-
-
-filters.remove()
