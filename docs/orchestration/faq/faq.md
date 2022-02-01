@@ -216,7 +216,7 @@ def my_task(condition: bool=True):
   if condition:
 	  raise FAIL('this task failed')
   else:
-		return "all is good"
+    return "all is good"
 ```
 
 ### I can't connect to the Prefect Server API from other machines. What am I missing?
