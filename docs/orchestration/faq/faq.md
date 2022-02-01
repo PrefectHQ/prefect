@@ -56,7 +56,7 @@ The Prefect context is not meant to be mutable so adding an item to it inside a 
 
 ### Why do I get `TypeError: cannot pickle ______ object`?
 
-There are two scenarios where this error happens. The first is when using a `DaskExecutor` and using a task input or output that is not serializable by cloudpickle. Dask uses cloudpickle as the mechanism to send data from the client to the workers. This specific error is often raised with mapped tasks that use client type objects, such as connections to databases, as inputs. These connections need to be instantiated (and closed) inside tasks instead to work around this. 
+There are two scenarios where this error happens. The first is when using a `DaskExecutor` and using a task input or output that is not serializable by cloudpickle. Dask uses cloudpickle as the mechanism to send data from the client to the workers. This specific error is often raised with mapped tasks that use client type objects, such as connections to databases, as inputs. These connections need to be instantiated (and closed) inside tasks instead to work on the Dask engine. 
 
 The second way this can happen is through [Prefect results](/core/concepts/results.html#results). By default, task outputs are saved as `LocalResults`, and the default serializer is the `PickleSerializer`, which uses cloudpickle. If you have a task that returns a client or connection, you can avoid this serialization by turning off checkpointing for that task which `@task(checkpoint=False)`.
 
@@ -134,7 +134,7 @@ with Flow("example") as flow:
 
 ### How can I set a custom flow run name?
 
-The flow run name cannot be set in advance, but it can be changed using the [RenameFlowRun](api/latest/tasks/prefect.html#renameflowrun) task after the flow run has been created. You can use this task inside the flow block, or through a flow-level state handler. When calling the task from a state handler, make sure to call the task’s  `.run()` method.
+The flow run name cannot be set in advance, but it can be changed using the [RenameFlowRun](/api/latest/tasks/prefect.html#renameflowrun) task after the flow run has been created. You can use this task inside the flow block, or through a flow-level state handler. When calling the task from a state handler, make sure to call the task’s  `.run()` method.
 
 Here is a flow-level state handler example:
 
