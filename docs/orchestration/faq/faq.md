@@ -178,7 +178,7 @@ In general, the Docker agent is supposed to run in a local process (rather than 
 
 This agent polls the API for new flow runs, and if there are new scheduled runs, it then creates new flow runs and deploys those as Docker containers on the same machine as the agent.
 
-When the Docker agent is running within a container itself (rather than a local process), your flow runs end up deployed as containers, but not as individual containers, but rather within the agent container. You effectively have a single agent container spinning up new containers within itself (docker in docker), which may have many unintended consequences such as issues with scale and resource utilization.
+When the Docker agent is running within a container itself (rather than a local process), your flow runs end up deployed as containers &mdash; not as individual containers, but rather within the agent container. You effectively have a single agent container spinning up new containers within itself (Docker in Docker), which may have many unintended consequences such as issues with scale and resource utilization.
 
 If you want more environment isolation for this agent process, you can run it within a virtual environment.
 
