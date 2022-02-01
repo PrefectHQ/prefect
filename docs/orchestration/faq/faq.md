@@ -186,7 +186,7 @@ And if you have a strict requirement that every process must run in a container,
 
 ### How can I change the number of DaskExecutor workers based on a Parameter value?
 
-You can pass a Callable to the DaskExecutor that sizes the DaskExecutor dynamically at runtime.
+You can pass a callable to the DaskExecutor that sizes the DaskExecutor dynamically at runtime.
 
 ```python
 from prefect import Flow
