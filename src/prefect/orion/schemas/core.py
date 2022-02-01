@@ -3,7 +3,7 @@ Full schemas of Orion API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 from uuid import UUID
 
 from pydantic import Field, validator
@@ -314,12 +314,38 @@ class Deployment(ORMBaseModel):
     # flow: Flow = None
 
 
+class ConcurrencyLimit(ORMBaseModel):
+    """An ORM representation of a concurrency limit."""
+
+    tag: str = Field(..., description="A tag the concurrency limit is applied to.")
+    concurrency_limit: int = Field(..., description="The concurrency limit.")
+    active_slots: List[UUID] = Field(
+        default_factory=list,
+        description="A list of active run ids using a concurrency slot",
+    )
+
+
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(..., description="The name of the saved search.")
     filters: dict = Field(
         default_factory=dict, description="The filter set for the saved search."
+    )
+
+
+class Log(ORMBaseModel):
+    """An ORM representation of log data."""
+
+    name: str = Field(..., description="The logger name.")
+    level: int = Field(..., description="The log level.")
+    message: str = Field(..., description="The log message.")
+    timestamp: datetime.datetime = Field(..., description="The log timestamp.")
+    flow_run_id: UUID = Field(
+        ..., description="The flow run ID associated with the log."
+    )
+    task_run_id: Optional[UUID] = Field(
+        None, description="The task run ID associated with the log."
     )
 
 

@@ -43,6 +43,7 @@ jobs:
         with:
           name: image-${{ github.sha }}-${{ matrix.python-version }}
           path: /tmp/image.tar
+          retention-days: 1
 
   run-tests-sqlite:
     name: Test with SQLite

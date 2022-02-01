@@ -61,11 +61,12 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import ensure_iterable, visit_collection
-from prefect.utilities.logging import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger, flow_run_logger
+from prefect.logging.handlers import OrionHandler
 
 
 R = TypeVar("R")
-logger = get_logger("engine")
+engine_logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
@@ -135,7 +136,6 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend then enters the main flow rum engine
     """
-    logger.debug(f"Creating run for flow {flow.name!r}...")
 
     state = Pending()
     if flow.should_validate_parameters:
@@ -155,7 +155,12 @@ async def create_then_begin_flow_run(
         tags=TagsContext.get().current_tags,
     )
 
+    engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
+
     if state.is_failed():
+        engine_logger.info(
+            f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
+        )
         return state
 
     return await begin_flow_run(
@@ -176,6 +181,9 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
     deployment = await client.read_deployment(flow_run.deployment_id)
+    flow_run_logger(flow_run).debug(
+        f"Loading flow for deployment {deployment.name!r}..."
+    )
     flow = await load_flow_from_deployment(deployment, client=client)
 
     await client.update_flow_run(
@@ -228,12 +236,13 @@ async def begin_flow_run(
     Returns:
         The final state of the run
     """
-    logger.info(f"Beginning flow run {flow_run.name!r} for flow {flow.name!r}...")
+    logger = flow_run_logger(flow_run, flow)
 
     async with detect_crashes(flow_run=flow_run):
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
+        logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
         async with flow.task_runner.start() as task_runner:
             with portal_context as sync_portal:
                 terminal_state = await orchestrate_flow_run(
@@ -258,8 +267,13 @@ async def begin_flow_run(
 
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
+        msg=f"Finished in state {display_state}",
+        extra={"send_to_orion": False},
     )
+
+    # When a "root" flow run finishes, flush logs so we do not have to rely on handling
+    # during interpreter shutdown
+    OrionHandler.flush(block=True)
 
     return terminal_state
 
@@ -281,16 +295,15 @@ async def create_and_begin_subflow_run(
         The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
-    logger.debug(
-        f"Creating subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r}..."
-    )
+    parent_logger = get_run_logger(parent_flow_run_context)
 
+    parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     parent_task_run = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
-        flow_run_id=parent_flow_run_context.flow_run_id,
+        flow_run_id=parent_flow_run_context.flow_run.id,
         dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
         task_inputs=task_inputs,
     )
@@ -306,6 +319,9 @@ async def create_and_begin_subflow_run(
         tags=TagsContext.get().current_tags,
     )
 
+    parent_logger.info(f"Created subflow run {flow_run.name!r} for flow {flow.name!r}")
+    logger = flow_run_logger(flow_run, flow)
+
     if flow.should_validate_parameters:
         try:
             parameters = flow.validate_parameters(parameters)
@@ -318,9 +334,8 @@ async def create_and_begin_subflow_run(
                 state=state,
                 flow_run_id=flow_run.id,
             )
+            logger.error("Received invalid parameters", exc_info=True)
             return state
-
-    logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
 
     async with detect_crashes(flow_run=flow_run):
         async with flow.task_runner.start() as task_runner:
@@ -344,7 +359,8 @@ async def create_and_begin_subflow_run(
     )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
+        msg=f"Finished in state {display_state}",
+        extra={"send_to_orion": False},
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -377,8 +393,7 @@ async def orchestrate_flow_run(
     Returns:
         The final state of the run
     """
-    if prefect.settings.debug_mode:
-        logger.debug(f"Flow run {flow_run.name!r} received parameters {parameters}")
+    logger = flow_run_logger(flow_run, flow)
 
     # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(
@@ -393,11 +408,10 @@ async def orchestrate_flow_run(
     )
 
     try:
-
         with timeout_context as timeout_scope:
             with FlowRunContext(
-                flow_run_id=flow_run.id,
                 flow=flow,
+                flow_run=flow_run,
                 client=client,
                 task_runner=task_runner,
                 sync_portal=sync_portal,
@@ -407,8 +421,13 @@ async def orchestrate_flow_run(
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
+
                 if prefect.settings.debug_mode:
-                    logger.debug(f"Calling {call_repr(flow.fn, *args, **kwargs)}")
+                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                else:
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
+                    )
 
                 flow_call = partial(flow.fn, *args, **kwargs)
 
@@ -424,7 +443,8 @@ async def orchestrate_flow_run(
         )
     except Exception as exc:
         logger.error(
-            f"Flow run {flow_run.name!r} encountered exception:", exc_info=True
+            f"Encountered exception during execution:",
+            exc_info=True,
         )
         state = Failed(
             message="Flow run encountered an exception.",
@@ -546,16 +566,18 @@ async def create_and_submit_task_run(
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
+    logger = get_run_logger(flow_run_context)
+
     task_run = await flow_run_context.client.create_task_run(
         task=task,
-        flow_run_id=flow_run_context.flow_run_id,
+        flow_run_id=flow_run_context.flow_run.id,
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
         task_inputs=task_inputs,
     )
 
-    logger.info(f"Submitting task run {task_run.name!r} to task runner...")
+    logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
     future = await flow_run_context.task_runner.submit(
         task_run,
@@ -568,6 +590,8 @@ async def create_and_submit_task_run(
         ),
         asynchronous=task.isasync,
     )
+
+    logger.debug(f"Submitted task run {task_run.name!r} to task runner")
 
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
@@ -609,16 +633,13 @@ async def orchestrate_task_run(
         The final state of the run
     """
     context = TaskRunContext(
-        task_run_id=task_run.id,
-        flow_run_id=task_run.flow_run_id,
+        task_run=task_run,
         task=task,
         client=client,
     )
+    logger = get_run_logger(context)
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
-
-    if prefect.settings.debug_mode:
-        logger.debug(f"Task run {task_run.name!r} received parameters {parameters}")
 
     try:
         # Resolve futures in parameters into data
@@ -641,26 +662,23 @@ async def orchestrate_task_run(
     while state.is_running():
 
         try:
-            with TaskRunContext(
-                task_run_id=task_run.id,
-                flow_run_id=task_run.flow_run_id,
-                task=task,
-                client=client,
-            ):
+            with context:
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                logger.debug(
-                    f"Executing task {task.name!r} for task run {task_run.name!r}"
-                )
                 if prefect.settings.debug_mode:
-                    logger.debug(f"Calling {call_repr(task.fn, *args, **kwargs)}")
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
+                else:
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
+                    )
 
                 result = task.fn(*args, **kwargs)
                 if task.isasync:
                     result = await result
         except Exception as exc:
             logger.error(
-                f"Task run {task_run.name!r} encountered exception:", exc_info=True
+                f"Encountered exception during execution:",
+                exc_info=True,
             )
             terminal_state = Failed(
                 message="Task run encountered an exception.",
@@ -684,12 +702,14 @@ async def orchestrate_task_run(
 
         if state.type != terminal_state.type and prefect.settings.debug_mode:
             logger.debug(
-                f"Task run {task_run.name!r} received new state {state} when proposing final state {terminal_state}"
+                f"Received new state {state} when proposing final state {terminal_state}",
+                extra={"send_to_orion": False},
             )
 
         if not state.is_final():
             logger.info(
-                f"Task run {task_run.name!r} received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again..."
+                f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
+                extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
@@ -699,7 +719,8 @@ async def orchestrate_task_run(
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
-        msg=f"Task run {task_run.name!r} finished in state {display_state}",
+        msg=f"Finished in state {display_state}",
+        extra={"send_to_orion": False},
     )
 
     return state
@@ -716,7 +737,7 @@ async def detect_crashes(flow_run: FlowRun):
     try:
         yield
     except anyio.get_cancelled_exc_class() as exc:
-        logger.error(f"Flow run {flow_run.name!r} was cancelled by the async runtime.")
+        flow_run_logger(flow_run).error("Run cancelled by the async runtime.")
         with anyio.CancelScope(shield=True):
             async with OrionClient() as client:
                 await client.propose_state(
@@ -729,7 +750,7 @@ async def detect_crashes(flow_run: FlowRun):
                 )
         raise
     except KeyboardInterrupt as exc:
-        logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
+        flow_run_logger(flow_run).error("Run received an interrupt signal.")
         async with OrionClient() as client:
             await client.propose_state(
                 state=Failed(
@@ -892,7 +913,7 @@ if __name__ == "__main__":
     try:
         flow_run_id = UUID(sys.argv[1])
     except Exception:
-        logger.error(
+        engine_logger.error(
             f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
         )
         exit(1)
@@ -900,19 +921,19 @@ if __name__ == "__main__":
     try:
         enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
-        logger.info(
+        engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
         )
         exit(0)
     except Exception:
-        logger.error(
+        engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
             "exception",
             exc_info=True,
         )
         exit(1)
     except BaseException:
-        logger.error(
+        engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' interrupted by base "
             "exception",
             exc_info=True,

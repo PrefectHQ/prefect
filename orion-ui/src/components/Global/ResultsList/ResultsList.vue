@@ -4,8 +4,8 @@
       v-for="[key, item] in items"
       :key="key"
       :item="item"
-      :is="props.component"
-      :ref="(el) => createItemRef(key, el as ComponentPublicInstance)"
+      :is="listComponent"
+      :ref="(el) => createItemRef(key, el as any)"
     />
 
     <Observer @intersection="fetchMore" />
@@ -26,11 +26,17 @@ import {
 } from 'vue'
 import Observer from '@/components//Global/IntersectionObserver/IntersectionObserver.vue'
 import { Api, Endpoints, FilterBody, Query } from '@/plugins/api'
+import List from '@/components/Global/List/List.vue'
+import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue';
+import ListItemFlow from '@/components/Global/List/ListItemFlow/ListItemFlow.vue';
+import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue';
+import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFlowRun.vue';
+import ListItemSubFlowRun from '@/components/Global/List/ListItemSubFlowRun/ListItemSubFlowRun.vue';
 
 const props = withDefaults(
   defineProps<{
     filter: FilterBody
-    component: string
+    component: 'ListItemDeployment' | 'ListItemFlow' | 'ListItemTaskRun' | 'ListItemFlowRun'
     endpoint: string
     pollInterval?: number
   }>(),
@@ -108,6 +114,16 @@ const handleIntersectionObserver = (entries: IntersectionObserverEntry[]) => {
     }
   })
 }
+
+const listComponent = computed(() => {
+  return {
+    'ListItemDeployment': ListItemDeployment,
+    'ListItemFlow': ListItemFlow,
+    'ListItemTaskRun': ListItemTaskRun,
+    'ListItemFlowRun': ListItemFlowRun,
+    'ListItemSubFlowRun': ListItemSubFlowRun,
+  }[props.component]
+})
 
 onMounted(() => {
   const options = {

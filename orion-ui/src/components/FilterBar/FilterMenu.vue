@@ -1,5 +1,5 @@
 <template>
-  <Card class="filter-menu font--primary" height="100%" tabindex="0">
+  <m-card class="filter-menu font--primary" height="100%" tabindex="0">
     <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <a
@@ -21,7 +21,7 @@
           Filters
         </h3>
 
-        <IconButton
+        <m-icon-button
           icon="pi-close-line"
           height="34px"
           width="34px"
@@ -146,7 +146,7 @@
       <CardActions
         class="pa-2 filter-menu__actions d-flex align-center justify-end"
       >
-        <Button
+        <m-button
           v-if="media.md"
           flat
           height="35px"
@@ -154,75 +154,74 @@
           @click="close"
         >
           Cancel
-        </Button>
-        <Button
+        </m-button>
+        <m-button
           color="primary"
           height="35px"
           :width="!media.md ? '100%' : 'auto'"
           @click="apply"
         >
           Apply
-        </Button>
+        </m-button>
       </CardActions>
     </template>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
 import { ref, readonly } from 'vue'
-import { useStore } from 'vuex'
+import { useStore } from '@/store'
 import FilterAccordion from './FilterAccordion.vue'
 import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
 import FormDateTime from './composables/Form--DateTime.vue'
 import media from '@/utilities/media'
+import { GlobalFilter, RunTimeFrame } from '@/typings/global'
+import { GlobalFilterDefaults } from '@prefecthq/orion-design/models'
 
 const emit = defineEmits(['close'])
 const store = useStore()
 
-const gf = readonly(store.getters.globalFilter)
+const current = readonly(store.state.filter)
+const defaults: GlobalFilter = new GlobalFilterDefaults()
 
-const defaultFilters = {
+const defaultTimeFrame: RunTimeFrame = {
+  dynamic: false,
+  from: { unit: 'minutes', value: undefined, timestamp: undefined },
+  to: { unit: 'minutes', value: undefined, timestamp: undefined }
+}
+
+const filters = ref<GlobalFilter>({
   flows: {
-    ids: [...(gf.flows.ids || [])],
-    names: [...(gf.flows.names || [])],
-    tags: [...(gf.flows.tags || [])]
+    ids: [...(current.flows.ids ?? defaults.flows.ids ?? [])],
+    names: [...(current.flows.names ?? defaults.flows.names ?? [])],
+    tags: [...(current.flows.tags ?? defaults.flows.tags ?? [])]
   },
   deployments: {
-    ids: [...(gf.deployments.ids || [])],
-    names: [...(gf.deployments.names || [])],
-    tags: [...(gf.deployments.tags || [])]
+    ids: [...(current.deployments.ids ?? defaults.deployments.ids ?? [])],
+    names: [...(current.deployments.names ?? defaults.deployments.names ?? [])],
+    tags: [...(current.deployments.tags ?? defaults.deployments.tags ?? [])]
   },
   flow_runs: {
-    ids: [...(gf.flow_runs.ids || [])],
-    tags: [...(gf.flow_runs.tags || [])],
-    states: [...(gf.flow_runs.states || [])],
+    ids: [...(current.flow_runs.ids ?? defaults.flow_runs.ids ?? [])],
+    tags: [...(current.flow_runs.tags ?? defaults.flow_runs.tags ?? [])],
+    states: [...(current.flow_runs.states ?? defaults.flow_runs.states ?? [])],
     timeframe: {
-      ...(gf.flow_runs.timeframe || {
-        dynamic: false,
-        from: { units: 'minutes', value: 60, timestamp: null },
-        to: { units: 'minutes', value: 60, timestamp: null }
-      })
+      ...(current.flow_runs.timeframe ?? defaults.flow_runs.timeframe ?? defaultTimeFrame)
     }
   },
   task_runs: {
-    ids: [...(gf.task_runs.ids || [])],
-    tags: [...(gf.task_runs.tags || [])],
-    states: [...(gf.task_runs.states || [])],
+    ids: [...(current.task_runs.ids ?? defaults.task_runs.ids ?? [])],
+    tags: [...(current.task_runs.tags ?? defaults.task_runs.tags ?? [])],
+    states: [...(current.task_runs.states ?? defaults.task_runs.states ?? [])],
     timeframe: {
-      ...(gf.task_runs.timeframe || {
-        dynamic: false,
-        from: { units: 'minutes', value: 60, timestamp: null },
-        to: { units: 'minutes', value: 60, timestamp: null }
-      })
+      ...(current.task_runs.timeframe ?? defaults.task_runs.timeframe ?? defaultTimeFrame)
     }
   }
-}
-
-const filters = ref({ ...defaultFilters })
+})
 
 const apply = () => {
-  store.commit('globalFilter', { ...filters.value })
+  store.commit('filter/setFilter', { ...filters.value })
   emit('close')
 }
 

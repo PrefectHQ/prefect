@@ -5,22 +5,29 @@ Defines the Orion FastAPI app.
 import asyncio
 from functools import partial
 import os
+from typing import List, Optional
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
 from prefect import settings
 from prefect.orion import api, services
-from prefect.utilities.logging import get_logger
-from prefect.orion.database.dependencies import MODELS_DEPENDENCIES
+from prefect.logging import get_logger
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
+
+logger = get_logger("orion")
 
 
 class SPAStaticFiles(StaticFiles):
@@ -35,14 +42,104 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
-def create_app(database_config=None) -> FastAPI:
+def create_orion_api(
+    router_prefix: Optional[str] = "",
+    include_admin_router: Optional[bool] = True,
+    dependencies: Optional[List[Depends]] = None,
+    health_check_path: str = "/health",
+) -> FastAPI:
+    """
+    Create a FastAPI app that includes the Orion API
 
-    MODELS_DEPENDENCIES["database_config"] = database_config
+    Args:
+        router_prefix: a prefix to apply to all included routers
+        include_admin_router: whether or not to include admin routes, these routes
+            have can take desctructive actions like resetting the database
+        dependencies: a list of global dependencies to add to each Orion router
+        health_check_path: the health check route path
+
+    Returns:
+        a FastAPI app that serves the Orion API
+    """
+    api_app = FastAPI(title=API_TITLE)
+
+    @api_app.get(health_check_path)
+    async def health_check():
+        return True
+
+    # api routers
+    api_app.include_router(
+        api.data.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flows.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flow_runs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.task_runs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flow_run_states.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.task_run_states.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.deployments.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.saved_searches.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.logs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
+    )
+
+    if include_admin_router:
+        api_app.include_router(
+            api.admin.router, prefix=router_prefix, dependencies=dependencies
+        )
+
+    # custom error handling
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
+        """Provide a detailed message for request validation errors."""
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=jsonable_encoder(
+                {
+                    "exception_message": "Invalid request received.",
+                    "exception_detail": exc.errors(),
+                    "request_body": exc.body,
+                }
+            ),
+        )
+
+    async def custom_http_exception_handler(
+        request: Request, exc: StarletteHTTPException
+    ):
+        """Log a detailed exception for internal server errors before returning."""
+        logger.error(f"Encountered exception in request:", exc_info=True)
+        # pass to fastapi's default error handling
+        return await http_exception_handler(request=request, exc=exc)
+
+    api_app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    api_app.add_exception_handler(StarletteHTTPException, custom_http_exception_handler)
+
+    return api_app
+
+
+def create_app() -> FastAPI:
+    """Create an FastAPI app that includes the Orion API and UI"""
 
     app = FastAPI(title=TITLE, version=API_VERSION)
-    api_app = FastAPI(title=API_TITLE)
+    api_app = create_orion_api()
     ui_app = FastAPI(title=UI_TITLE)
-    logger = get_logger("orion")
 
     # middleware
     app.add_middleware(
@@ -51,17 +148,6 @@ def create_app(database_config=None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # api routers
-    api_app.include_router(api.admin.router)
-    api_app.include_router(api.data.router)
-    api_app.include_router(api.flows.router)
-    api_app.include_router(api.flow_runs.router)
-    api_app.include_router(api.task_runs.router)
-    api_app.include_router(api.flow_run_states.router)
-    api_app.include_router(api.task_run_states.router)
-    api_app.include_router(api.deployments.router)
-    api_app.include_router(api.saved_searches.router)
 
     api_app.mount(
         "/static",

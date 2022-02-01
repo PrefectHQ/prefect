@@ -12,7 +12,8 @@ include versioneer.py
 include requirements.txt
 include requirements-dev.txt
 include src/prefect/_version.py
-include src/prefect/utilities/logging.yml
+include src/prefect/logging/logging.yml
+include src/prefect/cli/templates/*.yaml
 
 # Package files and data
 graft src/prefect/orion/ui

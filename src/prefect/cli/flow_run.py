@@ -18,7 +18,9 @@ from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.utilities.asyncio import sync_compatible
 
-flow_run_app = typer.Typer(name="flow-run")
+flow_run_app = typer.Typer(
+    name="flow-run", help="Commands for interacting with flow runs."
+)
 app.add_typer(flow_run_app)
 
 
@@ -26,7 +28,7 @@ app.add_typer(flow_run_app)
 @sync_compatible
 async def inspect(id: UUID):
     """
-    View details about a flow run
+    View details about a flow run.
     """
     async with OrionClient() as client:
         try:
@@ -85,17 +87,3 @@ async def ls(
         )
 
     console.print(table)
-
-
-@flow_run_app.command()
-@sync_compatible
-async def create(name: str):
-    """
-    Create a flow run for the given flow and deployment
-
-    The flow run will be exected by an agent
-    """
-    async with OrionClient() as client:
-        deployment = await client.read_deployment_by_name(name)
-        flow_run_id = await client.create_flow_run_from_deployment(deployment)
-    console.print(f"Created flow run '{flow_run_id}'")

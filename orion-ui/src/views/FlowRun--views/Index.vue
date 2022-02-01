@@ -1,13 +1,13 @@
 <template>
   <div class="main-grid">
-    <Card class="details" shadow="sm">
+    <m-card class="details" shadow="sm">
       <div class="d-flex align-center justify-space-between py-1 px-2">
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
             <span class="d-inline-flex align-center text-truncate">
               <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-              <Tags :tags="tags" class="mr-1 caption" />
+              <m-tags :tags="tags" class="mr-1 caption" />
               <div
                 class="
                   caption
@@ -84,15 +84,15 @@
           {{ duration }}
         </div>
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
+    <m-card class="timeline d-flex flex-column" width="auto" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Timeline</div>
 
           <router-link :to="`/flow-run/${id}/timeline`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -107,15 +107,15 @@
           background-color="blue-5"
         />
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="radar" shadow="sm">
+    <m-card class="radar" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Radar</div>
 
           <router-link :to="`/flow-run/${id}/radar`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -123,60 +123,29 @@
       <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
         <MiniRadarView :id="id" />
       </div>
-      <!-- <div
-        style="
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          position: absolute;
-        "
-        class="text-center"
-      >
-        <router-link :to="`/flow-run/${id}/radar`">
-          <IconButton icon="pi-radar-fill" />
-          <div>View Radar </div>
-        </router-link>
-      </div> -->
-    </Card>
+    </m-card>
   </div>
 
-  <Tabs v-model="resultsTab" class="mt-3">
-    <Tab href="task_runs" class="subheader">
-      <i class="pi pi-task mr-1 text--grey-40" />
-      Task Runs
-      <span
-        class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'task_runs' }"
-      >
-        {{ taskRunsCount.toLocaleString() }}
-      </span>
-    </Tab>
+  <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />
 
-    <Tab href="sub_flow_runs" class="subheader">
-      <i class="pi pi-flow-run mr-1 text--grey-40" />
-      Subflow Runs
-      <span
-        class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'sub_flow_runs' }"
-      >
-        {{ subFlowRunsCount.toLocaleString() }}
+  <template v-if="resultsCount.value > 0">
+    <div class="font--secondary caption my-2" style="min-height: 17px">
+      <span>
+        {{ resultsCount.value.toLocaleString() }}
+        {{ toPluralString('Result', resultsCount) }}
       </span>
-    </Tab>
-  </Tabs>
-
-  <div class="font--secondary caption my-2" style="min-height: 17px">
-    <span v-show="resultsCount.value > 0">
-      {{ resultsCount.value?.toLocaleString() }} Result{{
-        resultsCount.value !== 1 ? 's' : ''
-      }}
-    </span>
-  </div>
+    </div>
+  </template>
 
   <section
     class="results-section d-flex flex-column align-stretch justify-stretch"
   >
     <transition name="tab-fade" mode="out-in" css>
-      <div v-if="resultsCount === 0" class="text-center my-8" key="no-results">
+      <div
+        v-if="resultsCount.value === 0"
+        class="text-center my-8"
+        key="no-results"
+      >
         <h2> No Results Found </h2>
       </div>
 
@@ -184,7 +153,7 @@
         v-else-if="resultsTab == 'task_runs'"
         key="task_runs"
         :filter="taskRunsFilter"
-        component="list-item-task-run"
+        component="ListItemTaskRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
@@ -193,10 +162,14 @@
         v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-sub-flow-run"
+        component="ListItemSubFlowRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
+
+      <template v-else-if="resultsTab == 'logs'">
+        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
+      </template>
     </transition>
   </section>
 
@@ -204,31 +177,33 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import type { UnionFilters, FlowsFilter } from '@prefecthq/orion-design'
+import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
+import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
+import { toPluralString } from '@/utilities/strings'
 
 const route = useRoute()
 
-const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('task_runs')
 
-const id = computed(() => {
-  return route?.params.id as string
-})
+const id = ref(route?.params.id as string)
 
-const flowRunbaseFilter = computed(() => {
+const flowRunBaseFilter = computed(() => {
   return { id: id.value }
 })
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
-  body: flowRunbaseFilter,
+  body: flowRunBaseFilter,
   options: {
     pollInterval: 5000
   }
@@ -268,7 +243,7 @@ const parentFlowFilter = computed<FlowsFilter>(() => {
   }
 })
 
-const taskRunsFilter = computed<BaseFilter>(() => {
+const taskRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {
@@ -278,7 +253,7 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   }
 })
 
-const subFlowRunsFilter = computed<BaseFilter>(() => {
+const subFlowRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {
@@ -344,7 +319,8 @@ const queries: { [key: string]: Query } = {
 
 const countMap = {
   task_runs: 'task_runs_count',
-  sub_flow_runs: 'sub_flow_runs_count'
+  sub_flow_runs: 'sub_flow_runs_count',
+  logs: '' // dummy because there is no count query for logs. And not taking the time to refactor results count right now
 }
 
 const resultsCount = computed(() => {
@@ -380,6 +356,10 @@ const state = computed<State>(() => {
   return flowRun.value?.state
 })
 
+const running = computed<boolean>(() => {
+  return state.value.type == 'RUNNING'
+})
+
 const tags = computed(() => {
   return flowRun.value?.tags || []
 })
@@ -396,6 +376,26 @@ const taskRuns = computed<TaskRun[]>(() => {
   return queries.task_runs.response?.value || []
 })
 
+const tabs = computed<ResultsListTab[]>(() => [
+  {
+    label: 'Task Runs',
+    href: 'task_runs',
+    count: taskRunsCount.value,
+    icon: 'pi-task'
+  },
+  {
+    label: 'Subflow Runs',
+    href: 'sub_flow_runs',
+    count: subFlowRunsCount.value,
+    icon: 'pi-flow-run'
+  },
+  {
+    label: 'Logs',
+    href: 'logs',
+    icon: 'pi-logs-fill'
+  }
+])
+
 const duration = computed(() => {
   return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
     ? '--'
@@ -411,7 +411,17 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
+})
+
 watch(id, async () => {
+  if (!id.value) return
+
   await flowRunBase.fetch()
   queries.flow.fetch()
 
