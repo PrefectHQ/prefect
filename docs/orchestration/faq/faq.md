@@ -58,7 +58,7 @@ The Prefect context is not meant to be mutable so adding an item to it inside a 
 
 There are two scenarios where this error happens. The first is when using a `DaskExecutor` and using a task input or output that is not serializable by cloudpickle. Dask uses cloudpickle as the mechanism to send data from the client to the workers. This specific error is often raised with mapped tasks that use client type objects, such as connections to databases, as inputs. These connections need to be instantiated (and closed) inside tasks instead to work around this. 
 
-The second way this can happen is through [Prefect results](/core/concepts/results.html#results). By default, task outputs are saved as LocalResults, and the default Serializer is the PickleSerializer, which uses cloudpickle. If you have a task that returns a client or connection, you can avoid this serialization by turning off checkpointing for that task which `@task(checkpoint=False)`.
+The second way this can happen is through [Prefect results](/core/concepts/results.html#results). By default, task outputs are saved as `LocalResults`, and the default serializer is the `PickleSerializer`, which uses cloudpickle. If you have a task that returns a client or connection, you can avoid this serialization by turning off checkpointing for that task which `@task(checkpoint=False)`.
 
 ### Why are the Dask logs not being shown in the Prefect UI?
 
