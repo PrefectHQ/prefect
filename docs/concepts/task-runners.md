@@ -96,7 +96,7 @@ There are situations in which you want to actively prevent too many tasks from r
 
 Prefect has built-in functionality for achieving this: task concurrency limits.
 
-Task concurrency limits use [task tags](/concepts/tasks.md#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
+Task concurrency limits use [task tags](/concepts/tasks.md#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs in a `Running` state for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
 
 If a task has multiple tags, it will run only if _all_ tags have available concurrency. 
 
@@ -106,17 +106,15 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
     Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
 
-!!! warning Concurrency limits in subflows
-
-    Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
-
 ### Execution behavior
 
 Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states.md). 
 
-If there are no concurrency slots available for any one of your task's tags, the task run will instead enter a `Queued` state. The same Python process that is attempting to run the task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval`). 
+If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
-Additionally, if that process ever fails, Prefect will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.
+!!! warning Concurrency limits in subflows
+
+    Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
 
 ### Configuring concurrency limits
 
