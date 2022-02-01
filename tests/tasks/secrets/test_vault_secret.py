@@ -120,18 +120,17 @@ def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
     The prefect server/cloud secret also mocked
     """
     monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
-    hvac.Client.is_authenticated = MagicMock(return_value=True)
-    hvac.Client.auth_approle = MagicMock(return_value=None)
-    hvac.Client.auth_kubernetes = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
+    
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
-    with prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds}):
-        with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
-            task = VaultSecret("secret/fake-path")
-            out = task.run()
-            assert out == {"fake-key": "fake-value"}
+    with mock.patch('hvac.Client.auth'):
+        with prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds}):
+            with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
+                task = VaultSecret("secret/fake-path")
+                out = task.run()
+                assert out == {"fake-key": "fake-value"}
 
 
 @pytest.mark.parametrize(
@@ -159,17 +158,16 @@ def test_vault_secret_lookup_using_alt_creds(monkeypatch, vault_creds, server_ap
     The prefect server/cloud secret also mocked
     """
     monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
-    hvac.Client.is_authenticated = MagicMock(return_value=True)
-    hvac.Client.auth_approle = MagicMock(return_value=None)
-    hvac.Client.auth_kubernetes = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
-    with prefect.context(secrets={"MY_VAULT_CREDS": vault_creds}):
-        with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
-            task = VaultSecret(
-                "secret/fake-path", vault_credentials_secret="MY_VAULT_CREDS"
-            )
-            out = task.run()
-            assert out == {"fake-key": "fake-value"}
+
+    with mock.patch('hvac.Client.auth'):
+        with prefect.context(secrets={"MY_VAULT_CREDS": vault_creds}):
+            with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
+                task = VaultSecret(
+                    "secret/fake-path", vault_credentials_secret="MY_VAULT_CREDS"
+                )
+                out = task.run()
+                assert out == {"fake-key": "fake-value"}
