@@ -114,7 +114,7 @@ with Flow("example") as flow:
 	do_something(start_date)
 ```
 
-The default Parameter value is evaluated during registration time, so the start_date in the example above will be fixed to the registration date. In order to add dynamicism, using a task is needed to defer the execution of date.today() to runtime. For example:
+The default Parameter value is evaluated during registration time, so the `start_date` in the example above will be fixed to the registration date. In order to add dynamicism, using a task is needed to defer the execution of `date.today()` to runtime. For example:
 
 ```python
 from datetime import date
