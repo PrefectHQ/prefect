@@ -134,7 +134,7 @@ with Flow("example") as flow:
 
 ### How can I set a custom flow run name?
 
-The flow run name can not be set in advance, but it can be changed using the [RenameFlowRun](api/latest/tasks/prefect.html#renameflowrun) task after the flow run has been created. You can use this task inside the Flow block, or through a flow-level state handler. When calling the task from a state handler, make sure to call the task’s  `.run()` method.
+The flow run name cannot be set in advance, but it can be changed using the [RenameFlowRun](api/latest/tasks/prefect.html#renameflowrun) task after the flow run has been created. You can use this task inside the flow block, or through a flow-level state handler. When calling the task from a state handler, make sure to call the task’s  `.run()` method.
 
 Here is a flow-level state handler example:
 
