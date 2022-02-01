@@ -1,6 +1,7 @@
 import hvac
 import pytest
 import cloudpickle
+from unittest import mock
 from unittest.mock import MagicMock
 
 # prefect imports
@@ -102,6 +103,15 @@ def test_vault_auth_missing(monkeypatch, server_api):
             "VAULT_ROLE_ID": "fake-vault-role-id",
             "VAULT_SECRET_ID": "fake-vault-secret-id",
         },
+        {
+            "VAULT_KUBE_AUTH_ROLE": "fake-kube-role-id",
+            "VAULT_KUBE_AUTH_PATH": "fake-kube-auth-path-id",
+        },
+        {
+            "VAULT_KUBE_AUTH_ROLE": "fake-kube-role-id",
+            "VAULT_KUBE_AUTH_PATH": "fake-kube-auth-path-id",
+            "VAULT_KUBE_TOKEN_FILE": "fake-kube-token-path-id"
+        },
     ],
 )
 def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
@@ -112,14 +122,16 @@ def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
     monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
     hvac.Client.is_authenticated = MagicMock(return_value=True)
     hvac.Client.auth_approle = MagicMock(return_value=None)
+    hvac.Client.auth_kubernetes = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
     with prefect.context(secrets={"VAULT_CREDENTIALS": vault_creds}):
-        task = VaultSecret("secret/fake-path")
-        out = task.run()
-        assert out == {"fake-key": "fake-value"}
+        with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
+            task = VaultSecret("secret/fake-path")
+            out = task.run()
+            assert out == {"fake-key": "fake-value"}
 
 
 @pytest.mark.parametrize(
@@ -129,6 +141,15 @@ def test_vault_secret_lookup(monkeypatch, vault_creds, server_api):
         {
             "VAULT_ROLE_ID": "fake-vault-role-id",
             "VAULT_SECRET_ID": "fake-vault-secret-id",
+        },
+        {
+            "VAULT_KUBE_AUTH_ROLE": "fake-kube-role-id",
+            "VAULT_KUBE_AUTH_PATH": "fake-kube-auth-path-id",
+        },
+        {
+            "VAULT_KUBE_AUTH_ROLE": "fake-kube-role-id",
+            "VAULT_KUBE_AUTH_PATH": "fake-kube-auth-path-id",
+            "VAULT_KUBE_TOKEN_FILE": "fake-kube-token-path-id"
         },
     ],
 )
@@ -140,13 +161,15 @@ def test_vault_secret_lookup_using_alt_creds(monkeypatch, vault_creds, server_ap
     monkeypatch.setenv("VAULT_ADDR", "http://localhost:8200")
     hvac.Client.is_authenticated = MagicMock(return_value=True)
     hvac.Client.auth_approle = MagicMock(return_value=None)
+    hvac.Client.auth_kubernetes = MagicMock(return_value=None)
     mock_vault_response = {"data": {"data": {"fake-key": "fake-value"}}}
     hvac.api.secrets_engines.KvV2.read_secret_version = MagicMock(
         return_value=mock_vault_response
     )
     with prefect.context(secrets={"MY_VAULT_CREDS": vault_creds}):
-        task = VaultSecret(
-            "secret/fake-path", vault_credentials_secret="MY_VAULT_CREDS"
-        )
-        out = task.run()
-        assert out == {"fake-key": "fake-value"}
+        with mock.patch('builtins.open', mock.mock_open(read_data='fake-path')):
+            task = VaultSecret(
+                "secret/fake-path", vault_credentials_secret="MY_VAULT_CREDS"
+            )
+            out = task.run()
+            assert out == {"fake-key": "fake-value"}
