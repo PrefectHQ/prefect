@@ -35,7 +35,7 @@ from prefect.utilities.callables import (
     get_call_parameters,
     parameters_to_args_kwargs,
 )
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
