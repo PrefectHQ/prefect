@@ -215,7 +215,7 @@ from prefect.engine.signals import FAIL
 def my_task(condition: bool=True):
   if condition:
 	  raise FAIL('this task failed')
-	else:
+  else:
 		return "all is good"
 ```
 
