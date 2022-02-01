@@ -159,7 +159,7 @@ with Flow("test-flow", state_handlers=[rename_handler]) as flow:
 
 The Prefect context is not meant to be mutable so adding an item to it inside a task will not take effect in downstream tasks. Often, a much better approach is to use a Parameter to contain a value that will be used or manipulated by tasks.
 
-### How do I pull Cloud secrets instead of using Local Secrets?
+### How do I pull Cloud secrets instead of using local secrets?
 
 Flow runs triggered by an agent will pull Cloud secrets by default. If you want to pull Cloud secrets during testing with `flow.run()`, you can export the environment variable:
 
