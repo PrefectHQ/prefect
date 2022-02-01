@@ -182,7 +182,7 @@ When the Docker agent is running within a container itself (rather than a local 
 
 If you want more environment isolation for this agent process, you can run it within a virtual environment.
 
-And if you have a strict requirement that every process must run in a container, consider using the [KubernetesAgent](orchestration/agents/kubernetes.html#requirements) instead.
+And if you have a strict requirement that every process must run in a container, consider using the [KubernetesAgent](/orchestration/agents/kubernetes.html#requirements) instead.
 
 ### How can I change the number of DaskExecutor workers based on a Parameter value?
 
