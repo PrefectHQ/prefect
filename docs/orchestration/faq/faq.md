@@ -229,7 +229,7 @@ query {
 
 If it is working, you might need to start the Server with the expose flag as follows: `prefect server start --expose`. This will allow outside connections. You can find more information in this [Github issue](https://github.com/PrefectHQ/prefect/issues/4963).
 
-### Why does Prefect mark Flow runs with `No heartbeat detected from the remote task; marking the run as failed`?
+### Why does Prefect mark flow runs with `No heartbeat detected from the remote task; marking the run as failed`?
 
 Prefect flows have heartbeats that signal to Prefect Cloud that your flow is alive. If Prefect didn’t have heartbeats, flows that lose communication and die would be shown permanently with a Running state in the UI. Most of the time, we have seen “no heartbeat detected” to be a sign of memory issues. In version 0.15.4 and above, additional logging has been added that propagates the real error in the event this error happens. 
 
