@@ -174,7 +174,7 @@ use_local_secrets = false
 
 ### Can I run a Docker agent in a container?
 
-In general, the Docker agent is supposed to run in a local process (rather than in a docker container), and this local process is a layer between Prefect backend and a Docker Daemon.
+In general, the Docker agent is supposed to run in a local process (rather than in a Docker container), and this local process is a layer between Prefect backend and a Docker daemon.
 
 This agent polls the API for new flow runs, and if there are new scheduled runs, it then creates new flow runs and deploys those as Docker containers on the same machine as the agent.
 
