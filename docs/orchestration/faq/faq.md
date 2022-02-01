@@ -75,7 +75,7 @@ There are several ways you could approach this.
 
 Overall, there are a couple of ways how you could tackle it:
 
-1. Event based: once the event that you are looking for occurs, then trigger a specific flow to run - if you are on AWS, this event could trigger a Lambda function that triggers a Flow run. The event could be a new file arrived in S3 or a new row streamed to DynamoDB/Kinesis/AWS Aurora.
+- Event based: once the event that you are looking for occurs, then trigger a specific flow to run. If you are on AWS, this event could trigger a Lambda function that triggers a flow run. The event could be a new file arrived in S3 or a new row streamed to DynamoDB, Kinesis, or AWS Aurora.
 2. API-based: since starting a FlowRun is just an API call, you can do that from any flow or even a task, there is a lot what you could do that, e.g. as you mentioned one table got updated in a task, and subsequent task triggers some other flow or makes an API call to take action
 3. State based: this would work in a similar way to Airflow sensors - you raise a RETRY signal if the condition you poll for is not met.
 
