@@ -6,7 +6,7 @@ Setting global concurrency limits is a feature of Prefect Cloud's Standard Tier.
 
 ## Flow run limits <Badge text="Cloud"/>
 
-Sometimes, you want to limit the number of flow runs executing simulatneously. For example, you may have an agent on a machine that cannot handle the load of many flow runs.
+Sometimes, you want to limit the number of flow runs executing simultaneously. For example, you may have an agent on a machine that cannot handle the load of many flow runs.
 
 Prefect Cloud provides functionality to limit the number of simultaneous flow runs. This limit is based on [flow run labels](../agents/overview.md#labels). Flow runs can be given as many labels as you wish, and each label can be provided a concurrency limit. If a flow has multiple labels, it will only run if _all_ the labels have available concurrency. Flow run label concurrency limits are enforced globally across your entire team, and labels without explicit limits are considered to have unlimited concurrency.
 
@@ -93,7 +93,7 @@ query {
 }
 ```
 
-You can query for specific labels, as shown above, or retrieve _all_ of your flow conurrency limits:
+You can query for specific labels, as shown above, or retrieve _all_ of your flow concurrency limits:
 
 ```graphql
 query {
@@ -165,7 +165,7 @@ You can edit and remove the concurrency limit of tags at any time. Select the bl
 
 ::: tab Python client
 
-To update your tag concurrency limits programatically, use the Prefect library client:
+To update your tag concurrency limits programmatically, use the Prefect library client:
 
 ```python
 from prefect import Client

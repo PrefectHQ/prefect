@@ -1,0 +1,3 @@
+fix:
+  - "Fix usage of `sys.getsizeof` to restore support for PyPy - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)"
+  - "Fix issues with log size estimates from [#5316](https://github.com/PrefectHQ/prefect/pull/5316) - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)"

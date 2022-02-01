@@ -40,7 +40,6 @@ from prefect.core.task import Task
 from prefect.executors import Executor
 from prefect.engine.result import Result
 from prefect.engine.state import State
-from prefect.environments import Environment
 from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
 from prefect.utilities import diagnostics, logging
@@ -118,8 +117,6 @@ class Flow:
         - executor (prefect.executors.Executor, optional): The executor that the flow
            should use. If `None`, the default executor configured in the runtime environment
            will be used.
-        - environment (prefect.environments.Environment, optional, DEPRECATED): The environment
-           that the flow should be run in.
         - run_config (prefect.run_configs.RunConfig, optional): The runtime
            configuration to use when deploying this flow.
         - storage (prefect.storage.Storage, optional): The unit of storage
@@ -158,7 +155,6 @@ class Flow:
         name: str,
         schedule: prefect.schedules.Schedule = None,
         executor: Executor = None,
-        environment: Environment = None,
         run_config: RunConfig = None,
         storage: Storage = None,
         tasks: Iterable[Task] = None,
@@ -181,7 +177,6 @@ class Flow:
         self.logger = logging.get_logger(self.name)
         self.schedule = schedule
         self.executor = executor
-        self.environment = environment
         self.run_config = run_config
         self.storage = storage
         self.result = result
@@ -1459,7 +1454,7 @@ class Flow:
         Creates a serialized representation of the flow.
 
         Args:
-            - build (bool, optional): if `True`, the flow's environment is built
+            - build (bool, optional): if `True`, the flow's storage is built
                 prior to serialization
 
         Returns:
@@ -1514,7 +1509,7 @@ class Flow:
         if a new version is not registered with the server.
 
         Args:
-            - build (bool, optional):  if `True`, the flow's environment is built
+            - build (bool, optional):  if `True`, the flow's storage is built
                 prior to serialization. Passed through to `Flow.serialize()`.
 
         Returns:
@@ -1620,8 +1615,6 @@ class Flow:
         with set_temporary_config(temp_config):
             if self.run_config is not None:
                 labels = list(self.run_config.labels or ())
-            elif self.environment is not None:
-                labels = list(self.environment.labels or ())
             else:
                 labels = []
             agent = prefect.agent.local.LocalAgent(
@@ -1646,9 +1639,9 @@ class Flow:
 
         Args:
             - project_name (str, optional): the project that should contain this flow.
-            - build (bool, optional): if `True`, the flow's environment is built
+            - build (bool, optional): if `True`, the flow's storage is built
                 prior to serialization; defaults to `True`
-            - labels (List[str], optional): a list of labels to add to this Flow's environment;
+            - labels (List[str], optional): a list of labels to add to this Flow;
                 useful for associating Flows with individual Agents; see
                 http://docs.prefect.io/orchestration/agents/overview.html#labels
             - set_schedule_active (bool, optional): if `False`, will set the schedule to
@@ -1690,33 +1683,16 @@ class Flow:
             )
             return None
 
-        if (
-            self.environment is not None
-            and self.run_config is None
-            and self.executor is not None
-        ):
-            warnings.warn(
-                "This flow is using the deprecated `flow.environment` based configuration, "
-                "but has `flow.executor` set.\n\n"
-                "This executor will be *not* be used at runtime.\n\n"
-                "Please transition to the `flow.run_config` based system instead to "
-                "make use of setting `flow.executor`. "
-                "See https://docs.prefect.io/orchestration/flow_config/overview.html "
-                "for more information.",
-                stacklevel=2,
-            )
-
         if self.storage is None:
             self.storage = get_default_storage_class()(**kwargs)
 
-        if self.environment is None and self.run_config is None:
+        if self.run_config is None:
             self.run_config = UniversalRun()
 
-        # add auto-labels for various types of storage
-        for obj in [self.environment, self.run_config]:
-            if obj is not None:
-                obj.labels.update(self.storage.labels)
-                obj.labels.update(labels or ())
+        # Add run config labels from storage
+        if self.run_config is not None:
+            self.run_config.labels.update(self.storage.labels)
+            self.run_config.labels.update(labels or ())
 
         # register the flow with a default result if one not provided
         if not self.result:

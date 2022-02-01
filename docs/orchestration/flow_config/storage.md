@@ -260,7 +260,7 @@ GCS Storage.
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
-This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages.
+This storage class uses underlying git protocol instead of specific client libraries (e.g. `PyGithub` for GitHub), superseding other git based storages.
 
 ```python
 from prefect import Flow

@@ -1,0 +1,5 @@
+fix:
+  - "Declare Prefect's public api - [#5293](https://github.com/PrefectHQ/prefect/pull/5293)"
+
+contributor:
+  - "[Oliver Mannion](https://github.com/tekumara)"

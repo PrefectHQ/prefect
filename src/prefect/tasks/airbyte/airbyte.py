@@ -21,6 +21,10 @@ class JobNotFoundException(Exception):
     pass
 
 
+class AirbyteSyncJobFailed(Exception):
+    pass
+
+
 class AirbyteConnectionTask(Task):
     """
     Task for triggering Airbyte Connections, where "A connection is
@@ -278,6 +282,7 @@ class AirbyteConnectionTask(Task):
                     self.logger.info(f"Job {job_id} succeeded.")
                 elif job_status == self.JOB_STATUS_FAILED:
                     self.logger.error(f"Job {job_id} failed.")
+                    raise AirbyteSyncJobFailed(f"Job {job_id} failed.")
                 else:
                     # wait for next poll interval
                     sleep(poll_interval_s)

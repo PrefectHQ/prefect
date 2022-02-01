@@ -3,7 +3,7 @@ const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -88,6 +88,10 @@ module.exports = {
       {
         text: 'prefect.io',
         link: 'https://www.prefect.io'
+      },
+      {
+        text: 'Discourse',
+        link: 'https://discourse.prefect.io/'
       }
     ],
     sidebar: {
@@ -128,11 +132,6 @@ module.exports = {
           title: 'prefect.engine',
           collapsable: true,
           children: getChildren('docs/api/latest', 'engine')
-        },
-        {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'environments')
         },
         {
           title: 'prefect.executors',
@@ -238,7 +237,6 @@ module.exports = {
             'agents/kubernetes',
             'agents/vertex',
             'agents/ecs',
-            'agents/fargate'
           ]
         },
         {

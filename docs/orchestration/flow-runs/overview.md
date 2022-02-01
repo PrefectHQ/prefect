@@ -33,7 +33,7 @@ Or... keep reading for an overview of how to inspect flow runs.
 
 Flow run information is sent to Prefect's backend during the run and persists there after the run completes. The Prefect GraphQL API allows you to craft queries that retrieve exactly the information you need about any flow run. We also provide tooling in the Prefect Core library to simplify common access patterns.
 
-- For programatic inspection of flow runs, see the [Python flow run documentation](./inspection#prefect-library).
+- For programmatic inspection of flow runs, see the [Python flow run documentation](./inspection#prefect-library).
 - For customized GraphQL queries for flow run data, see [the documentation on query for flow runs](./inspection#graphql).
 - For monitoring flow runs from the UI, see the [UI documentation on flow runs](../ui/flow-run.md).
 
@@ -45,7 +45,7 @@ Each flow contains tasks which actually do the _work_ of your flow. The state of
 
 Similarly to flow runs, task runs can be inspected with various methods
 
-- For programatic inspection of task runs, see the [Python task run documentation](./task-runs.md#prefect-libary).
+- For programmatic inspection of task runs, see the [Python task run documentation](./task-runs.md#prefect-library).
 - For passing data from one flow to another flow, see the [`get_task_run_result` task documentation](./task-runs.md#task).
 - For customized GraphQL queries for task run data, see [the documentation on query for task runs](./task-runs.md#graphql).
 - For monitoring task runs from the UI, see the [UI documentation on task runs](../ui/task-run.md).

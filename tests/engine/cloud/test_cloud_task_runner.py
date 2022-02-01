@@ -43,7 +43,7 @@ def cloud_settings():
         {
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",
-            "cloud.auth_token": "token",
+            "cloud.api_key": "api-key",
         }
     ):
         yield

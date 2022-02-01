@@ -46,7 +46,6 @@ from prefect.engine.state import (
     TriggerFailed,
     TimedOut,
 )
-from prefect.environments.execution import LocalEnvironment
 from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
@@ -163,11 +162,6 @@ class TestCreateFlow:
         assert isinstance(f2.result, LocalResult)
         assert f2.result != f2.storage.result
         assert f2.result == result
-
-    def test_create_flow_with_environment(self):
-        env = prefect.environments.LocalEnvironment()
-        f2 = Flow(name="test", environment=env)
-        assert f2.environment is env
 
     def test_create_flow_auto_generates_tasks(self):
         with Flow("auto") as f:
@@ -2771,11 +2765,9 @@ class TestFlowRegister:
         monkeypatch.setattr("prefect.Client", MagicMock())
 
         f = Flow(name="test")
-        f.environment = None
         f.register("My-project", build=False)
         assert isinstance(f.run_config, UniversalRun)
 
-    @pytest.mark.parametrize("kind", ["environment", "run_config"])
     @pytest.mark.parametrize(
         "storage",
         [
@@ -2786,18 +2778,17 @@ class TestFlowRegister:
         ],
     )
     def test_flow_register_auto_labels_if_labeled_storage_used(
-        self, monkeypatch, storage, kind
+        self,
+        monkeypatch,
+        storage,
     ):
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(name="Test me!! I should get labeled", storage=storage)
-        if kind == "run_config":
-            obj = f.run_config = LocalRun(labels=["test-label"])
-        else:
-            obj = f.environment = LocalEnvironment(labels=["test-label"])
+        run_config = f.run_config = LocalRun(labels=["test-label"])
 
         f.register("My-project", build=False)
 
-        assert obj.labels == {"test-label", *storage.labels}
+        assert run_config.labels == {"test-label", *storage.labels}
 
     @pytest.mark.parametrize(
         "storage",
@@ -2837,7 +2828,7 @@ class TestFlowRegister:
         monkeypatch.setattr("prefect.Client", MagicMock())
         f = Flow(
             name="test",
-            environment=prefect.environments.LocalEnvironment(labels=["foo"]),
+            run_config=prefect.run_configs.LocalRun(labels=["foo"]),
         )
 
         assert f.storage is None
@@ -2847,8 +2838,8 @@ class TestFlowRegister:
             f.register("My-project")
 
         assert isinstance(f.storage, prefect.storage.Local)
-        assert "foo" in f.environment.labels
-        assert len(f.environment.labels) == 2
+        assert "foo" in f.run_config.labels
+        assert len(f.run_config.labels) == 2
 
     def test_flow_register_errors_if_in_flow_context(self):
         with pytest.raises(ValueError) as exc:
@@ -2857,15 +2848,6 @@ class TestFlowRegister:
         assert "`flow.register()` from within a `Flow` context manager" in str(
             exc.value
         )
-
-    def test_flow_register_warns_if_mixing_environment_and_executor(self, monkeypatch):
-        monkeypatch.setattr("prefect.Client", MagicMock())
-        flow = Flow(
-            name="test", environment=LocalEnvironment(), executor=LocalExecutor()
-        )
-
-        with pytest.warns(UserWarning, match="This flow is using the deprecated"):
-            flow.register("testing", build=False)
 
 
 def test_bad_flow_runner_code_still_returns_state_obj():
@@ -2932,7 +2914,7 @@ def test_looping_works_in_a_flow():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
@@ -2942,7 +2924,7 @@ def test_looping_works_in_a_flow():
 
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 200
-    assert flow_state.result[final].result == 200 ** 2
+    assert flow_state.result[final].result == 200**2
 
 
 def test_pause_resume_works_with_retries():
@@ -2985,7 +2967,7 @@ def test_looping_with_retries_works_in_a_flow():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
@@ -2995,7 +2977,7 @@ def test_looping_with_retries_works_in_a_flow():
 
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 200
-    assert flow_state.result[final].result == 200 ** 2
+    assert flow_state.result[final].result == 200**2
 
 
 def test_looping_with_retries_resets_run_count():
@@ -3034,7 +3016,7 @@ def test_starting_at_arbitrary_loop_index():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
@@ -3245,17 +3227,13 @@ def test_results_write_to_custom_formatters(tmpdir):
     }
 
 
-@pytest.mark.parametrize("kind", ["environment", "run_config"])
-def test_run_agent_passes_flow_labels(monkeypatch, kind):
+def test_run_agent_passes_flow_labels(monkeypatch):
     agent = MagicMock()
     monkeypatch.setattr("prefect.agent.local.LocalAgent", agent)
     labels = ["test", "test", "test2"]
 
     f = Flow("test")
-    if kind == "run_config":
-        f.run_config = LocalRun(labels=labels)
-    else:
-        f.environment = LocalEnvironment(labels=labels)
+    f.run_config = LocalRun(labels=labels)
     f.run_agent()
 
     assert type(agent.call_args[1]["labels"]) is list
