@@ -166,7 +166,9 @@ Flow runs triggered by an agent will pull Cloud secrets by default. If you want 
 ```bash
 export PREFECT__CLOUD__USE_LOCAL_SECRETS=false
 ```
-or you can use the `config.toml` setting
+
+Or you can use the `config.toml` setting:
+
 ```
 [cloud]
 use_local_secrets = false
