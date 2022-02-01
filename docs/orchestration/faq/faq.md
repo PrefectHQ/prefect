@@ -155,7 +155,7 @@ with Flow("test-flow", state_handlers=[rename_handler]) as flow:
     first_task()
 ```
 
-### How do I add things to the prefect context so I can reuse them in other tasks?
+### How do I add things to the Prefect context so I can reuse them in other tasks?
 
 The Prefect context is not meant to be mutable so adding an item to it inside a task will not take effect in downstream tasks. Often, a much better approach is to use a Parameter to contain a value that will be used or manipulated by tasks.
 
