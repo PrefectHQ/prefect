@@ -97,7 +97,7 @@ class VaultSecret(SecretBase):
             with open(token_file, 'r') as f:
                 jwt = f.read()
 
-            client.auth.kubernetes.login(
+            client.auth_kubernetes(
                 role=vault_creds['VAULT_KUBE_AUTH_ROLE'],
                 jwt=jwt,
                 mount_point=vault_creds['VAULT_KUBE_AUTH_PATH']
