@@ -4,9 +4,7 @@ Task runners are responsible for running Prefect tasks. Each flow has a task run
 
 Depending on the task runner you use, the tasks within your flow can run in parallel or sequentially. The default task runner is the `SequentialTaskRunner`, which does not run your tasks in parallel. To run tasks in parallel, you can use a task runner such as the `DaskTaskRunner`, which enables Dask-based parallel execution.
 
-[[toc]]
-
-## Using an task runner
+## Using a task runner
 
 Import task runners from `prefect.task_runners` and assign them when the flow is defined.
 
@@ -19,7 +17,7 @@ def my_flow():
     pass
 ```
 
-If a task runner type is passed, a task runner instance will be created with the default settings. TaskRunner instances can be passed for additional configuration:
+If a task runner type is passed, a task runner instance will be created with the default settings. Task runner instances can be passed for additional configuration:
 
 
 ```python hl_lines="4"
@@ -86,7 +84,7 @@ Hello!
 13:47:00.334 | Flow run 'olivine-swan' finished in state Completed(message='All states completed.', type=COMPLETED)
 ```
 
-## TaskRunner types
+## Task runner types
 
 See the [`prefect.task_runners` API reference](/api-ref/prefect/task-runners/) for descriptions of each task runner.
 
@@ -98,7 +96,7 @@ There are situations in which you want to actively prevent too many tasks from r
 
 Prefect has built-in functionality for achieving this: task concurrency limits.
 
-Task concurrency limits use [task tags](/concepts/tasks.md#tags) &mdash; you can assign as many tags as you wish to a task, and you can specify an optional concurrency limit as the maximum number of concurrent task runs for tasks with that tag. 
+Task concurrency limits use [task tags](/concepts/tasks.md#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
 
 If a task has multiple tags, it will run only if _all_ tags have available concurrency. 
 
@@ -126,7 +124,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 
 #### CLI
 
-You can create, list, and remove concurrency limits by using Prefect ClI `concurrency-limit` commands.
+You can create, list, and remove concurrency limits by using Prefect CLI `concurrency-limit` commands.
 
 ```bash
 $ prefect concurrency_limit [command] [arguments]
