@@ -217,7 +217,7 @@ class Pow(Task):
         Returns:
             - Any
         """
-        return x ** y
+        return x**y
 
 
 class Mod(Task):

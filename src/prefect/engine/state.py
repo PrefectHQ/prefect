@@ -112,7 +112,7 @@ class State:
         return data
 
     def __sizeof__(self) -> int:
-        return super().__sizeof__() + sys.getsizeof(self.result)
+        return super().__sizeof__() + sys.getsizeof(self.result, 0)
 
     @property
     def result(self) -> Any:

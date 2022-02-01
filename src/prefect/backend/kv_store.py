@@ -1,4 +1,3 @@
-import sys
 import json
 from typing import Any, List
 
@@ -33,7 +32,7 @@ def set_key_value(key: str, value: Any) -> str:
 
     # check value is under size limit
     # note this will be enforced by the API
-    value_size = sys.getsizeof(json.dumps(value))
+    value_size = len(json.dumps(value))
     if value_size > 10000:  # 10 KB max
         raise ValueError("Value payload exceedes 10 KB limit.")
 
