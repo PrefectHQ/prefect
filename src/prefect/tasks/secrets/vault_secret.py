@@ -82,7 +82,7 @@ class VaultSecret(SecretBase):
             "VAULT_ROLE_ID" in vault_creds.keys()
             and "VAULT_SECRET_ID" in vault_creds.keys()
         ):
-            client.auth_approle(
+            client.auth.approle.login(
                 vault_creds["VAULT_ROLE_ID"], vault_creds["VAULT_SECRET_ID"]
             )
         elif ('VAULT_KUBE_AUTH_ROLE' in vault_creds.keys() and
@@ -97,7 +97,7 @@ class VaultSecret(SecretBase):
             with open(token_file, 'r') as f:
                 jwt = f.read()
 
-            client.auth_kubernetes(
+            client.auth.kubernetes.login(
                 role=vault_creds['VAULT_KUBE_AUTH_ROLE'],
                 jwt=jwt,
                 mount_point=vault_creds['VAULT_KUBE_AUTH_PATH']
