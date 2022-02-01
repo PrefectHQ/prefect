@@ -4,6 +4,8 @@ Task runners are responsible for running Prefect tasks. Each flow has a task run
 
 Depending on the task runner you use, the tasks within your flow can run in parallel or sequentially. The default task runner is the `SequentialTaskRunner`, which does not run your tasks in parallel. To run tasks in parallel, you can use a task runner such as the `DaskTaskRunner`, which enables Dask-based parallel execution.
 
+[[toc]]
+
 ## Using an task runner
 
 Import task runners from `prefect.task_runners` and assign them when the flow is defined.
@@ -89,3 +91,99 @@ Hello!
 See the [`prefect.task_runners` API reference](/api-ref/prefect/task-runners/) for descriptions of each task runner.
 
 Check out the [Dask task runner tutorial](/tutorials/dask-task-runner/) for some common Dask use cases.
+
+## Task run concurrency limits
+
+There are situations in which you want to actively prevent too many tasks from running simultaneously. For example, if many tasks across multiple flows are designed to interact with a database that only allows 10 connections, you want to make sure that no more than 10 tasks that connect to this database are running at any given time.
+
+Prefect has built-in functionality for achieving this: task concurrency limits.
+
+Task concurrency limits use [task tags](/concepts/tasks.md#tags) &mdash; you can assign as many tags as you wish to a task, and you can specify an optional concurrency limit as the maximum number of concurrent task runs for tasks with that tag. 
+
+If a task has multiple tags, it will run only if _all_ tags have available concurrency. 
+
+Tags without explicit limits are considered to have unlimited concurrency.
+
+!!! note 0 concurrency limit aborts task runs 
+
+    Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
+
+!!! warning Concurrency limits in subflows
+
+    Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
+
+### Execution behavior
+
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states.md). 
+
+If there are no concurrency slots available for any one of your task's tags, the task run will instead enter a `Queued` state. The same Python process that is attempting to run the task will then attempt to re-enter a `Running` state every 30 seconds (this value is configurable via `config.cloud.queue_interval`). 
+
+Additionally, if that process ever fails, Prefect will create a new runner every 10 minutes, which will then attempt to rerun your task on the specified queue interval. This process will repeat until all requested concurrency slots become available.
+
+### Configuring concurrency limits
+
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+
+#### CLI
+
+You can create, list, and remove concurrency limits by using Prefect ClI `concurrency-limit` commands.
+
+```bash
+$ prefect concurrency_limit [command] [arguments]
+```
+
+| Command | Description |
+| --- | --- |
+| create | Create a concurrency limit by specifying a tag and limit. |
+| delete | Delete the concurrency limit set on the specified tag. |
+| ls     | View all defined concurrency limits. |
+| read   | View details about a concurrency limit. `active_slots` shows a list of IDs for task runs that are currently using a concurrency slot. |
+
+For example, to set a concurrency limit of 10 on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency_limit create small_instance 10
+```
+
+To delete the concurrency limit on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency_limit delete small_instance
+```
+
+#### Python client
+
+To update your tag concurrency limits programmatically, use [`OrionClient.create_concurrency_limit`](/api-ref/prefect/client/#prefect.client.OrionClient.create_concurrency_limit). 
+
+`create_concurrency_limit` takes two arguments:
+
+- `tag` specifies the task tag on which you're setting a limit.
+- `concurrency_limit` specifies the maximum number of concurrent task runs for that tag.
+
+For example, to set a concurrency limit of 10 on the 'small_instance' tag:
+
+```python
+from prefect.client import OrionClient
+
+with OrionClient as client:
+    # set a concurrency limit of 10 on the 'small_instance' tag
+    limit_id = client.create_concurrency_limit(tag="small_instance", concurrency_limit=10)
+```
+
+To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:
+
+```python
+with OrionClient as client:
+    # remove a concurrency limit on the 'small_instance' tag
+    client.delete_concurrency_limit_by_tag(tag="small_instance")
+```
+
+If you wish to query for the currently set limit on a tag, use [`OrionClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limit_by_tag), passing the tag:
+
+To see _all_ of your limits across all of your tags, use [`OrionClient.read_concurrency_limits`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limits).
+
+```python
+with OrionClient as client:
+    # query the concurrency limit on the 'small_instance' tag
+    limit = client.read_concurrency_limit_by_tag(tag="small_instance")
+```
