@@ -24,6 +24,7 @@ from typing import (
 import pydantic
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
+from fastapi.encoders import jsonable_encoder
 
 from prefect import State
 from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
@@ -34,11 +35,14 @@ from prefect.utilities.callables import (
     get_call_parameters,
     parameters_to_args_kwargs,
 )
+from prefect.logging import get_logger
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+
+logger = get_logger("flows")
 
 
 class Flow(Generic[P, R]):
@@ -156,6 +160,27 @@ class Flow(Generic[P, R]):
             if k in model.__fields_set__ or model.__fields__[k].default_factory
         }
         return cast_parameters
+
+    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Convert parameters to a serializable form.
+
+        Uses FastAPI's `jsonable_encoder` to convert to JSON compatible objects without
+        converting everything directly to a string. This maintains basic types like
+        integers during API roundtrips.
+        """
+        serialized_parameters = {}
+        for key, value in parameters.items():
+            try:
+                serialized_parameters[key] = jsonable_encoder(value)
+            except TypeError:
+                logger.debug(
+                    f"Parameter {key!r} for flow {self.name!r} is of unserializable "
+                    f"type {type(value).__name__!r} and will not be stored "
+                    "in the backend."
+                )
+                serialized_parameters[key] = f"<{type(value).__name__}>"
+        return serialized_parameters
 
     @overload
     def __call__(
