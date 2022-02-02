@@ -16,10 +16,10 @@ include src/prefect/logging/logging.yml
 include src/prefect/cli/templates/*.yaml
 
 # Migrations
-include orion/database/alembic.ini
-include orion/database/migrations/*
-include orion/database/migrations/versions/*
-include orion/database/migrations/versions/*/*
+include src/prefect/orion/database/alembic.ini
+include src/prefect/orion/database/migrations/*
+include src/prefect/orion/database/migrations/versions/*
+include src/prefect/orion/database/migrations/versions/*/*
 
 # Package files and data
 graft src/prefect/orion/ui
