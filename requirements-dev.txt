@@ -1,5 +1,6 @@
 black >= 20.8b0
 ipython
+isort
 mkdocs
 mkdocs-material
 mkdocstrings
