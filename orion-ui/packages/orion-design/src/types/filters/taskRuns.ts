@@ -11,12 +11,12 @@ export type TaskRunStringFilter = {
 
 export type TaskRunDateFilter = {
   object: 'task_run',
-  property: 'start_date' | 'end_date',
+  property: 'start_date',
 } & Partial<ObjectDateFilter>
 
 export type TaskRunTimeFilter = {
   object: 'task_run',
-  property: 'start_date' | 'end_date',
+  property: 'start_date',
 } & Partial<ObjectTimeFilter>
 
 export type TaskRunTagFilter = {
