@@ -21,14 +21,6 @@ setup(
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    package_data={
-        "prefect": [
-            "orion/database/alembic.ini",
-            "orion/database/migrations/*",
-            "orion/database/migrations/versions/*",
-            "orion/database/migrations/versions/*/*",
-        ]
-    },
     include_package_data=True,
     # CLI
     entry_points={
