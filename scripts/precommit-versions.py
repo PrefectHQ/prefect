@@ -16,9 +16,10 @@ The output can be used with pip
     pip install $(precommit-versions.py)
 
 """
-import yaml
 import os
 import sys
+
+import yaml
 
 path = ".pre-commit-config.yaml"
 if not os.path.exists(path):
