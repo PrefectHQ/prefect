@@ -13,12 +13,12 @@
         "build-components": "vite build --mode components",
         "build-models": "vite build --mode models",
         "build-services": "vite build --mode services",
-        "build-store": "vite build --mode store",
+        "build-stores": "vite build --mode stores",
         "build-utilities": "vite build --mode utilities",
         "dev-components": "vite build --mode components --watch",
         "dev-models": "vite build --mode models --watch",
         "dev-services": "vite build --mode services --watch",
-        "dev-store": "vite build --mode store --watch",
+        "dev-stores": "vite build --mode stores --watch",
         "dev-utilities": "vite build --mode utilities --watch",
         "postbuild": "node scripts/fix-types.js"
     },
@@ -41,9 +41,9 @@
             "import": "./dist/orion-design-services.es.js",
             "require": "./dist/orion-design-services.umd.js"
         },
-        "./store": {
-            "import": "./dist/orion-design-store.es.js",
-            "require": "./dist/orion-design-store.umd.js"
+        "./stores": {
+            "import": "./dist/orion-design-stores.es.js",
+            "require": "./dist/orion-design-stores.umd.js"
         },
         "./utilities": {
             "import": "./dist/orion-design-utilities.es.js",
