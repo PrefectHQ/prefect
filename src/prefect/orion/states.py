@@ -4,6 +4,7 @@ Contains methods for working with `State` objects defined by the Orion schema at
 """
 from collections import Counter
 from typing import Any, Dict, Iterable
+
 from typing_extensions import TypeGuard
 
 from prefect.orion.schemas.states import State, StateType

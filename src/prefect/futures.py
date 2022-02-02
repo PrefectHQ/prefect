@@ -7,23 +7,23 @@ futures in nested data structures.
 from typing import (
     TYPE_CHECKING,
     Any,
-    Union,
-    Optional,
-    overload,
-    TypeVar,
-    Generic,
-    Callable,
-    cast,
     Awaitable,
+    Callable,
+    Generic,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
-from typing_extensions import Literal
 
+from typing_extensions import Literal
 
 import prefect
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import sync, A, Async, Sync, sync_compatible
+from prefect.utilities.asyncio import A, Async, Sync, sync, sync_compatible
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:

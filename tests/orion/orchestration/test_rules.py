@@ -1,12 +1,13 @@
 import contextlib
-import pendulum
-import pytest
 import random
 from itertools import product
 from unittest.mock import MagicMock
 
-from prefect.orion import schemas
+import pendulum
+import pytest
 
+from prefect.orion import schemas
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
@@ -21,7 +22,6 @@ from prefect.orion.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
-from prefect.orion.database.dependencies import provide_database_interface
 
 
 async def commit_task_run_state(

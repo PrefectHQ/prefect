@@ -8,7 +8,7 @@ task run ID with a stable order across test machines.
 
 from datetime import timedelta
 from unittest import mock
-from uuid import uuid1, UUID
+from uuid import UUID, uuid1
 
 import pendulum
 import pytest
@@ -18,7 +18,6 @@ from prefect.orion import models
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.core import Log
 from prefect.orion.schemas.filters import LogFilter
-
 
 NOW = pendulum.now("UTC")
 CREATE_LOGS_URL = "/logs/"

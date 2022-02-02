@@ -13,10 +13,9 @@ import anyio
 import pendulum
 
 import prefect
-
-from prefect.orion.schemas.actions import LogCreate
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
+from prefect.orion.schemas.actions import LogCreate
 
 
 class OrionLogWorker:

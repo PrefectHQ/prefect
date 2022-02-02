@@ -21,6 +21,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
+from prefect.task_runners import BaseTaskRunner, DaskTaskRunner, SequentialTaskRunner
 
 
 @contextmanager
