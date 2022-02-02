@@ -11,12 +11,12 @@ export type FlowRunStringFilter = {
 
 export type FlowRunDateFilter = {
   object: 'flow_run',
-  property: 'start_date' | 'end_date',
+  property: 'start_date',
 } & Partial<ObjectDateFilter>
 
 export type FlowRunTimeFilter = {
   object: 'flow_run',
-  property: 'start_date' | 'end_date',
+  property: 'start_date',
 } & Partial<ObjectTimeFilter>
 
 export type FlowRunTagFilter = {

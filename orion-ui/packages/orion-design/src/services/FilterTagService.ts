@@ -1,5 +1,14 @@
 /* eslint-disable default-case */
-import { Filter, ObjectDateFilter, ObjectStateFilter, ObjectStringFilter, ObjectTagFilter, ObjectTimeFilter } from '../types/filters'
+import {
+  Filter,
+  FilterTagPrefix,
+  ObjectDateFilter,
+  ObjectStateFilter,
+  ObjectStringFilter,
+  ObjectTagFilter,
+  ObjectTagPrefixDictionary,
+  ObjectTimeFilter
+} from '../types/filters'
 import { formatDateTimeNumeric } from '../utilities/dates'
 
 export class FilterTagService {
@@ -40,19 +49,8 @@ export class FilterTagService {
     return filter.value.join(',')
   }
 
-  private createTagPrefix(filter: Required<Filter>): string {
-    switch (filter.object) {
-      case 'flow':
-        return 'f'
-      case 'deployment':
-        return 'd'
-      case 'flow_run':
-        return 'fr'
-      case 'task_run':
-        return 'tr'
-      case 'tag':
-        return 't'
-    }
+  private createTagPrefix(filter: Required<Filter>): FilterTagPrefix {
+    return ObjectTagPrefixDictionary[filter.object]
   }
 
   private createTagSuffix(filter: Required<Filter>): string {

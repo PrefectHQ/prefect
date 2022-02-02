@@ -1,3 +1,4 @@
+import { flip } from '../../utilities/object'
 import { DeploymentFilter } from './deployments'
 import { FlowRunFilter } from './flowRuns'
 import { FlowFilter } from './flows'
@@ -41,11 +42,26 @@ export type ObjectNumberFilter = {
 }
 
 export type Filter = FlowFilter | DeploymentFilter | FlowRunFilter | TaskRunFilter | TagFilter
-export type FilterObjects = Filter['object']
-export type FilterOperations = Required<Filter>['operation']
-export type FilterTypes = Required<Filter>['type']
-export type FilterValues = Required<Filter>['value']
+export type FilterObject = Filter['object']
+export type FilterProperty = Required<Filter>['property']
+export type FilterOperation = Required<Filter>['operation']
+export type FilterType = Required<Filter>['type']
+export type FilterValue = Required<Filter>['value']
 export type ObjectFilter = Pick<Required<Filter>, 'type' | 'operation' | 'value'>
+
+const ObjectTagPrefixDictionaryData = {
+  'deployment': 'd',
+  'flow': 'f',
+  'flow_run': 'fr',
+  'task_run': 'tr',
+  'tag': 't',
+} as const
+
+export type FilterTagPrefix = typeof ObjectTagPrefixDictionaryData[FilterObject]
+
+export const ObjectTagPrefixes = Object.values(ObjectTagPrefixDictionaryData)
+export const TagPrefixObjectDictionary = flip(ObjectTagPrefixDictionaryData)
+export const ObjectTagPrefixDictionary = flip(TagPrefixObjectDictionary)
 
 export * from './deployments'
 export * from './flowRuns'
