@@ -19,12 +19,12 @@ from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
-    alembic_upgrade,
     alembic_revision,
     alembic_stamp,
+    alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
+from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 
 orion_app = typer.Typer(
     name="orion",

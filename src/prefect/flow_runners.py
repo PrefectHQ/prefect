@@ -1,9 +1,9 @@
 import asyncio
 import os
+import re
 import subprocess
 import sys
 import warnings
-import re
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -29,12 +29,11 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
-from prefect.logging import get_logger
-
 
 if TYPE_CHECKING:
     import docker

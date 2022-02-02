@@ -3,10 +3,11 @@ Functions for interacting with concurrency limit ORM objects.
 Intended for internal use by the Orion API.
 """
 
+from typing import List, Optional
+from uuid import UUID
+
 import pendulum
 import sqlalchemy as sa
-from uuid import UUID
-from typing import Optional, List
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db

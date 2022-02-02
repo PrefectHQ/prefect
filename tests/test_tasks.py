@@ -1,17 +1,17 @@
 import datetime
+import inspect
 from itertools import repeat
 from unittest.mock import MagicMock
 
 import pytest
-import inspect
 
-from prefect import flow, tags, get_run_logger
+from prefect import flow, get_run_logger, tags
+from prefect.exceptions import ReservedArgumentError
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.exceptions import ReservedArgumentError
 
 
 def comparable_inputs(d):

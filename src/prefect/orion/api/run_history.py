@@ -5,13 +5,13 @@ Utilities for querying flow and task run history.
 import datetime
 import json
 from typing import List
-from typing_extensions import Literal
-
-import sqlalchemy as sa
 
 import pydantic
-from prefect.orion import models, schemas
+import sqlalchemy as sa
+from typing_extensions import Literal
+
 from prefect.logging import get_logger
+from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 

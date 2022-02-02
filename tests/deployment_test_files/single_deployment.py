@@ -1,7 +1,8 @@
 import pathlib
+from datetime import timedelta
+
 from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import IntervalSchedule
-from datetime import timedelta
 
 DeploymentSpec(
     flow_location=pathlib.Path(__file__).parent / "single_flow.py",

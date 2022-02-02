@@ -16,7 +16,7 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterable, Union, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 from uuid import UUID
 
 import anyio
@@ -25,20 +25,20 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
+from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.filters import LogFilter
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
-from prefect.logging import get_logger
 
 if TYPE_CHECKING:
+    from prefect.flow_runners import FlowRunner
     from prefect.flows import Flow
     from prefect.tasks import Task
-    from prefect.flow_runners import FlowRunner
 
 
 def inject_client(fn):

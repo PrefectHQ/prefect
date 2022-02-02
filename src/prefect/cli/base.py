@@ -1,9 +1,8 @@
 """
 Base `prefect` command-line application and utilities
 """
-import typer
 import rich.console
-
+import typer
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = rich.console.Console(highlight=False)

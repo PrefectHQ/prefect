@@ -3,16 +3,15 @@ Utilities for interoperability with async functions and workers from various con
 """
 import inspect
 import warnings
+from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
-from typing_extensions import Literal
-from contextlib import asynccontextmanager
 from uuid import uuid4
 
 import anyio
 import sniffio
-from typing_extensions import ParamSpec, TypeGuard
+from typing_extensions import Literal, ParamSpec, TypeGuard
 
 T = TypeVar("T")
 P = ParamSpec("P")
