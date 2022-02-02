@@ -24,10 +24,6 @@ import {
   ObjectTagFilter
 } from '../types/filters'
 
-export function isCompleteFilter(filter: Filter): filter is Required<Filter> {
-  return !!(filter.operation && filter.property && filter.type && filter.value)
-}
-
 export function isFlowFilter(filter: Filter): filter is FlowFilter {
   return filter.object == 'flow'
 }
