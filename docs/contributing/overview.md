@@ -52,7 +52,7 @@ prefect dev agent
 
 ### UI development
 
-Developing the Orion UI requires NPM to be installed.
+Developing the Orion UI requires that [npm](https://github.com/npm/cli) is installed.
 
 
 Start a development UI that reloads on code changes:
