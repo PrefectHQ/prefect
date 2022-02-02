@@ -25,8 +25,8 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
-import prefect
 
+import prefect
 
 T = TypeVar("T")
 KT = TypeVar("KT")

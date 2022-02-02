@@ -4,8 +4,8 @@
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from prefect.utilities.asyncio import sync_compatible
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.utilities.asyncio import sync_compatible
 
 db_interface = provide_database_interface()
 config = context.config
