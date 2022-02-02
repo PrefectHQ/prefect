@@ -27,7 +27,7 @@ using the `LocalAgent` (it worked with any agent). This also meant that the
 `LocalEnvironment` couldn't easily contain any platform-specific configuration.
 
 In contrast, [RunConfig](./run_configs.md) objects correspond to a specific
-agent type (e.g. `LocalRun` for `LocalAgent`, `KuberenetesRun` for
+agent type (e.g. `LocalRun` for `LocalAgent`, `KubernetesRun` for
 `KubernetesAgent`, ...), and contain platform-specific configuration options
 (e.g. `image`, ...). The exception to this is
 [UniversalRun](./run_configs.md#universalrun), which works with any agent (but

@@ -30,6 +30,8 @@ $ prefect agent [agent-type] install --key [api-key] --tenant-id [tenant-id]
 $ prefect agent [agent-type] start --key [api-key] --tenant-id [tenant-id]
 ```
 
+See "API keys for simple authentication" in the blog post [Prefect 0.15.0: A New Flow Run Experience](https://www.prefect.io/blog/prefect-0-15-0-a-new-flow-run-experience/) for additional details.
+
 ## Support for environments
 
 Flow environments, deprecated since Prefect 0.14.0, have been removed completely. Use `RunConfig` objects to define where and how a flow run should be executed as described in [Run Configuration](/orchestration/flow_config/run_configs.md).
@@ -44,11 +46,11 @@ The Prefect CLI commands to register and run flows have been revised, changing t
 
 ### Registering flows
 
-The `prefect register` command replace the `prefect register flow` command to [Register a flow](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow) with the CLI. 
+The `prefect register` command replaces the `prefect register flow` command to [Register a flow](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow) with the CLI. 
 
 - Allows registering multiple flows in a single call. Flows can be specified by `--path` (path to a file or directory containing flows) or by `--module` (an importable Python module containing flows). Both options can be specified multiple times in a single call for more flexibility.
 - A `--name` flag can be used to only register flows with a specific name (or names). If unspecified, all flows found are registered.
-- By default, a flow will only be re-registered if it is *structurally different* than the existing version. This means that small edits to the source of tasks won't require re-registration, and the CLI will automatically detect this to avoid needlessly bumping the version. This can be disabled by passing in `--force`.
+- By default, for script-based storage such as GitHub, a flow will only be re-registered if it is *structurally different* than the existing version. This means that small edits to the source of tasks won't require re-registration, and the CLI will automatically detect this to avoid needlessly bumping the version. This can be disabled by passing in `--force`. If you pickle (default behavior) like Local storage, you do need to register for changes to take effect because you need the file in storage to change.
 - A `--watch` flag enables watching for changes in a directory, path, or module and re-registering flows if a change is detected. This can be used during development to automatically re-register your flows on save (as needed), or as part of a deployment for users who want to watch and auto-update flows from a specific directory.
 
 These features simplify auto-registering flows from within CI. For example, with GitHub actions you might add the following step to your CI workflow to auto-register all flows in a `flows/` directory on merge.
@@ -65,7 +67,7 @@ The changes in flow registration require Prefect Server 2021.09.02 or later. Pre
 
 The `prefect run` replaces the `prefect run flow` command to run a flow from the CLI.
 
-`prefect run` can run flows locally without the backend (Prefect Server or Prefect Cloud), or with the backend by submitting to an agent. It takes many options for lookup including a Python import name, a file path, the flow ID, the flow group ID, flow name, or project name. The flow run state change and log display has been entirely rewritten to be nice looking. I've also moved all of the flow watching functionality into a method so any flow run can be easily watched.
+`prefect run` can run flows locally without the backend (Prefect Server or Prefect Cloud), or with the backend by submitting to an agent. It takes many options for lookup including a Python import name, a file path, the flow ID, the flow group ID, flow name, or project name. The flow run state change and log display has been entirely rewritten to be nice looking. 
 
 `prefect run` supports the following options:
 
@@ -107,11 +109,21 @@ Run a registered flow with the backend with custom labels:
 $ prefect run -n "hello-world" --label example --label hello
 ```
 
-Run a registered flow and execute locally without an agent
+Run a registered flow and execute locally without an agent (for more information, see "Agentless execution" in the blog post [Prefect 0.15.0: A New Flow Run Experience](https://www.prefect.io/blog/prefect-0-15-0-a-new-flow-run-experience/)):
 
 ```bash
 $ prefect run -n "hello-world" --execute
 ```
+
+## Tasks for sub-flows
+
+Introduced in 0.15.0, Prefect includes new tasks that give you more flexibility around working with sub-flow execution &mdash; also known as "flow-of-flows" &mdash; and result passing:
+
+- [`create_flow_run`](/api/latest/tasks/prefect.html#create-flow-run) lets you programmatically create a flow run in the backend for a registered flow.
+- [`wait_for_flow_run`](h/api/latest/tasks/prefect.html#wait-for-flow-run) lets you wait for a flow run to finish executing while receiving state and log information regarding the flow run.
+- [`get_task_run_result`](/api/latest/tasks/prefect.html#get-task-run-result) waits for a task run to complete and returns the result.
+
+See [Scheduling a flow-of-flows](/core/idioms/flow-to-flow.html#scheduling-a-flow-of-flows) and the "Sub-flow result passing" section in the blog post [Prefect 0.15.0: A New Flow Run Experience](https://www.prefect.io/blog/prefect-0-15-0-a-new-flow-run-experience/) for details.
 
 ## Imports have moved
 
@@ -126,19 +138,23 @@ Imports for some Prefect modules have moved:
 
 Prefect now supports rich recurrence rule scheduling following the iCal RRules standard and `dateutil` `rrule` module. This feature does not impact existing schedules using interval clocks, cron clocks, and so on, but provides convenient, new syntax for creating repetitive schedules. See [Recurrence Rule Clocks](/core/concepts/schedules.html#recurrence-rule-clocks) for details.
 
+This feature was contributed by a Prefect community member. To learn more, see the original pull request [Support for RRule (iCal style recurrence rule) clocks/schedules](https://github.com/PrefectHQ/prefect/pull/4901).
+
 ## Drop support for Python 3.6
 
-Prefect 1.0 drops explicit support for Python 3.6. The minimum version for test and build is Python 3.7. 
+With Prefect 1.0, we no longer explicitly test against Python 3.6. The minimum version for test and build is Python 3.7. 
 
 ## Prefect server services local by default
 
-Services run by prefect server cli are now local by default (listen to localhost instead of 0.0.0.0); use `--expose` if you want to connect from a remote location 
+Services run by the Prefect CLI are now local by default (they listen to localhost instead of 0.0.0.0). 
 
-Relevant PRs:
+When configuring Prefect server, you can use the `--expose` option if you want to connect from a remote location. This exposes the server to external hosts by listening to 0.0.0.0 instead of localhost.
 
-- 4821 (0.15.5)
-- 5156
-- 5182
+```bash
+$ prefect server config --expose
+```
+
+For more details see notes for pull requests [4821](https://github.com/PrefectHQ/prefect/pull/4821), [5156](https://github.com/PrefectHQ/prefect/pull/5156), and [5182](https://github.com/PrefectHQ/prefect/pull/5182).
 
 ## Additional changes
 
