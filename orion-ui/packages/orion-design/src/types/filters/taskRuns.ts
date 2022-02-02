@@ -1,8 +1,8 @@
-import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilter } from '.'
+import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilter, ObjectTimeFilter } from '.'
 
 export type TaskRunFilter = {
   object: 'task_run',
-} & Partial<(TaskRunStringFilter | TaskRunDateFilter | TaskRunTagFilter | TaskRunStateFilter)>
+} & Partial<(TaskRunStringFilter | TaskRunDateFilter | TaskRunTimeFilter | TaskRunTagFilter | TaskRunStateFilter)>
 
 export type TaskRunStringFilter = {
   object: 'task_run',
@@ -13,6 +13,11 @@ export type TaskRunDateFilter = {
   object: 'task_run',
   property: 'start_date' | 'end_date',
 } & Partial<ObjectDateFilter>
+
+export type TaskRunTimeFilter = {
+  object: 'task_run',
+  property: 'start_date' | 'end_date',
+} & Partial<ObjectTimeFilter>
 
 export type TaskRunTagFilter = {
   object: 'task_run',
