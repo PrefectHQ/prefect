@@ -12,14 +12,8 @@ export type ObjectStringFilter = {
 
 export type ObjectDateFilter = {
   type: 'date',
-  operation: 'after' | 'before',
-  value: Date,
-}
-
-export type ObjectTimeFilter = {
-  type: 'time',
-  operation: 'newer' | 'older',
-  value: `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`,
+  operation: 'after' | 'before' | 'older' | 'newer' | 'between',
+  value: Date | Date[],
 }
 
 export type ObjectTagFilter = {
@@ -41,11 +35,11 @@ export type ObjectNumberFilter = {
 }
 
 export type Filter = FlowFilter | DeploymentFilter | FlowRunFilter | TaskRunFilter | TagFilter
-export type FilterObjects = Filter['object']
-export type FilterOperations = Required<Filter>['operation']
-export type FilterTypes = Required<Filter>['type']
-export type FilterValues = Required<Filter>['value']
-export type ObjectFilter = Pick<Required<Filter>, 'type' | 'operation' | 'value'>
+export type FilterEntities = Filter['object']
+export type FilterOperations = Filter['operation']
+export type FilterTypes = Filter['type']
+export type FilterValues = Filter['value']
+export type ObjectFilter = Pick<Filter, 'type' | 'operation' | 'value'>
 
 export * from './deployments'
 export * from './flowRuns'
