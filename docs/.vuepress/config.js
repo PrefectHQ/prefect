@@ -1,4 +1,3 @@
-const sidebar126 = require('../api/0.12.6/sidebar')
 const sidebar1319 = require('../api/0.13.19/sidebar')
 const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
@@ -80,20 +79,22 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.15.6)', link: '/api/latest/' },
+          { text: 'Latest (0.15.12)', link: '/api/latest/' },
           { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
-          { text: '0.12.6', link: '/api/0.12.6/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
       {
         text: 'prefect.io',
         link: 'https://www.prefect.io'
+      },
+      {
+        text: 'Discourse',
+        link: 'https://discourse.prefect.io/'
       }
     ],
     sidebar: {
-      '/api/0.12.6/': sidebar126.sidebar,
       '/api/0.13.19/': sidebar1319.sidebar,
       '/api/0.14.22/': sidebar1422.sidebar,
       '/api/latest/': [
@@ -133,11 +134,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'engine')
         },
         {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'environments')
-        },
-        {
           title: 'prefect.executors',
           collapsable: true,
           children: ['executors.md']
@@ -166,11 +162,6 @@ module.exports = {
           title: 'prefect.agent',
           collapsable: true,
           children: getChildren('docs/api/latest', 'agent')
-        },
-        {
-          title: 'prefect.artifacts',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'artifacts')
         },
         {
           title: 'prefect.utilities',
@@ -207,7 +198,8 @@ module.exports = {
             'concepts/secrets',
             'concepts/automations',
             'concepts/cloud_hooks',
-            'concepts/services'
+            'concepts/services',
+            'concepts/artifacts'
           ]
         },
         {
@@ -243,8 +235,8 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/vertex',
             'agents/ecs',
-            'agents/fargate'
           ]
         },
         {
@@ -255,6 +247,7 @@ module.exports = {
             'ui/flow',
             'ui/flow-run',
             'ui/task-run',
+            'ui/automations',
             'ui/interactive-api',
             'ui/team-settings'
           ]
@@ -262,9 +255,7 @@ module.exports = {
         {
           title: 'RBAC',
           collapsable: true,
-          children: [
-            'rbac/overview'
-          ]
+          children: ['rbac/overview']
         },
         {
           title: 'Server',
@@ -273,7 +264,8 @@ module.exports = {
             'server/overview',
             'server/architecture',
             'server/deploy-local',
-            'server/telemetry'
+            'server/telemetry',
+            'server/troubleshooting'
           ]
         },
         {
@@ -290,9 +282,7 @@ module.exports = {
         {
           title: 'Integrations',
           collapsable: true,
-          children: [
-            'integrations/pagerduty'
-          ]
+          children: ['integrations/pagerduty']
         },
         {
           title: 'FAQ',

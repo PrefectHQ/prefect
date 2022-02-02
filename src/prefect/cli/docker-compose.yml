@@ -33,7 +33,7 @@ services:
 
   # Hasura: automatically generates a GraphQL schema from Postgres, provides most of the 'query' API
   hasura:
-    image: "hasura/graphql-engine:v1.3.3"
+    image: "hasura/graphql-engine:v2.1.1"
     ports:
       - "127.0.0.1:${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"
@@ -43,6 +43,7 @@ services:
       HASURA_GRAPHQL_SERVER_PORT: "3000"
       HASURA_GRAPHQL_QUERY_PLAN_CACHE_SIZE: 100
       HASURA_GRAPHQL_LOG_LEVEL: "warn"
+      HASURA_GRAPHQL_V1_BOOLEAN_NULL_COLLAPSE: "true"
     networks:
       - prefect-server
     healthcheck:

@@ -1,5 +1,230 @@
 # Changelog
 
+## 1.0.0
+
+### Highlights
+
+- Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
+- Python 3.6 is no longer supported. Use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
+- Flow `Environment`s have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)
+
+### Breaking Changes
+
+<!-- agent changes -->
+- The AWS Fargate agent has been removed; use the ECS agent instead. - [#3812](https://github.com/PrefectHQ/prefect/pull/3812)
+- `DockerAgent(docker_interface=...)` will now raise an exception if passed. - [#4446](https://github.com/PrefectHQ/prefect/pull/4446)
+- Agents will no longer check for authentication at the `prefect.cloud.agent.auth_token` config key. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+<!-- name/import changes -->
+- Executors can no longer be imported from `prefect.engine.executors`; use `prefect.executors` instead. - [#3798](https://github.com/PrefectHQ/prefect/pull/3798)
+- `Parameter` is not importable from `prefect.core.tasks` anymore; use `prefect.Parameter` instead.
+- Exceptions are no longer importable from `prefect.utilities.exceptions`; use `prefect.exceptions` instead. - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)
+- `Client.login_to_tenant` has been renamed to `Client.switch_tenant`
+<!-- cli changes -->
+- The `prefect register flow` command has been removed; use `prefect register` instead. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- The `prefect run flow` command has been removed; use `prefect run` instead. - [#4463](https://github.com/PrefectHQ/prefect/pull/4463)
+- Authentication token CLI commands `create-token`, `revoke-token`, `list-tokens` have been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
+- `prefect auth login` no longer accepts authentication tokens. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+- `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+<!-- config changes -->
+- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+
+## 0.15.13 <Badge text="beta" type="success" />
+
+Released on January 25, 2022.
+
+### Enhancements
+
+- Ensure that maximum log payload sizes are not exceeded - [#5316](https://github.com/PrefectHQ/prefect/pull/5316)
+
+### Fixes
+
+- Fix bug where logout was required before logging in with a new key if the new key does not have access to the old tenant - [#5355](https://github.com/PrefectHQ/prefect/pull/5355)
+
+### Server
+
+- Upgrade Hasura to v2.1.1 which includes support for Apple M1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)
+
+### Task Library
+
+- Fix bug where the Airbyte sync job failure would not be reflected in the task state - [#5362](https://github.com/PrefectHQ/prefect/pull/5362)
+
+## 0.15.12 <Badge text="beta" type="success" />
+
+Released on January 12, 2022.
+
+### Enhancements
+
+- Allow passing timedeltas to `create_flow_run` to schedule subflows at runtime - [#5303](https://github.com/PrefectHQ/prefect/pull/5303)
+- Upgrade Prefect Server Hasura image to 2.0.9 - [#5173](https://github.com/PrefectHQ/prefect/pull/5313)
+- Allow client retries on failed requests to Prefect Server - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)
+
+### Task Library
+
+
+- Add authentication parameter for Snowflake query tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)
+- Add Mixpanel tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5276)
+- Add Zendesk Tickets Incremental Export task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)
+- Add Cube.js Query task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)
+- Add Monte Carlo lineage tasks - [#5256](https://github.com/PrefectHQ/prefect/pull/5256)
+- Add Firebolt task - [#5265](https://github.com/PrefectHQ/prefect/pull/5265)
+- Add custom domain support to dbt Cloud tasks for enterprise customers - [#5273](https://github.com/PrefectHQ/prefect/pull/5273)
+- Fix response key in Airbyte task health check - [#5314](https://github.com/PrefectHQ/prefect/pull/5314)
+- Allow all Postgres task parameters to be configured at runtime - [#4377](https://github.com/PrefectHQ/prefect/pull/5016)
+- Fix `AirbyteConnectionTask` requiring optional parameters - [#5260](https://github.com/PrefectHQ/prefect/pull/5260)
+- Allow `StepActivate` task to receive runtime parameters - [#5231](https://github.com/PrefectHQ/prefect/pull/5231)
+
+### Fixes
+
+- Fix bug where null `run_config` field caused deserialization errors in backend views  - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)
+
+### Contributors
+
+- [Adam Brusselback](https://github.com/Tostino)
+- [Ahmed Ezzat](https://github.com/bitthebyte)
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Connor Martin](https://github.com/cjmartian)
+- [Dennis Hinnenkamp](https://github.com/sikwel)
+- [Gaylord Cherencey](https://github.com/gcherencey)
+- [Henning Holgersen](https://github.com/radbrt)
+- [Mathijs Miermans](https://github.com/mmiermans)
+- [Michał Zawadzki](https://github.com/Trymzet)
+- [Raghav Sharma](https://github.com/raghavSharmaSigmoid)
+
+## 0.15.11 <Badge text="beta" type="success" />
+
+Released on December 22, 2021.
+
+### Enhancements
+
+- Allow passing kwargs to `Merge` task constructor via `merge()` function - [#5233](https://github.com/PrefectHQ/prefect/pull/5233)
+- Allow passing proxies to `slack_notifier` - [#5237](https://github.com/PrefectHQ/prefect/pull/5237)
+
+### Fixes
+
+- Update `RunGreatExpectationsValidation` task to work with latest version of `great_expectations` - [#5172](https://github.com/PrefectHQ/prefect/issues/5172)
+- Allow unsetting kubernetes `imagePullSecrets` with an empty string - [#5001](https://github.com/PrefectHQ/prefect/pull/5001)
+- Improve agent handling of kubernetes jobs for flow runs that have been deleted - [#5190](https://github.com/PrefectHQ/prefect/pull/5190)
+- Remove `beta1` from kubernetes agent template - [#5194](https://github.com/PrefectHQ/prefect/pull/5194)
+- Documentation improvements - [#5220](https://github.com/PrefectHQ/prefect/pull/5220), [#5232](https://github.com/PrefectHQ/prefect/pull/5232), [#5288](https://github.com/PrefectHQ/prefect/pull/5288)
+
+### Contributors
+
+- [Connor Martin](https://github.com/cjmartian)
+- [Farley Farley](https://github.com/AndrewFarley)
+- [Vincent Chéry](https://github.com/VincentAntoine)
+
+## 0.15.10 <Badge text="beta" type="success" />
+
+Released on November 30, 2021.
+
+### Enhancements
+
+- Add `end_time` to `FlowRunView.get_logs` - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
+- Update `watch_flow_run` to stream logs immediately instead of waiting for flow run state changes - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
+- Allow setting container ports for `DockerRun` - [#5130](https://github.com/PrefectHQ/prefect/issues/5130)
+- Clarify `ECSRun` documentation, especially the ambiguities in setting IAM roles - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)
+- Fix deprecated usage of `marshmallow.fields.Dict` in RRule schedules - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
+
+### Fixes
+
+- Fix connection to local server instances when using `DockerAgent` on linux - [#5182](https://github.com/PrefectHQ/prefect/pull/5182)
+
+### Task Library
+
+- Add support for triggering [Airbyte](https://airbyte.io/) connection sync jobs using `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
+- Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
+- Add support for running data quality checks on Spark DataFrames using `soda-spark` - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
+
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Nicholas Hemley](https://github.com/iamniche-too)
+- [Shahil Mawjee](https://github.com/s-mawjee)
+
+## 0.15.9 <Badge text="beta" type="success" />
+
+Released on November 10, 2021.
+
+This hotfix release fixes an issue where the kubernetes agent would attempt to load a secret value and fail if it was not present.
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/5131) for details.
+
+## 0.15.8 <Badge text="beta" type="success" />
+
+Released on November 10, 2021.
+
+### Features
+
+- Add support for rich iCal style scheduling via RRules - [#4901](https://github.com/PrefectHQ/prefect/pull/4901)
+- Add Google Cloud Vertex agent and run configuration - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)
+
+### Enhancements
+
+- Allow `Azure` flow storage to overwrite existing blobs - [#5103](https://github.com/PrefectHQ/prefect/pull/5103)
+- Provide option to specify a dockerignore when using Docker storage - [#4980](https://github.com/PrefectHQ/prefect/pull/4980)
+- Add keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
+- Add `idempotency_key` to `create_flow_run` task - [#5125](https://github.com/PrefectHQ/prefect/pull/5125)
+- Add `raise_final_state` to `wait_for_flow_run` task to reflect child flow run state - [#5129](https://github.com/PrefectHQ/prefect/pull/5129)
+
+### Task Library
+
+- Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)
+- Add `Glob` task for collecting files in directories - [#5077](https://github.com/PrefectHQ/prefect/pull/5077) 
+- Add `DbtCloudRunJob` task for triggering dbt cloud run jobs - [#5085](https://github.com/PrefectHQ/prefect/pull/5085)
+- Added Kafka Tasks entry to website docs - [#5094](https://github.com/PrefectHQ/prefect/pull/5094)
+
+### Fixes
+
+- Update the `FlowView` to be more robust to serialized flow changes in the backend - [#5116](https://github.com/PrefectHQ/prefect/pull/5116)
+
+### Deprecations
+
+- Move artifacts functions to `prefect.backend.artifacts` - [#5117](https://github.com/PrefectHQ/prefect/pull/5117)
+
+### Server
+
+This release includes a Prefect Server update that updates an upstream dependency to fix a security vulnerability. See the [release changelog](https://github.com/PrefectHQ/server/blob/master/Changelog.md#november-09-2021-) for more details.
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Bradley Axen](https://github.com/baxen)
+- [Damien Ramunno-Johnson](https://github.com/damienrj)
+- [Jonas Miederer](https://github.com/jonasmiederer)
+- [Josh Wang](https;//github.com/wangjoshuah)
+- [Nitay Joffe](https://github.com/nitay)
+- [Timo S.](https://github.com/sti0)
+- [Brett Naul](https://github.com/bnaul)
+
+## 0.15.7 <Badge text="beta" type="success" />
+
+Released on October 21, 2021.
+
+### Enhancements
+
+- Add flatten support to `apply_map` - [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
+- Add dask performance report to `DaskExecutor` - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
+- Update git storage `repo` parameter to be optional if specifying `git_clone_url_secret_name` - [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
+- Add `task_run_name` to `prefect.context` - [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
+
+### Fixes
+
+- Reduce rate limit related failures with the ECS agent - [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+
+### Task Library
+
+- Add `data` parameter to `SQLiteQuery` task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
+- Allow `EmailTask` to use insecure internal SMTP servers with `smtp_type="INSECURE"` - [#5012](https://github.com/PrefectHQ/prefect/pull/5012)
+- Fix Databricks `run_id` mutation during task runs - [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
+- Add `manual` setting to `FivetranSyncTask` allowing retention of Fivetan scheduling -[#5065](https://github.com/PrefectHQ/prefect/pull/5065)
+
+### Contributors
+
+- [Daniel Saxton](https://github.com/dsaxton)
+- [Emre Akgün](https://github.com/Fraznist)
+- [Jessica Smith](https://github.com/NodeJSmith)
+
 ## 0.15.6 <Badge text="beta" type="success" />
 
 Released on September 21, 2021.

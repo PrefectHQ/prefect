@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 
 import prefect
 from prefect import Client, Task, task
-from prefect.artifacts import create_link
+from prefect.backend.artifacts import create_link_artifact
 from prefect.backend.flow_run import FlowRunView, FlowView, watch_flow_run
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
@@ -69,7 +69,15 @@ def create_flow_run(
     labels: Iterable[str] = None,
     run_name: str = None,
     run_config: Optional[RunConfig] = None,
-    scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
+    scheduled_start_time: Optional[
+        Union[
+            pendulum.DateTime,
+            datetime.datetime,
+            pendulum.Duration,
+            datetime.timedelta,
+        ]
+    ] = None,
+    idempotency_key: str = None,
 ) -> str:
     """
     Task to create a flow run in the Prefect backend.
@@ -92,6 +100,10 @@ def create_flow_run(
             existing run config settings
         - scheduled_start_time: An optional time in the future to schedule flow run
             execution for. If not provided, the flow run will be scheduled to start now
+        - idempotency_key: a unique idempotency key for scheduling the
+            flow run. Duplicate flow runs with the same idempotency key will only create
+            a single flow run. This is useful for ensuring that only one run is created
+            if this task is retried. If not provided, defaults to the active `task_run_id`.
 
     Returns:
         str: The UUID of the created flow run
@@ -128,6 +140,12 @@ def create_flow_run(
 
     logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
+    if idempotency_key is None:
+        idempotency_key = prefect.context.get("task_run_id", None)
+
+    if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
+        scheduled_start_time = pendulum.now("utc") + scheduled_start_time
+
     client = Client()
     flow_run_id = client.create_flow_run(
         flow_id=flow.flow_id,
@@ -137,10 +155,12 @@ def create_flow_run(
         run_name=run_name,
         run_config=run_config,
         scheduled_start_time=scheduled_start_time,
+        idempotency_key=idempotency_key,
     )
 
-    run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+    run_url = client.get_cloud_url("flow-run", flow_run_id)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
+
     return flow_run_id
 
 
@@ -215,7 +235,10 @@ def get_task_run_result(
 
 @task
 def wait_for_flow_run(
-    flow_run_id: str, stream_states: bool = True, stream_logs: bool = False
+    flow_run_id: str,
+    stream_states: bool = True,
+    stream_logs: bool = False,
+    raise_final_state: bool = False,
 ) -> "FlowRunView":
     """
     Task to wait for a flow run to finish executing, streaming state and log information
@@ -225,6 +248,8 @@ def wait_for_flow_run(
         - stream_states: Stream information about the flow run state changes
         - stream_logs: Stream flow run logs; if `stream_state` is `False` this will be
             ignored
+        - raise_final_state: If set, the state of this task will be set to the final
+            state of the child flow run on completion.
 
     Returns:
         FlowRunView: A view of the flow run after completion
@@ -238,8 +263,17 @@ def wait_for_flow_run(
         message = f"Flow {flow_run.name!r}: {log.message}"
         prefect.context.logger.log(log.level, message)
 
-    # Return the final view of the flow run
-    return flow_run.get_latest()
+    # Get the final view of the flow run
+    flow_run = flow_run.get_latest()
+
+    if raise_final_state:
+        state_signal = signal_from_state(flow_run.state)(
+            message=f"{flow_run_id} finished in state {flow_run.state}",
+            result=flow_run,
+        )
+        raise state_signal
+    else:
+        return flow_run
 
 
 # Legacy -------------------------------------------------------------------------------
@@ -428,8 +462,8 @@ class StartFlowRun(Task):
         self.logger.debug(f"Flow Run {flow_run_id} created.")
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-        run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
-        create_link(urlparse(run_link).path)
+        run_link = client.get_cloud_url("flow-run", flow_run_id)
+        create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:

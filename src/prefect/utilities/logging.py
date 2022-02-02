@@ -14,9 +14,11 @@ import sys
 import threading
 import time
 import warnings
+import json
 from queue import Empty, Queue
 from typing import Any, List, Optional, Generator, Union
 from contextlib import contextmanager
+from uuid import uuid4
 
 import pendulum
 
@@ -33,8 +35,27 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
     "task_run_id",
 )
 
-MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
+MAX_LOG_SIZE = 1_000_000  # 1 MB - max size of a single log record
+MAX_BATCH_LOG_SIZE = 4_000_000  # 4 MB - max total batch size for log records
+
+LOG_OVERHEAD = len(
+    # Calculate the expected overhead from a log record by serializing a record with
+    # metadata
+    json.dumps(
+        {
+            "flow_run_id": uuid4().hex,
+            "task_run_id": uuid4().hex,
+            "timestamp": pendulum.from_timestamp(time.time()).isoformat(),
+            "name": "X" * 100,
+            "level": "WARNING",
+            "message": "",
+        }
+    )
+)
+
+
+def getlogsize(log: dict) -> int:
+    return len(log.get("message", "")) + LOG_OVERHEAD
 
 
 class LogManager:
@@ -103,13 +124,15 @@ class LogManager:
         # large a payload at once. This call will continue to loop until
         # the queue is empty or an error occurs on upload (usually only one
         # iteration is sufficient)
+        max_batch_length = max(MAX_BATCH_LOG_SIZE - MAX_LOG_SIZE, MAX_LOG_SIZE)
         cont = True
         while cont:
             try:
-                while self.pending_length < MAX_BATCH_LOG_LENGTH:
+                while self.pending_length < max_batch_length:
                     log = self.queue.get_nowait()
-                    self.pending_length += len(log.get("message", ""))
+                    self.pending_length += getlogsize(log)
                     self.pending_logs.append(log)
+
             except Empty:
                 cont = False
 
@@ -124,7 +147,7 @@ class LogManager:
                     warnings.warn(
                         f"Failed to write logs with error: {exc!r}, "
                         f"Pending log length: {self.pending_length:,}, "
-                        f"Max batch log length: {MAX_BATCH_LOG_LENGTH:,}, "
+                        f"Max batch log length: {MAX_BATCH_LOG_SIZE:,}, "
                         f"Queue size: {self.queue.qsize():,}"
                     )
                     cont = False
@@ -148,11 +171,6 @@ class CloudHandler(logging.Handler):
         if not context.config.cloud.send_flow_run_logs:
             return
 
-        # backwards compatibility for `PREFECT__LOGGING__LOG_TO_CLOUD` which is
-        # a deprecated config variable as of 0.14.20
-        if not context.config.logging.get("log_to_cloud", True):
-            return
-
         # if its not during a backend flow run, don't emit
         if not context.get("running_with_backend"):
             return
@@ -164,14 +182,6 @@ class CloudHandler(logging.Handler):
             return
 
         msg = self.format(record)
-        if len(msg) > MAX_LOG_LENGTH:
-            get_logger("prefect.logging").warning(
-                "Received a log message of %d bytes, exceeding the limit of %d. "
-                "The output will be truncated",
-                len(msg),
-                MAX_LOG_LENGTH,
-            )
-            msg = msg[:MAX_LOG_LENGTH]
 
         log = {
             "flow_run_id": context.get("flow_run_id"),
@@ -183,6 +193,15 @@ class CloudHandler(logging.Handler):
             "level": getattr(record, "levelname", None),
             "message": msg,
         }
+
+        log_size = getlogsize(log)
+        if log_size > MAX_LOG_SIZE:
+            warnings.warn(
+                "Received a log of size %d bytes, exceeding the limit of %d. "
+                "The message will be truncated." % (log_size, MAX_LOG_SIZE)
+            )
+            log["message"] = msg[: MAX_LOG_SIZE - LOG_OVERHEAD]
+
         LOG_MANAGER.enqueue(log)
 
 

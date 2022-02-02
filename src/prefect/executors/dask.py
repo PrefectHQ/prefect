@@ -6,6 +6,8 @@ import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
 
+from prefect.utilities.compatibility import nullcontext
+
 from prefect import context
 from prefect.executors.base import Executor
 from prefect.utilities.importtools import import_object
@@ -13,7 +15,6 @@ from prefect.utilities.importtools import import_object
 if TYPE_CHECKING:
     import dask
     from distributed import Future, Event
-    import multiprocessing.pool
     import concurrent.futures
 
 
@@ -96,6 +97,8 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
+        - performance_report_path (str, optional): An optional path for the [dask performance
+            report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report).
 
     Examples:
 
@@ -134,6 +137,7 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
+        performance_report_path: str = None,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -186,6 +190,8 @@ class DaskExecutor(Executor):
         # A ref to a background task subscribing to dask cluster events
         self._watch_dask_events_task = None  # type: Optional[concurrent.futures.Future]
 
+        self.performance_report_path = performance_report_path
+
         super().__init__()
 
     @contextmanager
@@ -198,7 +204,13 @@ class DaskExecutor(Executor):
         if sys.platform != "win32":
             # Fix for https://github.com/dask/distributed/issues/4168
             import multiprocessing.popen_spawn_posix  # noqa
-        from distributed import Client
+        from distributed import Client, performance_report
+
+        performance_report_context = (
+            performance_report(self.performance_report_path)
+            if self.performance_report_path
+            else nullcontext()
+        )
 
         try:
             if self.address is not None:
@@ -206,12 +218,14 @@ class DaskExecutor(Executor):
                     "Connecting to an existing Dask cluster at %s", self.address
                 )
                 with Client(self.address, **self.client_kwargs) as client:
-                    self.client = client
-                    try:
-                        self._pre_start_yield()
-                        yield
-                    finally:
-                        self._post_start_yield()
+
+                    with performance_report_context:
+                        self.client = client
+                        try:
+                            self._pre_start_yield()
+                            yield
+                        finally:
+                            self._post_start_yield()
             else:
                 assert callable(self.cluster_class)  # mypy
                 assert isinstance(self.cluster_kwargs, dict)  # mypy
@@ -229,12 +243,13 @@ class DaskExecutor(Executor):
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
-                        self.client = client
-                        try:
-                            self._pre_start_yield()
-                            yield
-                        finally:
-                            self._post_start_yield()
+                        with performance_report_context:
+                            self.client = client
+                            try:
+                                self._pre_start_yield()
+                                yield
+                            finally:
+                                self._post_start_yield()
         finally:
             self.client = None
 
@@ -423,9 +438,30 @@ class DaskExecutor(Executor):
 
         return self.client.gather(futures)
 
+    @property
+    def performance_report(self) -> str:
+        """The performance report html string."""
+        if self.performance_report_path is None:
+            self.logger.warning(
+                "Executor was not configured to generate performance report"
+            )
+            return ""
+        self.logger.debug(
+            f"Retreiving dask performance report from {self.performance_report_path!r}"
+        )
+        try:
+            with open(self.performance_report_path, "r", encoding="utf-8") as f:
+                report = f.read()
+                return report
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to get dask performance report with exception {exc}"
+            )
+            return ""
+
 
 def _multiprocessing_pool_initializer() -> None:
-    """Initialize a process used in a `multiprocssing.Pool`.
+    """Initialize a process used in a `concurrent.futures.ProcessPoolExecutor`.
 
     Ensures the standard atexit handlers are run."""
     import signal
@@ -447,7 +483,7 @@ class LocalDaskExecutor(Executor):
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
         self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
-        self._pool = None  # type: Optional[multiprocessing.pool.Pool]
+        self._pool = None  # type: Optional[concurrent.futures.Executor]
         super().__init__()
 
     @staticmethod
@@ -475,11 +511,11 @@ class LocalDaskExecutor(Executor):
         if self._pool is None:
             return
 
-        # Terminate the pool
-        self._pool.terminate()
+        # Shutdown the pool
+        self._pool.shutdown(wait=False)
 
         if self.scheduler == "threads":
-            # `ThreadPool.terminate()` doesn't stop running tasks, only
+            # `ThreadPoolExecutor.shutdown()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
             # the next time the task does something with the Python api.
@@ -506,7 +542,7 @@ class LocalDaskExecutor(Executor):
             else:
                 id_type = ctypes.c_long
 
-            for t in self._pool._pool:  # type: ignore
+            for t in self._pool._threads:  # type: ignore
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
                     id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
                 )
@@ -537,14 +573,13 @@ class LocalDaskExecutor(Executor):
             else:
                 num_workers = dask.config.get("num_workers", None) or CPU_COUNT
                 if self.scheduler == "threads":
-                    from multiprocessing.pool import ThreadPool
+                    from concurrent.futures import ThreadPoolExecutor
 
-                    self._pool = ThreadPool(num_workers)
+                    self._pool = ThreadPoolExecutor(num_workers)
                 else:
-                    from dask.multiprocessing import get_context
+                    from concurrent.futures import ProcessPoolExecutor
 
-                    context = get_context()
-                    self._pool = context.Pool(
+                    self._pool = ProcessPoolExecutor(
                         num_workers, initializer=_multiprocessing_pool_initializer
                     )
             try:
@@ -558,8 +593,7 @@ class LocalDaskExecutor(Executor):
                     if exiting_early:
                         self._interrupt_pool()
                     else:
-                        self._pool.close()
-                    self._pool.join()
+                        self._pool.shutdown(wait=True)
                     self._pool = None
 
     def submit(

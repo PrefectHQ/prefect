@@ -10,15 +10,21 @@ import json
 import pendulum
 import yaml
 
+try:
+    import kubernetes
+except ImportError:
+    pass
+
 import prefect
 from prefect import config
 from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
-from prefect.exceptions import ClientError
+from prefect.exceptions import ClientError, ObjectNotFoundError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
+
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
@@ -111,13 +117,14 @@ class KubernetesAgent(Agent):
         self.service_account_name = service_account_name or os.getenv(
             "SERVICE_ACCOUNT_NAME"
         )
-        if image_pull_secrets is None:
+        if not image_pull_secrets:
             image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
-            image_pull_secrets = (
-                [s.strip() for s in image_pull_secrets_env.split(",")]
-                if image_pull_secrets_env is not None
-                else None
-            )
+            if image_pull_secrets_env:
+                image_pull_secrets = [
+                    s.strip() for s in image_pull_secrets_env.split(",")
+                ]
+            else:
+                image_pull_secrets = None
         self.image_pull_secrets = image_pull_secrets
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
@@ -126,21 +133,13 @@ class KubernetesAgent(Agent):
             os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
         )
 
-        from kubernetes import client, config
+        from prefect.utilities.kubernetes import get_kubernetes_client
 
-        try:
-            self.logger.debug("Loading incluster configuration")
-            config.load_incluster_config()
-        except config.config_exception.ConfigException as exc:
-            self.logger.warning(
-                "{} Using out of cluster configuration option.".format(exc)
-            )
-            self.logger.debug("Loading out of cluster configuration")
-            config.load_kube_config()
-
-        self.batch_client = client.BatchV1Api()
-        self.core_client = client.CoreV1Api()
-        self.k8s_client = client
+        # Explicitly do not attempt to load the client from a secret
+        self.batch_client = get_kubernetes_client("job", kubernetes_api_key_secret=None)
+        self.core_client = get_kubernetes_client(
+            "service", kubernetes_api_key_secret=None
+        )
 
         min_datetime = datetime.min.replace(tzinfo=pytz.UTC)
         self.job_pod_event_timestamps = defaultdict(  # type: ignore
@@ -183,6 +182,16 @@ class KubernetesAgent(Agent):
                         self.logger.warning(
                             f"Cannot manage job {job_name!r}, it is missing a "
                             "'prefect.io/flow_run_id' label."
+                        )
+                        continue
+
+                    try:
+                        # Do not attempt to process a job with an invalid flow run id
+                        flow_run_state = self.client.get_flow_run_state(flow_run_id)
+                    except ObjectNotFoundError:
+                        self.logger.warning(
+                            f"Job {job.name!r} is for flow run {flow_run_id!r} "
+                            "which does not exist. It will be ignored."
                         )
                         continue
 
@@ -352,12 +361,7 @@ class KubernetesAgent(Agent):
                             )
 
                         # If there are failed pods and the run is not finished, fail the run
-                        if (
-                            failed_pods
-                            and not self.client.get_flow_run_state(
-                                flow_run_id
-                            ).is_finished()
-                        ):
+                        if failed_pods and not flow_run_state.is_finished():
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
                             )
@@ -384,16 +388,16 @@ class KubernetesAgent(Agent):
                             self.batch_client.delete_namespaced_job(
                                 name=job_name,
                                 namespace=self.namespace,
-                                body=self.k8s_client.V1DeleteOptions(
+                                body=kubernetes.client.V1DeleteOptions(
                                     propagation_policy="Foreground"
                                 ),
                             )
-                        except self.k8s_client.rest.ApiException as exc:
+                        except kubernetes.client.rest.ApiException as exc:
                             if exc.status != 404:
                                 self.logger.error(
                                     f"{exc.status} error attempting to delete job {job_name}"
                                 )
-            except self.k8s_client.rest.ApiException as exc:
+            except kubernetes.client.rest.ApiException as exc:
                 if exc.status == 410:
                     self.logger.debug("Refreshing job listing token...")
                     _continue = ""
@@ -434,7 +438,7 @@ class KubernetesAgent(Agent):
                     namespace=self.namespace, body=job_spec
                 )
                 break
-            except self.k8s_client.rest.ApiException as exc:
+            except kubernetes.client.rest.ApiException as exc:
                 if exc.status == 409:
                     # object already exists, previous submission was successful
                     # even though it errored
@@ -464,162 +468,7 @@ class KubernetesAgent(Agent):
         """
         run_config = self._get_run_config(flow_run, KubernetesRun)
         assert run_config is None or isinstance(run_config, KubernetesRun)  # mypy
-        if run_config is not None:
-            return self.generate_job_spec_from_run_config(flow_run, run_config)
-        else:
-            return self.generate_job_spec_from_environment(flow_run)
 
-    def generate_job_spec_from_environment(
-        self, flow_run: GraphQLResult, image: str = None
-    ) -> dict:
-        """
-        Populate a k8s job spec. This spec defines a k8s job that handles
-        executing a flow. This method runs each time the agent receives
-        a flow to run.
-
-        That job spec can optionally be customized by setting the
-        following environment variables on the agent.
-
-        - `NAMESPACE`: the k8s namespace the job will run in, defaults to `"default"`
-        - `JOB_MEM_REQUEST`: memory requested, for example, `256Mi` for 256 MB. If this
-                environment variable is not set, the cluster's defaults will be used.
-        - `JOB_MEM_LIMIT`: memory limit, for example, `512Mi` For 512 MB. If this
-                environment variable is not set, the cluster's defaults will be used.
-        - `JOB_CPU_REQUEST`: CPU requested, defaults to `"100m"`
-        - `JOB_CPU_LIMIT`: CPU limit, defaults to `"100m"`
-        - `IMAGE_PULL_POLICY`: policy for pulling images. Defaults to `"IfNotPresent"`.
-        - `IMAGE_PULL_SECRETS`: name of an existing k8s secret that can be used to pull
-                images. This is necessary if your flow uses an image that is in a non-public
-                container registry, such as Amazon ECR, or in a public registry that requires
-                authentication to avoid hitting rate limits. To specify multiple image pull
-                secrets, provide a comma-delimited string with no spaces, like
-                `"some-secret,other-secret"`.
-        - `SERVICE_ACCOUNT_NAME`: name of a service account to run the job as.
-                By default, none is specified.
-        - `YAML_TEMPLATE`: a path to where the YAML template should be loaded from. defaults
-                to the embedded `job_spec.yaml`.
-
-        Args:
-            - flow_run (GraphQLResult): A flow run object
-            - image (str, optional): The full name of an image to use for the job
-
-        Returns:
-            - dict: a dictionary representation of a k8s job for flow execution
-        """
-        identifier = str(uuid.uuid4())[:8]
-        yaml_path = os.getenv(
-            "YAML_TEMPLATE", os.path.join(os.path.dirname(__file__), "job_spec.yaml")
-        )
-        with open(yaml_path, "r") as job_file:
-            job = yaml.safe_load(job_file)
-
-        job_name = "prefect-job-{}".format(identifier)
-
-        # Populate job metadata for identification
-        k8s_labels = {
-            "prefect.io/identifier": identifier,
-            "prefect.io/flow_run_id": flow_run.id,  # type: ignore
-            "prefect.io/flow_id": flow_run.flow.id,  # type: ignore
-        }
-        job["metadata"]["name"] = job_name
-        job["metadata"]["labels"].update(**k8s_labels)
-        job["spec"]["template"]["metadata"]["labels"].update(**k8s_labels)
-
-        # Use provided image for job
-        if image is None:
-            image = get_flow_image(flow_run=flow_run)
-        job["spec"]["template"]["spec"]["containers"][0]["image"] = image
-
-        self.logger.debug("Using image {} for job".format(image))
-
-        # Datermine flow run command
-        job["spec"]["template"]["spec"]["containers"][0]["args"] = [
-            get_flow_run_command(flow_run)
-        ]
-
-        # Populate environment variables for flow run execution
-        env = job["spec"]["template"]["spec"]["containers"][0]["env"]
-
-        env[0]["value"] = config.cloud.api or "https://api.prefect.io"
-        env[1]["value"] = (
-            # Pull an auth token if it exists but fall back to an API key so
-            # flows in pre-0.15.0 containers still authenticate correctly
-            config.cloud.agent.get("auth_token")
-            or self.flow_run_api_key
-        )
-        env[2]["value"] = flow_run.id  # type: ignore
-        env[3]["value"] = flow_run.flow.id  # type: ignore
-        env[4]["value"] = self.namespace
-        env[5]["value"] = str(self.labels)
-        env[6]["value"] = str(self.log_to_cloud).lower()
-        env[7]["value"] = self.env_vars.get(
-            "PREFECT__LOGGING__LEVEL", config.logging.level
-        )
-
-        # append all user provided values
-        for key, value in self.env_vars.items():
-            env.append(dict(name=key, value=value))
-
-        # Use image pull secrets if provided
-        if self.image_pull_secrets:
-            for idx, secret_name in enumerate(self.image_pull_secrets):
-                # this check preserves behavior from previous releases,
-                # where prefect would only overwrite the first entry in
-                # imagePullSecrets
-                if idx == 0:
-                    job["spec"]["template"]["spec"]["imagePullSecrets"][0] = {
-                        "name": secret_name
-                    }
-                else:
-                    job["spec"]["template"]["spec"]["imagePullSecrets"].append(
-                        {"name": secret_name}
-                    )
-        else:
-            del job["spec"]["template"]["spec"]["imagePullSecrets"]
-
-        # Set resource requirements if provided
-        resources = job["spec"]["template"]["spec"]["containers"][0]["resources"]
-        if os.getenv("JOB_MEM_REQUEST"):
-            resources["requests"]["memory"] = os.getenv("JOB_MEM_REQUEST")
-        if os.getenv("JOB_MEM_LIMIT"):
-            resources["limits"]["memory"] = os.getenv("JOB_MEM_LIMIT")
-        if os.getenv("JOB_CPU_REQUEST"):
-            resources["requests"]["cpu"] = os.getenv("JOB_CPU_REQUEST")
-        if os.getenv("JOB_CPU_LIMIT"):
-            resources["limits"]["cpu"] = os.getenv("JOB_CPU_LIMIT")
-        if self.volume_mounts:
-            job["spec"]["template"]["spec"]["containers"][0][
-                "volumeMounts"
-            ] = self.volume_mounts
-        else:
-            del job["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]
-        if self.volumes:
-            job["spec"]["template"]["spec"]["volumes"] = self.volumes
-        else:
-            del job["spec"]["template"]["spec"]["volumes"]
-        if os.getenv("IMAGE_PULL_POLICY"):
-            job["spec"]["template"]["spec"]["containers"][0][
-                "imagePullPolicy"
-            ] = os.getenv("IMAGE_PULL_POLICY")
-        if self.service_account_name:
-            job["spec"]["template"]["spec"][
-                "serviceAccountName"
-            ] = self.service_account_name
-
-        return job
-
-    def generate_job_spec_from_run_config(
-        self, flow_run: GraphQLResult, run_config: KubernetesRun
-    ) -> dict:
-        """Generate a k8s job spec for a flow run.
-
-        Args:
-            - flow_run (GraphQLResult): A flow run object
-            - run_config (KubernetesRun): The flow run's run_config
-
-        Returns:
-            - dict: a dictionary representation of a k8s job for flow execution
-        """
         if run_config.job_template:
             job = run_config.job_template
         else:
@@ -663,7 +512,7 @@ class KubernetesAgent(Agent):
             pod_spec["serviceAccountName"] = service_account_name
 
         # Configure `image_pull_secrets` if specified
-        if run_config.image_pull_secrets is not None:
+        if run_config.image_pull_secrets:
             # On run-config, always override
             image_pull_secrets = (
                 run_config.image_pull_secrets
@@ -715,16 +564,9 @@ class KubernetesAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    config.cloud.agent.get("auth_token")
-                    or self.flow_run_api_key
-                    or ""
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # A tenant id is only required when authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else ""
@@ -738,6 +580,8 @@ class KubernetesAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                # Backwards compatibility variable for containers on Prefect <1.0.0
+                "PREFECT__CLOUD__AUTH_TOKEN": self.flow_run_api_key or "",
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]
@@ -763,7 +607,6 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
-        token: str = None,
         api: str = None,
         namespace: str = None,
         image_pull_secrets: str = None,
@@ -786,7 +629,6 @@ class KubernetesAgent(Agent):
         Generate and output an installable YAML spec for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent
             - api (str, optional): A URL pointing to the Prefect API. Defaults to
                 `https://api.prefect.io`
             - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
@@ -823,7 +665,6 @@ class KubernetesAgent(Agent):
         """
 
         # Use defaults if not provided
-        token = token or ""
         key = key or ""
         tenant_id = tenant_id or ""
         api = api or "https://api.prefect.io"
@@ -839,7 +680,7 @@ class KubernetesAgent(Agent):
 
         version = prefect.__version__.split("+")
         image_version = (
-            "latest" if len(version) > 1 or latest else (version[0] + "-python3.6")
+            "latest" if len(version) > 1 or latest else (version[0] + "-python3.7")
         )
 
         with open(
@@ -854,7 +695,7 @@ class KubernetesAgent(Agent):
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
         # Populate env vars
-        agent_env[0]["value"] = token
+        agent_env[0]["value"] = key  # Pass API keys as auth tokens for backwards compat
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""

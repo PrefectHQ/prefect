@@ -288,6 +288,54 @@ def test_check_for_compatible_agents_no_agents_returned(patch_post):
     assert "no healthy agents" in result
 
 
+def test_flow_run_view_get_logs(monkeypatch):
+    post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
+    monkeypatch.setattr("prefect.client.client.Client.post", post)
+
+    flow_run_view = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
+
+    flow_run_view.get_logs()
+
+    query = post.call_args[1]["params"]["query"]
+
+    assert (
+        'flow_run(where: { id: { _eq: "id-1" } })' in query
+    ), "Queries for the correct flow run"
+
+    assert (
+        "logs(order_by: { timestamp: asc }" in query
+    ), "Retrieves logs, orders ascending"
+    assert (
+        'where: { _and: [{ timestamp: { _lte: "%s" } }, {}] }'
+        % flow_run_view.updated_at.isoformat()
+        in query
+    ), ("Where is less than the last time the flow run was updated\n" + query)
+
+
+def test_flow_run_view_get_logs_start_and_end_times(monkeypatch):
+    post = MagicMock(return_value={"data": {"flow_run": [FLOW_RUN_DATA_1]}})
+    monkeypatch.setattr("prefect.client.client.Client.post", post)
+
+    flow_run_view = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
+
+    start = pendulum.now()
+    end = pendulum.now()
+
+    flow_run_view.get_logs(start_time=start, end_time=end)
+
+    query = post.call_args[1]["params"]["query"]
+
+    assert 'flow_run(where: { id: { _eq: "id-1" } })' in query
+    assert "logs(order_by: { timestamp: asc }" in query
+
+    #
+    assert (
+        'where: { _and: [{ timestamp: { _lte: "%s" } }, { timestamp: { _gt: "%s" } }]'
+        % (end.isoformat(), start.isoformat())
+        in query
+    ), ("Where includes start and end time bounds\n" + query)
+
+
 def test_check_for_compatible_agents_healthy_without_matching_labels(patch_post):
     patch_post(
         {
@@ -539,3 +587,10 @@ def test_watch_flow_run_timeout(monkeypatch):
     with pytest.raises(RuntimeError, match="timed out after 12 hours of waiting"):
         for log in watch_flow_run("id"):
             pass
+
+
+def test_flow_run_view_handles_null_run_config():
+    flow_run_data = FLOW_RUN_DATA_1.copy()
+    flow_run_data["run_config"] = None
+    flow_run_view = FlowRunView._from_flow_run_data(flow_run_data)
+    assert flow_run_view.run_config is None

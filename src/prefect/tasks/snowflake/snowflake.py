@@ -29,6 +29,13 @@ class SnowflakeQuery(Task):
             takes snowflake AUTOCOMMIT parameter
         - cursor_type (SnowflakeCursor, optional): specify the type of database
             cursor to use for the query, defaults to SnowflakeCursor
+        - authenticator (str, optional): type of authenticator to use for initiating
+            connection (oauth, externalbrowser...), refer to snowflake documentation
+            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+            for details, note that `externalbrowser` will only work in an environment
+            where a browser is available, default to None
+        - token (str, optional): OAuth or JWT Token to provide when authenticator
+            is set to oauth, default to None
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -47,7 +54,9 @@ class SnowflakeQuery(Task):
         data: tuple = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        **kwargs
+        authenticator: str = None,
+        token: str = None,
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -61,6 +70,8 @@ class SnowflakeQuery(Task):
         self.data = data
         self.autocommit = autocommit
         self.cursor_type = cursor_type
+        self.authenticator = authenticator
+        self.token = token
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -76,6 +87,8 @@ class SnowflakeQuery(Task):
         "data",
         "autocommit",
         "cursor_type",
+        "authenticator",
+        "token",
     )
     def run(
         self,
@@ -91,6 +104,8 @@ class SnowflakeQuery(Task):
         data: tuple = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
+        authenticator: str = None,
+        token: str = None,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -114,6 +129,13 @@ class SnowflakeQuery(Task):
                 takes snowflake AUTOCOMMIT parameter
             - cursor_type (SnowflakeCursor, optional): specify the type of database
                 cursor to use for the query, defaults to SnowflakeCursor
+        - authenticator (str, optional): type of authenticator to use for initiating
+            connection (oauth, externalbrowser...), refer to snowflake documentation
+            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+            for details, note that `externalbrowser` will only work in an environment
+            where a browser is available, default to None
+            - token (str, optional): OAuth or JWT Token to provide when authenticator
+                is set to oauth, default to None
 
         Returns:
             - List[List]: output of cursor.fetchall()
@@ -141,6 +163,10 @@ class SnowflakeQuery(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            "authenticator": authenticator,
+            "token": token,
+            # required to track task's usage in the Snowflake Partner Network Portal
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values
@@ -191,6 +217,13 @@ class SnowflakeQueriesFromFile(Task):
             takes snowflake AUTOCOMMIT parameter
         - cursor_type (SnowflakeCursor, optional): specify the type of database
             cursor to use for the query, defaults to SnowflakeCursor
+        - authenticator (str, optional): type of authenticator to use for initiating
+            connection (oauth, externalbrowser...), refer to snowflake documentation
+            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+            for details, note that `externalbrowser` will only work in an environment
+            where a browser is available, default to None
+        - token (str, optional): OAuth or JWT Token to provide when authenticator
+            is set to oauth, default to None
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -208,7 +241,9 @@ class SnowflakeQueriesFromFile(Task):
         file_path: str = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        **kwargs
+        authenticator: str = None,
+        token: str = None,
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -221,6 +256,8 @@ class SnowflakeQueriesFromFile(Task):
         self.file_path = file_path
         self.autocommit = autocommit
         self.cursor_type = cursor_type
+        self.authenticator = authenticator
+        self.token = token
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -235,6 +272,8 @@ class SnowflakeQueriesFromFile(Task):
         "file_path",
         "autocommit",
         "cursor_type",
+        "authenticator",
+        "token",
     )
     def run(
         self,
@@ -249,6 +288,8 @@ class SnowflakeQueriesFromFile(Task):
         file_path: str = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
+        authenticator: str = None,
+        token: str = None,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -270,6 +311,13 @@ class SnowflakeQueriesFromFile(Task):
                 takes snowflake AUTOCOMMIT parameter
             - cursor_type (SnowflakeCursor, optional): specify the type of database
                 cursor to use for the query, defaults to SnowflakeCursor
+        - authenticator (str, optional): type of authenticator to use for initiating
+            connection (oauth, externalbrowser...), refer to snowflake documentation
+            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+            for details, note that `externalbrowser` will only work in an environment
+            where a browser is available, default to None
+            - token (str, optional): OAuth or JWT Token to provide when authenticator
+                is set to oauth, default to None
 
         Returns:
             - List[List]: containing the results of the different queries executed
@@ -298,6 +346,10 @@ class SnowflakeQueriesFromFile(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            "authenticator": authenticator,
+            "token": token,
+            # required to track task's usage in the Snowflake Partner Network Portal
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values

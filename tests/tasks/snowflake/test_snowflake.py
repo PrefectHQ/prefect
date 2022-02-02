@@ -27,6 +27,7 @@ class TestSnowflakeQuery:
             account="test", user="test", password="test", warehouse="test"
         )
         assert task.autocommit is None
+        assert task.authenticator is None
 
     def test_runtime(self, monkeypatch):
         cursor = MagicMock(spec=sf.DictCursor)
@@ -51,7 +52,12 @@ class TestSnowflakeQuery:
         assert output == ["TESTDB"]
         for call in snowflake_module_connect_method.call_args_list:
             args, kwargs = call
-            assert kwargs == dict(account="test", user="test", password="test")
+            assert kwargs == dict(
+                account="test",
+                user="test",
+                password="test",
+                application="Prefect_SnowflakeQuery",
+            )
 
     def test_required_parameters(self):
         # missing account
@@ -210,7 +216,12 @@ class TestSnowflakeQueriesFromFile:
         assert output == ["TESTDB"]
         for call in snowflake_module_connect_method.call_args_list:
             args, kwargs = call
-            assert kwargs == dict(account="test", user="test", password="test")
+            assert kwargs == dict(
+                account="test",
+                user="test",
+                password="test",
+                application="Prefect_SnowflakeQueriesFromFile",
+            )
 
     def test_required_parameters(self):
         # missing account

@@ -198,14 +198,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_metadata.run_config is not None:
-                runner_cls(flow=flow).run(**run_kwargs)
-
-            # Support for deprecated `flow.environment` use
-            else:
-                environment = flow.environment
-                environment.setup(flow)
-                environment.execute(flow)
+            runner_cls(flow=flow).run(**run_kwargs)
 
     # Get the final state
     flow_run = flow_run.get_latest()
@@ -268,12 +261,8 @@ def generate_flow_run_environ(
     # Pass authentication through
     client = prefect.Client()  # Instantiate a client to get the current API key
     env["PREFECT__CLOUD__API_KEY"] = run_api_key or client.api_key or ""
-    # Backwards compat for auth tokens
-    env["PREFECT__CLOUD__AUTH_TOKEN"] = (
-        run_api_key
-        or prefect.config.cloud.agent.get("auth_token")
-        or prefect.config.cloud.get("auth_token")
-    )
+    # Backwards compat for auth tokens (only useful for containers)
+    env["PREFECT__CLOUD__AUTH_TOKEN"] = run_api_key or client.api_key or ""
 
     # Add context information for the run
     env.update(

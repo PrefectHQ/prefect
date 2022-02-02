@@ -2,26 +2,17 @@ import pickle
 from unittest.mock import MagicMock
 
 import pytest
+import uuid
 
 import prefect
-from prefect.utilities.compatibility import nullcontext
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
-from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import DockerRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
 docker = pytest.importorskip("docker")
-
-
-@pytest.fixture
-def config_with_token(cloud_api):
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
-    ):
-        yield
 
 
 @pytest.fixture
@@ -53,25 +44,25 @@ def test_docker_agent_init(api):
         ("win32", "npipe:////./pipe/docker_engine"),
     ],
 )
-def test_docker_agent_config_options(platform, url, monkeypatch, config_with_token):
+def test_docker_agent_config_options(platform, url, monkeypatch, config_with_api_key):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
     monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
 
     agent = DockerAgent(name="test")
     assert agent.name == "test"
-    assert agent.client.get_auth_token() == "TEST_TOKEN"
+    assert agent.client.api_key == config_with_api_key.cloud.api_key
     assert agent.logger
     assert not agent.no_pull
     assert api.call_args[1]["base_url"] == url
 
 
-def test_docker_agent_config_options_populated(monkeypatch, config_with_token):
+def test_docker_agent_config_options_populated(monkeypatch, config_with_api_key):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
 
     agent = DockerAgent(base_url="url", no_pull=True, docker_client_timeout=123)
-    assert agent.client.get_auth_token() == "TEST_TOKEN"
+    assert agent.client.api_key == config_with_api_key.cloud.api_key
     assert agent.logger
     assert agent.no_pull
     assert api.call_args[1]["base_url"] == "url"
@@ -153,48 +144,52 @@ def test_populate_env_vars(api, backend):
     assert env_vars == expected_vars
 
 
-def test_environment_has_agent_token_from_config(api, config_with_token):
+def test_environment_has_api_key_from_config(api, config_with_api_key):
     agent = DockerAgent()
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+        "test-image",
     )
 
-    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+    assert env_vars["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+    assert env_vars["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
 
 
-@pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_config(api, tenant_id):
-    with set_temporary_config(
-        {
-            "cloud.api_key": "TEST_KEY",
-            "cloud.tenant_id": tenant_id,
-            "cloud.agent.auth_token": None,
-        }
-    ):
+def test_environment_has_tenant_id_from_server(api, config_with_api_key):
+    tenant_id = uuid.uuid4()
+
+    with set_temporary_config({"cloud.tenant_id": None}):
         agent = DockerAgent()
-        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
 
-        env_vars = agent.populate_env_vars(
+        env = agent.populate_env_vars(
             GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
             "test-image",
         )
 
-    assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env_vars["PREFECT__CLOUD__TENANT_ID"] == "ID"
+    assert env["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+    assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
 
-@pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
+def test_environment_has_api_key_from_disk(api, monkeypatch):
     """Check that the API key is passed through from the on disk cache"""
+
+    tenant_id = str(uuid.uuid4())
+
     monkeypatch.setattr(
         "prefect.Client.load_auth_from_disk",
-        MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+        MagicMock(
+            return_value={
+                "api_key": "TEST_KEY",
+                "tenant_id": tenant_id,
+            }
+        ),
     )
 
     agent = DockerAgent()
-    agent.client._get_auth_tenant = MagicMock(return_value="ID")
 
     env = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
@@ -203,7 +198,7 @@ def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
     assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
 
 def test_populate_env_vars_includes_agent_labels(api):
@@ -216,7 +211,7 @@ def test_populate_env_vars_includes_agent_labels(api):
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_token):
+def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_api_key):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
@@ -250,6 +245,70 @@ def test_populate_env_vars_from_run_config(api):
     assert env_vars["KEY1"] == "VAL1"
     assert env_vars["KEY2"] == "OVERRIDE"
     assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
+
+
+def test_api_url_can_be_overridden_at_agent_level(api):
+    agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+            }
+        ),
+        "test-image",
+    )
+    assert env_vars["PREFECT__CLOUD__API"] == "FOO"
+
+
+def test_api_url_can_be_overridden_with_run_config(api):
+    agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
+
+    run = DockerRun(
+        env={"PREFECT__CLOUD__API": "BAR"},
+    )
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
+            }
+        ),
+        "test-image",
+        run_config=run,
+    )
+    assert env_vars["PREFECT__CLOUD__API"] == "BAR"
+
+
+def test_api_url_uses_server_network(api, backend):
+    """
+    If the `prefect-server` network is provided and the backend is 'server' then we
+    will replace the API url with 'apollo' instead of 'host.docker.internal' to make
+    use of the network for connections to the API
+    """
+    agent = DockerAgent(networks=["prefect-server"])
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": {},
+            }
+        ),
+        "test-image",
+    )
+
+    if backend == "server":
+        assert env_vars["PREFECT__CLOUD__API"] == "http://apollo:4200"
+    else:
+        assert env_vars["PREFECT__CLOUD__API"] == "https://api.prefect.io"
 
 
 @pytest.mark.parametrize(
@@ -298,7 +357,6 @@ def test_prefect_logging_level_override_logic(
     ],
 )
 def test_docker_agent_deploy_flow(core_version, command, api):
-
     agent = DockerAgent()
     agent.deploy_flow(
         flow_run=GraphQLResult(
@@ -310,7 +368,6 @@ def test_docker_agent_deploy_flow(core_version, command, api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": core_version,
                     }
                 ),
@@ -332,38 +389,6 @@ def test_docker_agent_deploy_flow(core_version, command, api):
         "io.prefect.flow-name": "flow-name",
         "io.prefect.flow-run-id": "id",
     }
-    assert api.start.call_args[1]["container"] == "container_id"
-
-
-def test_docker_agent_deploy_flow_uses_environment_metadata(api):
-    agent = DockerAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert api.pull.called
-    assert api.create_container.called
-    assert api.start.called
-
-    assert api.create_host_config.call_args[1]["auto_remove"] is True
-    assert api.create_container.call_args[1]["command"] == "prefect execute flow-run"
-    assert api.create_container.call_args[1]["host_config"]["AutoRemove"] is True
     assert api.start.call_args[1]["container"] == "container_id"
 
 
@@ -400,9 +425,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_index(api, collision_
                         "id": "foo",
                         "name": "flow-name",
                         "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -449,9 +471,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
                         "id": "foo",
                         "name": "flow-name",
                         "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "repo/name:tag"}
-                        ).serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -467,7 +486,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
-
     if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
@@ -479,14 +497,16 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}
+        ports = [12001]
         host_config = {"auto_remove": False, "shm_size": "128m"}
         exp_host_config = {
             "auto_remove": False,
             "shm_size": "128m",
         }
-        run = DockerRun(image=image, env=env, host_config=host_config)
+        run = DockerRun(image=image, env=env, ports=ports, host_config=host_config)
     else:
         env = {}
+        ports = []
         host_config = {}
         exp_host_config = {
             "auto_remove": True,
@@ -519,6 +539,9 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
     res_env = api.create_container.call_args[1]["environment"]
     for k, v in env.items():
         assert res_env[k] == v
+    res_ports = api.create_container.call_args[1]["ports"]
+    for i, v in enumerate(ports):
+        assert res_ports[i] == v
     res_host_config = api.create_host_config.call_args[1]
     for k, v in exp_host_config.items():
         assert res_host_config[k] == v
@@ -591,34 +614,6 @@ def test_docker_agent_deploy_flow_unsupported_run_config(api):
     assert not api.pull.called
 
 
-def test_docker_agent_deploy_flow_storage_raises(monkeypatch, api):
-    monkeypatch.setattr("prefect.agent.agent.Client", MagicMock())
-
-    agent = DockerAgent()
-
-    with pytest.raises(ValueError):
-        agent.deploy_flow(
-            flow_run=GraphQLResult(
-                {
-                    "flow": GraphQLResult(
-                        {
-                            "storage": Local().serialize(),
-                            "id": "foo",
-                            "name": "flow-name",
-                            "environment": LocalEnvironment().serialize(),
-                            "core_version": "0.13.0",
-                        }
-                    ),
-                    "id": "id",
-                    "name": "name",
-                    "version": "version",
-                }
-            )
-        )
-
-    assert not api.pull.called
-
-
 def test_docker_agent_deploy_flow_no_pull(api):
     agent = DockerAgent(no_pull=True)
     agent.deploy_flow(
@@ -630,34 +625,6 @@ def test_docker_agent_deploy_flow_no_pull(api):
                         "name": "flow-name",
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert not api.pull.called
-    assert api.create_container.called
-    assert api.start.called
-
-
-def test_docker_agent_deploy_flow_no_pull_using_environment_metadata(api):
-    agent = DockerAgent(no_pull=True)
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Local().serialize(),
-                        "environment": LocalEnvironment(
-                            metadata={"image": "name:tag"}
                         ).serialize(),
                         "core_version": "0.13.0",
                     }
@@ -686,7 +653,6 @@ def test_docker_agent_deploy_flow_reg_allow_list_allowed(api):
                         "storage": Docker(
                             registry_url="test1", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -715,7 +681,6 @@ def test_docker_agent_deploy_flow_reg_allow_list_not_allowed(api):
                             "storage": Docker(
                                 registry_url="test2", image_name="name", image_tag="tag"
                             ).serialize(),
-                            "environment": LocalEnvironment().serialize(),
                             "core_version": "0.13.0",
                         }
                     ),
@@ -751,7 +716,6 @@ def test_docker_agent_deploy_flow_show_flow_logs(api, monkeypatch):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -802,7 +766,6 @@ def test_docker_agent_deploy_flow_no_registry_does_not_pull(api):
                         "storage": Docker(
                             registry_url="", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),
@@ -1073,7 +1036,6 @@ def test_docker_agent_networks(api):
                         "storage": Docker(
                             registry_url="test", image_name="name", image_tag="tag"
                         ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
                         "core_version": "0.13.0",
                     }
                 ),

@@ -7,11 +7,8 @@ from prefect.utilities.plugins import API as api, PLUGINS as plugins, MODELS as 
 from prefect.client import Client
 import prefect.schedules
 import prefect.triggers
-import prefect.environments
 import prefect.storage
 import prefect.executors
-import prefect.engine.executors  # deprecated
-import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter
 import prefect.engine
@@ -25,11 +22,12 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 import prefect.serialization
 import prefect.agent
 import prefect.backend
+import prefect.artifacts
 
-from ._version import get_versions
+from ._version import get_versions as _get_versions
 
-__version__ = get_versions()["version"]  # type: ignore
-del get_versions
+__version__ = _get_versions()["version"]  # type: ignore
+del _get_versions
 
 try:
     import signal as _signal
@@ -38,3 +36,23 @@ try:
     _signal.signal(29, _sig_handler)
 except:
     pass
+
+__all__ = [
+    "Client",
+    "Flow",
+    "Parameter",
+    "Task",
+    "api",
+    "apply_map",
+    "case",
+    "config",
+    "context",
+    "flatten",
+    "mapped",
+    "models",
+    "plugins",
+    "resource_manager",
+    "tags",
+    "task",
+    "unmapped",
+]

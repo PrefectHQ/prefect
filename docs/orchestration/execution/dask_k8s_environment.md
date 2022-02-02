@@ -1,10 +1,7 @@
 # Dask Kubernetes Environment
 
 ::: warning
-Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See [flow
-configuration](/orchestration/flow_config/overview.md) and [upgrading
-tips](/orchestration/flow_config/upgrade.md) for more information.
+Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading](/orchestration/flow_config/upgrade.md) documentation for more information.
 :::
 
 [[toc]]
@@ -67,7 +64,7 @@ rules:
 
 ---
 
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   namespace: default

@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+
+import uuid
 import box
 import pytest
 import yaml
@@ -317,7 +319,7 @@ class TestGenerateTaskDefinition:
 
     def test_generate_task_definition_family_and_tags(self):
         taskdef = self.generate_task_definition(ECSRun())
-        assert taskdef["family"] == "prefect-test-flow"
+        assert taskdef["family"] == "prefect-test-flow-flow-run-id"
         assert sorted(taskdef["tags"], key=lambda x: x["key"]) == [
             {"key": "prefect:flow-id", "value": "flow-id"},
             {"key": "prefect:flow-version", "value": "1"},
@@ -422,9 +424,10 @@ class TestGenerateTaskDefinition:
 
 
 class TestGetRunTaskKwargs:
-    def get_run_task_kwargs(self, run_config, **kwargs):
+    def get_run_task_kwargs(self, run_config, tenant_id: str = None, **kwargs):
         agent = ECSAgent(**kwargs)
-        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        if tenant_id:
+            agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
         flow_run = GraphQLResult(
             {
                 "flow": GraphQLResult(
@@ -563,36 +566,34 @@ class TestGetRunTaskKwargs:
             "CUSTOM4": "VALUE4",
         }
 
-    def test_environment_has_agent_token_from_config(self):
-        with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-            env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
-                "containerOverrides"
-            ][0]["environment"]
+    def test_environment_has_api_key_from_config(self, config_with_api_key):
+        env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
+            "containerOverrides"
+        ][0]["environment"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+        assert env["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
+
+    def test_environment_has_tenant_id_from_server(self, config_with_api_key):
+        tenant_id = uuid.uuid4()
+
+        with set_temporary_config({"cloud.tenant_id": None}):
+
+            env_list = self.get_run_task_kwargs(ECSRun(), tenant_id=tenant_id)[
+                "overrides"
+            ]["containerOverrides"][0]["environment"]
             env = {item["name"]: item["value"] for item in env_list}
 
-        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+        assert env["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == config_with_api_key.cloud.api_key
+        assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
-    @pytest.mark.parametrize("tenant_id", ["ID", None])
-    def test_environment_has_api_key_from_config(self, tenant_id):
-        with set_temporary_config(
-            {
-                "cloud.api_key": "TEST_KEY",
-                "cloud.tenant_id": tenant_id,
-                "cloud.agent.auth_token": None,
-            }
-        ):
-            env_list = self.get_run_task_kwargs(ECSRun())["overrides"][
-                "containerOverrides"
-            ][0]["environment"]
-            env = {item["name"]: item["value"] for item in env_list}
-
-        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
-
-    @pytest.mark.parametrize("tenant_id", ["ID", None])
-    def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+    def test_environment_has_api_key_from_disk(self, monkeypatch):
         """Check that the API key is passed through from the on disk cache"""
+        tenant_id = str(uuid.uuid4())
+
         monkeypatch.setattr(
             "prefect.Client.load_auth_from_disk",
             MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
@@ -605,7 +606,7 @@ class TestGetRunTaskKwargs:
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",
@@ -685,7 +686,7 @@ class TestDeployFlow:
         assert aws.ecs.register_task_definition.called
         assert (
             aws.ecs.register_task_definition.call_args[1]["family"]
-            == "prefect-test-flow"
+            == "prefect-test-flow-flow-run-id"
         )
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"

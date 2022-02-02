@@ -1,6 +1,9 @@
 import datetime
 import json
+import sys
 from threading import RLock
+
+from unittest.mock import patch
 
 import pendulum
 import cloudpickle
@@ -749,3 +752,16 @@ def test_state_pickle_with_unpicklable_exception_converts_to_repr():
 
     # Does not alter the original object
     assert isinstance(state.result, UnpicklableException)
+
+
+@patch("prefect.engine.state.super")
+def test_state_sizeof(mock_super):
+    state = State(result=10)
+    mock_super().__sizeof__.return_value = 55
+    # Don't use sys.getsizeof(state) here because
+    # getsizeof() includes overhead that is hard
+    # to account for.
+    # Instead call __sizeof__ directly
+    assert state.__sizeof__() == 55 + sys.getsizeof(state.result)
+    assert sys.getsizeof(state) > 55 + sys.getsizeof(state.result)
+    assert sys.getsizeof(state) >= state.__sizeof__()

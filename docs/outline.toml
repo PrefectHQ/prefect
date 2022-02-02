@@ -17,30 +17,37 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.artifacts]
+title = "Artifacts"
+module = "prefect.backend.artifacts"
+functions = [
+    "create_link_artifact",
+    "update_link_artifact",
+    "create_markdown_artifact",
+    "update_markdown_artifact",
+    "delete_artifact"
+]
+
 [pages.backend.flow]
 title = "Flow"
 module = "prefect.backend.flow"
 classes = ["FlowView"]
-experimental = true
 
 [pages.backend.flow_run]
 title = "Flow Run"
 module = "prefect.backend.flow_run"
 classes = ["FlowRunView"]
 functions = ["watch_flow_run"]
-experimental = true
 
 [pages.backend.task_run]
 title = "Task Run"
 module = "prefect.backend.task_run"
 classes = ["TaskRunView"]
-experimental = true
 
 [pages.backend.tenant]
 title = "Tenant"
 module = "prefect.backend.tenant"
 classes = ["TenantView"]
-experimental = true
 
 [pages.backend.kv_store]
 title = "KV Store"
@@ -60,12 +67,12 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
+commands = ["local", "docker", "kubernetes", "ecs"]
 
 [pages.cli.auth]
 title = "auth"
 module = "prefect.cli.auth"
-commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status", "create_token", "list_tokens", "revoke_token"]
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status"]
 
 [pages.cli.create]
 title = "create"
@@ -105,7 +112,7 @@ commands = ["set_command", "get_command", "delete_command", "list_command"]
 [pages.cli.run]
 title = "run"
 module = "prefect.cli.run"
-commands = ["run", "run_flow"]
+commands = ["run"]
 
 [pages.cli.server]
 title = "server"
@@ -121,6 +128,7 @@ classes = [
 functions = [
     "IntervalSchedule",
     "CronSchedule",
+    "RRuleSchedule",
 ]
 
 [pages.schedules.clocks]
@@ -131,6 +139,7 @@ classes = [
     "IntervalClock",
     "CronClock",
     "DatesClock",
+    "RRuleClock",
 ]
 
 [pages.schedules.filters]
@@ -254,11 +263,6 @@ title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner"]
 
-[pages.environments.execution]
-title = "Execution Environments"
-module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
-
 [pages.executors]
 title = "Executors"
 module = "prefect.executors"
@@ -267,7 +271,7 @@ classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun", "VertexRun"]
 
 [pages.storage]
 title = "Storage"
@@ -327,6 +331,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 title = "Fivetran Tasks"
 module = "prefect.tasks.fivetran"
 classes = ["FivetranSyncTask"]
+verified_task = true
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -382,7 +387,11 @@ classes = [
 [pages.tasks.dbt]
 title = "DBT Tasks"
 module = "prefect.tasks.dbt"
-classes = ["DbtShellTask"]
+classes = [
+        "DbtShellTask",
+        "DbtCloudRunJob"
+        ]
+verified_task = true
 
 [pages.tasks.asana]
 title = "Asana Tasks"
@@ -428,11 +437,17 @@ title = "File and Filesystem Tasks"
 module = "prefect.tasks.files"
 classes = [
         "Copy",
+        "Glob",
         "Move",
         "Remove",
         "Unzip",
         "Zip",
         ]
+
+[pages.tasks.firebolt]
+title = "Firebolt Tasks"
+module = "prefect.tasks.firebolt"
+classes = ["FireboltQuery"]
 
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
@@ -454,6 +469,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = ["RunGreatExpectationsValidation"]
+verified_task = true
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"
@@ -472,6 +488,14 @@ classes = ["JiraTask", "JiraServiceDeskTask"]
 title = "Jupyter Tasks"
 module = "prefect.tasks.jupyter"
 classes = ["ExecuteNotebook"]
+
+[pages.tasks.kafka]
+title = "Kafka Tasks"
+module = "prefect.tasks.kafka"
+classes = [
+        "KafkaBatchConsume",
+        "KafkaBatchProduce"
+]
 
 [pages.tasks.monday]
 title = "Monday Tasks"
@@ -532,6 +556,16 @@ classes = ["SnowflakeQuery"]
 title = "SodaSQL Tasks"
 module = "prefect.tasks.sodasql"
 classes = ["SodaSQLScan"]
+
+[pages.tasks.sodaspark]
+title = "SodaSpark Tasks"
+module = "prefect.tasks.sodaspark"
+classes = ["SodaSparkScan"]
+
+[pages.tasks.mixpanel]
+title = "Mixpanel Tasks"
+module = "prefect.tasks.mixpanel"
+classes = ["MixpanelExportTask"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
@@ -627,27 +661,15 @@ title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
 classes = {KubernetesAgent = ["start"]}
 
-[pages.agent.fargate]
-title = "Fargate Agent"
-module = "prefect.agent.fargate"
-classes = {FargateAgent = ["start"]}
-
 [pages.agent.ecs]
 title = "ECS Agent"
 module = "prefect.agent.ecs"
 classes = {ECSAgent = ["start"]}
 
-[pages.artifacts.artifacts]
-title = "Artifacts"
-module = "prefect.artifacts"
-functions = [
-    "create_link",
-    "update_link",
-    "create_markdown",
-    "update_markdown",
-    "delete_artifact"
-]
-experimental = true
+[pages.agent.vertex]
+title = "Vertex Agent"
+module = "prefect.agent.vertex"
+classes = {VertexAgent = ["start"]}
 
 [pages.utilities.collections]
 title = "Collections"
@@ -733,3 +755,25 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+
+[pages.tasks.airbyte]
+title = "Airbyte Tasks"
+module = "prefect.tasks.airbyte"
+classes = ["AirbyteConnectionTask"]
+verified_task = true
+
+[pages.tasks.cubejs]
+title = "Cube.js Tasks"
+module = "prefect.tasks.cubejs"
+classes = ["CubeJSQueryTask"]
+
+[pages.tasks.monte_carlo]
+title = "Monte Carlo Tasks"
+module = "prefect.tasks.monte_carlo"
+classes = ["MonteCarloCreateOrUpdateLineage", "MonteCarloCreateOrUpdateNodeWithTags", "MonteCarloGetResources"]
+verified_task = true
+
+[pages.tasks.zendesk]
+title = "Zendesk Tasks"
+module = "prefect.tasks.zendesk"
+classes = ["ZendeskTicketsIncrementalExportTask"]

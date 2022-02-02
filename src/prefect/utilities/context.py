@@ -1,18 +1,22 @@
 """
 This module implements the Prefect context that is available when tasks run.
 
-Tasks can import prefect.context and access attributes that will be overwritten
+Tasks can import `prefect` and access `prefect.context` values that will be set
 when the task is run.
 
+Context values can be accessed as attributes or as dictionary items.
+
+Mutating the context from within a task is not recommended as it will not behave
+consistently across execution environments.
 Example:
 
 ```python
-import prefect.context
+import prefect
 
-with prefect.context(a=1, b=2):
+with prefect.context(dict(a=1, b=2)):
     print(prefect.context.a) # 1
 
-print(prefect.context.a) # undefined
+print(prefect.context.get("a")) # undefined
 ```
 
 Prefect provides various key / value pairs in context that are always available during task runs:
@@ -45,7 +49,7 @@ falls back to `now` for unscheduled runs |
 | `task_run_name` | the run name of the current task (if provided, otherwise `None`) |
 | `task_loop_result` | if the Task is looping, the current loop result |
 
-In addition, Prefect Cloud supplies some additional context variables:
+Prefect Cloud and Server supply some additional context variables:
 
 | Variable | Description |
 | :--- | --- |

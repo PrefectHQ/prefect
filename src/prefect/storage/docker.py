@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import uuid
 import warnings
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, Path
 from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
 import pendulum
@@ -72,7 +72,7 @@ class Docker(Storage):
         - registry_url (str, optional): URL of a registry to push the image to;
             image will not be pushed if not provided
         - base_image (str, optional): the base image for this when building this
-            image (e.g. `python:3.6`), defaults to the `prefecthq/prefect` image
+            image (e.g. `python:3.7`), defaults to the `prefecthq/prefect` image
             matching your python version and prefect core library version used
             at runtime.
         - dockerfile (str, optional): a path to a Dockerfile to use in building
@@ -88,6 +88,9 @@ class Docker(Storage):
             use when building
         - files (dict, optional): a dictionary of files or directories to copy into
             the image when building. Takes the format of `{'src': 'dest'}`
+        - dockerignore (str, optional): an optional Path to a `dockerignore` file.
+            when used with the `files` argument, the specified `dockerignore` will be
+            included in the build context
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
@@ -126,6 +129,7 @@ class Docker(Storage):
         registry_url: str = None,
         base_image: str = None,
         dockerfile: str = None,
+        dockerignore: str = None,
         python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
@@ -173,7 +177,12 @@ class Docker(Storage):
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
-            self.prefect_version = "master" if len(version) > 1 else version[0]
+            self.prefect_version = (
+                "master"
+                # The release candidate is a special development version
+                if len(version) > 1 and not version[0].endswith("rc0")
+                else version[0]
+            )
         else:
             self.prefect_version = prefect_version
 
@@ -182,6 +191,16 @@ class Docker(Storage):
                 sys.version_info.major, sys.version_info.minor
             )
             if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", self.prefect_version) is not None:
+                self.base_image = "prefecthq/prefect:{}-python{}".format(
+                    self.prefect_version, python_version
+                )
+            elif self.prefect_version.endswith("rc0"):
+                # Development release candidate
+                self.base_image = f"prefecthq/prefect:{self.prefect_version}"
+            elif (
+                re.match(r"^[0-9]+\.[0-9]+rc[0-9]+$", self.prefect_version) is not None
+            ):
+                # Actual release candidate
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
@@ -199,6 +218,7 @@ class Docker(Storage):
             self.base_image = base_image  # type: ignore
 
         self.dockerfile = dockerfile
+        self.dockerignore = dockerignore
         # we should always try to install prefect, unless it is already installed. We can't
         # determine this until image build time.
         self.installation_commands.append(
@@ -327,7 +347,6 @@ class Docker(Storage):
         with tempfile.TemporaryDirectory(
             dir="." if self.dockerfile else None
         ) as tempdir:
-
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -433,6 +452,12 @@ class Docker(Storage):
         # Copy user specified files into the image
         copy_files = ""
         if self.files:
+            # copy dockerignore if provided
+            if self.dockerignore:
+                shutil.copyfile(
+                    src=Path(self.dockerignore).expanduser().resolve(),
+                    dst=Path(directory) / ".dockerignore",
+                )
             for src, dest in self.files.items():
                 fname = os.path.basename(src)
                 full_fname = os.path.join(directory, fname)
