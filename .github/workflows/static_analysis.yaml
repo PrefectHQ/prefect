@@ -54,7 +54,7 @@ jobs:
 
       - name: Run pre-commit
         run: |
-          pre-commit run --show-diff-on-failure --color=always
+          pre-commit run --show-diff-on-failure --color=always --all-files
 
 
   # python-lint:
