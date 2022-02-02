@@ -15,6 +15,12 @@ include src/prefect/_version.py
 include src/prefect/logging/logging.yml
 include src/prefect/cli/templates/*.yaml
 
+# Migrations
+include src/prefect/orion/database/alembic.ini
+include src/prefect/orion/database/migrations/*
+include src/prefect/orion/database/migrations/versions/*
+include src/prefect/orion/database/migrations/versions/*/*
+
 # Package files and data
 graft src/prefect/orion/ui
 graft src/prefect/orion/api/static
