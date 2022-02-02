@@ -11,9 +11,9 @@ from typing import Any
 import cloudpickle
 import pydantic
 
-from prefect.orion.serializers import register_serializer
-from prefect.orion.schemas.data import DataDocument
 from prefect.client import OrionClient, inject_client
+from prefect.orion.schemas.data import DataDocument
+from prefect.orion.serializers import register_serializer
 
 
 @register_serializer("json")

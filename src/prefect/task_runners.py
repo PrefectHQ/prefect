@@ -50,33 +50,36 @@ The following task runners are currently supported:
 - `DaskTaskRunner`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
 """
 import abc
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
+    TYPE_CHECKING,
     Any,
+    AsyncIterator,
+    Awaitable,
     Callable,
     Dict,
     Optional,
+    Set,
     TypeVar,
-    Awaitable,
-    AsyncIterator,
     Union,
-    TYPE_CHECKING,
 )
 from uuid import UUID
-from contextlib import AsyncExitStack
+
+import anyio
 
 if TYPE_CHECKING:
     import distributed
+    from anyio.abc import TaskGroup
 else:
     distributed = None
 
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.states import State
-from prefect.orion.schemas.core import TaskRun
 from prefect.logging import get_logger
+from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import A
-from prefect.utilities.importtools import import_object
 from prefect.utilities.hashing import to_qualified_name
+from prefect.utilities.importtools import import_object
 
 T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
@@ -237,6 +240,8 @@ class DaskTaskRunner(BaseTaskRunner):
         >>> from prefect import flow
         >>> from prefect.task_runners import DaskTaskRunner
         >>> @flow(task_runner=DaskTaskRunner)
+        >>> def my_flow():
+        >>>     ...
 
         Using a temporary cluster running elsewhere. Any Dask cluster class should
         work, here we use [dask-cloudprovider](https://cloudprovider.dask.org)
@@ -428,3 +433,123 @@ class DaskTaskRunner(BaseTaskRunner):
         """
         self.__dict__.update(data)
         self._client = self._distributed.get_client()
+
+
+class ConcurrentTaskRunner(BaseTaskRunner):
+    """
+    A concurrent task runner that allows tasks to switch when blocking on IO.
+    Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
+
+    Examples:
+
+        Using a thread for concurrency
+        >>> from prefect import flow
+        >>> from prefect.task_runners import ConcurrentTaskRunner
+        >>> @flow(task_runner=ConcurrentTaskRunner)
+        >>> def my_flow():
+        >>>     ...
+    """
+
+    def __init__(self):
+        # TODO: Consider adding `max_workers` support using anyio capacity limiters
+
+        # Runtime attributes
+        self._task_group: TaskGroup = None
+        self._results: Dict[UUID, Any] = {}
+        self._task_run_ids: Set[UUID] = set()
+
+        super().__init__()
+
+    async def submit(
+        self,
+        task_run: TaskRun,
+        run_fn: Callable[..., Awaitable[State[R]]],
+        run_kwargs: Dict[str, Any],
+        asynchronous: A = True,
+    ) -> PrefectFuture[R, A]:
+        if not self._started:
+            raise RuntimeError(
+                "The task runner must be started before submitting work."
+            )
+        if not self._task_group:
+            raise RuntimeError(
+                "The concurrent task runner cannot be used to submit work after "
+                "serialization."
+            )
+
+        # Rely on the event loop for concurrency
+        self._task_group.start_soon(
+            self._run_and_store_result, task_run.id, run_fn, run_kwargs
+        )
+
+        # Track the task run id so we can ensure to gather it later
+        self._task_run_ids.add(task_run.id)
+
+        return PrefectFuture(
+            task_run=task_run, task_runner=self, asynchronous=asynchronous
+        )
+
+    async def wait(
+        self,
+        prefect_future: PrefectFuture,
+        timeout: float = None,
+    ) -> Optional[State]:
+        if not self._task_group:
+            raise RuntimeError(
+                "The concurrent task runner cannot be used to wait for work after "
+                "serialization."
+            )
+
+        return await self._get_run_result(prefect_future.task_run.id, timeout)
+
+    async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
+        """
+        Simple utility to store the orchestration result in memory on completion
+        """
+        self._results[task_run_id] = await run_fn(**run_kwargs)
+
+    async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
+        """
+        Block until the run result has been populated
+        """
+        with anyio.move_on_after(timeout):
+            result = None
+            while not result:
+                result = self._results.get(task_run_id)
+                await anyio.sleep(0.1)
+        return result
+
+    async def _start(self, exit_stack: AsyncExitStack):
+        """
+        Start the process pool
+        """
+        self._task_group = await exit_stack.enter_async_context(
+            anyio.create_task_group()
+        )
+        exit_stack.push_async_callback(self._wait_for_all_futures)
+
+    async def _wait_for_all_futures(self):
+        """
+        Waits for all futures to complete without timeout, ignoring any exceptions.
+        """
+        # Attempt to wait for all futures to complete
+        for task_run_id in self._task_run_ids:
+            try:
+                await self._get_run_result(task_run_id)
+            except Exception:
+                pass
+
+    def __getstate__(self):
+        """
+        Allow the `ConcurrentTaskRunner` to be serialized by dropping the task group
+        """
+        data = self.__dict__.copy()
+        data.update({k: None for k in {"_task_group"}})
+        return data
+
+    def __setstate__(self, data: dict):
+        """
+        When deserialized, we will no longer have a reference to the task group
+        """
+        self.__dict__.update(data)
+        self._task_group = None

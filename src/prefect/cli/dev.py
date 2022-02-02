@@ -5,15 +5,17 @@ import json
 import os
 import shutil
 import subprocess
+import textwrap
+import time
 from string import Template
 
 import anyio
 import typer
 
 import prefect
-from prefect.cli.base import app, console
-from prefect.cli.orion import open_process_and_stream_output
 from prefect.cli.agent import start as start_agent
+from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
@@ -171,6 +173,120 @@ async def start(
             else:
                 host = prefect.settings.orion_host
             tg.start_soon(agent, host)
+
+
+@dev_app.command()
+def build_image(platform: str = "amd64"):
+    """
+    Build a docker image for development.
+    """
+    tag = get_prefect_image_name()
+
+    # Here we use a subprocess instead of the docker-py client to easily stream output
+    # as it comes
+    try:
+        subprocess.check_call(
+            [
+                "docker",
+                "build",
+                str(prefect.__root_path__),
+                "--tag",
+                tag,
+                "--platform",
+                f"linux/{platform}",
+                "--build-arg",
+                "PREFECT_EXTRAS=[dev]",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        exit_with_error("Failed to build image!")
+    else:
+        exit_with_success(f"Built image {tag!r} for {platform}")
+
+
+@dev_app.command()
+def container(bg: bool = False, name="prefect-dev", api: bool = True):
+    """
+    Run a docker container with local code mounted and installed.
+    """
+    import docker
+    from docker.models.containers import Container
+
+    client = docker.from_env()
+
+    containers = client.containers.list()
+    container_names = {container.name for container in containers}
+    if name in container_names:
+        exit_with_error(
+            f"Container {name!r} already exists. Specify a different name or stop "
+            "the existing container."
+        )
+
+    blocking_cmd = "prefect dev api" if api else "sleep infinity"
+    tag = get_prefect_image_name()
+
+    container: Container = client.containers.create(
+        image=tag,
+        command=[
+            "/bin/bash",
+            "-c",
+            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",
+        ],
+        name=name,
+        auto_remove=True,
+        working_dir="/opt/prefect/repo",
+        volumes=[f"{prefect.__root_path__}:/opt/prefect/repo"],
+        shm_size="4G",
+    )
+
+    print(f"Starting container for image {tag!r}...")
+    container.start()
+
+    print("Waiting for installation to complete", end="", flush=True)
+    try:
+        ready = False
+        while not ready:
+            print(".", end="", flush=True)
+            result = container.exec_run("test -f /READY")
+            ready = result.exit_code == 0
+            if not ready:
+                time.sleep(3)
+    except:
+        print("\nInterrupted. Stopping container...")
+        container.stop()
+        raise
+
+    print(
+        textwrap.dedent(
+            f"""
+            Container {container.name!r} is ready! To connect to the container, run:
+
+                docker exec -it {container.name} /bin/bash
+            """
+        )
+    )
+
+    if bg:
+        print(
+            textwrap.dedent(
+                f"""
+                The container will run forever. Stop the container with:
+
+                    docker stop {container.name}
+                """
+            )
+        )
+        # Exit without stopping
+        return
+
+    try:
+        print("Send a keyboard interrupt to exit...")
+        container.wait()
+    except KeyboardInterrupt:
+        pass  # Avoid showing "Abort"
+    finally:
+        print("\nStopping container...")
+        container.stop()
 
 
 @dev_app.command()

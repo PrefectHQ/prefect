@@ -1,10 +1,10 @@
 from unittest import mock
 
 from prefect.orion.database.alembic_commands import (
-    alembic_upgrade,
     alembic_downgrade,
     alembic_revision,
     alembic_stamp,
+    alembic_upgrade,
 )
 
 # These tests do not test the actual migration functionality, only that the commands are wrapped and called

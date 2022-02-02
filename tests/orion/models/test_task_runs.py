@@ -1,14 +1,14 @@
 from uuid import uuid4
 
-import pytest
 import pendulum
+import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.models import concurrency_limits, task_runs
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import Scheduled, Running, Failed
+from prefect.orion.schemas.states import Failed, Running, Scheduled
 
 
 class TestCreateTaskRun:

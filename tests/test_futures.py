@@ -7,8 +7,8 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures_to_data
-from prefect.orion.schemas.states import Completed
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import Completed
 
 mock_client = MagicMock(spec=OrionClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]

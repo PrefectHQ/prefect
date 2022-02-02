@@ -4,36 +4,36 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
-from copy import copy
 import datetime
-import logging
 import inspect
-from functools import update_wrapper, partial
+import logging
+from copy import copy
+from functools import partial, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
+    Generic,
     Iterable,
+    NoReturn,
     Optional,
+    TypeVar,
     Union,
     cast,
     overload,
-    TypeVar,
-    Generic,
-    Coroutine,
-    NoReturn,
 )
 
 from typing_extensions import ParamSpec
 
+from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
+from prefect.logging import get_logger
+from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
-from prefect.exceptions import ReservedArgumentError
-from prefect.utilities.asyncio import Async, Sync
-from prefect.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext

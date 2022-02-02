@@ -9,13 +9,13 @@ from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.sql.elements import BooleanClauseList
 from pydantic import Field
+from sqlalchemy.sql.elements import BooleanClauseList
 
 from prefect.orion import schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):

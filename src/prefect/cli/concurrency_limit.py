@@ -7,7 +7,6 @@ from rich.pretty import Pretty
 
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.client import OrionClient
-
 from prefect.utilities.asyncio import sync_compatible
 
 concurrency_limit_app = typer.Typer(

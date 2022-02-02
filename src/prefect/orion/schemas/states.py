@@ -4,16 +4,15 @@ State schemas.
 
 import datetime
 from collections.abc import Iterable
-from typing import Generic, TypeVar, overload, Union
+from typing import Generic, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, validator, root_validator
+from pydantic import Field, root_validator, validator
 
-from prefect.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
-
+from prefect.utilities.enum import AutoEnum
 
 R = TypeVar("R")
 
