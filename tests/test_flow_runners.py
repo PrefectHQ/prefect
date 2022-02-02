@@ -4,6 +4,7 @@ import subprocess
 import sys
 import warnings
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import MagicMock
 
 import anyio
@@ -14,25 +15,23 @@ import pytest
 from docker.errors import ImageNotFound
 from docker.models.images import Image
 from typing_extensions import Literal
-from typing import NamedTuple
 
 import prefect
 from prefect.flow_runners import (
+    MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
     FlowRunner,
     SubprocessFlowRunner,
     UniversalFlowRunner,
-    lookup_flow_runner,
-    register_flow_runner,
-    python_version_minor,
     get_prefect_image_name,
-    MIN_COMPAT_PREFECT_VERSION,
+    lookup_flow_runner,
+    python_version_minor,
+    register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.testing import AsyncMock
 from prefect.utilities.settings import temporary_settings
-
+from prefect.utilities.testing import AsyncMock
 from src.prefect.flow_runners import ImagePullPolicy
 
 

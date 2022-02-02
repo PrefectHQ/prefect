@@ -1,9 +1,10 @@
-import pytest
 import json
 import os
 
+import pytest
+
 from prefect import settings
-from prefect.utilities.settings import Settings, temporary_settings, LoggingSettings
+from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
 def test_settings():

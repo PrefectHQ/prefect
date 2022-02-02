@@ -7,8 +7,8 @@ import asyncio
 import pendulum
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
-from prefect.orion.database.dependencies import inject_db
 from prefect.logging import get_logger
+from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
 

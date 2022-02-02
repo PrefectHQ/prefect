@@ -38,6 +38,8 @@ from prefect.futures import (
     resolve_futures_to_data,
     resolve_futures_to_states,
 )
+from prefect.logging.handlers import OrionHandler
+from prefect.logging.loggers import flow_run_logger, get_logger, get_run_logger
 from prefect.orion.schemas import core
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
@@ -61,9 +63,6 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import ensure_iterable, visit_collection
-from prefect.logging.loggers import get_logger, get_run_logger, flow_run_logger
-from prefect.logging.handlers import OrionHandler
-
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
