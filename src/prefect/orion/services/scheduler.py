@@ -2,20 +2,20 @@
 The Scheduler service.
 """
 
-import datetime
 import asyncio
-from uuid import UUID
+import datetime
 from typing import Dict, List
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 
 import prefect
 from prefect.orion import models, schemas
-from prefect.orion.services.loop_service import LoopService
-from prefect.utilities.collections import batched_iterable
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.services.loop_service import LoopService
+from prefect.utilities.collections import batched_iterable
 
 settings = prefect.settings.orion.services
 

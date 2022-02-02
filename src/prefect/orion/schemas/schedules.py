@@ -9,7 +9,8 @@ from typing import List, Set, Union
 import pendulum
 import pytz
 from croniter import croniter
-from dateutil import rrule, tz as dateutil_tz
+from dateutil import rrule
+from dateutil import tz as dateutil_tz
 from pydantic import Field, conint, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel

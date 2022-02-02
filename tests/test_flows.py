@@ -6,7 +6,7 @@ import anyio
 import pydantic
 import pytest
 
-from prefect import flow, tags, task, get_run_logger
+from prefect import flow, get_run_logger, tags, task
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError

@@ -4,14 +4,14 @@
 ##
 
 import os
+import re
+import string
 import urllib.parse
+from pathlib import Path
+from xml.sax.saxutils import escape
 
 import mkdocs.plugins
-from pathlib import Path
 from mkdocs.structure.files import File
-import string
-import re
-from xml.sax.saxutils import escape
 
 USAGE_MSG = (
     "Usage: '!!swagger <filename>!!' or '!!swagger-http <url>!!'. "

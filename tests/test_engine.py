@@ -1,3 +1,4 @@
+import sys
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock

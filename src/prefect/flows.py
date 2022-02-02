@@ -5,37 +5,34 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
-from functools import update_wrapper, partial
+from functools import partial, update_wrapper
 from typing import (
     Any,
     Awaitable,
     Callable,
     Coroutine,
-    TypeVar,
-    cast,
-    overload,
+    Dict,
     Generic,
     NoReturn,
-    Union,
     Type,
-    Dict,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
 
 import pydantic
+from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
-from fastapi.encoders import jsonable_encoder
 
 from prefect import State
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.exceptions import ParameterTypeError
-from prefect.orion.utilities.functions import parameter_schema
-from prefect.utilities.asyncio import is_async_fn
-from prefect.utilities.callables import (
-    get_call_parameters,
-    parameters_to_args_kwargs,
-)
 from prefect.logging import get_logger
+from prefect.orion.utilities.functions import parameter_schema
+from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
+from prefect.utilities.asyncio import is_async_fn
+from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs

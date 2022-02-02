@@ -4,11 +4,13 @@ Schemas for special responses from the Orion API.
 
 import datetime
 from typing import List
-from typing_extensions import Literal
+
 from pydantic import Field
-from prefect.utilities.enum import AutoEnum
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from typing_extensions import Literal
+
 from prefect.orion import schemas
+from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.utilities.enum import AutoEnum
 
 
 class SetStateStatus(AutoEnum):

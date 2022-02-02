@@ -1,6 +1,6 @@
-from httpx import AsyncClient
 import pytest
-from fastapi import FastAPI, Body
+from fastapi import Body, FastAPI
+from httpx import AsyncClient
 
 from prefect import settings
 

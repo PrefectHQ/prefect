@@ -6,10 +6,10 @@ import pytest
 
 from prefect import flow
 from prefect.agent import OrionAgent
-from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner, FlowRunner
+from prefect.exceptions import Abort
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner, UniversalFlowRunner
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
-from prefect.exceptions import Abort
 from prefect.utilities.testing import AsyncMock
 
 
