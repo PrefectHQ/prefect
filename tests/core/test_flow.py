@@ -2914,7 +2914,7 @@ def test_looping_works_in_a_flow():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
@@ -2924,7 +2924,7 @@ def test_looping_works_in_a_flow():
 
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 200
-    assert flow_state.result[final].result == 200 ** 2
+    assert flow_state.result[final].result == 200**2
 
 
 def test_pause_resume_works_with_retries():
@@ -2967,7 +2967,7 @@ def test_looping_with_retries_works_in_a_flow():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
@@ -2977,7 +2977,7 @@ def test_looping_with_retries_works_in_a_flow():
 
     assert flow_state.is_successful()
     assert flow_state.result[inter].result == 200
-    assert flow_state.result[final].result == 200 ** 2
+    assert flow_state.result[final].result == 200**2
 
 
 def test_looping_with_retries_resets_run_count():
@@ -3016,7 +3016,7 @@ def test_starting_at_arbitrary_loop_index():
 
     @task
     def downstream(l):
-        return l ** 2
+        return l**2
 
     with Flow(name="looping") as f:
         inter = looper(10)
