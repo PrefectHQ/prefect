@@ -59,7 +59,8 @@ jobs:
           black --check src
 
       - name: Run isort check
-          isort --check-only
+        run: |
+          isort --check-only src
 
   # python-lint:
   #   runs-on: ubuntu-latest
