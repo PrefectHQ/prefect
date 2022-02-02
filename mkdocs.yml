@@ -160,6 +160,7 @@ nav:
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
         - Orion REST API: api-ref/rest-api.md
+    - Contributing: contributing/overview.md
 extra:
   analytics:
     provider: google
