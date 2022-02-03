@@ -16,6 +16,10 @@ export class FilterParseService {
     (input: string) => new Date(input),
   ]
 
+  public parseFilterStrings(inputs: string[]): Required<Filter>[] {
+    return inputs.map(input => this.parseFilterString(input))
+  }
+
   public parseFilterString(input: string): Required<Filter> {
     const [prefix, ...rest] = input.split(':')
     const value = rest.join(':')
