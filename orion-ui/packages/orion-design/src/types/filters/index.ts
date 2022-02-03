@@ -60,8 +60,8 @@ const ObjectTagPrefixDictionaryData = {
 const ObjectTagSuffixDictionaryData = {
   'deployment': ['', 't'],
   'flow': ['', 't'],
-  'flow_run': ['', 't', 'a', 'b', 'n', 'o'],
-  'task_run': ['', 't', 'a', 'b', 'n', 'o'],
+  'flow_run': ['', 't', 's', 'a', 'b', 'n', 'o'],
+  'task_run': ['', 't', 's', 'a', 'b', 'n', 'o'],
   'tag': [''],
 } as const
 
