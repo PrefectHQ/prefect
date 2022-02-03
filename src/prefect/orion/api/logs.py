@@ -5,7 +5,7 @@ Routes for interacting with log objects.
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, Response, Body
+from fastapi import Body, Depends, Response
 from starlette import status
 
 from prefect import settings

@@ -7,10 +7,9 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-
-from prefect.orion.schemas.states import StateType
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas import filters
+from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import StateType
 
 
 class TestCreateDeployment:

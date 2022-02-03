@@ -5,13 +5,13 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
+import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models.concurrency_limits import (
     read_concurrency_limit,
     read_concurrency_limit_by_tag,
 )
 from prefect.orion.schemas.actions import ConcurrencyLimitCreate
-import prefect
 
 
 class TestConcurrencyLimits:

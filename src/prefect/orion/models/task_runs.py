@@ -11,15 +11,15 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy, MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     OrchestrationResult,
     TaskOrchestrationContext,
 )
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db

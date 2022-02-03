@@ -1,14 +1,15 @@
-from uuid import uuid4
-from datetime import timedelta
-import pydantic
 import json
-from prefect.orion.schemas.data import DataDocument
+from datetime import timedelta
+from uuid import uuid4
+
 import pendulum
+import pydantic
 import pytest
 
 from prefect.client import OrionClient
 from prefect.orion import models
-from prefect.orion.schemas import core, filters, states, schedules
+from prefect.orion.schemas import core, filters, schedules, states
+from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(autouse=True, scope="module")

@@ -5,14 +5,13 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.orion import models, schemas
-
-from prefect.orion.schemas import states
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.schemas import states
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.database.dependencies import provide_database_interface
 
 
 @pytest.fixture(scope="session", autouse=True)

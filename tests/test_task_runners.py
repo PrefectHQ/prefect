@@ -11,11 +11,17 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.task_runners import BaseTaskRunner, DaskTaskRunner, SequentialTaskRunner
+from prefect.task_runners import (
+    BaseTaskRunner,
+    DaskTaskRunner,
+    SequentialTaskRunner,
+    ConcurrentTaskRunner,
+)
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
+from prefect.task_runners import BaseTaskRunner, DaskTaskRunner, SequentialTaskRunner
 
 
 @contextmanager
@@ -83,6 +89,7 @@ parameterize_with_all_task_runners = pytest.mark.parametrize(
     [
         DaskTaskRunner,
         SequentialTaskRunner,
+        ConcurrentTaskRunner,
         dask_task_runner_with_existing_cluster,
         dask_task_runner_with_process_pool,
     ],
@@ -94,6 +101,7 @@ parameterize_with_parallel_task_runners = pytest.mark.parametrize(
     "task_runner",
     [
         DaskTaskRunner,
+        ConcurrentTaskRunner,
         dask_task_runner_with_existing_cluster,
     ],
     indirect=True,

@@ -1,9 +1,9 @@
+import copy
 from statistics import mode
 from uuid import uuid4
-import copy
 
-import pytest
 import pendulum
+import pytest
 
 from prefect.orion import models, schemas
 

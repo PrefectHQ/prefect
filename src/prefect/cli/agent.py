@@ -1,8 +1,8 @@
 """
 Command line interface for working with agent services
 """
-import typer
 import anyio
+import typer
 
 from prefect import settings
 from prefect.agent import OrionAgent

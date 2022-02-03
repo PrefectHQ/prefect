@@ -3,8 +3,8 @@ from uuid import UUID, uuid4
 import pendulum
 import pydantic
 import pytest
-from prefect.orion.schemas.data import DataDocument
 
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     AwaitingRetry,
     Completed,

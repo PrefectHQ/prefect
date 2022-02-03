@@ -15,15 +15,14 @@ from prefect.deployments import (
     load_flow_from_script,
 )
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
+from prefect.flow_runners import SubprocessFlowRunner
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
-from prefect.flow_runners import SubprocessFlowRunner
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.serializers import D
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
-
 
 TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 

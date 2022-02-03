@@ -1,9 +1,9 @@
 import datetime
 
-from prefect.orion.database.alembic_commands import alembic_upgrade, alembic_downgrade
+from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
-from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.orion.database.orm_models import BaseORMConfiguration
+from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
