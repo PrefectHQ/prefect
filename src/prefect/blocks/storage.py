@@ -9,6 +9,10 @@ from prefect.orion.schemas.data import DataDocument
 # from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 # from prefect.tasks import task
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
+
 
 @register_blockapi("s3storage-block")
 class S3Block(BlockAPI):
@@ -40,40 +44,40 @@ class S3Block(BlockAPI):
 class LocalStorageBlock(BlockAPI):
     def __init__(self, blockdata):
         self.blockdata = blockdata
+        self.datadoc = None
 
     def path_template(self):
-        template = string.Template(self.data.path_template)
-        # add template substitutions here
+        return Path(TemporaryDirectory().name)
 
-    def write(self, data):
-        storage_path = f"{self.blockdata.basedir}/{self.path_template(context)}"
-        file_datadoc = DataDocument.encode(
+    async def write(self, data):
+        storage_path = str(self.path_template() / str(uuid4()))
+        self.datadoc = DataDocument.encode(
             encoding="file", data=data, path=storage_path
         )
 
-    def read(self):
-        return file_datadoc.decode()
+    async def read(self):
+        return self.datadoc.decode()
 
 
 @register_blockapi("orionstorage-block")
 class OrionStorageBlock(BlockAPI):
     def __init__(self, blockdata):
         self.blockdata = blockdata
-        self.orion_datadoc = None
+        self.datadoc = None
 
     async def write(self, data):
         async with OrionClient() as client:
             response = await client.post("/data/persist", content=data)
-            self.orion_datadoc = DataDocument.parse_obj(response.json())
+            self.datadoc = DataDocument.parse_obj(response.json())
 
     async def read(self):
-        if self.orion_datadoc is None:
+        if self.datadoc is None:
             raise RuntimeError
-        if self.orion_datadoc.has_cached_data():
-            return self.orion_datadoc.decode()
+        if self.datadoc.has_cached_data():
+            return self.datadoc.decode()
 
         async with OrionClient() as client:
             response = await client.post(
-                "/data/retrieve", json=self.orion_datadoc.dict(json_compatible=True)
+                "/data/retrieve", json=self.datadoc.dict(json_compatible=True)
             )
             return response.content

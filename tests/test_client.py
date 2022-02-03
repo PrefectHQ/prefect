@@ -445,7 +445,7 @@ class TestResolveDataDoc:
                         await client.persist_data(
                             DataDocument.encode("json", "hello").json().encode()
                         )
-                    ).orion_datadoc,
+                    ).datadoc,
                 )
                 == "hello"
             )
