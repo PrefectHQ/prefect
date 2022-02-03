@@ -13,14 +13,6 @@
         <span
           class="
             flow-run-logs-tab-content__column
-            flow-run-logs-tab-content__column-run
-          "
-        >
-          Run name
-        </span>
-        <span
-          class="
-            flow-run-logs-tab-content__column
             flow-run-logs-tab-content__column--level
           "
         >
@@ -41,6 +33,14 @@
           "
         >
           Message
+        </span>
+        <span
+          class="
+            flow-run-logs-tab-content__column
+            flow-run-logs-tab-content__column-run
+          "
+        >
+          Run name
         </span>
         <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
           Copy Logs
@@ -201,8 +201,8 @@ watch(
   grid-template-columns: [message] 1fr [copy] 115px;
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
-    grid-template-areas: 'task level time message copy';
-    grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr [copy] 115px;
+    grid-template-areas: 'level time message task copy';
+    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px [copy] 115px;
   }
 }
 
@@ -210,9 +210,9 @@ watch(
   font-weight: 600;
 }
 
-.flow-run-logs-tab-content__column-run,
 .flow-run-logs-tab-content__column--level,
-.flow-run-logs-tab-content__column--time {
+.flow-run-logs-tab-content__column--time,
+.flow-run-logs-tab-content__column-run {
   display: none;
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
