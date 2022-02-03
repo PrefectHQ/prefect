@@ -11,7 +11,7 @@ import {
 } from '../types/filters'
 import { formatDateTimeNumeric } from '../utilities/dates'
 
-export class FilterTagService {
+export class FilterStringifyService {
   public convertFiltersToTags(filters: Required<Filter>[]): string[] {
     return filters.map(filter => this.convertFilterToTag(filter))
   }
