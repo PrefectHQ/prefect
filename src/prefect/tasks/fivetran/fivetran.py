@@ -176,4 +176,3 @@ class FivetranSyncTask(Task):
             "succeeded_at": succeeded_at.to_iso8601_string(),
             "connector_id": connector_id,
         }
-
