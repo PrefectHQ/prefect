@@ -4,6 +4,7 @@ import {
   FilterObject,
   FilterOperation,
   FilterProperty,
+  FilterTagPrefix,
   FilterTagSuffix,
   FilterType,
   FilterValue,
@@ -18,8 +19,12 @@ import {
   ObjectTimeFilter,
   TagPrefixObjectDictionary
 } from '../types'
+import { parseDateTimeNumeric } from '../utilities/dates'
 
 export class FilterParseService {
+
+  private readonly dateParsers: ((input: string) => Date)[] = [parseDateTimeNumeric, (input: string) => new Date(input)]
+
   public convertTagsToFilters(tags: string[]): Required<Filter>[] {
     return tags.map(tag => this.convertTagToFilter(tag))
   }
@@ -50,7 +55,7 @@ export class FilterParseService {
   // private parseLongTag(tag: string): any {}
 
   private parseObject(tag: string): FilterObject {
-    const prefix = ObjectTagPrefixes.find(prefix => tag.startsWith(prefix))
+    const prefix = ObjectTagPrefixes.sort((a, b) => b.length - a.length).find(prefix => tag.startsWith(prefix))
 
     if (prefix === undefined) {
       throw 'tag does not start with a valid prefix'
@@ -61,7 +66,7 @@ export class FilterParseService {
 
   private parseSuffix(object: FilterObject, tag: string): FilterTagSuffix {
     const prefix = ObjectTagPrefixDictionary[object]
-    const regex = new RegExp(`${prefix}(.*):.*`)
+    const regex = new RegExp(`^${prefix}([^:]*):.*$`)
     const match = tag.match(regex)
 
     if (match === null) {
@@ -69,6 +74,8 @@ export class FilterParseService {
     }
 
     const [, suffix] = match
+
+    console.log({ suffix })
 
     if (!this.isSuffix(suffix)) {
       throw 'tag does not contain a valid suffix'
@@ -112,6 +119,8 @@ export class FilterParseService {
       case 'n':
       case 'o':
         return { type: 'time', property: 'start_date' }
+      case 's':
+        return { type: 'state', property: 'state' }
     }
   }
 
@@ -132,7 +141,8 @@ export class FilterParseService {
   }
 
   private parseOperationAndValue(type: FilterType, tag: string, suffix: FilterTagSuffix): { operation: FilterOperation, value: FilterValue } {
-    const [, input] = tag.split(':')
+    const [, ...rest] = tag.split(':')
+    const input = rest.join(':')
 
     switch (type) {
       case 'string':
@@ -168,7 +178,7 @@ export class FilterParseService {
   }
 
   private parseDateOperationAndValue(input: string, suffix: 'a' | 'b'): { operation: ObjectDateFilter['operation'], value: ObjectDateFilter['value'] } {
-    const value = new Date(input)
+    const value = this.parseDateValue(input)
 
     switch (suffix) {
       case 'a':
@@ -201,8 +211,14 @@ export class FilterParseService {
   private parseStateOperationAndValue(input: string): { operation: ObjectStateFilter['operation'], value: ObjectStateFilter['value'] } {
     return {
       operation: 'or',
-      value: input.split(','),
+      value: input.split('|'),
     }
+  }
+
+  // using any here because typescript doesn't like string type...
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private isPrefix(value: any): value is FilterTagPrefix {
+    return ObjectTagPrefixes.includes(value)
   }
 
   // using any here because typescript doesn't like string type...
@@ -213,6 +229,27 @@ export class FilterParseService {
 
   private isTime(value: string): value is ObjectTimeFilter['value'] {
     return /^[0-1]+[h,d,w,m,w]$/.test(value)
+  }
+
+  private parseDateValue(input: string): Date {
+    console.log({ input })
+    let value: Date
+    const parsers = [...this.dateParsers]
+
+    do {
+      const parser = parsers.pop()!
+      value = parser(input)
+    } while (!this.isValidDate(value) && parsers.length)
+
+    if (!this.isValidDate(value)) {
+      throw 'filter date value is invalid'
+    }
+
+    return value
+  }
+
+  private isValidDate(input: Date): boolean {
+    return !isNaN(input.getTime())
   }
 
 }
