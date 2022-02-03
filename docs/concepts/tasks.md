@@ -8,7 +8,7 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs.md) to capture details about task runs such as runtime, tags, and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs) to capture details about task runs such as runtime, tags, and final state. 
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
@@ -28,7 +28,7 @@ def my_flow():
 
 Tasks are uniquely identified by a task key, which is a hash composed of the task name, the fully-qualified name of the function, and any tags. If the task does not have a name specified, the name is derived from the task function.
 
-Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
+Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Using results from tasks](#using-results-from-tasks) for further information.
 
 The future can be used to retrieve the current [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) of the task run or wait for the task run to enter a final state. See [States](/concepts/states/) for further information.
 
@@ -64,7 +64,7 @@ def my_task():
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:
 
 - Filtering task runs by tag in the UI and via the [Orion REST API](/api-ref/rest-api/#filtering).
-- Setting [concurrency limits](/concepts/settings.md#task-run-concurrency-limits) on task runs by tag.
+- Setting [concurrency limits](/concepts/settings/#task-run-concurrency-limits) on task runs by tag.
 
 Tags may be specified as a keyword argument on the [task decorator](/api-ref/prefect/tasks/#prefect.tasks.task).
 
