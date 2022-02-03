@@ -20,9 +20,9 @@ class FivetranSyncTask(Task):
         - connector_id (str, optional): Default connector id to use for sync jobs, if none is
             specified to `run`.
         - poll_status_every_n_seconds (int): Frequency in which Prefect will check status of
-          Fivetran connector's sync completion
+            Fivetran connector's sync completion
         - schedule_type (str, optional): Either manual or auto. If manual (default),
-          connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
+            connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
 
@@ -55,7 +55,7 @@ class FivetranSyncTask(Task):
             - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
                 if provided this value will override the default polling time of 15 seconds.
             - schedule_type (str, optional): Either manual or auto. If manual (default),
-              connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
+                connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         Returns:
             - dict: connector_id (str) and succeeded_at (timestamp str)
         """
