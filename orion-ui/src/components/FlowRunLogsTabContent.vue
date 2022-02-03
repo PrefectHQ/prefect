@@ -1,12 +1,14 @@
 <template>
   <div class="flow-run-logs-tabs-content">
     <div class="flow-run-logs-tabs-content__header">
-      <p class="flow-run-logs-tabs-content__span">Showing: Start to Now</p>
       <m-select
         v-model="levelFilter"
         :options="levelOptions"
         class="flow-run-logs-tabs-content__filter"
       />
+      <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
+        Copy Logs
+      </CopyButton>
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
@@ -42,9 +44,6 @@
         >
           Run name
         </span>
-        <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
-          Copy Logs
-        </CopyButton>
       </div>
       <div ref="logsRef" class="flow-run-logs-tab-content__logs">
         <FlowRunLogs :logs="logs">
@@ -185,6 +184,7 @@ watch(
 
 .flow-run-logs-tabs-content__filter {
   width: 200px !important;
+  margin-right: 20px;
 }
 
 .flow-run-logs-tab-content__table-header {
@@ -201,8 +201,8 @@ watch(
   grid-template-columns: [message] 1fr [copy] 115px;
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
-    grid-template-areas: 'level time message task copy';
-    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px [copy] 115px;
+    grid-template-areas: 'level time message task';
+    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
   }
 }
 
