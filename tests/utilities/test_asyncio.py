@@ -1,16 +1,17 @@
-import pytest
-import threading
 import asyncio
+import threading
+
 import anyio
+import pytest
 
 from prefect.utilities.asyncio import (
+    add_event_loop_shutdown_callback,
+    in_async_main_thread,
+    in_async_worker_thread,
+    run_async_from_worker_thread,
     run_async_in_new_loop,
     run_sync_in_worker_thread,
-    run_async_from_worker_thread,
     sync_compatible,
-    in_async_worker_thread,
-    in_async_main_thread,
-    add_event_loop_shutdown_callback,
 )
 
 

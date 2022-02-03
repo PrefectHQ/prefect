@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.orion.states import is_state, is_state_iterable
 from prefect.orion.schemas.states import Completed
+from prefect.orion.states import is_state, is_state_iterable
 
 
 def test_is_state():

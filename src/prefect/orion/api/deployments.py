@@ -13,9 +13,9 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 

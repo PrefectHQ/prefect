@@ -48,14 +48,19 @@ jobs:
         with:
           python-version: 3.7
       
-      - name: Install black
+      - name: Install formatters
         run: |
           python -m pip install --upgrade pip
-          pip install $(grep black requirements-dev.txt)
+          pip install "$(grep black requirements-dev.txt)"
+          pip install "$(grep isort requirements-dev.txt)"
 
       - name: Run black check
         run: |
           black --check src
+
+      - name: Run isort check
+        run: |
+          isort --check-only src
 
   # python-lint:
   #   runs-on: ubuntu-latest

@@ -5,11 +5,13 @@ Revises:
 Create Date: 2022-01-20 11:52:36.295433
 
 """
-from alembic import op
+from typing import Dict, List, Union
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import Text
+
 import prefect
-from typing import Dict, Union, List
 
 # revision identifiers, used by Alembic.
 revision = "9725c1cbee35"

@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.12",
+    "version": "0.1.13",
     "private": false,
     "keywords": [
         "prefect",
@@ -13,10 +13,12 @@
         "build-components": "vite build --mode components",
         "build-models": "vite build --mode models",
         "build-services": "vite build --mode services",
+        "build-stores": "vite build --mode stores",
         "build-utilities": "vite build --mode utilities",
         "dev-components": "vite build --mode components --watch",
         "dev-models": "vite build --mode models --watch",
         "dev-services": "vite build --mode services --watch",
+        "dev-stores": "vite build --mode stores --watch",
         "dev-utilities": "vite build --mode utilities --watch",
         "postbuild": "node scripts/fix-types.js"
     },
@@ -27,19 +29,23 @@
             "import": "./dist/orion-design.es.js",
             "require": "./dist/orion-design.umd.js"
         },
-        "./components":{
+        "./components": {
             "import": "./dist/orion-design-components.es.js",
             "require": "./dist/orion-design-components.umd.js"
         },
-        "./models":{
+        "./models": {
             "import": "./dist/orion-design-models.es.js",
             "require": "./dist/orion-design-models.umd.js"
         },
-        "./services":{
+        "./services": {
             "import": "./dist/orion-design-services.es.js",
             "require": "./dist/orion-design-services.umd.js"
         },
-        "./utilities":{
+        "./stores": {
+            "import": "./dist/orion-design-stores.es.js",
+            "require": "./dist/orion-design-stores.umd.js"
+        },
+        "./utilities": {
             "import": "./dist/orion-design-utilities.es.js",
             "require": "./dist/orion-design-utilities.umd.js"
         },
@@ -55,6 +61,7 @@
         "axios": "^0.24.0",
         "core-js": "^3.6.5",
         "d3": "^7.0.0",
+        "pinia": "2.0.11",
         "vue": "^3.0.5",
         "vue-router": "^4.0.12",
         "vuex": "^4.0.2"
