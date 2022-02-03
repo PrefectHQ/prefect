@@ -9,13 +9,13 @@ from pydantic import BaseModel
 
 from prefect import flow
 from prefect.client import OrionClient
+from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Scheduled, Pending, Running, StateType
-from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.flow_runners import UniversalFlowRunner
+from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.tasks import task
 
 
 async def test_hello(orion_client):

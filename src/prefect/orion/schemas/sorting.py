@@ -4,9 +4,9 @@ Schemas for sorting Orion API objects.
 
 from sqlalchemy.sql.expression import ColumnElement
 
-from prefect.utilities.enum import AutoEnum
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.utilities.enum import AutoEnum
 
 
 class FlowRunSort(AutoEnum):

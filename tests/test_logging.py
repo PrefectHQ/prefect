@@ -473,7 +473,7 @@ class TestOrionHandler:
     def test_missing_context_warning_refers_to_caller_lineno(
         self, logger, mock_log_worker
     ):
-        from inspect import getframeinfo, currentframe
+        from inspect import currentframe, getframeinfo
 
         # Warns in the main process
         with pytest.warns(

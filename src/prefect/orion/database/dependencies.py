@@ -5,7 +5,6 @@ import inspect
 from contextlib import contextmanager
 from functools import wraps
 
-
 MODELS_DEPENDENCIES = {
     "database_config": None,
     "query_components": None,
@@ -23,8 +22,8 @@ def provide_database_interface():
     if database_config is None:
         from prefect import settings
         from prefect.orion.database.configurations import (
-            AsyncPostgresConfiguration,
             AioSqliteConfiguration,
+            AsyncPostgresConfiguration,
         )
         from prefect.orion.utilities.database import get_dialect
 
@@ -44,8 +43,8 @@ def provide_database_interface():
 
     if query_components is None:
         from prefect.orion.database.query_components import (
-            AsyncPostgresQueryComponents,
             AioSqliteQueryComponents,
+            AsyncPostgresQueryComponents,
         )
         from prefect.orion.utilities.database import get_dialect
 
@@ -64,8 +63,8 @@ def provide_database_interface():
 
     if orm is None:
         from prefect.orion.database.orm_models import (
-            AsyncPostgresORMConfiguration,
             AioSqliteORMConfiguration,
+            AsyncPostgresORMConfiguration,
         )
         from prefect.orion.utilities.database import get_dialect
 
