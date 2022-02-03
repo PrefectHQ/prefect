@@ -19,6 +19,10 @@ class FivetranSyncTask(Task):
     Args:
         - connector_id (str, optional): Default connector id to use for sync jobs, if none is
             specified to `run`.
+        - poll_status_every_n_seconds (int): Frequency in which Prefect will check status of 
+          Fivetran connector's sync completion
+        - schedule_type (str, optional): Either manual or auto. If manual (default),
+          connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
 
@@ -35,7 +39,7 @@ class FivetranSyncTask(Task):
         api_secret: str,
         connector_id: str = None,
         poll_status_every_n_seconds: int = 15,
-        manual=True,
+        schedule_type: str = "manual",
     ) -> dict:
         """
         Task run method for Fivetran connector syncs.
@@ -50,9 +54,8 @@ class FivetranSyncTask(Task):
             - connector_id (str, optional): if provided, will overwrite value provided at init.
             - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
                 if provided this value will override the default polling time of 15 seconds.
-            - manual (bool, optional): if provided, will overwrite Prefect's changes
-                to the Fivetran connector's schedule, keeping it on Fivetran auto scheduling
-
+            - schedule_type (str, optional): Either manual or auto. If manual (default),
+              connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         Returns:
             - dict: connector_id (str) and succeeded_at (timestamp str)
         """
@@ -117,12 +120,15 @@ class FivetranSyncTask(Task):
         )
         self.logger.info("Connectors logs at {}".format(URL_LOGS))
 
-        # Set connector to manual sync mode, required to force sync through the API
-        if manual:
+        # Set connector to schedule_type if it is changing
+        if schedule_type not in ["manual", "auto"]:
+            raise ValueError('schedule_type must be either "manual" or "auto"')
+        if connector_details["schedule_type"] != schedule_type:
+            headers.update({"Content-Type": "application/json;version=2"})
             resp = session.patch(
                 URL_CONNECTOR,
-                data=json.dumps({"schedule_type": "manual"}),
-                headers={"Content-Type": "application/json;version=2"},
+                data=json.dumps({"schedule_type": schedule_type}),
+                headers=headers,
                 auth=(api_key, api_secret),
             )
         # Start connector sync
