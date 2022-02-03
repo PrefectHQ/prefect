@@ -18,9 +18,9 @@ def register_blockapi(blockref):
 def assemble_block(blockdata=None):
     # block = BlockRegistry.get(blockdata.blockref)
     # return block(blockdata)
-    from prefect.blocks.storage import OrionStorageBlock
+    from prefect.blocks.storage import OrionStorageBlock, LocalStorageBlock
 
-    return OrionStorageBlock(dict())
+    return LocalStorageBlock(dict())
 
 
 class BlockAPI:
