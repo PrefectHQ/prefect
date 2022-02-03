@@ -1,6 +1,6 @@
 export * from './Api'
 export * from './Filter'
-export * from './FilterTagService'
+export * from './FilterStringifyService'
 export * from './LogsApi'
 export * from './Mocker'
 export * from './SimpleIdManager'
