@@ -1,17 +1,12 @@
 # import boto3
 
-from prefect.blocks.core import BlockAPI, register_blockapi
-from prefect.client import OrionClient
-
-# from prefect.context import FlowRunContext, TaskRunContext
-from prefect.orion.schemas.data import DataDocument
-
-# from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
-# from prefect.tasks import task
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
+
+from prefect.blocks.core import BlockAPI, register_blockapi
+from prefect.client import OrionClient
+from prefect.orion.schemas.data import DataDocument
 
 
 @register_blockapi("s3storage-block")
@@ -26,18 +21,16 @@ class S3Block(BlockAPI):
             region_name=self.blockdata.region_name,
         )
 
-    def path_template(self):
-        template = string.Template(self.data.path_template)
-        # add template substitutions here
+    def basepath(self):
+        return self.blockdata.basepath
 
-    def write(self, data):
-        s3_key = f"s3://{self.blockdata.bucket}/{self.path_template(context)}"
-        # serialize and write data
-        # return datadoc with s3 key
+    async def write(self, data):
+        # embed datadoc that stores the s3 key on the block
+        pass
 
-    def read(self):
-        s3_key = path_datadoc.read()
-        # read data from path
+    async def read(self):
+        # retrieve s3 key from enbedded datadoc and read
+        pass
 
 
 @register_blockapi("localstorage-block")
@@ -46,11 +39,11 @@ class LocalStorageBlock(BlockAPI):
         self.blockdata = blockdata
         self.datadoc = None
 
-    def path_template(self):
+    def basepath(self):
         return Path(TemporaryDirectory().name)
 
     async def write(self, data):
-        storage_path = str(self.path_template() / str(uuid4()))
+        storage_path = str(self.basepath() / str(uuid4()))
         self.datadoc = DataDocument.encode(
             encoding="file", data=data, path=storage_path
         )

@@ -11,17 +11,16 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.task_runners import (
-    BaseTaskRunner,
-    DaskTaskRunner,
-    SequentialTaskRunner,
-    ConcurrentTaskRunner,
-)
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-from prefect.task_runners import BaseTaskRunner, DaskTaskRunner, SequentialTaskRunner
+from prefect.task_runners import (
+    BaseTaskRunner,
+    ConcurrentTaskRunner,
+    DaskTaskRunner,
+    SequentialTaskRunner,
+)
 
 
 @contextmanager

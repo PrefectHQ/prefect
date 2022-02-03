@@ -25,7 +25,7 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
-from prefect.blocks.core import assemble_block, BlockAPI
+from prefect.blocks.core import BlockAPI, assemble_block
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
