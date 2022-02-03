@@ -61,9 +61,12 @@ def my_task():
 
 ## Tags
 
-Sometimes, it is useful to group tasks in ways other than by name or flow. Prefect provides tags for this purpose. 
+Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:
 
-Tags may be specified as an optional keyword argument on the task decorator.
+- Filtering task runs by tag in the UI and via the [Orion REST API](/api-ref/rest-api/#filtering).
+- Setting [concurrency limits](/concepts/settings.md#task-run-concurrency-limits) on task runs by tag.
+
+Tags may be specified as a keyword argument on the [task decorator](/api-ref/prefect/tasks/#prefect.tasks.task).
 
 ```python hl_lines="1"
 @task(name="hello-task", tags=["test"])
@@ -71,7 +74,7 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
-You can also provide tags as an argument with a context manager, specifying tags when the task is called rather than in its definition.
+You can also provide tags as an argument with a [`tags` context manager](/api-ref/prefect/context/#prefect.context.tags), specifying tags when the task is called rather than in its definition.
 
 ```python hl_lines="9"
 from prefect import tags
