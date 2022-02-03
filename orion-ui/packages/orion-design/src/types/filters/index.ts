@@ -57,9 +57,21 @@ const ObjectTagPrefixDictionaryData = {
   'tag': 't',
 } as const
 
+const ObjectTagSuffixDictionaryData = {
+  'deployment': ['', 't'],
+  'flow': ['', 't'],
+  'flow_run': ['', 't', 'a', 'b', 'n', 'o'],
+  'task_run': ['', 't', 'a', 'b', 'n', 'o'],
+  'tag': [''],
+} as const
+
 export type FilterTagPrefix = typeof ObjectTagPrefixDictionaryData[FilterObject]
+export type FilterTagSuffix = typeof ObjectTagSuffixDictionaryData[FilterObject][number]
+
+export type ObjectFilterTagSuffix<T extends FilterObject> = typeof ObjectTagSuffixDictionaryData[T][number]
 
 export const ObjectTagPrefixes = Object.values(ObjectTagPrefixDictionaryData)
+export const ObjectTagSuffixes = Object.values(ObjectTagSuffixDictionaryData).flat()
 export const TagPrefixObjectDictionary = flip(ObjectTagPrefixDictionaryData)
 export const ObjectTagPrefixDictionary = flip(TagPrefixObjectDictionary)
 
