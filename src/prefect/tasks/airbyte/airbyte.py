@@ -25,6 +25,10 @@ class AirbyteSyncJobFailed(Exception):
     pass
 
 
+class AirbyteExportConfigurationFailed(Exception):
+    pass
+
+
 class AirbyteConnectionTask(Task):
     """
     Task for triggering Airbyte Connections, where "A connection is
@@ -304,3 +308,122 @@ class AirbyteConnectionTask(Task):
         elif connection_status == self.CONNECTION_STATUS_DEPRECATED:
             self.logger.error(f"Connection {connection_id} is deprecated.")
             raise FAIL(f"Connection {connection_id} is deprecated.")
+
+
+class AirbyteConfigurationExport(Task):
+    """
+    Task for triggering an export of the Airbyte configuration
+
+    This task assumes that the Airbyte Open-Source, since "For
+    Airbyte Open-Source you don't need the API Token for
+    Authentication! All endpoints are possible to access using the
+    API without it."
+    For more information refer to the [Airbyte docs](https://docs.airbyte.io/api-documentation)
+
+    Args:
+        - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured.
+            Defaults to localhost.
+        - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
+            Defaults to 8000.
+        - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection sync.
+            Defaults to v1.
+        - **kwargs (Any, optional): additional kwargs to pass to the
+            base Task constructor
+    """
+
+    def __init__(
+        self,
+        airbyte_server_host: str = "localhost",
+        airbyte_server_port: int = 8000,
+        airbyte_api_version: str = "v1",
+        **kwargs,
+    ):
+        self.airbyte_server_host = airbyte_server_host
+        self.airbyte_server_port = airbyte_server_port
+        self.airbyte_api_version = airbyte_api_version
+        super().__init__(**kwargs)
+
+    def _check_health_status(self, session, airbyte_base_url):
+        get_connection_url = airbyte_base_url + "/health/"
+        try:
+            response = session.get(get_connection_url)
+            self.logger.info(response.json())
+            key = "available" if "available" in response.json() else "db"
+            health_status = response.json()[key]
+            if not health_status:
+                raise AirbyteServerNotHealthyException(
+                    f"Airbyte Server health status: {health_status}"
+                )
+            return True
+        except RequestException as e:
+            raise AirbyteServerNotHealthyException(e)
+
+
+    def _export_configuration(self, session, airbyte_base_url):
+        """
+        Trigger an export of Airbyte configuration, see:
+        https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#post-/v1/deployment/export
+
+        Args:
+            - session: requests session with which to make call to Airbyte server
+            - airbyte_base_url: URL of Airbyte server
+
+        Returns: 
+            - byte array of Airbyte configuration data
+        """
+        get_connection_url = airbyte_base_url + "/deployment/export/"
+
+        try:
+            response = session.post(
+                get_connection_url
+            )
+            if response.status_code == 200:
+                self.logger.info(response)
+                export_config = response.content
+                return export_config
+        except RequestException as e:
+            raise AirbyteExportConfigurationFailed(e)
+
+
+    @defaults_from_attrs(
+        "airbyte_server_host",
+        "airbyte_server_port",
+        "airbyte_api_version"
+    )
+
+    def run(
+        self,
+        airbyte_server_host: str = None,
+        airbyte_server_port: int = None,
+        airbyte_api_version: str = None
+    ) -> dict:
+        """
+        Task run method for triggering an export of an Airbyte configuration
+        
+        Args:
+            - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is
+                configured. Will overwrite the value provided at init if provided.
+            - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
+                Will overwrite the value provided at init if provided.
+            - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection
+                sync. Will overwrite the value provided at init if provided.
+
+        Returns:
+            - byte array of Airbyte configuration data       
+        """
+
+        airbyte_base_url = (
+            f"http://{airbyte_server_host}:"
+            f"{airbyte_server_port}/api/{airbyte_api_version}"
+        )
+
+        session = requests.Session()
+        self._check_health_status(session, airbyte_base_url)
+        self.logger.info(
+            f"Initiating export of Airbyte configuration"
+        )
+        airbyte_config = self._export_configuration(session, airbyte_base_url)
+
+        return {
+            "airbyte_config": airbyte_config
+        }
