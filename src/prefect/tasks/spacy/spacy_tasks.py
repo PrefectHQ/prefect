@@ -54,14 +54,14 @@ class SpacyNLP(Task):
                     self.nlp = spacy.load(
                         spacy_model_name,
                         disable=self.disable,
-                        component_cfg=self.component_cfg
+                        component_cfg=self.component_cfg,
                     )
                 else:
                     self.nlp = spacy.load(
                         spacy_model_name,
                         disable=self.disable,
                         config=self.component_cfg,
-                        exclude=self.exclude
+                        exclude=self.exclude,
                     )
             except IOError as exc:
                 raise ValueError(

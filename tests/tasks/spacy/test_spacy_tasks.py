@@ -19,9 +19,7 @@ class TestSpacyNLP:
 
     def test_load_nlp_model(self):
         spacy.cli.download("en_core_web_sm")
-        task = SpacyNLP(
-            text="This is some text", spacy_model_name="en_core_web_sm"
-        )
+        task = SpacyNLP(text="This is some text", spacy_model_name="en_core_web_sm")
         assert task.nlp is not None
 
     def test_bad_model_raises_error(self):
