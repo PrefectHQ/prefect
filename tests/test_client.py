@@ -8,6 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
+from prefect.blocks.core import BlockAPI
 from prefect.client import OrionClient
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
@@ -391,9 +392,9 @@ class ExPydanticModel(BaseModel):
     ],
 )
 async def test_put_then_retrieve_object(put_obj, orion_client):
-    datadoc = await orion_client.persist_object(put_obj)
-    assert datadoc.encoding == "orion"
-    retrieved_obj = await orion_client.retrieve_object(datadoc)
+    storage_block = await orion_client.persist_object(put_obj)
+    assert isinstance(storage_block, BlockAPI)
+    retrieved_obj = await orion_client.retrieve_object(storage_block)
     assert retrieved_obj == put_obj
 
 
@@ -440,9 +441,11 @@ class TestResolveDataDoc:
         async with OrionClient() as client:
             assert (
                 await orion_client.resolve_datadoc(
-                    await client.persist_data(
-                        DataDocument.encode("json", "hello").json().encode()
-                    ),
+                    (
+                        await client.persist_data(
+                            DataDocument.encode("json", "hello").json().encode()
+                        )
+                    ).orion_datadoc,
                 )
                 == "hello"
             )

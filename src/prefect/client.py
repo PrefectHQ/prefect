@@ -25,6 +25,7 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
+from prefect.blocks.core import assemble_block, BlockAPI
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
@@ -739,7 +740,7 @@ class OrionClient:
     async def persist_data(
         self,
         data: bytes,
-    ) -> DataDocument:
+    ) -> BlockAPI:
         """
         Persist data in orion and return the orion data document
 
@@ -749,30 +750,27 @@ class OrionClient:
         Returns:
             orion data document pointing to persisted data
         """
-        response = await self.post("/data/persist", content=data)
-        orion_doc = DataDocument.parse_obj(response.json())
-        return orion_doc
+
+        # storage_block_response = self.post("/data/storage")
+        # storage_block = core.assemble_block(BlockData.parse_obj(response.json()))
+        storage_block = assemble_block()
+        await storage_block.write(data)
+        return storage_block
 
     async def retrieve_data(
         self,
-        orion_datadoc: DataDocument,
+        storage_block: BlockAPI,
     ) -> bytes:
         """
         Exchange an orion data document for the data previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            storage_block: the storage block used to store data
 
         Returns:
             the persisted data in bytes
         """
-        if orion_datadoc.has_cached_data():
-            return orion_datadoc.decode()
-
-        response = await self.post(
-            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
-        )
-        return response.content
+        return await storage_block.read()
 
     async def persist_object(
         self, obj: Any, encoder: str = "cloudpickle"
@@ -1201,7 +1199,14 @@ class OrionClient:
 
             if isinstance(data, DataDocument):
                 if data.encoding == "orion":
-                    data = await self.retrieve_data(data)
+                    if data.has_cached_data():
+                        return data.decode()
+
+                    data = (
+                        await self.post(
+                            "/data/retrieve", json=data.dict(json_compatible=True)
+                        )
+                    ).content
                 else:
                     data = data.decode()
                 return await resolve_inner(data)
