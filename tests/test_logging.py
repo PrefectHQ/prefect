@@ -103,18 +103,6 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     dictConfigMock.assert_called_once_with(expected_config)
 
 
-def test_setup_logging_changes_root_to_empty_string(tmp_path, dictConfigMock):
-    fake_settings = Settings(
-        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
-    )
-
-    setup_logging(fake_settings)
-
-    config = dictConfigMock.call_args[0][0]
-    assert "root" not in config["loggers"]
-    assert "" in config["loggers"]
-
-
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
     fake_settings = Settings(
         logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
@@ -131,9 +119,9 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
 
     # Test setting a value for the root logger
     monkeypatch.setenv(
-        LoggingSettings.Config.env_prefix + "LOGGERS_ROOT_LEVEL", "ROOT_LEVEL_VAL"
+        LoggingSettings.Config.env_prefix + "ROOT_LEVEL", "ROOT_LEVEL_VAL"
     )
-    expected_config["loggers"][""]["level"] = "ROOT_LEVEL_VAL"
+    expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
     # Test setting a value where the a key contains underscores
     monkeypatch.setenv(
