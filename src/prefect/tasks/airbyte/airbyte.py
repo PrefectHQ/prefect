@@ -358,7 +358,6 @@ class AirbyteConfigurationExport(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-
     def _export_configuration(self, session, airbyte_base_url):
         """
         Trigger an export of Airbyte configuration, see:
