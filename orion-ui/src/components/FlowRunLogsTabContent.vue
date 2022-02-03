@@ -6,7 +6,11 @@
         :options="levelOptions"
         class="flow-run-logs-tabs-content__filter"
       />
-      <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
+      <CopyButton
+        :value="makeCsv"
+        toast="Logs copied to clipboard"
+        class="copy-button-size"
+      >
         Copy Logs
       </CopyButton>
     </div>
@@ -185,6 +189,11 @@ watch(
 .flow-run-logs-tabs-content__filter {
   width: 200px !important;
   margin-right: 20px;
+}
+
+.copy-button-size {
+  height: 58px;
+  width: 150px;
 }
 
 .flow-run-logs-tab-content__table-header {
