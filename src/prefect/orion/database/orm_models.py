@@ -2,26 +2,27 @@ import datetime
 import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Union, Dict, Tuple, Hashable
-from coolname import generate_slug
+from typing import Dict, Hashable, List, Tuple, Union
 
 import pendulum
-import prefect
 import sqlalchemy as sa
+from coolname import generate_slug
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import declared_attr, declarative_mixin, as_declarative
+from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+
+import prefect
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
-    UUID,
-    Timestamp,
-    now,
-    GenerateUUID,
-    camel_to_snake,
     JSON,
+    UUID,
+    GenerateUUID,
     Pydantic,
-    interval_add,
+    Timestamp,
+    camel_to_snake,
     date_diff,
+    interval_add,
+    now,
 )
 
 

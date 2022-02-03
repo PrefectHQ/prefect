@@ -1,6 +1,6 @@
-import versioneer
 from setuptools import find_packages, setup
 
+import versioneer
 
 install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
@@ -22,11 +22,6 @@ setup(
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    package_data={"prefect": [
-                    "orion/database/alembic.ini",
-                    "orion/database/migrations/*",
-                    "orion/database/migrations/versions/*",
-                    "orion/database/migrations/versions/*/*"]},
     include_package_data=True,
     # CLI
     entry_points={

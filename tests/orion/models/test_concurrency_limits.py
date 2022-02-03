@@ -1,12 +1,12 @@
-from tests.fixtures.database import session
+import time
 from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
-import time
 
 from prefect.orion import models, schemas
+from tests.fixtures.database import session
 
 
 class TestCreatingConcurrencyLimits:

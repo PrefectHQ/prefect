@@ -3,24 +3,24 @@ Defines the Orion FastAPI app.
 """
 
 import asyncio
-from functools import partial
 import os
+from functools import partial
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, Request, status
-from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.exceptions import RequestValidationError
-from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
 from prefect import settings
-from prefect.orion import api, services
 from prefect.logging import get_logger
+from prefect.orion import api, services
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"

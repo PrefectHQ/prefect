@@ -27,9 +27,9 @@ if sys.version_info < (3, 8):
     import asyncio
     import itertools
     import logging
-    import time
-    import threading
     import os
+    import threading
+    import time
     import warnings
 
     logger = logging.getLogger()

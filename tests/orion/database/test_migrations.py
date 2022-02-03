@@ -6,11 +6,11 @@ from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
     alembic_upgrade,
 )
-from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.orion.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 @pytest.fixture
