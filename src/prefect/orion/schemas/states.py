@@ -126,7 +126,10 @@ class State(IDBaseModel, Generic[R]):
             ValueError("oh no!")
         """
         data = None
+
         if self.data:
+            if self.data.encoding == "orion":
+                return self.data
             data = self.data.decode()
 
         if self.is_failed() and raise_on_failure:
