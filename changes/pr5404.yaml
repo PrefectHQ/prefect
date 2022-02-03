@@ -1,0 +1,2 @@
+enhancement:
+  - "Add `ge_checkpoint` and `checkpoint_kwargs` parameters to `RunGreatExpectationsValidation` - [#5404](https://github.com/PrefectHQ/prefect/pull/5404)"
