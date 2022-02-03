@@ -1,5 +1,6 @@
 import datetime
 from functools import wraps
+
 from pydantic import BaseModel
 
 
@@ -18,7 +19,7 @@ def register_blockapi(blockref):
 def assemble_block(blockdata=None):
     # block = BlockRegistry.get(blockdata.blockref)
     # return block(blockdata)
-    from prefect.blocks.storage import OrionStorageBlock, LocalStorageBlock
+    from prefect.blocks.storage import LocalStorageBlock, OrionStorageBlock
 
     return LocalStorageBlock(dict())
 
