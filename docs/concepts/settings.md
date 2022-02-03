@@ -12,7 +12,7 @@ tags:
 
 A key tenet around which we built Prefect is the ability to govern of flow and task state transitions through policies and rules. Prefect provides a robust set of environment variables and settings that enable you to define the execution environment, policies, and rules needed to orchestrate your workflows successfully.
 
-Prefect's settings are documented under [prefect.utilities.settings[prefect.utilities.settings] and type-validated, ensuring that configuration is a first-class experience.  
+Prefect's settings are documented under [prefect.utilities.settings][prefect.utilities.settings] and type-validated, ensuring that configuration is a first-class experience.  
 
 From Python, settings can be accessed by examining `prefect.settings`, and users can view their Orion server's current settings from its UI.
 
@@ -53,7 +53,7 @@ There are situations in which you want to actively prevent too many tasks from r
 
 Prefect has built-in functionality for achieving this: task concurrency limits.
 
-Task concurrency limits use [task tags](/concepts/tasks.md#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs in a `Running` state for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
+Task concurrency limits use [task tags](/concepts/tasks/#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs in a `Running` state for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
 
 If a task has multiple tags, it will run only if _all_ tags have available concurrency. 
 
@@ -65,7 +65,7 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states.md). 
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states). 
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
