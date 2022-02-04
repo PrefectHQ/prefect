@@ -704,6 +704,13 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
+class ORMBlockData:
+    name = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    blockref = sa.Column(sa.String, nullable=False)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -758,6 +765,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        block_data_mixin=ORMBlockData,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -797,6 +805,7 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            block_data_mixin=block_data_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -830,6 +839,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        block_data_mixin=block_data_mixin,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -866,6 +876,9 @@ class BaseORMConfiguration(ABC):
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
             pass
 
+        class BlockData(block_data_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -876,6 +889,7 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.BlockData = BlockData
 
     @property
     @abstractmethod
