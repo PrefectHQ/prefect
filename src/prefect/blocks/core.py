@@ -8,6 +8,7 @@ BLOCK_API_REGISTRY: Dict[str, "BlockAPI"] = dict()
 
 
 class BlockData(BaseModel):
+    name: str
     data: dict
     blockref: str
 
