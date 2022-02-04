@@ -146,7 +146,16 @@ class ConcurrencyLimitCreate(
         include_fields=["tag", "concurrency_limit"],
     )
 ):
-    """Data used by the Orion API to create a concurrency limit"""
+    """Data used by the Orion API to create a concurrency limit."""
+
+
+class BlockDataCreate(
+    schemas.core.BlockData.subclass(
+        name="BlockDataCreate",
+        include_fields=["name", "blockref", "data"],
+    )
+):
+    """Data used by the Orion API to create a block data container."""
 
 
 class LogCreate(

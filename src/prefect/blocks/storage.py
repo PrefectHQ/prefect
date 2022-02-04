@@ -39,7 +39,8 @@ class LocalStorageBlock(BlockAPI):
         self.datadoc = None
 
     def basepath(self):
-        return Path(TemporaryDirectory().name)
+        # return Path(TemporaryDirectory().name)
+        return Path("/tmp/localstorageblock")
 
     async def write(self, data):
         storage_path = str(self.basepath() / str(uuid4()))

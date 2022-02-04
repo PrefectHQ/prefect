@@ -326,6 +326,14 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
+class BlockData(ORMBaseModel):
+    """An ORM representation of block data."""
+
+    name: str = Field(..., description="The block data identifier")
+    blockref: str = Field(..., description="A reference to a registered BlockAPI")
+    data: dict = Field(default_factory=dict, description="Data used by a BlockAPI")
+
+
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 

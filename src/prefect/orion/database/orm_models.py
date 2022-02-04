@@ -706,8 +706,8 @@ class ORMConcurrencyLimit:
 @declarative_mixin
 class ORMBlockData:
     name = sa.Column(sa.String, nullable=False, index=True, unique=True)
-    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     blockref = sa.Column(sa.String, nullable=False)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
 
 @declarative_mixin
