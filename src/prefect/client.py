@@ -752,7 +752,9 @@ class OrionClient:
         """
 
         # storage_block_response = self.post("/data/storage")
-        blockdata = BlockData(data=dict(), blockref="localstorage-block")
+        blockdata = BlockData(
+            name="ORION-storage-config", data=dict(), blockref="localstorage-block"
+        )
         storage_block = assemble_block(blockdata)
         await storage_block.write(data)
         return storage_block
