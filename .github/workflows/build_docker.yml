@@ -1,15 +1,15 @@
 name: Build Prefect Images
-on: [pull_request]
-    #  push:
-    #   tags:
-    #     - '*.*.*'
-    #   paths:
-    #     - 'Dockerfile'
-    #     - '.github/workflows/build_docker.yml'
-    #  pull_request:
-    #   paths:
-    #     - 'Dockerfile'
-    #     - '.github/workflows/build_docker.yml'
+on:
+  push:
+   tags:
+     - '*.*.*'
+   paths:
+     - 'Dockerfile'
+     - '.github/workflows/build_docker.yml'
+  pull_request:
+   paths:
+     - 'Dockerfile'
+     - '.github/workflows/build_docker.yml'
   workflow_dispatch:
 
 jobs:
