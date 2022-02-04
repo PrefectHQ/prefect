@@ -478,7 +478,6 @@ class OrionClient:
 
         Args:
             tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
             httpx.RequestError: if the concurrency limit was not created for any reason
