@@ -1,0 +1,5 @@
+fix:
+  - "Adds support for SpacyNLP task for spacy version >= 3.0. Also adds a new `exclude` parameter - (#5358)[https://github.com/PrefectHQ/prefect/issues/5358]"
+
+contributor:
+  - "[Aneesh Makala](https://github.com/makalaaneesh)"
