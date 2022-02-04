@@ -11,6 +11,7 @@ import prefect.orion.api.saved_searches
 import prefect.orion.api.dependencies
 import prefect.orion.api.logs
 import prefect.orion.api.concurrency_limits
+import prefect.orion.api.block_data
 
 # import the server last because it loads all other modules
 import prefect.orion.api.server
