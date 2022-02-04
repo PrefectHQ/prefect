@@ -960,7 +960,7 @@ class TestTaskWithOptions:
             cache_key_fn=second_cache_key_fn,
             cache_expiration=datetime.timedelta(days=2),
             retries=5,
-            retry_delay_seconds=10
+            retry_delay_seconds=10,
         )
 
         assert task_with_options.name == "Copied task"
@@ -1001,6 +1001,7 @@ class TestTaskWithOptions:
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
+
         @task(name="Initial task", tags=["tag1", "tag2"])
         def initial_task():
             pass
@@ -1011,7 +1012,6 @@ class TestTaskWithOptions:
         assert initial_task.tags == {"tag1", "tag2", "tag3"}
         assert with_options_task.tags == {"tag1", "tag2"}
 
-
     def test_with_options_signature_aligns_with_task_signature(self):
         task_params = dict(inspect.signature(task).parameters)
         with_options_params = dict(inspect.signature(Task.with_options).parameters)
@@ -1020,4 +1020,3 @@ class TestTaskWithOptions:
         # `self` isn't in task decorator
         with_options_params.pop("self")
         assert task_params == with_options_params
-
