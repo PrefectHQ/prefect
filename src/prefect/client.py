@@ -551,6 +551,90 @@ class OrionClient:
 
         return True
 
+    async def create_block_data(
+        self,
+        name: str,
+        blockref: str,
+        data: dict,
+    ) -> UUID:
+        """
+        Create block data in Orion. This data is used to configure a corresponding
+        BlockAPI.
+        """
+
+        block_data_create = schemas.actions.BlockDataCreate(
+            name=name,
+            blockref=blockref,
+            data=data,
+        )
+        response = await self.post(
+            "/block_data/",
+            json=block_data_create.dict(json_compatible=True),
+        )
+
+        block_data_id = response.json().get("id")
+
+        if not block_data_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(block_data_id)
+
+    async def delete_block_data_by_name(
+        self,
+        name: str,
+    ):
+        """
+        Delete block data with the specified name.
+
+        Args:
+            name: the block data name
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            True if the block data was deleted, False otherwise
+        """
+        try:
+            response = await self.delete(
+                f"/block_data/name/{name}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
+
+    async def read_block_data_by_name(
+        self,
+        name: str,
+    ):
+        """
+        Read the block data with the specified name.
+
+        Args:
+            name: the block data name
+
+        Raises:
+            httpx.RequestError: if the block data was not created for any reason
+
+        Returns:
+            the block data with the specified name
+        """
+        response = await self.get(
+            f"/block_data/name/{name}",
+        )
+
+        block_data_id = response.json().get("id")
+
+        if not block_data_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        block_data = schemas.core.BlockData.parse_obj(response.json())
+        return block_data
+
     async def create_deployment(
         self,
         flow_id: UUID,
