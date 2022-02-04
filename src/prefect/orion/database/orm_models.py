@@ -839,7 +839,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
-        block_data_mixin=block_data_mixin,
+        block_data_mixin=ORMBlockData,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method

@@ -25,13 +25,13 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
-from prefect.blocks.core import BlockAPI, BlockData, assemble_block
+from prefect.blocks.core import BlockAPI, assemble_block
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.core import TaskRun, BlockData
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
