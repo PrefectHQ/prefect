@@ -48,6 +48,7 @@ class TestBlockDatas:
         await models.block_data.delete_block_data_by_name(
             session=session, name="i-want-to-live-forever"
         )
+
         fetched_blockdata = await models.block_data.read_block_data_by_name(
             session=session, name="i-want-to-live-forever"
         )
