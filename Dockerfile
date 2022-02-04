@@ -21,7 +21,8 @@ LABEL org.label-schema.version=${PREFECT_VERSION}
 LABEL org.label-schema.vcs-ref=${GIT_SHA}
 LABEL org.label-schema.build-date=${BUILD_DATE}
 
-RUN apt update && \
+RUN set -x && \
+    apt update && \
     apt install -y gcc git tini build-essential && \
     mkdir /root/.prefect/ && \
     pip install "pip==20.2.4" && \

@@ -1,0 +1,57 @@
+name: Build Prefect Images
+on:
+  push:
+   tags:
+     - '*.*.*'
+   paths:
+     - 'Dockerfile'
+     - '.github/workflows/build_docker.yml'
+  pull_request:
+   paths:
+     - 'Dockerfile'
+     - '.github/workflows/build_docker.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ec3a7ce113134d7a93b817d10a8272cb61118579
+
+      - name: Login to Dockerhub
+        uses: docker/login-action@42d299face0c5c43a0487c477f595ac9cf22f1a7
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags')
+        with:
+          username: ${{ secrets.DOCKER_HUB_USER }}
+          password: ${{ secrets.DOCKER_HUB_PW }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25
+        with:
+          version: latest
+          driver-opts: network=host
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@e5622373a38e60fb6d795a4421e56882f2d7a681
+        with:
+          images: prefecthq/prefect
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=match,pattern=*.*.*,group1
+
+      - name: Build prefecthq/prefect
+        uses: docker/build-push-action@7f9d37fa544684fb73bfe4835ed7214c255ce02b
+        with:
+          context: ./
+          builder: ${{ setps.buildx.outputs.name }}
+          file: ./Dockerfile
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags') }}
