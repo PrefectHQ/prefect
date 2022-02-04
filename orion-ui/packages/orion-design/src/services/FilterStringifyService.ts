@@ -12,11 +12,11 @@ import {
 import { formatDateTimeNumeric } from '../utilities/dates'
 
 export class FilterStringifyService {
-  public convertFiltersToTags(filters: Required<Filter>[]): string[] {
+  public static convertFiltersToTags(filters: Required<Filter>[]): string[] {
     return filters.map(filter => this.convertFilterToTag(filter))
   }
 
-  public convertFilterToTag(filter: Required<Filter>): string {
+  public static convertFilterToTag(filter: Required<Filter>): string {
     const tagPrefix = this.createTagPrefix(filter)
     const tagSuffix = this.createTagSuffix(filter)
     const tagValue = this.createTagValue(filter)
@@ -24,7 +24,7 @@ export class FilterStringifyService {
     return `${tagPrefix}${tagSuffix}:${tagValue}`
   }
 
-  private createObjectStringFilterValue(filter: ObjectStringFilter): string {
+  private static createObjectStringFilterValue(filter: ObjectStringFilter): string {
     switch (filter.operation) {
       case 'contains':
         return filter.value
@@ -33,27 +33,27 @@ export class FilterStringifyService {
     }
   }
 
-  private createObjectDateFilterValue(filter: ObjectDateFilter): string {
+  private static createObjectDateFilterValue(filter: ObjectDateFilter): string {
     return formatDateTimeNumeric(filter.value)
   }
 
-  private createObjectTimeFilterValue(filter: ObjectTimeFilter): string {
+  private static createObjectTimeFilterValue(filter: ObjectTimeFilter): string {
     return filter.value
   }
 
-  private createObjectStateFilterValue(filter: ObjectStateFilter): string {
+  private static createObjectStateFilterValue(filter: ObjectStateFilter): string {
     return filter.value.join('|')
   }
 
-  private createObjectTagFilterValue(filter: ObjectTagFilter): string {
+  private static createObjectTagFilterValue(filter: ObjectTagFilter): string {
     return filter.value.join(',')
   }
 
-  private createTagPrefix(filter: Required<Filter>): FilterTagPrefix {
+  private static createTagPrefix(filter: Required<Filter>): FilterTagPrefix {
     return ObjectTagPrefixDictionary[filter.object]
   }
 
-  private createTagSuffix(filter: Required<Filter>): string {
+  private static createTagSuffix(filter: Required<Filter>): string {
     switch (filter.type) {
       case 'string':
         return ''
@@ -66,7 +66,7 @@ export class FilterStringifyService {
     }
   }
 
-  private createTagValue(filter: Required<Filter>): string {
+  private static createTagValue(filter: Required<Filter>): string {
     switch (filter.type) {
       case 'string':
         return this.createObjectStringFilterValue(filter)
