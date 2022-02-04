@@ -7,7 +7,7 @@ import {
   ObjectStringFilter,
   ObjectTagFilter,
   ObjectTagPrefixDictionary,
-  ObjectTimeFilter
+  ObjectRelativeDateFilter
 } from '../types/filters'
 import { formatDateTimeNumeric } from '../utilities/dates'
 
@@ -37,7 +37,7 @@ export class FilterStringifyService {
     return formatDateTimeNumeric(filter.value)
   }
 
-  private static createObjectTimeFilterValue(filter: ObjectTimeFilter): string {
+  private static createObjectTimeFilterValue(filter: ObjectRelativeDateFilter): string {
     return filter.value
   }
 

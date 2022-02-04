@@ -17,7 +17,7 @@ export type ObjectDateFilter = {
   value: Date,
 }
 
-export type ObjectTimeFilter = {
+export type ObjectRelativeDateFilter = {
   type: 'time',
   operation: 'newer' | 'older',
   value: `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`,

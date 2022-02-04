@@ -1,5 +1,6 @@
 /* eslint-disable no-dupe-class-members */
 import { Filter } from '../types/filters'
+import { FilterDescriptionService } from './FilterDescriptionService'
 import { FilterParseService, FilterStringifyService } from '.'
 
 export class FilterService {
@@ -21,5 +22,9 @@ export class FilterService {
     }
 
     return FilterParseService.parseFilterString(filterOrFilters)
+  }
+
+  public static describe(filter: Filter): string {
+    return FilterDescriptionService.describe(filter)
   }
 }
