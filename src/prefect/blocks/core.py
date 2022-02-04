@@ -1,7 +1,10 @@
 import datetime
 from functools import wraps
+from typing import Dict
 
 from pydantic import BaseModel
+
+BLOCK_API_REGISTRY: Dict[str, "BlockAPI"] = dict()
 
 
 class BlockData(BaseModel):
@@ -10,19 +13,19 @@ class BlockData(BaseModel):
 
 
 def register_blockapi(blockref):
-    def wrapper(fn):
-        return fn
+    def wrapper(blockapi):
+        BLOCK_API_REGISTRY[blockref] = blockapi
+        return blockapi
 
     return wrapper
 
 
-def assemble_block(blockdata=None):
-    # block = BlockRegistry.get(blockdata.blockref)
-    # return block(blockdata)
-    from prefect.blocks.storage import LocalStorageBlock, OrionStorageBlock
-
-    return LocalStorageBlock(dict())
-
-
 class BlockAPI:
     pass
+
+
+def assemble_block(blockdata=None):
+    from prefect.blocks import storage
+
+    block = BLOCK_API_REGISTRY.get(blockdata.blockref)
+    return block(blockdata)

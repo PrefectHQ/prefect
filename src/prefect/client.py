@@ -25,7 +25,7 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
-from prefect.blocks.core import BlockAPI, assemble_block
+from prefect.blocks.core import BlockAPI, BlockData, assemble_block
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
@@ -752,8 +752,8 @@ class OrionClient:
         """
 
         # storage_block_response = self.post("/data/storage")
-        # storage_block = core.assemble_block(BlockData.parse_obj(response.json()))
-        storage_block = assemble_block()
+        blockdata = BlockData(data=dict(), blockref="localstorage-block")
+        storage_block = assemble_block(blockdata)
         await storage_block.write(data)
         return storage_block
 

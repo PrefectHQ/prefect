@@ -5,7 +5,6 @@ from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from prefect.blocks.core import BlockAPI, register_blockapi
-from prefect.client import OrionClient
 from prefect.orion.schemas.data import DataDocument
 
 
@@ -54,6 +53,8 @@ class LocalStorageBlock(BlockAPI):
 
 @register_blockapi("orionstorage-block")
 class OrionStorageBlock(BlockAPI):
+    from prefect.client import OrionClient
+
     def __init__(self, blockdata):
         self.blockdata = blockdata
         self.datadoc = None
