@@ -7,12 +7,6 @@ from pydantic import BaseModel
 BLOCK_API_REGISTRY: Dict[str, "BlockAPI"] = dict()
 
 
-class BlockData(BaseModel):
-    name: str
-    data: dict
-    blockref: str
-
-
 def register_blockapi(blockref):
     def wrapper(blockapi):
         BLOCK_API_REGISTRY[blockref] = blockapi
