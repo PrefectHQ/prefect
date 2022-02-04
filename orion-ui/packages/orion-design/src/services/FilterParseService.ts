@@ -11,16 +11,16 @@ import { parseDateTimeNumeric } from '../utilities/dates'
 
 export class FilterParseService {
 
-  private readonly dateParsers: ((input: string) => Date)[] = [
+  private static readonly dateParsers: ((input: string) => Date)[] = [
     parseDateTimeNumeric,
     (input: string) => new Date(input),
   ]
 
-  public parseFilterStrings(inputs: string[]): Required<Filter>[] {
+  public static parseFilterStrings(inputs: string[]): Required<Filter>[] {
     return inputs.map(input => this.parseFilterString(input))
   }
 
-  public parseFilterString(input: string): Required<Filter> {
+  public static parseFilterString(input: string): Required<Filter> {
     const [prefix, ...rest] = input.split(':')
     const value = rest.join(':')
 
@@ -72,7 +72,7 @@ export class FilterParseService {
     }
   }
 
-  private stringFilter(object: FilterObject, property: FilterProperty, input: string): Required<Filter> {
+  private static stringFilter(object: FilterObject, property: FilterProperty, input: string): Required<Filter> {
     const exactOperationRegex = /^"(.*)"$/
     const match = input.match(exactOperationRegex)
 
@@ -88,21 +88,21 @@ export class FilterParseService {
   }
 
   // eslint-disable-next-line max-params
-  private dateFilter(object: FilterObject, property: FilterProperty, operation: FilterOperation, input: string): Required<Filter> {
+  private static dateFilter(object: FilterObject, property: FilterProperty, operation: FilterOperation, input: string): Required<Filter> {
     const value = this.parseDateValue(input)
 
     return this.filter(object, property, 'date', operation, value)
   }
 
-  private tagFilter(object: FilterObject, input: string): Required<Filter> {
+  private static tagFilter(object: FilterObject, input: string): Required<Filter> {
     return this.filter(object, 'tag', 'tag', 'and', input.split(','))
   }
 
-  private stateFilter(object: FilterObject, property: FilterProperty, input: string): Required<Filter> {
+  private static stateFilter(object: FilterObject, property: FilterProperty, input: string): Required<Filter> {
     return this.filter(object, property, 'state', 'or', input.split('|'))
   }
 
-  private parseDateValue(input: string): Date {
+  private static parseDateValue(input: string): Date {
     let value: Date
     const parsers = [...this.dateParsers]
 
@@ -118,13 +118,13 @@ export class FilterParseService {
     return value
   }
 
-  private isValidDate(input: Date): boolean {
+  private static isValidDate(input: Date): boolean {
     return !isNaN(input.getTime())
   }
 
 
   // eslint-disable-next-line max-params
-  private filter(object: FilterObject, property: FilterProperty, type: FilterType, operation: FilterOperation, value: FilterValue): Required<Filter> {
+  private static filter(object: FilterObject, property: FilterProperty, type: FilterType, operation: FilterOperation, value: FilterValue): Required<Filter> {
     return {
       object,
       property,
