@@ -6,7 +6,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
 <div class="hero">
-   <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
+   <img src="/assets/prefect-logo-gradient-navy.svg" width="500" style="max-width: 500px;">
    <p class="description">Don't Panic.</p>
     <div class="action">
         <router-link to="core/">
