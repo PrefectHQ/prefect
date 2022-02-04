@@ -29,6 +29,7 @@ import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.logging import get_logger
+from prefect.orion.api.server import ORION_API_VERSION
 from prefect.orion.api.server import app as ephemeral_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
@@ -99,9 +100,16 @@ class OrionClient:
         self,
         api: Union[str, FastAPI] = ephemeral_app,
         *,
+        api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
+
         httpx_settings = httpx_settings or {}
+
+        if "headers" not in httpx_settings:
+            httpx_settings["headers"] = {}
+
+        httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
 
         # Connect to an external application
         if isinstance(api, str):
