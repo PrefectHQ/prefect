@@ -2,26 +2,25 @@
 
 ## Python setup
 
-Prefect requires Python 3.7+
+Prefect requires Python 3.7 or later.
 
 We recommend installing Orion using a Python virtual environment manager such as `pipenv`, `conda` or `virtualenv`.
 
 ## Installing the latest version
 
-Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell, using the pre-release version of Orion you want to test:
+Prefect is published as a Python package. To install the latest 2.0 alpha release, run the following in a shell:
 
 ```bash
-pip install -U "prefect>=<version>"
+pip install -U "prefect>=2.0a"
 ```
 
-For example, to install the latest 2.0a6 version:
+To install a specific version, specify the version:
 
 ```bash
-pip install -U "prefect>=2.0a6"
+pip install -U "prefect=2.0a9"
 ```
 
 Find the available release versions in the [Orion Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
-
 
 ## Installing the bleeding edge
 
@@ -36,8 +35,8 @@ pip install git+https://github.com/PrefectHQ/prefect@orion
 
 ## Installing for development
 
-If you'd like to install a version of Prefect for development, first clone the Prefect repository
-and then install in editable mode with `pip`:
+If you'd like to install a version of Prefect for development, first clone the Prefect repository, check out the `orion` branch,
+then install in editable mode with `pip`:
 
 ```bash
 git clone https://github.com/PrefectHQ/prefect.git 
@@ -54,12 +53,11 @@ To check that Prefect was installed correctly, you can test the Prefect CLI:
 <div class="termy">
 ```
 $ prefect version
-2.0a6
+2.0a9
 ```
 </div>
 
 Running this command should print a familiar looking version string to your console.
-
 
 ## External requirements
 
