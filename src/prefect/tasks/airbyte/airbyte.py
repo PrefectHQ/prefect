@@ -8,7 +8,6 @@ from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
 
-
 class ConnectionNotFoundException(Exception):
     pass
 
@@ -314,7 +313,7 @@ class AirbyteConfigurationExport(Task):
     """
     Task for triggering an export of the Airbyte configuration
 
-    This task assumes that the Airbyte Open-Source, since "For
+    This task assumes that you are using Airbyte Open-Source, since "For
     Airbyte Open-Source you don't need the API Token for
     Authentication! All endpoints are possible to access using the
     API without it."
@@ -395,7 +394,7 @@ class AirbyteConfigurationExport(Task):
         airbyte_server_host: str = None,
         airbyte_server_port: int = None,
         airbyte_api_version: str = None
-    ) -> dict:
+    ) -> bytearray:
         """
         Task run method for triggering an export of an Airbyte configuration
         
@@ -423,6 +422,4 @@ class AirbyteConfigurationExport(Task):
         )
         airbyte_config = self._export_configuration(session, airbyte_base_url)
 
-        return {
-            "airbyte_config": airbyte_config
-        }
+        return airbyte_config
