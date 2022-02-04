@@ -747,6 +747,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_data_mixin: block data orm mixin, combined with Base orm class
 
     TODO - example
     """
