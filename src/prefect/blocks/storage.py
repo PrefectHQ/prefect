@@ -54,18 +54,20 @@ class LocalStorageBlock(BlockAPI):
 
 @register_blockapi("orionstorage-block")
 class OrionStorageBlock(BlockAPI):
-    from prefect.client import OrionClient
-
     def __init__(self, blockdata):
         self.blockdata = blockdata
         self.datadoc = None
 
     async def write(self, data):
+        from prefect.client import OrionClient
+
         async with OrionClient() as client:
             response = await client.post("/data/persist", content=data)
             self.datadoc = DataDocument.parse_obj(response.json())
 
     async def read(self):
+        from prefect.client import OrionClient
+
         if self.datadoc is None:
             raise RuntimeError
         if self.datadoc.has_cached_data():
