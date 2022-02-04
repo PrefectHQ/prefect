@@ -618,7 +618,7 @@ class OrionClient:
             name: the block data name
 
         Raises:
-            httpx.RequestError: if the block data was not created for any reason
+            httpx.RequestError: if the block data was not found for any reason
 
         Returns:
             the block data with the specified name
@@ -833,11 +833,14 @@ class OrionClient:
         Returns:
             orion data document pointing to persisted data
         """
+        try:
+            blockdata = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
+        except httpx.HTTPStatusError:
+            await self.create_block_data(
+                name="ORION-CONFIG-STORAGE", blockref="orionstorage-block", data=dict()
+            )
+            blockdata = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
 
-        # storage_block_response = self.post("/data/storage")
-        blockdata = BlockData(
-            name="ORION-storage-config", data=dict(), blockref="localstorage-block"
-        )
         storage_block = assemble_block(blockdata)
         await storage_block.write(data)
         return storage_block
