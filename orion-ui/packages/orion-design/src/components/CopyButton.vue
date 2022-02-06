@@ -78,7 +78,6 @@
   user-select: none;
   font-family: var(--font-primary);
 
-
   &:hover,
   &:focus {
     & .copy-button__label {
