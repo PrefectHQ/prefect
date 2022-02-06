@@ -6,7 +6,9 @@
         :options="levelOptions"
         class="flow-run-logs-tabs-content__filter"
       />
-      
+       <CopyButton text :value="makeCsv" class="flow-run-logs__copy" toast="Logs copied to clipboard">
+          Copy Logs
+        </CopyButton>
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
@@ -289,4 +291,14 @@ watch(
   overflow-y: auto;
   position: relative;
 }
+
+.flow-run-logs__copy {
+  border: none;
+  background-color: inherit;
+  color: #024dfd;
+  cursor: pointer;
+  font-weight: 600;
+}
 </style>
+
+
