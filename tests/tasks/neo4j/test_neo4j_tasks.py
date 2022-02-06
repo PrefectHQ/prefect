@@ -1,5 +1,7 @@
 from prefect.tasks.neo4j.neo4j_tasks import Neo4jRunCypherQueryTask
 
+import pytest
+
 
 class TestNeo4jRunCypherQueryTask:
     def test_construction_no_values(self):
@@ -40,3 +42,72 @@ class TestNeo4jRunCypherQueryTask:
         assert neo4j_task.db_name_env_var == "db_env"
         assert neo4j_task.cypher_query == "query"
         assert neo4j_task.return_result_as == "json"
+
+    def test_run_raises_with_no_server_uri_and_env_var(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = (
+            "Please provide either the `server_uri` or the `server_uri_env_var`."
+        )
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run()
+
+    def test_run_raises_with_server_uri_env_var_not_found(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "`env_var` not found in environment variables."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(server_uri_env_var="env_var")
+
+    def test_run_raises_with_no_user_and_env_var(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Please provide either the `user` or the `user_env_var`."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(
+                server_uri="uri",
+            )
+
+    def test_run_raises_with_user_env_var_not_found(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "`env_var` not found in environment variables."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(server_uri="uri", user_env_var="env_var")
+
+    def test_run_raises_with_no_password_and_env_var(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Please provide either the `password` or the `password_env_var`."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(server_uri="uri", user="user")
+
+    def test_run_raises_with_password_env_var_not_found(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "`env_var` not found in environment variables."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(server_uri="uri", user="user", password_env_var="env_var")
+
+    def test_run_raises_with_db_name_env_var_not_found(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "`env_var` not found in environment variables."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(
+                server_uri="uri",
+                user="user",
+                password="password",
+                db_name_env_var="env_var",
+            )
+
+    def test_run_raises_with_no_cypher_query(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Please provide a value for `cypher_query`."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(server_uri="uri", user="user", password="password")
+
+    def test_run_raises_with_illegal_return_result_as(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Illegal value for `return_result_as`. Illegal value is: illegal."
+        with pytest.raises(ValueError, match=msg_match):
+            neo4j_task.run(
+                server_uri="uri",
+                user="user",
+                password="password",
+                cypher_query="query",
+                return_result_as="illegal",
+            )
