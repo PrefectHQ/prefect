@@ -53,6 +53,9 @@ class Neo4jRunCypherQueryTask(Task):
             Task constructor.
     """
 
+    __DEFAULT_RETURN_RESULT_TYPE = "raw"
+    __ACCEPTED_RETURN_RESULT_TYPES = [__DEFAULT_RETURN_RESULT_TYPE, "json", "dataframe"]
+
     def __init__(
         self,
         server_uri: str = None,
@@ -64,7 +67,7 @@ class Neo4jRunCypherQueryTask(Task):
         password_env_var: str = None,
         db_name_env_var: str = None,
         cypher_query: str = None,
-        return_result_as: str = "raw",
+        return_result_as: str = __DEFAULT_RETURN_RESULT_TYPE,
         **kwargs,
     ):
         self.server_uri = server_uri
@@ -101,7 +104,7 @@ class Neo4jRunCypherQueryTask(Task):
         password_env_var: str = None,
         db_name_env_var: str = None,
         cypher_query: str = None,
-        return_result_as: str = "raw",
+        return_result_as: str = __DEFAULT_RETURN_RESULT_TYPE,
     ):
         """
         Task run method to run a Cypher query against Neo4j.
@@ -211,7 +214,7 @@ class Neo4jRunCypherQueryTask(Task):
         if not cypher_query:
             raise ValueError("Please provide a value for `cypher_query`.")
 
-        if return_result_as not in ["raw", "json", "dataframe"]:
+        if return_result_as not in self.__ACCEPTED_RETURN_RESULT_TYPES:
             msg = f"Illegal value for `return_result_as`. Illegal value is: {return_result_as}."
             raise ValueError(msg)
 
