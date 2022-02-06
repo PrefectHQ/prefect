@@ -5,19 +5,19 @@
       <div class="create-workspace-card__text">
         <h1>{{header}}</h1>
         <span>{{description}}</span>
-        <router-link to="/create-workspace">
+        <router-link :to="link">
           <m-button color="primary" miter icon="pi-add-line">
             {{buttonText}}
           </m-button>
         </router-link>
       </div>
-      <img src="/images/workspace-demo-card.svg" alt="image of a workspace card" class="create-workspace-card__card-image">
+      <img :src="imagePath" alt="imageAltText" class="create-workspace-card__card-image">
     </div>
   </m-card>
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+import { defineComponent } from 'vue'
 
 export default defineComponent({
     name: 'EmptyStateCard',
@@ -34,21 +34,38 @@ export default defineComponent({
         type: String,
         required: true,
       },
+      link: {
+        type:String,
+        required: true
+      },
       imagePath: {
         type: String,
         required: true,
       },
-    imageAltText: {
+      imageAltText: {
         type: String,
         required: true,
-      },
+      }
     }
     })
 
 </script>
 
 <style lang="scss" scoped>
-@import 'sass-mixins';
+
+
+@mixin breakpoint($breakpoint) {
+    @if $breakpoint == sm {
+      @media only screen and (min-width: 640px) {
+        @content;
+      }
+    }
+    @if $breakpoint == lg {
+      @media only screen and (min-width: 1024px) {
+        @content;
+      }
+    }
+  }
 
 .create-workspace-card {
   display: flex;
