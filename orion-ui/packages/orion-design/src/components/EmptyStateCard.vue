@@ -52,21 +52,7 @@ export default defineComponent({
 </script>
 
 <style lang="scss" scoped>
-
-
-@mixin breakpoint($breakpoint) {
-    @if $breakpoint == sm {
-      @media only screen and (min-width: 640px) {
-        @content;
-      }
-    }
-    @if $breakpoint == lg {
-      @media only screen and (min-width: 1024px) {
-        @content;
-      }
-    }
-  }
-
+@use 'sass:map';
 .create-workspace-card {
   display: flex;
   flex-direction: column;
@@ -75,7 +61,7 @@ export default defineComponent({
   overflow: hidden;
   padding: 20px;
 
-  @include breakpoint(lg) {
+@media only screen and (min-width: map.get($breakpoints, 'lg')) {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -96,7 +82,7 @@ export default defineComponent({
       letter-spacing: 0;
     }
 
-    @include breakpoint(lg) {
+    @media only screen and (min-width: map.get($breakpoints, 'lg')) {
       text-align: left;
       margin-right: 50px;
       margin-bottom: 0;
@@ -110,7 +96,7 @@ export default defineComponent({
     max-height: 235px;
     display: none;
 
-    @include breakpoint(sm) {
+    @media only screen and (min-width: map.get($breakpoints, 'sm')) {
       display: inline-block;
     }
   }
@@ -126,7 +112,7 @@ export default defineComponent({
     position: absolute;
     animation: create-workspace-card-rotate 40s infinite linear;
 
-    @include breakpoint(md) {
+    @media only screen and (min-width: map.get($breakpoints, 'md')) {
       left: 50vw;
     }
    }
