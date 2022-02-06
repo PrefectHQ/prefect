@@ -184,7 +184,6 @@ watch(
 
 .flow-run-logs-tabs-content__filter {
   width: 200px !important;
-  margin-right: 20px;
 }
 
 .flow-run-logs-tab-content__table-header {
