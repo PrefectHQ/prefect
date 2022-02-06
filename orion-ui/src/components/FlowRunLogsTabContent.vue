@@ -187,24 +187,6 @@ watch(
   margin-right: 20px;
 }
 
-.copy-button-size {
-  height: 58px;
-  width: 150px;
-  border: none;
-  background-color: inherit;
-  padding: 14px;
-  font-size: 16px;
-  cursor: pointer;
-  display: inline-block;
-  color: #024dfd;
-  font-weight: bold;
-}
-
-/* On mouse-over */
-.copy-button-size:hover {
-  background: #eee;
-}
-
 .flow-run-logs-tab-content__table-header {
   display: grid;
   justify-content: space-between;
