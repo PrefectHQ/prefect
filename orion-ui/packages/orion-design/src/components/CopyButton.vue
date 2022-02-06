@@ -89,6 +89,19 @@
     background: transparent;
     color: $primary-hover;
   }
+
+&.text {
+  height: 58px;
+  width: 150px;
+  border: none;
+  background-color: inherit;
+  padding: 14px;
+  font-size: 16px;
+  cursor: pointer;
+  display: inline-block;
+  color: #024dfd;
+  font-weight: bold;
+}
 }
 
 .copy-button__label {

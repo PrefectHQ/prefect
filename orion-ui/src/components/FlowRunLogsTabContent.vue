@@ -6,14 +6,7 @@
         :options="levelOptions"
         class="flow-run-logs-tabs-content__filter"
       />
-      <button
-        :value="makeCsv"
-        toast="Logs copied to clipboard"
-        class="copy-button-size"
-      >
-        <i class="pi pi-file-copy-line pi-sm" />
-        Copy Logs
-      </button>
+      
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
