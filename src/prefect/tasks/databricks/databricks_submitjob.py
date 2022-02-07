@@ -99,6 +99,10 @@ class DatabricksSubmitRun(Task):
     For example:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     json = {
         'new_cluster': {
         'spark_version': '2.1.0-db3-scala2.11',
@@ -109,9 +113,10 @@ class DatabricksSubmitRun(Task):
         },
     }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(json=json)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow('my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksSubmitRun(json=json)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -120,6 +125,10 @@ class DatabricksSubmitRun(Task):
     endpoint. In this method, your code would look like this:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     new_cluster = {
         'spark_version': '2.1.0-db3-scala2.11',
         'num_workers': 2
@@ -128,11 +137,12 @@ class DatabricksSubmitRun(Task):
         'notebook_path': '/Users/prefect@example.com/PrepareData',
     }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(
-        new_cluster=new_cluster,
-        notebook_task=notebook_task)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow('my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksSubmitRun(
+            new_cluster=new_cluster,
+            notebook_task=notebook_task)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -143,6 +153,7 @@ class DatabricksSubmitRun(Task):
     be passed to the task like so:
 
     ```
+    from prefect import Flow
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksSubmitRun
 
@@ -396,18 +407,22 @@ class DatabricksSubmitRun(Task):
 class DatabricksRunNow(Task):
     """
     Runs an existing Spark job run to Databricks using the
-    `api/2.0/jobs/run-now
+    `api/2.1/jobs/run-now
     <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
     API endpoint.
 
     There are two ways to instantiate this task.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the `api/2.0/jobs/run-now` endpoint and pass it directly
+    to call the `api/2.1/jobs/run-now` endpoint and pass it directly
     to our `DatabricksRunNow` task through the `json` parameter.
     For example:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     json = {
           "job_id": 42,
           "notebook_params": {
@@ -416,9 +431,10 @@ class DatabricksRunNow(Task):
           }
         }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(json=json)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow('my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksRunNow(json=json)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -427,6 +443,10 @@ class DatabricksRunNow(Task):
     endpoint. In this method, your code would look like this:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     job_id=42
 
     notebook_params = {
@@ -440,14 +460,16 @@ class DatabricksRunNow(Task):
 
     jar_params = ["john doe","35"]
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(
-        notebook_params=notebook_params,
-        python_params=python_params,
-        spark_submit_params=spark_submit_params,
-        jar_params=jar_params
-    )
-    notebook_run(databricks_conn_secret=conn)
+
+    with Flow("my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksRunNow(
+            notebook_params=notebook_params,
+            python_params=python_params,
+            spark_submit_params=spark_submit_params,
+            jar_params=jar_params
+        )
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -458,6 +480,7 @@ class DatabricksRunNow(Task):
     be passed to the task like so:
 
     ```
+    from prefect import Flow
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksRunNow
 
@@ -756,7 +779,8 @@ class DatabricksSubmitMultitaskRun(Task):
         Trigger an ad-hoc multitask run
 
         ```
-        from prefect import flow
+        from prefect import Flow
+        from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
         from prefect.tasks.databricks.models import JobTaskSettings, SparkJarTask, Library
 
         submit_multitask_run = DatabricksSubmitMultitaskRun(
