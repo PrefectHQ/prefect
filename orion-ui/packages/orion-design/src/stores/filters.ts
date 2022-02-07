@@ -31,6 +31,14 @@ export const useFiltersStore = defineStore('filters', {
     remove(filter: FilterState): void {
       delete this.filters[filter.id]
     },
+    replaceAll(filters: Filter[]): void {
+      const filtersState = filters.map(filter => ({
+        ...filter,
+        id: filtersIdManager.get(),
+      }))
+
+      this.filters = filtersState
+    },
   },
   getters: {
     all: (state) => Object.values(state.filters),

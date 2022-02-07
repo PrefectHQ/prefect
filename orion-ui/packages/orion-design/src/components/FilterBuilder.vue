@@ -4,27 +4,34 @@
       <FilterBuilderHeading :filter="innerFilter" />
       <template v-if="dismissable && hasObject">
         <button type="button" class="filter-builder__close" @click="emit('dismiss')">
-          <i class="filter-builder__close-icon pi pi-xs pi-close-circle-fill" />
+          <i class="filter-builder__close-icon pi pi-sm pi-close-circle-fill" />
         </button>
       </template>
+      <button type="button" class="filter-builder__toggle" :class="classes.toggle" @click="toggle">
+        <i class="pi pi-arrow-down-s-line" />
+      </button>
     </div>
-    <template v-if="!innerFilter.object">
-      <FilterBuilderObject v-model:object="innerFilter.object" />
-    </template>
-    <template v-else-if="!innerFilter.property">
-      <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
-    </template>
-    <template v-else>
-      <FilterBuilderValue v-model:type="innerFilter.type" v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :property="innerFilter.property" />
-    </template>
-    <template v-if="isCompleteFilter(innerFilter)">
-      <FilterTag class="filter-builder__tag" :filter="innerFilter" />
+    <template v-if="innerExpanded">
+      <div class="filter-builder__filter">
+        <template v-if="!innerFilter.object">
+          <FilterBuilderObject v-model:object="innerFilter.object" />
+        </template>
+        <template v-else-if="!innerFilter.property">
+          <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
+        </template>
+        <template v-else>
+          <FilterBuilderValue v-model:type="innerFilter.type" v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :property="innerFilter.property" />
+        </template>
+        <template v-if="isCompleteFilter(innerFilter)">
+          <FilterTag class="filter-builder__tag" :filter="innerFilter" />
+        </template>
+      </div>
     </template>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { Filter } from '../types/filters'
   import { isCompleteFilter } from '../utilities/filters'
   import FilterBuilderHeading from './FilterBuilderHeading.vue'
@@ -40,11 +47,14 @@
     (event: 'update:filter', value: Partial<Filter>): void,
     // eslint-disable-next-line no-unused-vars
     (event: 'dismiss'): void,
+    // eslint-disable-next-line no-unused-vars
+    (event: 'update:expanded', value: boolean): void,
   }>()
 
   const props = defineProps<{
     filter: Partial<Filter>,
     dismissable?: boolean,
+    expanded?: boolean,
   }>()
 
   const innerFilter = computed({
@@ -52,13 +62,32 @@
     set: (filter) => emit('update:filter', filter),
   })
 
+  const innerExpanded = ref(true)
+
+  watch(() => props.expanded, () => {
+    innerExpanded.value = props.expanded ?? true
+  }, { immediate: true })
+
   const hasObject = computed<boolean>(() => !!innerFilter.value.object)
+
+  const classes = computed(() => ({
+    toggle: {
+      'filter-builder__toggle--closed': innerExpanded.value,
+    },
+  }))
+
+  function toggle(): void {
+    innerExpanded.value = !innerExpanded.value
+    emit('update:expanded', !innerExpanded.value)
+  }
 </script>
 
 <style lang="scss" scoped>
 .filter-builder {
   background-color: #fff;
   padding: var(--p-1) var(--p-2);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
 }
 
 .filter-builder__header {
@@ -67,9 +96,8 @@
   align-items: center;
 }
 
-.filter-builder__close {
-  --icon-color: var(--primary);
-
+.filter-builder__close,
+.filter-builder__toggle {
   appearance: none;
   border: 0;
   background: none;
@@ -78,6 +106,10 @@
   display: flex;
   align-items: center;
 
+}
+.filter-builder__close {
+  --icon-color: var(--primary);
+
   &:hover {
     --icon-color: var(--primary-hover);
   }
@@ -85,6 +117,19 @@
 
 .filter-builder__close-icon {
   color: var(--icon-color);
+}
+
+.filter-builder__toggle {
+  transform: rotate(180deg);
+  transition: transform 0.25s ease;
+}
+
+.filter-builder__toggle--closed {
+  transform: rotate(0deg);
+}
+
+.filter-builder__filter {
+  padding-bottom: var(--p-1);
 }
 
 .filter-builder__tag {
