@@ -29,6 +29,50 @@ class AirbyteExportConfigurationFailed(Exception):
     pass
 
 
+class AirbyteClient:
+    """
+    Esablishes a session with an Airbyte instance and evaluates it's current health
+    status
+
+    This client assumes that the Airbyte Open-Source, since "For
+    Airbyte Open-Source you don't need the API Token for
+    Authentication! All endpoints are possible to access using the
+    API without it."
+    For more information refer to the [Airbyte docs](https://docs.airbyte.io/api-documentation)
+
+    Args:
+        - airbyte_base_url (str, mandatory):
+
+    Returns:
+        - session connection with Airbyte
+    """
+
+    def __init__(self, airbyte_base_url: str):
+        self.airbyte_base_url = airbyte_base_url
+
+    def _establish_session(self):
+        session = requests.Session()
+        if self._check_health_status(session):
+            print(session)
+            return session
+
+    def _check_health_status(self, session):
+        get_connection_url = self.airbyte_base_url + "/health/"
+        try:
+            response = session.get(get_connection_url)
+            # self.logger.info(response.json())
+            print(response.json())
+            key = "available" if "available" in response.json() else "db"
+            health_status = response.json()[key]
+            if not health_status:
+                raise AirbyteServerNotHealthyException(
+                    f"Airbyte Server health status: {health_status}"
+                )
+            return True
+        except RequestException as e:
+            raise AirbyteServerNotHealthyException(e)
+
+
 class AirbyteConnectionTask(Task):
     """
     Task for triggering Airbyte Connections, where "A connection is
@@ -78,21 +122,6 @@ class AirbyteConnectionTask(Task):
         self.airbyte_api_version = airbyte_api_version
         self.connection_id = connection_id
         super().__init__(**kwargs)
-
-    def _check_health_status(self, session, airbyte_base_url):
-        get_connection_url = airbyte_base_url + "/health/"
-        try:
-            response = session.get(get_connection_url)
-            self.logger.info(response.json())
-            key = "available" if "available" in response.json() else "db"
-            health_status = response.json()[key]
-            if not health_status:
-                raise AirbyteServerNotHealthyException(
-                    f"Airbyte Server health status: {health_status}"
-                )
-            return True
-        except RequestException as e:
-            raise AirbyteServerNotHealthyException(e)
 
     def _get_connection_status(self, session, airbyte_base_url, connection_id):
         get_connection_url = airbyte_base_url + "/connections/get/"
@@ -258,8 +287,9 @@ class AirbyteConnectionTask(Task):
             f"{airbyte_server_port}/api/{airbyte_api_version}"
         )
 
-        session = requests.Session()
-        self._check_health_status(session, airbyte_base_url)
+        airbyte = AirbyteClient(airbyte_base_url)
+        session = airbyte._establish_session()
+
         self.logger.info(
             f"Getting Airbyte Connection {connection_id}, poll interval "
             f"{poll_interval_s} seconds, airbyte_base_url {airbyte_base_url}"
@@ -329,6 +359,21 @@ class AirbyteConfigurationExport(Task):
             Defaults to v1.
         - **kwargs (Any, optional): additional kwargs to pass to the
             base Task constructor
+
+    Returns:
+        - compressed gz file byte array of Airbyte configuration data.
+        Airbyte requires this file type (or .tar) for configuration imports
+
+    Example:
+        from prefect import Flow
+        from prefect.tasks.airbyte import AirbyteConfigurationExport
+        import gzip
+
+        airbyte = AirbyteConfigurationExport()
+        with Flow("airbyte_export") as flow:
+            export = airbyte.run()
+            with gzip.open('airbyte.gz', 'wb') as f:
+                f.write(export)
     """
 
     def __init__(
@@ -343,22 +388,7 @@ class AirbyteConfigurationExport(Task):
         self.airbyte_api_version = airbyte_api_version
         super().__init__(**kwargs)
 
-    def _check_health_status(self, session, airbyte_base_url):
-        get_connection_url = airbyte_base_url + "/health/"
-        try:
-            response = session.get(get_connection_url)
-            self.logger.info(response.json())
-            key = "available" if "available" in response.json() else "db"
-            health_status = response.json()[key]
-            if not health_status:
-                raise AirbyteServerNotHealthyException(
-                    f"Airbyte Server health status: {health_status}"
-                )
-            return True
-        except RequestException as e:
-            raise AirbyteServerNotHealthyException(e)
-
-    def _export_configuration(self, session, airbyte_base_url):
+    def _export_configuration(self, session, airbyte_base_url) -> bytearray:
         """
         Trigger an export of Airbyte configuration, see:
         https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#post-/v1/deployment/export
@@ -375,7 +405,7 @@ class AirbyteConfigurationExport(Task):
         try:
             response = session.post(get_connection_url)
             if response.status_code == 200:
-                self.logger.info(response)
+                self.logger.debug("Export configuration response: %s", response)
                 export_config = response.content
                 return export_config
         except RequestException as e:
@@ -410,8 +440,9 @@ class AirbyteConfigurationExport(Task):
             f"{airbyte_server_port}/api/{airbyte_api_version}"
         )
 
-        session = requests.Session()
-        self._check_health_status(session, airbyte_base_url)
+        airbyte = AirbyteClient(airbyte_base_url)
+        session = airbyte._establish_session()
+
         self.logger.info("Initiating export of Airbyte configuration")
         airbyte_config = self._export_configuration(session, airbyte_base_url)
 

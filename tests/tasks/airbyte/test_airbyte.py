@@ -2,7 +2,11 @@ import pytest
 import requests
 import responses
 
-from prefect.tasks.airbyte import AirbyteConnectionTask, AirbyteConfigurationExport
+from prefect.tasks.airbyte import (
+    AirbyteConnectionTask,
+    AirbyteConfigurationExport,
+    AirbyteClient,
+)
 from prefect.tasks.airbyte.airbyte import (
     AirbyteServerNotHealthyException,
     ConnectionNotFoundException,
@@ -11,6 +15,59 @@ from prefect.tasks.airbyte.airbyte import (
 
 
 class TestAirbyte:
+    @responses.activate
+    def test_check_health_status(self):
+        airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"db": True},
+            status=200,
+        )
+        airbyte = AirbyteClient(airbyte_base_url)
+        response = airbyte._establish_session()
+        assert response
+
+    @responses.activate
+    def test_check_health_status_2(self):
+        airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"db": False},
+            status=200,
+        )
+        airbyte = AirbyteClient(airbyte_base_url)
+        with pytest.raises(AirbyteServerNotHealthyException):
+            airbyte._establish_session()
+
+    @responses.activate
+    def test_check_health_status_3(self):
+        airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"available": True},
+            status=200,
+        )
+        airbyte = AirbyteClient(airbyte_base_url)
+        response = airbyte._establish_session()
+        assert response
+
+    @responses.activate
+    def test_check_health_status_4(self):
+        airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"available": False},
+            status=200,
+        )
+        airbyte = AirbyteClient(airbyte_base_url)
+        with pytest.raises(AirbyteServerNotHealthyException):
+            airbyte._establish_session()
+
+    # airbyte connection task
     def test_construction(self):
         task = AirbyteConnectionTask()
         assert task.airbyte_server_host == "localhost"
@@ -36,70 +93,6 @@ class TestAirbyte:
         task = AirbyteConnectionTask()
         with pytest.raises(ValueError):
             task.run(connection_id="749c19dc-4f97-4f30-bb0f-126e5350696K")
-
-    @responses.activate
-    def test_check_health_status(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"db": True},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConnectionTask(
-            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
-        )
-        response = task._check_health_status(session, airbyte_base_url)
-        assert response
-
-    @responses.activate
-    def test_check_health_status_2(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"db": False},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConnectionTask(
-            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
-        )
-        with pytest.raises(AirbyteServerNotHealthyException):
-            task._check_health_status(session, airbyte_base_url)
-
-    @responses.activate
-    def test_check_health_status_3(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"available": True},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConnectionTask(
-            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
-        )
-        response = task._check_health_status(session, airbyte_base_url)
-        assert response
-
-    @responses.activate
-    def test_check_health_status_4(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"available": False},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConnectionTask(
-            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
-        )
-        with pytest.raises(AirbyteServerNotHealthyException):
-            task._check_health_status(session, airbyte_base_url)
 
     @responses.activate
     def test_get_connection_status(self):
@@ -259,62 +252,6 @@ class TestAirbyte:
         assert task.airbyte_server_port == 8000
 
     @responses.activate
-    def test_check_health_status(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"db": True},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConfigurationExport()
-        response = task._check_health_status(session, airbyte_base_url)
-        assert response
-
-    @responses.activate
-    def test_check_health_status_2(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"db": False},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConfigurationExport()
-        with pytest.raises(AirbyteServerNotHealthyException):
-            task._check_health_status(session, airbyte_base_url)
-
-    @responses.activate
-    def test_check_health_status_3(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"available": True},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConfigurationExport()
-        response = task._check_health_status(session, airbyte_base_url)
-        assert response
-
-    @responses.activate
-    def test_check_health_status_4(self):
-        airbyte_base_url = "http://localhost:8000/api/v1"
-        responses.add(
-            responses.GET,
-            airbyte_base_url + "/health/",
-            json={"available": False},
-            status=200,
-        )
-        session = requests.Session()
-        task = AirbyteConfigurationExport()
-        with pytest.raises(AirbyteServerNotHealthyException):
-            task._check_health_status(session, airbyte_base_url)
-
-    @responses.activate
     def test_export_configuration(self):
         airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
@@ -323,8 +260,7 @@ class TestAirbyte:
             body="\x02\x03\x05\x07",
             status=200,
         )
-        session = requests.Session()
         task = AirbyteConfigurationExport()
+        session = requests.Session()
         airbyte_config = task._export_configuration(session, airbyte_base_url)
-
         assert airbyte_config == b"\x02\x03\x05\x07"
