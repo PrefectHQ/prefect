@@ -163,7 +163,7 @@ class DatabricksSubmitRun(Task):
         },
     }
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksSubmitRun(json=json)
         notebook_run(databricks_conn_secret=conn)
@@ -187,7 +187,7 @@ class DatabricksSubmitRun(Task):
         'notebook_path': '/Users/prefect@example.com/PrepareData',
     }
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksSubmitRun(
             new_cluster=new_cluster,
@@ -207,7 +207,7 @@ class DatabricksSubmitRun(Task):
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksSubmitRun
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksSubmitRun(json=...)
         notebook_run(databricks_conn_secret=conn)
@@ -481,7 +481,7 @@ class DatabricksRunNow(Task):
           }
         }
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksRunNow(json=json)
         notebook_run(databricks_conn_secret=conn)
@@ -534,7 +534,7 @@ class DatabricksRunNow(Task):
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksRunNow
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksRunNow(json=...)
         notebook_run(databricks_conn_secret=conn)
@@ -902,7 +902,7 @@ class DatabricksSubmitMultitaskRun(Task):
         )
 
 
-        with flow as f:
+        with Flow("my flow") as f:
             conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
             submit_multitask_run(databricks_conn_secret=conn)
         ```
@@ -973,7 +973,7 @@ class DatabricksSubmitMultitaskRun(Task):
             ],
         })
 
-        with flow as f:
+        with Flow("my flow") as f:
             conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
             submit_multitask_run(**databricks_kwargs, databricks_conn_secret=conn)
         ```
