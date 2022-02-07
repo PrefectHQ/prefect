@@ -23,7 +23,7 @@
   }>()
 
   const props = defineProps<{
-    value?: string[],
+    value?: FilterValue,
   }>()
 
   onMounted(() => {
@@ -31,7 +31,7 @@
   })
 
   const internalValue = computed({
-    get: () => props.value,
+    get: () => Array.isArray(props.value) ? props.value : [],
     set: (value) => emit('update:value', value!),
   })
 
@@ -45,11 +45,11 @@
   ]
 
   function isChecked(value: Lowercase<StateType>): boolean {
-    return (props.value ?? []).includes(value)
+    return internalValue.value.includes(value)
   }
 
   function toggle(value: Lowercase<StateType>): void {
-    const values = props.value ?? []
+    const values = internalValue.value
     const index = values.indexOf(value)
 
     if (index >= 0) {
