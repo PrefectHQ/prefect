@@ -1,7 +1,7 @@
 <template>
   <div class="filter-builder">
     <div class="filter-builder__header">
-      <FilterBuilderHeading :filter="innerFilter" />
+      <FilterBuilderHeading class="filter-builder__heading" :filter="innerFilter" />
       <template v-if="dismissable && hasObject">
         <button type="button" class="filter-builder__close" @click="emit('dismiss')">
           <i class="filter-builder__close-icon pi pi-sm pi-close-circle-fill" />
@@ -96,13 +96,16 @@
   align-items: center;
 }
 
+.filter-builder__heading {
+  margin-right: auto;
+}
+
 .filter-builder__close,
 .filter-builder__toggle {
   appearance: none;
   border: 0;
   background: none;
   cursor: pointer;
-  margin-left: auto;
   display: flex;
   align-items: center;
 
