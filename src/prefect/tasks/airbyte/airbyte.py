@@ -47,21 +47,20 @@ class AirbyteClient:
         - session connection with Airbyte
     """
 
-    def __init__(self, airbyte_base_url: str):
+    def __init__(self, logger, airbyte_base_url: str):
         self.airbyte_base_url = airbyte_base_url
+        self.logger = logger
 
     def _establish_session(self):
         session = requests.Session()
         if self._check_health_status(session):
-            print(session)
             return session
 
     def _check_health_status(self, session):
         get_connection_url = self.airbyte_base_url + "/health/"
         try:
             response = session.get(get_connection_url)
-            # self.logger.info(response.json())
-            print(response.json())
+            self.logger.info(response.json())
             key = "available" if "available" in response.json() else "db"
             health_status = response.json()[key]
             if not health_status:
@@ -440,7 +439,7 @@ class AirbyteConfigurationExport(Task):
             f"{airbyte_server_port}/api/{airbyte_api_version}"
         )
 
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(self.logger, airbyte_base_url)
         session = airbyte._establish_session()
 
         self.logger.info("Initiating export of Airbyte configuration")
