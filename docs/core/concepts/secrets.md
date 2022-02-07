@@ -119,5 +119,5 @@ export PREFECT__CONTEXT__SECRETS__VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>"}'
 ```python
 from prefect.tasks.secrets.vault_secret import VaultSecret
 
-secret = VaultSecret("secret/test/path/to/value").run()
+secret = VaultSecret("secret/test/path/to/secret").run()
 ```
