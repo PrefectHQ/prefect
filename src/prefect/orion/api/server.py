@@ -26,8 +26,11 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
+ORION_API_VERSION = "0.1.0"
 
 logger = get_logger("orion")
+
+version_checker = api.dependencies.CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
 class SPAStaticFiles(StaticFiles):
@@ -66,6 +69,12 @@ def create_orion_api(
     @api_app.get(health_check_path)
     async def health_check():
         return True
+
+    # always include version checking
+    if dependencies is None:
+        dependencies = [Depends(version_checker)]
+    else:
+        dependencies.append(Depends(version_checker))
 
     # api routers
     api_app.include_router(
