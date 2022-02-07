@@ -1,8 +1,8 @@
 <template>
   <m-card shadow="sm">
-    <div class="create-workspace-card">
-      <div class="create-workspace-card__background-image" />
-      <div class="create-workspace-card__text">
+    <div class="empty-state-card">
+      <div class="empty-state-card__background-image" />
+      <div class="empty-state-card__text">
         <h1>{{header}}</h1>
         <span>{{description}}</span>
         <router-link :to="link">
@@ -11,7 +11,7 @@
           </m-button>
         </router-link>
       </div>
-      <img :src="imagePath" alt="imageAltText" class="create-workspace-card__card-image">
+      <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
     </div>
   </m-card>
 </template>
@@ -53,7 +53,7 @@ export default defineComponent({
 
 <style lang="scss">
 @use 'sass:map';
-.create-workspace-card {
+.empty-state-card {
   display: flex;
   flex-direction: column;
   text-align: center;
@@ -110,7 +110,7 @@ export default defineComponent({
     top: -150px;
     left: 10vw;
     position: absolute;
-    animation: create-workspace-card-rotate 40s infinite linear;
+    animation: empty-state-card-rotate 40s infinite linear;
 
     @media only screen and (min-width: map.get($breakpoints, 'md')) {
       left: 50vw;
@@ -118,7 +118,7 @@ export default defineComponent({
    }
 }
 
-@keyframes create-workspace-card-rotate {
+@keyframes empty-state-card-rotate {
   from {
     transform: rotate(0deg);
   }
