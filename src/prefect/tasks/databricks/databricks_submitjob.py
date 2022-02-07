@@ -1,7 +1,8 @@
 from dataclasses import asdict, fields, is_dataclass
 from inspect import isclass
 import time
-from typing import Any, Dict, List, Union, get_args, get_origin
+from typing import Any, Dict, List, Union
+from typing_extensions import get_origin, get_args
 from enum import Enum
 
 import six
