@@ -38,6 +38,10 @@ def merge_run_task_kwargs(opts1: dict, opts2: dict) -> dict:
 
     out = deepcopy(opts1)
 
+    # if out contains keys for capacityProviderStrategy and LaunchType delete launchType
+    if "capacityProviderStrategy" in opts2 and "launchType" in out:
+        del out["launchType"]
+
     # Everything except 'overrides' merge directly
     for k, v in opts2.items():
         if k != "overrides":
@@ -168,7 +172,7 @@ class ECSAgent(Agent):
         from prefect.utilities.aws import get_boto_client
 
         self.cluster = cluster
-        self.launch_type = launch_type.upper() if launch_type else "FARGATE"
+        self.launch_type = launch_type
         self.task_role_arn = task_role_arn
         self.execution_role_arn = execution_role_arn
 
@@ -224,14 +228,27 @@ class ECSAgent(Agent):
         else:
             self.run_task_kwargs = {}
 
-        # If running on fargate, auto-configure `networkConfiguration` for the
-        # user if they didn't configure it themselves.
-        if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
-            "networkConfiguration"
-        ):
-            self.run_task_kwargs[
-                "networkConfiguration"
-            ] = self.infer_network_configuration()
+        if not self.run_task_kwargs.get("capacityProviderStrategy"):
+            self.launch_type = launch_type.upper() if launch_type else "FARGATE"
+
+            self.logger.error(
+                "No launch type or capacity provider given. Setting launch type to FARGATE.",
+            )
+            # If running on fargate, auto-configure `networkConfiguration` for the
+            # user if they didn't configure it themselves.
+        if not self.run_task_kwargs.get("networkConfiguration"):
+            if self.launch_type:
+                if self.launch_type == "FARGATE":
+                    self.run_task_kwargs[
+                        "networkConfiguration"
+                    ] = self.infer_network_configuration()
+            else:
+                msg = (
+                    "It seems you are using a capcacity provider please explicitly "
+                    "configure networkMode and networkConfiguration, using `--run-task-kwargs`"
+                )
+                self.logger.error(msg)
+                raise ValueError(msg)
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.
@@ -413,8 +430,8 @@ class ECSAgent(Agent):
         elif self.execution_role_arn:
             taskdef["executionRoleArn"] = self.execution_role_arn
 
-        # Set requiresCompatibilities if not already set
-        if "requiresCompatibilities" not in taskdef:
+        # Set requiresCompatibilities if not already set if self.launch_type is set
+        if "requiresCompatibilities" not in taskdef and self.launch_type:
             taskdef["requiresCompatibilities"] = [self.launch_type]
 
         return taskdef
@@ -433,7 +450,11 @@ class ECSAgent(Agent):
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        out["launchType"] = self.launch_type
+        # Use launchType only if capacity provider is not specified
+
+        if not out.get("capacityProviderStrategy"):
+            out["launchType"] = self.launch_type
+
         if self.cluster:
             out["cluster"] = self.cluster
 
