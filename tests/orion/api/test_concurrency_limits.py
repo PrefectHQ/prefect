@@ -23,7 +23,7 @@ class TestConcurrencyLimits:
 
         response = await client.post("/concurrency_limits/", json=data)
         assert response.status_code == 200
-        cl_id = response.json()["id"]
+        assert response.json()["id"]
 
     async def test_upserting_concurrency_limits(self, session, client):
         insert_data = ConcurrencyLimitCreate(
