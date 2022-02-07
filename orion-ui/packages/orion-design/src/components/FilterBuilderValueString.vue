@@ -49,7 +49,7 @@
 .filter-builder-value-string {
   display: grid;
   gap: var(--m-1);
-  grid-template-columns: minmax(100px, 370px) minmax(100px, 1fr);
+  grid-template-columns: minmax(100px, 350px) minmax(100px, 1fr);
   align-items: flex-end;
 }
 </style>

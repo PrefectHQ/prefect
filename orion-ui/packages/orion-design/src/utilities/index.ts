@@ -1,3 +1,5 @@
 export * from './dates'
 export * from './filters'
 export * from './logs'
+export * from './object'
+export * from './strings'
