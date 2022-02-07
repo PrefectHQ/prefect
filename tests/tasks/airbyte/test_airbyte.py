@@ -6,8 +6,7 @@ from prefect.tasks.airbyte import AirbyteConnectionTask, AirbyteConfigurationExp
 from prefect.tasks.airbyte.airbyte import (
     AirbyteServerNotHealthyException,
     ConnectionNotFoundException,
-    JobNotFoundException,
-    AirbyteExportConfigurationFailed,
+    JobNotFoundException
 )
 
 
@@ -40,7 +39,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -56,7 +55,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_2(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -72,7 +71,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_3(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -88,7 +87,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_4(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -107,7 +106,7 @@ class TestAirbyte:
         """
         Active Connection, No Schedule
         """
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
@@ -125,7 +124,7 @@ class TestAirbyte:
         """
         Inactive Connection, No Schedule
         """
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
@@ -143,7 +142,7 @@ class TestAirbyte:
         """
         Deprecated Connection, No Schedule
         """
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
@@ -161,7 +160,7 @@ class TestAirbyte:
         """
         Active Connection, Existing Schedule
         """
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
@@ -182,7 +181,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_trigger_manual_sync_connection(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/sync/",
@@ -200,7 +199,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_trigger_manual_sync_connection_2(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST, airbyte_base_url + "/connections/sync/", json={}, status=404
         )
@@ -215,7 +214,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_get_job_status(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/jobs/get/",
@@ -241,7 +240,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_get_job_status_2(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.POST, airbyte_base_url + "/jobs/get/", json={}, status=404
         )
@@ -253,7 +252,7 @@ class TestAirbyte:
         with pytest.raises(JobNotFoundException):
             task._get_job_status(session, airbyte_base_url, job_id)
 
-    ## airbyte export tests
+    # airbyte export tests
     def test_construction(self):
         task = AirbyteConfigurationExport()
         assert task.airbyte_server_host == "localhost"
@@ -261,7 +260,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -275,7 +274,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_2(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -289,7 +288,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_3(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -303,7 +302,7 @@ class TestAirbyte:
 
     @responses.activate
     def test_check_health_status_4(self):
-        airbyte_base_url = f"http://localhost:8000/api/v1"
+        airbyte_base_url = "http://localhost:8000/api/v1"
         responses.add(
             responses.GET,
             airbyte_base_url + "/health/",
@@ -314,3 +313,18 @@ class TestAirbyte:
         task = AirbyteConfigurationExport()
         with pytest.raises(AirbyteServerNotHealthyException):
             task._check_health_status(session, airbyte_base_url)
+
+    @responses.activate
+    def test_export_configuration(self):
+        airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.POST,
+            airbyte_base_url + "/deployment/export/",
+            body="\x02\x03\x05\x07",
+            status=200,
+        )
+        session = requests.Session()
+        task = AirbyteConfigurationExport()
+        airbyte_config = task._export_configuration(session, airbyte_base_url)
+
+        assert airbyte_config == b"\x02\x03\x05\x07"

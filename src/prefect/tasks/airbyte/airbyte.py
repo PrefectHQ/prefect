@@ -412,7 +412,7 @@ class AirbyteConfigurationExport(Task):
 
         session = requests.Session()
         self._check_health_status(session, airbyte_base_url)
-        self.logger.info(f"Initiating export of Airbyte configuration")
+        self.logger.info("Initiating export of Airbyte configuration")
         airbyte_config = self._export_configuration(session, airbyte_base_url)
 
         return airbyte_config
