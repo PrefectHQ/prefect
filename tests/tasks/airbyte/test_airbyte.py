@@ -7,7 +7,7 @@ from prefect.tasks.airbyte.airbyte import (
     AirbyteServerNotHealthyException,
     ConnectionNotFoundException,
     JobNotFoundException,
-    AirbyteExportConfigurationFailed
+    AirbyteExportConfigurationFailed,
 )
 
 
@@ -253,7 +253,7 @@ class TestAirbyte:
         with pytest.raises(JobNotFoundException):
             task._get_job_status(session, airbyte_base_url, job_id)
 
-## airbyte export tests
+    ## airbyte export tests
     def test_construction(self):
         task = AirbyteConfigurationExport()
         assert task.airbyte_server_host == "localhost"
@@ -272,7 +272,7 @@ class TestAirbyte:
         task = AirbyteConfigurationExport()
         response = task._check_health_status(session, airbyte_base_url)
         assert response
-    
+
     @responses.activate
     def test_check_health_status_2(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"

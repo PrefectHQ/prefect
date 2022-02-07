@@ -8,6 +8,7 @@ from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
 
+
 class ConnectionNotFoundException(Exception):
     pass
 
@@ -366,15 +367,13 @@ class AirbyteConfigurationExport(Task):
             - session: requests session with which to make call to Airbyte server
             - airbyte_base_url: URL of Airbyte server
 
-        Returns: 
+        Returns:
             - byte array of Airbyte configuration data
         """
         get_connection_url = airbyte_base_url + "/deployment/export/"
 
         try:
-            response = session.post(
-                get_connection_url
-            )
+            response = session.post(get_connection_url)
             if response.status_code == 200:
                 self.logger.info(response)
                 export_config = response.content
@@ -382,22 +381,18 @@ class AirbyteConfigurationExport(Task):
         except RequestException as e:
             raise AirbyteExportConfigurationFailed(e)
 
-
     @defaults_from_attrs(
-        "airbyte_server_host",
-        "airbyte_server_port",
-        "airbyte_api_version"
+        "airbyte_server_host", "airbyte_server_port", "airbyte_api_version"
     )
-
     def run(
         self,
         airbyte_server_host: str = None,
         airbyte_server_port: int = None,
-        airbyte_api_version: str = None
+        airbyte_api_version: str = None,
     ) -> bytearray:
         """
         Task run method for triggering an export of an Airbyte configuration
-        
+
         Args:
             - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is
                 configured. Will overwrite the value provided at init if provided.
@@ -407,7 +402,7 @@ class AirbyteConfigurationExport(Task):
                 sync. Will overwrite the value provided at init if provided.
 
         Returns:
-            - byte array of Airbyte configuration data       
+            - byte array of Airbyte configuration data
         """
 
         airbyte_base_url = (
@@ -417,9 +412,7 @@ class AirbyteConfigurationExport(Task):
 
         session = requests.Session()
         self._check_health_status(session, airbyte_base_url)
-        self.logger.info(
-            f"Initiating export of Airbyte configuration"
-        )
+        self.logger.info(f"Initiating export of Airbyte configuration")
         airbyte_config = self._export_configuration(session, airbyte_base_url)
 
         return airbyte_config
