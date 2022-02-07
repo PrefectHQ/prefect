@@ -14,7 +14,7 @@ Prefect is published as a Python package. To install the latest 2.0 alpha releas
 pip install -U "prefect>=2.0a"
 ```
 
-To install a specific version, specify the version:
+To install a specific version, specify the version, such as:
 
 ```bash
 pip install -U "prefect=2.0a9"
@@ -58,6 +58,35 @@ $ prefect version
 </div>
 
 Running this command should print a familiar looking version string to your console.
+
+## Upgrading the database
+
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
+
+With the additions of migrations to Prefect Orion, if you if install a version later than 2.0a9, but had an existing db from before, you'll need to do one of the following processes:
+
+* Delete and rebuild the database
+* Stamp and reset the database
+
+### Delete the database file
+
+Delete the database file `~/.prefect/orion.db`.
+
+Prefect Orion automatically creates a new database on the next write. 
+
+### Reset the database manually
+
+Use the Prefect CLI to stamp the database revision table:
+
+```bash
+prefect orion database stamp
+```
+
+Using the CLI, reset the database:
+
+```bash
+prefect orion database reset
+```
 
 ## External requirements
 
