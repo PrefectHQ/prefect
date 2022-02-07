@@ -37,6 +37,10 @@
   padding: var(--p-1) var(--p-2);
 }
 
+.filter-builder__header {
+  margin-bottom: var(--m-1);
+}
+
 .filter-builder__tag {
   margin-top: var(--m-1);
 }
