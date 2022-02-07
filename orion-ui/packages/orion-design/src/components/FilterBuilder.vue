@@ -1,30 +1,30 @@
 <template>
   <div class="filter-builder">
     <div class="filter-builder__header">
-      <FilterBuilderHeading :filter="filter" />
-      <template v-if="hasObject">
-        <button type="button" class="filter-builder__close" @click="emit('remove')">
+      <FilterBuilderHeading :filter="innerFilter" />
+      <template v-if="dismissable && hasObject">
+        <button type="button" class="filter-builder__close" @click="emit('dismiss')">
           <i class="filter-builder__close-icon pi pi-xs pi-close-circle-fill" />
         </button>
       </template>
     </div>
-    <template v-if="!filter.object">
-      <FilterBuilderObject v-model:object="filter.object" />
+    <template v-if="!innerFilter.object">
+      <FilterBuilderObject v-model:object="innerFilter.object" />
     </template>
-    <template v-else-if="!filter.property">
-      <FilterBuilderProperty v-model:property="filter.property" v-model:type="filter.type" :object="filter.object" />
+    <template v-else-if="!innerFilter.property">
+      <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
     </template>
     <template v-else>
-      <FilterBuilderValue v-model:type="filter.type" v-model:operation="filter.operation" v-model:value="filter.value" :property="filter.property" />
+      <FilterBuilderValue v-model:type="innerFilter.type" v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :property="innerFilter.property" />
     </template>
-    <template v-if="isCompleteFilter(filter)">
-      <FilterTag class="filter-builder__tag" :filter="filter" />
+    <template v-if="isCompleteFilter(innerFilter)">
+      <FilterTag class="filter-builder__tag" :filter="innerFilter" />
     </template>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { computed, reactive } from 'vue'
+  import { computed } from 'vue'
   import { Filter } from '../types/filters'
   import { isCompleteFilter } from '../utilities/filters'
   import FilterBuilderHeading from './FilterBuilderHeading.vue'
@@ -37,12 +37,22 @@
   // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
     // eslint-disable-next-line no-unused-vars
-    (event: 'remove'): void,
+    (event: 'update:filter', value: Partial<Filter>): void,
+    // eslint-disable-next-line no-unused-vars
+    (event: 'dismiss'): void,
   }>()
 
-  const filter = reactive<Partial<Filter>>({})
+  const props = defineProps<{
+    filter: Partial<Filter>,
+    dismissable?: boolean,
+  }>()
 
-  const hasObject = computed<boolean>(() => !!filter.object)
+  const innerFilter = computed({
+    get: () => props.filter,
+    set: (filter) => emit('update:filter', filter),
+  })
+
+  const hasObject = computed<boolean>(() => !!innerFilter.value.object)
 </script>
 
 <style lang="scss" scoped>
