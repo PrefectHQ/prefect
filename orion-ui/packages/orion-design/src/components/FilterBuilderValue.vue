@@ -14,6 +14,7 @@
   import FilterBuilderValueDate from './FilterBuilderValueDate.vue'
   import FilterBuilderValueState from './FilterBuilderValueState.vue'
   import FilterBuilderValueString from './FilterBuilderValueString.vue'
+  import FilterBuilderValueTag from './FilterBuilderValueTag.vue'
 
   // eslint really doesn't like defineEmits type annotation syntax
   // eslint-disable-next-line func-call-spacing
@@ -38,7 +39,8 @@
   const component = computed(() => {
     // eslint-disable-next-line default-case
     switch (props.property) {
-      case 'tag': { throw new Error('Not implemented yet: "tag" case') }
+      case 'tag':
+        return FilterBuilderValueTag
       case 'name':
         return FilterBuilderValueString
       case 'start_date':
