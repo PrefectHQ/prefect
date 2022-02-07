@@ -79,13 +79,13 @@ Prefect Orion automatically creates a new database on the next write.
 Use the Prefect CLI to stamp the database revision table:
 
 ```bash
-prefect orion database stamp
+$ prefect orion database stamp
 ```
 
 Using the CLI, reset the database:
 
 ```bash
-prefect orion database reset
+$ prefect orion database reset
 ```
 
 ## External requirements
