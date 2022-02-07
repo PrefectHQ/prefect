@@ -193,7 +193,7 @@ import { toPluralString } from '@/utilities/strings'
 
 const route = useRoute()
 
-const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('logs')
 
 const id = ref(route?.params.id as string)
 

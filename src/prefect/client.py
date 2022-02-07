@@ -28,6 +28,7 @@ from prefect import exceptions, settings
 from prefect.blocks.core import BlockAPI, assemble_block
 from prefect.logging import get_logger
 from prefect.orion import schemas
+from prefect.orion.api.server import ORION_API_VERSION
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
@@ -84,9 +85,18 @@ class OrionClient:
     """
 
     def __init__(
-        self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
+        self,
+        host: str = prefect.settings.orion_host,
+        api_version: str = ORION_API_VERSION,
+        httpx_settings: dict = None,
     ) -> None:
+
         httpx_settings = httpx_settings or {}
+
+        if "headers" not in httpx_settings:
+            httpx_settings["headers"] = {}
+
+        httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
 
         if host:
             # Connect to an existing instance

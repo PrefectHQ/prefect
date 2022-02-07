@@ -12,6 +12,7 @@ from prefect.blocks.core import BlockAPI
 from prefect.client import OrionClient
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
+from prefect.orion.api.server import ORION_API_VERSION
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
@@ -448,4 +449,84 @@ class TestResolveDataDoc:
                     ).datadoc,
                 )
                 == "hello"
+            )
+
+
+class TestClientAPIVersionRequests:
+    @pytest.fixture
+    def versions(self):
+        return ORION_API_VERSION.split(".")
+
+    @pytest.fixture
+    def major_version(self, versions):
+        return int(versions[0])
+
+    @pytest.fixture
+    def minor_version(self, versions):
+        return int(versions[1])
+
+    @pytest.fixture
+    def patch_version(self, versions):
+        return int(versions[2])
+
+    async def test_default_requests_succeeds(self):
+        async with OrionClient() as client:
+            res = await client.hello()
+            assert res.status_code == 200
+
+    async def test_no_api_version_header_succeeds(self):
+        async with OrionClient() as client:
+            # remove default header X-PREFECT-API-VERSION
+            client._client.headers = {}
+            res = await client.hello()
+            assert res.status_code == 200
+
+    async def test_major_version(self, major_version, minor_version, patch_version):
+        # higher client major version fails
+        api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400"):
+                await client.hello()
+
+        # lower client major version fails
+        api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400"):
+                await client.hello()
+
+    async def test_minor_version(self, major_version, minor_version, patch_version):
+        # higher client minor version fails
+        api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400"):
+                await client.hello()
+
+        # lower client minor version fails
+        api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400"):
+                await client.hello()
+
+    async def test_patch_version(self, major_version, minor_version, patch_version):
+        # higher client patch version fails
+        api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400"):
+                await client.hello()
+
+        # lower client minor version succeeds
+        api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
+        async with OrionClient(api_version=api_version) as client:
+            res = await client.hello()
+            assert res.status_code == 200
+
+    async def test_invalid_header(self):
+        # Invalid header is rejected
+        api_version = "not a real version header"
+        async with OrionClient(api_version=api_version) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="400") as e:
+                await client.hello()
+            assert (
+                "Invalid X-PREFECT-API-VERSION header format."
+                in e.value.response.json()["detail"]
             )

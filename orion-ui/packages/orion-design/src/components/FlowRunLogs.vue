@@ -79,7 +79,7 @@
     left: 0;
     right: 0;
     top: 50%;
-    background-color: #CECDD3;
+    background-color: #fff;
   }
 }
 
