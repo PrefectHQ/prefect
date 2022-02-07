@@ -1,8 +1,8 @@
 <template>
   <div class="filter-builder-object">
-    <template v-for="object in objects" :key="object">
-      <m-button color="secondary" :icon="FilterService.icon({ object })" miter @click="emit('update:object', object)">
-        <span class="filter-builder-object__name">{{ FilterDescriptionService.object(object) }}</span>
+    <template v-for="obj in objects" :key="obj">
+      <m-button color="secondary" :icon="FilterService.icon({ object: obj })" miter @click="emit('update:object', obj)">
+        <span class="filter-builder-object__name">{{ FilterDescriptionService.object(obj) }}</span>
       </m-button>
     </template>
   </div>
@@ -18,6 +18,12 @@
   const emit = defineEmits<{
     // eslint-disable-next-line no-unused-vars
     (event: 'update:object', value: FilterObject): void,
+  }>()
+
+  defineProps<{
+    // object is used for the v-model but not accessed
+    // eslint-disable-next-line vue/no-unused-properties
+    object?: FilterObject,
   }>()
 
   const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run', 'tag']
