@@ -85,22 +85,24 @@ class VaultSecret(SecretBase):
             client.auth.approle.login(
                 vault_creds["VAULT_ROLE_ID"], vault_creds["VAULT_SECRET_ID"]
             )
-        elif ('VAULT_KUBE_AUTH_ROLE' in vault_creds.keys() and
-              'VAULT_KUBE_AUTH_PATH' in vault_creds.keys()):
+        elif (
+            "VAULT_KUBE_AUTH_ROLE" in vault_creds.keys()
+            and "VAULT_KUBE_AUTH_PATH" in vault_creds.keys()
+        ):
 
             token_file = ""
-            if ('VAULT_KUBE_TOKEN_FILE' in vault_creds.keys()):
-                token_file = vault_creds['VAULT_KUBE_TOKEN_FILE']
+            if "VAULT_KUBE_TOKEN_FILE" in vault_creds.keys():
+                token_file = vault_creds["VAULT_KUBE_TOKEN_FILE"]
             else:
-                token_file = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+                token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
-            with open(token_file, 'r') as f:
+            with open(token_file, "r") as f:
                 jwt = f.read()
 
             client.auth.kubernetes.login(
-                role=vault_creds['VAULT_KUBE_AUTH_ROLE'],
+                role=vault_creds["VAULT_KUBE_AUTH_ROLE"],
                 jwt=jwt,
-                mount_point=vault_creds['VAULT_KUBE_AUTH_PATH']
+                mount_point=vault_creds["VAULT_KUBE_AUTH_PATH"],
             )
         else:
             raise ValueError(
