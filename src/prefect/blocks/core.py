@@ -24,3 +24,4 @@ def assemble_block(blockdata=None):
 
     block = BLOCK_API_REGISTRY.get(blockdata.blockref)
     return block(blockdata)
+
