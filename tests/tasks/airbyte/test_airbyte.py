@@ -6,7 +6,7 @@ from prefect.tasks.airbyte import AirbyteConnectionTask, AirbyteConfigurationExp
 from prefect.tasks.airbyte.airbyte import (
     AirbyteServerNotHealthyException,
     ConnectionNotFoundException,
-    JobNotFoundException
+    JobNotFoundException,
 )
 
 
