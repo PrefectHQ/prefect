@@ -1,6 +1,8 @@
-from dataclasses import asdict
+from dataclasses import asdict, fields, is_dataclass
+from inspect import isclass
 import time
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union, get_args, get_origin
+from enum import Enum
 
 import six
 
@@ -82,6 +84,54 @@ def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
             log.info("View run status, Spark UI, and logs at %s", run_page_url)
             log.info("Sleeping for %s seconds.", task.polling_period_seconds)
             time.sleep(task.polling_period_seconds)
+
+
+def _is_optional(input) -> bool:
+    """Checks to see if a type is an Optional generic"""
+    return get_origin(input) is Union and type(None) in get_args(input)
+
+
+def _deep_from_dict(desired_dataclass, input):
+    """
+    Utility method to take an input and recursively attempt to create the desired dataclass with
+    values in the input
+    """
+    if isinstance(input, (tuple, list)):
+        # If the input is a list, attempt to create dataclasses for all items in the list
+        return [_deep_from_dict(get_args(desired_dataclass)[0], item) for item in input]
+    if isclass(desired_dataclass) and issubclass(desired_dataclass, Enum):
+        # If the desired result is an Enum then return an instance of that Enum
+        return desired_dataclass[input]
+    if get_origin(desired_dataclass) is Union:
+        # If the desired result is a union try to create an instance of the desired result that matches
+        # the shape of the input
+        for member in get_args(desired_dataclass):
+            if is_dataclass(member):
+                if set([field.name for field in fields(member)]) == set(input.keys()):
+                    # Recursively create instances of composed types if necessary
+                    return _deep_from_dict(member, input)
+            if isclass(member) and issubclass(member, Enum):
+                for item in member:
+                    if item.value == input:
+                        return member[input]
+    if isinstance(input, dict):
+        # If the input is a dictionary, create an instance of the desired result
+        if is_dataclass(desired_dataclass):
+            field_types = {
+                field.name: field.type for field in fields(desired_dataclass)
+            }
+            dataclass_args = {}
+            for key, value in input.items():
+                item_type = field_types[key]
+                if _is_optional(item_type):
+                    item_type = next(
+                        t for t in get_args(item_type) if t is not type(None)
+                    )
+                # Recursively create instances of composed types if necessary
+                dataclass_args[key] = _deep_from_dict(item_type, value)
+            return desired_dataclass(**dataclass_args)
+    # Return the value if no conditions were met. Most likely means the input is a primitive.
+    return input
 
 
 class DatabricksSubmitRun(Task):
@@ -775,13 +825,25 @@ class DatabricksSubmitMultitaskRun(Task):
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
 
-    Example:
+    Examples:
         Trigger an ad-hoc multitask run
 
         ```
         from prefect import Flow
         from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
-        from prefect.tasks.databricks.models import JobTaskSettings, SparkJarTask, Library
+        from prefect.tasks.databricks.models import (
+            AccessControlRequestForUser,
+            AutoScale,
+            AwsAttributes,
+            AwsAvailability,
+            CanManage,
+            JobTaskSettings,
+            Library,
+            NewCluster,
+            NotebookTask,
+            SparkJarTask,
+            TaskDependency,
+        )
 
         submit_multitask_run = DatabricksSubmitMultitaskRun(
             tasks=[
@@ -844,6 +906,77 @@ class DatabricksSubmitMultitaskRun(Task):
             conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
             submit_multitask_run(databricks_conn_secret=conn)
         ```
+
+        Use a JSON-like dict as input
+        ```
+        from prefect import Flow
+        from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
+
+        databricks_kwargs = DatabricksSubmitMultitaskRun.convert_dict_to_kwargs({
+            "tasks": [
+                {
+                    "task_key": "Sessionize",
+                    "description": "Extracts session data from events",
+                    "depends_on": [],
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.Sessionize",
+                        "parameters": ["--data", "dbfs:/path/to/data.json"],
+                    },
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
+                    "timeout_seconds": 86400,
+                },
+                {
+                    "task_key": "Orders_Ingest",
+                    "description": "Ingests order data",
+                    "depends_on": [],
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.OrdersIngest",
+                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                    },
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
+                    "timeout_seconds": 86400,
+                },
+                {
+                    "task_key": "Match",
+                    "description": "Matches orders with user sessions",
+                    "depends_on": [
+                        {"task_key": "Orders_Ingest"},
+                        {"task_key": "Sessionize"},
+                    ],
+                    "new_cluster": {
+                        "spark_version": "7.3.x-scala2.12",
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "autoscale": {"min_workers": 2, "max_workers": 16},
+                    },
+                    "notebook_task": {
+                        "notebook_path": "/Users/user.name@databricks.com/Match",
+                        "base_parameters": {"name": "John Doe", "age": "35"},
+                    },
+                    "timeout_seconds": 86400,
+                },
+            ],
+            "run_name": "A multitask job run",
+            "timeout_seconds": 86400,
+            "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
+            "access_control_list": [
+                {
+                    "user_name": "jsmith@example.com",
+                    "permission_level": "CAN_MANAGE",
+                }
+            ],
+        })
+
+        with flow as f:
+            conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+            submit_multitask_run(**databricks_kwargs, databricks_conn_secret=conn)
+        ```
     """
 
     def __init__(
@@ -871,6 +1004,17 @@ class DatabricksSubmitMultitaskRun(Task):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         super().__init__(**kwargs)
+
+    @staticmethod
+    def convert_dict_to_kwargs(input: Dict[str, Any]):
+        return {
+            **input,
+            "tasks": _deep_from_dict(List[JobTaskSettings], input["tasks"]),
+            "access_control_list": _deep_from_dict(
+                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
+                input["access_control_list"],
+            ),
+        }
 
     @defaults_from_attrs(
         "databricks_conn_info",
