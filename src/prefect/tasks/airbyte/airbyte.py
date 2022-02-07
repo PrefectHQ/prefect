@@ -286,7 +286,7 @@ class AirbyteConnectionTask(Task):
             f"{airbyte_server_port}/api/{airbyte_api_version}"
         )
 
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(self.logger, airbyte_base_url)
         session = airbyte._establish_session()
 
         self.logger.info(

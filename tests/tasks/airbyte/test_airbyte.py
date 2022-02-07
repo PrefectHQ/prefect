@@ -1,6 +1,7 @@
 import pytest
 import requests
 import responses
+import logging
 
 from prefect.tasks.airbyte import (
     AirbyteConnectionTask,
@@ -13,6 +14,9 @@ from prefect.tasks.airbyte.airbyte import (
     JobNotFoundException,
 )
 
+logging.basicConfig()
+log = logging.getLogger()
+
 
 class TestAirbyte:
     @responses.activate
@@ -24,7 +28,7 @@ class TestAirbyte:
             json={"db": True},
             status=200,
         )
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(log, airbyte_base_url)
         response = airbyte._establish_session()
         assert response
 
@@ -37,7 +41,7 @@ class TestAirbyte:
             json={"db": False},
             status=200,
         )
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(log, airbyte_base_url)
         with pytest.raises(AirbyteServerNotHealthyException):
             airbyte._establish_session()
 
@@ -50,7 +54,7 @@ class TestAirbyte:
             json={"available": True},
             status=200,
         )
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(log, airbyte_base_url)
         response = airbyte._establish_session()
         assert response
 
@@ -63,7 +67,7 @@ class TestAirbyte:
             json={"available": False},
             status=200,
         )
-        airbyte = AirbyteClient(airbyte_base_url)
+        airbyte = AirbyteClient(log, airbyte_base_url)
         with pytest.raises(AirbyteServerNotHealthyException):
             airbyte._establish_session()
 
