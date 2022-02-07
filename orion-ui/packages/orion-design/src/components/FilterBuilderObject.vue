@@ -2,7 +2,7 @@
   <div class="filter-builder-object">
     <template v-for="object in objects" :key="object">
       <m-button color="secondary" :icon="FilterService.icon({ object })" miter @click="emit('update:object', object)">
-        {{ FilterDescriptionService.object(object) }}
+        <span class="filter-builder-object__name">{{ FilterDescriptionService.object(object) }}</span>
       </m-button>
     </template>
   </div>
@@ -28,5 +28,9 @@
   display: flex;
   gap: var(--m-1);
   flex-wrap: wrap;
+}
+
+.filter-builder-object__name::first-letter {
+  text-transform: uppercase;
 }
 </style>
