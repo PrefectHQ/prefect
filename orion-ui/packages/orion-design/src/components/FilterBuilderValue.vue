@@ -11,6 +11,8 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { FilterOperation, FilterProperty, FilterType, FilterValue } from '../types/filters'
+  import FilterBuilderValueDate from './FilterBuilderValueDate.vue'
+  import FilterBuilderValueState from './FilterBuilderValueState.vue'
   import FilterBuilderValueString from './FilterBuilderValueString.vue'
 
   // eslint really doesn't like defineEmits type annotation syntax
@@ -34,12 +36,15 @@
 
   // eslint-disable-next-line vue/return-in-computed-property
   const component = computed(() => {
+    // eslint-disable-next-line default-case
     switch (props.property) {
       case 'tag': { throw new Error('Not implemented yet: "tag" case') }
       case 'name':
         return FilterBuilderValueString
-      case 'start_date': { throw new Error('Not implemented yet: "start_date" case') }
-      case 'state': { throw new Error('Not implemented yet: "state" case') }
+      case 'start_date':
+        return FilterBuilderValueDate
+      case 'state':
+        return FilterBuilderValueState
     }
   })
 
