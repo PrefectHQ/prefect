@@ -1,0 +1,99 @@
+<template>
+  <div class="filters-search">
+    <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
+    <input
+      v-model="term"
+      class="filters-search__input"
+      type="text"
+      placeholder="Search..."
+      @keypress.prevent.enter="add"
+      @keypress.prevent.tab="add"
+    >
+    <button type="button" class="filters-search__clear">
+      <i class="pi pi-sm pi-close-circle-fill" />
+    </button>
+  </div>
+</template>
+
+<script lang="ts" setup>
+  import { computed, ref } from 'vue'
+  import { FilterPrefixError } from '../models/FilterPrefixError'
+  import { FilterService } from '../services/FilterService'
+  import { useFiltersStore, FilterState } from '../stores/filters'
+  import FilterTags from './FilterTags.vue'
+
+  const filtersStore = useFiltersStore()
+  const term = ref('')
+  const filters = computed(() => filtersStore.all)
+
+  function add(): void {
+    if (term.value == '') {
+      return
+    }
+
+    try {
+      const filter = FilterService.parse(term.value)
+
+      filtersStore.add(filter)
+      term.value = ''
+    } catch (error) {
+      if (error instanceof FilterPrefixError && !term.value.includes(':')) {
+        term.value = `f:${term.value}`
+
+        return add()
+      }
+
+      console.error(error)
+    }
+  }
+
+  function dismiss(filter: FilterState): void {
+    filtersStore.remove(filter)
+  }
+</script>
+
+<style lang="scss" scoped>
+.filters-search {
+  display: flex;
+  align-items: center;
+  background-color: #fff;
+  padding: var(--p-1) var(--p-2);
+  gap: var(--p-1);
+  overflow: hidden;
+}
+
+.filters-search__tags {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.filters-search__input {
+  appearance: none;
+  border: 0;
+  background-color: transparent;
+  font-size: 16px;
+  flex-grow: 1;
+  min-width: 200px;
+
+  &::placeholder {
+    color: var(--grey-40);
+  }
+
+  &:focus {
+    outline: 0;
+  }
+}
+
+.filters-search__clear {
+  appearance: none;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  color: var(--grey-40);
+
+  &:hover {
+    color: var(--grey-80);
+  }
+}
+</style>
