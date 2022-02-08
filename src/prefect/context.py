@@ -289,7 +289,7 @@ def initialize_module_profile():
     atexit.register(lambda: context.__exit__(None, None, None))
 
 
-def get_current_profile() -> ProfileContext:
+def get_profile_context() -> ProfileContext:
     profile_ctx = ProfileContext.get()
 
     if not profile_ctx:

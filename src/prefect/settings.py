@@ -459,4 +459,10 @@ def from_env() -> Settings:
     return _FROM_ENV_CACHE[cache_key]
 
 
-DEFAULT_PROFILE = {}
+def from_context() -> Settings:
+    """
+    Returns a settings object loaded from the current profile context.
+    """
+    from prefect.context import get_profile_context
+
+    return get_profile_context().settings
