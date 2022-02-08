@@ -1,5 +1,49 @@
 # Orion Release Notes
 
+## 2.0a10 - Concurrency
+
+### Concurrent task runner
+
+Speed up your flow runs with the new Concurrent Task Runner. Whether your code is synchronous or asynchronous, this [task runner](https://orion-docs.prefect.io/concepts/task-runners/) will enable tasks that are blocked on input/output to yield to other tasks. To enable this behavior, this task runner always runs synchronous tasks in a worker thread, whereas previously they would run in the main thread.
+
+### Task run concurrency limits
+
+When running a flow using a task runner that enables concurrent execution, or running many flows across multiple execution environments, you may want to limit the number of certain tasks that can run at the same time. 
+
+Concurrency limits are set and enforced with task run tags. For example, perhaps you want to ensure that, across all of your flows, there are no more than three open connections to your production database at once. You can do so by creating a “prod-db” tag and applying it to all of the tasks that open a connection to that database. Then, you can create a concurrency limit with `prefect concurrency-limit create prod-db 3`. Now, Orion will ensure that no more than 3 task runs with the “prod-db” tag will run at the same time. Check out [the documentation](https://orion-docs.prefect.io/concepts/tasks/) for more information task run concurrency limits and other task level concepts.
+
+This feature was previously only available in a paid tier of Prefect Cloud, our hosted commercial offering. We’re very happy to move it to the open source domain, furthering our goal of making Orion the most capable workflow orchestration tool ever.
+
+### Database migrations
+
+The run metadata that Orion stores in its database is a valuable record of what happened and why. With new database migrations for both SQLite and PostgreSQL, you can retain your data when upgrading. The CLI interface has been updated to include new commands and revise an existing command to leverage these migrations:
+
+- **Breaking**: `prefect orion reset-db` is now `prefect orion database reset`
+- `prefect orion database upgrade` runs upgrade migrations
+- `prefect orion database downgrade` runs downgrade migrations
+
+Learn more about database migrations in [the documentation](https://orion-docs.prefect.io/tutorials/orion/#the-database).
+
+### CLI refinements
+
+The CLI has gotten some love with miscellaneous additions and refinements:
+
+- Added `prefect --version` and `prefect -v` to expose version info
+- Updated `prefect` to display `prefect --help`
+- Enhanced `prefect dev` commands:
+    - Added `prefect dev container` to start a container with local code mounted
+    - Added `prefect dev build-image` to build a development image
+    - Updated `prefect dev start` to hot-reload on API and agent code changes
+    - Added `prefect dev api` and `prefect dev agent` to launch hot-reloading services individually
+
+### Other enhancements
+
+- Feel the thrill when you start Orion or an agent with our new banners
+- Added a new logging setting for the Orion server log level, defaulting to "WARNING", separate from the client logging setting
+- Added a method, `with_options`, to the `Task` class. With this method, you can easily create a new task with modified settings based on an existing task. This will be especially useful in creating tasks from a prebuilt collection, such as Prefect’s task library.
+- The logs tab is now the default tab on flow run page, and has been refined with usability and aesthetic improvements.
+- As Orion becomes more capable of distributed deployments, the risk of client/server incompatibility issues increases. We’ve added a guard against these issues with API version checking for every request. If the version is missing from the request header, the server will attempt to handle it. If the version is incompatible with the Orion server version, the server will reject it.
+
 ## 2.0a9
 
 ### Logs
