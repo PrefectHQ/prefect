@@ -38,16 +38,7 @@
       return
     }
 
-    const values = [...internalValue.value]
-
-    values.push(input.value.trim())
-
-    internalValue.value = values
+    internalValue.value  = [...internalValue.value, input.value.trim()]
     input.value = ''
   }
 </script>
-
-<style lang="scss" scoped>
-.filter-builder-value-tag {
-}
-</style>
