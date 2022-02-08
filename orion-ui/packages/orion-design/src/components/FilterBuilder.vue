@@ -78,7 +78,8 @@
 
   function toggle(): void {
     innerExpanded.value = !innerExpanded.value
-    emit('update:expanded', !innerExpanded.value)
+
+    emit('update:expanded', innerExpanded.value)
   }
 </script>
 
