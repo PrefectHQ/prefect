@@ -65,5 +65,3 @@
     set: (value) => emit('update:value', value!),
   })
 </script>
-
-<style lang="scss" scoped></style>
