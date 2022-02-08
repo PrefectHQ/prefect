@@ -16,13 +16,13 @@ def register_blockapi(blockref):
 
 
 class BlockAPI(BaseModel):
-    name: str
+    blockname: str
+    blockref: str
+    blockid: str
 
 
-def assemble_block(blockdata=None):
+def assemble_block(block=None):
     from prefect.blocks import storage
 
-    blockapi = BLOCK_API_REGISTRY.get(blockdata.blockref)
-    block = {"name": blockdata.name, **blockdata.data}
-
+    blockapi = BLOCK_API_REGISTRY.get(block["blockref"])
     return parse_obj_as(blockapi, block)

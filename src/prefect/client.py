@@ -637,13 +637,13 @@ class OrionClient:
             f"/block_data/name/{name}",
         )
 
-        block_data_id = response.json().get("id")
+        block_data_id = response.json().get("blockid")
 
         if not block_data_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        block_data = schemas.core.BlockData.parse_obj(response.json())
-        return block_data
+        block = response.json()
+        return block
 
     async def create_deployment(
         self,
@@ -844,18 +844,18 @@ class OrionClient:
             orion data document pointing to persisted data
         """
         try:
-            blockdata = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
+            block = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
         except httpx.HTTPStatusError:
             await self.create_block_data(
                 name="ORION-CONFIG-STORAGE", blockref="orionstorage-block", data=dict()
             )
-            blockdata = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
+            block = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
 
-        storage_block = assemble_block(blockdata)
+        storage_block = assemble_block(block)
         block_datadoc = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": block_datadoc, "blockname": storage_block.name},
+            data={"data": block_datadoc, "blockname": storage_block.blockname},
         )
         return storage_datadoc
 
