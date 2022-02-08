@@ -14,6 +14,15 @@ Concurrency limits are set and enforced with task run tags. For example, perhaps
 
 This feature was previously only available in a paid tier of Prefect Cloud, our hosted commercial offering. We’re very happy to move it to the open source domain, furthering our goal of making Orion the most capable workflow orchestration tool ever.
 
+### Flow parameters
+
+Previously, when calling a flow, we required passed arguments to be serializable data types. Now, flows will accept arbitrary types, allowing ad hoc flow runs and subflow runs to consume unserializable data types. This change is motivated by two important use-cases:
+
+- The flow decorator can be added to a wider range of existing Python functions
+- Results from tasks can be passed directly into subflows without worrying about types
+
+Setting flow parameters via the API still requires serializable data so we can store your new value for the parameter. However, we support automatic deserialization of those parameters via type hints. See the [parameters documentation](https://orion-docs.prefect.io/concepts/flows/#parameters) for more details.
+
 ### Database migrations
 
 The run metadata that Orion stores in its database is a valuable record of what happened and why. With new database migrations for both SQLite and PostgreSQL, you can retain your data when upgrading. The CLI interface has been updated to include new commands and revise an existing command to leverage these migrations:
