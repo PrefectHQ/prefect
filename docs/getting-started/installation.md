@@ -2,26 +2,25 @@
 
 ## Python setup
 
-Prefect requires Python 3.7+
+Prefect requires Python 3.7 or later.
 
 We recommend installing Orion using a Python virtual environment manager such as `pipenv`, `conda` or `virtualenv`.
 
 ## Installing the latest version
 
-Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell, using the pre-release version of Orion you want to test:
+Prefect is published as a Python package. To install the latest 2.0 alpha release, run the following in a shell:
 
 ```bash
-pip install -U "prefect>=<version>"
+pip install -U "prefect>=2.0a"
 ```
 
-For example, to install the latest 2.0a6 version:
+To install a specific version, specify the version, such as:
 
 ```bash
-pip install -U "prefect>=2.0a6"
+pip install -U "prefect==2.0a9"
 ```
 
 Find the available release versions in the [Orion Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
-
 
 ## Installing the bleeding edge
 
@@ -36,16 +35,20 @@ pip install git+https://github.com/PrefectHQ/prefect@orion
 
 ## Installing for development
 
-If you'd like to install a version of Prefect for development, first clone the Prefect repository
-and then install in editable mode with `pip`:
+If you'd like to install a version of Prefect for development, first clone the Prefect repository, check out the `orion` branch,
+and install an editable version of the Python package:
 
 ```bash
-git clone https://github.com/PrefectHQ/prefect.git 
-# or git clone git@github.com:PrefectHQ/prefect.git if SSH is preferred
-cd prefect/
+# Clone the repository and switch to the 'orion' branch
+git clone https://github.com/PrefectHQ/prefect.git
 git checkout orion
+# Install the package with development dependencies
 pip install -e ".[dev]"
+# Setup pre-commit hooks for required formatting
+pre-commit install
 ```
+
+See our [Contributing](/contributing/overview/) guide for more details about standards and practices for contributing to Prefect.
 
 ## Checking your installation
 
@@ -54,12 +57,23 @@ To check that Prefect was installed correctly, you can test the Prefect CLI:
 <div class="termy">
 ```
 $ prefect version
-2.0a6
+2.0a9
 ```
 </div>
 
 Running this command should print a familiar looking version string to your console.
 
+## Upgrading the database
+
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
+
+Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
+
+Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect Orion automatically creates a new database on the next write.
+
+!!! warning "Resetting the database deletes data"
+
+    Note that resetting the database causes the loss of any existing data. 
 
 ## External requirements
 
