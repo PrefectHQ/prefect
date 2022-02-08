@@ -62,7 +62,7 @@
   const formatted = computed(() => props.value ? formatDateTimeNumeric(props.value) : '')
 
   function applyTempValue(): void {
-    emit('update:value', tempValue.value!)
+    emit('update:value', tempValue.value)
     showPicker.value = false
   }
 </script>
