@@ -31,4 +31,7 @@ import prefect.serializers
 from prefect.orion.schemas.states import State
 from prefect.flows import flow
 from prefect.tasks import task
-from prefect.context import tags
+from prefect.context import tags, profile, initialize_module_profile
+
+
+initialize_module_profile()
