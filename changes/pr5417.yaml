@@ -1,0 +1,5 @@
+feature:
+  - "Add Neo4j Tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5417)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
