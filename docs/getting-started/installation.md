@@ -17,7 +17,7 @@ pip install -U "prefect>=2.0a"
 To install a specific version, specify the version, such as:
 
 ```bash
-pip install -U "prefect=2.0a9"
+pip install -U "prefect==2.0a9"
 ```
 
 Find the available release versions in the [Orion Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
