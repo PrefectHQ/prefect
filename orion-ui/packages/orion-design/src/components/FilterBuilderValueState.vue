@@ -24,9 +24,16 @@
 
   const props = defineProps<{
     value?: FilterValue,
+    // used for a v-model but not referenced directly
+    // eslint-disable-next-line vue/no-unused-properties
+    operation?: FilterOperation,
   }>()
 
   onMounted(() => {
+    if (props.value === undefined) {
+      internalValue.value = []
+    }
+
     emit('update:operation', 'or')
   })
 
