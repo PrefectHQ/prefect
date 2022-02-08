@@ -855,7 +855,7 @@ class OrionClient:
         block_datadoc = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": block_datadoc, "blockname": storage_block.blockdata.name},
+            data={"data": block_datadoc, "blockname": storage_block.name},
         )
         return storage_datadoc
 

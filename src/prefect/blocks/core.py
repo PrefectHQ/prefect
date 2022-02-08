@@ -2,7 +2,7 @@ import datetime
 from functools import wraps
 from typing import Dict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, parse_obj_as
 
 BLOCK_API_REGISTRY: Dict[str, "BlockAPI"] = dict()
 
@@ -15,13 +15,14 @@ def register_blockapi(blockref):
     return wrapper
 
 
-class BlockAPI:
-    pass
+class BlockAPI(BaseModel):
+    name: str
 
 
 def assemble_block(blockdata=None):
     from prefect.blocks import storage
 
-    block = BLOCK_API_REGISTRY.get(blockdata.blockref)
-    return block(blockdata)
+    blockapi = BLOCK_API_REGISTRY.get(blockdata.blockref)
+    block = {"name": blockdata.name, **blockdata.data}
 
+    return parse_obj_as(blockapi, block)
