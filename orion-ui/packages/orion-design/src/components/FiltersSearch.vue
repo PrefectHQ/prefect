@@ -9,7 +9,7 @@
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
-    <button type="button" class="filters-search__clear">
+    <button type="button" class="filters-search__clear" @click="clear">
       <i class="pi pi-sm pi-close-circle-fill" />
     </button>
   </div>
@@ -35,7 +35,7 @@
       const filter = FilterService.parse(term.value)
 
       filtersStore.add(filter)
-      term.value = ''
+      clear()
     } catch (error) {
       if (error instanceof FilterPrefixError && !term.value.includes(':')) {
         term.value = `f:${term.value}`
@@ -49,6 +49,10 @@
 
   function dismiss(filter: FilterState): void {
     filtersStore.remove(filter)
+  }
+
+  function clear(): void {
+    term.value = ''
   }
 </script>
 

@@ -55,6 +55,7 @@
   align-items: center;
   gap: var(--p-1);
   clip-path: var(--miter-clip-path);
+  white-space: nowrap;
 }
 
 .dismissible-tag--dismissible {
