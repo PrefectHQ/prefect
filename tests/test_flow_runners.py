@@ -28,6 +28,7 @@ from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
     FlowRunner,
+    ImagePullPolicy,
     KubernetesFlowRunner,
     KubernetesImagePullPolicy,
     KubernetesRestartPolicy,
@@ -41,7 +42,6 @@ from prefect.flow_runners import (
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.testing import AsyncMock, temporary_settings
-from src.prefect.flow_runners import ImagePullPolicy
 
 
 class VersionInfo(NamedTuple):
