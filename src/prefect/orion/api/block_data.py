@@ -43,13 +43,20 @@ async def create_block_data(
 async def read_block_data_by_name(
     name: str = Path(..., description="The block name", alias="name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.BlockData:
+):
 
     model = await models.block_data.read_block_data_by_name(session=session, name=name)
 
     if not model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block data not found")
-    return model
+
+    block = {
+        "blockname": model.name,
+        "blockref": model.blockref,
+        "blockid": model.id,
+        **model.data,
+    }
+    return block
 
 
 @router.delete("/name/{name}")

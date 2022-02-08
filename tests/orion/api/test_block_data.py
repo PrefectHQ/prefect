@@ -32,8 +32,8 @@ class TestBlockData:
         block_id = create_response.json()["id"]
 
         read_response = await client.get("/block_data/name/the-planeteers")
-        block_data = schemas.core.BlockData.parse_obj(read_response.json())
+        block = read_response.json()
 
-        assert str(block_data.id) == block_id
-        assert block_data.blockref == "captain-planet"
-        assert block_data.data["ma-ti and suchi"] == "heart"
+        assert block["blockid"] == block_id
+        assert block["blockref"] == "captain-planet"
+        assert block["ma-ti and suchi"] == "heart"
