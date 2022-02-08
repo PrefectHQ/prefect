@@ -3,6 +3,8 @@ import spacy
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
+from packaging import version
+
 
 class SpacyNLP(Task):
     """
@@ -18,6 +20,8 @@ class SpacyNLP(Task):
             model is 'en_core_web_sm', will be ignored if nlp is provided
         - disable (List[str], optional): list of pipeline components
             to disable, only applicable to pipelines loaded from spacy_model_name
+        - exclude (List[str], optional): Names of pipeline components to exclude.
+            Excluded components won’t be loaded. (Only applicable in spacy >= 3.0)
         - component_cfg (dict, optional): a dictionary with extra keyword
             arguments for specific components, only applicable to pipelines loaded from
             spacy_model_name
@@ -32,10 +36,12 @@ class SpacyNLP(Task):
         spacy_model_name: str = "en_core_web_sm",
         disable: list = None,
         component_cfg: dict = None,
+        exclude: list = None,
         **kwargs
     ):
         self.text = text
         self.disable = disable or []
+        self.exclude = exclude or []
         self.component_cfg = component_cfg or {}
 
         # load spacy model
@@ -43,11 +49,20 @@ class SpacyNLP(Task):
             self.nlp = nlp
         else:
             try:
-                self.nlp = spacy.load(
-                    spacy_model_name,
-                    disable=self.disable,
-                    component_cfg=self.component_cfg,
-                )
+                # v3 introduced breaking changes.
+                if version.parse(spacy.__version__) < version.parse("3.0"):
+                    self.nlp = spacy.load(
+                        spacy_model_name,
+                        disable=self.disable,
+                        component_cfg=self.component_cfg,
+                    )
+                else:
+                    self.nlp = spacy.load(
+                        spacy_model_name,
+                        disable=self.disable,
+                        config=self.component_cfg,
+                        exclude=self.exclude,
+                    )
             except IOError as exc:
                 raise ValueError(
                     "spaCy model %s not found." % spacy_model_name

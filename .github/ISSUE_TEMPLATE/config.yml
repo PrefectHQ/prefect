@@ -15,3 +15,7 @@ contact_links:
   - name: Chat in Slack 💬
     url: https://www.prefect.io/slack
     about: Don't panic
+
+  - name: Chat in Discourse 💬
+    url: https://discourse.prefect.io/
+    about: The Knowledge Base about Prefect

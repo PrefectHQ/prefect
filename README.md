@@ -20,8 +20,14 @@
 </a>
 
 <a href="https://www.prefect.io/slack/">
-    <img src="https://prefect-slackin.herokuapp.com/badge.svg">
+    <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
 </a>
+
+
+<a href="https://discourse.prefect.io/">
+    <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20discourse&color=27b1ff&style=flat">
+</a>
+
 
 </p>
 
@@ -31,7 +37,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack)!
+Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
 
 ### Welcome to Workflows
 
@@ -198,6 +204,10 @@ We are committed to ensuring a positive environment, and all interactions are go
 Prefect's documentation -- including concepts, tutorials, and a full API reference -- is always available at [docs.prefect.io](https://docs.prefect.io).
 
 Instructions for contributing to documentation can be found in the [development guide](https://docs.prefect.io/core/development/documentation.html).
+
+### Prefect Discourse
+
+Join our [forum](https://discourse.prefect.io/) to share knowledge, discuss ideas, find answers to common questions and get support.
 
 ### Slack Community
 

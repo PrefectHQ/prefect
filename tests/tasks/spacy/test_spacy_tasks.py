@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import spacy
@@ -16,6 +16,20 @@ class TestSpacyNLP:
     def test_initialization(self):
         task = SpacyNLP(text="This is some text", nlp=spacy.blank("en"))
         assert task.text == "This is some text"
+
+    def test_load_nlp_model(self):
+        spacy.cli.download("en_core_web_sm")
+        task = SpacyNLP(text="This is some text", spacy_model_name="en_core_web_sm")
+        assert task.nlp is not None
+
+    @patch("prefect.tasks.spacy.spacy_tasks.spacy")
+    def test_load_nlp_model_version_lt3(self, spacy_mock):
+        spacy_mock.configure_mock(__version__="2.3.7")  # some version less than 3.0
+        task = SpacyNLP(text="This is some text", spacy_model_name="en_core_web_sm")
+        spacy_mock.load.assert_called_once_with(
+            "en_core_web_sm", disable=[], component_cfg={}
+        )
+        assert task.nlp is not None
 
     def test_bad_model_raises_error(self):
         with pytest.raises(ValueError, match="not_a_spacy_model"):
