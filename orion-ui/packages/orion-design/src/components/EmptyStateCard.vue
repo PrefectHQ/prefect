@@ -4,7 +4,7 @@
       <div class="empty-state-card__background-image" />
       <div class="empty-state-card__text">
         <h1>{{header}}</h1>
-        <span>{{description}}</span>
+        <p>{{description}}</p>
         <router-link :to="link">
           <m-button color="primary" miter icon="pi-add-line">
             {{buttonText}}
@@ -77,10 +77,6 @@ export default defineComponent({
     z-index: 1000;
     margin-bottom: 15px;
 
-    * {
-      margin: 8px 0;
-      letter-spacing: 0;
-    }
 
     @media only screen and (min-width: map.get($breakpoints, 'lg')) {
       text-align: left;
