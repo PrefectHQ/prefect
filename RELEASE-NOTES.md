@@ -1,6 +1,6 @@
 # Orion Release Notes
 
-## 2.0a10 - Concurrency
+## 2.0a10
 
 ### Concurrent task runner
 
