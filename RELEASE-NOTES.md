@@ -27,11 +27,12 @@ Setting flow parameters via the API still requires serializable data so we can s
 
 The run metadata that Orion stores in its database is a valuable record of what happened and why. With new database migrations for both SQLite and PostgreSQL, you can retain your data when upgrading. The CLI interface has been updated to include new commands and revise an existing command to leverage these migrations:
 
-- **Breaking**: `prefect orion reset-db` is now `prefect orion database reset`
+- `prefect orion reset-db` is now `prefect orion database reset`
 - `prefect orion database upgrade` runs upgrade migrations
 - `prefect orion database downgrade` runs downgrade migrations
 
-Learn more about database migrations in [the documentation](https://orion-docs.prefect.io/tutorials/orion/#the-database).
+**Breaking Change**
+Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://orion-docs.prefect.io/tutorials/orion/#the-database).
 
 ### CLI refinements
 
