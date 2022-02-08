@@ -250,23 +250,23 @@ class OrionSettings(BaseSettings):
 
     database: DatabaseSettings = Field(
         default_factory=DatabaseSettings,
-        description="Nested [Database settings][prefect.utilities.prefect.settings.from_env().DatabaseSettings].",
+        description="Nested [Database settings][prefect.settings.DatabaseSettings].",
     )
     data: DataLocationSettings = Field(
         default_factory=DataLocationSettings,
-        description="Nested [Data settings][prefect.utilities.prefect.settings.from_env().DataLocationSettings].",
+        description="Nested [Data settings][prefect.settings.DataLocationSettings].",
     )
     api: APISettings = Field(
         default_factory=APISettings,
-        description="Nested [API settings][prefect.utilities.prefect.settings.from_env().APISettings].",
+        description="Nested [API settings][prefect.settings.APISettings].",
     )
     services: ServicesSettings = Field(
         default_factory=ServicesSettings,
-        description="Nested [Services settings][prefect.utilities.prefect.settings.from_env().ServicesSettings].",
+        description="Nested [Services settings][prefect.settings.ServicesSettings].",
     )
     ui: UISettings = Field(
         default_factory=UISettings,
-        description="Nested [UI settings][prefect.utilities.prefect.settings.from_env().UISettings].",
+        description="Nested [UI settings][prefect.settings.UISettings].",
     )
 
 
@@ -339,7 +339,7 @@ class LoggingSettings(BaseSettings):
         frozen = True
 
     level: str = Field(
-       default_factory=lambda: "INFO" if not shared_settings().debug_mode else "DEBUG",
+        default_factory=lambda: "INFO" if not shared_settings().debug_mode else "DEBUG",
         description="""The default logging level for Prefect loggers. Defaults to 
         "INFO" during normal operation and "DEBUG" during debug mode.""",
     )
@@ -357,7 +357,7 @@ class LoggingSettings(BaseSettings):
 
     orion: OrionHandlerSettings = Field(
         default_factory=OrionHandlerSettings,
-        description="Nested [OrionHandler settings][prefect.utilities.prefect.settings.from_env().OrionHandlerSettings].",
+        description="Nested [OrionHandler settings][prefect.settings.OrionHandlerSettings].",
     )
 
     extra_loggers: str = Field(
@@ -411,19 +411,19 @@ class Settings(SharedSettings):
     # logging
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings,
-        description="Nested [Logging settings][prefect.utilities.prefect.settings.from_env().LoggingSettings].",
+        description="Nested [Logging settings][prefect.settings.LoggingSettings].",
     )
 
     # orion
     orion: OrionSettings = Field(
         default_factory=OrionSettings,
-        description="Nested [Orion settings][prefect.utilities.prefect.settings.from_env().OrionSettings].",
+        description="Nested [Orion settings][prefect.settings.OrionSettings].",
     )
 
     # agent
     agent: AgentSettings = Field(
         default_factory=AgentSettings,
-        description="Nested [Agent settings][prefect.utilities.prefect.settings.from_env().AgentSettings].",
+        description="Nested [Agent settings][prefect.settings.AgentSettings].",
     )
 
     # the connection url for an orion instance
@@ -450,5 +450,5 @@ def from_env() -> Settings:
 
     if cache_key not in _FROM_ENV_CACHE:
         _FROM_ENV_CACHE[cache_key] = Settings()
-    
+
     return _FROM_ENV_CACHE[cache_key]
