@@ -15,6 +15,7 @@ from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
+import prefect.logging.configuration
 import prefect.settings
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
@@ -274,17 +275,31 @@ def load_profile(name: str) -> Dict[str, str]:
 
 
 @contextmanager
-def profile(name: str):
+def profile(name: str, create_home: bool = True, setup_logging: bool = False):
     env = load_profile(name)
 
     with temporary_environ_defaults(**env):
         settings = prefect.settings.from_env()
+
+        if create_home and not os.path.exists(settings.home):
+            os.makedirs(settings.home, exist_ok=True)
+
+        if setup_logging:
+            prefect.logging.configuration.setup_logging(settings)
+
         with ProfileContext(name=name, settings=settings, env=env) as ctx:
             yield ctx
 
 
 def initialize_module_profile():
-    context = profile(name=os.environ.get("PREFECT_PROFILE", "default"))
+    """
+    Initialize the profle that will exist as the root context for the module.
+
+    This should only be called _once_ at Prefect module initialization.
+    """
+    context = profile(
+        name=os.environ.get("PREFECT_PROFILE", "default"), setup_logging=True
+    )
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
 
