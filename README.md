@@ -69,27 +69,6 @@ Orion was designed to be incrementally adopted into your workflows, and our docu
 
 Begin by [installing Orion](https://orion-docs.prefect.io/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://orion-docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://orion-docs.prefect.io/getting-started/overview) for more.
 
-### Developing Orion
-
-The Orion CLI provides several helpful CLI commands to aid development:
-
-Start a development UI and API:
-
-```bash
-$ prefect dev start
-```
-
-Start a development UI only:
-
-```bash
-$ prefect dev ui
-```
-
-Rebuild the static UI (the UI served by `prefect orion start`):
-
-```bash
-$ prefect dev build-ui
-```
 
 ### Concepts
 
@@ -102,6 +81,11 @@ Orion represents a fundamentally new way of building and orchestrating data work
 ### API reference
 
 Orion provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://orion-docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+
+### Contributing
+
+See our [documentation on contributing to Orion](https://orion-docs.prefect.io/contributing/).
+
 
 ## Join the community
 
