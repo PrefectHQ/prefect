@@ -3,7 +3,7 @@ import { SimpleIdManager } from '../services/SimpleIdManager'
 import { Filter } from '../types/filters'
 import { toRecord } from '../utilities/arrays'
 
-type FilterState = {
+export type FilterState = {
   id: number,
 } & Required<Filter>
 

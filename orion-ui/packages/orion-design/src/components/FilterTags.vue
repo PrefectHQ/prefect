@@ -1,24 +1,24 @@
 <template>
   <transition-group name="filter-tags-transition" tag="div" class="filter-tags">
-    <template v-for="(filter, index) in filters" :key="index">
+    <template v-for="filter in filters" :key="filter.id">
       <FilterTag class="filter-tags__tag" v-bind="{ filter, dismissible }" @dismiss="emit('dismiss', filter)" />
     </template>
   </transition-group>
 </template>
 
 <script lang="ts" setup>
-  import { Filter } from '../types/filters'
+  import { FilterState } from '../stores/filters'
   import FilterTag from './FilterTag.vue'
 
   // eslint really doesn't like defineEmits type annotation syntax
   // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
     // eslint-disable-next-line no-unused-vars
-    (event: 'dismiss', filter: Required<Filter>): void,
+    (event: 'dismiss', filter: FilterState): void,
   }>()
 
   type Props = {
-    filters: Required<Filter>[],
+    filters: FilterState[],
     dismissible?: boolean,
   }
 
