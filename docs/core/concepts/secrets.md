@@ -88,14 +88,13 @@ Then all Prefect usages of AWS credentials will default to using the values in t
 
 ### Hashicorp Vault
 
-The ability to use an existing [Hashicorp Vault](https://www.vaultproject.io/) Client to retrieve secrets is avaialable via the `VaultSecret` class.
+The ability to integrate with an existing [Hashicorp Vault](https://www.vaultproject.io/) Client to retrieve secrets is possible via the `VaultSecret` class.
 
-The `VaultSecret` class works similarly to the base `Secrets` class, with the addition of Vault connection credentials. 
-The connection credentials are supplied via a Prefect secret named `VAULT_CREDENTIALS`. With the supplied credentials a secret can be retrieved from the Vault instance using the `"<mount_point>/<path>"` of the remote secret.
+The `VaultSecret` class works similarly to the base `Secrets` class, with the addition of Vault connection credentials, supplied via a Prefect secret named `VAULT_CREDENTIALS`. With the supplied credentials a secret can be retrieved from the Vault instance using the `"<mount_point>/<path>"` of the remote secret.
 
 #### Vault Server
 
-A Vault server address is defined via an environment variable `VAULT_ADDR` as defined in the [Vault documentation](https://www.vaultproject.io/docs/commands#vault_addr).
+The Vault server address is defined via an environment variable `VAULT_ADDR` as outlined in the [Vault documentation](https://www.vaultproject.io/docs/commands#vault_addr).
 The VaultSecret class supports both `VAULT_ADDR` and `vault_addr`.
 
 
@@ -109,7 +108,7 @@ The VaultSecret class supports both `VAULT_ADDR` and `vault_addr`.
 
 3. [kubernetesRole](https://www.vaultproject.io/docs/auth/kubernetes): `{ 'VAULT_KUBE_AUTH_ROLE': '<>', 'VAULT_KUBE_AUTH_PATH': '<>' 'VAULT_KUBE_TOKEN_FILE': '<>' }`
 
-For example, given the `VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>" }'`, the value `"token"` will be used to autheticate against the Vault instance specified by the `VAULT_ADDR`.
+For example, given the `VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>" }'`, the value `"token"` will be used to autheticate against the Vault instance specified by the `VAULT_ADDR` using the token based authentication mechanism.
 
 ```bash
 export VAULT_ADDR='http://vault.example.com'
