@@ -34,10 +34,6 @@ class S3Block(BlockAPI):
 
 @register_blockapi("localstorage-block")
 class LocalStorageBlock(BlockAPI):
-    def __init__(self, blockdata):
-        self.blockdata = blockdata
-        self.datadoc = None
-
     def basepath(self):
         # return Path(TemporaryDirectory().name)
         return Path("/tmp/localstorageblock")
@@ -52,10 +48,6 @@ class LocalStorageBlock(BlockAPI):
 
 @register_blockapi("orionstorage-block")
 class OrionStorageBlock(BlockAPI):
-    def __init__(self, blockdata):
-        self.blockdata = blockdata
-        self.datadoc = None
-
     async def write(self, data):
         from prefect.client import OrionClient
 
