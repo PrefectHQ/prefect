@@ -20,7 +20,7 @@ from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
 
-from prefect import settings
+import prefect.settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -567,6 +567,6 @@ def get_dialect(
         url = engine.url
     else:
         if connection_url is None:
-            connection_url = settings.orion.database.connection_url.get_secret_value()
+            connection_url = prefect.settings.from_env().orion.database.connection_url
         url = sa.engine.url.make_url(connection_url)
     return url.get_dialect()

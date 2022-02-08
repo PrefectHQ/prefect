@@ -1,7 +1,12 @@
 """"
 Internal utilities for tests.
 """
+import os
 import sys
+from contextlib import contextmanager
+
+import prefect.context
+import prefect.settings
 
 
 def exceptions_equal(a, b):
@@ -22,3 +27,39 @@ if sys.version_info < (3, 8):
     from mock import AsyncMock
 else:
     from unittest.mock import AsyncMock
+
+
+@contextmanager
+def temporary_settings(**kwargs):
+    """
+    Temporarily override setting values. 
+    
+    This will _not_ mutate values that have been already been accessed at module
+    load time.
+
+    This function should only be used for testing.
+
+    Example:
+        >>> import prefect.settings
+        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
+        >>>    assert prefect.settings.from_env().orion_host == "foo"
+        >>> assert prefect.settings.from_env().orion_host is None
+    """
+    old_env = os.environ.copy()
+    old_settings = prefect.settings.from_env()
+
+    try:
+        for setting in kwargs:
+            os.environ[setting] = str(kwargs[setting])
+
+        assert old_env != os.environ, "Environment did not change"
+        new_settings = prefect.settings.from_env()
+        assert new_settings != old_settings, "Temporary settings did not change values"
+        yield new_settings
+
+    finally:
+        for setting in kwargs:
+            if old_env.get(setting):
+                os.environ[setting] = old_env[setting]
+            else:
+                os.environ.pop(setting, None)

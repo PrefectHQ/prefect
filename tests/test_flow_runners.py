@@ -39,7 +39,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.settings import temporary_settings
+from prefect.utilities.testing import temporary_settings
 from prefect.utilities.testing import AsyncMock
 from urllib3.exceptions import MaxRetryError
 
@@ -978,7 +978,7 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert runtime_settings.orion_host == hosted_orion_api.replace(
+        assert runtime_settings().orion_host == hosted_orion_api.replace(
             "localhost", "host.docker.internal"
         )
 
@@ -1205,7 +1205,7 @@ class TestKubernetesFlowRunner:
     @pytest.fixture
     def k8s_hosted_orion(self):
         """
-        Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the k8s-hosted
+        Sets `PREFECT_ORION_HOST` and `prefect.settings.from_env().orion_host` to the k8s-hosted
         API endpoint.
         """
         kubernetes = pytest.importorskip("kubernetes")

@@ -19,10 +19,10 @@ class TestSettings:
     async def test_read_settings(self, client):
         response = await client.get("/admin/settings")
         assert response.status_code == 200
-        parsed_settings = prefect.utilities.settings.Settings.parse_obj(
+        parsed_settings = prefect.settings.Settings.parse_obj(
             response.json()
         ).dict()
-        prefect_settings = prefect.settings.copy().dict()
+        prefect_settings = prefect.settings.from_env().copy().dict()
 
         # remove secret strings because they break equality
         del parsed_settings["orion"]["database"]["connection_url"]
