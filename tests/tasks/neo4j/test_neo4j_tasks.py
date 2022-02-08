@@ -2,6 +2,7 @@ from prefect.tasks.neo4j.neo4j_tasks import Neo4jRunCypherQueryTask
 from prefect.engine.signals import FAIL
 import pytest
 
+
 class TestNeo4jRunCypherQueryTask:
     def test_construction_no_values(self):
         neo4j_task = Neo4jRunCypherQueryTask()
@@ -121,7 +122,7 @@ class TestNeo4jRunCypherQueryTask:
                 password="password",
                 cypher_query="query",
             )
-    
+
     @pytest.mark.skip
     def test_run_raises_fail_on_query_error(self):
         neo4j_task = Neo4jRunCypherQueryTask()
