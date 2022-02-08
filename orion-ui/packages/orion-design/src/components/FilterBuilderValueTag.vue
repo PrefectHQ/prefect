@@ -38,9 +38,9 @@
       return
     }
 
-    const values = internalValue.value
+    const values = [...internalValue.value]
 
-    internalValue.value.push(input.value.trim())
+    values.push(input.value.trim())
 
     internalValue.value = values
     input.value = ''
