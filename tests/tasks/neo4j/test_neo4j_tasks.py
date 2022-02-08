@@ -1,9 +1,9 @@
 from prefect.tasks.neo4j.neo4j_tasks import Neo4jRunCypherQueryTask
-
-import pytest
-
 from prefect.engine.signals import FAIL
+import pytest
+import py2neo
 
+from unittest.mock import MagicMock
 
 class TestNeo4jRunCypherQueryTask:
     def test_construction_no_values(self):
