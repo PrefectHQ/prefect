@@ -976,7 +976,7 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert runtime_settings().orion_host == hosted_orion_api.replace(
+        assert runtime_settings.orion_host == hosted_orion_api.replace(
             "localhost", "host.docker.internal"
         )
 
