@@ -57,7 +57,7 @@ what_day_is_it("2021-01-01T02:00:19.180906")
 # It was Friday on 2021-01-01T02:00:19.180906
 ```
 
-Parameters are validated early instead of after a flow run transitions to `Running`. If a ad hoc flow or subflow call receives invalid parameters, a flow run is created, but marked as failed. If a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
+Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
 ## Final state determination
 
