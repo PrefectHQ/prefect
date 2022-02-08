@@ -30,7 +30,9 @@ async def create_logs(
 @router.post("/filter")
 async def read_logs(
     limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit, ge=0, le=prefect.settings.from_env().orion.api.default_limit
+        prefect.settings.from_env().orion.api.default_limit,
+        ge=0,
+        le=prefect.settings.from_env().orion.api.default_limit,
     ),
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,

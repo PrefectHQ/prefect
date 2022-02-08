@@ -32,8 +32,8 @@ else:
 @contextmanager
 def temporary_settings(**kwargs):
     """
-    Temporarily override setting values. 
-    
+    Temporarily override setting values.
+
     This will _not_ mutate values that have been already been accessed at module
     load time.
 

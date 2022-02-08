@@ -28,7 +28,9 @@ class MarkLateRuns(LoopService):
     Orion prefect.settings.from_env().
     """
 
-    loop_seconds: float = prefect.settings.from_env().orion.services.late_runs_loop_seconds
+    loop_seconds: float = (
+        prefect.settings.from_env().orion.services.late_runs_loop_seconds
+    )
 
     # mark runs late if they are this far past their expected start time
     mark_late_after: datetime.timedelta = (

@@ -159,7 +159,9 @@ async def read_flow_run_graph(
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit, ge=0, le=prefect.settings.from_env().orion.api.default_limit
+        prefect.settings.from_env().orion.api.default_limit,
+        ge=0,
+        le=prefect.settings.from_env().orion.api.default_limit,
     ),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,

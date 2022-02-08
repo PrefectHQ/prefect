@@ -169,7 +169,10 @@ def create_app() -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if os.path.exists(prefect.__ui_static_path__) and prefect.settings.from_env().orion.ui.enabled:
+    if (
+        os.path.exists(prefect.__ui_static_path__)
+        and prefect.settings.from_env().orion.ui.enabled
+    ):
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),

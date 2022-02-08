@@ -7,7 +7,9 @@ from prefect.utilities.testing import temporary_settings
 
 @pytest.fixture
 def tmpdir_dataloc_settings(tmp_path):
-    with temporary_settings(PREFECT_ORION_DATA_SCHEME="file", PREFECT_ORION_DATA_BASE_PATH=tmp_path):
+    with temporary_settings(
+        PREFECT_ORION_DATA_SCHEME="file", PREFECT_ORION_DATA_BASE_PATH=tmp_path
+    ):
         yield prefect.settings.from_env().orion.data
 
 

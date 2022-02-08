@@ -10,6 +10,7 @@ from prefect.utilities.testing import temporary_settings
 def test_settings():
     assert prefect.settings.from_env().test_mode is True
 
+
 def test_temporary_settings():
     assert prefect.settings.from_env().test_mode is True
     with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
@@ -17,6 +18,7 @@ def test_temporary_settings():
         assert prefect.settings.from_env().test_mode is False, "Loading from env works"
 
     assert prefect.settings.from_env().test_mode is True, "Restores old setting"
+
 
 def test_refresh_settings():
     assert prefect.settings.from_env().test_mode is True
