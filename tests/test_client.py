@@ -393,9 +393,9 @@ class ExPydanticModel(BaseModel):
     ],
 )
 async def test_put_then_retrieve_object(put_obj, orion_client):
-    storage_block = await orion_client.persist_object(put_obj)
-    assert isinstance(storage_block, BlockAPI)
-    retrieved_obj = await orion_client.retrieve_object(storage_block)
+    data_document = await orion_client.persist_object(put_obj)
+    assert isinstance(data_document, DataDocument)
+    retrieved_obj = await orion_client.retrieve_object(data_document)
     assert retrieved_obj == put_obj
 
 
@@ -446,7 +446,7 @@ class TestResolveDataDoc:
                         await client.persist_data(
                             DataDocument.encode("json", "hello").json().encode()
                         )
-                    ).datadoc,
+                    ),
                 )
                 == "hello"
             )
