@@ -72,3 +72,24 @@ class PickleSerializer:
         #       more helpful errors for users.
         #       A TypeError("expected bytes-like object, not int") will be raised if
         #       a document is deserialized by Python 3.7 and serialized by 3.8+
+
+
+@register_serializer(encoding="blockstorage")
+class BlockStorageSerializer:
+    @staticmethod
+    def dumps(block_document: dict) -> bytes:
+        block_document = {
+            "data": block_document["data"].json(),
+            "blockname": block_document["blockname"],
+        }
+        return json.dumps(block_document).encode()
+
+    @staticmethod
+    def loads(blob: bytes) -> dict:
+        from prefect.orion.schemas.data import DataDocument
+
+        block_document = json.loads(blob.decode())
+        return {
+            "data": DataDocument.parse_obj(block_dcument["data"]),
+            "blockname": block_document["blockname"],
+        }

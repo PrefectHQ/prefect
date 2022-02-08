@@ -44,12 +44,10 @@ class LocalStorageBlock(BlockAPI):
 
     async def write(self, data):
         storage_path = str(self.basepath() / str(uuid4()))
-        self.datadoc = DataDocument.encode(
-            encoding="file", data=data, path=storage_path
-        )
+        return DataDocument.encode(encoding="file", data=data, path=storage_path)
 
-    async def read(self):
-        return self.datadoc.decode()
+    async def read(self, datadoc):
+        return datadoc.decode()
 
 
 @register_blockapi("orionstorage-block")
@@ -63,18 +61,18 @@ class OrionStorageBlock(BlockAPI):
 
         async with OrionClient() as client:
             response = await client.post("/data/persist", content=data)
-            self.datadoc = DataDocument.parse_obj(response.json())
+            return DataDocument.parse_obj(response.json())
 
-    async def read(self):
+    async def read(self, datadoc):
         from prefect.client import OrionClient
 
-        if self.datadoc is None:
+        if datadoc is None:
             raise RuntimeError
-        if self.datadoc.has_cached_data():
-            return self.datadoc.decode()
+        if datadoc.has_cached_data():
+            return datadoc.decode()
 
         async with OrionClient() as client:
             response = await client.post(
-                "/data/retrieve", json=self.datadoc.dict(json_compatible=True)
+                "/data/retrieve", json=datadoc.dict(json_compatible=True)
             )
             return response.content

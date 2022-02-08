@@ -833,7 +833,7 @@ class OrionClient:
     async def persist_data(
         self,
         data: bytes,
-    ) -> BlockAPI:
+    ) -> DataDocument:
         """
         Persist data in orion and return the orion data document
 
@@ -852,23 +852,32 @@ class OrionClient:
             blockdata = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
 
         storage_block = assemble_block(blockdata)
-        await storage_block.write(data)
-        return storage_block
+        block_datadoc = await storage_block.write(data)
+        storage_datadoc = DataDocument.encode(
+            encoding="blockstorage",
+            data={"data": block_datadoc, "blockname": storage_block.blockdata.name},
+        )
+        return storage_datadoc
 
     async def retrieve_data(
         self,
-        storage_block: BlockAPI,
+        data_document: DataDocument,
     ) -> bytes:
         """
-        Exchange an orion data document for the data previously persisted.
+        Exchange a storage data document for the data previously persisted.
 
         Args:
-            storage_block: the storage block used to store data
+            data_document: the data document used to store data
 
         Returns:
             the persisted data in bytes
         """
-        return await storage_block.read()
+        block_document = data_document.decode()
+        embedded_datadoc = block_document["data"]
+        blockname = block_document["blockname"]
+        blockdata = await self.read_block_data_by_name(blockname)
+        storage_block = assemble_block(blockdata)
+        return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
         self, obj: Any, encoder: str = "cloudpickle"
@@ -881,22 +890,22 @@ class OrionClient:
             encoder: an optional encoder for data document
 
         Returns:
-            orion data document pointing to persisted data
+            data document pointing to persisted data
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return await self.persist_data(datadoc.json().encode())
 
-    async def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
+    async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
         """
-        Exchange an orion data document for the object previously persisted.
+        Exchange a data document for the object previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            storage_datadoc: the orion data document to retrieve
 
         Returns:
             the persisted object
         """
-        datadoc = DataDocument.parse_raw(await self.retrieve_data(orion_datadoc))
+        datadoc = DataDocument.parse_raw(await self.retrieve_data(storage_datadoc))
         return datadoc.decode()
 
     async def set_flow_run_state(
