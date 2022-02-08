@@ -1,8 +1,9 @@
 import os
+
 import pytest
 
 import prefect.settings
-from prefect.settings import Settings, LoggingSettings
+from prefect.settings import LoggingSettings, Settings
 from prefect.utilities.testing import temporary_settings
 
 
