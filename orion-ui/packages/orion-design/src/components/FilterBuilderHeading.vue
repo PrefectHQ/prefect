@@ -25,7 +25,6 @@
     return 'Add filter for...'
   })
 
-  // eslint-disable-next-line vue/return-in-computed-property
   const icon = computed(() => {
     if (isFilter(props.filter)) {
       return FilterService.icon(props.filter)
