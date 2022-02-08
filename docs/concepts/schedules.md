@@ -46,7 +46,7 @@ For more detail, please see the [`CronSchedule` API reference][prefect.orion.sch
 
 ## The `Scheduler` service
 
-The `Scheduler` service is started automatically when `prefect orion start` is run. By default, it visits deployments on a [60-second loop][prefect.utilities.settings.ServicesSettings.scheduler_loop_seconds] and attempts to create up to [100][prefect.utilities.settings.ServicesSettings.scheduler_max_runs] scheduled flow runs up to [100 days][prefect.utilities.settings.ServicesSettings.scheduler_max_scheduled_time] in the future. This means that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
+The `Scheduler` service is started automatically when `prefect orion start` is run. By default, it visits deployments on a [60-second loop][prefect.settings.ServicesSettings.scheduler_loop_seconds] and attempts to create up to [100][prefect.settings.ServicesSettings.scheduler_max_runs] scheduled flow runs up to [100 days][prefect.settings.ServicesSettings.scheduler_max_scheduled_time] in the future. This means that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
 !!! info "The scheduler does not affect execution"
     The Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states; it is not at all involved in flow or task execution. Making the scheduler loop faster will not make flows start or run faster.

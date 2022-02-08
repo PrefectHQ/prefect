@@ -1,16 +1,6 @@
----
-description: Configure settings for the local Prefect module.
-tags:
-    - environment variables
-    - settings
-    - configuration
----
-
 # Settings
 
-A key tenet around which we built Prefect is the ability to govern of flow and task state transitions through policies and rules. Prefect provides a robust set of environment variables and settings that enable you to define the execution environment, policies, and rules needed to orchestrate your workflows successfully.
-
-Prefect's settings are documented under [prefect.utilities.settings][prefect.utilities.settings] and type-validated, ensuring that configuration is a first-class experience.  
+Prefect's settings are [well-documented][prefect.settings] and type-validated, ensuring that even configuration is a first-class experience. By modifying these settings, users can customize various aspects of the system. 
 
 From Python, settings can be accessed by examining `prefect.settings`, and users can view their Orion server's current settings from its UI.
 
@@ -44,4 +34,3 @@ PREFECT_ORION_API_PORT=4242
 # python
 prefect.settings.orion.api.port # 4242
 ```
-

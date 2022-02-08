@@ -30,7 +30,8 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
+from prefect.settings import LoggingSettings, Settings
+from prefect.utilities.testing import temporary_settings
 from prefect.utilities.testing import AsyncMock
 
 
@@ -573,7 +574,7 @@ class TestOrionLogWorker:
 
     async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.orion.api.default_limit
+        count = prefect.settings.from_env().orion.api.default_limit
         log_json.pop("message")
 
         for i in range(count):

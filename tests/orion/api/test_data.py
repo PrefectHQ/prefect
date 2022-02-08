@@ -1,19 +1,14 @@
 import pytest
 
-from prefect import settings
+import prefect.settings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.settings import DataLocationSettings, Settings
+from prefect.utilities.testing import temporary_settings
 
 
 @pytest.fixture
-def tmpdir_dataloc_settings(tmp_path, monkeypatch):
-    new_settings = settings.copy(deep=True).dict()
-    new_settings["orion"]["data"] = DataLocationSettings(
-        scheme="file",
-        base_path=str(tmp_path),
-    )
-    monkeypatch.setattr("prefect.settings", Settings.parse_obj(new_settings))
-    yield settings.orion.data
+def tmpdir_dataloc_settings(tmp_path):
+    with temporary_settings(PREFECT_ORION_DATA_SCHEME="file", PREFECT_ORION_DATA_BASE_PATH=tmp_path):
+        yield prefect.settings.from_env().orion.data
 
 
 class TestPersistData:
