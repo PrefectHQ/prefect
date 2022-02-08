@@ -67,9 +67,9 @@ Running this command should print a familiar looking version string to your cons
 
 Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
 
-Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier. Resetting the database by using the CLI command `prefect orion database reset` does not upgrade the database from 2.0a9 or earlier. 
+Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
-To upgrade the database, delete the database file `~/.prefect/orion.db`. Prefect Orion automatically creates a new database on the next write. 
+Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect Orion automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
 
