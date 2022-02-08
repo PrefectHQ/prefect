@@ -36,15 +36,19 @@ pip install git+https://github.com/PrefectHQ/prefect@orion
 ## Installing for development
 
 If you'd like to install a version of Prefect for development, first clone the Prefect repository, check out the `orion` branch,
-then install in editable mode with `pip`:
+and install an editable version of the Python package:
 
 ```bash
-git clone https://github.com/PrefectHQ/prefect.git 
-# or git clone git@github.com:PrefectHQ/prefect.git if SSH is preferred
-cd prefect/
+# Clone the repository and switch to the 'orion' branch
+git clone https://github.com/PrefectHQ/prefect.git
 git checkout orion
+# Install the package with development dependencies
 pip install -e ".[dev]"
+# Setup pre-commit hooks for required formatting
+pre-commit install
 ```
+
+See our [Contributing](/contributing/overview/) guide for more details about standards and practices for contributing to Prefect.
 
 ## Checking your installation
 
@@ -63,30 +67,13 @@ Running this command should print a familiar looking version string to your cons
 
 Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
 
-Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be automatically upgraded with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
+Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier. Resetting the database by using the CLI command `prefect orion database reset` does not upgrade the database from 2.0a9 or earlier. 
 
-* Delete and rebuild the database
-* Stamp and reset the database
+To upgrade the database, delete the database file `~/.prefect/orion.db`. Prefect Orion automatically creates a new database on the next write. 
 
-### Delete the database file
+!!! warning "Resetting the database deletes data"
 
-Delete the database file `~/.prefect/orion.db`.
-
-Prefect Orion automatically creates a new database on the next write. 
-
-### Reset the database manually
-
-Use the Prefect CLI to stamp the database revision table:
-
-```bash
-$ prefect orion database stamp
-```
-
-Using the CLI, reset the database:
-
-```bash
-$ prefect orion database reset
-```
+    Note that resetting the database causes the loss of any existing data. 
 
 ## External requirements
 
