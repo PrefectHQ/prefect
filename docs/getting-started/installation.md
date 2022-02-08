@@ -63,7 +63,7 @@ Running this command should print a familiar looking version string to your cons
 
 Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
 
-With the additions of migrations to Prefect Orion, if you if install a version later than 2.0a9, but had an existing db from before, you'll need to do one of the following processes:
+Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be automatically upgraded with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
 * Delete and rebuild the database
 * Stamp and reset the database
