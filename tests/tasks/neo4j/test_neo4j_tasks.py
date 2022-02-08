@@ -2,6 +2,8 @@ from prefect.tasks.neo4j.neo4j_tasks import Neo4jRunCypherQueryTask
 
 import pytest
 
+from prefect.engine.signals import FAIL
+
 
 class TestNeo4jRunCypherQueryTask:
     def test_construction_no_values(self):
@@ -110,4 +112,26 @@ class TestNeo4jRunCypherQueryTask:
                 password="password",
                 cypher_query="query",
                 return_result_as="illegal",
+            )
+
+    def test_run_raises_fail_on_neo4j_connect(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Error while connecting to Neo4j."
+        with pytest.raises(FAIL, match=msg_match):
+            neo4j_task.run(
+                server_uri="bolt://uri:9999",
+                user="user",
+                password="password",
+                cypher_query="query",
+            )
+
+    def test_run_raises_fail_on_query_error(self):
+        neo4j_task = Neo4jRunCypherQueryTask()
+        msg_match = "Error while running Cypher query."
+        with pytest.raises(FAIL, match=msg_match):
+            neo4j_task.run(
+                server_uri="bolt://localhost:7687",
+                user="neo4j",
+                password="s3cr3t",
+                cypher_query="query",
             )

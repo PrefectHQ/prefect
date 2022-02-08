@@ -1,6 +1,7 @@
 from json import dumps
 import os
 from py2neo import Graph
+from py2neo.errors import ClientError, ConnectionUnavailable
 
 from prefect import Task
 from prefect.engine.signals import FAIL
@@ -218,11 +219,19 @@ class Neo4jRunCypherQueryTask(Task):
             msg = f"Illegal value for `return_result_as`. Illegal value is: {return_result_as}."
             raise ValueError(msg)
 
-        graph = Graph(
-            profile=neo4j_uri, name=neo4j_db_name, auth=(neo4j_user, neo4j_password)
-        )
+        try:
+            graph = Graph(
+                profile=neo4j_uri, name=neo4j_db_name, auth=(neo4j_user, neo4j_password)
+            )
+        except ConnectionUnavailable as e:
+            msg = f"Error while connecting to Neo4j. Exception: {str(e)}"
+            raise FAIL(message=msg)
 
-        r = graph.run(cypher_query)
+        try:
+            r = graph.run(cypher_query)
+        except ClientError as e:
+            msg = f"Error while running Cypher query. Exception: {str(e)}"
+            raise FAIL(message=msg)
 
         result = r.data()
 
