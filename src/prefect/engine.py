@@ -261,7 +261,9 @@ async def begin_flow_run(
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = (
-        repr(terminal_state) if prefect.settings.from_env().debug_mode else str(terminal_state)
+        repr(terminal_state)
+        if prefect.settings.from_env().debug_mode
+        else str(terminal_state)
     )
 
     logger.log(
@@ -354,7 +356,9 @@ async def create_and_begin_subflow_run(
 
     # Display the full state (including the result) if debugging
     display_state = (
-        repr(terminal_state) if prefect.settings.from_env().debug_mode else str(terminal_state)
+        repr(terminal_state)
+        if prefect.settings.from_env().debug_mode
+        else str(terminal_state)
     )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
@@ -716,7 +720,9 @@ async def orchestrate_task_run(
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = repr(state) if prefect.settings.from_env().debug_mode else str(state)
+    display_state = (
+        repr(state) if prefect.settings.from_env().debug_mode else str(state)
+    )
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,

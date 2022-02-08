@@ -89,7 +89,9 @@ async def read_concurrency_limit_by_tag(
 @router.post("/filter")
 async def read_concurrency_limits(
     limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit, ge=0, le=prefect.settings.from_env().orion.api.default_limit
+        prefect.settings.from_env().orion.api.default_limit,
+        ge=0,
+        le=prefect.settings.from_env().orion.api.default_limit,
     ),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),

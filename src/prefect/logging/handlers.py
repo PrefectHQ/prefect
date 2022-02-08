@@ -63,7 +63,9 @@ class OrionLogWorker:
         """
         while not self._stop_event.is_set():
             # Wait until flush is called or the batch interval is reached
-            self._flush_event.wait(prefect.settings.from_env().logging.orion.batch_interval)
+            self._flush_event.wait(
+                prefect.settings.from_env().logging.orion.batch_interval
+            )
             self._flush_event.clear()
 
             anyio.run(self.send_logs)
