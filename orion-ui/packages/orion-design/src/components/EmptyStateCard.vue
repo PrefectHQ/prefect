@@ -3,8 +3,8 @@
     <div class="empty-state-card">
       <div class="empty-state-card__background-image" />
       <div class="empty-state-card__text">
-        <h1>{{header}}</h1>
-        <p>{{description}}</p>
+        <h1 class="empty-state-card__letters">{{header}}</h1>
+        <p class="empty-state-card__letters">{{description}}</p>
         <router-link :to="link">
           <m-button color="primary" miter icon="pi-add-line">
             {{buttonText}}
@@ -86,6 +86,11 @@ export default defineComponent({
       align-items: flex-start;
     }
   }
+  
+  &__letters {
+      gap: 8px 0;
+      letter-spacing: 0;
+    }
 
   &__card-image {
     position: relative;
