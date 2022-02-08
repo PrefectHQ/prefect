@@ -380,6 +380,7 @@ class Docker(Storage):
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
+                rm=self.build_kwargs.pop("rm", True),
                 **self.build_kwargs,
             )
             self._parse_generator_output(output)
