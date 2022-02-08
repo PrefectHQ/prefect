@@ -3,23 +3,26 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
+import atexit
+import os
 from contextlib import contextmanager
 from contextvars import ContextVar
-from logging import Logger
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
-from uuid import UUID
 
 import pendulum
+import toml
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
+import prefect.settings
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
+from prefect.settings import Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 
@@ -211,3 +214,85 @@ def tags(*new_tags: str) -> Set[str]:
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
+
+
+@contextmanager
+def temporary_environ_defaults(**kwargs):
+    """
+    Temporarily override default values in os.environ.
+
+    Yields a dictionary of the key/value pairs matching the provided keys.
+    """
+    old_env = os.environ.copy()
+
+    try:
+        for var in kwargs:
+            # TODO: Consider warning on conflicts
+            os.environ.setdefault(var, str(kwargs[var]))
+
+        yield {var: os.environ[var] for var in kwargs}
+
+    finally:
+        for var in kwargs:
+            if old_env.get(var):
+                os.environ[var] = old_env[var]
+            else:
+                os.environ.pop(var, None)
+
+
+class ProfileContext(ContextModel):
+    """
+    The context for a Prefect settings profile.
+
+    Attributes:
+        name: The name of the profile
+        settings: The complete settings model
+    """
+
+    name: str
+    settings: Settings
+    env: Dict[str, str]
+
+    __var__ = ContextVar("profile")
+
+
+DEFAULT_PROFILES = {"default": {}}
+
+
+def load_profile(name: str) -> Dict[str, str]:
+    path = prefect.settings.from_env().profiles_path
+    if not path.exists():
+        profiles = DEFAULT_PROFILES
+        path.write_text(toml.dumps(profiles))
+    else:
+        profiles = toml.loads(path.read_text())
+
+    if name not in profiles:
+        raise ValueError(f"Profile {name!r} not found.")
+
+    return profiles[name]
+
+
+@contextmanager
+def profile(name: str):
+    env = load_profile(name)
+
+    with temporary_environ_defaults(**env):
+        settings = prefect.settings.from_env()
+        with ProfileContext(name=name, settings=settings, env=env) as ctx:
+            yield ctx
+
+
+def initialize_module_profile():
+    context = profile(name=os.environ.get("PREFECT_PROFILE", "default"))
+    context.__enter__()
+    atexit.register(lambda: context.__exit__(None, None, None))
+
+
+def get_current_profile() -> ProfileContext:
+    profile_ctx = ProfileContext.get()
+
+    if not profile_ctx:
+        raise MissingContextError("No profile is being used.")
+
+    return profile_ctx

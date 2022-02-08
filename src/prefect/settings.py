@@ -433,6 +433,11 @@ class Settings(SharedSettings):
         Defaults to `None`.""",
     )
 
+    profiles_path: Path = Field(
+        default_factory=lambda: Path(f"{shared_settings().home}/profiles.toml"),
+        description="""The path to a profiles configuration files.""",
+    )
+
 
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
@@ -452,3 +457,6 @@ def from_env() -> Settings:
         _FROM_ENV_CACHE[cache_key] = Settings()
 
     return _FROM_ENV_CACHE[cache_key]
+
+
+DEFAULT_PROFILE = {}
