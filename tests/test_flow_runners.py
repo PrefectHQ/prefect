@@ -20,6 +20,7 @@ from docker.errors import ImageNotFound
 from docker.models.images import Image
 from kubernetes.config import ConfigException
 from typing_extensions import Literal
+from urllib3.exceptions import MaxRetryError
 
 import prefect
 from prefect.client import OrionClient
@@ -39,10 +40,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.testing import temporary_settings
-from prefect.utilities.testing import AsyncMock
-from urllib3.exceptions import MaxRetryError
-
+from prefect.utilities.testing import AsyncMock, temporary_settings
 from src.prefect.flow_runners import ImagePullPolicy
 
 

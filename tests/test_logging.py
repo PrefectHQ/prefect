@@ -31,8 +31,7 @@ from prefect.logging.loggers import (
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import LoggingSettings, Settings
-from prefect.utilities.testing import temporary_settings
-from prefect.utilities.testing import AsyncMock
+from prefect.utilities.testing import AsyncMock, temporary_settings
 
 
 @pytest.fixture
