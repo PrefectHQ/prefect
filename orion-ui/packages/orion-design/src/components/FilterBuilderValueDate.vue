@@ -75,8 +75,8 @@
         return 'h'
       }
 
-      // last character
-      return props.value.slice(-1)
+      const lastCharacter = props.value.slice(-1)
+      return lastCharacter
     },
     set: (unit) => emit('update:value', `${count.value}${unit}`),
   })
