@@ -12,12 +12,8 @@
   import { computed } from 'vue'
   import { FilterObject, FilterProperty, FilterType } from '../types/filters'
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:property', value: FilterProperty): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:type', value: FilterType): void,
   }>()
 

@@ -13,12 +13,8 @@
   import { StateType } from '../models/StateType'
   import { FilterOperation, FilterValue } from '../types/filters'
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:operation', value: FilterOperation): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:value', value: FilterValue): void,
   }>()
 

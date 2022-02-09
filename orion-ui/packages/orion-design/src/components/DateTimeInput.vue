@@ -50,10 +50,7 @@
     value: Date | null,
   }>()
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:value', value: Date): void,
   }>()
 
@@ -62,7 +59,7 @@
   const formatted = computed(() => props.value ? formatDateTimeNumeric(props.value) : '')
 
   function applyTempValue(): void {
-    emit('update:value', tempValue.value!)
+    emit('update:value', tempValue.value)
     showPicker.value = false
   }
 </script>

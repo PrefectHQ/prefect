@@ -8,3 +8,15 @@ export function toRecord<T extends any[], K extends keyof T[number]>(source: T, 
     return result
   }, {})
 }
+
+export function asArray<T extends any>(input: T | T[] | null): T[] {
+  if(input === null || input === undefined) {
+    return []
+  }
+
+  if(!Array.isArray(input)) {
+    return [input]
+  }
+
+  return input
+}

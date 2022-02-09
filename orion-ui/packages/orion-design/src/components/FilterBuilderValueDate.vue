@@ -26,14 +26,9 @@
   import { toPluralString } from '../utilities'
   import DateTimeInput from './DateTimeInput.vue'
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:type', value: FilterType): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:operation', value: FilterOperation): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:value', value: FilterValue): void,
   }>()
 
