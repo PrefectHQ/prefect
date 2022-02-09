@@ -10,7 +10,7 @@
       >
         <i class="pi" :class="tab.icon" />
         <span class="tab-set__tab-title">{{ tab.title }}</span>
-        <slot name="after-tab" tab="tab" />
+        <slot name="after-tab" :tab="tab" />
       </m-tab>
     </m-tabs>
 
@@ -33,14 +33,9 @@
 <script lang="ts" setup>
   import { computed, PropType } from 'vue'
 
-  type Route = {
-    name: string,
-    hash?: string,
-  }
   type Tab = {
     title: string,
     key: string,
-    route: Route,
     icon?: string,
     class?: string,
   }
@@ -99,24 +94,10 @@
 .tab-set__tab--active {
     background-color: $primary;
     color: $white;
-
-    .tab-set__tab-badge {
-        background-color: $primary;
-        color: $white;
-    }
 }
 
 .tab-set__tab-title {
     margin: 0 8px;
-}
-
-.tab-set__tab-badge {
-    background-color: $white;
-    border-radius: 16px;
-    font-weight: 400;
-    padding: 0 8px;
-    min-width: 24px;
-    transition: 150ms all;
 }
 
 .tab-fade-enter-active,
