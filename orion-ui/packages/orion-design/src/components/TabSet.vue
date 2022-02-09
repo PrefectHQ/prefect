@@ -92,8 +92,8 @@
 }
 
 .tab-set__tab--active {
-    background-color: $primary;
-    color: $white;
+    background-color: var(--primary);
+    color: #fff;
 }
 
 .tab-set__tab-title {
