@@ -14,7 +14,7 @@ from rich.pretty import Pretty
 from rich.traceback import Traceback
 
 from prefect.cli.base import PrefectTyper, app, console, exit_with_error
-from prefect.client import get_client
+from prefect.client import OrionClient
 from prefect.deployments import (
     create_deployment_from_spec,
     deployment_specs_from_script,
@@ -60,7 +60,7 @@ async def inspect(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with get_client() as client:
+    async with OrionClient() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
         except httpx.HTTPStatusError as exc:
@@ -77,7 +77,7 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
-    async with get_client() as client:
+    async with OrionClient() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
         )
@@ -108,7 +108,7 @@ async def run(name: str):
 
     The flow run will not execute until an agent starts.
     """
-    async with get_client() as client:
+    async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
@@ -127,7 +127,7 @@ async def execute(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with get_client() as client:
+    async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
