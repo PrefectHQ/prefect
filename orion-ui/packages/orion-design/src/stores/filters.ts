@@ -32,6 +32,9 @@ export const useFiltersStore = defineStore('filters', {
     remove(filter: FilterState): void {
       delete this.filters[filter.id]
     },
+    removeAll(): void {
+      this.filters = {}
+    },
     replaceAll(filters: Required<Filter>[]): void {
       const filtersState = filters.map(filter => ({
         ...filter,
