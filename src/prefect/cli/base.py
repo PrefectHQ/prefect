@@ -1,17 +1,32 @@
 """
 Base `prefect` command-line application and utilities
 """
-import typer
 import rich.console
+import typer
 
-
-app = typer.Typer()
+app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = rich.console.Console(highlight=False)
+
+
+def version_callback(value: bool):
+    if value:
+        import prefect
+
+        console.print(prefect.__version__)
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(None, "--version", "-v", callback=version_callback)
+):
+    return
 
 
 @app.command()
 def version():
-    """Get the current Prefect version"""
+    """Get the current Prefect version."""
+    # TODO: expand this to a much richer display of version and system information
     import prefect
 
     console.print(prefect.__version__)

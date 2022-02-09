@@ -6,15 +6,16 @@ import sys
 import threading
 import time
 import traceback
+import warnings
 from typing import List
 
 import anyio
 import pendulum
 
 import prefect
-
-from prefect.orion.schemas.actions import LogCreate
 from prefect.client import OrionClient
+from prefect.exceptions import MissingContextError
+from prefect.orion.schemas.actions import LogCreate
 
 
 class OrionLogWorker:
@@ -225,6 +226,18 @@ class OrionHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
+    def handleError(self, record: logging.LogRecord) -> None:
+        _, exc, _ = sys.exc_info()
+
+        # Warn when a logger is used outside of a run context, the stack level here
+        # gets us to the user logging call
+        if isinstance(exc, MissingContextError):
+            warnings.warn(exc, stacklevel=8)
+            return
+
+        # Display a longer traceback for other errors
+        return super().handleError(record)
+
     def prepare(self, record: logging.LogRecord) -> LogCreate:
         """
         Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
@@ -242,12 +255,12 @@ class OrionHandler(logging.Handler):
         if not flow_run_id:
             try:
                 context = prefect.context.get_run_context()
-            except:
-                raise RuntimeError(
-                    "Attempted to send logs to Orion without a flow run id. The "
-                    "Orion log handler must be attached to loggers used within flow "
-                    "run contexts or the flow run id must be manually provided."
-                )
+            except MissingContextError:
+                raise MissingContextError(
+                    f"Logger {record.name!r} attempted to send logs to Orion without a "
+                    "flow run id. The Orion log handler can only send logs within flow "
+                    "run contexts unless the flow run id is manually provided."
+                ) from None
 
             if hasattr(context, "flow_run"):
                 flow_run_id = context.flow_run.id

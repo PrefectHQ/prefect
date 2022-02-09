@@ -11,7 +11,6 @@ from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
-
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
 

@@ -39,15 +39,15 @@
         </span>
 
         <span class="mr-1 text-truncate caption">
-          <Tags :tags="tags" />
+          <m-tags :tags="tags" />
         </span>
       </div>
     </div>
 
     <div v-if="media.sm" class="ml-auto d-flex align-middle nowrap">
-      <Toggle v-if="false" v-model="scheduleActive" />
+      <m-toggle v-if="false" v-model="scheduleActive" />
 
-      <Button
+      <m-button
         outlined
         height="36px"
         width="160px"
@@ -55,8 +55,8 @@
         @click="parametersDrawerActive = true"
       >
         View Parameters
-      </Button>
-      <Button
+      </m-button>
+      <m-button
         outlined
         miter
         height="36px"
@@ -66,7 +66,7 @@
         @click="createRun"
       >
         Quick Run
-      </Button>
+      </m-button>
     </div>
   </ListItem>
 
@@ -77,11 +77,11 @@
 
     <hr class="mt-2 parameters-hr align-self-stretch" />
 
-    <Input v-model="search" placeholder="Search...">
+    <m-input v-model="search" placeholder="Search...">
       <template #prepend>
         <i class="pi pi-search-line"></i>
       </template>
-    </Input>
+    </m-input>
 
     <div class="mt-2 font--secondary">
       {{ filteredParameters.length }} result{{
@@ -129,12 +129,15 @@ import { secondsToString } from '@/util/util'
 import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
 import media from '@/utilities/media'
+import Drawer from '@/components/Global/Drawer/Drawer.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 
 class Props {
   item = prop<Deployment>({ required: true })
 }
 
 @Options({
+  components: { ListItem, Drawer },
   watch: {
     parametersDrawerActive() {
       this.search = ''

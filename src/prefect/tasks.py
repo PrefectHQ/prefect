@@ -5,34 +5,35 @@ Module containing the base workflow task class and decorator - for most use case
 # See https://github.com/python/mypy/issues/8645
 
 import datetime
-import logging
 import inspect
-from functools import update_wrapper, partial
+import logging
+from copy import copy
+from functools import partial, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
+    Coroutine,
     Dict,
+    Generic,
     Iterable,
+    NoReturn,
     Optional,
+    TypeVar,
     Union,
     cast,
     overload,
-    TypeVar,
-    Generic,
-    Coroutine,
-    NoReturn,
 )
 
 from typing_extensions import ParamSpec
 
+from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
+from prefect.logging import get_logger
+from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
-from prefect.exceptions import ReservedArgumentError
-from prefect.utilities.asyncio import Async, Sync
-from prefect.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -144,6 +145,87 @@ class Task(Generic[P, R]):
         #       validate that the user passes positive numbers here
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
+
+    def with_options(
+        self,
+        *,
+        name: str = None,
+        description: str = None,
+        tags: Iterable[str] = None,
+        cache_key_fn: Callable[
+            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        ] = None,
+        cache_expiration: datetime.timedelta = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[float, int] = 0,
+    ):
+        """
+        Method to create a new task with the specified options overrides.
+
+        Args:
+            name: An optional name for the task; if not provided, the name will be inferred
+                from the given function.
+            description: An optional string description for the task.
+            tags: An optional set of tags to be associated with runs of this task. These
+                tags are combined with any tags defined by a `prefect.tags` context at
+                task runtime.
+            cache_key_fn: An optional callable that, given the task run context and call
+                parameters, generates a string key; if the key matches a previous completed
+                state, that state result will be restored instead of running the task again.
+            cache_expiration: An optional amount of time indicating how long cached states
+                for this task should be restorable; if not provided, cached states will
+                never expire.
+            retries: An optional number of times to retry on task run failure
+            retry_delay_seconds: An optional number of seconds to wait before retrying the
+                task after failure. This is only applicable if `retries` is nonzero.
+
+        Returns:
+            A new callable `Task` object which, when called, will submit the task for execution.
+
+        Examples:
+
+            Create a new task from an existing task and update the name
+
+            >>> @task(name="My task")
+            >>> def my_task():
+            >>>     return 1
+            >>>
+            >>> new_task = my_task.with_options(name="My new task")
+
+            Create a new task from an existing task and update the retry settings
+
+            >>> from random import randint
+            >>>
+            >>> @task(retries=1, retry_delay_seconds=5)
+            >>> def my_task():
+            >>>     x = randint(0, 5)
+            >>>     if x >= 3:  # Make a task that fails sometimes
+            >>>         raise ValueError("Retry me please!")
+            >>>     return x
+            >>>
+            >>> new_task = my_task.with_options(retries=5, retry_delay_seconds=2)
+
+            Use a task with updated options within a flow
+
+            >>> @task(name="My task")
+            >>> def my_task():
+            >>>     return 1
+            >>>
+            >>> @flow
+            >>> my_flow():
+            >>>     new_task = my_task.with_options(name="My new task")
+            >>>     new_task()
+        """
+        return Task(
+            fn=self.fn,
+            name=name or self.name,
+            description=description or self.description,
+            tags=tags or copy(self.tags),
+            cache_key_fn=cache_key_fn or self.cache_key_fn,
+            cache_expiration=cache_expiration or self.cache_expiration,
+            retries=retries or self.retries,
+            retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
+        )
 
     @overload
     def __call__(

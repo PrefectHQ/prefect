@@ -3,31 +3,34 @@ Defines the Orion FastAPI app.
 """
 
 import asyncio
-from functools import partial
 import os
+from functools import partial
 from typing import List, Optional
 
 from fastapi import Depends, FastAPI, Request, status
-from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.exceptions import RequestValidationError
-from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
 from prefect import settings
-from prefect.orion import api, services
 from prefect.logging import get_logger
+from prefect.orion import api, services
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
+ORION_API_VERSION = "0.1.0"
 
 logger = get_logger("orion")
+
+version_checker = api.dependencies.CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
 class SPAStaticFiles(StaticFiles):
@@ -67,6 +70,12 @@ def create_orion_api(
     async def health_check():
         return True
 
+    # always include version checking
+    if dependencies is None:
+        dependencies = [Depends(version_checker)]
+    else:
+        dependencies.append(Depends(version_checker))
+
     # api routers
     api_app.include_router(
         api.data.router, prefix=router_prefix, dependencies=dependencies
@@ -94,6 +103,9 @@ def create_orion_api(
     )
     api_app.include_router(
         api.logs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
     )
 
     if include_admin_router:

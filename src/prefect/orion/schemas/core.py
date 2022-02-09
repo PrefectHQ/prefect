@@ -3,12 +3,13 @@ Full schemas of Orion API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import Field, validator
 import coolname
+from pydantic import Field, validator
 from typing_extensions import Literal
+
 from prefect.orion import schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
@@ -312,6 +313,17 @@ class Deployment(ORMBaseModel):
     )
 
     # flow: Flow = None
+
+
+class ConcurrencyLimit(ORMBaseModel):
+    """An ORM representation of a concurrency limit."""
+
+    tag: str = Field(..., description="A tag the concurrency limit is applied to.")
+    concurrency_limit: int = Field(..., description="The concurrency limit.")
+    active_slots: List[UUID] = Field(
+        default_factory=list,
+        description="A list of active run ids using a concurrency slot",
+    )
 
 
 class SavedSearch(ORMBaseModel):

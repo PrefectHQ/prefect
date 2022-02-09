@@ -38,6 +38,8 @@ from prefect.futures import (
     resolve_futures_to_data,
     resolve_futures_to_states,
 )
+from prefect.logging.handlers import OrionHandler
+from prefect.logging.loggers import flow_run_logger, get_logger, get_run_logger
 from prefect.orion.schemas import core
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
@@ -59,14 +61,8 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import (
-    assert_parameters_are_serializable,
-    parameters_to_args_kwargs,
-)
+from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import ensure_iterable, visit_collection
-from prefect.logging.loggers import get_logger, get_run_logger, flow_run_logger
-from prefect.logging.handlers import OrionHandler
-
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -140,18 +136,35 @@ async def create_then_begin_flow_run(
     Creates the flow run in the backend then enters the main flow rum engine
     """
 
-    assert_parameters_are_serializable(parameters)
+    state = Pending()
+    if flow.should_validate_parameters:
+        try:
+            parameters = flow.validate_parameters(parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
 
     flow_run = await client.create_flow_run(
         flow,
-        parameters=parameters,
-        state=Pending(),
+        # Send serialized parameters to the backend
+        parameters=flow.serialize_parameters(parameters),
+        state=state,
         tags=TagsContext.get().current_tags,
     )
 
     engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
-    return await begin_flow_run(flow=flow, flow_run=flow_run, client=client)
+    if state.is_failed():
+        engine_logger.info(
+            f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
+        )
+        return state
+
+    return await begin_flow_run(
+        flow=flow, flow_run=flow_run, parameters=parameters, client=client
+    )
 
 
 @inject_client
@@ -175,12 +188,28 @@ async def retrieve_flow_then_begin_flow_run(
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
-        parameters=flow_run.parameters,
     )
+
+    if flow.should_validate_parameters:
+        try:
+            parameters = flow.validate_parameters(flow_run.parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+            await client.propose_state(
+                state=state,
+                flow_run_id=flow_run_id,
+            )
+            return state
+    else:
+        parameters = flow_run.parameters
 
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
+        parameters=parameters,
         client=client,
     )
 
@@ -188,6 +217,7 @@ async def retrieve_flow_then_begin_flow_run(
 async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
+    parameters: Dict[str, Any],
     client: OrionClient,
 ) -> State:
     """
@@ -197,6 +227,10 @@ async def begin_flow_run(
     - Orchestrates the flow run (runs the user-function and generates tasks)
     - Waits for tasks to complete / shutsdown the task runner
     - Sets a terminal state for the flow run
+
+    Note that the `flow_run` contains a `parameters` attribute which is the serialized
+    parameters sent to the backend while the `parameters` argument here should be the
+    deserialized and validated dictionary of python objects.
 
     Returns:
         The final state of the run
@@ -213,6 +247,7 @@ async def begin_flow_run(
                 terminal_state = await orchestrate_flow_run(
                     flow,
                     flow_run=flow_run,
+                    parameters=parameters,
                     task_runner=task_runner,
                     client=client,
                     sync_portal=sync_portal,
@@ -275,12 +310,9 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_futures_to_data(parameters)
 
-    # Then validate that the parameters are serializable
-    assert_parameters_are_serializable(parameters)
-
     flow_run = await client.create_flow_run(
         flow,
-        parameters=parameters,
+        parameters=flow.serialize_parameters(parameters),
         parent_task_run_id=parent_task_run.id,
         state=Pending(),
         tags=TagsContext.get().current_tags,
@@ -289,11 +321,27 @@ async def create_and_begin_subflow_run(
     parent_logger.info(f"Created subflow run {flow_run.name!r} for flow {flow.name!r}")
     logger = flow_run_logger(flow_run, flow)
 
+    if flow.should_validate_parameters:
+        try:
+            parameters = flow.validate_parameters(parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+            await client.propose_state(
+                state=state,
+                flow_run_id=flow_run.id,
+            )
+            logger.error("Received invalid parameters", exc_info=True)
+            return state
+
     async with detect_crashes(flow_run=flow_run):
         async with flow.task_runner.start() as task_runner:
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
+                parameters=parameters,
                 task_runner=task_runner,
                 client=client,
                 sync_portal=parent_flow_run_context.sync_portal,
@@ -325,6 +373,7 @@ async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     task_runner: BaseTaskRunner,
+    parameters: Dict[str, Any],
     client: OrionClient,
     sync_portal: BlockingPortal,
 ) -> State:
@@ -343,13 +392,13 @@ async def orchestrate_flow_run(
     Returns:
         The final state of the run
     """
+    logger = flow_run_logger(flow_run, flow)
+
     # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(
         Running(),
         flow_run_id=flow_run.id,
     )
-
-    logger = flow_run_logger(flow_run, flow)
 
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
@@ -367,11 +416,11 @@ async def orchestrate_flow_run(
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
             ) as flow_run_context:
-                # Validate the parameters before the call; raises an exception if invalid
-                if flow.should_validate_parameters:
-                    flow_run.parameters = flow.validate_parameters(flow_run.parameters)
+                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                logger.debug(
+                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                )
 
-                args, kwargs = parameters_to_args_kwargs(flow.fn, flow_run.parameters)
                 if prefect.settings.debug_mode:
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
@@ -622,9 +671,11 @@ async def orchestrate_task_run(
                         f"Beginning execution...", extra={"state_message": True}
                     )
 
-                result = task.fn(*args, **kwargs)
                 if task.isasync:
-                    result = await result
+                    result = await task.fn(*args, **kwargs)
+                else:
+                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+
         except Exception as exc:
             logger.error(
                 f"Encountered exception during execution:",

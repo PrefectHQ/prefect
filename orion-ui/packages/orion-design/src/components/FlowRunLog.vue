@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts">
-  import CopyButton from '@/components/Global/CopyButton.vue'
+  import CopyButton from './CopyButton.vue'
   import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
   import { formatDateTimeNumeric, formatTimeNumeric } from '..'
@@ -86,8 +86,8 @@
   }
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
-    grid-template-areas: "task level time message";
-    grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr;
+    grid-template-areas: "level time message task";
+    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
     padding: 0 var(--p-2);
 
     + .flow-run-log {

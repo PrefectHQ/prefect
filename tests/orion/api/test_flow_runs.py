@@ -1,15 +1,15 @@
+from typing import List
 from uuid import uuid4
 
 import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
-from typing import List
 
 from prefect.orion import models, schemas
 from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas import actions, core, responses, states, data
+from prefect.orion.schemas import actions, core, data, responses, states
 
 
 class TestCreateFlowRun:

@@ -3,10 +3,10 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
-from logging import Logger
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional, Type, TypeVar, Union, List, Set, Dict
+from logging import Logger
+from typing import Dict, List, Optional, Set, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -15,12 +15,13 @@ from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
 from prefect.client import OrionClient
-from prefect.task_runners import BaseTaskRunner
+from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
-from prefect.tasks import Task
+from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
-from prefect.orion.schemas.core import TaskRun, FlowRun
+from prefect.task_runners import BaseTaskRunner
+from prefect.tasks import Task
 
 T = TypeVar("T")
 
@@ -150,7 +151,7 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     if flow_run_ctx:
         return flow_run_ctx
 
-    raise RuntimeError(
+    raise MissingContextError(
         "No run context available. You are not in a flow or task run context."
     )
 
