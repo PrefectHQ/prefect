@@ -8,8 +8,8 @@
     <template #content>
       <slot />
     </template>
-    <template v-if="!hideClose && !hideConfirm" #actions>
-      <m-card-actions>
+    <template v-if="!hideClose || !hideConfirm" #actions>
+      <m-card-actions class="d-flex justify-end">
         <slot name="actions">
           <m-button
             v-if="!hideClose"
@@ -29,7 +29,7 @@
             :disabled="loading"
             @click="emit('confirm')"
           >
-            {{ confirmText ? confirmText : 'Close' }}
+            {{ confirmText ? confirmText : 'Confirm' }}
           </m-button>
         </slot>
       </m-card-actions>
