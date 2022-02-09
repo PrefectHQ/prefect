@@ -19,7 +19,7 @@
             :disabled="loading"
             @click="emit('close')"
           >
-            {{ closeText ? closeText : 'Close' }}
+            {{ closeText ?? 'Close' }}
           </m-button>
 
           <m-button
@@ -29,7 +29,7 @@
             :disabled="loading"
             @click="emit('confirm')"
           >
-            {{ confirmText ? confirmText : 'Confirm' }}
+            {{ confirmText ?? 'Confirm' }}
           </m-button>
         </slot>
       </m-card-actions>
@@ -54,7 +54,7 @@
   }>()
 
   interface IPopupEmits extends ObjectEmitsOptions {
-    (event: 'update:value', value: boolean): void,
+    (event: 'update:modelValue', value: boolean): void,
     (event: 'confirm'): void,
     // If we combine these signatures, eslint loses the context of the component for some reason and every reference in the template breaks 🥲
     // eslint-disable-next-line @typescript-eslint/unified-signatures
@@ -65,7 +65,7 @@
 
   const value = computed({
     get: () => props.modelValue,
-    set: (value) => emit('update:value', value),
+    set: (value) => emit('update:modelValue', value),
   })
 </script>
 
