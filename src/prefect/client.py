@@ -617,6 +617,34 @@ class OrionClient:
 
         return True
 
+    async def read_block_data(
+        self,
+        id: str,
+    ):
+        """
+        Read the block data by id.
+
+        Args:
+            id: the block data id
+
+        Raises:
+            httpx.RequestError: if the block data was not found for any reason
+
+        Returns:
+            block data
+        """
+        response = await self.get(
+            f"/block_data/{id}",
+        )
+
+        block_data_id = response.json().get("blockid")
+
+        if not block_data_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        block = response.json()
+        return block
+
     async def read_block_data_by_name(
         self,
         name: str,
@@ -855,7 +883,7 @@ class OrionClient:
         block_datadoc = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": block_datadoc, "blockname": storage_block.blockname},
+            data={"data": block_datadoc, "blockid": storage_block.blockid},
         )
         return storage_datadoc
 
@@ -874,8 +902,8 @@ class OrionClient:
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
-        blockname = block_document["blockname"]
-        blockdata = await self.read_block_data_by_name(blockname)
+        blockid = block_document["blockid"]
+        blockdata = await self.read_block_data(blockid)
         storage_block = assemble_block(blockdata)
         return await storage_block.read(embedded_datadoc)
 
