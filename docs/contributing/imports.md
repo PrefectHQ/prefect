@@ -51,6 +51,17 @@ import prefect.orion.schemas as schemas
 schemas.core.FlowRun
 ```
 
+#### Side-effects
+
+Another justifiable use-case is for submodules that perform global side-effects.
+
+Often, global side-effects on import are a dangerous pattern. Avoid them if feasible.
+
+We have a couple uses of this currently:
+
+- To register dispatchable types in `prefect.serializers`.
+- To extend our CLI application in `prefect.cli`.
+
 ## Imports in modules
 
 ### Importing other modules
