@@ -52,6 +52,7 @@
   align-items: center;
   gap: var(--p-1);
   clip-path: var(--miter-clip-path);
+  white-space: nowrap;
 }
 
 .dismissible-tag--dismissible {
@@ -63,8 +64,12 @@
     --icon-color: #fff;
   }
 
-  &:active {
+  &:active,
+  &:focus {
+    outline: 0;
     --background: var(--primary-hover);
+    --color: #fff;
+    --icon-color: #fff;
   }
 }
 
