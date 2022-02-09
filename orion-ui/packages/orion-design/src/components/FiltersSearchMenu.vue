@@ -62,6 +62,8 @@
   border-radius: 4px;
   box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  max-height: 50vh;
+  position: relative;
 }
 
 .filters-search-menu__title {
@@ -70,6 +72,8 @@
   line-height: 24px;
   margin: 0;
   padding: var(--p-1) var(--p-2);
+  position: sticky;
+  top: 0;
 }
 
 .filters-search-menu__filter {
