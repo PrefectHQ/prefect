@@ -196,3 +196,9 @@ Note that this option must come before the subcommand. For example, to list flow
 ```
 $ prefect --profile "foo" flow-run ls
 ```
+
+## Conflicts with environment variables
+
+If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile will be ignored.
+
+In all other cases, environment variables will take precedence over the value in the profile.
