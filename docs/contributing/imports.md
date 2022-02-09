@@ -82,9 +82,9 @@ from prefect.orion import schemas
 
 The `from` syntax should be reserved for importing objects from modules.
 
-### Deferred imports
+### Resolving circular dependencies
 
-Sometimes, we must perform imports _within_ a function to avoid a circular dependency.
+Sometimes, we must defer an import and perform it _within_ a function to avoid a circular dependency.
 
 ```python
 # This function in `settings.py` requires a method from the global `context` but the context
@@ -99,6 +99,8 @@ Attempt to avoid circular dependencies. This often reveals overentanglement in t
 
 When performing deferred imports, they should all be placed at the top of the function.
 
+#### With type annotations
+
 If you are just using the imported object for a type signature, you should use the `TYPE_CHECKING` flag.
 
 ```python
@@ -106,7 +108,12 @@ from typing import TYPE_CHECKING:
 
 if TYPE_CHECKING:
     from prefect.orion.schemas.states import State
+
+def foo(state: "State"):
+    pass
 ```
+
+Note that usage of the type within the module will need quotes e.g. `"State"` since it is not available at runtime.
 
 ### Importing optional requirements
 
