@@ -2,6 +2,8 @@ from prefect.tasks.neo4j.neo4j_tasks import Neo4jRunCypherQueryTask
 from prefect.engine.signals import FAIL
 import pytest
 
+from unittest import mock
+
 
 class TestNeo4jRunCypherQueryTask:
     def test_construction_no_values(self):
@@ -122,15 +124,65 @@ class TestNeo4jRunCypherQueryTask:
                 password="password",
                 cypher_query="query",
             )
+    
 
-    @pytest.mark.skip
-    def test_run_raises_fail_on_query_error(self):
+    @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
+    @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
+    def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
+        
+        class mockRun:
+            def data(self):
+                return [
+                    {"key1": "value1"},
+                    {"key2": "value2"}
+                ]
+        
+        class mockGraph:
+            def run(self):
+                return mockRun()
+        
+        mock_graph.return_value = mockGraph
+        mock_run.run = mockGraph.run
         neo4j_task = Neo4jRunCypherQueryTask()
-        msg_match = "Error while running Cypher query."
-        with pytest.raises(FAIL, match=msg_match):
-            neo4j_task.run(
-                server_uri="bolt://localhost:7687",
-                user="neo4j",
-                password="s3cr3t",
-                cypher_query="query",
-            )
+        result = neo4j_task.run(
+            server_uri="bolt://localhost:7687",
+            user="neo4j",
+            password="s3cr3t",
+            cypher_query="query",
+        )
+
+        assert result == [
+            {"key1": "value1"},
+            {"key2": "value2"}
+        ]
+    
+    @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
+    @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
+    def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
+        import pandas as pd
+        class mockRun:
+            def data(self):
+                return [
+                    {"key1": "value1"},
+                    {"key2": "value2"}
+                ]
+            
+            def to_data_frame(self):
+                return pd.DataFrame([{"key": "value"}])
+        
+        class mockGraph:
+            def run(self):
+                return mockRun()
+        
+        mock_graph.return_value = mockGraph
+        mock_run.run = mockGraph.run
+        neo4j_task = Neo4jRunCypherQueryTask()
+        result = neo4j_task.run(
+            server_uri="bolt://localhost:7687",
+            user="neo4j",
+            password="s3cr3t",
+            cypher_query="query",
+            return_result_as="dataframe"
+        )
+
+        assert result.equals(pd.DataFrame([{"key": "value"}]))

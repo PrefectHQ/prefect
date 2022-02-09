@@ -1,4 +1,3 @@
-from json import dumps
 import os
 from py2neo import Graph
 from py2neo.errors import ClientError, ConnectionUnavailable
@@ -47,15 +46,15 @@ class Neo4jRunCypherQueryTask(Task):
             More information about the Cypher query language, can be
             found at https://neo4j.com/developer/cypher/.
         - return_result_as (str, optional): How to return the result.
-            Accepted values are `raw`, `json`, `dataframe`.
-            Defaults to `raw`.
+            Accepted values are `raw`, `dataframe`.
+            Defaults to `raw` (which will return a `list` of `dict`).
             Applies only when the query returned result is not empty.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor.
     """
 
     __DEFAULT_RETURN_RESULT_TYPE = "raw"
-    __ACCEPTED_RETURN_RESULT_TYPES = [__DEFAULT_RETURN_RESULT_TYPE, "json", "dataframe"]
+    __ACCEPTED_RETURN_RESULT_TYPES = [__DEFAULT_RETURN_RESULT_TYPE, "dataframe"]
 
     def __init__(
         self,
@@ -141,14 +140,13 @@ class Neo4jRunCypherQueryTask(Task):
                 More information about the Cypher query language, can be
                 found at https://neo4j.com/developer/cypher/.
             - return_result_as (str, optional): How to return the result.
-                Accepted values are `raw`, `json`, `dataframe`.
-                Defaults to `raw`.
+                Accepted values are `raw`, `dataframe`.
+                Defaults to `raw` (which will return a `list` of `dict`).
                 Applies only when the query returned result is not empty.
 
         Returns:
             - `None` if the query result is empty.
             - The original result if `return_result_as` is `raw`.
-            - A `list` of `dict` if `return_result_as` is `json`.
             - A `pandas.DataFrame` if `return_result_as` is `dataframe`.
 
         Raises:
@@ -168,7 +166,7 @@ class Neo4jRunCypherQueryTask(Task):
                 is not found.
             - `ValueError` if `cypher_query` is `None`.
             - `ValueError` if `return_result_as` is not one of
-                `raw`, `json`, `dataframe`.
+                `raw`, `dataframe`.
             - `prefect.engine.signals.FAIL` if any error occurs while establishing
                 the connection with Neo4j.
             - `prefect.engine.signals.FAIL` if any error occurs while running
@@ -238,8 +236,6 @@ class Neo4jRunCypherQueryTask(Task):
 
         if not result:
             return None
-        elif return_result_as == "json":
-            return dumps(result)
         elif return_result_as == "dataframe":
             return r.to_data_frame()
         else:
