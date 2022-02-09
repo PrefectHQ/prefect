@@ -9,7 +9,7 @@ Settings can be access in Python and viewed from the Orion UI.
 
 From Python, settings can be accessed with `prefect.settings.from_context()` which will load settings from the current profile context and return a `Settings` object.
 
-There is also a `from_env()` function will load settings with overrides from environment variables, ignoring the profile context. We do not recommend this for general use.
+There is also a `from_env()` function which will load settings with overrides from environment variables, ignoring the profile context. We do not recommend this for general use.
 
 ## Overriding defaults with environment variables
 
