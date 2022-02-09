@@ -214,7 +214,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     def ensure_only_one_env_was_given(cls, values):
         if values.get("condaenv") and values.get("virtualenv"):
             raise ValueError(
-                "Received incompatible prefect.settings.from_env(). You cannot provide both a conda and "
+                "Received incompatible prefect.settings.from_context(). You cannot provide both a conda and "
                 "virtualenv to use."
             )
         return values
@@ -391,7 +391,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         sync all of the server settings to the container's ephemeral server.
         """
         orion_host = self.env.get(
-            "PREFECT_ORION_HOST", prefect.settings.from_env().orion_host
+            "PREFECT_ORION_HOST", prefect.settings.from_context().orion_host
         )
 
         if not orion_host:
@@ -642,9 +642,9 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Update local connections to use the docker host
 
-        if prefect.settings.from_env().orion_host:
+        if prefect.settings.from_context().orion_host:
             api_url = (
-                prefect.settings.from_env()
+                prefect.settings.from_context()
                 .orion_host.replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
             )
@@ -747,7 +747,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     def _assert_orion_settings_are_compatible(self):
         """See note in DockerFlowRunner."""
         orion_host = self.env.get(
-            "PREFECT_ORION_HOST", prefect.settings.from_env().orion_host
+            "PREFECT_ORION_HOST", prefect.settings.from_context().orion_host
         )
 
         if not orion_host:

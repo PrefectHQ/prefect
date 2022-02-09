@@ -99,7 +99,7 @@ def get_instance_data_location() -> DataLocation:
     Return the current data location configured for this Orion instance
     """
     return DataLocation(
-        name=prefect.settings.from_env().orion.data.name,
-        base_path=prefect.settings.from_env().orion.data.base_path,
-        scheme=prefect.settings.from_env().orion.data.scheme.lower(),
+        name=prefect.settings.from_context().orion.data.name,
+        base_path=prefect.settings.from_context().orion.data.base_path,
+        scheme=prefect.settings.from_context().orion.data.scheme.lower(),
     )

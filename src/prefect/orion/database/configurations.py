@@ -26,9 +26,10 @@ class BaseDatabaseConfiguration(ABC):
         timeout: float = None,
     ):
         self.connection_url = (
-            connection_url or prefect.settings.from_env().orion.database.connection_url
+            connection_url
+            or prefect.settings.from_context().orion.database.connection_url
         )
-        self.echo = echo or prefect.settings.from_env().orion.database.echo
+        self.echo = echo or prefect.settings.from_context().orion.database.echo
         self.timeout = timeout
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
