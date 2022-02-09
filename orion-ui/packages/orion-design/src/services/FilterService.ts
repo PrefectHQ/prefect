@@ -27,4 +27,20 @@ export class FilterService {
   public static describe(filter: Filter): string {
     return FilterDescriptionService.describe(filter)
   }
+
+  public static icon(filter: Filter): string {
+    // eslint-disable-next-line default-case
+    switch (filter.object) {
+      case 'flow':
+        return 'pi-flow'
+      case 'deployment':
+        return 'pi-map-pin-line'
+      case 'flow_run':
+        return 'pi-flow-run'
+      case 'task_run':
+        return 'pi-task'
+      case 'tag':
+        return 'pi-label'
+    }
+  }
 }
