@@ -40,7 +40,7 @@ Wrong:
 import prefect.flows
 ```
 
-Generally, submodules should _not_ be imported in the `__init__` file. Submodules should only be exposed when the module is designed to be imported and used as a namespaced object. 
+Generally, submodules should _not_ be imported in the `__init__` file. Submodules should only be exposed when the module is designed to be imported and used as a namespaced object.
 
 For example, we do this for our schema and model modules:
 
@@ -70,3 +70,29 @@ from prefect.orion import schemas
 ```
 
 The `from` syntax should be reserved for importing objects from modules.
+
+### Deferred imports
+
+Sometimes, we must perform imports _within_ a function to avoid a circular dependency.
+
+```python
+# This function in `settings.py` requires a method from the global `context` but the context
+# uses settings
+def from_context():
+    from prefect.context import get_profile_context
+
+    ...
+```
+
+Attempt to avoid circular dependencies. This often reveals overentanglement in the design.
+
+When performing deferred imports, they should all be placed at the top of the function.
+
+If you are just using the imported object for a type signature, you should use the `TYPE_CHECKING` flag.
+
+```python
+from typing import TYPE_CHECKING:
+
+if TYPE_CHECKING:
+    from prefect.orion.schemas.states import State
+```
