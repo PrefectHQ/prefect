@@ -14,13 +14,30 @@ class TestCreateSavedSearch:
         session,
         client,
     ):
+        filters = [
+            {
+                "object": "flow",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "foo",
+            },
+            {
+                "object": "flow_run",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "bar",
+            },
+        ]
 
-        data = SavedSearchCreate(
-            name="My SavedSearch",
-        ).dict(json_compatible=True)
+        data = SavedSearchCreate(name="My SavedSearch", filters=filters).dict(
+            json_compatible=True
+        )
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
+        assert response.json()["filters"] == filters
         saved_search_id = response.json()["id"]
 
         saved_search = await models.saved_searches.read_saved_search(
