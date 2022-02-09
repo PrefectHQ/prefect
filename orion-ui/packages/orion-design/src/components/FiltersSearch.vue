@@ -1,6 +1,11 @@
 <template>
   <div class="filters-search">
-    <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
+    <template v-if="filters.length < 5 && media.sm">
+      <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
+    </template>
+    <template v-else-if="filters.length">
+      <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" />
+    </template>
     <input
       v-model="term"
       class="filters-search__input"
@@ -16,15 +21,20 @@
 </template>
 
 <script lang="ts" setup>
+  import media from '@/utilities/media'
+  import { fil } from 'date-fns/locale'
   import { computed, ref } from 'vue'
   import { FilterPrefixError } from '../models/FilterPrefixError'
   import { FilterService } from '../services/FilterService'
   import { useFiltersStore, FilterState } from '../stores/filters'
+  import { toPluralString } from '../utilities/strings'
+  import DismissibleTag from './DismissibleTag.vue'
   import FilterTags from './FilterTags.vue'
 
   const filtersStore = useFiltersStore()
   const term = ref('')
   const filters = computed(() => filtersStore.all)
+  const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
 
   function add(): void {
     if (term.value == '') {
@@ -49,6 +59,10 @@
 
   function dismiss(filter: FilterState): void {
     filtersStore.remove(filter)
+  }
+
+  function dismissAll(): void {
+    filtersStore.removeAll()
   }
 
   function clear(): void {
