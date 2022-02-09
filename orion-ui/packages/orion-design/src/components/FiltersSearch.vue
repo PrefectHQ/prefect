@@ -1,9 +1,12 @@
 <template>
   <div class="filters-search">
+    <template v-if="!hasFilters">
+      <i class="pi pi-search-line" />
+    </template>
     <template v-if="filters.length < 5 && media.sm">
       <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
     </template>
-    <template v-else-if="filters.length">
+    <template v-else-if="hasFilters">
       <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" />
     </template>
     <input
@@ -24,7 +27,6 @@
 
 <script lang="ts" setup>
   import media from '@/utilities/media'
-  import { fil } from 'date-fns/locale'
   import { computed, ref } from 'vue'
   import { FilterPrefixError } from '../models/FilterPrefixError'
   import { FilterService } from '../services/FilterService'
@@ -37,6 +39,7 @@
   const term = ref('')
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
+  const hasFilters = computed(() => filters.value.length > 0)
 
   function add(): void {
     if (term.value == '') {
