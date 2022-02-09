@@ -48,20 +48,24 @@ def temporary_settings(**kwargs):
         >>> assert prefect.settings.from_env().orion_host is None
     """
     old_env = os.environ.copy()
+
+    # Cast to strings
+    variables = {key: str(value) for key, value in kwargs.items()}
+
     try:
-        for setting in kwargs:
-            os.environ[setting] = str(kwargs[setting])
+        for key in variables:
+            os.environ[key] = str(variables[key])
 
         new_settings = prefect.settings.from_env()
 
         with prefect.context.ProfileContext(
-            name="temporary", settings=new_settings, env=kwargs
+            name="temporary", settings=new_settings, env=variables
         ):
             yield new_settings
 
     finally:
-        for setting in kwargs:
-            if old_env.get(setting):
-                os.environ[setting] = old_env[setting]
+        for key in variables:
+            if old_env.get(key):
+                os.environ[key] = old_env[key]
             else:
-                os.environ.pop(setting, None)
+                os.environ.pop(key, None)
