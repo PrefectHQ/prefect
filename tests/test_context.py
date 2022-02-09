@@ -3,11 +3,14 @@ from contextvars import ContextVar
 import pytest
 from pendulum.datetime import DateTime
 
+import prefect.settings
 from prefect import flow, task
 from prefect.context import (
     ContextModel,
     FlowRunContext,
+    ProfileContext,
     TaskRunContext,
+    get_profile_context,
     get_run_context,
 )
 from prefect.exceptions import MissingContextError
@@ -102,3 +105,13 @@ async def test_get_run_context(orion_client):
             assert get_run_context() is task_ctx, "Task context takes precendence"
 
         assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
+
+
+def test_profile_context():
+    with ProfileContext(
+        name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
+    ) as context:
+        assert get_profile_context() is context
+        assert context.name == "test"
+        assert context.settings == prefect.settings.from_env()
+        assert context.env == {"FOO": "BAR"}

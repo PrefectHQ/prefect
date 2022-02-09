@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 """
 import atexit
 import os
+import threading
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -233,7 +234,8 @@ def temporary_environ(
         overrides = set(old_env.keys()).intersection(variables.keys())
         if overrides and warn_on_override:
             warnings.warn(
-                f"Temporary environment is overriding key(s): {', '.join(overrides)}"
+                f"Temporary environment is overriding key(s): {', '.join(overrides)}",
+                stacklevel=3,
             )
 
     try:
@@ -278,6 +280,11 @@ DEFAULT_PROFILES = {"default": {}}
 
 
 def load_profile(name: str) -> Dict[str, str]:
+    """
+    Loads a profile from the TOML file.
+
+    Asserts that all variables are valid string key/value pairs.
+    """
     path = prefect.settings.from_env().profiles_path
     if not path.exists():
         profiles = DEFAULT_PROFILES
@@ -300,31 +307,33 @@ def load_profile(name: str) -> Dict[str, str]:
     return variables
 
 
+_PROFILE_LOCK = threading.Lock()
+
+
 @contextmanager
 def profile(
     name: str,
     create_home: bool = True,
     setup_logging: bool = False,
-    override_existing_variables: bool = None,
+    override_existing_variables: bool = False,
 ):
     env = load_profile(name)
 
-    if override_existing_variables is None:
-        override_existing_variables = env.get(override_existing_variables, True)
+    # Prevent multiple threads from mutating the environment concurrently
+    with _PROFILE_LOCK:
+        with temporary_environ(
+            env, override_existing=override_existing_variables, warn_on_override=True
+        ):
+            settings = prefect.settings.from_env()
 
-    with temporary_environ(
-        env, override_existing=override_existing_variables, warn_on_override=True
-    ):
-        settings = prefect.settings.from_env()
+    if create_home and not os.path.exists(settings.home):
+        os.makedirs(settings.home, exist_ok=True)
 
-        if create_home and not os.path.exists(settings.home):
-            os.makedirs(settings.home, exist_ok=True)
+    if setup_logging:
+        prefect.logging.configuration.setup_logging(settings)
 
-        if setup_logging:
-            prefect.logging.configuration.setup_logging(settings)
-
-        with ProfileContext(name=name, settings=settings, env=env) as ctx:
-            yield ctx
+    with ProfileContext(name=name, settings=settings, env=env) as ctx:
+        yield ctx
 
 
 def initialize_module_profile():
@@ -337,7 +346,7 @@ def initialize_module_profile():
     context = profile(
         name=name,
         setup_logging=True,
-        override_existing_variables=False if name == "default" else True,
+        override_existing_variables=False,
     )
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))

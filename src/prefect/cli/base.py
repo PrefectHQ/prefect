@@ -72,7 +72,11 @@ def enter_profile_from_option(fn):
                 exit_with_error(f"Profile {name!r} not found.")
                 raise ValueError()
 
-        context = prefect.context.profile(name) if name else nullcontext()
+        context = (
+            prefect.context.profile(name, override_existing_variables=True)
+            if name
+            else nullcontext()
+        )
         with context:
             return fn(*args, **kwargs)
 
