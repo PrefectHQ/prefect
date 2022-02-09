@@ -1,5 +1,5 @@
 <template>
-  <m-popup v-model="value" position="center">
+  <m-popup v-model="value" position="center" class="popup-wrapper">
     <template #title>
       <slot name="title">
         <PopupTitle :color="color" :title="title" :icon="icon" />
@@ -8,10 +8,11 @@
     <template #content>
       <slot />
     </template>
-    <template #actions>
+    <template v-if="!hideClose && !hideConfirm" #actions>
       <m-card-actions>
         <slot name="actions">
           <m-button
+            v-if="!hideClose"
             class="mr-1"
             color="secondary"
             height="36px"
@@ -22,6 +23,7 @@
           </m-button>
 
           <m-button
+            v-if="!hideConfirm"
             color="primary"
             height="36px"
             :disabled="loading"
@@ -46,6 +48,8 @@
     loading?: boolean,
     closeText?: string,
     confirmText?: string,
+    hideClose?: boolean,
+    hideConfirm?: boolean,
     modelValue: boolean,
   }>()
 
@@ -64,3 +68,10 @@
     set: (value) => emit('update:value', value),
   })
 </script>
+
+<style lang="scss" scoped>
+  .popup-wrapper {
+    max-width: 600px;
+    width: 100%;
+  }
+</style>
