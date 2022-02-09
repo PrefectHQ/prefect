@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
+  import { computed, PropType } from 'vue'
   import { useRouter } from 'vue-router'
 
   type Route = {
@@ -44,12 +44,20 @@
     count?: number,
   }
 
-  const props = defineProps<{ tabs: Tab[] }>()
+  const props = defineProps({
+    tabs: {
+      type: Array as PropType<Tab[]>,
+      required: true,
+      validator:(value: Tab[]) => value.length > 0
+    }
+  })
 
   const router = useRouter()
 
   const classes = computed(() => ({
-    tab: (tab: Tab) => [tab.class, isSelected(tab) ? 'router-tabs__tab--active' : ''],
+    tab: (tab: Tab) => [tab.class, {
+        'router-tabs__tab--active': isSelected(tab)
+      }],
   }))
 
   const isSelected = (tab: Tab): boolean => {
