@@ -42,7 +42,7 @@ import prefect.flows
 
 Generally, submodules should _not_ be imported in the `__init__` file. Submodules should only be exposed when the module is designed to be imported and used as a namespaced object.
 
-For example, we do this for our schema and model modules:
+For example, we do this for our schema and model modules because the it is important to know if you are working with a API schema or database model which may have similar names.
 
 ```python
 import prefect.orion.schemas as schemas
