@@ -19,9 +19,11 @@
 
     <div class="router-tabs__results">
       <transition-group name="tab-fade" mode="out-in" css>
+        <slot name="before-tab-content" :selected-tab="selectedTab" />
         <template v-for="tab in tabs" :key="tab.title">
           <slot v-if="isSelected(tab)" :name="tab.key" :tab="tab" />
         </template>
+        <slot name="after-tab-content" :selected-tab="selectedTab" />
       </transition-group>
     </div>
   </div>
@@ -48,16 +50,17 @@
     tabs: {
       type: Array as PropType<Tab[]>,
       required: true,
-      validator:(value: Tab[]) => value.length > 0
-    }
+      validator:(value: Tab[]) => value.length > 0,
+    },
   })
 
   const router = useRouter()
 
   const classes = computed(() => ({
-    tab: (tab: Tab) => [tab.class, {
-        'router-tabs__tab--active': isSelected(tab)
-      }],
+    tab: (tab: Tab) => [
+      tab.class,
+      { 'router-tabs__tab--active': isSelected(tab) },
+    ],
   }))
 
   const isSelected = (tab: Tab): boolean => {
@@ -69,10 +72,6 @@
   }
 
   const getTabByRouteKey = (routeKey: string | null): Tab => {
-    if (!props.tabs.length) {
-      throw 'RouterTabs Error: <router-tabs> requires at least one Tab'
-    }
-
     const [defaultTab] = props.tabs
     if (!routeKey) {
       return defaultTab
@@ -90,15 +89,13 @@
   }
 
   const currentRouteRouteKey = computed<string | null>(() => {
-    const currentRoute = router.currentRoute.value
-
-    if (typeof currentRoute.name !== 'string') {
+    if (typeof router.currentRoute.value.name !== 'string') {
       return null
     }
 
-    const hash = getHashValue(currentRoute.hash)
+    const hash = getHashValue(router.currentRoute.value.hash)
 
-    return getRouteKey({ name: currentRoute.name, hash })
+    return getRouteKey({ name: router.currentRoute.value.name, hash })
   })
 
   const selectedTab = computed<Tab>(() => {
