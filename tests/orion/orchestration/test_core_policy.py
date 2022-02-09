@@ -1,20 +1,29 @@
 import contextlib
-import pendulum
-import pytest
+import random
 from itertools import product
 
-from prefect.orion.schemas.responses import SetStateStatus
+import pendulum
+import pytest
+
+from prefect.orion import schemas
+from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     PreventTransitionsFromTerminalStates,
-    RetryPotentialFailures,
+    ReleaseTaskConcurrencySlots,
     RenameReruns,
+    RetryPotentialFailures,
+    SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
-
-from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
-from prefect.orion.schemas import states
+from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    TERMINAL_STATES,
+    BaseOrchestrationRule,
+)
+from prefect.orion.schemas import actions, states
+from prefect.orion.schemas.responses import SetStateStatus
 
 
 def transition_names(transition):
@@ -402,3 +411,532 @@ class TestTransitionsFromTerminalStatesRule:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["task"])
+class TestTaskConcurrencyLimits:
+    async def create_concurrency_limit(self, session, tag, limit):
+        cl_create = actions.ConcurrencyLimitCreate(
+            tag=tag,
+            concurrency_limit=limit,
+        ).dict(json_compatible=True)
+
+        cl_model = schemas.core.ConcurrencyLimit(**cl_create)
+
+        await concurrency_limits.create_concurrency_limit(
+            session=session, concurrency_limit=cl_model
+        )
+
+    async def delete_concurrency_limit(self, session, tag):
+        await concurrency_limits.delete_concurrency_limit_by_tag(session, tag)
+
+    async def count_concurrency_slots(self, session, tag):
+        return len(
+            (
+                await concurrency_limits.read_concurrency_limit_by_tag(session, tag)
+            ).active_slots
+        )
+
+    async def read_concurrency_slots(self, session, tag):
+        return (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, tag)
+        ).active_slots
+
+    async def test_basic_concurrency_limiting(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "some tag", 1)
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        # before any runs, no active concurrency slots are in use
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        # a first task run against a concurrency limited tag will be accepted
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        task2_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        # the first task hasn't completed, so the concurrently running second task is
+        # told to wait
+        assert task2_running_ctx.response_status == SetStateStatus.WAIT
+
+        # the number of slots occupied by active runs is equal to the concurrency limit
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+        task1_completed_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_completed_ctx = await stack.enter_async_context(
+                    rule(task1_completed_ctx, *completed_transition)
+                )
+            await task1_completed_ctx.validate_proposed_state()
+
+        # the first task run will transition into a completed state, yielding a
+        # concurrency slot
+        assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        # the second task tries to run again, this time the transition will be accepted
+        # now that a concurrency slot has been freed
+        task2_run_retry_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=task2_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_run_retry_ctx = await stack.enter_async_context(
+                    rule(task2_run_retry_ctx, *running_transition)
+                )
+            await task2_run_retry_ctx.validate_proposed_state()
+
+        assert task2_run_retry_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+    async def test_concurrency_limiting_aborts_transitions_with_zero_limit(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        # concurrency limits of 0 will deadlock without a short-circuit
+        await self.create_concurrency_limit(session, "the worst limit", 0)
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["the worst limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *running_transition))
+            await ctx.validate_proposed_state()
+
+        # instead of a WAIT response, Orion should direct the client to ABORT
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_returning_concurrency_slots_on_fizzle(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        await self.create_concurrency_limit(session, "a nice little limit", 1)
+
+        concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+            StateMutatingRule,
+        ]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["a nice little limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *running_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert (await self.count_concurrency_slots(session, "a nice little limit")) == 0
+
+    async def test_one_run_wont_consume_multiple_slots(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+
+        await self.create_concurrency_limit(session, "a generous limit", 10)
+
+        concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["a generous limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *running_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
+        duplicate_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=ctx.run,
+            run_tags=["a generous limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                duplicate_ctx = await stack.enter_async_context(
+                    rule(duplicate_ctx, *running_transition)
+                )
+            await duplicate_ctx.validate_proposed_state()
+
+        # we might want to protect against a identical transitions from the same run
+        # from being accepted, but this orchestration rule is the wrong place to do it
+        assert duplicate_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
+    async def test_concurrency_race_condition_new_tags_arent_double_counted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "primary tag", 2)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        task1_running_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        await self.create_concurrency_limit(session, "secondary tag", 1)
+
+        # the concurrency limit on "secondary tag" was created after the first task
+        # started running, so no runs against the second limit were counted
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 1
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
+
+        task2_running_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        assert task2_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        # both concurrency limits have an active slot consumed by the second task
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 2
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 1
+
+        task1_completed_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_completed_ctx = await stack.enter_async_context(
+                    rule(task1_completed_ctx, *completed_transition)
+                )
+            await task1_completed_ctx.validate_proposed_state()
+
+        # the first task completes, but despite having tags associated with both
+        # concurrency limits, it only releases a concurrency slot from the first tag as
+        # the task entered a running state before the second limit was created
+        assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 1
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 1
+
+        task2_completed_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=task2_running_ctx.run,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_completed_ctx = await stack.enter_async_context(
+                    rule(task2_completed_ctx, *completed_transition)
+                )
+            await task2_completed_ctx.validate_proposed_state()
+
+        # after the second task completes, all concurrency slots are released
+        assert task2_completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 0
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
+
+    async def test_concurrency_race_condition_deleted_tags_dont_impact_execution(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "big limit", 2)
+        await self.create_concurrency_limit(session, "small limit", 1)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        task1_running_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["big limit", "small limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "small limit")) == 1
+
+        task2_running_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["big limit", "small limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        # the small limit was hit, preventing the transition
+        assert task2_running_ctx.response_status == SetStateStatus.WAIT
+
+        # removing the small limit should allow runs again
+        await self.delete_concurrency_limit(session, "small limit")
+
+        task3_running_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["big limit", "small limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task3_running_ctx = await stack.enter_async_context(
+                    rule(task3_running_ctx, *running_transition)
+                )
+            await task3_running_ctx.validate_proposed_state()
+
+        assert task3_running_ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_concurrency_race_condition_limit_increases_dont_impact_execution(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "changing limit", 1)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["changing limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        await self.create_concurrency_limit(session, "changing limit", 2)
+
+        task2_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["changing limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        assert task2_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "changing limit")) == 2
+
+    async def test_concurrency_race_condition_limit_decreases_impact_new_runs(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "shrinking limit", 2)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["shrinking limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        # lowering the limit to 1 will prevent any more runs from being submitted
+        await self.create_concurrency_limit(session, "shrinking limit", 1)
+
+        task2_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["shrinking limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        assert task2_running_ctx.response_status == SetStateStatus.WAIT
+        assert (await self.count_concurrency_slots(session, "shrinking limit")) == 1
+
+    async def test_concurrency_race_condition_limit_decreases_dont_impact_existing_runs(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "shrinking limit", 2)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["shrinking limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        # even if the limit is lowered to 0, the existing run can complete
+        await self.create_concurrency_limit(session, "shrinking limit", 0)
+        assert (await self.count_concurrency_slots(session, "shrinking limit")) == 1
+
+        task1_completed_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["shrinking limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_completed_ctx = await stack.enter_async_context(
+                    rule(task1_completed_ctx, *completed_transition)
+                )
+            await task1_completed_ctx.validate_proposed_state()
+
+        # the concurrency slot is released as expected
+        assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "shrinking limit")) == 0

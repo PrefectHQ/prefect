@@ -116,36 +116,29 @@ import {
   watch,
   reactive
 } from 'vue'
+import { useStore } from '@/store'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
-import { ResultsListTabs } from '@prefecthq/orion-design'
-
-import {
-  Api,
-  Endpoints,
-  Query,
-  FlowsFilter,
+import type {
+  UnionFilters,
   FlowRunsHistoryFilter,
   DeploymentsFilter,
-  FlowRunsFilter,
-  TaskRunsFilter,
-  BaseFilter
-} from '@/plugins/api'
-import { useStore } from 'vuex'
+  ResultsListTab
+} from '@prefecthq/orion-design'
+
+import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute } from 'vue-router'
 import router from '@/router'
-import { ResultsListTab } from '@prefecthq/orion-design'
+import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
 
 const store = useStore()
 const route = useRoute()
 
 const resultsTab: Ref<string> = ref('flows')
 
-const filter = computed<
-  FlowsFilter | FlowRunsFilter | TaskRunsFilter | DeploymentsFilter
->(() => {
-  return { ...store.getters.composedFilter }
+const filter = computed<UnionFilters>(() => {
+  return buildFilter(store.state.filter)
 })
 
 const deploymentFilterOff = ref(false)
@@ -161,18 +154,22 @@ const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
 })
 
 const start = computed<Date>(() => {
-  return store.getters.start
+  return store.getters['filter/start']
 })
 
 const end = computed<Date>(() => {
-  return store.getters.end
+  return store.getters['filter/end']
+})
+
+const interval = computed<number>(() => {
+  return store.getters['filter/baseInterval']
 })
 
 const countsFilter = (
   state_name: string,
   state_type: string
-): ComputedRef<BaseFilter> => {
-  return computed<BaseFilter>((): BaseFilter => {
+): ComputedRef<UnionFilters> => {
+  return computed<UnionFilters>((): UnionFilters => {
     let start_time: { after_?: string; before_?: string } | undefined =
       undefined
 
@@ -182,18 +179,19 @@ const countsFilter = (
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
 
-    const composedFilter = store.getters.composedFilter
+    const countsFilter = buildFilter(store.state.filter)
 
     const stateType = state_name == 'Failed'
-    composedFilter.flow_runs.state = {
-      [stateType ? 'type' : 'name']: {
-        any_: [stateType ? state_type : state_name]
+    countsFilter.flow_runs = {
+      ...countsFilter.flow_runs,
+      state: {
+        [stateType ? 'type' : 'name']: {
+          any_: [stateType ? state_type : state_name]
+        }
       }
     }
 
-    return {
-      ...composedFilter
-    }
+    return countsFilter
   })
 }
 
@@ -251,9 +249,13 @@ const queries: { [key: string]: Query } = {
   })
 }
 
-const premadeFilters = computed<
-  { [key: string]: string | undefined | number }[]
->(() => {
+type PremadeFilter = {
+  label: string
+  count: string
+  type: string
+  name: string
+}
+const premadeFilters = computed<PremadeFilter[]>(() => {
   const failed = queries.filter_counts_failed.response.value
   const late = queries.filter_counts_late.response.value
   const scheduled = queries.filter_counts_scheduled.response.value
@@ -295,16 +297,12 @@ const taskRunsCount = computed<number>(() => {
   return queries.task_runs?.response.value || 0
 })
 
-const interval = computed<number>(() => {
-  return store.getters.baseInterval
-})
-
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval.value,
-    ...store.getters.composedFilter
+    ...buildFilter(store.state.filter)
   }
 })
 
@@ -312,7 +310,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
     history_interval_seconds: interval.value * 2,
-    ...store.getters.composedFilter
+    ...buildFilter(store.state.filter)
   }
 })
 
@@ -348,12 +346,10 @@ const tabs: ResultsListTab[] = reactive([
   }
 ])
 
-const applyFilter = (filter: {
-  [key: string]: string | undefined | number
-}) => {
-  const globalFilter = { ...store.getters.globalFilter }
+const applyFilter = (filter: PremadeFilter) => {
+  const globalFilter = { ...store.state.filter }
   globalFilter.flow_runs.states = [{ name: filter.name, type: filter.type }]
-  store.commit('globalFilter', globalFilter)
+  store.commit('filter/setFilter', globalFilter)
 }
 
 watch([resultsTab], () => {

@@ -1,24 +1,25 @@
 import inspect
+from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
 
 from prefect.orion.database import dependencies
 from prefect.orion.database.configurations import (
-    BaseDatabaseConfiguration,
-    AsyncPostgresConfiguration,
     AioSqliteConfiguration,
+    AsyncPostgresConfiguration,
+    BaseDatabaseConfiguration,
 )
-from prefect.orion.database.dependencies import provide_database_interface, inject_db
-from prefect.orion.database.query_components import (
-    BaseQueryComponents,
-    AsyncPostgresQueryComponents,
-    AioSqliteQueryComponents,
-)
+from prefect.orion.database.dependencies import inject_db, provide_database_interface
 from prefect.orion.database.orm_models import (
-    BaseORMConfiguration,
-    AsyncPostgresORMConfiguration,
     AioSqliteORMConfiguration,
+    AsyncPostgresORMConfiguration,
+    BaseORMConfiguration,
+)
+from prefect.orion.database.query_components import (
+    AioSqliteQueryComponents,
+    AsyncPostgresQueryComponents,
+    BaseQueryComponents,
 )
 
 
@@ -128,6 +129,10 @@ async def test_injecting_really_dumb_orm_configuration():
     class UselessORMConfiguration(BaseORMConfiguration):
         def run_migrations(self):
             ...
+
+        @property
+        def versions_dir(self):
+            return Path("")
 
     class UselessBaseMixin:
         my_string_column = sa.Column(

@@ -13,12 +13,12 @@ from prefect import settings
 from prefect.client import OrionClient
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
+from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, State, StateType
-from prefect.logging import get_logger
 
 
 class OrionAgent:
@@ -49,6 +49,8 @@ class OrionAgent:
         """
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+
+        self.logger.debug("Checking for flow runs...")
 
         submittable_runs = await self.client.read_flow_runs(
             sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,

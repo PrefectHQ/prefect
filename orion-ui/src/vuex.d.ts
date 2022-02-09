@@ -1,14 +1,8 @@
 import { Store } from 'vuex'
-import { GlobalFilter } from './typings/global'
+import { RootState } from '@/store'
 
 declare module '@vue/runtime-core' {
-  // declare your own store states
-  interface State {
-    globalFilter: GlobalFilter
-  }
-
-  // provide typings for `this.$store`
   interface ComponentCustomProperties {
-    $store: Store<State>
+    $store: Store<RootState>
   }
 }

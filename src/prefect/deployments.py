@@ -59,8 +59,8 @@ from pydantic import root_validator, validator
 
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
 from prefect.flows import Flow
-from prefect.flow_runners import FlowRunner
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
@@ -68,7 +68,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
-from prefect.flow_runners import SubprocessFlowRunner
 
 
 class DeploymentSpec(PrefectBaseModel):

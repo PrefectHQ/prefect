@@ -1,9 +1,10 @@
 import datetime
-import os
 
+from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
-from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.orion.database.orm_models import BaseORMConfiguration
+from prefect.orion.database.query_components import BaseQueryComponents
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 class DBSingleton(type):
@@ -47,23 +48,19 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-
-        engine = await self.database_config.engine()
-
-        async with engine.begin() as conn:
-            await self.database_config.create_db(conn, self.Base.metadata)
+        await self.run_migrations_upgrade()
 
     async def drop_db(self):
         """Drop the database"""
+        await self.run_migrations_downgrade()
 
-        engine = await self.database_config.engine()
+    async def run_migrations_upgrade(self):
+        """Run all upgrade migrations"""
+        await run_sync_in_worker_thread(alembic_upgrade)
 
-        async with engine.begin() as conn:
-            await self.database_config.drop_db(conn, self.Base.metadata)
-
-    def run_migrations(self):
-        """Run database migrations"""
-        self.orm.run_migrations()
+    async def run_migrations_downgrade(self):
+        """Run all downgrade migrations"""
+        await run_sync_in_worker_thread(alembic_downgrade)
 
     async def engine(
         self,
@@ -142,9 +139,19 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.Log
 
     @property
+    def ConcurrencyLimit(self):
+        """A concurrency model"""
+        return self.orm.ConcurrencyLimit
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
+
+    @property
+    def concurrency_limit_unique_upsert_columns(self):
+        """Unique columns for upserting a ConcurrencyLimit"""
+        return self.orm.concurrency_limit_unique_upsert_columns
 
     @property
     def flow_run_unique_upsert_columns(self):

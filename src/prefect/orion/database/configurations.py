@@ -1,17 +1,11 @@
-import sqlalchemy as sa
 import sqlite3
-import os
-from asyncio import current_task, get_event_loop, AbstractEventLoop
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_scoped_session,
-)
-
-from typing import Hashable, Tuple, Dict, AsyncGenerator
 from abc import ABC, abstractmethod
-from sqlalchemy.ext.asyncio import create_async_engine
+from asyncio import get_event_loop
 from functools import partial
+from typing import Hashable, Tuple
+
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from prefect import settings
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
@@ -296,8 +290,4 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
     def is_inmemory(self, engine):
         """Returns true if database is run in memory"""
 
-        return (
-            ":memory:" in engine.url.database
-            or "mode=memory" in engine.url.database
-            or not os.path.exists(engine.url.database)
-        )
+        return ":memory:" in engine.url.database or "mode=memory" in engine.url.database

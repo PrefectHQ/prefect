@@ -4,27 +4,27 @@ Intended for internal use by the Orion API.
 """
 
 import contextlib
+from itertools import chain
+from typing import List, Optional
 from uuid import UUID
 
-from itertools import chain
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from typing import List, Optional
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.core_policy import CoreFlowPolicy
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.orchestration.core_policy import CoreFlowPolicy, MinimalFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy, NullPolicy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.schemas.states import State
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 @inject_db
@@ -404,7 +404,7 @@ async def set_flow_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     if force or flow_policy is None:
-        flow_policy = NullPolicy
+        flow_policy = MinimalFlowPolicy
 
     orchestration_rules = flow_policy.compile_transition_rules(*intended_transition)
     global_rules = GlobalFlowPolicy.compile_transition_rules(*intended_transition)

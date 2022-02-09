@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
-import store from './store'
+import store, { key } from './store'
 import api from './plugins/api'
 
 if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
@@ -14,7 +14,8 @@ if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
 // Global components
 import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
-import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
+import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -43,9 +44,10 @@ const defaultClass = 'default-color-mode'
 const colorMode = storedMode ? storedMode + '-color-mode' : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
+const app = createApp(App).use(MiterDesign).use(store, key).use(router).use(api)
 
 app.component('ButtonCard', ButtonCard)
+app.component('BreadCrumb', BreadCrumb)
 app.component('BreadCrumbs', BreadCrumbs)
 app.component('ButtonRounded', ButtonRounded)
 app.component('Drawer', Drawer)

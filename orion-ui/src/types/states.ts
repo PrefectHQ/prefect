@@ -19,6 +19,9 @@ export type StateDirection = 1 | -1
 export type StateIcon = `pi-${Lowercase<State>}`
 export type StateColor = `var(--${Lowercase<State>})`
 
+export const SubStates = ['Late', 'Crashed'] as const
+export type SubState = typeof SubStates[number]
+
 export class States {
   public static readonly COMPLETED = 'COMPLETED'
   public static readonly RUNNING = 'RUNNING'
