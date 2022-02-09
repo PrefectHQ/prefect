@@ -89,6 +89,7 @@ class Neo4jRunCypherQueryTask(Task):
         "password",
         "db_name",
         "server_uri_env_var",
+        "user_env_var",
         "password_env_var",
         "db_name_env_var",
         "cypher_query",
@@ -201,7 +202,7 @@ class Neo4jRunCypherQueryTask(Task):
             msg = f"`{password_env_var}` not found in environment variables."
             raise ValueError(msg)
 
-        neo4j_password = password or os.environ[password]
+        neo4j_password = password or os.environ[password_env_var]
 
         neo4j_db_name = None
         if db_name:
@@ -241,3 +242,5 @@ class Neo4jRunCypherQueryTask(Task):
             return dumps(result)
         elif return_result_as == "dataframe":
             return r.to_data_frame()
+        else:
+            return result
