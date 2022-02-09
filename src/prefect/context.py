@@ -5,6 +5,7 @@ These contexts should never be directly mutated by the user.
 """
 import atexit
 import os
+import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
@@ -218,7 +219,9 @@ def tags(*new_tags: str) -> Set[str]:
 
 
 @contextmanager
-def temporary_environ_defaults(**kwargs):
+def temporary_environ(
+    variables, override_existing: bool = True, warn_on_override: bool = False
+):
     """
     Temporarily override default values in os.environ.
 
@@ -226,15 +229,26 @@ def temporary_environ_defaults(**kwargs):
     """
     old_env = os.environ.copy()
 
-    try:
-        for var in kwargs:
-            # TODO: Consider warning on conflicts
-            os.environ.setdefault(var, str(kwargs[var]))
+    if override_existing:
+        overrides = set(old_env.keys()).intersection(variables.keys())
+        if overrides and warn_on_override:
+            warnings.warn(
+                f"Temporary environment is overriding key(s): {', '.join(overrides)}"
+            )
 
-        yield {var: os.environ[var] for var in kwargs}
+    try:
+        for var, value in variables.items():
+            value = str(value)
+
+            if var not in old_env or override_existing:
+                os.environ[var] = value
+            else:
+                os.environ.setdefault(var, value)
+
+        yield {var: os.environ[var] for var in variables}
 
     finally:
-        for var in kwargs:
+        for var in variables:
             if old_env.get(var):
                 os.environ[var] = old_env[var]
             else:
@@ -248,6 +262,9 @@ class ProfileContext(ContextModel):
     Attributes:
         name: The name of the profile
         settings: The complete settings model
+        env: The environment variables set in this profile configuration and their
+            current values. These may differ from the profile configuration if the
+            use has overridden them explicitly.
     """
 
     name: str
@@ -271,14 +288,31 @@ def load_profile(name: str) -> Dict[str, str]:
     if name not in profiles:
         raise ValueError(f"Profile {name!r} not found.")
 
-    return profiles[name]
+    variables = profiles[name]
+    for var, value in variables:
+        try:
+            variables[var] = str(value)
+        except Exception as exc:
+            raise TypeError(
+                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
+            ) from exc
 
 
 @contextmanager
-def profile(name: str, create_home: bool = True, setup_logging: bool = False):
+def profile(
+    name: str,
+    create_home: bool = True,
+    setup_logging: bool = False,
+    override_existing_variables: bool = None,
+):
     env = load_profile(name)
 
-    with temporary_environ_defaults(**env):
+    if override_existing_variables is None:
+        override_existing_variables = env.get(override_existing_variables, True)
+
+    with temporary_environ(
+        env, override_existing=override_existing_variables, warn_on_override=True
+    ):
         settings = prefect.settings.from_env()
 
         if create_home and not os.path.exists(settings.home):
@@ -297,8 +331,11 @@ def initialize_module_profile():
 
     This should only be called _once_ at Prefect module initialization.
     """
+    name = os.environ.get("PREFECT_PROFILE", "default")
     context = profile(
-        name=os.environ.get("PREFECT_PROFILE", "default"), setup_logging=True
+        name=name,
+        setup_logging=True,
+        override_existing_variables=False if name == "default" else True,
     )
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
