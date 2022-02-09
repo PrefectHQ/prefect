@@ -9,5 +9,11 @@
         "declaration": true,
         "emitDeclarationOnly": true,
         "outFile": "dist/index.d.ts",
+        "baseUrl": ".",
+        "paths": {
+          "@/*": [
+            "../../src/*"
+          ]
+        },
     }
 }
