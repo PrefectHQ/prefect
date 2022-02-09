@@ -1,7 +1,5 @@
-import prefect.logging.configuration
+# Expose a logging API
 
-import prefect.logging.loggers
-from prefect.logging.loggers import get_logger
-
-import prefect.logging.formatters
-import prefect.logging.handlers
+from .loggers import get_logger
+from .handlers import OrionHandler
+from .configuration import setup_logging
