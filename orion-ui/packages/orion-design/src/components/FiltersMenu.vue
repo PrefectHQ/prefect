@@ -34,10 +34,7 @@
   import { isCompleteFilter, isFilter } from '../utilities/filters'
   import FilterBuilder from './FilterBuilder.vue'
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'close'): void,
   }>()
 
