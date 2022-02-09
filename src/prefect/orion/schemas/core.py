@@ -10,7 +10,7 @@ import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
