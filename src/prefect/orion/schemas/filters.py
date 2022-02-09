@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy.sql.elements import BooleanClauseList
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import PrefectBaseModel

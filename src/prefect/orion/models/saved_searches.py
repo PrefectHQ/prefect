@@ -8,7 +8,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 

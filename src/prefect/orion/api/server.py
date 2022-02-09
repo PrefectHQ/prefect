@@ -18,9 +18,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
+import prefect.orion.api as api
+import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion import api, services
+from prefect.orion.api.dependencies import CheckVersionCompatibility
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -30,7 +32,7 @@ ORION_API_VERSION = "0.1.0"
 
 logger = get_logger("orion")
 
-version_checker = api.dependencies.CheckVersionCompatibility(ORION_API_VERSION, logger)
+version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
 class SPAStaticFiles(StaticFiles):

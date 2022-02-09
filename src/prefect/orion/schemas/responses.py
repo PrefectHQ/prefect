@@ -8,7 +8,7 @@ from typing import List
 from pydantic import Field
 from typing_extensions import Literal
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.enum import AutoEnum
 
