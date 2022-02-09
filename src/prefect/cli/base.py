@@ -4,7 +4,28 @@ Base `prefect` command-line application and utilities
 import rich.console
 import typer
 
-app = typer.Typer(add_completion=False, no_args_is_help=True)
+from prefect.context import initialize_from_env
+from prefect.utilities.asyncio import is_async_fn, sync_compatible
+
+
+class PrefectTyper(typer.Typer):
+    """
+    Wraps commands created by `Typer` to support async functions and to initialize the
+    Prefect application on calls.
+    """
+
+    def command(self, *args, **kwargs):
+        command_decorator = super().command(*args, **kwargs)
+
+        def wrapper(fn):
+            if is_async_fn(fn):
+                fn = sync_compatible(fn)
+            return command_decorator(initialize_from_env(fn))
+
+        return wrapper
+
+
+app = PrefectTyper(add_completion=False, no_args_is_help=True)
 console = rich.console.Console(highlight=False)
 
 
