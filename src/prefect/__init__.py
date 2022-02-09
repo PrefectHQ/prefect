@@ -25,7 +25,7 @@ from .context import tags
 # Import the serializers so they are registered
 import prefect.serializers
 
-# Iniitialize the
+# Iniitialize the process level profile at import time
 import prefect.settings
 import prefect.context
 
