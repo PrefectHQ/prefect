@@ -16,7 +16,7 @@ del _version
 # User-facing API
 # For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
 
-from .logging.loggers import get_run_logger
+from .logging import get_run_logger
 from .orion.schemas.states import State
 from .flows import flow
 from .tasks import task
