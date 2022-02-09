@@ -96,3 +96,7 @@ from typing import TYPE_CHECKING:
 if TYPE_CHECKING:
     from prefect.orion.schemas.states import State
 ```
+
+### Importing optional requirements
+
+We do not have a best practice for this yet. See the `kubernetes`, `docker`, and `distributed` implementations for now.
