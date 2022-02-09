@@ -25,7 +25,7 @@ import pydantic
 
 import prefect
 from prefect import exceptions, settings
-from prefect.blocks.core import BlockAPI, assemble_block
+from prefect.blocks.core import BlockAPI, get_blockapi
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION
@@ -879,7 +879,9 @@ class OrionClient:
             )
             block = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
 
-        storage_block = assemble_block(block)
+        blockapi = get_blockapi(block["blockref"])
+        storage_block = pydantic.parse_obj_as(blockapi, block)
+
         block_datadoc = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
@@ -903,8 +905,9 @@ class OrionClient:
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
         blockid = block_document["blockid"]
-        blockdata = await self.read_block_data(blockid)
-        storage_block = assemble_block(blockdata)
+        block = await self.read_block_data(blockid)
+        blockapi = get_blockapi(block["blockref"])
+        storage_block = pydantic.parse_obj_as(blockapi, block)
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
