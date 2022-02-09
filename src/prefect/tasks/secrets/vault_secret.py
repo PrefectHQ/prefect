@@ -30,9 +30,9 @@ class VaultSecret(SecretBase):
                 * token           { 'VAULT_TOKEN: '<token>' }
                 * appRole:        { 'VAULT_ROLE_ID': '<role-id>',
                                     'VAULT_SECRET_ID': '<secret-id>' }
-                * kubernetesRole: { 'VAULT_KUBE_AUTH_ROLE': '<>',
-                                    'VAULT_KUBE_AUTH_PATH': '<>',
-                                    'VAULT_KUBE_TOKEN_FILE': '<>' }
+                * kubernetesRole: { 'VAULT_KUBE_AUTH_ROLE': '<kube-role>',
+                                    'VAULT_KUBE_AUTH_PATH': '<vault-kube-path>',
+                                    'VAULT_KUBE_TOKEN_FILE': '/var/run/secrets/kubernetes.io/serviceaccount/token' (default)) }
         - **kwargs (Any, optional): additional keyword args passed to the Task constructor
 
     Raises:
