@@ -289,13 +289,15 @@ def load_profile(name: str) -> Dict[str, str]:
         raise ValueError(f"Profile {name!r} not found.")
 
     variables = profiles[name]
-    for var, value in variables:
+    for var, value in variables.items():
         try:
             variables[var] = str(value)
         except Exception as exc:
             raise TypeError(
                 f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
             ) from exc
+
+    return variables
 
 
 @contextmanager

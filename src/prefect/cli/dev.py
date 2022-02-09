@@ -110,8 +110,8 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = prefect.settings.from_env.orion.api.host,
-    port: int = prefect.settings.from_env.orion.api.port,
+    host: str = prefect.settings.from_env().orion.api.host,
+    port: int = prefect.settings.from_env().orion.api.port,
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -141,7 +141,7 @@ async def api(
 
 
 @dev_app.command()
-async def agent(host: str = prefect.settings.from_env.orion_host):
+async def agent(host: str = prefect.settings.from_env().orion_host):
     """
     Starts a hot-reloading development agent process.
     """
@@ -173,9 +173,9 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{prefect.settings.from_env.orion.api.host}:{prefect.settings.from_env.orion.api.port}/api"
+                host = f"http://{prefect.settings.from_env().orion.api.host}:{prefect.settings.from_env().orion.api.port}/api"
             else:
-                host = prefect.settings.from_env.orion_host
+                host = prefect.settings.from_env().orion_host
             tg.start_soon(agent, host)
 
 
