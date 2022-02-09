@@ -1,13 +1,13 @@
 <template>
   <div class="main-grid">
-    <Card class="details" shadow="sm">
+    <m-card class="details" shadow="sm">
       <div class="d-flex align-center justify-space-between py-1 px-2">
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
             <span class="d-inline-flex align-center text-truncate">
               <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-              <Tags :tags="tags" class="mr-1 caption" />
+              <m-tags :tags="tags" class="mr-1 caption" />
               <div
                 class="
                   caption
@@ -84,15 +84,15 @@
           {{ duration }}
         </div>
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
+    <m-card class="timeline d-flex flex-column" width="auto" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Timeline</div>
 
           <router-link :to="`/flow-run/${id}/timeline`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -107,15 +107,15 @@
           background-color="blue-5"
         />
       </div>
-    </Card>
+    </m-card>
 
-    <Card class="radar" shadow="sm">
+    <m-card class="radar" shadow="sm">
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Radar</div>
 
           <router-link :to="`/flow-run/${id}/radar`">
-            <IconButton icon="pi-full-screen" />
+            <m-icon-button icon="pi-full-screen" />
           </router-link>
         </div>
       </template>
@@ -123,7 +123,7 @@
       <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
         <MiniRadarView :id="id" />
       </div>
-    </Card>
+    </m-card>
   </div>
 
   <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />
@@ -153,7 +153,7 @@
         v-else-if="resultsTab == 'task_runs'"
         key="task_runs"
         :filter="taskRunsFilter"
-        component="list-item-task-run"
+        component="ListItemTaskRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
@@ -162,7 +162,7 @@
         v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-sub-flow-run"
+        component="ListItemSubFlowRun"
         endpoint="task_runs"
         :poll-interval="5000"
       />
@@ -177,7 +177,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
@@ -186,13 +186,14 @@ import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import type { UnionFilters, FlowsFilter } from '@prefecthq/orion-design'
 import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
 import { toPluralString } from '@/utilities/strings'
 
 const route = useRoute()
 
-const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('logs')
 
 const id = ref(route?.params.id as string)
 
@@ -242,7 +243,7 @@ const parentFlowFilter = computed<FlowsFilter>(() => {
   }
 })
 
-const taskRunsFilter = computed<BaseFilter>(() => {
+const taskRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {
@@ -252,7 +253,7 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   }
 })
 
-const subFlowRunsFilter = computed<BaseFilter>(() => {
+const subFlowRunsFilter = computed<UnionFilters>(() => {
   return {
     flow_runs: {
       id: {

@@ -25,7 +25,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { FlowRunsHistoryFilter } from '@/plugins/api'
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 import IntervalBarChartCard from './IntervalBarChart/IntervalBarChartCard.vue'
 import { IntervalBarChartItem } from './IntervalBarChart/Types/IntervalBarChartItem'
 import { secondsToApproximateString } from '@/util/util'

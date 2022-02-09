@@ -12,7 +12,7 @@ import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseSettings, Field, SecretStr, root_validator
 
@@ -292,6 +292,7 @@ class OrionHandlerSettings(BaseSettings):
         description="""Should logs be sent to Orion? If False, logs sent to the
         OrionHandler will not be sent to the API.""",
     )
+
     batch_interval: float = Field(
         2.0,
         description="""The number of seconds between batched writes of logs to Orion.""",
@@ -327,22 +328,24 @@ class LoggingSettings(BaseSettings):
        example, to set the orion log level, one could set
        `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=DEBUG`
     3. Any setting in `logging.yml` can refer to a setting in this global
-       logging config, for convenience. For example, the Orion handler's default
-       value is set to `"{{default_value}}"`, which means it will adopt this
-       config's `default_level` value unless overidden. In addition, this means
-       it can be set by provided by the environment variable
-       `PREFECT_LOGGING_DEFAULT_LEVEL`.
+       logging config, for convenience. For example, the Prefect logger's default
+       value is set to `"{{level}}"`, which means it will adopt this config's `level`
+       value unless overidden. In addition, this means it can be set by provided by
+       the environment variable `PREFECT_LOGGING_LEVEL`.
     """
 
     class Config:
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
-    default_level: str = Field(
+    level: str = Field(
         "INFO" if not shared_settings.debug_mode else "DEBUG",
-        description="""The default logging level. If not overridden, this will
-        apply to all logging handlers defined in `logging.yml`. Defaults to
+        description="""The default logging level for Prefect loggers. Defaults to 
         "INFO" during normal operation and "DEBUG" during debug mode.""",
+    )
+
+    server_level: str = Field(
+        "WARNING", description="""The default logging level for the Orion API."""
     )
 
     settings_path: Path = Field(
@@ -356,6 +359,25 @@ class LoggingSettings(BaseSettings):
         default_factory=OrionHandlerSettings,
         description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
     )
+
+    extra_loggers: str = Field(
+        "",
+        description="""Additional loggers to attach to Prefect logging at runtime.
+        Values should be comma separated. The handlers attached to the 'prefect' logger
+        will be added to these loggers. Additionally, if the level is not set, it will
+        be set to the same level as the 'prefect' logger.
+        """,
+    )
+
+    def get_extra_loggers(self) -> List[str]:
+        """
+        Parse the `extra_loggers` CSV and trim whitespace from logger names
+        """
+        return (
+            [name.strip() for name in self.extra_loggers.split(",")]
+            if self.extra_loggers
+            else []
+        )
 
 
 class AgentSettings(BaseSettings):

@@ -5,10 +5,10 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
+import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.data import DataDocument
-import prefect
 
 services_settings = prefect.settings.orion.services
 

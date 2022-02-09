@@ -13,9 +13,9 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -27,8 +27,9 @@ async def create_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
-    """Gracefully creates a new deployment from the provided schema. If a deployment with the
-    same name and flow_id already exists, the deployment is updated.
+    """
+    Gracefully creates a new deployment from the provided schema. If a deployment with
+    the same name and flow_id already exists, the deployment is updated.
 
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.

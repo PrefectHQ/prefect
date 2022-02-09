@@ -7,7 +7,6 @@ from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.schemas.filters import LogFilter
 
-
 NOW = pendulum.now()
 
 

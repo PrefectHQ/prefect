@@ -41,7 +41,7 @@
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
-import CopyButton from '@/components/Global/CopyButton.vue'
+import { CopyButton } from '@prefecthq/orion-design'
 import media from '@/utilities/media'
 
 import { useRoute, onBeforeRouteLeave } from 'vue-router'

@@ -9,7 +9,7 @@
   import { isState } from '@/utilities/states'
   import { StyleValue } from '@vue/runtime-dom'
   import { defineComponent, PropType } from 'vue'
-  import { StateType } from '../types/StateType'
+  import { StateType } from '../models/StateType'
 
   export default defineComponent({
     name: 'StateTypeIcon',

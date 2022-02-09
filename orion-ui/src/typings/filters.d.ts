@@ -1,26 +1,26 @@
 /** A list where results will be returned only if they match all the values in the list */
-type all_ = string[]
+type all_ = { all_?: string[] }
 
 /** A list where results will be returned if any of the values are included in the list */
-type any_ = string[]
+type any_ = { any_?: string[] }
 
 /** A list where results will be returned if values don't match any in the list */
-type not_any_ = string[]
+type not_any_ = { not_any_?: string[] }
 
 /** Matches on boolean equality */
-type eq_ = boolean
+type eq_ = { eq_?: boolean }
 
 /** Matches on boolean equality */
-type exists_ = boolean
+type exists_ = { exists_?: boolean }
 
 /** If true, returns results whose key is null */
-type is_null_ = boolean
+type is_null_ = { is_null_?: boolean }
 
 /** A date-time string to include results starting at or before this time */
-type before_ = string
+type before_ = { before_?: string }
 
 /** A date-time string to include results starting at or after this time */
-type after_ = string
+type after_ = { after_?: string }
 
 /**
  * Max: 200
@@ -35,214 +35,45 @@ type limit = number
  */
 type offset = number
 
-declare interface DeploymentFilter {
-  id?: {
-    /**
-     * A list of ids
-     * Example: [ "abc-123", "def-456" ]
-     */
-    any_?: any_
-  }
-  name?: {
-    /**
-     * A list of names
-     * Example: [ "my-flow-1", "my-flow-2" ]
-     */
-    any_?: any_
-  }
-  tags?: {
-    /**
-     * Results will be returned only if their tags are a superset of the list.
-     */
-    all_?: any_
-    /**
-     * If true, only include flows without tags
-     */
-    is_null_?: is_null_
-  }
-  is_schedule_active?: {
-    eq_: eq_
-  }
+export interface Filter {
+  id?: any_
+  name?: any_
+  tags?: all_ & is_null_
 }
 
-declare interface FlowFilter {
-  id?: {
-    /**
-     * A list of ids
-     * Example: [ "abc-123", "def-456" ]
-     */
-    any_?: any_
-  }
-  name?: {
-    /**
-     * A list of names
-     * Example: [ "my-flow-1", "my-flow-2" ]
-     */
-    any_?: any_
-  }
-  tags?: {
-    /**
-     * Results will be returned only if their tags are a superset of the list.
-     */
-    all_?: any_
-    /**
-     * If true, only include flows without tags
-     */
-    is_null_?: is_null_
-  }
+export interface DeploymentFilter extends Filter {
+  is_schedule_active?: eq_
 }
 
-declare interface FlowRunFilter {
-  id?: {
-    any_?: any_
-    not_any_?: not_any_
-  }
-  name?: {
-    /**
-     * A list of names
-     * Example: [ "my-flow-1", "my-flow-2" ]
-     */
-    any_?: any_
-  }
-  tags?: {
-    /**
-     * Results will be returned only if their tags are a superset of the list.
-     */
-    all_?: all_
-    /**
-     * If true, only include flow runs without tags
-     */
-    is_null_?: is_null_
-  }
-  deployment_id?: {
-    any_?: any_
-    is_null_?: is_null_
-  }
-  state?: {
-    type?: {
-      any_?: any_
-    }
-    name?: {
-      any_?: any_
-    }
-  }
-  flow_version?: {
-    any_: any_
-  }
+export type FlowFilter = Filter
+
+export type StateFilter = {
+  type?: any_
+  name?: any_
+}
+
+export type TimeFrameFilter = before_ & after_
+
+export interface FlowRunFilter extends Filter {
+  id?: any_ & not_any_
+  deployment_id?: any_ & is_null_
+  state?: StateFilter
+  flow_version?: any_
   /**
    * Flow run actual starts
    */
-  start_time?: {
-    before_?: before_
-    after_?: after_
-  }
+  start_time?: TimeFrameFilter
   /**
    * Flow run scheduled starts
    */
-  expected_start_time?: {
-    before_?: before_
-    after_?: after_
-  }
-  next_scheduled_start_time?: {
-    before_?: before_
-    after_?: after_
-  }
-  parent_task_run_id?: {
-    any_?: any_
-    is_null_?: is_null_
-  }
+  expected_start_time?: TimeFrameFilter
+  next_scheduled_start_time?: TimeFrameFilter
+  parent_task_run_id?: any_ & is_null_
 }
 
-declare interface TaskRunFilter {
-  id?: {
-    any_?: any_
-    not_any_?: not_any_
-  }
-  name?: {
-    /**
-     * A list of names
-     * Example: [ "my-flow-1", "my-flow-2" ]
-     */
-    any_?: any_
-  }
-  tags?: {
-    /**
-     * Results will be returned only if their tags are a superset of the list.
-     */
-    all_?: all_
-    /**
-     * If true, only include flow runs without tags
-     */
-    is_null_?: is_null_
-  }
-  state?: {
-    type?: {
-      any_: any_
-    }
-    name?: {
-      any_: any_
-    }
-  }
-  start_time?: {
-    before_?: before_
-    after_?: after_
-  }
-  subflow_runs?: {
-    exists_: exists_
-  }
-}
-
-declare interface Endpoint {
-  method: 'POST' | 'GET' | 'DELETE' | 'PUT'
-  url: string
-  interpolate?: boolean = false
-}
-
-declare interface CreateFlowRunBody {
-  name?: string
-  flow_id: string
-  deployment_id?: string
-  flow_version?: string
-  parameters?: { [key: string]: any }
-  idempotency_key?: string
-  context?: { [key: string]: any }
-  tags?: string[]
-  parent_task_run_id?: string
-  state?: {
-    type: string
-    name?: string
-    message?: string
-    data?: any
-    state_details?: {
-      flow_run_id?: string
-      task_run_id?: string
-      child_flow_run_id?: string
-      scheduled_time?: string
-      cache_key?: string
-      cache_expiration?: string
-    }
-  }
-}
-
-declare interface CreateDeploymentFlowRunBody {
-  id: string
-  name?: string
-  parameters?: { [key: string]: any }
-  idempotency_key?: string
-  context?: { [key: string]: any }
-  tags?: string[]
-  state?: {
-    type: string
-    name?: string
-    message?: string
-    data?: any
-    state_details?: {
-      flow_run_id?: string
-      task_run_id?: string
-      child_flow_run_id?: string
-      scheduled_time?: string
-      cache_key?: string
-      cache_expiration?: string
-    }
-  }
+export interface TaskRunFilter extends Filter {
+  id?: any_ & not_any_
+  state?: StateFilter
+  start_time?: TimeFrameFilter
+  subflow_runs?: exists_
 }

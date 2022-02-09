@@ -12,7 +12,7 @@
         :style="calculateBucketPosition(item)"
       >
         <template v-for="state in item.states" :key="state.state_type">
-          <Popover
+          <m-popover
             :placement="['bottom', 'top', 'leftTop', 'rightTop']"
             :style="calculateBarPosition(state, i)"
             :disabled="disablePopovers"
@@ -50,7 +50,7 @@
                 <td>{{ formatDateTimeNumeric(item.interval_end) }}</td>
               </tr>
             </table>
-          </Popover>
+          </m-popover>
         </template>
       </div>
     </div>
@@ -72,6 +72,7 @@ import { ClassValue } from '@/types/css'
 
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import { State, States, StateDirections } from '@/types/states'
+import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 
 type TransitionSelectionType = Transition<
   SVGGElement,
@@ -141,7 +142,9 @@ class Props {
   })
 }
 
-@Options({})
+@Options({
+  components: { StateIcon }
+})
 export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()

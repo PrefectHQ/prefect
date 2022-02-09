@@ -37,43 +37,67 @@ formatters:
     # my_filter:
         # class: your_module.FilterClass
 
-
 handlers:
+
+    # The handlers we define here will output all logs they receieve by default
+    # but we include the `level` so it can be overridden by environment
+
     console:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: standard
 
     console_flow_runs:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: flow_runs
 
     console_task_runs:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: task_runs
 
     orion:
+        level: 0
         class: prefect.logging.handlers.OrionHandler
-        level: "{{default_level}}"
 
 loggers:
     prefect:
-        level: DEBUG
+        level: "{{level}}"
         handlers: [console]
         propagate: no
 
+    prefect.extra:
+        level: "{{level}}"
+        handlers: [orion, console]
+        propagate: no
+
     prefect.flow_runs:
-        level: DEBUG
+        level: NOTSET
         handlers: [orion, console_flow_runs]
         propagate: no
 
     prefect.task_runs:
-        level: DEBUG
+        level: NOTSET
         handlers: [orion, console_task_runs]
         propagate: no
 
-    root:
-        level: INFO
+    prefect.orion:
+        level: "{{server_level}}"
+
+    uvicorn:
+        level: "{{server_level}}"
         handlers: [console]
+        propagate: no
+
+    fastapi:
+        level: "{{server_level}}"
+        handlers: [console]
+        propagate: no
+
+# The root logger: any logger without propagation disabled sends to here as well
+root:
+    # By default, we display warning level logs from any library in the console
+    # to match Python's default behavior while formatting logs nicely
+    level: WARNING
+    handlers: [console]
