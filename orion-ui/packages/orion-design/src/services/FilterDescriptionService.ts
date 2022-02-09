@@ -14,7 +14,7 @@ export class FilterDescriptionService {
     return description.join(' ').trim()
   }
 
-  private static object(object: FilterObject): string {
+  public static object(object: FilterObject): string {
     switch (object) {
       case 'flow':
         return 'flows'
