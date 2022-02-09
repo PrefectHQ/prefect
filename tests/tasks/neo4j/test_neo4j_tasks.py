@@ -124,23 +124,18 @@ class TestNeo4jRunCypherQueryTask:
                 password="password",
                 cypher_query="query",
             )
-    
 
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
     def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
-        
         class mockRun:
             def data(self):
-                return [
-                    {"key1": "value1"},
-                    {"key2": "value2"}
-                ]
-        
+                return [{"key1": "value1"}, {"key2": "value2"}]
+
         class mockGraph:
             def run(self):
                 return mockRun()
-        
+
         mock_graph.return_value = mockGraph
         mock_run.run = mockGraph.run
         neo4j_task = Neo4jRunCypherQueryTask()
@@ -151,29 +146,24 @@ class TestNeo4jRunCypherQueryTask:
             cypher_query="query",
         )
 
-        assert result == [
-            {"key1": "value1"},
-            {"key2": "value2"}
-        ]
-    
+        assert result == [{"key1": "value1"}, {"key2": "value2"}]
+
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
     def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
         import pandas as pd
+
         class mockRun:
             def data(self):
-                return [
-                    {"key1": "value1"},
-                    {"key2": "value2"}
-                ]
-            
+                return [{"key1": "value1"}, {"key2": "value2"}]
+
             def to_data_frame(self):
                 return pd.DataFrame([{"key": "value"}])
-        
+
         class mockGraph:
             def run(self):
                 return mockRun()
-        
+
         mock_graph.return_value = mockGraph
         mock_run.run = mockGraph.run
         neo4j_task = Neo4jRunCypherQueryTask()
@@ -182,7 +172,7 @@ class TestNeo4jRunCypherQueryTask:
             user="neo4j",
             password="s3cr3t",
             cypher_query="query",
-            return_result_as="dataframe"
+            return_result_as="dataframe",
         )
 
         assert result.equals(pd.DataFrame([{"key": "value"}]))
