@@ -288,7 +288,6 @@ def load_profile(name: str) -> Dict[str, str]:
     path = prefect.settings.from_env().profiles_path
     if not path.exists():
         profiles = DEFAULT_PROFILES
-        path.write_text(toml.dumps(profiles))
     else:
         profiles = toml.loads(path.read_text())
 
