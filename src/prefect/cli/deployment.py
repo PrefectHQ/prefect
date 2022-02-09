@@ -13,8 +13,8 @@ from rich.padding import Padding
 from rich.pretty import Pretty
 from rich.traceback import Traceback
 
-from prefect.cli.base import app, console, exit_with_error
-from prefect.client import OrionClient
+from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.client import get_client
 from prefect.deployments import (
     create_deployment_from_spec,
     deployment_specs_from_script,
@@ -25,7 +25,7 @@ from prefect.exceptions import FlowScriptError
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
-deployment_app = typer.Typer(
+deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
 app.add_typer(deployment_app)
@@ -39,7 +39,6 @@ def assert_deployment_name_format(name: str) -> None:
 
 
 @deployment_app.command()
-@sync_compatible
 async def inspect(name: str):
     """
     View details about a deployment.
@@ -61,7 +60,7 @@ async def inspect(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
         except httpx.HTTPStatusError as exc:
@@ -74,12 +73,11 @@ async def inspect(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
         )
@@ -102,7 +100,6 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 
 @deployment_app.command()
-@sync_compatible
 async def run(name: str):
     """
     Create a flow run for the given flow and deployment.
@@ -111,7 +108,7 @@ async def run(name: str):
 
     The flow run will not execute until an agent starts.
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
@@ -119,7 +116,6 @@ async def run(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def execute(name: str):
     """
     Create and execute a local flow run for the given deployment.
@@ -131,7 +127,7 @@ async def execute(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
@@ -140,7 +136,6 @@ async def execute(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def create(
     path: Path = typer.Argument(
         ...,

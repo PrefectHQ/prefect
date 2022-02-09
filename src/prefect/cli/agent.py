@@ -6,10 +6,10 @@ import typer
 
 import prefect.settings
 from prefect.agent import OrionAgent
-from prefect.cli.base import app, console
+from prefect.cli.base import PrefectTyper, app, console
 from prefect.utilities.asyncio import sync_compatible
 
-agent_app = typer.Typer(
+agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
 )
 app.add_typer(agent_app)
@@ -25,16 +25,15 @@ ascii_name = """
 
 
 @agent_app.command()
-@sync_compatible
 async def start(
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
-    host: str = prefect.settings.from_env().orion_host,
+    host: str = prefect.settings.from_env.orion_host,
 ):
     """
     Start an agent process.
     """
     if not hide_welcome:
-        if prefect.settings.from_env().orion_host:
+        if prefect.settings.from_env.orion_host:
             console.print(f"Starting agent connected to {host}...")
         else:
             console.print("Starting agent with ephemeral API...")
@@ -49,6 +48,6 @@ async def start(
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(prefect.settings.from_env().agent.query_interval)
+            await anyio.sleep(prefect.settings.from_env.agent.query_interval)
 
     console.print("Agent stopped!")

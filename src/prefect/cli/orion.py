@@ -14,7 +14,13 @@ import typer
 from anyio.streams.text import TextReceiveStream
 
 import prefect
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -26,11 +32,11 @@ from prefect.orion.database.alembic_commands import (
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 
-orion_app = typer.Typer(
+orion_app = PrefectTyper(
     name="orion",
     help="Commands for interacting with backend services.",
 )
-database_app = typer.Typer(
+database_app = PrefectTyper(
     name="database", help="Commands for interacting with the database."
 )
 orion_app.add_typer(database_app)
@@ -76,7 +82,7 @@ def generate_welcome_blub(base_url):
 
     if not os.path.exists(prefect.__ui_static_path__):
         blurb += dashboard_not_built
-    elif not prefect.settings.from_env().orion.ui.enabled:
+    elif not prefect.settings.from_env.orion.ui.enabled:
         blurb += dashboard_disabled
     else:
         blurb += visit_dashboard
@@ -114,14 +120,13 @@ async def open_process_and_stream_output(
 
 
 @orion_app.command()
-@sync_compatible
 async def start(
-    host: str = prefect.settings.from_env().orion.api.host,
-    port: int = prefect.settings.from_env().orion.api.port,
-    log_level: str = prefect.settings.from_env().logging.server_level,
-    services: bool = True,  # Note this differs from the default of `prefect.settings.from_env().orion.services.run_in_app`
+    host: str = prefect.settings.from_env.orion.api.host,
+    port: int = prefect.settings.from_env.orion.api.port,
+    log_level: str = prefect.settings.from_env.logging.server_level,
+    services: bool = True,  # Note this differs from the default of `prefect.settings.orion.services.run_in_app`
     agent: bool = True,
-    ui: bool = prefect.settings.from_env().orion.ui.enabled,
+    ui: bool = prefect.settings.from_env.orion.ui.enabled,
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -204,7 +209,6 @@ def kubernetes_manifest():
 
 
 @database_app.command()
-@sync_compatible
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
     db = provide_database_interface()
@@ -224,7 +228,6 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
 
 
 @database_app.command()
-@sync_compatible
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -250,7 +253,6 @@ async def upgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -280,7 +282,6 @@ async def downgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
@@ -294,7 +295,6 @@ async def revision(message: str = None, autogenerate: bool = False):
 
 
 @database_app.command()
-@sync_compatible
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 
