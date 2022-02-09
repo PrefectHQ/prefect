@@ -39,6 +39,28 @@ async def create_block_data(
     return model
 
 
+@router.get("/{id}")
+async def read_block_data(
+    block_data_id: UUID = Path(..., description="The block data id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+
+    model = await models.block_data.read_block_data(
+        session=session, block_data_id=block_data_id
+    )
+
+    if not model:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block data not found")
+
+    block = {
+        "blockname": model.name,
+        "blockref": model.blockref,
+        "blockid": model.id,
+        **model.data,
+    }
+    return block
+
+
 @router.get("/name/{name}")
 async def read_block_data_by_name(
     name: str = Path(..., description="The block name", alias="name"),

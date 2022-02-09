@@ -2,6 +2,8 @@
 Functions for interacting with block data ORM objects.
 Intended for internal use by the Orion API.
 """
+from uuid import UUID
+
 import pendulum
 import sqlalchemy as sa
 
@@ -30,6 +32,22 @@ async def create_block_data(
         sa.select(db.BlockData)
         .where(db.BlockData.name == blockname)
         .execution_options(populate_existing=True)
+    )
+
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@inject_db
+async def read_block_data(
+    session: sa.orm.Session,
+    block_data_id: UUID,
+    db: OrionDBInterface,
+):
+    query = (
+        sa.select(db.BlockData)
+        .where(db.BlockData.id == block_data_id)
+        .with_for_update()
     )
 
     result = await session.execute(query)
