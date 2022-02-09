@@ -47,7 +47,7 @@
       validator:(value: Tab[]) => value.length > 0,
     },
     value: {
-      type: [String],
+      type: String,
       default: null,
     },
   })
