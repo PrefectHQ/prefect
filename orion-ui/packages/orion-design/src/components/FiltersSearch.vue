@@ -14,9 +14,11 @@
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
-    <button type="button" class="filters-search__clear" @click="clear">
-      <i class="pi pi-sm pi-close-circle-fill" />
-    </button>
+    <template v-if="filters.length">
+      <button type="button" class="filters-search__clear" @click="clear">
+        <i class="pi pi-sm pi-close-circle-fill" />
+      </button>
+    </template>
   </div>
 </template>
 
@@ -93,6 +95,7 @@
   font-size: 16px;
   flex-grow: 1;
   min-width: 200px;
+  height: 30px;
 
   &::placeholder {
     color: var(--grey-40);

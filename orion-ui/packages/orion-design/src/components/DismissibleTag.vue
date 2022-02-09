@@ -64,8 +64,12 @@
     --icon-color: #fff;
   }
 
-  &:active {
+  &:active,
+  &:focus {
+    outline: 0;
     --background: var(--primary-hover);
+    --color: #fff;
+    --icon-color: #fff;
   }
 }
 
