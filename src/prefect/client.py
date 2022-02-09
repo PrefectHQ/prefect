@@ -617,10 +617,10 @@ class OrionClient:
 
         return True
 
-    async def read_block_data(
+    async def read_block(
         self,
         id: str,
-    ):
+    ) -> BlockAPI:
         """
         Read the block data by id.
 
@@ -631,21 +631,22 @@ class OrionClient:
             httpx.RequestError: if the block data was not found for any reason
 
         Returns:
-            block data
+            a hydrated block
         """
         response = await self.get(
             f"/block_data/{id}",
         )
-
-        block_data_id = response.json().get("blockid")
+        raw_block = response.json()
+        block_data_id = raw_block.get("blockid")
 
         if not block_data_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        block = response.json()
+        blockapi = get_blockapi(raw_block["blockref"])
+        block = pydantic.parse_obj_as(blockapi, raw_block)
         return block
 
-    async def read_block_data_by_name(
+    async def read_block_by_name(
         self,
         name: str,
     ):
@@ -659,18 +660,19 @@ class OrionClient:
             httpx.RequestError: if the block data was not found for any reason
 
         Returns:
-            the block data with the specified name
+            a hydrated block
         """
         response = await self.get(
             f"/block_data/name/{name}",
         )
-
-        block_data_id = response.json().get("blockid")
+        raw_block = response.json()
+        block_data_id = raw_block.get("blockid")
 
         if not block_data_id:
             raise httpx.RequestError(f"Malformed response: {response}")
 
-        block = response.json()
+        blockapi = get_blockapi(raw_block["blockref"])
+        block = pydantic.parse_obj_as(blockapi, raw_block)
         return block
 
     async def create_deployment(
@@ -872,15 +874,12 @@ class OrionClient:
             orion data document pointing to persisted data
         """
         try:
-            block = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
+            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
         except httpx.HTTPStatusError:
             await self.create_block_data(
                 name="ORION-CONFIG-STORAGE", blockref="orionstorage-block", data=dict()
             )
-            block = await self.read_block_data_by_name("ORION-CONFIG-STORAGE")
-
-        blockapi = get_blockapi(block["blockref"])
-        storage_block = pydantic.parse_obj_as(blockapi, block)
+            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
 
         block_datadoc = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
@@ -905,9 +904,7 @@ class OrionClient:
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
         blockid = block_document["blockid"]
-        block = await self.read_block_data(blockid)
-        blockapi = get_blockapi(block["blockref"])
-        storage_block = pydantic.parse_obj_as(blockapi, block)
+        storage_block = await self.read_block(blockid)
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
