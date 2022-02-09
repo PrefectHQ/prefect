@@ -24,7 +24,8 @@ import httpx
 import pydantic
 
 import prefect
-from prefect import exceptions, settings
+import prefect.settings
+from prefect import exceptions
 from prefect.logging import get_logger
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION
@@ -85,10 +86,12 @@ class OrionClient:
 
     def __init__(
         self,
-        host: str = prefect.settings.from_env().orion_host,
+        host: str = None,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
+
+        host = host or prefect.settings.from_context().orion_host
 
         httpx_settings = httpx_settings or {}
 

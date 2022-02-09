@@ -43,9 +43,9 @@ def temporary_settings(**kwargs):
     Example:
         >>> import prefect.settings
         >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
-        >>>    assert prefect.settings.from_env().orion_host == "foo"
         >>>    assert prefect.settings.from_context().orion_host == "foo"
-        >>> assert prefect.settings.from_env().orion_host is None
+        >>>    assert prefect.settings.from_context().orion_host == "foo"
+        >>> assert prefect.settings.from_context().orion_host is None
     """
     old_env = os.environ.copy()
 

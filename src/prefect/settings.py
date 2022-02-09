@@ -1,5 +1,5 @@
 """
-Prefect prefect.settings.from_env(). Settings objects are Pydantic `BaseSettings` models for typed
+Prefect prefect.settings.from_context(). Settings objects are Pydantic `BaseSettings` models for typed
 configuration via environment variables. For organization, they are grouped into
 multiple settings classes that are nested and can all be accessed from the main
 settings object, `Settings()`.
@@ -402,7 +402,7 @@ class AgentSettings(BaseSettings):
 
 
 class Settings(SharedSettings):
-    """Global Prefect prefect.settings.from_env(). To change these settings via environment variable, set
+    """Global Prefect prefect.settings.from_context(). To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
     """
 

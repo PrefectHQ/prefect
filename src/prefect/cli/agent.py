@@ -33,7 +33,7 @@ async def start(
     Start an agent process.
     """
     if not hide_welcome:
-        if prefect.settings.from_env().orion_host:
+        if prefect.settings.from_context().orion_host:
             console.print(f"Starting agent connected to {host}...")
         else:
             console.print("Starting agent with ephemeral API...")
@@ -48,6 +48,6 @@ async def start(
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(prefect.settings.from_env().agent.query_interval)
+            await anyio.sleep(prefect.settings.from_context().agent.query_interval)
 
     console.print("Agent stopped!")

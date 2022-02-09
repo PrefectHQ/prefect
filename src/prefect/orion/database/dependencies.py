@@ -28,7 +28,7 @@ def provide_database_interface():
         from prefect.orion.utilities.database import get_dialect
 
         dialect = get_dialect()
-        connection_url = prefect.settings.from_env().orion.database.connection_url
+        connection_url = prefect.settings.from_context().orion.database.connection_url
 
         if dialect.name == "postgresql":
             database_config = AsyncPostgresConfiguration(connection_url=connection_url)

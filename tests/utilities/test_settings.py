@@ -34,18 +34,18 @@ def test_temporary_settings_restores_on_error():
     assert prefect.settings.from_context().test_mode is True, "Restores old profile"
 
 
-def test_refresh_settings():
+def test_refresh_settings(monkeypatch):
     assert prefect.settings.from_env().test_mode is True
 
-    os.environ["PREFECT_TEST_MODE"] = "0"
+    monkeypatch.setenv("PREFECT_TEST_MODE", "0")
     new_settings = Settings()
     assert new_settings.test_mode is False
 
 
-def test_nested_settings():
+def test_nested_settings(monkeypatch):
     assert prefect.settings.from_env().orion.database.echo is False
 
-    os.environ["PREFECT_ORION_DATABASE_ECHO"] = "1"
+    monkeypatch.setenv("PREFECT_ORION_DATABASE_ECHO", "1")
     new_settings = Settings()
     assert new_settings.orion.database.echo is True
 
