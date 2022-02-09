@@ -40,14 +40,9 @@
   import FilterBuilderValue from './FilterBuilderValue.vue'
   import FilterTag from './FilterTag.vue'
 
-  // eslint really doesn't like defineEmits type annotation syntax
-  // eslint-disable-next-line func-call-spacing
   const emit = defineEmits<{
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:filter', value: Partial<Filter>): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'dismiss'): void,
-    // eslint-disable-next-line no-unused-vars
     (event: 'update:expanded', value: boolean): void,
   }>()
 
