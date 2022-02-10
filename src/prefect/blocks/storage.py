@@ -83,18 +83,14 @@ class OrionStorageBlock(BlockAPI):
 
         async with OrionClient() as client:
             response = await client.post("/data/persist", content=data)
-            return DataDocument.parse_obj(response.json())
+            return response.json()
 
     async def read(self, datadoc):
         from prefect.client import OrionClient
 
         if datadoc is None:
             raise RuntimeError
-        if datadoc.has_cached_data():
-            return datadoc.decode()
 
         async with OrionClient() as client:
-            response = await client.post(
-                "/data/retrieve", json=datadoc.dict(json_compatible=True)
-            )
+            response = await client.post("/data/retrieve", json=datadoc)
             return response.content

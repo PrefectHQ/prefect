@@ -34,27 +34,15 @@ async def create_datadoc(request: Request) -> DataDocument:
         DataDocument.encode, encoding=dataloc.scheme, data=data, path=path
     )
 
-    # Return an Orion datadoc to show that it should be resolved by GET /data
-    orion_datadoc = DataDocument.encode(encoding="orion", data=file_datadoc)
-
-    return orion_datadoc
+    return file_datadoc
 
 
 @router.post("/retrieve")
-async def read_datadoc(orion_datadoc: DataDocument):
+async def read_datadoc(file_datadoc: DataDocument):
     """
     Exchange an orion data document for the data previously persisted
     """
-    if orion_datadoc.encoding != "orion":
-        raise ValueError(
-            f"Invalid encoding: {orion_datadoc.encoding!r}. Only 'orion' data documents can "
-            "be retrieved from the Orion API."
-        )
-
-    # Explicitly use the `OrionSerializer` instead of the dispatcher for safety
-    inner_datadoc = OrionSerializer.loads(orion_datadoc.blob)
-
     # Read data from the file system; once again do not use the dispatcher
-    data = await asyncio_to_thread(FileSerializer.loads, inner_datadoc.blob)
+    data = await asyncio_to_thread(FileSerializer.loads, file_datadoc.blob)
 
     return Response(content=data, media_type="application/octet-stream")
