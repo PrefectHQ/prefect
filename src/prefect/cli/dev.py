@@ -24,6 +24,7 @@ from prefect.cli.base import (
 )
 from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.filesystem import tmpchdir
 
 DEV_HELP = """
@@ -165,6 +166,11 @@ async def start(
     Each service has an individual command if you wish to start them separately.
     Each service can be excluded here as well.
     """
+    # TODO - this logic should be abstracted in the interface
+    # Run migrations - if configured for sqlite will create the db
+    db = provide_database_interface()
+    await db.create_db()
+
     async with anyio.create_task_group() as tg:
         if not exclude_api:
             tg.start_soon(api)
@@ -296,7 +302,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
 @dev_app.command()
 def kubernetes_manifest():
     """
-    Generates a kubernetes manifest for development.
+    Generates a Kubernetes manifest for development.
 
     Example:
         $ prefect dev kubernetes-manifest | kubectl apply -f -
