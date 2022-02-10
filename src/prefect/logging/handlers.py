@@ -13,6 +13,7 @@ import anyio
 import pendulum
 
 import prefect
+import prefect.settings
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
 from prefect.orion.schemas.actions import LogCreate
@@ -62,7 +63,9 @@ class OrionLogWorker:
         """
         while not self._stop_event.is_set():
             # Wait until flush is called or the batch interval is reached
-            self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
+            self._flush_event.wait(
+                prefect.settings.from_env().logging.orion.batch_interval
+            )
             self._flush_event.clear()
 
             anyio.run(self.send_logs)
@@ -93,9 +96,9 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            prefect.settings.logging.orion.batch_size
-            - prefect.settings.logging.orion.max_log_size,
-            prefect.settings.logging.orion.max_log_size,
+            prefect.settings.from_env().logging.orion.batch_size
+            - prefect.settings.from_env().logging.orion.max_log_size,
+            prefect.settings.from_env().logging.orion.max_log_size,
         )
 
         # Loop until the queue is empty or we encounter an error
@@ -135,7 +138,7 @@ class OrionLogWorker:
                         else:
                             sys.stderr.write(
                                 "The log worker will attempt to send these logs again in "
-                                f"{prefect.settings.logging.orion.batch_interval}s\n"
+                                f"{prefect.settings.from_env().logging.orion.batch_interval}s\n"
                             )
 
     def worker_info(self) -> str:
@@ -218,7 +221,7 @@ class OrionHandler(logging.Handler):
         Send a log to the `OrionLogWorker`
         """
         try:
-            if not prefect.settings.logging.orion.enabled:
+            if not prefect.settings.from_env().logging.orion.enabled:
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
@@ -288,10 +291,10 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = sys.getsizeof(log)
-        if log_size > prefect.settings.logging.orion.max_log_size:
+        if log_size > prefect.settings.from_env().logging.orion.max_log_size:
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{prefect.settings.logging.orion.max_log_size}"
+                f"{prefect.settings.from_env().logging.orion.max_log_size}"
             )
 
         return log

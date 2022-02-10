@@ -7,7 +7,7 @@ from typing import Hashable, Tuple
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from prefect import settings
+import prefect.settings
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
 
 
@@ -26,9 +26,9 @@ class BaseDatabaseConfiguration(ABC):
         timeout: float = None,
     ):
         self.connection_url = (
-            connection_url or settings.orion.database.connection_url.get_secret_value()
+            connection_url or prefect.settings.from_env().orion.database.connection_url
         )
-        self.echo = echo or settings.orion.database.echo
+        self.echo = echo or prefect.settings.from_env().orion.database.echo
         self.timeout = timeout
 
     def _unique_key(self) -> Tuple[Hashable, ...]:

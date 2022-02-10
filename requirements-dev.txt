@@ -1,10 +1,9 @@
-black >= 20.8b0
 ipython
-isort
 mkdocs
 mkdocs-material
 mkdocstrings
 mypy 
+pre-commit
 pytest
 pytest-asyncio >= 0.17
 pytkdocs >= 0.13.0
