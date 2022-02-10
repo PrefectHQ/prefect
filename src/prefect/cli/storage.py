@@ -27,6 +27,9 @@ async def configure(storage_type: str):
     async with OrionClient() as client:
         try:
             await client.delete_block_by_name("ORION-CONFIG-STORAGE")
+        except:
+            pass
+
         if storage_type == "local":
             await client.create_block_data(
                 name="ORION-CONFIG-STORAGE", blockref="localstorage-block", data=dict()
