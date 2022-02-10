@@ -14,10 +14,12 @@
         Search Tips
         </m-button>
       -->
-      <m-button flat miter class="text--primary ml-auto" @click="clear">
-        Clear All
-      </m-button>
-      <m-button miter @click="cancel">
+      <template v-if="tempFilters.length > 1">
+        <m-button flat miter class="text--primary" @click="clear">
+          Clear All
+        </m-button>
+      </template>
+      <m-button miter class="" @click="cancel">
         Cancel
       </m-button>
       <m-button color="primary" miter @click="apply">
@@ -92,6 +94,7 @@
   padding: var(--p-1);
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--m-1);
 }
 </style>

@@ -22,11 +22,11 @@
       </template>
 
       <template v-if="isOpen('save')" key="save">
-        <FiltersSaveMenu class="filter-bar__menu filter-bar__menu--save" />
+        <FiltersSaveMenu class="filter-bar__menu filter-bar__menu--save" @close="close" />
       </template>
 
       <template v-if="isOpen('filters')" key="filters">
-        <FiltersMenu class="filter-bar__menu" />
+        <FiltersMenu class="filter-bar__menu" @close="close" />
       </template>
 
     </transition-group>

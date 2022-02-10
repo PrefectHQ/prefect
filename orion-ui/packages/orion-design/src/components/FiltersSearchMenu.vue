@@ -3,18 +3,25 @@
     <p class="filters-search-menu__title">
       Saved Searches
     </p>
+
     <template v-for="filter in filters" :key="filter.id">
       <button type="button" class="filters-search-menu__filter" @click="apply(filter.filters)">
         <span class="filters-search-menu__filter-name">{{ filter.name }}</span>
         <m-icon-button flat class="filters-search-menu__filter-remove" icon="pi-delete-bin-line pi-sm" @click.stop="remove(filter.id)" />
       </button>
     </template>
-    <m-loader :loading="loading" class="filters-search-menu__loader" />
-    <template v-if="empty && !loading">
-      <p class="filters-search-menu__empty">
-        Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
-      </p>
-    </template>
+
+    <transition-group name="filters-search-menu-transition">
+      <template v-if="loading" key="loader">
+        <m-loader :loading="true" class="filters-search-menu__loader" />
+      </template>
+
+      <template v-if="empty && !loading" key="empty">
+        <p class="filters-search-menu__empty">
+          Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
+        </p>
+      </template>
+    </transition-group>
   </div>
 </template>
 
@@ -59,6 +66,7 @@
   overflow: hidden;
   max-height: 50vh;
   position: relative;
+  min-height: 150px;
 }
 
 .filters-search-menu__title {
@@ -110,6 +118,14 @@
   }
 }
 
+.filters-search-menu__empty,
+.filters-search-menu__loader {
+  position: absolute !important; // m-loader is scoped...
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .filters-search-menu__empty {
   display: flex;
   align-items: center;
@@ -120,5 +136,14 @@
 .filters-search-menu__loader {
   --loader-size: 36px;
   margin: var(--m-2) auto;
+}
+
+.filters-search-menu-transition-enter-active,
+.filters-search-menu-transition-leave-active {
+  transition: opacity 0.5s ease;
+}
+.filters-search-menu-transition-enter-from,
+.filters-search-menu-transition-leave-to {
+  opacity: 0;
 }
 </style>
