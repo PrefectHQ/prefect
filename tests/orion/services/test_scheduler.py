@@ -7,7 +7,7 @@ from prefect.orion import models, schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.services.scheduler import Scheduler
 
-settings = prefect.settings.orion.services
+settings = prefect.settings.from_env().orion.services
 
 
 async def test_create_schedules_from_deployment(flow, session, flow_function):
