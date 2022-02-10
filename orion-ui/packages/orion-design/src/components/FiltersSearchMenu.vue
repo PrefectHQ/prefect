@@ -22,13 +22,13 @@
   import { showToast } from '@prefecthq/miter-design'
   import { subscribe } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { Search } from '../services/SearchApi'
+  import { searchApi } from '../services/SearchApi'
   import { useFiltersStore } from '../stores/filters'
   import { Filter } from '../types/filters'
 
   const filtersStore = useFiltersStore()
 
-  const subscription = subscribe(Search.filter.bind(Search), [])
+  const subscription = subscribe(searchApi.filter.bind(searchApi), [])
   const filters = computed(() => subscription.response.value ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading.value)
@@ -38,7 +38,7 @@
   }
 
   function remove(id: string): void {
-    Search.deleteSearch(id)
+    searchApi.deleteSearch(id)
       .then(() => {
         showToast('Search removed', 'success')
       })
