@@ -193,15 +193,15 @@ prefect deployment run test-flow/test-deployment
 
 Go to the Orion UI — open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200) — you should see the flow run deployment “test-flow” and a successful flow run.
 
-![Screenshot showing the "test-flow" flow]()
+![Screenshot showing the "test-flow" flow](/img/tutorials/k8s-test-flow.png)
 
 Click **Deployments** to see the entry for this deployment, “test-deployment”. You can run the flow interactively using the **Quick Run** button. 
 
-![Screenshot showing deployed “test-deployment” flow deployment]()
+![Screenshot showing deployed “test-deployment” flow deployment](/img/tutorials/k8s-test-deploy.png)
 
 If you click **Flow Runs** you should see the completed flow runs for this deployment that ran in the cluster.
 
-![Screenshot showing flow runs for “test-deployment”]()
+![Screenshot showing flow runs for “test-deployment”](/img/tutorials/k8s-flow-runs.png)
 
 ## Inspecting flow run jobs
 
@@ -214,40 +214,35 @@ kubectl get jobs -l app=orion
 You should see a list of Jobs for flow runs similar to this:
 
 ```bash
-# ToDo: output goes here 
+NAME                   COMPLETIONS   DURATION   AGE
+lumpy-jaybirdszdgj     1/1           4s         13m
+turquoise-shrewdnlq7   1/1           4s         3m38s 
 ```
 
-If you know the name of the flow run whose jobs you want to find, you can also find Jobs for a specific flow run. You can see these in the Orion UI flow run listing as well as in the list of Jobs that there was a Job for flow run `name here`:
-
-```bash
-# ToDo: output of example line goes here 
-```
+If you know the name of the flow run whose jobs you want to find, you can also find Jobs for a specific flow run. You can see these in the Orion UI flow run listing as well as in the list of Jobs that there was a Job for flow run `lumpy-jaybird`.
 
 Using the flow run name and `kubectl get jobs` we can find the Jobs for that flow run (your flow run names may be different since they're automatically generated at flow run time):
 
 ```bash
-kubectl get jobs -l io.prefect.flow-run-name=flashy-ant
+kubectl get jobs -l io.prefect.flow-run-name=lumpy-jaybird
 ```
 
 Since each flow run is a Kubernetes Job, every Job starts a Pod, which in turn starts a container. You can use the following command to see the logs for all Pods created by a specific Job:
 
 ```bash
-kubectl logs -l job-name=flashy-antbqxjq
+kubectl logs -l job-name=lumpy-jaybirdszdgj
 ```
 
-If your agent is processing scheduled flow runs with the Kubernetes flow runner correctly, you should see logging output like the following from the Job's Pods when you run the previous command:
+If your agent is processing flow runs with the Kubernetes flow runner correctly, you should see logging output like the following from the Job's Pods when you run the previous command:
 
 ```
-08:06:28.522 | INFO    | Flow run 'flashy-ant' - Using task runner 'SequentialTaskRunner'
-08:06:28.717 | INFO    | Flow run 'flashy-ant' - Finished in state Completed(None)
+18:07:51.404 | INFO    | Flow run 'lumpy-jaybird' - Using task runner 'SequentialTaskRunner'
+18:07:51.497 | INFO    | Flow run 'lumpy-jaybird' - Finished in state Completed(None)
 Hello from Kubernetes!
-
 ```
 
 You did it! The new Kubernetes flow runner ran your flow in Kubernetes!
 
 To continue experimenting with the flow in Kubernetes, make any changes to the flow definition and run `prefect deployment create` again for the flow file. This updates the deployment. Orion will pick up your changes for the next scheduled flow run.
-
-To stop scheduled flow runs, comment out or remove the `schedule=` line from the deployment specification and update the deployment. 
 
 To clean up your cluster, follow the Docker Desktop instructions to [disable Kubernetes](https://docs.docker.com/desktop/kubernetes/#disable-kubernetes).
