@@ -28,7 +28,7 @@ This is [required for type checkers](https://github.com/microsoft/pyright/blob/m
 
 Generally, submodules should _not_ be imported in the `__init__` file. Submodules should only be exposed when the module is designed to be imported and used as a namespaced object.
 
-For example, we do this for our schema and model modules because the it is important to know if you are working with a API schema or database model which may have similar names.
+For example, we do this for our schema and model modules because it is important to know if you are working with an API schema or database model, both of which may have similar names.
 
 ```python
 import prefect.orion.schemas as schemas
@@ -39,7 +39,7 @@ schemas.core.FlowRun
 
 If exposing submodules, use local paths as with objects.
 
-Right
+Right:
 
 ```
 from . import flows
@@ -53,7 +53,7 @@ import prefect.flows
 
 ### Importing to run side-effects
 
-Another use-case for importing submodules is perform global side-effects that occur when they are imported.
+Another use case for importing submodules is perform global side-effects that occur when they are imported.
 
 Often, global side-effects on import are a dangerous pattern. Avoid them if feasible.
 
