@@ -1,221 +1,197 @@
 <template>
-  <div
-    class="bar-wrapper d-flex font--secondary"
-    :class="{ detached: detached, active: overlay }"
-    @keyup.esc="closeOverlay"
-  >
-    <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
-      <FilterSearch @focused="openSearchMenu">
-        <TagGroup
-          :tags="filters"
-          :clearable="false && filtersApplied"
-          @click="openFilterMenu"
-          @remove="removeFilter"
-        />
-        <a
-          v-if="media.sm && filtersApplied && filters.length"
-          class="
-            text--primary text-decoration-none
-            font--secondary
-            caption
-            nowrap
-            ml-1
-          "
-          @click="clearFilters"
-        >
-          Clear all
-        </a>
-      </FilterSearch>
+  <div class="filter-bar">
+    <FiltersSearch class="filter-bar__search" @click="show('search')" />
 
-      <div class="saved-searches-container">
-        <button
-          class="filter-button saved-searches text--grey-80 px-2"
-          :class="{ active: showSaveSearch }"
-          @click="showSaveSearch ? closeSaveSearchMenu() : openSaveSearchMenu()"
-        >
-          <i class="pi pi-star-line" />
-        </button>
-      </div>
+    <button type="button" class="filter-bar__button" @click="toggle('save')">
+      <i class="pi pi-star-line" />
+    </button>
 
-      <div class="filter-container">
-        <button
-          class="filter-button filters text--grey-80 px-2"
-          :class="{ active: showFilterMenu }"
-          @click="showFilterMenu ? closeFilterMenu() : openFilterMenu()"
-        >
-          <i class="pi pi-filter-3-line" />
-          <span v-if="media.sm" class="ml-1">Filters</span>
-        </button>
-      </div>
+    <button type="button" class="filter-bar__button" @click="toggle('filters')">
+      <i class="pi pi-filter-3-line" />
+      <span v-if="media.sm" class="ml-1">Filters</span>
+    </button>
 
-      <teleport to="#app">
-        <div class="observe" ref="observe" />
-      </teleport>
+    <teleport v-if="overlay" to=".application">
+      <div class="filter-bar__overlay" @click="close" />
+    </teleport>
 
-      <teleport v-if="overlay" to=".application">
-        <div class="overlay" @click="closeOverlay" />
-      </teleport>
+    <transition-group name="filter-bar-transition" mode="out-in">
 
-      <transition-group name="fade-slide" mode="out-in">
-        <SearchMenu
-          v-if="showSearchMenu"
-          key="search-menu"
-          class="search-menu"
-          @close="closeSearchMenu"
-        />
+      <template v-if="menu === 'search'" key="search">
+        <FiltersSearchMenu class="filter-bar__menu" />
+      </template>
 
-        <SaveSearchMenu
-          v-if="showSaveSearch"
-          key="save-search-menu"
-          class="save-search-menu"
-          @close="closeSaveSearchMenu"
-        />
+      <template v-if="menu === 'save'" key="save">
+        <FiltersSaveMenu class="filter-bar__menu filter-bar__menu--save" />
+      </template>
 
-        <FilterMenu
-          v-else-if="showFilterMenu"
-          key="filter-menu"
-          class="filter-menu"
-          @close="closeFilterMenu"
-        />
-      </transition-group>
-    </div>
+      <template v-if="menu === 'filters'" key="filters">
+        <FiltersMenu class="filter-bar__menu" />
+      </template>
+
+    </transition-group>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useStore } from '@/store'
-import FilterMenu from './FilterMenu.vue'
-import FilterSearch from './FilterSearch.vue'
-import SearchMenu from './SearchMenu.vue'
-import SaveSearchMenu from './SaveSearchMenu.vue'
-import { parseFilters, FilterObject } from './util'
-import { GlobalFilterDefaults } from '@prefecthq/orion-design'
-import TagGroup from './TagGroup.vue'
+import FiltersSearch from '@/../packages/orion-design/src/components/FiltersSearch.vue';
+import FiltersSearchMenu from '@/../packages/orion-design/src/components/FiltersSearchMenu.vue';
+import FiltersSaveMenu from '@/../packages/orion-design/src/components/FiltersSaveMenu.vue';
+import FiltersMenu from '@/../packages/orion-design/src/components/FiltersMenu.vue';
 import media from '@/utilities/media'
+import { computed, ref } from 'vue';
 
-const initialGlobalFilterStateString = JSON.stringify(
-  new GlobalFilterDefaults()
-)
+type Menu = 'none' | 'search' | 'save' | 'filters'
 
-const store = useStore()
-const route = useRoute()
+const menu = ref<Menu>('none')
+const overlay = computed(() => menu.value !== 'none')
 
-const showFilterMenu = ref<boolean>(false)
-const showSearchMenu = ref<boolean>(false)
-const showSaveSearch = ref<boolean>(false)
-const showOverlay = ref<boolean>(false)
-
-const closeSaveSearchMenu = () => {
-  showSaveSearch.value = false
+function show(value: Menu): void {
+  menu.value = value
 }
 
-const openSaveSearchMenu = () => {
-  showSearchMenu.value = false
-  showFilterMenu.value = false
-  showSaveSearch.value = true
-}
-
-const closeFilterMenu = () => {
-  showFilterMenu.value = false
-}
-
-const openFilterMenu = () => {
-  showSaveSearch.value = false
-  showSearchMenu.value = false
-  showFilterMenu.value = true
-}
-
-const closeSearchMenu = () => {
-  showSearchMenu.value = false
-}
-
-const openSearchMenu = () => {
-  showFilterMenu.value = false
-  showSaveSearch.value = false
-  showSearchMenu.value = true
-}
-
-const closeOverlay = () => {
-  showFilterMenu.value = false
-  showSaveSearch.value = false
-  showSearchMenu.value = false
-  showOverlay.value = false
-
-  if (document.activeElement) {
-    ;(document.activeElement as HTMLElement).blur()
-  }
-}
-
-const removeFilter = (filter: FilterObject): void => {
-  console.log(filter)
-}
-
-const filters = computed<FilterObject[]>(() => {
-  return parseFilters(store.state.filter)
-})
-
-const clearFilters = () => {
-  store.commit('filter/resetFilter')
-}
-
-/**
- * This section is for performantly handling intersection of the filter bar
- */
-
-const detached: Ref<boolean> = ref(false)
-
-const handleEmit = ([entry]: IntersectionObserverEntry[]) =>
-  (detached.value = !entry.isIntersecting)
-
-const observe = ref<Element>()
-
-let observer: IntersectionObserver
-
-const createIntersectionObserver = (margin: string) => {
-  if (observe.value) observer?.unobserve(observe.value)
-
-  const options = {
-    rootMargin: margin,
-    threshold: [0.1, 1]
-  }
-
-  observer = new IntersectionObserver(handleEmit, options)
-  if (observe.value) observer.observe(observe.value)
-}
-
-const overlay = computed(() => {
-  return (
-    showFilterMenu.value ||
-    showSaveSearch.value ||
-    showOverlay.value ||
-    showSearchMenu.value
-  )
-})
-
-const filtersApplied = computed(() => {
-  return initialGlobalFilterStateString !== JSON.stringify(store.state.filter)
-})
-
-onMounted(() => {
-  createIntersectionObserver('0px')
-})
-
-onBeforeUnmount(() => {
-  if (observe.value) observer?.unobserve(observe.value)
-})
-
-watch(route, () => {
-  if (route.name == 'Dashboard') {
-    if (observe.value) observer?.observe(observe.value)
+function toggle(value: Menu): void {
+  if(menu.value === value) {
+    close()
   } else {
-    if (observe.value) observer?.unobserve(observe.value)
-    detached.value = true
+    show(value)
   }
-})
+}
+
+function close(): void {
+  menu.value = 'none'
+
+  ;(document.activeElement as HTMLElement).blur()
+}
 </script>
 
-<style lang="scss" scoped>
-@use '@/styles/components/global-filter--filter-bar.scss';
+<style lang="scss">
+.filter-bar {
+  margin: var(--m-2) var(--m-4);
+  height: 100%;
+  position: sticky;
+  top: 0;
+  transition: all 150ms;
+  left: 0;
+  filter: $drop-shadow-sm;
+  background: #fff;
+  display: flex;
+  align-items: stretch;
+
+  z-index: 9;
+
+  &.detached {
+    margin: 0;
+    border-radius: 0;
+  }
+
+  @media (max-width: 1024px) {
+    margin: 0;
+    border-radius: 0;
+    z-index: 9;
+  }
+
+  @media (max-width: 640px) {
+    z-index: 10;
+
+    &.detached {
+      top: 62px;
+    }
+  }
+}
+
+.filter-bar__overlay {
+  background-color: rgba(0, 0, 0, 0.1);
+  // Note: this will only work in browsers that allow backdrop-filter, (so Chrome, Edge, and FF only if the experimental prop is enabled)
+  backdrop-filter: blur(1px);
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 8;
+}
+
+.filter-bar__search {
+  flex-grow: 1;
+}
+
+.filter-bar__button {
+  appearance: none;
+  border: 0;
+  background: none;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--p-2);
+  cursor: pointer;
+  border-left: 1px solid var(--secondary-hover); 
+  font-family: var(--font-secondary);
+  font-size: 14px;
+  color: var(--grey-80);
+  
+  &.active,
+  &:hover,
+  &:focus {
+    background-color: var(--grey-10);
+  }
+}
+
+.filter-bar__menu {
+  position: absolute !important; // scoped styles in m-card
+  border-radius: 0 0 4px 4px !important; // m-card
+  left: 0;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  border-top: 1px solid var(--secondary-hover);
+  overflow: hidden;
+}
+
+.filter-bar__menu--save {
+  right: 0;
+  left: auto;
+  width: 400px !important; // m-card...
+
+  > div, 
+  > div > header {
+    border-radius: 0 !important; // m-card...
+  }
+}
+
+.filter-bar-transition-leave-active {
+  animation: slide 200ms reverse linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
+  z-index: -1 !important;
+}
+
+.filter-bar-transition-enter-active {
+  animation: slide 200ms linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
+  z-index: -1 !important;
+}
+
+@keyframes slide {
+  0% {
+    transform: rotateX(-180deg);
+  }
+
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  @keyframes slide {
+    from {
+      transform: translate(0, 200%);
+    }
+
+    to {
+      transform: translate(0);
+    }
+  }
+}
 </style>

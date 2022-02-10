@@ -3,7 +3,7 @@
     <template v-if="!hasFilters">
       <i class="pi pi-search-line" />
     </template>
-    <template v-if="filters.length < 5 && media.sm">
+    <template v-if="hasFilters && filters.length < 5 && media.sm">
       <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
     </template>
     <template v-else-if="hasFilters">
@@ -17,7 +17,7 @@
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
-    <template v-if="filters.length">
+    <template v-if="term.length">
       <button type="button" class="filters-search__clear" @click="clear">
         <i class="pi pi-sm pi-close-circle-fill" />
       </button>
@@ -98,7 +98,8 @@
   font-size: 16px;
   flex-grow: 1;
   min-width: 200px;
-  height: 30px;
+  min-height: 30px;
+  align-self: stretch;
 
   &::placeholder {
     color: var(--grey-40);

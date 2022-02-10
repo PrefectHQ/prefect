@@ -52,7 +52,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filters-search-menu {
   background: #FFFFFF;
   border-radius: 4px;
