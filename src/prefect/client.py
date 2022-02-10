@@ -589,21 +589,21 @@ class OrionClient:
 
         return UUID(block_data_id)
 
-    async def delete_block_data_by_name(
+    async def delete_block_by_name(
         self,
         name: str,
     ):
         """
-        Delete block data with the specified name.
+        Delete block with the specified name.
 
         Args:
-            name: the block data name
+            name: the block name
 
         Raises:
             httpx.RequestError
 
         Returns:
-            True if the block data was deleted, False otherwise
+            True if the block was deleted, False otherwise
         """
         try:
             response = await self.delete(

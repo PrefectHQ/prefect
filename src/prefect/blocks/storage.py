@@ -33,9 +33,9 @@ class S3Block(BlockAPI):
         import boto3
 
         s3_client = self.aws_session.client("s3")
-        stream = io.BytesIO(data)
-        data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
-        s3_client.upload_fileobj(stream, **data_location)
+        with io.BytesIO(data) as stream:
+            data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
+            s3_client.upload_fileobj(Fileobj=stream, **data_location)
         return DataDocument.encode(encoding="json", data=data_location)
 
     async def read(self, datadoc):
@@ -43,10 +43,10 @@ class S3Block(BlockAPI):
 
         s3_client = self.aws_session.client("s3")
         data_location = datadoc.decode()
-        stream = io.BytesIO()
-        s3_client.download_fileobj(**data_location, Fileobj=stream)
-        stream.seek(0)
-        output = stream.read()
+        with io.BytesIO() as stream:
+            s3_client.download_fileobj(**data_location, Fileobj=stream)
+            stream.seek(0)
+            output = stream.read()
         return output
 
 
