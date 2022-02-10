@@ -44,7 +44,7 @@ class S3Block(BlockAPI):
         s3_client = self.aws_session.client("s3")
         data_location = datadoc.decode()
         stream = io.BytesIO()
-        s3_client.download_fileobj(Bucket=self.bucket, **data_location)
+        s3_client.download_fileobj(**data_location)
         stream.seek(0)
         output = stream.read()
         return output
