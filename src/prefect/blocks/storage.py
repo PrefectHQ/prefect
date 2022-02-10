@@ -1,4 +1,4 @@
-# import boto3
+import boto3
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,26 +10,37 @@ from prefect.orion.schemas.data import DataDocument
 
 @register_blockapi("s3storage-block")
 class S3Block(BlockAPI):
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
+    profile_name: Optional[str] = None
+    region_name: Optional[str] = None
+    bucket: Optional[str] = None
+
     def __init__(self, blockdata):
-        self.blockdata = blockdata
-        self.s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=self.blockdata.aws_access_key_id,
-            aws_secret_access_key=self.blockdata.aws_secret_access_key,
-            profile_name=self.blockdata.profile_name,
-            region_name=self.blockdata.region_name,
+        self.aws_session = boto3.Session(
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_access_key,
+            aws_session_token=self.aws_session_token,
+            profile_name=self.profile_name,
+            region_name=self.region_name,
         )
 
-    def basepath(self):
-        return self.blockdata.basepath
+    async def write(self, data: bytes):
+        s3_client = self.credentials.get_boto3_session().client("s3")
+        stream = io.BytesIO(data)
+        data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
+        s3_client.upload_fileobj(stream, **data_location)
+        return DataDocument.encode(encoding="json", data=data_location)
 
-    async def write(self, data):
-        # embed datadoc that stores the s3 key on the block
-        pass
-
-    async def read(self):
-        # retrieve s3 key from enbedded datadoc and read
-        pass
+    async def read(self, datadoc):
+        s3_client = self.aws_session.client("s3")
+        data_location = datadoc.decode()
+        stream = io.BytesIO()
+        s3_client.download_fileobj(Bucket=self.bucket, **data_location)
+        stream.seek(0)
+        output = stream.read()
+        return output
 
 
 @register_blockapi("localstorage-block")
