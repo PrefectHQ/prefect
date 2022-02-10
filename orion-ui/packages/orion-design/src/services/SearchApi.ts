@@ -38,4 +38,4 @@ export class SearchApi extends Api {
   }
 }
 
-export const Search = new SearchApi()
+export const searchApi = new SearchApi()
