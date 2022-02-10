@@ -58,8 +58,8 @@
 <style lang="scss" scoped>
 .filters-search-menu {
   background: #FFFFFF;
-  border: 1px solid var(--secondary-pressed);
-  border-radius: 4px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
   box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   max-height: 50vh;
