@@ -1,6 +1,7 @@
 import datetime
 from functools import wraps
 from typing import Dict
+from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, parse_obj_as
 
@@ -21,7 +22,18 @@ def get_blockapi(blockref):
     return BLOCK_API_REGISTRY.get(blockref)
 
 
-class BlockAPI(BaseModel):
+class BlockAPI(BaseModel, ABC):
+    class Config:
+        extra = "allow"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.block_initialization()
+
+    @abstractmethod
+    def block_initialization(self) -> None:
+        pass
+
     blockname: str
     blockref: str
     blockid: str

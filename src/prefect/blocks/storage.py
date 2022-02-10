@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 
+from typing import Optional
 from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.orion.schemas.data import DataDocument
 
@@ -15,9 +16,9 @@ class S3Block(BlockAPI):
     aws_session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
-    bucket: Optional[str] = None
+    bucket: str
 
-    def __init__(self, blockdata):
+    def block_initialization(self):
         self.aws_session = boto3.Session(
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
@@ -45,6 +46,9 @@ class S3Block(BlockAPI):
 
 @register_blockapi("localstorage-block")
 class LocalStorageBlock(BlockAPI):
+    def block_initialization(self) -> None:
+        pass
+
     def basepath(self):
         # return Path(TemporaryDirectory().name)
         return Path("/tmp/localstorageblock")
@@ -59,6 +63,9 @@ class LocalStorageBlock(BlockAPI):
 
 @register_blockapi("orionstorage-block")
 class OrionStorageBlock(BlockAPI):
+    def block_initialization(self) -> None:
+        pass
+
     async def write(self, data):
         from prefect.client import OrionClient
 
