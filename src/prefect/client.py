@@ -1333,15 +1333,8 @@ class OrionClient:
                     return data
 
             if isinstance(data, DataDocument):
-                if data.encoding == "orion":
-                    if data.has_cached_data():
-                        return data.decode()
-
-                    data = (
-                        await self.post(
-                            "/data/retrieve", json=data.dict(json_compatible=True)
-                        )
-                    ).content
+                if data.encoding == "blockstorage":
+                    data = await self.retrieve_data(data)
                 else:
                     data = data.decode()
                 return await resolve_inner(data)

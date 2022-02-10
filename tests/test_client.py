@@ -440,16 +440,14 @@ class TestResolveDataDoc:
 
     async def test_resolves_persisted_data_documents(self, orion_client):
         async with OrionClient() as client:
-            assert (
-                await orion_client.resolve_datadoc(
-                    (
-                        await client.persist_data(
-                            DataDocument.encode("json", "hello").json().encode()
-                        )
-                    ),
-                )
-                == "hello"
+            innermost = await orion_client.resolve_datadoc(
+                (
+                    await client.persist_data(
+                        DataDocument.encode("json", "hello").json().encode()
+                    )
+                ),
             )
+            assert innermost == "hello"
 
 
 class TestClientAPIVersionRequests:
