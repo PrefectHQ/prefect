@@ -38,7 +38,7 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { computed, ref } from 'vue'
-  import { Search } from '../services/SearchApi'
+  import { searchApi } from '../services/SearchApi'
   import { useFiltersStore } from '../stores/filters'
   import FilterTags from './FilterTags.vue'
 
@@ -54,7 +54,7 @@
   function save(): void {
     loading.value = true
 
-    Search.createSearch(name.value, filtersStore.all)
+    searchApi.createSearch(name.value, filtersStore.all)
       .then(() => {
         showToast('Saved search', 'success')
 
