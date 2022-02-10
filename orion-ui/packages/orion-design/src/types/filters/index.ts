@@ -70,6 +70,8 @@ export type FilterTagSuffix = typeof ObjectTagSuffixDictionaryData[FilterObject]
 
 export type ObjectFilterTagSuffix<T extends FilterObject> = typeof ObjectTagSuffixDictionaryData[T][number]
 
+export type FilterOfObject<T extends FilterObject> = Extract<Filter, { object: T }>
+
 export const ObjectTagPrefixes = Object.values(ObjectTagPrefixDictionaryData)
 export const ObjectTagSuffixes = Object.values(ObjectTagSuffixDictionaryData).flat()
 export const TagPrefixObjectDictionary = flip(ObjectTagPrefixDictionaryData)
