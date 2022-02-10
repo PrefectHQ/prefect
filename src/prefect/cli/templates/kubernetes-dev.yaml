@@ -20,7 +20,7 @@ spec:
             - -c
             - >-
               pip install -e /opt/prefect/repo\[dev\] &&
-              prefect dev start --no-ui
+              prefect dev start
           imagePullPolicy: "IfNotPresent"
           ports:
             - containerPort: 4200
@@ -48,3 +48,30 @@ spec:
       protocol: TCP
   selector:
     app: orion
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: flow-runner
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flow-runner-role-binding
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+roleRef:
+  kind: Role
+  name: flow-runner
+  apiGroup: rbac.authorization.k8s.io
