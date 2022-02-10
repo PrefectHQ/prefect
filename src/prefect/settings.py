@@ -9,12 +9,11 @@ settings object, `Settings()`.
 
 import os
 import textwrap
-from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseSettings, Field, SecretStr, root_validator
+from pydantic import BaseSettings, Field, root_validator
 
 
 class SharedSettings(BaseSettings):
@@ -49,8 +48,9 @@ class SharedSettings(BaseSettings):
     )
 
 
-# instantiate the shared settings
-shared_settings = SharedSettings()
+def shared_settings():
+    """Lazily instantiated"""
+    return SharedSettings()
 
 
 class DataLocationSettings(BaseSettings):
@@ -86,8 +86,8 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_DATABASE_"
         frozen = True
 
-    connection_url: SecretStr = Field(
-        f"sqlite+aiosqlite:////{shared_settings.home}/orion.db",
+    connection_url: str = Field(
+        default_factory=lambda: f"sqlite+aiosqlite:////{shared_settings().home}/orion.db",
         description=textwrap.dedent(
             f"""
             A database connection URL in a SQLAlchemy-compatible
@@ -101,7 +101,7 @@ class DatabaseSettings(BaseSettings):
             that in-memory databases can not be accessed from multiple processes and
             should only be used for simple tests.
 
-            Defaults to `sqlite+aiosqlite:////{shared_settings.home}/orion.db`.
+            Defaults to `sqlite+aiosqlite:////{shared_settings().home}/orion.db`.
             """
         ),
     )
@@ -250,23 +250,23 @@ class OrionSettings(BaseSettings):
 
     database: DatabaseSettings = Field(
         default_factory=DatabaseSettings,
-        description="Nested [Database settings][prefect.utilities.settings.DatabaseSettings].",
+        description="Nested [Database settings][prefect.settings.DatabaseSettings].",
     )
     data: DataLocationSettings = Field(
         default_factory=DataLocationSettings,
-        description="Nested [Data settings][prefect.utilities.settings.DataLocationSettings].",
+        description="Nested [Data settings][prefect.settings.DataLocationSettings].",
     )
     api: APISettings = Field(
         default_factory=APISettings,
-        description="Nested [API settings][prefect.utilities.settings.APISettings].",
+        description="Nested [API settings][prefect.settings.APISettings].",
     )
     services: ServicesSettings = Field(
         default_factory=ServicesSettings,
-        description="Nested [Services settings][prefect.utilities.settings.ServicesSettings].",
+        description="Nested [Services settings][prefect.settings.ServicesSettings].",
     )
     ui: UISettings = Field(
         default_factory=UISettings,
-        description="Nested [UI settings][prefect.utilities.settings.UISettings].",
+        description="Nested [UI settings][prefect.settings.UISettings].",
     )
 
 
@@ -339,7 +339,7 @@ class LoggingSettings(BaseSettings):
         frozen = True
 
     level: str = Field(
-        "INFO" if not shared_settings.debug_mode else "DEBUG",
+        default_factory=lambda: "INFO" if not shared_settings().debug_mode else "DEBUG",
         description="""The default logging level for Prefect loggers. Defaults to 
         "INFO" during normal operation and "DEBUG" during debug mode.""",
     )
@@ -349,15 +349,15 @@ class LoggingSettings(BaseSettings):
     )
 
     settings_path: Path = Field(
-        Path(f"{shared_settings.home}/logging.yml"),
+        default_factory=lambda: Path(f"{shared_settings().home}/logging.yml"),
         description=f"""The path to a custom YAML logging configuration file. If
         no file is found, the default `logging.yml` is used. Defaults to
-        `{shared_settings.home}/logging.yml`.""",
+        `{shared_settings().home}/logging.yml`.""",
     )
 
     orion: OrionHandlerSettings = Field(
         default_factory=OrionHandlerSettings,
-        description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
+        description="Nested [OrionHandler settings][prefect.settings.OrionHandlerSettings].",
     )
 
     extra_loggers: str = Field(
@@ -381,6 +381,9 @@ class LoggingSettings(BaseSettings):
 
 
 class AgentSettings(BaseSettings):
+    class Config:
+        env_prefix = "PREFECT_AGENT_"
+        frozen = True
 
     query_interval: float = Field(
         5,
@@ -399,7 +402,7 @@ class AgentSettings(BaseSettings):
 
 
 class Settings(SharedSettings):
-    """Global Prefect settings. To change these settings via environment variable, set
+    """Global Prefect prefect.settings.from_env(). To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
     """
 
@@ -408,19 +411,19 @@ class Settings(SharedSettings):
     # logging
     logging: LoggingSettings = Field(
         default_factory=LoggingSettings,
-        description="Nested [Logging settings][prefect.utilities.settings.LoggingSettings].",
+        description="Nested [Logging settings][prefect.settings.LoggingSettings].",
     )
 
     # orion
     orion: OrionSettings = Field(
         default_factory=OrionSettings,
-        description="Nested [Orion settings][prefect.utilities.settings.OrionSettings].",
+        description="Nested [Orion settings][prefect.settings.OrionSettings].",
     )
 
     # agent
     agent: AgentSettings = Field(
         default_factory=AgentSettings,
-        description="Nested [Agent settings][prefect.utilities.settings.AgentSettings].",
+        description="Nested [Agent settings][prefect.settings.AgentSettings].",
     )
 
     # the connection url for an orion instance
@@ -431,44 +434,21 @@ class Settings(SharedSettings):
     )
 
 
-settings = Settings()
+_FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
-@contextmanager
-def temporary_settings(**kwargs):
+def from_env() -> Settings:
     """
-    Temporarily override setting values. This will _not_ mutate values that have
-    been already been accessed at module load time.
+    Returns a settings object populated with default values and overrides from
+    environment variables.
 
-    This function should only be used for testing.
-
-    Example:
-        >>> from prefect import settings
-        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
-        >>>    assert settings.orion_host == "foo"
-        >>> assert settings.orion_host is None
+    Calls with the same environment return a cached object instead of reconstructing.
     """
-    old_env = os.environ.copy()
-    old_settings = settings.copy()
+    # Since os.environ is a Dict[str, str] we can safely hash it by contents, but we
+    # must be careful to avoid hashing a generator instead of a tuple
+    cache_key = hash(tuple((key, value) for key, value in os.environ.items()))
 
-    try:
-        for setting in kwargs:
-            os.environ[setting] = kwargs[setting]
+    if cache_key not in _FROM_ENV_CACHE:
+        _FROM_ENV_CACHE[cache_key] = Settings()
 
-        new_settings = Settings()
-
-        for field in settings.__fields__:
-            # The settings object is frozen and we must bypass Pydantic's setattr to
-            # mutate a field.
-            object.__setattr__(settings, field, getattr(new_settings, field))
-
-        yield settings
-    finally:
-        for setting in kwargs:
-            if old_env.get(setting):
-                os.environ[setting] = old_env[setting]
-            else:
-                os.environ.pop(setting, None)
-
-        for field in settings.__fields__:
-            object.__setattr__(settings, field, getattr(old_settings, field))
+    return _FROM_ENV_CACHE[cache_key]

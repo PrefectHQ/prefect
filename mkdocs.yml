@@ -76,6 +76,7 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
+        - Orchestration Rules: concepts/orchestration.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Flow Runners: concepts/flow-runners.md
@@ -97,6 +98,7 @@ nav:
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
+            - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Utilities':
                 - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
@@ -105,7 +107,6 @@ nav:
                 - 'prefect.utilities.enum': api-ref/prefect/utilities/enum.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
-                - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
                 - 'prefect.cli.base': api-ref/prefect/cli/base.md
@@ -159,6 +160,7 @@ nav:
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
         - Orion REST API: api-ref/rest-api.md
+    - Contributing: contributing/overview.md
 extra:
   analytics:
     provider: google

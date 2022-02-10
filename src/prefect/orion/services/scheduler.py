@@ -11,13 +11,14 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect
+import prefect.settings
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService
 from prefect.utilities.collections import batched_iterable
 
-settings = prefect.settings.orion.services
+settings = prefect.settings.from_env().orion.services
 
 
 class Scheduler(LoopService):

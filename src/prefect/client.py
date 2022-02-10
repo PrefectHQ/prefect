@@ -86,7 +86,7 @@ class OrionClient:
 
     def __init__(
         self,
-        host: str = prefect.settings.orion_host,
+        host: str = prefect.settings.from_env().orion_host,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
@@ -247,7 +247,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = settings.orion.api.default_limit,
+        limit: int = prefect.settings.from_env().orion.api.default_limit,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
         """
@@ -760,7 +760,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = settings.orion.api.default_limit,
+        limit: int = prefect.settings.from_env().orion.api.default_limit,
         offset: int = 0,
     ) -> schemas.core.Deployment:
         """
@@ -819,7 +819,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
-        limit: int = settings.orion.api.default_limit,
+        limit: int = prefect.settings.from_env().orion.api.default_limit,
         offset: int = 0,
     ) -> List[schemas.core.FlowRun]:
         """
@@ -1080,7 +1080,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.TaskRunSort = None,
-        limit: int = settings.orion.api.default_limit,
+        limit: int = prefect.settings.from_env().orion.api.default_limit,
         offset: int = 0,
     ) -> List[schemas.core.TaskRun]:
         """
