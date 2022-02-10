@@ -10,3 +10,11 @@ export function toPluralString(word: string, count: number): string {
 
   return `${word}${ending}`
 }
+
+export function snakeCase(string: string) {
+  return string
+    .replace(/\W+/g, ' ')
+    .split(/ |\B(?=[A-Z])/)
+    .map((word) => word.toLowerCase())
+    .join('_')
+}

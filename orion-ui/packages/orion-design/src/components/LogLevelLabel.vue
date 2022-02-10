@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { snakeCase } from '@/utilities/strings'
+  import { snakeCase } from '../utilities/strings'
   import { computed } from 'vue'
   import { logLevelLabel } from '../utilities'
 
