@@ -6,7 +6,7 @@
     <template v-for="filter in filters" :key="filter.id">
       <button type="button" class="filters-search-menu__filter" @click="apply(filter.filters)">
         <span class="filters-search-menu__filter-name">{{ filter.name }}</span>
-        <m-icon-button flat class="filters-search-menu__filter-remove" icon="pi-delete-bin-line pi-sm" @click="remove(filter.id)" />
+        <m-icon-button flat class="filters-search-menu__filter-remove" icon="pi-delete-bin-line pi-sm" @click.stop="remove(filter.id)" />
       </button>
     </template>
     <m-loader :loading="loading" class="filters-search-menu__loader" />
@@ -58,9 +58,7 @@
 <style lang="scss" scoped>
 .filters-search-menu {
   background: #FFFFFF;
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
-  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
   overflow: hidden;
   max-height: 50vh;
   position: relative;
