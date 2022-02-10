@@ -76,7 +76,7 @@ def generate_welcome_blub(base_url):
 
     if not os.path.exists(prefect.__ui_static_path__):
         blurb += dashboard_not_built
-    elif not prefect.settings.orion.ui.enabled:
+    elif not prefect.settings.from_env().orion.ui.enabled:
         blurb += dashboard_disabled
     else:
         blurb += visit_dashboard
@@ -116,12 +116,12 @@ async def open_process_and_stream_output(
 @orion_app.command()
 @sync_compatible
 async def start(
-    host: str = prefect.settings.orion.api.host,
-    port: int = prefect.settings.orion.api.port,
-    log_level: str = prefect.settings.logging.server_level,
-    services: bool = True,  # Note this differs from the default of `prefect.settings.orion.services.run_in_app`
+    host: str = prefect.settings.from_env().orion.api.host,
+    port: int = prefect.settings.from_env().orion.api.port,
+    log_level: str = prefect.settings.from_env().logging.server_level,
+    services: bool = True,  # Note this differs from the default of `prefect.settings.from_env().orion.services.run_in_app`
     agent: bool = True,
-    ui: bool = prefect.settings.orion.ui.enabled,
+    ui: bool = prefect.settings.from_env().orion.ui.enabled,
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -186,7 +186,7 @@ async def start(
 @orion_app.command()
 def kubernetes_manifest():
     """
-    Generates a kubernetes manifest for to deploy Orion to a cluster.
+    Generates a Kubernetes manifest for deploying Orion to a cluster.
 
     Example:
         $ prefect orion kubernetes-manifest | kubectl apply -f -

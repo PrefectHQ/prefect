@@ -9,11 +9,11 @@ Usage:
 The hooks default to 'black' and 'isort', but you can specify different hooks. For
 example, here we just get the 'black' version:
 
-    precommit-versions.py black
+    ./precommit-versions.py black
 
 The output can be used with pip
 
-    pip install $(precommit-versions.py)
+    pip install $(./scripts/precommit-versions.py)
 
 """
 import os
