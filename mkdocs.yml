@@ -162,7 +162,7 @@ nav:
         - Orion REST API: api-ref/rest-api.md
     - Contributing: 
         - Overview: contributing/overview.md
-        - Imports: contributing/imports.md
+        - Style: contributing/style.md
 
 extra:
   analytics:
