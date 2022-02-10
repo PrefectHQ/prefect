@@ -2,10 +2,11 @@ import sqlite3
 from abc import ABC, abstractmethod
 from asyncio import get_event_loop
 from functools import partial
-from typing import Hashable, Literal, Tuple
+from typing import Hashable, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from typing_extensions import Literal
 
 import prefect.settings
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
