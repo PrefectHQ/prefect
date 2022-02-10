@@ -1,18 +1,27 @@
-import json
 import os
 
 import pytest
 
-from prefect import settings
-from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
+import prefect.settings
+from prefect.settings import LoggingSettings, Settings
+from prefect.utilities.testing import temporary_settings
 
 
 def test_settings():
-    assert settings.test_mode is True
+    assert prefect.settings.from_env().test_mode is True
+
+
+def test_temporary_settings():
+    assert prefect.settings.from_env().test_mode is True
+    with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
+        assert new_settings.test_mode is False, "Yields the new settings"
+        assert prefect.settings.from_env().test_mode is False, "Loading from env works"
+
+    assert prefect.settings.from_env().test_mode is True, "Restores old setting"
 
 
 def test_refresh_settings():
-    assert settings.test_mode is True
+    assert prefect.settings.from_env().test_mode is True
 
     os.environ["PREFECT_TEST_MODE"] = "0"
     new_settings = Settings()
@@ -20,18 +29,11 @@ def test_refresh_settings():
 
 
 def test_nested_settings():
-    assert settings.orion.database.echo is False
+    assert prefect.settings.from_env().orion.database.echo is False
 
     os.environ["PREFECT_ORION_DATABASE_ECHO"] = "1"
     new_settings = Settings()
     assert new_settings.orion.database.echo is True
-
-
-def test_secret_settings_are_not_serialized():
-    assert settings.orion.database.connection_url != "**********"
-
-    settings_json = json.loads(settings.json())
-    assert settings_json["orion"]["database"]["connection_url"] == "**********"
 
 
 @pytest.mark.parametrize(
