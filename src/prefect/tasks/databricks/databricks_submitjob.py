@@ -45,10 +45,11 @@ def _deep_string_coerce(content, json_path="json"):
             key: _deep_string_coerce(content=value, json_path=f"{json_path}[{key}]")
             for key, value in list(content.items())
         }
-    else:
-        raise ValueError(
-            f"Type {type(content)} used for parameter {json_path} is not a number or a string"
-        )
+    elif isinstance(content, Enum):
+        return content.value
+    raise ValueError(
+        f"Type {type(content)} used for parameter {json_path} is not a number or a string"
+    )
 
 
 def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
@@ -1009,14 +1010,22 @@ class DatabricksSubmitMultitaskRun(Task):
 
     @staticmethod
     def convert_dict_to_kwargs(input: Dict[str, Any]):
-        return {
+        kwargs = {
             **input,
             "tasks": _deep_from_dict(List[JobTaskSettings], input["tasks"]),
             "access_control_list": _deep_from_dict(
                 List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
-                input["access_control_list"],
+                input.get("access_control_list", None),
             ),
         }
+
+        if input.get("access_control_list"):
+            kwargs["access_control_list"] = _deep_from_dict(
+                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
+                input["access_control_list"],
+            )
+
+        return kwargs
 
     @defaults_from_attrs(
         "databricks_conn_secret",
