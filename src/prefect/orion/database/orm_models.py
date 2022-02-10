@@ -733,7 +733,7 @@ class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
 
-    Modifications to schemas.core Orion data structures can have unintended consequences.
+    Modifications to core Orion data structures can have unintended consequences.
     Use with caution.
 
     Args:
@@ -773,17 +773,17 @@ class BaseORMConfiguration(ABC):
             # sqlalchemy will use the following templated strings
             # to generate the names of indices, constraints, and keys
             #
-            # we offset the table name with two undersschemas.cores (__) to
+            # we offset the table name with two underscores (__) to
             # help differentiate, for example, between "flow_run.state_type"
             # and "flow_run_state.type".
             #
             # more information on this templating and available
             # customization can be found here
-            # https://docs.sqlalchemy.org/en/14/schemas.core/metaschemas.data.html#sqlalchemy.schema.MetaData
+            # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
             #
             # this also allows us to avoid having to specify names explicitly
             # when using sa.ForeignKey.use_alter = True
-            # https://docs.sqlalchemy.org/en/14/schemas.core/constraints.html
+            # https://docs.sqlalchemy.org/en/14/core/constraints.html
             naming_convention={
                 "ix": "ix_%(table_name)s__%(column_0_N_name)s",
                 "uq": "uq_%(table_name)s__%(column_0_N_name)s",
