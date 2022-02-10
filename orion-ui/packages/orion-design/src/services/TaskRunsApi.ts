@@ -1,8 +1,8 @@
 import { AxiosResponse } from 'axios'
-import { TaskRun } from '../models/TaskRun'
 import { StateType } from '../models/StateType'
+import { TaskRun } from '../models/TaskRun'
 import { Api } from './Api'
-import { IStateResponse, States } from './StatesApi'
+import { IStateResponse, statesApi } from './StatesApi'
 
 export type ITaskRunResponse = {
   id: string,
@@ -65,7 +65,7 @@ export class TaskRunsApi extends Api {
       endTime: new Date(taskRun.end_time),
       stateId: taskRun.state_id,
       stateType: taskRun.state_type,
-      state: States.stateMapper(taskRun.state),
+      state: statesApi.stateMapper(taskRun.state),
       duration: taskRun.duration,
       subflowRuns: taskRun.subflow_runs,
       tags: taskRun.tags,
@@ -81,4 +81,4 @@ export class TaskRunsApi extends Api {
   }
 }
 
-export const TaskRuns = new TaskRunsApi()
+export const taskRunsApi = new TaskRunsApi()

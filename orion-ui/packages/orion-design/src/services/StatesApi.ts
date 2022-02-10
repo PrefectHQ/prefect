@@ -26,4 +26,4 @@ export class StatesApi {
 
 }
 
-export const States = new StatesApi()
+export const statesApi = new StatesApi()
