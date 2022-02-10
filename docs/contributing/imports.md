@@ -10,15 +10,13 @@ A brief collection of rules and guidelines for how imports should be handled in 
 
 If importing objects from submodules, the `__init__` file should use a relative import. This is [required for type checkers](https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface) to understand the exposed interface.
 
-Right:
-
 ```python
+# Correct
 from .flows import flow
 ```
 
-Wrong:
-
 ```python
+# Wrong
 from prefect.flows import flow
 ```
 
@@ -43,9 +41,8 @@ Right:
 from . import flows
 ```
 
-Wrong:
-
 ```python
+# Wrong
 import prefect.flows
 ```
 
@@ -66,45 +63,39 @@ We have a couple uses of this currently:
 
 The `from` syntax should be reserved for importing objects from modules. Modules should not be imported using the `from` syntax.
 
-Right:
-
 ```python
+# Correct
 import prefect.orion.schemas  # use with the full name
 import prefect.orion.schemas as schemas  # use the shorter name
 ```
 
-Wrong:
-
 ```python
+# Wrong
 from prefect.orion import schemas
 ```
 
 Unless in an `__init__.py` file, relative imports should not be used.
 
 
-Right:
-
 ```python
+# Correct
 from prefect.utilities.foo import bar
 ```
 
-Wrong:
-
 ```python
+# Wrong
 from .utilities.foo import bar
 ```
 
 Imports dependent on file location should never be used without explicit indication it is relative. This avoids confusion about the source of a module.
 
-Right:
-
 ```python
+# Correct
 from . import test
 ```
 
-Wrong:
-
 ```python
+# Wrong
 import test
 ```
 
@@ -130,7 +121,8 @@ When performing deferred imports, they should all be placed at the top of the fu
 If you are just using the imported object for a type signature, you should use the `TYPE_CHECKING` flag.
 
 ```python
-from typing import TYPE_CHECKING:
+# Correct
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from prefect.orion.schemas.states import State
