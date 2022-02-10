@@ -16,10 +16,9 @@ For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster run w
 
 ## Requirements
 
-To run the steps in this tutorial, you'll need:
+To run the steps in this tutorial, all you'll need is `kubectl` configured to connect to a cluster.
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) must be installed and running.
-- Turn on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration in Docker Desktop.
+An easy way to get started is to use [Docker Desktop](https://www.docker.com/products/docker-desktop), turning on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration.
 
 ## Running Orion on Kubernetes
 
@@ -92,12 +91,13 @@ Check out the dashboard at <http://0.0.0.0:4200>
 
 The agent has been disabled. Start an agent with `prefect agent start`.
 
-Starting agent connected to <http://localhost:4200/api>...
+Starting agent connected to http://orion:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
- | _ \\ _ \\ __| __| __/ __|_   _|   /_\\ / __| __| \\| |_   _|
- |  _/   / _|| _|| _| (__  | |    / _ \\ (_ | _|| .` | | |
- |_| |_|_\\___|_| |___\\___| |_|   /_/ \\_\\___|___|_|\\_| |_|
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
+
 
 Agent started!
 
@@ -153,7 +153,7 @@ Now that the environment is configured, we can write a flow that runs on the "or
 
 You can think of a deployment as a way to tell Prefect when and how to run flows on a schedule. Using a flow runner requires creating a Prefect deployment for your flow.
 
-Let's configure a new deployment that runs a flow using the Kubernetes flow runner. This deployment will run a flow that prints "Hello from Kubernetes!" every 30 seconds.
+Let's configure a new deployment that runs a flow using the Kubernetes flow runner. This deployment will run a flow that prints "Hello from Kubernetes!".
 
 To test out this flow, paste this code into a file named `k8s_flow.py`.
 
