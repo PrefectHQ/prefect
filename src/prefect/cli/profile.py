@@ -22,30 +22,18 @@ profile_app = PrefectTyper(
 app.add_typer(profile_app)
 
 
-def load_profiles() -> dict:
-    path = prefect.settings.from_env().profiles_path
-    if not path.exists():
-        return prefect.context.DEFAULT_PROFILES
-    return toml.loads(path.read_text())
-
-
-def write_profiles(profiles: dict):
-    path = prefect.settings.from_env().profiles_path
-    return path.write_text(toml.dumps(profiles))
-
-
 @profile_app.command()
 def inspect(name: str = typer.Argument(None), all: bool = False):
     """
     View settings in a profile.
     """
     if all:
-        profiles = load_profiles()
+        profiles = prefect.context.load_profiles()
         console.out(toml.dumps(profiles).strip())
         return
 
     if name:
-        profiles = load_profiles()
+        profiles = prefect.context.load_profiles()
         if name not in profiles:
             exit_with_error(f"Profle {name!r} not found.")
         env = profiles[name]
@@ -70,7 +58,7 @@ def set(variables: List[str]):
     """
     Set a value in the current profile.
     """
-    profiles = load_profiles()
+    profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
 
@@ -89,7 +77,7 @@ def set(variables: List[str]):
         env[var] = value
         console.print(f"Set variable {var!r} to {value!r}")
 
-    write_profiles(profiles)
+    prefect.context.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
@@ -98,7 +86,7 @@ def unset(variables: List[str]):
     """
     Set a value in the current profile.
     """
-    profiles = load_profiles()
+    profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
 
@@ -110,7 +98,7 @@ def unset(variables: List[str]):
     for var in variables:
         console.print(f"Unset variable {var!r}")
 
-    write_profiles(profiles)
+    prefect.context.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
@@ -122,7 +110,7 @@ def create(
     """
     Create a new profile
     """
-    profiles = load_profiles()
+    profiles = prefect.context.load_profiles()
     if new_name in profiles:
         exit_with_error(
             f"Profile {new_name!r} already exists. "
@@ -139,7 +127,7 @@ def create(
         from_blurb = ""
         profiles[new_name] = {}
 
-    write_profiles(profiles)
+    prefect.context.write_profiles(profiles)
     exit_with_success(f"Created profile {new_name!r}{from_blurb}.")
 
 
@@ -148,7 +136,7 @@ def rm(name: str):
     """
     Delete the given profile.
     """
-    profiles = load_profiles()
+    profiles = prefect.context.load_profiles()
     if name not in profiles:
         exit_with_error(f"Profle {name!r} not found.")
 
@@ -159,5 +147,5 @@ def rm(name: str):
         verb = "Reset"
         profiles["default"] = {}
 
-    write_profiles(profiles)
+    prefect.context.write_profiles(profiles)
     exit_with_success(f"{verb} profile {name!r}.")

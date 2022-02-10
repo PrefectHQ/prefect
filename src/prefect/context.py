@@ -284,17 +284,29 @@ class ProfileContext(ContextModel):
 DEFAULT_PROFILES = {"default": {}}
 
 
+def load_profiles() -> Dict[str, Dict[str, str]]:
+    path = prefect.settings.from_env().profiles_path
+    if not path.exists():
+        profiles = DEFAULT_PROFILES
+    else:
+        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
+
+    return profiles
+
+
+def write_profiles(profiles: dict):
+    path = prefect.settings.from_env().profiles_path
+    profiles = {**DEFAULT_PROFILES, **profiles}
+    return path.write_text(toml.dumps(profiles))
+
+
 def load_profile(name: str) -> Dict[str, str]:
     """
     Loads a profile from the TOML file.
 
     Asserts that all variables are valid string key/value pairs.
     """
-    path = prefect.settings.from_env().profiles_path
-    if not path.exists():
-        profiles = DEFAULT_PROFILES
-    else:
-        profiles = toml.loads(path.read_text())
+    profiles = load_profiles()
 
     if name not in profiles:
         raise ValueError(f"Profile {name!r} not found.")
@@ -317,7 +329,7 @@ _PROFILE_LOCK = threading.Lock()
 @contextmanager
 def profile(
     name: str,
-    create_home: bool = True,
+    create_home: bool = False,
     setup_logging: bool = False,
     override_existing_variables: bool = False,
 ):
@@ -347,11 +359,7 @@ def initialize_module_profile():
     This should only be called _once_ at Prefect module initialization.
     """
     name = os.environ.get("PREFECT_PROFILE", "default")
-    context = profile(
-        name=name,
-        setup_logging=True,
-        override_existing_variables=False,
-    )
+    context = profile(name=name, create_home=True, setup_logging=True)
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
 
