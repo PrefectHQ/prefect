@@ -14,6 +14,7 @@ from prefect.tasks.databricks import (
 )
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
 from prefect.tasks.databricks.models import (
+    AccessControlRequest,
     AccessControlRequestForUser,
     AutoScale,
     AwsAttributes,
@@ -23,6 +24,7 @@ from prefect.tasks.databricks.models import (
     Library,
     NewCluster,
     NotebookTask,
+    PermissionLevel,
     SparkJarTask,
     TaskDependency,
 )
@@ -375,7 +377,8 @@ class TestDatabricksSubmitMultitaskRun:
 
     def test_requires_at_least_one_task(self, flow_run_name, flow_run_id):
         task = DatabricksSubmitMultitaskRun(
-            databricks_conn_secret=self.databricks_conn_secret, tasks=[],
+            databricks_conn_secret=self.databricks_conn_secret,
+            tasks=[],
         )
 
         with pytest.raises(ValueError, match="at least one Databricks task"):
@@ -383,25 +386,36 @@ class TestDatabricksSubmitMultitaskRun:
 
     def test_errors_on_incorrect_credential_format(self):
         task = DatabricksSubmitMultitaskRun(
-            databricks_conn_secret="token", tasks=[self.test_databricks_task],
+            databricks_conn_secret="token",
+            tasks=[self.test_databricks_task],
         )
         with pytest.raises(ValueError, match="must be supplied as a dictionary"):
             task.run()
 
     def test_default_idempotency_token(
-        self, match_run_sumbission_on_idempotency_token, successful_run_completion,
+        self,
+        match_run_sumbission_on_idempotency_token,
+        successful_run_completion,
     ):
         task = DatabricksSubmitMultitaskRun(
             databricks_conn_secret=self.databricks_conn_secret,
             tasks=[self.test_databricks_task],
             run_name="Test Run",
+            access_control_list=[
+                AccessControlRequestForUser(
+                    user_name="jsmith@example.com",
+                    permission_level=CanManage.CAN_MANAGE,
+                )
+            ],
         )
 
         # Will fail if expected idempotency token is not used
         assert task.run() == "12345"
 
     def test_default_run_name(
-        self, match_run_sumbission_on_run_name, successful_run_completion,
+        self,
+        match_run_sumbission_on_run_name,
+        successful_run_completion,
     ):
         task = DatabricksSubmitMultitaskRun(
             databricks_conn_secret=self.databricks_conn_secret,
@@ -476,9 +490,11 @@ class TestDatabricksSubmitMultitaskRun:
             "timeout_seconds": 86400,
             "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
             "access_control_list": [
-                AccessControlRequestForUser(
-                    user_name="jsmith@example.com",
-                    permission_level=CanManage.CAN_MANAGE,
+                AccessControlRequest(
+                    __root__=AccessControlRequestForUser(
+                        user_name="jsmith@example.com",
+                        permission_level=PermissionLevel(__root__=CanManage.CAN_MANAGE),
+                    )
                 )
             ],
         }

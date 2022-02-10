@@ -55,6 +55,7 @@ extras = {
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
+    "databricks": ["pydantic >= 1.9.0"],
     "dropbox": ["dropbox ~= 9.0"],
     "firebolt": ["firebolt-sdk >= 0.2.1"],
     "ge": ["great_expectations >= 0.13.8", "mistune < 2.0"],

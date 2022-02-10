@@ -1,9 +1,7 @@
-from dataclasses import asdict, fields, is_dataclass
-from inspect import isclass
 import time
 from typing import Any, Dict, List, Union
-from typing_extensions import get_origin, get_args
 from enum import Enum
+from pydantic import parse_obj_as
 
 import six
 
@@ -12,6 +10,7 @@ from prefect import Task
 from prefect.exceptions import PrefectException
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
 from prefect.tasks.databricks.models import (
+    AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
     JobTaskSettings,
@@ -86,54 +85,6 @@ def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
             log.info("View run status, Spark UI, and logs at %s", run_page_url)
             log.info("Sleeping for %s seconds.", task.polling_period_seconds)
             time.sleep(task.polling_period_seconds)
-
-
-def _is_optional(input) -> bool:
-    """Checks to see if a type is an Optional generic"""
-    return get_origin(input) is Union and type(None) in get_args(input)
-
-
-def _deep_from_dict(desired_dataclass, input):
-    """
-    Utility method to take an input and recursively attempt to create the desired dataclass with
-    values in the input
-    """
-    if isinstance(input, (tuple, list)):
-        # If the input is a list, attempt to create dataclasses for all items in the list
-        return [_deep_from_dict(get_args(desired_dataclass)[0], item) for item in input]
-    if isclass(desired_dataclass) and issubclass(desired_dataclass, Enum):
-        # If the desired result is an Enum then return an instance of that Enum
-        return desired_dataclass[input]
-    if get_origin(desired_dataclass) is Union:
-        # If the desired result is a union try to create an instance of the desired result that matches
-        # the shape of the input
-        for member in get_args(desired_dataclass):
-            if is_dataclass(member):
-                if set([field.name for field in fields(member)]) == set(input.keys()):
-                    # Recursively create instances of composed types if necessary
-                    return _deep_from_dict(member, input)
-            if isclass(member) and issubclass(member, Enum):
-                for item in member:
-                    if item.value == input:
-                        return member[input]
-    if isinstance(input, dict):
-        # If the input is a dictionary, create an instance of the desired result
-        if is_dataclass(desired_dataclass):
-            field_types = {
-                field.name: field.type for field in fields(desired_dataclass)
-            }
-            dataclass_args = {}
-            for key, value in input.items():
-                item_type = field_types[key]
-                if _is_optional(item_type):
-                    item_type = next(
-                        t for t in get_args(item_type) if t is not type(None)
-                    )
-                # Recursively create instances of composed types if necessary
-                dataclass_args[key] = _deep_from_dict(item_type, value)
-            return desired_dataclass(**dataclass_args)
-    # Return the value if no conditions were met. Most likely means the input is a primitive.
-    return input
 
 
 class DatabricksSubmitRun(Task):
@@ -1010,18 +961,11 @@ class DatabricksSubmitMultitaskRun(Task):
 
     @staticmethod
     def convert_dict_to_kwargs(input: Dict[str, Any]):
-        kwargs = {
-            **input,
-            "tasks": _deep_from_dict(List[JobTaskSettings], input["tasks"]),
-            "access_control_list": _deep_from_dict(
-                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
-                input.get("access_control_list", None),
-            ),
-        }
+        kwargs = {**input, "tasks": parse_obj_as(List[JobTaskSettings], input["tasks"])}
 
         if input.get("access_control_list"):
-            kwargs["access_control_list"] = _deep_from_dict(
-                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
+            kwargs["access_control_list"] = parse_obj_as(
+                List[AccessControlRequest],
                 input["access_control_list"],
             )
 
@@ -1045,9 +989,7 @@ class DatabricksSubmitMultitaskRun(Task):
         run_name: str = None,
         timeout_seconds: int = None,
         idempotency_token: str = None,
-        access_control_list: List[
-            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
-        ] = None,
+        access_control_list: List[AccessControlRequest] = None,
         polling_period_seconds: int = None,
         databricks_retry_limit: int = None,
         databricks_retry_delay: float = None,
@@ -1114,12 +1056,12 @@ class DatabricksSubmitMultitaskRun(Task):
         # Set json on task instance because _handle_databricks_task_execution expects it
         self.json = _deep_string_coerce(
             dict(
-                tasks=[asdict(task) for task in tasks],
+                tasks=[task.dict() for task in tasks],
                 run_name=run_name,
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
                 access_control_list=[
-                    asdict(entry) for entry in access_control_list or []
+                    entry.dict() for entry in access_control_list or []
                 ],
             )
         )

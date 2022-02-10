@@ -1,15 +1,14 @@
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Optional, List, Any, Union
 
+from pydantic import BaseModel, Field
 
-@dataclass
-class TaskDependency:
+
+class TaskDependency(BaseModel):
     task_key: str
 
 
-@dataclass
-class AutoScale:
+class AutoScale(BaseModel):
     min_workers: int
     max_workers: int
 
@@ -25,8 +24,7 @@ class EbsVolumeType(Enum):
     THROUGHPUT_OPTIMIZED_HDD = "THROUGHPUT_OPTIMIZED_HDD"
 
 
-@dataclass
-class AwsAttributes:
+class AwsAttributes(BaseModel):
     first_on_demand: Optional[int] = None
     availability: Optional[AwsAvailability] = None
     zone_id: Optional[str] = None
@@ -39,13 +37,11 @@ class AwsAttributes:
     ebs_volume_throughput: Optional[int] = None
 
 
-@dataclass
-class DbfsStorageInfo:
+class DbfsStorageInfo(BaseModel):
     destination: Optional[str] = None
 
 
-@dataclass
-class S3StorageInfo:
+class S3StorageInfo(BaseModel):
     destination: Optional[str] = None
     region: Optional[str] = None
     endpoint: Optional[str] = None
@@ -55,30 +51,26 @@ class S3StorageInfo:
     canned_acl: Optional[str] = None
 
 
-@dataclass
-class FileStorageInfo:
+class FileStorageInfo(BaseModel):
     destination: Optional[str] = None
 
 
-@dataclass
-class ClusterLogConf:
+class ClusterLogConf(BaseModel):
     dbfs: Optional[DbfsStorageInfo] = None
     s3: Optional[S3StorageInfo] = None
 
 
-@dataclass
-class InitScriptInfo:
+class InitScriptInfo(BaseModel):
     dbfs: Optional[DbfsStorageInfo] = None
     file: Optional[FileStorageInfo] = None
     S3: Optional[S3StorageInfo] = None
 
 
-@dataclass
-class NewCluster:
+class NewCluster(BaseModel):
     autoscale: AutoScale
     spark_version: str
     node_type_id: str
-    spark_conf: Dict = field(default_factory=dict)
+    spark_conf: Dict = Field(default_factory=dict)
     num_workers: Optional[int] = None
     aws_attributes: Optional[AwsAttributes] = None
     driver_node_type_id: Optional[str] = None
@@ -92,62 +84,52 @@ class NewCluster:
     instance_pool_id: Optional[str] = None
 
 
-@dataclass
-class NotebookTask:
+class NotebookTask(BaseModel):
     notebook_path: str
     base_parameters: Optional[Dict[str, Any]] = None
 
 
-@dataclass
-class SparkJarTask:
+class SparkJarTask(BaseModel):
     main_class_name: str
-    parameters: List[str] = field(default_factory=list)
+    parameters: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class SparkPythonTask:
+class SparkPythonTask(BaseModel):
     python_file: str
-    parameters: List[str] = field(default_factory=list)
+    parameters: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class SparkSubmitTask:
+class SparkSubmitTask(BaseModel):
     parameters: List[str]
 
 
-@dataclass
-class PipelineTask:
+class PipelineTask(BaseModel):
     pipeline_id: str
 
 
-@dataclass
-class PythonWheelTask:
+class PythonWheelTask(BaseModel):
     package_name: str
     entry_point: Optional[str] = None
-    parameters: List[str] = field(default_factory=list)
+    parameters: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class MavenLibrary:
+class MavenLibrary(BaseModel):
     coordinates: str
     repo: Optional[str] = None
-    exclusions: List[str] = field(default_factory=list)
+    exclusions: List[str] = Field(default_factory=list)
 
 
-@dataclass
-class PythonPyPiLibrary:
+class PythonPyPiLibrary(BaseModel):
     package: str
     repo: Optional[str] = None
 
 
-@dataclass
-class RCranLibrary:
+class RCranLibrary(BaseModel):
     package: str
     repo: Optional[str] = None
 
 
-@dataclass
-class Library:
+class Library(BaseModel):
     jar: Optional[str] = None
     egg: Optional[str] = None
     whl: Optional[str] = None
@@ -156,19 +138,17 @@ class Library:
     cran: Optional[RCranLibrary] = None
 
 
-@dataclass
-class JobEmailNotifications:
-    on_start: List[str] = field(default_factory=list)
-    on_success: List[str] = field(default_factory=list)
-    on_failure: List[str] = field(default_factory=list)
+class JobEmailNotifications(BaseModel):
+    on_start: List[str] = Field(default_factory=list)
+    on_success: List[str] = Field(default_factory=list)
+    on_failure: List[str] = Field(default_factory=list)
     no_alert_for_skipped_runs: bool = False
 
 
-@dataclass
-class JobTaskSettings:
+class JobTaskSettings(BaseModel):
     task_key: str
     description: Optional[str] = None
-    depends_on: List[TaskDependency] = field(default_factory=list)
+    depends_on: List[TaskDependency] = Field(default_factory=list)
     existing_cluster_id: Optional[str] = None
     new_cluster: Optional[NewCluster] = None
     job_cluster_key: Optional[str] = None
@@ -186,8 +166,7 @@ class JobTaskSettings:
     retry_on_timeout: Optional[bool] = None
 
 
-@dataclass
-class JobCluster:
+class JobCluster(BaseModel):
     job_cluster_key: str
     new_cluster: Optional[NewCluster] = None
 
@@ -208,13 +187,23 @@ class IsOwner(Enum):
     IS_OWNER = "IS_OWNER"
 
 
-@dataclass
-class AccessControlRequestForUser:
+class PermissionLevel(BaseModel):
+    __root__: Union[CanManage, CanManageRun, CanView, IsOwner]
+
+
+class PermissionLevelForGroup(BaseModel):
+    __root__: Union[CanManage, CanManageRun, CanView]
+
+
+class AccessControlRequestForUser(BaseModel):
     user_name: str
-    permission_level: Union[CanManage, CanManageRun, CanView, IsOwner]
+    permission_level: PermissionLevel
 
 
-@dataclass
-class AccessControlRequestForGroup:
+class AccessControlRequestForGroup(BaseModel):
     group_name: str
-    permission_level: Union[CanManage, CanManageRun, CanView]
+    permission_level: PermissionLevelForGroup
+
+
+class AccessControlRequest(BaseModel):
+    __root__: Union[AccessControlRequestForUser, AccessControlRequestForGroup]
