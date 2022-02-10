@@ -3,7 +3,7 @@ import FlowRunHistory, { IFlowRunHistory } from './flowRunHistory'
 import FlowRunStateHistoryMock from './flowRunStateHistoryMock'
 import faker from 'faker'
 import { fakerRandomArray } from '@/utilities/faker'
-import { State, StateNames, States } from '@/types/states'
+import { State, StateNames, States } from '@prefecthq/orion-design'
 
 export default class FlowRunHistoryMock extends FlowRunHistory {
   constructor(flow: Partial<IFlowRunHistory> = {}) {

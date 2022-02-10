@@ -39,8 +39,7 @@ import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
-import media from '@/utilities/media'
-import { toPluralString } from '@/utilities/strings'
+import { media, toPluralString } from '@prefecthq/orion-design/utilities'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 

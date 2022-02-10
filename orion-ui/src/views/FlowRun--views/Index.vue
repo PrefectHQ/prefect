@@ -189,7 +189,7 @@ import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import type { UnionFilters, FlowsFilter } from '@prefecthq/orion-design'
 import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
-import { toPluralString } from '@/utilities/strings'
+import { toPluralString } from '@prefecthq/orion-design/utilities'
 
 const route = useRoute()
 
