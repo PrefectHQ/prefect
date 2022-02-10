@@ -6,7 +6,7 @@ from typing import Any, Generic, Type, TypeVar
 
 from typing_extensions import Literal
 
-from prefect import settings
+import prefect.settings
 from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -99,7 +99,7 @@ def get_instance_data_location() -> DataLocation:
     Return the current data location configured for this Orion instance
     """
     return DataLocation(
-        name=settings.orion.data.name,
-        base_path=settings.orion.data.base_path,
-        scheme=settings.orion.data.scheme.lower(),
+        name=prefect.settings.from_env().orion.data.name,
+        base_path=prefect.settings.from_env().orion.data.base_path,
+        scheme=prefect.settings.from_env().orion.data.scheme.lower(),
     )

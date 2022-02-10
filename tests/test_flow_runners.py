@@ -28,6 +28,7 @@ from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
     FlowRunner,
+    ImagePullPolicy,
     KubernetesFlowRunner,
     KubernetesImagePullPolicy,
     KubernetesRestartPolicy,
@@ -40,9 +41,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.settings import temporary_settings
-from prefect.utilities.testing import AsyncMock
-from src.prefect.flow_runners import ImagePullPolicy
+from prefect.utilities.testing import AsyncMock, temporary_settings
 
 
 class VersionInfo(NamedTuple):
@@ -222,7 +221,7 @@ async def prefect_settings_test_deployment(orion_client):
     def my_flow():
         import prefect
 
-        return prefect.settings
+        return prefect.settings.from_env()
 
     flow_id = await orion_client.create_flow(my_flow)
 
@@ -1204,7 +1203,7 @@ class TestKubernetesFlowRunner:
     @pytest.fixture
     def k8s_hosted_orion(self):
         """
-        Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the k8s-hosted
+        Sets `PREFECT_ORION_HOST` and `prefect.settings.from_env().orion_host` to the k8s-hosted
         API endpoint.
         """
         kubernetes = pytest.importorskip("kubernetes")
