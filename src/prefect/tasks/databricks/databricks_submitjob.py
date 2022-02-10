@@ -42,7 +42,7 @@ def _deep_string_coerce(content, json_path="json"):
         ]
     elif isinstance(content, dict):
         return {
-            key: _deep_string_coerce(content=value, json_path="f{json_path}[{k}]")
+            key: _deep_string_coerce(content=value, json_path=f"{json_path}[{key}]")
             for key, value in list(content.items())
         }
     else:
@@ -913,6 +913,8 @@ class DatabricksSubmitMultitaskRun(Task):
         from prefect import Flow
         from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
 
+        submit_multitask_run = DatabricksSubmitMultitaskRun()
+
         databricks_kwargs = DatabricksSubmitMultitaskRun.convert_dict_to_kwargs({
             "tasks": [
                 {
@@ -965,7 +967,6 @@ class DatabricksSubmitMultitaskRun(Task):
             ],
             "run_name": "A multitask job run",
             "timeout_seconds": 86400,
-            "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
             "access_control_list": [
                 {
                     "user_name": "jsmith@example.com",
@@ -982,7 +983,7 @@ class DatabricksSubmitMultitaskRun(Task):
 
     def __init__(
         self,
-        databricks_conn_info: dict = None,
+        databricks_conn_secret: dict = None,
         tasks: List[JobTaskSettings] = None,
         run_name: str = None,
         timeout_seconds: int = None,
@@ -995,7 +996,7 @@ class DatabricksSubmitMultitaskRun(Task):
         databricks_retry_delay: float = 1,
         **kwargs,
     ):
-        self.databricks_conn_info = databricks_conn_info
+        self.databricks_conn_secret = databricks_conn_secret
         self.tasks = tasks
         self.run_name = run_name
         self.timeout_seconds = timeout_seconds
@@ -1018,7 +1019,7 @@ class DatabricksSubmitMultitaskRun(Task):
         }
 
     @defaults_from_attrs(
-        "databricks_conn_info",
+        "databricks_conn_secret",
         "tasks",
         "run_name",
         "timeout_seconds",
@@ -1030,7 +1031,7 @@ class DatabricksSubmitMultitaskRun(Task):
     )
     def run(
         self,
-        databricks_conn_info: dict = None,
+        databricks_conn_secret: dict = None,
         tasks: List[JobTaskSettings] = None,
         run_name: str = None,
         timeout_seconds: int = None,
@@ -1076,7 +1077,9 @@ class DatabricksSubmitMultitaskRun(Task):
             - run_id (str): Run id of the submitted run
 
         """
-        if databricks_conn_info is None or not isinstance(databricks_conn_info, dict):
+        if databricks_conn_secret is None or not isinstance(
+            databricks_conn_secret, dict
+        ):
             raise ValueError(
                 "Databricks connection info must be supplied as a dictionary."
             )
@@ -1094,7 +1097,7 @@ class DatabricksSubmitMultitaskRun(Task):
             self.polling_period_seconds = polling_period_seconds
 
         databricks_client = DatabricksHook(
-            databricks_conn_info,
+            databricks_conn_secret,
             retry_limit=databricks_retry_limit,
             retry_delay=databricks_retry_delay,
         )
