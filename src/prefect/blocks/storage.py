@@ -1,5 +1,3 @@
-import boto3
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -19,6 +17,8 @@ class S3Block(BlockAPI):
     bucket: str
 
     def block_initialization(self):
+        import boto3
+
         self.aws_session = boto3.Session(
             aws_access_key_id=self.aws_access_key_id,
             aws_secret_access_key=self.aws_secret_access_key,
@@ -28,6 +28,8 @@ class S3Block(BlockAPI):
         )
 
     async def write(self, data: bytes):
+        import boto3
+
         s3_client = self.credentials.get_boto3_session().client("s3")
         stream = io.BytesIO(data)
         data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
@@ -35,6 +37,8 @@ class S3Block(BlockAPI):
         return DataDocument.encode(encoding="json", data=data_location)
 
     async def read(self, datadoc):
+        import boto3
+
         s3_client = self.aws_session.client("s3")
         data_location = datadoc.decode()
         stream = io.BytesIO()
