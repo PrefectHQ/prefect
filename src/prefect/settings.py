@@ -439,7 +439,30 @@ class Settings(SharedSettings):
     )
 
 
+_DEFAULTS_CACHE: Settings = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
+
+
+def defaults() -> Settings:
+    """
+    Returns a settings object populated with default values ignoring any overrides
+    from environment variables.
+
+    This is cached since the defaults should not change during the lifetime of the
+    module.
+    """
+    global _DEFAULTS_CACHE
+
+    from prefect.context import temporary_environ
+
+    if not _DEFAULTS_CACHE:
+        overrides = {key: None for key in os.environ if key.startswith("PREFECT_")}
+        with temporary_environ(overrides):
+            settings = from_env()
+
+        _DEFAULTS_CACHE = settings
+
+    return _DEFAULTS_CACHE
 
 
 def from_env() -> Settings:

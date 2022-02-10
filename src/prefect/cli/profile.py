@@ -24,6 +24,8 @@ app.add_typer(profile_app)
 
 def load_profiles() -> dict:
     path = prefect.settings.from_env().profiles_path
+    if not path.exists():
+        return prefect.context.DEFAULT_PROFILES
     return toml.loads(path.read_text())
 
 
