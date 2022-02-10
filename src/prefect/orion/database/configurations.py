@@ -2,7 +2,7 @@ import sqlite3
 from abc import ABC, abstractmethod
 from asyncio import get_event_loop
 from functools import partial
-from typing import Hashable, Tuple
+from typing import Hashable, Literal, Tuple
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -54,7 +54,7 @@ class BaseDatabaseConfiguration(ABC):
         """Drop the database"""
 
     @abstractmethod
-    def is_inmemory(self):
+    def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
 
 
@@ -141,7 +141,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
         await connection.run_sync(base_metadata.drop_all)
 
-    def is_inmemory(self, engine):
+    def is_inmemory(self) -> Literal[False]:
         """Returns true if database is run in memory"""
 
         return False
