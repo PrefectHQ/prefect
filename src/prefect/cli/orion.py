@@ -186,7 +186,7 @@ async def start(
 @orion_app.command()
 def kubernetes_manifest():
     """
-    Generates a kubernetes manifest for to deploy Orion to a cluster.
+    Generates a Kubernetes manifest for deploying Orion to a cluster.
 
     Example:
         $ prefect orion kubernetes-manifest | kubectl apply -f -
