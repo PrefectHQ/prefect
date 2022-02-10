@@ -3,10 +3,10 @@
 </template>
 
 <script lang="ts">
-  import { ClassValue } from '@/types/css'
-  import { StateColors, StateIcons } from '@/types/states'
-  import { IconSize, getIconSizeClass } from '@/utilities/icons'
-  import { isState } from '@/utilities/states'
+  import { ClassValue } from '../types/css'
+  import { StateColors, StateIcons } from '../types/states'
+  import { isState } from '../types/states'
+  import { IconSize, getIconSizeClass } from '../utilities/icons'
   import { StyleValue } from '@vue/runtime-dom'
   import { defineComponent, PropType } from 'vue'
   import { StateType } from '../models/StateType'

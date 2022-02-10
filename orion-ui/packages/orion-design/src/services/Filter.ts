@@ -1,8 +1,8 @@
 import { Filter, FlowFilter, FlowRunFilter, TaskRunFilter, DeploymentFilter, StateFilter, TimeFrameFilter } from '@/typings/filters'
 import { BaseFilter, GlobalFilter, RunState, RunTimeFrame } from '@/typings/global'
 import { isNonEmptyArray } from '@/utilities/arrays'
-import { isSubState } from '@/utilities/states'
 import { calculateEnd, calculateStart, isValidTimeFrame } from '@/utilities/timeFrame'
+import { isSubState } from '../types/states'
 
 type StringKeys<T extends Filter> = Extract<keyof T, string>
 interface Sortable<T extends Filter> {

@@ -42,4 +42,4 @@ export class LogsApi extends Api {
   }
 }
 
-export const Logs = new LogsApi()
+export const logsApi = new LogsApi()
