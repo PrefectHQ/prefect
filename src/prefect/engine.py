@@ -261,7 +261,9 @@ async def begin_flow_run(
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = (
-        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
+        repr(terminal_state)
+        if prefect.settings.from_env().debug_mode
+        else str(terminal_state)
     )
 
     logger.log(
@@ -354,7 +356,9 @@ async def create_and_begin_subflow_run(
 
     # Display the full state (including the result) if debugging
     display_state = (
-        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
+        repr(terminal_state)
+        if prefect.settings.from_env().debug_mode
+        else str(terminal_state)
     )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
@@ -421,7 +425,7 @@ async def orchestrate_flow_run(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
 
-                if prefect.settings.debug_mode:
+                if prefect.settings.from_env().debug_mode:
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -664,7 +668,7 @@ async def orchestrate_task_run(
             with context:
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                if prefect.settings.debug_mode:
+                if prefect.settings.from_env().debug_mode:
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -701,7 +705,7 @@ async def orchestrate_task_run(
 
         state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
-        if state.type != terminal_state.type and prefect.settings.debug_mode:
+        if state.type != terminal_state.type and prefect.settings.from_env().debug_mode:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
                 extra={"send_to_orion": False},
@@ -716,7 +720,9 @@ async def orchestrate_task_run(
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = repr(state) if prefect.settings.debug_mode else str(state)
+    display_state = (
+        repr(state) if prefect.settings.from_env().debug_mode else str(state)
+    )
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,

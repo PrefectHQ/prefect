@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
-from prefect import settings
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion import api, services
 
@@ -169,7 +169,10 @@ def create_app() -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if os.path.exists(prefect.__ui_static_path__) and settings.orion.ui.enabled:
+    if (
+        os.path.exists(prefect.__ui_static_path__)
+        and prefect.settings.from_env().orion.ui.enabled
+    ):
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
@@ -203,7 +206,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if settings.orion.services.run_in_app:
+        if prefect.settings.from_env().orion.services.run_in_app:
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
