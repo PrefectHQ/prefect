@@ -240,6 +240,11 @@ def temporary_environ(
 
     try:
         for var, value in variables.items():
+            if value is None and var in os.environ and override_existing:
+                # Allow setting `None` to remove items
+                os.environ.pop(var)
+                continue
+
             value = str(value)
 
             if var not in old_env or override_existing:
@@ -247,7 +252,7 @@ def temporary_environ(
             else:
                 os.environ.setdefault(var, value)
 
-        yield {var: os.environ[var] for var in variables}
+        yield {var: os.environ.get(var) for var in variables}
 
     finally:
         for var in variables:

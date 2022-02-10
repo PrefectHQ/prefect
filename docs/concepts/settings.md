@@ -74,11 +74,13 @@ $ prefect profile inspect
 PREFECT_ORION_HOST = "http://localhost:4200/api"
 ```
 
-And will be used on future imports of Prefect:
+And will be used by Prefect in the future:
 
 ```bash
-$ python -c "import prefect.settings; print(prefect.settings.from_context().orion_host)"
-http://localhost:4200/api
+$ prefect diagnostics
+Profile: default
+Settings:
+  PREFECT_ORION_HOST='http://localhost:4200/api' (from profile)
 ```
 
 See our [documentation on profiles](#profiles) for more details on working with profiles.
@@ -202,3 +204,32 @@ $ prefect --profile "foo" flow-run ls
 If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile will be ignored.
 
 In all other cases, environment variables will take precedence over the value in the profile.
+
+For example, a value set in a profile will be used by default:
+
+```
+$ prefect profile set PREFECT_LOGGING_LEVEL="ERROR"
+$ prefect diagnostics
+Profile: default
+Settings:
+  PREFECT_LOGGING_LEVEL='ERROR' (from profile)
+```
+
+But, setting an environment variable will override the profile setting:
+
+```
+$ export PREFECT_LOGGING_LEVEL="DEBUG"
+$ prefect diagnostics
+Profile: default
+Settings:
+  PREFECT_LOGGING_LEVEL='DEBUG' (from env)
+```
+
+Unless the profile is explicitly requested when using the CLI:
+
+```
+$ prefect --profile default diagnostics
+Profile: default
+Settings:
+  PREFECT_LOGGING_LEVEL='ERROR' (from profile)
+```
