@@ -30,7 +30,7 @@ class S3Block(BlockAPI):
     async def write(self, data: bytes):
         import boto3
 
-        s3_client = self.credentials.get_boto3_session().client("s3")
+        s3_client = self.aws_session.client("s3")
         stream = io.BytesIO(data)
         data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
         s3_client.upload_fileobj(stream, **data_location)
