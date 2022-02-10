@@ -36,13 +36,12 @@ class S3Block(BlockAPI):
         with io.BytesIO(data) as stream:
             data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
             s3_client.upload_fileobj(Fileobj=stream, **data_location)
-        return DataDocument.encode(encoding="json", data=data_location)
+        return data_location
 
-    async def read(self, datadoc):
+    async def read(self, data_location):
         import boto3
 
         s3_client = self.aws_session.client("s3")
-        data_location = datadoc.decode()
         with io.BytesIO() as stream:
             s3_client.download_fileobj(**data_location, Fileobj=stream)
             stream.seek(0)
@@ -60,11 +59,18 @@ class LocalStorageBlock(BlockAPI):
         return Path("/tmp/localstorageblock")
 
     async def write(self, data):
-        storage_path = str(self.basepath() / str(uuid4()))
-        return DataDocument.encode(encoding="file", data=data, path=storage_path)
+        import fsspec
 
-    async def read(self, datadoc):
-        return datadoc.decode()
+        storage_path = str(self.basepath() / str(uuid4()))
+        with fsspec.open(storage_path, mode="wb") as fp:
+            fp.write(data)
+        return storage_path
+
+    async def read(self, storage_path):
+        import fsspec
+
+        with fsspec.open(storage_path, mode="rb") as fp:
+            return fp.read()
 
 
 @register_blockapi("orionstorage-block")

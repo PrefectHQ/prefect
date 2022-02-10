@@ -79,7 +79,7 @@ class BlockStorageSerializer:
     @staticmethod
     def dumps(block_document: dict) -> bytes:
         block_document = {
-            "data": block_document["data"].json(),
+            "data": json.dumps(block_document["data"]),
             "blockid": block_document["blockid"],
         }
         return json.dumps(block_document).encode()
@@ -90,6 +90,6 @@ class BlockStorageSerializer:
 
         block_document = json.loads(blob.decode())
         return {
-            "data": DataDocument.parse_obj(block_dcument["data"]),
+            "data": json.loads(block_dcument["data"]),
             "blockid": block_document["blockid"],
         }
