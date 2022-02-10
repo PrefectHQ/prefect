@@ -33,7 +33,7 @@ import prefect.orion.schemas as schemas
 schemas.core.FlowRun
 ```
 
-If exposing submodules, use local paths as with objects.
+If exposing a submodule, use a relative import as you would when exposing an object.
 
 Right:
 
