@@ -550,7 +550,7 @@ def get_dialect(
         import prefect.settings
         from prefect.orion.utilities.database import get_dialect
 
-        dialect = get_dialect(prefect.settings.from_env.orion.database.connection_url)
+        dialect = get_dialect(prefect.settings.from_env().orion.database.connection_url)
         if dialect == "sqlite":
             print("Using SQLite!")
         else:
