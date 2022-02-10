@@ -7,8 +7,9 @@ from pathlib import Path
 
 import yaml
 
+import prefect.settings
+from prefect.settings import LoggingSettings, Settings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-from prefect.utilities.settings import LoggingSettings, Settings
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
