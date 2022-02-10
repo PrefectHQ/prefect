@@ -17,6 +17,7 @@ from prefect.cli.agent import start as start_agent
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
 
@@ -104,8 +105,8 @@ async def ui():
 @dev_app.command()
 @sync_compatible
 async def api(
-    host: str = prefect.settings.orion.api.host,
-    port: int = prefect.settings.orion.api.port,
+    host: str = prefect.settings.from_env().orion.api.host,
+    port: int = prefect.settings.from_env().orion.api.port,
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -136,7 +137,7 @@ async def api(
 
 @dev_app.command()
 @sync_compatible
-async def agent(host: str = prefect.settings.orion_host):
+async def agent(host: str = prefect.settings.from_env().orion_host):
     """
     Starts a hot-reloading development agent process.
     """
@@ -161,6 +162,11 @@ async def start(
     Each service has an individual command if you wish to start them separately.
     Each service can be excluded here as well.
     """
+    # TODO - this logic should be abstracted in the interface
+    # Run migrations - if configured for sqlite will create the db
+    db = provide_database_interface()
+    await db.create_db()
+
     async with anyio.create_task_group() as tg:
         if not exclude_api:
             tg.start_soon(api)
@@ -169,9 +175,9 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{prefect.settings.orion.api.host}:{prefect.settings.orion.api.port}/api"
+                host = f"http://{prefect.settings.from_env().orion.api.host}:{prefect.settings.from_env().orion.api.port}/api"
             else:
-                host = prefect.settings.orion_host
+                host = prefect.settings.from_env().orion_host
             tg.start_soon(agent, host)
 
 
@@ -292,7 +298,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
 @dev_app.command()
 def kubernetes_manifest():
     """
-    Generates a kubernetes manifest for development.
+    Generates a Kubernetes manifest for development.
 
     Example:
         $ prefect dev kubernetes-manifest | kubectl apply -f -
