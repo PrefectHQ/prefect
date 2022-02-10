@@ -8,7 +8,7 @@ A brief collection of rules and guidelines for how imports should be handled in 
 
 ### Exposing objects from submodules
 
-If importing objects from submodules, the `__init__` file should import from the local path.
+If importing objects from submodules, the `__init__` file should use a relative import. This is [required for type checkers](https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface) to understand the exposed interface.
 
 Right:
 
@@ -21,8 +21,6 @@ Wrong:
 ```python
 from prefect.flows import flow
 ```
-
-This is [required for type checkers](https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface) to understand the exposed interface.
 
 ### Exposing submodules
 
@@ -66,12 +64,13 @@ We have a couple uses of this currently:
 
 ### Importing other modules
 
-Modules should not be imported using the `from` syntax.
+The `from` syntax should be reserved for importing objects from modules. Modules should not be imported using the `from` syntax.
 
 Right:
 
 ```python
-import prefect.orion.schemas as schemas
+import prefect.orion.schemas  # use with the full name
+import prefect.orion.schemas as schemas  # use the shorter name
 ```
 
 Wrong:
@@ -80,7 +79,34 @@ Wrong:
 from prefect.orion import schemas
 ```
 
-The `from` syntax should be reserved for importing objects from modules.
+Unless in an `__init__.py` file, relative imports should not be used.
+
+
+Right:
+
+```python
+from prefect.utilities.foo import bar
+```
+
+Wrong:
+
+```python
+from .utilities.foo import bar
+```
+
+Imports dependent on file location should never be used without explicit indication it is relative. This avoids confusion about the source of a module.
+
+Right:
+
+```python
+from . import test
+```
+
+Wrong:
+
+```python
+import test
+```
 
 ### Resolving circular dependencies
 
