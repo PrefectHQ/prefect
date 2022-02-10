@@ -1,4 +1,4 @@
-import { State, States } from '@/types/states'
+import { State, States } from '@prefecthq/orion-design'
 import faker from 'faker'
 
 type NumberOptions = {

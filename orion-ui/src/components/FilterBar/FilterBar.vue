@@ -93,7 +93,7 @@ import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
 import { GlobalFilterDefaults } from '@prefecthq/orion-design'
 import TagGroup from './TagGroup.vue'
-import media from '@/utilities/media'
+import { media } from '@prefecthq/orion-design/utilities'
 
 const initialGlobalFilterStateString = JSON.stringify(
   new GlobalFilterDefaults()

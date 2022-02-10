@@ -4,11 +4,9 @@
 
 <script lang="ts">
 import { Vue, prop } from 'vue-class-component'
-import { State, StateColors, StateIcons } from '@/types/states'
 import { StyleValue } from '@vue/runtime-dom'
-import { ClassValue } from '@/types/css'
-import { IconSize, getIconSizeClass } from '@/utilities/icons'
-import { isState } from '@/utilities/states'
+import { IconSize, getIconSizeClass } from '@prefecthq/orion-design/utilities'
+import { ClassValue, isState, State, StateColors, StateIcons } from '@prefecthq/orion-design'
 
 class Props {
   state = prop<State>({ required: true, validator: isState })

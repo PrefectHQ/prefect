@@ -40,8 +40,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import media from '@/utilities/media'
-
+import { media } from '@prefecthq/orion-design/utilities'
 const emit = defineEmits(['input', 'keyup.enter', 'focused'])
 const searchInput = ref()
 const search = ref('')

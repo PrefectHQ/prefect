@@ -68,10 +68,9 @@ import { Transition } from 'd3-transition'
 import { AxisDomain } from 'd3-axis'
 import { Bucket, Buckets, StateBucket } from '@/typings/run_history'
 import { StyleValue } from '@vue/runtime-dom'
-import { ClassValue } from '@/types/css'
 
 import { formatDateTimeNumeric } from '@/utilities/dates'
-import { State, States, StateDirections } from '@/types/states'
+import { ClassValue, State, States, StateDirections } from '@prefecthq/orion-design'
 import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 
 type TransitionSelectionType = Transition<
