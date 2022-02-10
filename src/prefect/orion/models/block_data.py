@@ -51,7 +51,8 @@ async def read_block_data(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    blockdata = result.scalar()
+    return unpack_blockdata(blockdata)
 
 
 @inject_db
@@ -63,7 +64,8 @@ async def read_block_data_by_name(
     query = sa.select(db.BlockData).where(db.BlockData.name == name).with_for_update()
 
     result = await session.execute(query)
-    return result.scalar()
+    blockdata = result.scalar()
+    return unpack_blockdata(blockdata)
 
 
 @inject_db
@@ -77,3 +79,15 @@ async def delete_block_data_by_name(
 
     result = await session.execute(query)
     return result.rowcount > 0
+
+
+def unpack_blockdata(blockdata):
+    if blockdata:
+        block = {
+            "blockname": blockdata.name,
+            "blockref": blockdata.blockref,
+            "blockid": blockdata.id,
+            **blockdata.data,
+        }
+        return block
+    return None
