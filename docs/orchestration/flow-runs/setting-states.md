@@ -4,7 +4,7 @@ Sometimes, it's useful to update a flow run state manually.
 
 ### UI
 
-To manually set a flow run state from the UI, visit the [flow run page](/orchestration/ui/flowrun).
+To manually set a flow run state from the UI, visit the [flow run page](/orchestration/ui/flow-run).
 
 ![](/orchestration/ui/flowrun-mark-as.png)
 
