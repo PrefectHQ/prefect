@@ -1,4 +1,4 @@
-::: prefect.utilities.settings
+::: prefect.settings
     selection:
       inherited_members: true
       filters: ["!^_", "!Config", "!copy", "!dict", "!json", "!SharedSettings"]

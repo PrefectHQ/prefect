@@ -7,7 +7,7 @@ import pytest
 from httpx import ASGITransport
 
 from prefect.orion.api.server import app
-from prefect.utilities.settings import temporary_settings
+from prefect.utilities.testing import temporary_settings
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ async def hosted_orion_api():
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
     """
-    Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the test session's
+    Sets `PREFECT_ORION_HOST` and `prefect.settings.from_env().orion_host` to the test session's
     hosted API endpoint.
     """
     with temporary_settings(PREFECT_ORION_HOST=hosted_orion_api):
