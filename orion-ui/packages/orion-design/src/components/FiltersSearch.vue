@@ -26,7 +26,7 @@
 </template>
 
 <script lang="ts" setup>
-  import media from '@/utilities/media'
+  import media from '../utilities/media'
   import { computed, ref } from 'vue'
   import { FilterPrefixError } from '../models/FilterPrefixError'
   import { FilterService } from '../services/FilterService'

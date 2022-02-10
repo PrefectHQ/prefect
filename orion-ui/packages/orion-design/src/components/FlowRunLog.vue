@@ -17,7 +17,7 @@
 
 <script lang="ts">
   import CopyButton from './CopyButton.vue'
-  import { snakeCase } from '@/utilities/strings'
+  import { snakeCase } from '../utilities/strings'
   import { defineComponent, PropType } from 'vue'
   import { formatDateTimeNumeric, formatTimeNumeric } from '..'
   import { Log } from '../models'
