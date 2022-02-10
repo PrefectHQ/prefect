@@ -78,7 +78,6 @@
 <style lang="scss" scoped>
 .filters-menu {
   background-color: #F4F5F7;
-  filter: drop-shadow(0px 10px 15px rgba(0, 0, 0, 0.1)) drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.05));
 }
 
 .filters-menu__filters {
