@@ -27,7 +27,7 @@ The easiest way to get started with the Kubernetes flow runner is to run Orion i
 
 The Prefect CLI includes a command that automatically generates a manifest that runs Orion as a Kubernetes deployment. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary. The deployment portion of the manifest looks like this:
 
-```bash
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -55,7 +55,7 @@ spec:
         imagePullPolicy: "IfNotPresent"
         env:
           - name: PREFECT_ORION_HOST
-            value: http://localhost:4200/api
+            value: http://orion:4200/api
 ```
 
 You can see that the default name for the deployment is "orion" and it uses a pre-built `prefecthq/prefect:dev-python3.8` image for its containers.
@@ -63,10 +63,17 @@ You can see that the default name for the deployment is "orion" and it uses a pr
 In this case, we'll pipe the output directly to `kubectl` and apply the manifest to a Kubernetes cluster:
 
 ```bash
-prefect orion kubernetes-manifest | kubectl apply -f -pref
+prefect orion kubernetes-manifest | kubectl apply -f -
 ```
 
 After applying the output of this command to your cluster, a Kubernetes deployment named "orion" should start running.
+
+```bash
+deployment.apps/orion configured
+service/orion unchanged
+role.rbac.authorization.k8s.io/flow-runner created
+rolebinding.rbac.authorization.k8s.io/flow-runner-role-binding created
+```
 
 Check the logs with `kubectl` to demonstrate that the deployment is running and an Prefect agent is ready to run a flow:
 
@@ -124,7 +131,7 @@ Keep this command running, and open a new terminal for the next commands.
 
 Now that we have Orion running on Kubernetes, let's talk about running your actual flows and tasks on Kubernetes. To demonstrate this, we’ll do three things:
 
-- Set and environment variable to so we can communicate with the Orion API running in Kubernetes.
+- Set an environment variable to so we can communicate with the Orion API running in Kubernetes.
 - Create a flow and deployment that will run in Kubernetes.
 - Inspect our flow runs that are executing in the Kubernetes cluster.
 
@@ -151,12 +158,9 @@ Let's configure a new deployment that runs a flow using the Kubernetes flow runn
 To test out this flow, paste this code into a file named `k8s_flow.py`.
 
 ```python
-from datetime import timedelta
-
 from prefect import flow
 from prefect.deployments import DeploymentSpec
 from prefect.flow_runners import KubernetesFlowRunner
-from prefect.orion.schemas.schedules import IntervalSchedule
 
 @flow
 def test_flow():
@@ -165,14 +169,13 @@ def test_flow():
 DeploymentSpec(
     flow=test_flow,
     name="test-deployment",
-    schedule=IntervalSchedule(interval=timedelta(seconds=30)),
     flow_runner=KubernetesFlowRunner(stream_output=True),
 )
 ```
 
 Note that the flow itself is incredibly simple &mdash; it just prints a message &mdash; but you could put more sophisticated flow logic here and even call tasks or subflows.
 
-This code also includes a [deployment specification](/concepts/deployments/#deployment-specifications) that specifies we want to use the Kubernetes flow runner, and a [schedule](/concepts/schedules/) for the flow run.
+This code also includes a [deployment specification](/concepts/deployments/#deployment-specifications) that specifies we want to use the Kubernetes flow runner.
 
 Now, use the Prefect CLI to [create the deployment](/concepts/deployments/#creating-deployments):
 
@@ -182,11 +185,23 @@ prefect deployment create k8s_flow.py
 
 Running this command creates a deployment in the Prefect Orion backend, or updates an existing deployment if you’ve run this tutorial before.
 
-Go to the Orion UI — open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200) — you should see the flow runs that the deployment scheduled, too (they may take a few seconds to show up). 
+Once you’ve created a deployment, you can use it to schedule a flow run:
 
-Click **Deployments** to see the entry for this deployment. You can run the flow interactively using the **Quick Run** button. If you click **Flow Runs** you should see the scheduled flow runs for this deployment running in the cluster.
+```bash
+prefect deployment run test-flow/test-deployment
+```
 
-![Screenshot showing deployed flow runs]()
+Go to the Orion UI — open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200) — you should see the flow run deployment “test-flow” and a successful flow run.
+
+![Screenshot showing the "test-flow" flow]()
+
+Click **Deployments** to see the entry for this deployment, “test-deployment”. You can run the flow interactively using the **Quick Run** button. 
+
+![Screenshot showing deployed “test-deployment” flow deployment]()
+
+If you click **Flow Runs** you should see the completed flow runs for this deployment that ran in the cluster.
+
+![Screenshot showing flow runs for “test-deployment”]()
 
 ## Inspecting flow run jobs
 
