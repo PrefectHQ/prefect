@@ -24,15 +24,24 @@ class VaultSecret(SecretBase):
     Args:
         - name (str): secret name defined by the Vault secret path "<mount-point>/<path>"
         - vault_credentials_secret (str, optional): name of the PrefectSecret containing Vault
-            credentials.
-                Defaults to a PrefectSecret named `VAULT_CREDENTIALS`.
-                Supported vault client authentication methods:
-                * token           { 'VAULT_TOKEN: '<token>' }
-                * appRole:        { 'VAULT_ROLE_ID': '<role-id>',
-                                    'VAULT_SECRET_ID': '<secret-id>' }
-                * kubernetesRole: { 'VAULT_KUBE_AUTH_ROLE': '<kube-role>',
-                                    'VAULT_KUBE_AUTH_PATH': '<vault-kube-path>',
-                                    'VAULT_KUBE_TOKEN_FILE': '/var/run/secrets/kubernetes.io/serviceaccount/token' (default)) }
+          credentials.
+            Defaults to a PrefectSecret named `VAULT_CREDENTIALS`.
+            Supported vault client authentication methods:
+            * token:
+            {
+                'VAULT_TOKEN: '<token>'
+            }
+            * appRole:
+            {
+                'VAULT_ROLE_ID': '<role-id>',
+                'VAULT_SECRET_ID': '<secret-id>'
+            }
+            * kubernetesRole:
+            {
+                'VAULT_KUBE_AUTH_ROLE': '<kube-role>',
+                'VAULT_KUBE_AUTH_PATH': '<vault-kube-path>',
+                'VAULT_KUBE_TOKEN_FILE': '/var/run/secrets/kubernetes.io/serviceaccount/token' (default)
+            }
         - **kwargs (Any, optional): additional keyword args passed to the Task constructor
 
     Raises:
