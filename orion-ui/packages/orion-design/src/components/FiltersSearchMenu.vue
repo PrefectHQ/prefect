@@ -37,21 +37,18 @@
     filtersStore.replaceAll(filters)
   }
 
-  async function remove(id: string): Promise<void> {
-    try {
-      await Search.deleteSearch(id)
-    } catch {
-      showToast('error', 'Error removing search')
-      return
-    }
-
-    subscription.refresh()
-
-    showToast({
-      type: 'success',
-      content: 'Search removed',
-      timeout: 10000,
-    })
+  function remove(id: string): void {
+    Search.deleteSearch(id)
+      .then(() => {
+        showToast('Search removed', 'success')
+      })
+      .catch(error => {
+        showToast('error', 'Error removing search')
+        console.error(error)
+      })
+      .finally(() => {
+        subscription.refresh()
+      })
   }
 </script>
 

@@ -55,14 +55,14 @@
     loading.value = true
 
     Search.createSearch(name.value, filtersStore.all)
-      .catch(error => {
-        console.error(error)
-        showToast('Failed to save search', 'error')
-      })
       .then(() => {
         showToast('Saved search', 'success')
 
         emit('close')
+      })
+      .catch(error => {
+        console.error(error)
+        showToast('Failed to save search', 'error')
       })
       .finally(() => {
         loading.value = true
