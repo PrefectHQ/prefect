@@ -2,11 +2,11 @@
   <div class="filter-bar">
     <FiltersSearch class="filter-bar__search" @click="show('search')" />
 
-    <button type="button" class="filter-bar__button" @click="toggle('save')">
+    <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
     </button>
 
-    <button type="button" class="filter-bar__button" @click="toggle('filters')">
+    <button type="button" class="filter-bar__button" :class="classes.filtersButton" @click="toggle('filters')">
       <i class="pi pi-filter-3-line" />
       <span v-if="media.sm" class="ml-1">Filters</span>
     </button>
@@ -17,15 +17,15 @@
 
     <transition-group name="filter-bar-transition" mode="out-in">
 
-      <template v-if="menu === 'search'" key="search">
+      <template v-if="isOpen('search')" key="search">
         <FiltersSearchMenu class="filter-bar__menu" />
       </template>
 
-      <template v-if="menu === 'save'" key="save">
+      <template v-if="isOpen('save')" key="save">
         <FiltersSaveMenu class="filter-bar__menu filter-bar__menu--save" />
       </template>
 
-      <template v-if="menu === 'filters'" key="filters">
+      <template v-if="isOpen('filters')" key="filters">
         <FiltersMenu class="filter-bar__menu" />
       </template>
 
@@ -45,6 +45,19 @@ type Menu = 'none' | 'search' | 'save' | 'filters'
 
 const menu = ref<Menu>('none')
 const overlay = computed(() => menu.value !== 'none')
+
+const classes = computed(() => ({
+  saveButton: {
+    'filter-bar__button--open': isOpen('save')
+  },
+  filtersButton: {
+    'filter-bar__button--open': isOpen('filters')
+  }
+}))
+
+function isOpen(value: Menu): boolean {
+  return menu.value == value
+}
 
 function show(value: Menu): void {
   menu.value = value
@@ -130,11 +143,18 @@ function close(): void {
   font-size: 14px;
   color: var(--grey-80);
   
-  &.active,
-  &:hover,
-  &:focus {
-    background-color: var(--grey-10);
+  &:not(.filter-bar__button--open) {
+    &:hover,
+    &.active,
+    &:focus {
+      background-color: var(--grey-10);
+    }
   }
+}
+
+.filter-bar__button--open {
+  background-color: var(--primary);
+  color: #fff;
 }
 
 .filter-bar__menu {
