@@ -2,14 +2,31 @@
 
 Prefect's settings are [well-documented][prefect.settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
 
-Settings can be access in Python and viewed from the Orion UI.
+Settings can be viewed from the CLI or the UI.
 
+## Viewing settings from the CLI
 
-## Accessing settings from Python
+The `prefect diagnostics` command will display settings that override default values.
 
-From Python, settings can be accessed with `prefect.settings.from_context()` which will load settings from the current profile context and return a `Settings` object.
+```bash
+$ prefect diagnostics
+Profile: default
+Settings:
+  PREFECT_LOGGING_LEVEL='DEBUG' (from env)
+```
 
-There is also a `from_env()` function which will load settings with overrides from environment variables, ignoring the profile context. We do not recommend this for general use.
+You may also include default values with `--show-defaults`:
+
+```bash
+$ prefect diagnostics --show-defaults
+Profile: default
+Settings:
+  PREFECT_LOGGING_LEVEL='DEBUG' (from env)
+  PREFECT_AGENT_PREFETCH_SECONDS='10' (from defaults)
+  PREFECT_AGENT_QUERY_INTERVAL='5.0' (from defaults)
+  PREFECT_DEBUG_MODE='False' (from defaults)
+  ...
+```
 
 ## Overriding defaults with environment variables
 
