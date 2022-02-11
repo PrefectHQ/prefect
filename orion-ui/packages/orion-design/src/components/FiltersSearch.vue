@@ -28,17 +28,17 @@
 <script lang="ts" setup>
   import media from '@/utilities/media'
   import { computed, ref } from 'vue'
+  import {  useRouter } from 'vue-router'
   import { FilterPrefixError } from '../models/FilterPrefixError'
+  import { FilterUrlService } from '../services'
   import { FilterService } from '../services/FilterService'
   import { useFiltersStore, FilterState } from '../stores/filters'
   import { toPluralString } from '../utilities/strings'
   import DismissibleTag from './DismissibleTag.vue'
   import FilterTags from './FilterTags.vue'
-  import { FilterUrlService } from '../services'
-  import {  useRouter } from 'vue-router'
 
   defineProps<{
-    dismissable?: boolean
+    dismissable?: boolean,
   }>()
 
   const filtersStore = useFiltersStore()

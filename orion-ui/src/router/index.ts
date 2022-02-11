@@ -45,8 +45,9 @@ const router = createRouter({
 })
 
 router.afterEach((to, from) => {
-  if(to.name !== from.name) {
+  if(to.query.filter !== from.query.filter) {
     const service = new FilterUrlService(router)
+    
     service.updateStore()
   }
 })
