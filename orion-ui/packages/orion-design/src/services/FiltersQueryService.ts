@@ -159,7 +159,7 @@ export class FiltersQueryService {
   }
 
   private static createDateFromRelative(relative: RelativeDateFilterValue): Date {
-    const unit = relative.slice(-1, 1)
+    const unit = relative.slice(-1)
     const value = parseInt(relative)
     const valueNegative = value * -1
 
