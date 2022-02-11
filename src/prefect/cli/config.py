@@ -27,7 +27,7 @@ app.add_typer(config_app)
 @config_app.command()
 def get_profile(names: List[str] = typer.Argument(None)):
     """
-    Show settings in a profile or multiple profiles. Defaults to the current profile.
+    Show settings in one or many profiles. Defaults to the current profile.
     """
     profiles = prefect.context.load_profiles()
     if not names:
@@ -66,7 +66,7 @@ def list_profiles():
 @config_app.command()
 def set(variables: List[str]):
     """
-    Set a value in the current configuration profile.
+    Change the value for a setting in the current profile.
     """
     profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
@@ -94,7 +94,7 @@ def set(variables: List[str]):
 @config_app.command()
 def unset(variables: List[str]):
     """
-    Set a value in the current configuration profile.
+    Remove a setting from the current profile, restoring the default.
     """
     profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
@@ -120,31 +120,18 @@ def create_profile(
     """
     Create a new profile.
     """
-    usage = textwrap.dedent(
-        f"""
-        To use your profile, set an environment variable:
-
-            export PREFECT_PROFILE={name!r}
-
-        or include the profile in your CLI commands:
-
-            prefect -p {name!r} config view
-        """
-    ).rstrip()
 
     profiles = prefect.context.load_profiles()
     if name in profiles:
         console.print(
-            f"[red]Profile {name!r} already exists.[/red]"
-            + usage
-            + textwrap.dedent(
+            textwrap.dedent(
                 f"""
-
+                [red]Profile {name!r} already exists.[/red]
                 To create a new profile, remove the existing profile first:
 
                     prefect config rm-profile {name!r}
                 """
-            ).rstrip()
+            ).strip()
         )
         raise typer.Exit(1)
 
@@ -159,7 +146,20 @@ def create_profile(
         profiles[name] = {}
 
     prefect.context.write_profiles(profiles)
-    console.print(f"[green]Created profile {name!r}{from_blurb}.[/green] {usage}")
+    console.print(
+        textwrap.dedent(
+            f"""
+            [green]Created profile {name!r}{from_blurb}.[/green] 
+            To use your profile, set an environment variable:
+
+                export PREFECT_PROFILE={name!r}
+
+            or include the profile in your CLI commands:
+
+                prefect -p {name!r} config view
+            """
+        ).strip()
+    )
 
 
 @config_app.command()
