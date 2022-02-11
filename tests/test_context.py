@@ -8,7 +8,6 @@ from pendulum.datetime import DateTime
 import prefect.settings
 from prefect import flow, task
 from prefect.context import (
-    DEFAULT_PROFILES,
     ContextModel,
     FlowRunContext,
     ProfileContext,
@@ -16,10 +15,7 @@ from prefect.context import (
     get_profile_context,
     get_run_context,
     initialize_module_profile,
-    load_profile,
-    load_profiles,
     profile,
-    write_profiles,
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
@@ -116,113 +112,12 @@ async def test_get_run_context(orion_client):
         assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
 
 
-class TestProfiles:
+class TestProfilesContext:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
         with temporary_settings(PREFECT_PROFILES_PATH=path):
             yield path
-
-    def test_load_profiles_no_profiles_file(self):
-        assert load_profiles() == DEFAULT_PROFILES
-
-    def test_load_profiles_missing_default(self, temporary_profiles_path):
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [foo]
-                test = "bar"
-                """
-            )
-        )
-        assert load_profiles() == {**DEFAULT_PROFILES, "foo": {"test": "bar"}}
-
-    def test_load_profiles_with_default(self, temporary_profiles_path):
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [default]
-                test = "foo"
-
-                [foo]
-                test = "bar"
-                """
-            )
-        )
-        assert load_profiles() == {"default": {"test": "foo"}, "foo": {"test": "bar"}}
-
-    def test_write_profiles_includes_default(self, temporary_profiles_path):
-        write_profiles({})
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [default]
-                """
-            ).lstrip()
-        )
-
-    def test_write_profiles_allows_default_override(self, temporary_profiles_path):
-        write_profiles({"default": {"test": "foo"}})
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [default]
-                test = "foo"
-                """
-            ).lstrip()
-        )
-
-    def test_write_profiles_additional_profiles(self, temporary_profiles_path):
-        write_profiles({"foo": {"test": "bar"}, "foobar": {"test": 1}})
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [default]
-
-                [foo]
-                test = "bar"
-
-                [foobar]
-                test = 1
-                """
-            ).lstrip()
-        )
-
-    def test_load_profile_default(self):
-        assert load_profile("default") == {}
-
-    def test_load_profile_missing(self):
-        with pytest.raises(ValueError, match="Profile 'foo' not found."):
-            load_profile("foo")
-
-    def test_load_profile(self, temporary_profiles_path):
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [foo]
-                test = "bar"
-                number = 1
-                """
-            )
-        )
-        assert load_profile("foo") == {"test": "bar", "number": "1"}
-
-    def test_load_profile_casts_nested_data_to_strings(self, temporary_profiles_path):
-        # Not a suggested pattern, but not banned yet
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [foo]
-                test = "bar"
-                [foo.nested]
-                test = "okay"
-                """
-            )
-        )
-        assert load_profile("foo") == {"test": "bar", "nested": "{'test': 'okay'}"}
 
     def test_profile_context_variable(self):
         with ProfileContext(
