@@ -1,6 +1,15 @@
 name: Python tests
 
-on: [pull_request]
+on:
+  pull_request:
+   paths:
+      - .github/workflows/python_tests.yaml
+      - '**/*.py'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+  push:
+    branches:
+      - "main"
 
 env:
   MINIMUM_PYTHON_VERSION: 3.7
