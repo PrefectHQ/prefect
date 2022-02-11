@@ -112,7 +112,7 @@ import type {
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute } from 'vue-router'
 import router from '@/router'
-import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
+import { ResultsListTabs } from '@prefecthq/orion-design'
 
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
@@ -126,7 +126,6 @@ const resultsTab: Ref<string> = ref('flows')
 
 const filter = computed<UnionFilters>(() => {
   return FiltersQueryService.query(filtersStore.all)
-  // return buildFilter(store.state.filter)
 })
 
 const deploymentFilterOff = ref(false)
@@ -167,7 +166,7 @@ const countsFilter = (
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
 
-    const countsFilter = buildFilter(store.state.filter)
+    const countsFilter = FiltersQueryService.query(filtersStore.all)
 
     const stateType = state_name == 'Failed'
     countsFilter.flow_runs = {
@@ -290,7 +289,7 @@ const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval.value,
-    ...buildFilter(store.state.filter)
+    ...FiltersQueryService.query(filtersStore.all)
   }
 })
 
@@ -298,7 +297,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
     history_interval_seconds: interval.value * 2,
-    ...buildFilter(store.state.filter)
+    ...FiltersQueryService.query(filtersStore.all)
   }
 })
 
