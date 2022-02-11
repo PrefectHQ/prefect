@@ -8,7 +8,7 @@ from uuid import uuid4
 from fastapi import Request, Response, status
 
 from prefect.orion.schemas.data import DataDocument, get_instance_data_location
-from prefect.orion.serializers import FileSerializer, OrionSerializer
+from prefect.orion.serializers import FileSerializer
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.compat import asyncio_to_thread
 

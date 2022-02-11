@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.serializers import FileSerializer, OrionSerializer
+from prefect.orion.serializers import FileSerializer
 
 
 def serialize_deserialize(obj, serializer, **dump_kwargs):
@@ -37,17 +37,3 @@ class TestFileSerializer:
         with pytest.raises(TypeError):
             # `path` kwarg not provided
             FileSerializer.dumps(b"data")
-
-
-class TestOrionSerializer:
-    def test_dumps_is_pydantic_compatible(self):
-        datadoc = DataDocument(encoding="foo", blob=b"bar")
-        assert OrionSerializer.dumps(datadoc) == datadoc.json().encode()
-
-    def test_loads_is_pydantic_compatible(self):
-        datadoc = DataDocument(encoding="foo", blob=b"bar")
-        assert OrionSerializer.loads(datadoc.json().encode()) == datadoc
-
-    def test_roundtrip_data_is_unchanged(self):
-        datadoc = DataDocument(encoding="foo", blob=b"bar")
-        assert serialize_deserialize(datadoc, OrionSerializer) == datadoc
