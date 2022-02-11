@@ -101,7 +101,7 @@ export class FilterParseService {
   }
 
   private static stateFilter(object: FilterObject, property: FilterProperty, input: string): Required<Filter> {
-    return this.filter(object, property, 'state', 'or', input.split('|'))
+    return this.filter(object, property, 'state', 'or', input.toUpperCase().split('|'))
   }
 
   private static parseDateValue(input: string): Date {

@@ -1,3 +1,4 @@
+import { StateType } from '../../models/StateType'
 import { flip } from '../../utilities/object'
 import { DeploymentFilter } from './deployments'
 import { FlowRunFilter } from './flowRuns'
@@ -34,7 +35,7 @@ export type ObjectTagFilter = {
 export type ObjectStateFilter = {
   type: 'state',
   operation: 'or',
-  value: string[],
+  value: StateType[],
 }
 
 export type ObjectNumberFilter = {
