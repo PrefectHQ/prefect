@@ -1214,7 +1214,7 @@ class OrionClient:
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
             if server_state.data:
-                if server_state.data.encoding == "blockdata":
+                if server_state.data.encoding == "blockstorage":
                     datadoc = DataDocument.parse_raw(
                         await self.retrieve_data(server_state.data)
                     )
