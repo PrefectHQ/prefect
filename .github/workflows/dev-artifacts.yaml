@@ -1,4 +1,4 @@
-name: Build images
+name: Development artifacts
 
 on: [pull_request]
 
