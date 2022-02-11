@@ -108,7 +108,7 @@ def create_orion_api(
         api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
     )
     api_app.include_router(
-        api.block_data.router, prefix=router_prefix, dependencies=dependencies
+        api.blocks.router, prefix=router_prefix, dependencies=dependencies
     )
 
     if include_admin_router:

@@ -15,11 +15,11 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/block_data", tags=["Block data"])
+router = OrionRouter(prefix="/blocks", tags=["Block data"])
 
 
 @router.post("/")
-async def create_block_data(
+async def create_block(
     block_data: schemas.actions.BlockDataCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -46,12 +46,12 @@ async def create_block_data(
 
 
 @router.get("/{id}")
-async def read_block_data(
+async def read_block(
     block_data_id: UUID = Path(..., description="The block data id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
-    block = await models.block_data.read_block_data(
+    block = await models.block_data.read_block_data_as_block(
         session=session, block_data_id=block_data_id
     )
 
@@ -62,12 +62,14 @@ async def read_block_data(
 
 
 @router.get("/name/{name}")
-async def read_block_data_by_name(
+async def read_block_by_name(
     name: str = Path(..., description="The block name", alias="name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
-    block = await models.block_data.read_block_data_by_name(session=session, name=name)
+    block = await models.block_data.read_block_data_by_name_as_block(
+        session=session, name=name
+    )
 
     if not block:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block data not found")
@@ -76,7 +78,7 @@ async def read_block_data_by_name(
 
 
 @router.delete("/name/{name}")
-async def delete_block_data_by_name(
+async def delete_block_by_name(
     name: str = Path(..., description="The block name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):

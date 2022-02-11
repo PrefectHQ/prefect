@@ -578,7 +578,7 @@ class OrionClient:
             data=data,
         )
         response = await self.post(
-            "/block_data/",
+            "/blocks/",
             json=block_data_create.dict(json_compatible=True),
         )
 
@@ -607,7 +607,7 @@ class OrionClient:
         """
         try:
             response = await self.delete(
-                f"/block_data/name/{name}",
+                f"/blocks/name/{name}",
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -634,7 +634,7 @@ class OrionClient:
             a hydrated block
         """
         response = await self.get(
-            f"/block_data/{id}",
+            f"/blocks/{id}",
         )
         raw_block = response.json()
         block_data_id = raw_block.get("blockid")
@@ -663,7 +663,7 @@ class OrionClient:
             a hydrated block
         """
         response = await self.get(
-            f"/block_data/name/{name}",
+            f"/blocks/name/{name}",
         )
         raw_block = response.json()
         block_data_id = raw_block.get("blockid")

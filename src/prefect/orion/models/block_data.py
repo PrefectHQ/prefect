@@ -39,7 +39,7 @@ async def create_block_data(
 
 
 @inject_db
-async def read_block_data(
+async def read_block_data_as_block(
     session: sa.orm.Session,
     block_data_id: UUID,
     db: OrionDBInterface,
@@ -56,7 +56,7 @@ async def read_block_data(
 
 
 @inject_db
-async def read_block_data_by_name(
+async def read_block_data_by_name_as_block(
     session: sa.orm.Session,
     name: str,
     db: OrionDBInterface,
