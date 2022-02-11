@@ -9,3 +9,11 @@ export function flip<K extends string, V extends string>(obj: Record<K, V>): Rec
 
   return result
 }
+
+export function omit<T extends Record<string, unknown>, K extends (keyof T)[]>(source: T, keys: K): Omit<T, K[number]> {
+  const copy = { ...source }
+
+  keys.forEach(key => delete copy[key])
+
+  return copy
+}
