@@ -7,7 +7,6 @@ from pendulum.datetime import DateTime
 
 import prefect.settings
 from prefect import flow, task
-from prefect.cli.config import profile_app
 from prefect.context import (
     DEFAULT_PROFILES,
     ContextModel,
