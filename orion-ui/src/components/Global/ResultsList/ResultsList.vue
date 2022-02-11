@@ -136,6 +136,8 @@ onMounted(() => {
 watch(
   () => props.filter,
   () => {
+    items.value.clear()
+    itemRefs.value = {}
     offset.value = 0
     limit.value = 20
     init()
