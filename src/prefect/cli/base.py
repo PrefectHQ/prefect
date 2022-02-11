@@ -7,13 +7,11 @@ from contextlib import nullcontext
 
 import rich.console
 import typer
-from rich.pretty import Pretty, pretty_repr
 
 import prefect
 import prefect.context
 import prefect.settings
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
-from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 
 class PrefectTyper(typer.Typer):
@@ -92,44 +90,6 @@ def version():
     """Get the current Prefect version."""
     # TODO: expand this to a much richer display of version and system information
     console.print(prefect.__version__)
-
-
-@app.command()
-def diagnostics(show_defaults: bool = False, hide_source: bool = False):
-    """Display diagnostic information for support purposes"""
-    profile = prefect.context.get_profile_context()
-
-    # Get settings at each level, converted to a flat dictionary for easy comparison
-    default_settings = dict_to_flatdict(prefect.settings.defaults().dict())
-    env_settings = dict_to_flatdict(prefect.settings.from_env().dict())
-    current_settings = dict_to_flatdict(profile.settings.dict())
-
-    console.print(f"Profile: {profile.name}")
-
-    # Collect differences from defaults set in the env and the profile
-    env_overrides = {
-        "PREFECT_" + "_".join(key).upper(): val
-        for key, val in env_settings.items()
-        if val != default_settings[key]
-    }
-
-    current_overrides = {
-        "PREFECT_" + "_".join(key).upper(): val
-        for key, val in current_settings.items()
-        if val != default_settings[key]
-    }
-
-    console.print("Settings:")
-    for key, value in sorted(current_overrides.items()):
-        source = "env" if value == env_overrides.get(key) else "profile"
-        source_blurb = f" (from {source})" if not hide_source else ""
-        print(f"  {key}='{value}'{source_blurb}")
-
-    if show_defaults:
-        for key, value in sorted(default_settings.items()):
-            key = "PREFECT_" + "_".join(key).upper()
-            source_blurb = f" (from defaults)" if not hide_source else ""
-            print(f"  {key}='{value}'{source_blurb}")
 
 
 def exit_with_error(message, code=1, **kwargs):

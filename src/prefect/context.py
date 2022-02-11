@@ -333,6 +333,26 @@ def profile(
     setup_logging: bool = False,
     override_existing_variables: bool = False,
 ):
+    """
+    Switch to a new profile for the duration of this context.
+
+    Upon initialization, we can create the home directory contained in the settings and
+    set up logging. These steps are optional. Logging can only be set up once per
+    process and later attempts to configure logging will fail.
+
+    Profile contexts are confined to an async context in a single thread.
+
+    Args:
+        name: The name of the profile to load. Must exist.
+        create_home: Create the PREFECT_HOME directory.
+        setup_logging: Configure logging for the current process.
+        override_existing_variables: If set, variables in the profile will take
+            precedence over current environment variables. By default, environment
+            variables will override profile settings.
+
+    Yields:
+        The created `ProfileContext` object
+    """
     env = load_profile(name)
 
     # Prevent multiple threads from mutating the environment concurrently
