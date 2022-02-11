@@ -11,6 +11,10 @@
       <span v-if="media.sm" class="ml-1">Filters</span>
     </button>
 
+    <teleport to="#app">
+      <div class="filter-bar__observe" ref="observe" />
+    </teleport>
+
     <teleport v-if="overlay" to=".application">
       <div class="filter-bar__overlay" @click="close" />
     </teleport>
@@ -39,12 +43,13 @@ import FiltersSearchMenu from '@/../packages/orion-design/src/components/Filters
 import FiltersSaveMenu from '@/../packages/orion-design/src/components/FiltersSaveMenu.vue';
 import FiltersMenu from '@/../packages/orion-design/src/components/FiltersMenu.vue';
 import media from '@/utilities/media'
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 type Menu = 'none' | 'search' | 'save' | 'filters'
 
 const menu = ref<Menu>('none')
+const detached = ref(false)
 const overlay = computed(() => menu.value !== 'none')
 const route = useRoute()
 
@@ -52,7 +57,8 @@ const isDashboard = computed(() => route.name === 'Dashboard')
 
 const classes = computed(() => ({
   root: {
-    'filter-bar--disabled': !isDashboard.value
+    'filter-bar--disabled': !isDashboard.value,
+    'filter-bar--detached': detached.value
   },
   saveButton: {
     'filter-bar__button--open': isOpen('save')
@@ -83,6 +89,49 @@ function close(): void {
 
   ;(document.activeElement as HTMLElement).blur()
 }
+
+/**
+ * This section is for performantly handling intersection of the filter bar
+ */
+
+const handleEmit = ([entry]: IntersectionObserverEntry[]) =>
+  (detached.value = !entry.isIntersecting)
+
+const observe = ref<Element>()
+
+let observer: IntersectionObserver
+
+const createIntersectionObserver = (margin: string) => {
+  if (observe.value) observer?.unobserve(observe.value)
+
+  const options = {
+    rootMargin: margin,
+    threshold: [0.1, 1]
+  }
+
+  observer = new IntersectionObserver(handleEmit, options)
+
+  if (observe.value) {
+    observer.observe(observe.value)
+  }
+}
+
+onMounted(() => {
+  createIntersectionObserver('0px')
+})
+
+onBeforeUnmount(() => {
+  if (observe.value) observer?.unobserve(observe.value)
+})
+
+watch(route, () => {
+  if (route.name == 'Dashboard') {
+    if (observe.value) observer?.observe(observe.value)
+  } else {
+    if (observe.value) observer?.unobserve(observe.value)
+    detached.value = true
+  }
+})
 </script>
 
 <style lang="scss">
@@ -97,13 +146,16 @@ function close(): void {
   background: #fff;
   display: flex;
   align-items: stretch;
-
   z-index: 9;
 
-  &.detached {
+  @media (max-width: 640px) {
+    z-index: 10;
+  }
+}
+
+.filter-bar--detached {
     margin: 0;
     border-radius: 0;
-  }
 
   @media (max-width: 1024px) {
     margin: 0;
@@ -112,11 +164,7 @@ function close(): void {
   }
 
   @media (max-width: 640px) {
-    z-index: 10;
-
-    &.detached {
-      top: 62px;
-    }
+    top: 62px;
   }
 }
 
@@ -136,6 +184,15 @@ function close(): void {
     background-color: var(--grey-80);
     opacity: 0.1;
   }
+}
+
+.filter-bar__observe {
+  position: absolute;
+  height: 16px;
+  left: 0;
+  opacity: 0;
+  top: 0;
+  width: 100px;
 }
 
 .filter-bar__overlay {
