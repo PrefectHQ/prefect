@@ -127,7 +127,7 @@ class TestNeo4jRunCypherQueryTask:
 
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
-    def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
+    def test_run_default_return_type(self, mock_run, mock_graph):
         class mockRun:
             def data(self):
                 return [{"key1": "value1"}, {"key2": "value2"}]
@@ -150,7 +150,7 @@ class TestNeo4jRunCypherQueryTask:
 
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph")
     @mock.patch("prefect.tasks.neo4j.neo4j_tasks.Graph.run")
-    def test_run_raises_fail_on_query_error(self, mock_run, mock_graph):
+    def test_run_dataframe_return_type(self, mock_run, mock_graph):
         import pandas as pd
 
         class mockRun:
