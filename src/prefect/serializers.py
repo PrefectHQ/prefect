@@ -90,6 +90,6 @@ class BlockStorageSerializer:
 
         block_document = json.loads(blob.decode())
         return {
-            "data": json.loads(block_dcument["data"]),
+            "data": json.loads(block_document["data"]),
             "blockid": block_document["blockid"],
         }
