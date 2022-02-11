@@ -35,7 +35,7 @@ async def create_block_data(
         )
     except sa.exc.IntegrityError:
         raise HTTPException(
-            status.status.HTTP_400_BAD_REQUEST,
+            status.HTTP_400_BAD_REQUEST,
             detail="Block data already exists",
         )
 
