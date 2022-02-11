@@ -28,20 +28,20 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { subscribe } from '@prefecthq/vue-compositions'
+  import { FilterUrlService } from '../services'
   import { computed } from 'vue'
   import { searchApi } from '../services/SearchApi'
-  import { useFiltersStore } from '../stores/filters'
   import { Filter } from '../types/filters'
-
-  const filtersStore = useFiltersStore()
+  import { useRouter } from 'vue-router'
 
   const subscription = subscribe(searchApi.filter.bind(searchApi), [])
   const filters = computed(() => subscription.response.value ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading.value)
+  const filterUrlService = new FilterUrlService(useRouter())
 
   function apply(filters: Required<Filter>[]): void {
-    filtersStore.replaceAll(filters)
+    filterUrlService.replaceAll(filters)
   }
 
   function remove(id: string): void {

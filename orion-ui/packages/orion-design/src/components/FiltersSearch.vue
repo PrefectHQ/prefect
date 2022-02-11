@@ -34,8 +34,11 @@
   import { toPluralString } from '../utilities/strings'
   import DismissibleTag from './DismissibleTag.vue'
   import FilterTags from './FilterTags.vue'
+  import { FilterUrlService } from '../services'
+  import {  useRouter } from 'vue-router'
 
   const filtersStore = useFiltersStore()
+  const filterUrlService = new FilterUrlService(useRouter())
   const term = ref('')
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
@@ -49,7 +52,7 @@
     try {
       const filter = FilterService.parse(term.value)
 
-      filtersStore.add(filter)
+      filterUrlService.add(filter)
       clear()
     } catch (error) {
       if (error instanceof FilterPrefixError && !term.value.includes(':')) {
@@ -63,11 +66,11 @@
   }
 
   function dismiss(filter: FilterState): void {
-    filtersStore.remove(filter)
+    filterUrlService.remove(filter)
   }
 
   function dismissAll(): void {
-    filtersStore.removeAll()
+    filterUrlService.removeAll()
   }
 
   function clear(): void {
