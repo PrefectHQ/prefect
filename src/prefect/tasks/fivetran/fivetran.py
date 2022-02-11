@@ -172,7 +172,9 @@ class FivetranSyncTask(Task):
             else:
                 time.sleep(poll_status_every_n_seconds)
 
-        return {
+        status =  {
             "succeeded_at": succeeded_at.to_iso8601_string(),
             "connector_id": connector_id,
         }
+
+        return status
