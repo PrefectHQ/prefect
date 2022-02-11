@@ -21,7 +21,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { Ref, computed, onMounted } from 'vue'
+  import isDate from 'date-fns/isDate'
+  import startOfToday from 'date-fns/startOfToday'
+  import { Ref, computed, onMounted, watch } from 'vue'
   import { FilterOperation, FilterType, FilterValue } from '../types/filters'
   import { toPluralString } from '../utilities'
   import DateTimeInput from './DateTimeInput.vue'
@@ -41,6 +43,16 @@
   onMounted(() => {
     if (props.operation === undefined) {
       internalOperation.value = 'after'
+    }
+  })
+
+  // I really don't like how this component handles values. this watcher is the last straw.
+  // must be refactored. Probably into separate ValueDate and ValueRelativeDate components.
+  watch(() => props.operation, () => {
+    if (props.operation == 'newer' || props.operation == 'older' && typeof props.value !== 'string') {
+      emit('update:value', '1h')
+    } else if (props.operation == 'after' || props.operation == 'before' && !isDate(props.value)) {
+      emit('update:value', startOfToday())
     }
   })
 
