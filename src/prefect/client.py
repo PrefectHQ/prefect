@@ -873,12 +873,22 @@ class OrionClient:
         Returns:
             orion data document pointing to persisted data
         """
+
         try:
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
         except httpx.HTTPStatusError:
-            await self.create_block_data(
-                name="ORION-CONFIG-STORAGE", blockref="localstorage-block", data=dict()
-            )
+            try:
+                await self.create_block_data(
+                    name="ORION-CONFIG-STORAGE",
+                    blockref="localstorage-block",
+                    data=dict(),
+                )
+            except Exception as e:
+                #
+                if "Block data already exists" in e.message:
+                    pass
+                else:
+                    raise e
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
 
         block_datadoc = await storage_block.write(data)
@@ -1205,7 +1215,7 @@ class OrionClient:
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
             if server_state.data:
-                if server_state.data.encoding == "orion":
+                if server_state.data.encoding == "blockdata":
                     datadoc = DataDocument.parse_raw(
                         await self.retrieve_data(server_state.data)
                     )

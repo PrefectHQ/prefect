@@ -29,9 +29,15 @@ async def create_block_data(
     # hydrate the input model into a full model
     block_data_model = schemas.core.BlockData(**block_data.dict())
 
-    model = await models.block_data.create_block_data(
-        session=session, block_data=block_data_model
-    )
+    try:
+        model = await models.block_data.create_block_data(
+            session=session, block_data=block_data_model
+        )
+    except sa.exc.IntegrityError:
+        raise HTTPException(
+            status.status.HTTP_400_BAD_REQUEST,
+            detail="Block data already exists",
+        )
 
     if model.created >= pendulum.now():
         response.status_code = status.HTTP_201_CREATED
