@@ -13,6 +13,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import toml
 from pydantic import BaseSettings, Field, root_validator
 
 
@@ -489,3 +490,45 @@ def from_context() -> Settings:
     from prefect.context import get_profile_context
 
     return get_profile_context().settings
+
+
+DEFAULT_PROFILES = {"default": {}}
+
+
+def load_profiles() -> Dict[str, Dict[str, str]]:
+    path = from_env().profiles_path
+    if not path.exists():
+        profiles = DEFAULT_PROFILES
+    else:
+        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
+
+    return profiles
+
+
+def write_profiles(profiles: dict):
+    path = from_env().profiles_path
+    profiles = {**DEFAULT_PROFILES, **profiles}
+    return path.write_text(toml.dumps(profiles))
+
+
+def load_profile(name: str) -> Dict[str, str]:
+    """
+    Loads a profile from the TOML file.
+
+    Asserts that all variables are valid string key/value pairs.
+    """
+    profiles = load_profiles()
+
+    if name not in profiles:
+        raise ValueError(f"Profile {name!r} not found.")
+
+    variables = profiles[name]
+    for var, value in variables.items():
+        try:
+            variables[var] = str(value)
+        except Exception as exc:
+            raise TypeError(
+                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
+            ) from exc
+
+    return variables

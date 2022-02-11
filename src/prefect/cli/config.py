@@ -29,7 +29,7 @@ def get_profile(names: List[str] = typer.Argument(None)):
     """
     Show settings in one or many profiles. Defaults to the current profile.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     if not names:
         profile = prefect.context.get_profile_context()
         names = [profile.name]
@@ -45,7 +45,7 @@ def list_profiles():
     """
     List profile names.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     current = prefect.context.get_profile_context().name
     for name in profiles:
         if name == current:
@@ -61,7 +61,7 @@ def set(variables: List[str]):
 
     Sets the value in the current profile.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
 
@@ -80,7 +80,7 @@ def set(variables: List[str]):
         env[var] = value
         console.print(f"Set variable {var!r} to {value!r}")
 
-    prefect.context.write_profiles(profiles)
+    prefect.settings.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
@@ -91,7 +91,7 @@ def unset(variables: List[str]):
 
     Removes the setting from the current profile.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
 
@@ -103,7 +103,7 @@ def unset(variables: List[str]):
     for var in variables:
         console.print(f"Unset variable {var!r}")
 
-    prefect.context.write_profiles(profiles)
+    prefect.settings.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
@@ -116,7 +116,7 @@ def create_profile(
     Create a new profile.
     """
 
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     if name in profiles:
         console.print(
             textwrap.dedent(
@@ -140,7 +140,7 @@ def create_profile(
         from_blurb = ""
         profiles[name] = {}
 
-    prefect.context.write_profiles(profiles)
+    prefect.settings.write_profiles(profiles)
     console.print(
         textwrap.dedent(
             f"""
@@ -162,7 +162,7 @@ def rm_profile(name: str):
     """
     Remove the given profile.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     if name not in profiles:
         exit_with_error(f"Profle {name!r} not found.")
 
@@ -173,7 +173,7 @@ def rm_profile(name: str):
         verb = "Reset"
         profiles["default"] = {}
 
-    prefect.context.write_profiles(profiles)
+    prefect.settings.write_profiles(profiles)
     exit_with_success(f"{verb} profile {name!r}.")
 
 
@@ -182,7 +182,7 @@ def rename_profile(name: str, new_name: str):
     """
     Change the name of a profile.
     """
-    profiles = prefect.context.load_profiles()
+    profiles = prefect.settings.load_profiles()
     if name not in profiles:
         exit_with_error(f"Profle {name!r} not found.")
 
@@ -191,7 +191,7 @@ def rename_profile(name: str, new_name: str):
 
     profiles[new_name] = profiles.pop(name)
 
-    prefect.context.write_profiles(profiles)
+    prefect.settings.write_profiles(profiles)
     exit_with_success(f"Renamed profile {name!r} to {new_name!r}.")
 
 

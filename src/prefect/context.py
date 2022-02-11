@@ -12,7 +12,6 @@ from contextvars import ContextVar
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
-import toml
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
@@ -219,6 +218,37 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
+class ProfileContext(ContextModel):
+    """
+    The context for a Prefect settings profile.
+
+    Attributes:
+        name: The name of the profile
+        settings: The complete settings model
+        env: The environment variables set in this profile configuration and their
+            current values. These may differ from the profile configuration if the
+            use has overridden them explicitly.
+    """
+
+    name: str
+    settings: Settings
+    env: Dict[str, str]
+
+    __var__ = ContextVar("profile")
+
+
+def get_profile_context() -> ProfileContext:
+    profile_ctx = ProfileContext.get()
+
+    if not profile_ctx:
+        raise MissingContextError("No profile is being used.")
+
+    return profile_ctx
+
+
+_PROFILE_LOCK = threading.Lock()
+
+
 @contextmanager
 def temporary_environ(
     variables, override_existing: bool = True, warn_on_override: bool = False
@@ -262,70 +292,6 @@ def temporary_environ(
                 os.environ.pop(var, None)
 
 
-class ProfileContext(ContextModel):
-    """
-    The context for a Prefect settings profile.
-
-    Attributes:
-        name: The name of the profile
-        settings: The complete settings model
-        env: The environment variables set in this profile configuration and their
-            current values. These may differ from the profile configuration if the
-            use has overridden them explicitly.
-    """
-
-    name: str
-    settings: Settings
-    env: Dict[str, str]
-
-    __var__ = ContextVar("profile")
-
-
-DEFAULT_PROFILES = {"default": {}}
-
-
-def load_profiles() -> Dict[str, Dict[str, str]]:
-    path = prefect.settings.from_env().profiles_path
-    if not path.exists():
-        profiles = DEFAULT_PROFILES
-    else:
-        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
-
-    return profiles
-
-
-def write_profiles(profiles: dict):
-    path = prefect.settings.from_env().profiles_path
-    profiles = {**DEFAULT_PROFILES, **profiles}
-    return path.write_text(toml.dumps(profiles))
-
-
-def load_profile(name: str) -> Dict[str, str]:
-    """
-    Loads a profile from the TOML file.
-
-    Asserts that all variables are valid string key/value pairs.
-    """
-    profiles = load_profiles()
-
-    if name not in profiles:
-        raise ValueError(f"Profile {name!r} not found.")
-
-    variables = profiles[name]
-    for var, value in variables.items():
-        try:
-            variables[var] = str(value)
-        except Exception as exc:
-            raise TypeError(
-                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
-            ) from exc
-
-    return variables
-
-
-_PROFILE_LOCK = threading.Lock()
-
-
 @contextmanager
 def profile(
     name: str,
@@ -353,7 +319,9 @@ def profile(
     Yields:
         The created `ProfileContext` object
     """
-    env = load_profile(name)
+    from prefect.context import ProfileContext
+
+    env = prefect.settings.load_profile(name)
 
     # Prevent multiple threads from mutating the environment concurrently
     with _PROFILE_LOCK:
@@ -382,12 +350,3 @@ def initialize_module_profile():
     context = profile(name=name, create_home=True, setup_logging=True)
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
-
-
-def get_profile_context() -> ProfileContext:
-    profile_ctx = ProfileContext.get()
-
-    if not profile_ctx:
-        raise MissingContextError("No profile is being used.")
-
-    return profile_ctx
