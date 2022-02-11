@@ -132,12 +132,18 @@ import { useRoute } from 'vue-router'
 import router from '@/router'
 import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
 
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+const filtersStore = useFiltersStore()
+const all = computed(() => filtersStore.all)
 const store = useStore()
 const route = useRoute()
 
 const resultsTab: Ref<string> = ref('flows')
 
 const filter = computed<UnionFilters>(() => {
+  return FiltersQueryService.query(filtersStore.all)
+  // return buildFilter(store.state.filter)
+})
   return buildFilter(store.state.filter)
 })
 
