@@ -100,7 +100,7 @@ The VaultSecret class supports both `VAULT_ADDR` and `vault_addr`.
 
 #### Authentication methods
 
-`VaultSecret` exposes a number of authentication mechanisms made available in the order of precedence:
+`VaultSecret` exposes a number of authentication mechanisms, made available in the order of precedence:
 
 1. [token](https://www.vaultproject.io/docs/auth/token): `{ 'VAULT_TOKEN: '<token>' }`
 
