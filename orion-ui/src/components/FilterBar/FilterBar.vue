@@ -148,6 +148,12 @@ watch(route, () => {
   align-items: stretch;
   z-index: 9;
 
+  @media (max-width: 1024px) {
+    margin: 0;
+    border-radius: 0;
+    z-index: 9;
+  }
+
   @media (max-width: 640px) {
     z-index: 10;
   }
@@ -156,12 +162,6 @@ watch(route, () => {
 .filter-bar--detached {
     margin: 0;
     border-radius: 0;
-
-  @media (max-width: 1024px) {
-    margin: 0;
-    border-radius: 0;
-    z-index: 9;
-  }
 
   @media (max-width: 640px) {
     top: 62px;
@@ -248,12 +248,29 @@ watch(route, () => {
   z-index: 1;
   border-top: 1px solid var(--secondary-hover);
   overflow: hidden;
+
+  @media (max-width: 1024px) {
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh !important;
+  }
+
+  @media (max-width: 640px) {
+    top: -62px;
+  }
 }
 
 .filter-bar__menu--save {
   right: 0;
   left: auto;
   width: 400px !important; // m-card...
+
+  @media (max-width: 1024px) {
+    left: 0;
+    width: auto !important;
+  }
 
   > div, 
   > div > header {
