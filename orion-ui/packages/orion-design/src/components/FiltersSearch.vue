@@ -4,10 +4,10 @@
       <i class="pi pi-search-line" />
     </template>
     <template v-if="hasFilters && filters.length < 5 && media.sm">
-      <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
+      <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" @click.stop />
     </template>
     <template v-else-if="hasFilters">
-      <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" />
+      <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" @click.stop />
     </template>
     <input
       v-model="term"
