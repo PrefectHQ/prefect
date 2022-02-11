@@ -1,7 +1,8 @@
 /* eslint-disable no-dupe-class-members */
 import { Filter } from '../types/filters'
 import { FilterDescriptionService } from './FilterDescriptionService'
-import { FilterParseService, FilterStringifyService } from '.'
+import { FiltersQueryService } from './FiltersQueryService'
+import { FilterParseService, FilterStringifyService, UnionFilters } from '.'
 
 export class FilterService {
   public static stringify(filter: Required<Filter>): string
@@ -22,6 +23,10 @@ export class FilterService {
     }
 
     return FilterParseService.parseFilterString(filterOrFilters)
+  }
+
+  public static query(filters: Required<Filter>[]): UnionFilters {
+    return FiltersQueryService.query(filters)
   }
 
   public static describe(filter: Filter): string {
