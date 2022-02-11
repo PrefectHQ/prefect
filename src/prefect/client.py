@@ -884,8 +884,7 @@ class OrionClient:
                     data=dict(),
                 )
             except Exception as e:
-                #
-                if "Block data already exists" in e.message:
+                if "400" in e.args[0]:
                     pass
                 else:
                     raise e
