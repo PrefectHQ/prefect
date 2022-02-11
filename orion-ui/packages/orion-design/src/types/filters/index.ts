@@ -5,6 +5,8 @@ import { FlowFilter } from './flows'
 import { TagFilter } from './tags'
 import { TaskRunFilter } from './taskRuns'
 
+export type RelativeDateFilterValue = `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`
+
 export type ObjectStringFilter = {
   type: 'string',
   operation: 'contains' | 'equals',
@@ -20,7 +22,7 @@ export type ObjectDateFilter = {
 export type ObjectRelativeDateFilter = {
   type: 'time',
   operation: 'newer' | 'older',
-  value: `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`,
+  value: RelativeDateFilterValue,
 }
 
 export type ObjectTagFilter = {

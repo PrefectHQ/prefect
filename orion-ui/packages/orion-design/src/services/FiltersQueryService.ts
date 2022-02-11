@@ -1,10 +1,17 @@
+/* eslint-disable import/no-duplicates */
 import {
   FlowFilter as FlowFilterQuery,
   DeploymentFilter as DeploymentFilterQuery,
   FlowRunFilter as FlowRunFilterQuery,
   TaskRunFilter as TaskRunFilterQuery
 } from '@/typings/filters'
-import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, TaskRunFilter } from '../types/filters'
+import addDays from 'date-fns/addDays'
+import addHours from 'date-fns/addHours'
+import addMonths from 'date-fns/addMonths'
+import addWeeks from 'date-fns/addWeeks'
+import startOfToday from 'date-fns/startOfToday'
+import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
+import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
 import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
 import { UnionFilters } from './Filter'
 
@@ -78,8 +85,30 @@ export class FiltersQueryService {
           query.tags ??= { all_: [] }
           query.tags.all_?.push(...filter.value)
           break
-        case 'start_date': { throw new Error('Not implemented yet: "start_date" case') }
-        case 'state': { throw new Error('Not implemented yet: "state" case') }
+        case 'start_date':
+          // eslint-disable-next-line camelcase
+          query.expected_start_time ??= {}
+
+          switch (filter.operation) {
+            case 'after':
+              query.expected_start_time.after_ = filter.value.toISOString()
+              break
+            case 'before':
+              query.expected_start_time.before_ = filter.value.toISOString()
+              break
+            case 'newer':
+              query.expected_start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              break
+            case 'older':
+              query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              break
+          }
+
+          break
+        case 'state':
+          query.state ??= { type: { any_: [] } }
+          query.state.type?.any_?.push(...filter.value)
+          break
       }
     })
 
@@ -99,12 +128,54 @@ export class FiltersQueryService {
           query.tags ??= { all_: [] }
           query.tags.all_?.push(...filter.value)
           break
-        case 'start_date': { throw new Error('Not implemented yet: "start_date" case') }
-        case 'state': { throw new Error('Not implemented yet: "state" case') }
+        case 'start_date':
+        // eslint-disable-next-line camelcase
+          query.start_time ??= {}
+
+          switch (filter.operation) {
+            case 'after':
+              query.start_time.after_ = filter.value.toISOString()
+              break
+            case 'before':
+              query.start_time.before_ = filter.value.toISOString()
+              break
+            case 'newer':
+              query.start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              break
+            case 'older':
+              query.start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              break
+          }
+
+          break
+        case 'state':
+          query.state ??= { type: { any_: [] } }
+          query.state.type?.any_?.push(...filter.value)
+          break
       }
     })
 
     return query
+  }
+
+  private static createDateFromRelative(relative: RelativeDateFilterValue): Date {
+    const unit = relative.slice(-1, 1)
+    const value = parseInt(relative)
+    const valueNegative = value * -1
+
+    switch (unit) {
+      case 'h':
+        return addHours(new Date, valueNegative)
+      case 'd':
+        return addDays(startOfToday(), valueNegative)
+      case 'w':
+        return addWeeks(startOfToday(), valueNegative)
+      case 'm':
+        return addMonths(startOfToday(), valueNegative)
+      default:
+        throw new FilterRelativeDateUnitError()
+    }
+
   }
 
 }
