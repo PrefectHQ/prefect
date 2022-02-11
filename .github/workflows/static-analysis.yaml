@@ -56,25 +56,3 @@ jobs:
         run: |
           pre-commit run --show-diff-on-failure --color=always --all-files
 
-
-  # python-lint:
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         persist-credentials: false
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.7
-
-  #     - name: Install black
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install $(grep flake8 requirements-dev.txt)
-
-  #     - name: Run flake8
-  #       run: |
-  #         flake8 src
