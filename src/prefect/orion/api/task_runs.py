@@ -10,7 +10,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
-from prefect import settings
+import prefect.settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
@@ -126,7 +126,9 @@ async def read_task_run(
 async def read_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     limit: int = Body(
-        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+        prefect.settings.from_env().orion.api.default_limit,
+        ge=0,
+        le=prefect.settings.from_env().orion.api.default_limit,
     ),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,

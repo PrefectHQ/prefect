@@ -1,3 +1,5 @@
+import { FilterDateError } from '../models/FilterDateError'
+import { FilterPrefixError } from '../models/FilterPrefixError'
 import {
   Filter,
   FilterObject,
@@ -68,7 +70,7 @@ export class FilterParseService {
       case 'task_run_state':
         return this.stateFilter('task_run', 'state', value)
       default:
-        throw 'filter has an invalid prefix'
+        throw new FilterPrefixError()
     }
   }
 
@@ -112,7 +114,7 @@ export class FilterParseService {
     } while (!this.isValidDate(value) && parsers.length)
 
     if (!this.isValidDate(value)) {
-      throw 'filter date value is invalid'
+      throw new FilterDateError()
     }
 
     return value
