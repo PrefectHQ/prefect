@@ -96,7 +96,8 @@ import {
   onBeforeMount,
   ComputedRef,
   watch,
-  reactive
+  reactive,
+  onMounted
 } from 'vue'
 import { useStore } from '@/store'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
@@ -113,12 +114,32 @@ import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute } from 'vue-router'
 import router from '@/router'
 import { ResultsListTabs } from '@prefecthq/orion-design'
-
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 
 const filtersStore = useFiltersStore()
-const all = computed(() => filtersStore.all)
+
+onMounted(() => {
+  if(filtersStore.all.length == 0) {
+    filtersStore.replaceAll([
+      {
+        object: 'flow_run',
+        property: 'start_date',
+        type: 'time',
+        operation: 'newer',
+        value: '7d'
+      },
+      {
+        object: 'flow_run',
+        property: 'start_date',
+        type: 'time',
+        operation: 'older',
+        value: '-7d'
+      }
+    ])
+  }
+})
+
 const store = useStore()
 const route = useRoute()
 
@@ -340,7 +361,7 @@ const applyFilter = (filter: PremadeFilter) => {
 }
 
 watch([resultsTab], () => {
-  router.push({ hash: `#${resultsTab.value}` })
+  router.push({ ...route, hash: `#${resultsTab.value}` })
 })
 
 onBeforeMount(() => {
