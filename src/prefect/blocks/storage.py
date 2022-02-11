@@ -1,10 +1,9 @@
 import io
-
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 from uuid import uuid4
 
-from typing import Optional
 from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.orion.schemas.data import DataDocument
 
