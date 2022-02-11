@@ -6,16 +6,16 @@ import typer
 
 import prefect.settings
 from prefect.agent import OrionAgent
-from prefect.cli.base import app, console
+from prefect.cli.base import PrefectTyper, app, console
 from prefect.utilities.asyncio import sync_compatible
 
-agent_app = typer.Typer(
+agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
 )
 app.add_typer(agent_app)
 
 
-ascii_name = """
+ascii_name = r"""
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____ 
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
  |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |  
@@ -25,7 +25,6 @@ ascii_name = """
 
 
 @agent_app.command()
-@sync_compatible
 async def start(
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     host: str = prefect.settings.from_env().orion_host,

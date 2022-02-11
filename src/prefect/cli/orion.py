@@ -14,7 +14,13 @@ import typer
 from anyio.streams.text import TextReceiveStream
 
 import prefect
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -24,13 +30,13 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
-orion_app = typer.Typer(
+orion_app = PrefectTyper(
     name="orion",
     help="Commands for interacting with backend services.",
 )
-database_app = typer.Typer(
+database_app = PrefectTyper(
     name="database", help="Commands for interacting with the database."
 )
 orion_app.add_typer(database_app)
@@ -40,10 +46,8 @@ logger = get_logger(__name__)
 
 
 def generate_welcome_blub(base_url):
-    api_url = base_url + "/api"
-
     blurb = textwrap.dedent(
-        f"""
+        r"""
          ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
         | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
         |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
@@ -51,9 +55,9 @@ def generate_welcome_blub(base_url):
 
         Configure Prefect to communicate with the server with:
 
-            PREFECT_ORION_HOST={api_url}
+            prefect config set PREFECT_ORION_HOST={api_url}
         """
-    )
+    ).format(api_url=base_url + "/api")
 
     visit_dashboard = textwrap.dedent(
         f"""
@@ -114,12 +118,11 @@ async def open_process_and_stream_output(
 
 
 @orion_app.command()
-@sync_compatible
 async def start(
     host: str = prefect.settings.from_env().orion.api.host,
     port: int = prefect.settings.from_env().orion.api.port,
     log_level: str = prefect.settings.from_env().logging.server_level,
-    services: bool = True,  # Note this differs from the default of `prefect.settings.from_env().orion.services.run_in_app`
+    services: bool = True,  # Note this differs from the default of `prefect.settings.orion.services.run_in_app`
     agent: bool = True,
     ui: bool = prefect.settings.from_env().orion.ui.enabled,
 ):
@@ -204,7 +207,6 @@ def kubernetes_manifest():
 
 
 @database_app.command()
-@sync_compatible
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
     db = provide_database_interface()
@@ -224,7 +226,6 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
 
 
 @database_app.command()
-@sync_compatible
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -250,7 +251,6 @@ async def upgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -280,7 +280,6 @@ async def downgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
@@ -294,7 +293,6 @@ async def revision(message: str = None, autogenerate: bool = False):
 
 
 @database_app.command()
-@sync_compatible
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 

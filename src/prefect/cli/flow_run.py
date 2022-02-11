@@ -11,21 +11,20 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import app, console, exit_with_error
+from prefect.cli.base import PrefectTyper, app, console, exit_with_error
 from prefect.client import OrionClient
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.utilities.asyncio import sync_compatible
 
-flow_run_app = typer.Typer(
+flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."
 )
 app.add_typer(flow_run_app)
 
 
 @flow_run_app.command()
-@sync_compatible
 async def inspect(id: UUID):
     """
     View details about a flow run.
@@ -43,7 +42,6 @@ async def inspect(id: UUID):
 
 
 @flow_run_app.command()
-@sync_compatible
 async def ls(
     flow_name: List[str] = None,
     limit: int = 15,
