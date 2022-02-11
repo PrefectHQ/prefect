@@ -8,10 +8,6 @@ from prefect.orion.utilities.filesystem import (
     write_blob,
 )
 
-if TYPE_CHECKING:
-    # `DataDocument` is required for the `OrionSerializer` but is a circular import
-    from prefect.orion.schemas.data import DataDocument
-
 _SERIALIZERS: Dict[str, "Serializer"] = {}
 D = TypeVar("D")
 
@@ -75,21 +71,3 @@ class FileSerializer(Serializer[bytes]):
     def loads(blob: bytes) -> bytes:
         path = blob.decode()
         return read_blob(path)
-
-
-@register_serializer(encoding="orion")
-class OrionSerializer(Serializer["DataDocument"]):
-    """
-    This serializer wraps a data document with an "orion" schema so we can indicate
-    that a document should be resolved by sending it to Orion
-    """
-
-    @staticmethod
-    def dumps(data: "DataDocument") -> bytes:
-        return data.json().encode()
-
-    @staticmethod
-    def loads(blob: bytes) -> "DataDocument":
-        from prefect.orion.schemas.data import DataDocument
-
-        return DataDocument.parse_raw(blob)

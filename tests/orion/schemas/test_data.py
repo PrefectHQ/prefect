@@ -7,7 +7,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.serializers import (
     _SERIALIZERS,
     FileSerializer,
-    OrionSerializer,
     Serializer,
     register_serializer,
 )
@@ -67,7 +66,6 @@ class TestDataDocument:
     @pytest.mark.parametrize(
         "encoding,serializer",
         [
-            ("orion", OrionSerializer),
             ("file", FileSerializer),
             ("s3", FileSerializer),
         ],
