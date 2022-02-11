@@ -1,7 +1,7 @@
 import { watch } from 'vue'
 import { LocationQuery, LocationQueryValue, Router } from 'vue-router'
 import { useFiltersStore } from '../stores/filters'
-import { asArray } from '../utilities/arrays'
+// import { asArray } from '../utilities/arrays'
 import { FilterService } from './FilterService'
 
 export class FilterUrlService {
@@ -21,7 +21,7 @@ export class FilterUrlService {
   }
 
   public start(): void {
-    this.unwatch = watch(() => this.store.filters, this.updateUrl)
+    this.unwatch = watch(() => this.store.all, () => this.updateUrl())
   }
 
   public stop(): void {
@@ -39,7 +39,10 @@ export class FilterUrlService {
   }
 
   private updateStore(): void {
-    const filters = asArray(this.query.filters).filter(this.isFilterString)
+    // the this.query is undefined if this happens to early.
+    // const filters = asArray(this.query.filters).filter(this.isFilterString)
+    const params = new URLSearchParams(window.location.search)
+    const filters = params.getAll('filter')
     const parsedFilters = FilterService.parse(filters)
 
     this.store.replaceAll(parsedFilters)
