@@ -30,11 +30,8 @@ class TestPersistData:
         response = await client.post("/data/persist", content=user_data)
         assert response.status_code == 201
 
-        # We have received an orion document
-        orion_datadoc = DataDocument.parse_obj(response.json())
-
-        # The blob contains a file system document
-        fs_datadoc = orion_datadoc.decode()
+        # We have received a file system document
+        fs_datadoc = DataDocument.parse_obj(response.json())
 
         # It saved it to a path respecting our dataloc
         path = fs_datadoc.blob.decode()
@@ -60,15 +57,12 @@ class TestRetrieveData:
     async def test_retrieve_data(self, client, tmp_path, user_data):
         path = str(tmp_path.joinpath("data"))
 
-        # Create a full Orion data document describing the data and write to disk
-        orion_datadoc = DataDocument.encode(
-            encoding="orion",
-            data=DataDocument.encode(encoding="file", data=user_data, path=path),
-        )
+        # Create file data document describing the data and write to disk
+        datadoc = DataDocument.encode(encoding="file", data=user_data, path=path)
 
         # The user data document should be returned
         response = await client.post(
-            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
+            "/data/retrieve", json=datadoc.dict(json_compatible=True)
         )
         assert response.status_code == 200
         returned_data = response.content
