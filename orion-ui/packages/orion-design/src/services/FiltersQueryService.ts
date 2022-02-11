@@ -18,18 +18,32 @@ import { UnionFilters } from './Filter'
 export class FiltersQueryService {
 
   public static query(filters: Required<Filter>[]): UnionFilters {
+    const union: UnionFilters = {}
+
     const flowFilters = filters.filter(isCompleteFlowFilter)
+
+    if (flowFilters.length) {
+      union.flows = this.createFlowFilter(flowFilters)
+    }
+
     const flowRunFilters = filters.filter(isCompleteFlowRunFilter)
+
+    if (flowRunFilters.length) {
+      // eslint-disable-next-line camelcase
+      union.flow_runs = this.createFlowRunsFilter(flowRunFilters)
+    }
+
     const taskRunFilters = filters.filter(isCompleteTaskRunFilter)
+
+    if (taskRunFilters.length) {
+      // eslint-disable-next-line camelcase
+      union.task_runs = this.createFlowRunsFilter(flowRunFilters)
+    }
+
     const deploymentFilters = filters.filter(isCompleteDeploymentFilter)
 
-    const union: UnionFilters = {
-      flows: this.createFlowFilter(flowFilters),
-      // eslint-disable-next-line camelcase
-      flow_runs: this.createFlowRunsFilter(flowRunFilters),
-      // eslint-disable-next-line camelcase
-      task_runs: this.createTaskRunsFilter(taskRunFilters),
-      deployments: this.createDeploymentsFilter(deploymentFilters),
+    if (deploymentFilters.length) {
+      union.deployments = this.createDeploymentsFilter(deploymentFilters)
     }
 
     return union
