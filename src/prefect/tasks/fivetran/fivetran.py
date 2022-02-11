@@ -3,6 +3,7 @@ import time
 
 import requests
 import pendulum
+import warnings
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -21,12 +22,15 @@ class FivetranSyncTask(Task):
             specified to `run`.
         - poll_status_every_n_seconds (int): Frequency in which Prefect will check status of
             Fivetran connector's sync completion
+        - manual (bool, optional):  !! deprecating, please use schedule_type !!
+            if provided, will overwrite Prefect's changes
+            to the Fivetran connector's schedule, keeping it on Fivetran auto scheduling
         - schedule_type (str, optional): Either manual or auto. If manual (default),
             connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
 
-    api_user_agent = "prefect/1.0.1"
+    api_user_agent = "prefect/1.0.2"
 
     def __init__(self, connector_id: str = None, **kwargs):
         self.connector_id = connector_id
@@ -39,6 +43,7 @@ class FivetranSyncTask(Task):
         api_secret: str,
         connector_id: str = None,
         poll_status_every_n_seconds: int = 15,
+        manual: bool = None,
         schedule_type: str = "manual",
     ) -> dict:
         """
@@ -54,10 +59,13 @@ class FivetranSyncTask(Task):
             - connector_id (str, optional): if provided, will overwrite value provided at init.
             - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
                 if provided this value will override the default polling time of 15 seconds.
+            - manual (bool, optional):  !! deprecating, please use schedule_type !!
+                if provided, will overwrite Prefect's changes
+                to the Fivetran connector's schedule, keeping it on Fivetran auto scheduling
             - schedule_type (str, optional): Either manual or auto. If manual (default),
                 connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         Returns:
-            - status (dict): connector_id (str) and succeeded_at (timestamp str)
+            - dict: connector_id (str) and succeeded_at (timestamp str)
         """
 
         def parse_timestamp(api_time: str):
@@ -120,6 +128,19 @@ class FivetranSyncTask(Task):
         )
         self.logger.info("Connectors logs at {}".format(URL_LOGS))
 
+        # Set connector to manual sync mode, required to force sync through the API
+        if manual:
+            warnings.warn(
+                "Are you using manual? This may conflict with schedule_type"
+                " and will be deprecated! Please use schedule_type instead."
+            )
+            resp = session.patch(
+                URL_CONNECTOR,
+                data=json.dumps({"schedule_type": "manual"}),
+                headers={"Content-Type": "application/json;version=2"},
+                auth=(api_key, api_secret),
+            )
+
         # Set connector to schedule_type if it is changing
         if schedule_type not in ["manual", "auto"]:
             raise ValueError('schedule_type must be either "manual" or "auto"')
@@ -172,9 +193,7 @@ class FivetranSyncTask(Task):
             else:
                 time.sleep(poll_status_every_n_seconds)
 
-        status =  {
+        return {
             "succeeded_at": succeeded_at.to_iso8601_string(),
             "connector_id": connector_id,
         }
-
-        return status
