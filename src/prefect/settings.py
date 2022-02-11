@@ -446,7 +446,7 @@ _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 def defaults() -> Settings:
     """
-    Returns a settings object populated with default values ignoring any overrides
+    Returns a settings object populated with default values, ignoring any overrides
     from environment variables.
 
     This is cached since the defaults should not change during the lifetime of the

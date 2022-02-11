@@ -227,7 +227,7 @@ class ProfileContext(ContextModel):
         settings: The complete settings model
         env: The environment variables set in this profile configuration and their
             current values. These may differ from the profile configuration if the
-            use has overridden them explicitly.
+            user has overridden them explicitly.
     """
 
     name: str
