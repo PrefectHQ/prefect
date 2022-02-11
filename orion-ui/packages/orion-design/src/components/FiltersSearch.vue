@@ -4,10 +4,10 @@
       <i class="pi pi-search-line" />
     </template>
     <template v-if="hasFilters && filters.length < 5 && media.sm">
-      <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" @click.stop />
+      <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
     </template>
     <template v-else-if="hasFilters">
-      <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" @click.stop />
+      <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
     </template>
     <input
       v-model="term"
@@ -36,6 +36,10 @@
   import FilterTags from './FilterTags.vue'
   import { FilterUrlService } from '../services'
   import {  useRouter } from 'vue-router'
+
+  defineProps<{
+    dismissable?: boolean
+  }>()
 
   const filtersStore = useFiltersStore()
   const filterUrlService = new FilterUrlService(useRouter())
