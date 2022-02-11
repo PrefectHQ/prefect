@@ -71,7 +71,7 @@ settings = prefect.settings.from_context()
 settings.orion.api.port # 4242
 ```
 
-## Persisting configuration values
+## Configuration profiles
 
 Prefect allows you to persist settings instead of setting an environment variable each time you open a new shell.
 Settings are persisted to profiles, which allow you to change settings quickly.
@@ -107,11 +107,7 @@ PREFECT_PROFILE="default"
 PREFECT_ORION_HOST='http://localhost:4200/api' (from profile)
 ```
 
-See our [documentation on profiles](#profiles) for more details on working with profiles.
-
-# Profiles
-
-## Creating and removing profiles
+### Creating and removing profiles
 
 Create a new profile with no settings:
 ```bash
@@ -143,7 +139,7 @@ $ prefect config rm-profile default
 Reset profile 'default'.
 ```
 
-## Change values in profiles
+### Change values in profiles
 
 Set a value in the current profile:
 ```
@@ -167,7 +163,7 @@ Set variable 'VAR' to 'Y'
 Updated profile 'foo'
 ```
 
-Unset values in the current profile:
+Unset values in the current profile to restore the defaults:
 ```
 $ prefect config unset VAR2 VAR3
 Unset variable 'VAR2'
@@ -175,7 +171,7 @@ Unset variable 'VAR3'
 Updated profile 'default'
 ```
 
-## Inspecting profiles
+### Inspecting profiles
 
 List all profiles:
 ```
@@ -218,7 +214,7 @@ VAR = "X"
 VAR = "Y"
 ```
 
-## Using profiles
+### Using profiles
 
 The profile `"default"` is used by default. To use another profile, set the environment variable `PREFECT_PROFILE` to the name of the profile:
 
@@ -251,7 +247,7 @@ $ alias prefect-foo="prefect --profile 'foo' "
 $ prefect-foo config view  # uses our profile!
 ```
 
-## Conflicts with environment variables
+### Conflicts with environment variables
 
 If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile will be ignored.
 
