@@ -37,7 +37,7 @@ export class FiltersQueryService {
 
     if (taskRunFilters.length) {
       // eslint-disable-next-line camelcase
-      union.task_runs = this.createFlowRunsFilter(flowRunFilters)
+      union.task_runs = this.createTaskRunsFilter(taskRunFilters)
     }
 
     const deploymentFilters = filters.filter(isCompleteDeploymentFilter)
