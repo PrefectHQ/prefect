@@ -14,7 +14,7 @@
             {{ toPluralString(label, count) }}
           </template>
         </m-select>
-        <m-number-input v-model="count" min="1" />
+        <m-number-input v-model="count" class="filter-builder-value-date__number" />
       </div>
     </template>
   </div>
@@ -131,15 +131,27 @@
 
 <style lang="scss" scoped>
 .filter-builder-value-date {
-  display: grid;
+  display: flex;
   gap: var(--m-2);
   align-items: flex-end;
-  grid-template-columns: minmax(100px, 350px) minmax(100px, 1fr);
 }
 
 .filter-builder-value-date__relative {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: inherit;
+  flex-grow: 1;
+  min-width: 200px;
+}
+
+.filter-builder-value-date__number :deep(.number-input__container) {
+  height: 58px;
+}
+
+.filter-builder-value-date__number :deep(.number-input__spin-buttons) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 0;
 }
 </style>
