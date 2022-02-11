@@ -19,7 +19,7 @@ from prefect.cli.base import (
 from prefect.utilities.collections import dict_to_flatdict
 
 config_app = PrefectTyper(
-    name="config", help="Commands for interacting with the Prefect configuration."
+    name="config", help="Commands for interacting with Prefect settings."
 )
 app.add_typer(config_app)
 
@@ -66,7 +66,9 @@ def list_profiles():
 @config_app.command()
 def set(variables: List[str]):
     """
-    Change the value for a setting in the current profile.
+    Change the value for a setting.
+
+    Sets the value in the current profile.
     """
     profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
@@ -94,7 +96,9 @@ def set(variables: List[str]):
 @config_app.command()
 def unset(variables: List[str]):
     """
-    Remove a setting from the current profile, restoring the default.
+    Restore the default value for a setting.
+
+    Removes the setting from the current profile.
     """
     profiles = prefect.context.load_profiles()
     profile = prefect.context.get_profile_context()
@@ -203,7 +207,7 @@ def rename_profile(name: str, new_name: str):
 @config_app.command()
 def view(show_defaults: bool = False, show_sources: bool = False):
     """
-    Display the current configuration.
+    Display the current settings.
     """
     profile = prefect.context.get_profile_context()
 
