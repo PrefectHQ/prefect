@@ -23,7 +23,7 @@
     object?: FilterObject,
   }>()
 
-  const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run', 'tag']
+  const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run']
 </script>
 
 <style lang="scss" scoped>
