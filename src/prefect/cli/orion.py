@@ -46,10 +46,8 @@ logger = get_logger(__name__)
 
 
 def generate_welcome_blub(base_url):
-    api_url = base_url + "/api"
-
     blurb = textwrap.dedent(
-        f"""
+        r"""
          ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
         | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
         |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
@@ -57,9 +55,9 @@ def generate_welcome_blub(base_url):
 
         Configure Prefect to communicate with the server with:
 
-            PREFECT_ORION_HOST={api_url}
+            prefect config set PREFECT_ORION_HOST={api_url}
         """
-    )
+    ).format(api_url=base_url + "/api")
 
     visit_dashboard = textwrap.dedent(
         f"""
