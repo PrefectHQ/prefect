@@ -127,14 +127,14 @@ onMounted(() => {
         property: 'start_date',
         type: 'time',
         operation: 'newer',
-        value: '7d'
+        value: '1d'
       },
       {
         object: 'flow_run',
         property: 'start_date',
         type: 'time',
         operation: 'older',
-        value: '-7d'
+        value: '-1d'
       }
     ])
   }
