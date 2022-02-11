@@ -337,7 +337,7 @@ def profile(
     Switch to a new profile for the duration of this context.
 
     Upon initialization, we can create the home directory contained in the settings and
-    set up logging. These steps are optional. Logging can only be set up once per
+    configure logging. These steps are optional. Logging can only be set up once per
     process and later attempts to configure logging will fail.
 
     Profile contexts are confined to an async context in a single thread.
