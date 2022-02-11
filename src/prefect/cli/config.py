@@ -41,15 +41,6 @@ def get_profile(names: List[str] = typer.Argument(None)):
 
 
 @config_app.command()
-def get_profiles():
-    """
-    Show settings in all profiles.
-    """
-    profiles = prefect.context.load_profiles()
-    console.out(toml.dumps(profiles).strip())
-
-
-@config_app.command()
 def list_profiles():
     """
     List profile names.
