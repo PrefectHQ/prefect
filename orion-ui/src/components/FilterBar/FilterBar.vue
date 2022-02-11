@@ -1,6 +1,6 @@
 <template>
-  <div class="filter-bar">
-    <FiltersSearch class="filter-bar__search" @click="show('search')" />
+  <div class="filter-bar" :class="classes.root">
+    <FiltersSearch class="filter-bar__search" :dismissable="isDashboard" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -40,13 +40,20 @@ import FiltersSaveMenu from '@/../packages/orion-design/src/components/FiltersSa
 import FiltersMenu from '@/../packages/orion-design/src/components/FiltersMenu.vue';
 import media from '@/utilities/media'
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 
 type Menu = 'none' | 'search' | 'save' | 'filters'
 
 const menu = ref<Menu>('none')
 const overlay = computed(() => menu.value !== 'none')
+const route = useRoute()
+
+const isDashboard = computed(() => route.name === 'Dashboard')
 
 const classes = computed(() => ({
+  root: {
+    'filter-bar--disabled': !isDashboard.value
+  },
   saveButton: {
     'filter-bar__button--open': isOpen('save')
   },
@@ -110,6 +117,24 @@ function close(): void {
     &.detached {
       top: 62px;
     }
+  }
+}
+
+.filter-bar--disabled {
+  pointer-events: none;
+  cursor: default;
+  position: relative;
+
+  &::after {
+    position: absolute;
+    content: '';
+    display: block;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--grey-80);
+    opacity: 0.1;
   }
 }
 
