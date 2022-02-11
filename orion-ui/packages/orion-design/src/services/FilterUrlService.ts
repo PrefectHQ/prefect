@@ -1,48 +1,55 @@
-import { watch } from 'vue'
 import { LocationQuery, LocationQueryValue, Router } from 'vue-router'
-import { useFiltersStore } from '../stores/filters'
-import { asArray } from '../utilities/arrays'
+import { FilterState, useFiltersStore } from '../stores/filters'
+import { Filter } from '../types/filters'
+// import { asArray } from '../utilities/arrays'
 import { FilterService } from './FilterService'
 
 export class FilterUrlService {
   private readonly router: Router
   private readonly store = useFiltersStore()
-  private unwatch: ReturnType<typeof watch> | null = null
 
   public constructor(router: Router) {
     this.router = router
-
-    this.updateStore()
-    this.start()
   }
 
   private get query(): LocationQuery {
     return this.router.currentRoute.value.query
   }
 
-  public start(): void {
-    this.unwatch = watch(() => this.store.filters, this.updateUrl)
+  public add(filter: Required<Filter>): void {
+    this.store.add(filter)
+    this.updateUrl()
   }
 
-  public stop(): void {
-    if (this.unwatch) {
-      this.unwatch()
-    }
+  public remove(filter: FilterState): void {
+    this.store.remove(filter)
+    this.updateUrl()
+  }
 
-    this.unwatch = null
+  public removeAll(): void {
+    this.store.removeAll()
+    this.updateUrl()
+  }
+
+  public replaceAll(filters: Required<Filter>[]): void {
+    this.store.replaceAll(filters)
+    this.updateUrl()
+  }
+
+  public updateStore(): void {
+    // the this.query is undefined if this happens to early.
+    // const filters = asArray(this.query.filters).filter(this.isFilterString)
+    const params = new URLSearchParams(window.location.search)
+    const filters = params.getAll('filter')
+    const parsedFilters = FilterService.parse(filters)
+
+    this.store.replaceAll(parsedFilters)
   }
 
   private updateUrl(): void {
     const filters = FilterService.stringify(this.store.all)
 
     this.router.push({ query: { ...this.query, filter: filters } })
-  }
-
-  private updateStore(): void {
-    const filters = asArray(this.query.filters).filter(this.isFilterString)
-    const parsedFilters = FilterService.parse(filters)
-
-    this.store.replaceAll(parsedFilters)
   }
 
   private isFilterString(value: LocationQueryValue): value is string {
