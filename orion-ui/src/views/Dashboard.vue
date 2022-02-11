@@ -10,9 +10,7 @@
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
-            <span class="font--secondary subheader">
-              {{ filter.count }}
-            </span>
+            <span class="font--secondary subheader">{{ filter.count }}</span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
           <i class="pi pi-filter-3-line pi-lg text--grey-80" />
@@ -23,15 +21,9 @@
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
-      <RunTimeIntervalBarChart
-        :filter="flowRunStatsFilter"
-        class="run-duration flex-grow-0"
-      />
+      <RunTimeIntervalBarChart :filter="flowRunStatsFilter" class="run-duration flex-grow-0" />
 
-      <LatenessIntervalBarChart
-        :filter="flowRunStatsFilter"
-        class="run-lateness flex-grow-0"
-      />
+      <LatenessIntervalBarChart :filter="flowRunStatsFilter" class="run-lateness flex-grow-0" />
     </div>
 
     <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-5" />
@@ -44,25 +36,15 @@
       </span>
     </div>
 
-    <section
-      class="results-section d-flex flex-column align-stretch justify-stretch"
-    >
+    <section class="results-section d-flex flex-column align-stretch justify-stretch">
       <transition name="tab-fade" mode="out-in" css>
-        <div
-          v-if="resultsCount === 0"
-          class="text-center my-8"
-          key="no-results"
-        >
+        <div v-if="resultsCount === 0" class="text-center my-8" key="no-results">
           <template v-if="resultsTab == 'deployments'">
-            <h2> No scheduled deployments found </h2>
-            <div class="my-2">
-              Deployments can only be created using the Prefect CLI
-            </div>
-            <Button color="alternate" @click="onFilterOff">
-              Show all deployments
-            </Button>
+            <h2>No scheduled deployments found</h2>
+            <div class="my-2">Deployments can only be created using the Prefect CLI</div>
+            <Button color="alternate" @click="onFilterOff">Show all deployments</Button>
           </template>
-          <h2 v-else> No results found </h2>
+          <h2 v-else>No results found</h2>
         </div>
 
         <ResultsList
@@ -133,6 +115,8 @@ import router from '@/router'
 import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
 
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
+
 const filtersStore = useFiltersStore()
 const all = computed(() => filtersStore.all)
 const store = useStore()
@@ -143,8 +127,6 @@ const resultsTab: Ref<string> = ref('flows')
 const filter = computed<UnionFilters>(() => {
   return FiltersQueryService.query(filtersStore.all)
   // return buildFilter(store.state.filter)
-})
-  return buildFilter(store.state.filter)
 })
 
 const deploymentFilterOff = ref(false)
