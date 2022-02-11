@@ -30,7 +30,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 orion_app = PrefectTyper(
     name="orion",
