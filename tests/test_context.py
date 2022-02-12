@@ -1,4 +1,6 @@
+import textwrap
 from contextvars import ContextVar
+from unittest.mock import ANY, MagicMock
 
 import pytest
 from pendulum.datetime import DateTime
@@ -12,9 +14,12 @@ from prefect.context import (
     TaskRunContext,
     get_profile_context,
     get_run_context,
+    initialize_module_profile,
+    profile,
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
+from prefect.utilities.testing import temporary_settings
 
 
 class ExampleContext(ContextModel):
@@ -107,11 +112,127 @@ async def test_get_run_context(orion_client):
         assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
 
 
-def test_profile_context():
-    with ProfileContext(
-        name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
-    ) as context:
-        assert get_profile_context() is context
-        assert context.name == "test"
-        assert context.settings == prefect.settings.from_env()
-        assert context.env == {"FOO": "BAR"}
+class TestProfilesContext:
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path):
+        path = tmp_path / "profiles.toml"
+        with temporary_settings(PREFECT_PROFILES_PATH=path):
+            yield path
+
+    def test_profile_context_variable(self):
+        with ProfileContext(
+            name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
+        ) as context:
+            assert get_profile_context() is context
+            assert context.name == "test"
+            assert context.settings == prefect.settings.from_env()
+            assert context.env == {"FOO": "BAR"}
+
+    def test_get_profile_context_missing(self, monkeypatch):
+        # It's kind of hard to actually exit the default profile, so we patch `get`
+        monkeypatch.setattr(
+            "prefect.context.ProfileContext.get", MagicMock(return_value=None)
+        )
+        with pytest.raises(MissingContextError, match="No profile"):
+            get_profile_context()
+
+    def test_profile_context_creates_home_if_asked(
+        self, tmp_path, temporary_profiles_path
+    ):
+        home = tmp_path / "home"
+        assert not home.exists()
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                f"""
+                [foo]
+                PREFECT_HOME = "{home}"
+                """
+            )
+        )
+        with profile("foo", create_home=True):
+            pass
+
+        assert home.exists()
+
+    def test_profile_context_uses_settings(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_ORION_HOST="test"
+                """
+            )
+        )
+        with profile("foo") as ctx:
+            assert prefect.settings.from_context().orion_host == "test"
+            assert ctx.settings == prefect.settings.from_context()
+            assert ctx.env == {"PREFECT_ORION_HOST": "test"}
+            assert ctx.name == "foo"
+
+    def test_profile_context_sets_up_logging_if_asked(
+        self, monkeypatch, temporary_profiles_path
+    ):
+        setup_logging = MagicMock()
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_ORION_HOST = "test"
+                """
+            )
+        )
+        with profile("foo", setup_logging=True) as ctx:
+            setup_logging.assert_called_once_with(ctx.settings)
+
+    def test_profile_context_does_not_setup_logging_by_default(self, monkeypatch):
+        setup_logging = MagicMock()
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+
+        with profile("default"):
+            setup_logging.assert_not_called()
+
+    def test_profile_context_nesting(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_ORION_HOST="foo"
+
+                [bar]
+                PREFECT_ORION_HOST="bar"
+                """
+            )
+        )
+        with profile("foo") as foo_context:
+            with profile("bar") as bar_context:
+                assert bar_context.settings == prefect.settings.from_context()
+                assert bar_context.settings.orion_host == "bar"
+                assert bar_context.env == {"PREFECT_ORION_HOST": "bar"}
+                assert bar_context.name == "bar"
+            assert foo_context.settings == prefect.settings.from_context()
+            assert foo_context.settings.orion_host == "foo"
+            assert foo_context.env == {"PREFECT_ORION_HOST": "foo"}
+            assert foo_context.name == "foo"
+
+    def test_initialize_module_profile(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        initialize_module_profile()
+        profile.assert_called_once_with(
+            name="default", create_home=True, setup_logging=True
+        )
+        profile().__enter__.assert_called_once_with()
+
+    def test_initialize_module_profile_respects_name_env_variable(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setenv("PREFECT_PROFILE", "test")
+        initialize_module_profile()
+        profile.assert_called_once_with(
+            name="test", create_home=True, setup_logging=True
+        )

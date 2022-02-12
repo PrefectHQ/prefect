@@ -30,7 +30,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 orion_app = PrefectTyper(
     name="orion",
@@ -46,10 +46,8 @@ logger = get_logger(__name__)
 
 
 def generate_welcome_blub(base_url):
-    api_url = base_url + "/api"
-
     blurb = textwrap.dedent(
-        f"""
+        r"""
          ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
         | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
         |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
@@ -57,9 +55,9 @@ def generate_welcome_blub(base_url):
 
         Configure Prefect to communicate with the server with:
 
-            PREFECT_ORION_HOST={api_url}
+            prefect config set PREFECT_ORION_HOST={api_url}
         """
-    )
+    ).format(api_url=base_url + "/api")
 
     visit_dashboard = textwrap.dedent(
         f"""
@@ -191,7 +189,7 @@ async def start(
 @orion_app.command()
 def kubernetes_manifest():
     """
-    Generates a kubernetes manifest for to deploy Orion to a cluster.
+    Generates a Kubernetes manifest for deploying Orion to a cluster.
 
     Example:
         $ prefect orion kubernetes-manifest | kubectl apply -f -

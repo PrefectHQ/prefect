@@ -122,8 +122,6 @@ Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
 ```
 </div>
 
-This pattern is particularly useful when triggering flow runs via Orion's API. All that you need is to provide a JSON document that your flow parameters can interpret and Prefect will take care of the rest.
-
 !!! note "This behavior can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your flow decorator and Prefect will passively accept whatever input values you provide.
 
