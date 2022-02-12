@@ -1,4 +1,4 @@
-name: Release Orion Design
+name: Release orion-design
 
 on:
   workflow_dispatch:
@@ -9,9 +9,8 @@ on:
       - main
 
 jobs:
-
   version-change-check:
-    name: Check Package Version
+    name: Check package version
     runs-on: ubuntu-latest
 
     steps: 
@@ -19,36 +18,32 @@ jobs:
         with: 
           persist-credentials: false
 
-      - name: Check Package Version
-        uses: EndBug/version-check@v2.1.0
+      - uses: EndBug/version-check@v2.1.0
         id: check
         with: 
           diff-search: true
           file-name: ./orion-ui/packages/orion-design/package.json
 
-      - name: Cancel
+      - uses: andymckay/cancel-action@0.2
         if: steps.check.outputs.changed == 'false'
-        uses: andymckay/cancel-action@0.2
-
+        
   build-and-publish:
-    name: Build & Publish Release
+    name: Build and publish release
     runs-on: ubuntu-latest
     needs: [version-change-check]
     environment: 'npm'
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
-      - name: Read .nvmrc
-        run: echo "##[set-output name=NVMRC;]$(cat .nvmrc)"
+      - name: Read version from .nvmrc
+        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
         id: nvm
 
       - uses: actions/setup-node@v2
         with:
-          node-version: "${{ steps.nvm.outputs.NVMRC }}"
-      
+          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+    
       - name: Install orion-ui dependencies
         working-directory: ./orion-ui
         run: npm ci install
@@ -61,14 +56,14 @@ jobs:
         working-directory: ./orion-ui/packages/orion-design
         run: npm run build
 
-      - name: Get Package Version
+      - name: Get package version
         uses: EndBug/version-check@v2.1.0
         id: version
         with: 
           diff-search: true
           file-name: ./orion-ui/packages/orion-design/package.json
 
-      - name: Publish Package
+      - name: Publish package
         id: publish
         uses: JS-DevTools/npm-publish@v1
         with:

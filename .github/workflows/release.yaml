@@ -1,4 +1,4 @@
-name: Release
+name: Release prefect
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-release:
-    name: Build release
+    name: Build Python package
 
     runs-on: ubuntu-latest
 
@@ -23,10 +23,13 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Set up Node 16.x
-        uses: actions/setup-node@v2
+      - name: Read version from .nvmrc
+        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
+        id: nvm
+
+      - uses: actions/setup-node@v2
         with:
-          node-version: 16
+          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
 
       - uses: actions/cache@v2
         with:
@@ -34,12 +37,12 @@ jobs:
           # Load installed python packages from the cache
           key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
 
-      - name: Install packages
+      - name: Install python packages
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Build UI
+      - name: Build orion-ui
         run: |
           prefect dev build-ui
 
@@ -52,7 +55,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
   build-docker-images:
     name: Build Docker images
@@ -65,7 +68,6 @@ jobs:
           - 3.9
 
     steps:
-
       # Not needed until we want multiarchecture builds
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v1
@@ -96,8 +98,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          build-args:
-            PYTHON_VERSION=${{ matrix.python-version }}
+          build-args: PYTHON_VERSION=${{ matrix.python-version }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
@@ -117,7 +118,7 @@ jobs:
   publish-docs:
     name: Open PR to docs branch
     needs: [build-release, publish-test-release]
-    environment: 'prod'
+    environment: "prod"
     runs-on: ubuntu-latest
 
     steps:
@@ -161,7 +162,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -172,7 +173,7 @@ jobs:
 
   publish-code:
     name: Open PR to prefecthq/prefect repo
-    environment: 'prod'
+    environment: "prod"
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
 
@@ -211,8 +212,8 @@ jobs:
           MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
   publish-release:
-    name: Publish release to PyPI
-    environment: 'prod'
+    name: Publish to PyPI
+    environment: "prod"
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
 
@@ -221,7 +222,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -231,13 +232,12 @@ jobs:
           name: ci
 
   publish-docker-images:
-    name: Publish Docker images
+    name: Publish to DockerHub
     needs: [build-docker-images, build-release, publish-test-release]
-    environment: 'prod'
+    environment: "prod"
 
     runs-on: ubuntu-latest
     steps:
-
       - name: Download image artifacts for Python 3.7
         uses: actions/download-artifact@v2
         with:

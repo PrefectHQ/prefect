@@ -1,0 +1,62 @@
+name: UI tests
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ui-tests.yaml
+      - orion-ui/
+      - .nvmrc
+  push:
+    branches:
+      - main
+
+jobs:
+  build-orion-design:
+    name: Build orion-design
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Read version from .nvmrc
+        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
+        id: nvm
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+
+      - name: Install orion-ui dependencies
+        working-directory: ./orion-ui
+        run: npm ci install
+
+      - name: Install orion-design dependencies
+        working-directory: ./orion-ui/packages/orion-design
+        run: npm ci install
+
+      - name: Build orion-design
+        working-directory: ./orion-ui/packages/orion-design
+        run: npm run build
+
+  build-orion-ui:
+    name: Build orion-ui
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Read version from .nvmrc
+        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
+        id: nvm
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+
+      - name: Install orion-ui dependencies
+        working-directory: ./orion-ui
+        run: npm ci install
+
+      - name: Build orion-ui
+        working-directory: ./orion-ui
+        run: npm run build
