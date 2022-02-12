@@ -1,4 +1,5 @@
 import io
+from abc import abstractmethod
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -8,8 +9,27 @@ from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.orion.schemas.data import DataDocument
 
 
+class OrionStorageAPI(BlockAPI):
+    """
+    A block API that used to persist bytes. Can be be used by Orion to persist data.
+    """
+
+    @abstractmethod
+    async def write(self, data: bytes):
+        """
+        Persists bytes and returns a JSON-serializable Python object used to
+        retrieve the persisted data.
+        """
+
+    @abstractmethod
+    async def read(self, *args, **kwargs):
+        """
+        Accepts a JSON-serializable Python object to retrieve persisted bytes.
+        """
+
+
 @register_blockapi("s3storage-block")
-class S3Block(BlockAPI):
+class S3Block(OrionStorageAPI):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_session_token: Optional[str] = None
@@ -49,7 +69,7 @@ class S3Block(BlockAPI):
 
 
 @register_blockapi("localstorage-block")
-class LocalStorageBlock(BlockAPI):
+class LocalStorageBlock(OrionStorageAPI):
     def block_initialization(self) -> None:
         pass
 
@@ -73,7 +93,7 @@ class LocalStorageBlock(BlockAPI):
 
 
 @register_blockapi("orionstorage-block")
-class OrionStorageBlock(BlockAPI):
+class OrionStorageBlock(OrionStorageAPI):
     def block_initialization(self) -> None:
         pass
 
