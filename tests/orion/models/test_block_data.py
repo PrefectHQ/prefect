@@ -84,3 +84,50 @@ class TestBlockDatas:
             session=session, name="hello-is-anybody-home"
         )
         assert delete_result is False
+
+    async def test_updating_block_name(self, session):
+        blockdata = await models.block_data.create_block_data(
+            session=session,
+            block_data=schemas.core.BlockData(
+                name="2d-lattice",
+                blockref="transfer-matrix-methods",
+                data=dict(),
+            ),
+        )
+
+        fancier_blockdata = schemas.actions.BlockDataCreate(
+            name="nd-lattice",
+            blockref="hartree-fock",
+            data=dict(),
+        )
+
+        update_result = await models.block_data.update_block_data(
+            session=session,
+            name="2d-lattice",
+            block_data=fancier_blockdata,
+        )
+        assert update_result is True
+
+        less_fancy = await models.block_data.read_block_data_by_name_as_block(
+            session=session, name="2d-lattice"
+        )
+        assert less_fancy is None
+
+        too_fancy = await models.block_data.read_block_data_by_name_as_block(
+            session=session, name="nd-lattice"
+        )
+        assert too_fancy
+
+    async def test_updating_block_name_on_nonexistent_blocks(self, session):
+        imaginary = schemas.actions.BlockDataCreate(
+            name="willed-into-existence",
+            blockref="a-wild-imagination",
+            data=dict(),
+        )
+
+        update_result = await models.block_data.update_block_data(
+            session=session,
+            name="a-block-that-never-was",
+            block_data=imaginary,
+        )
+        assert update_result is False

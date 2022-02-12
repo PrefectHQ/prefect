@@ -101,3 +101,24 @@ class TestBlockData:
 
         create_response = await client.post("/blocks/", json=second_twin)
         assert create_response.status_code == 400
+
+    async def test_updating_a_block_name(self, session, client):
+        a_sad_block = BlockDataCreate(
+            name="an-unsatisfying-name",
+            blockref="disappointment",
+            data=dict(),
+        ).dict(json_compatible=True)
+        create_response = await client.post("/blocks/", json=a_sad_block)
+        assert create_response.status_code == 200
+
+        a_wizard = BlockDataCreate(
+            name="mithrandir",
+            blockref="disappointment",
+            data=dict(),
+        ).dict(json_compatible=True)
+
+        patch_response = await client.patch(
+            "/blocks/name/an-unsatisfying-name",
+            json=a_wizard,
+        )
+        assert patch_response.status_code == 200

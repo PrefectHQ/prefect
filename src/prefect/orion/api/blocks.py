@@ -89,3 +89,21 @@ async def delete_block_by_name(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block data not found"
         )
+
+
+@router.patch("/name/{name}")
+async def update_block_data(
+    name: str,
+    block: schemas.actions.BlockDataCreate,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    result = await models.block_data.update_block_data(
+        session=session,
+        name=name,
+        block_data=block,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Block data not found"
+        )

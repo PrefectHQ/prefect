@@ -81,6 +81,24 @@ async def delete_block_data_by_name(
     return result.rowcount > 0
 
 
+@inject_db
+async def update_block_data(
+    session: sa.orm.Session,
+    name: str,
+    block_data: schemas.core.BlockData,
+    db: OrionDBInterface,
+) -> bool:
+
+    update_stmt = (
+        sa.update(db.BlockData)
+        .where(db.BlockData.name == name)
+        .values(**block_data.dict(shallow=True, exclude_unset=True))
+    )
+
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
+
+
 def unpack_blockdata(blockdata):
     if blockdata:
         block = {
