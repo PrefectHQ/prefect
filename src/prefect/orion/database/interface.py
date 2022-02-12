@@ -145,7 +145,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     @property
     def BlockData(self):
-        """A concurrency model"""
+        """A block model"""
         return self.orm.BlockData
 
     @property
