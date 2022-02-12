@@ -47,12 +47,12 @@ async def create_block(
 
 @router.get("/{id}")
 async def read_block(
-    block_data_id: UUID = Path(..., description="The block data id", alias="id"),
+    block_id: UUID = Path(..., description="The block data id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
     block = await models.block_data.read_block_data_as_block(
-        session=session, block_data_id=block_data_id
+        session=session, block_data_id=block_id
     )
 
     if not block:
