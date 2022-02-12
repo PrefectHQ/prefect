@@ -75,6 +75,8 @@ class BlobStorageUpload(Task):
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
         - container (str, optional): the name of the Azure Blob Storage to upload to
+        - overwrite (bool, optional): if set, an existing blob with the same name will be overwritten.
+            By default, an error will be thrown if the blob already exists.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -83,19 +85,22 @@ class BlobStorageUpload(Task):
         self,
         azure_credentials_secret: str = "AZ_CONNECTION_STRING",
         container: str = None,
+        overwrite: bool = False,
         **kwargs
     ) -> None:
         self.azure_credentials_secret = azure_credentials_secret
         self.container = container
+        self.overwrite = overwrite
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("azure_credentials_secret", "container")
+    @defaults_from_attrs("azure_credentials_secret", "container", "overwrite")
     def run(
         self,
         data: str,
         blob_name: str = None,
         azure_credentials_secret: str = "AZ_CONNECTION_STRING",
         container: str = None,
+        overwrite: bool = False,
     ) -> str:
         """
         Task run method.
@@ -107,6 +112,8 @@ class BlobStorageUpload(Task):
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
             - container (str, optional): the name of the Blob Storage container to upload to
+            - overwrite (bool, optional): if set, an existing blob with the same name will be overwritten.
+            By default, an error will be thrown if the blob already exists.
 
         Returns:
             - str: the name of the blob the data payload was uploaded to
@@ -128,6 +135,6 @@ class BlobStorageUpload(Task):
 
         client = blob_service.get_blob_client(container=container, blob=blob_name)
 
-        client.upload_blob(data)
+        client.upload_blob(data, overwrite=overwrite)
 
         return blob_name
