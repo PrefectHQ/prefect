@@ -2,14 +2,14 @@ name: Python tests
 
 on:
   pull_request:
-   paths:
-      - .github/workflows/python_tests.yaml
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'requirements-dev.txt'
+    paths:
+      - .github/workflows/python-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-dev.txt
   push:
     branches:
-      - "main"
+      - main
 
 env:
   MINIMUM_PYTHON_VERSION: 3.7
@@ -82,8 +82,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements*.txt'
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
 
       - name: Install packages
         run: |
@@ -97,16 +97,13 @@ jobs:
           path: /tmp
 
       - name: Load Docker image
-        run:
-          docker load --input /tmp/image.tar
+        run: docker load --input /tmp/image.tar
 
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           pytest tests --all-services -vv
-
-
 
   run-tests-postgres:
     name: Test with Postgres
@@ -147,8 +144,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'requirements*.txt'
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
 
       - name: Install packages
         run: |
@@ -162,15 +159,13 @@ jobs:
           path: /tmp
 
       - name: Load Docker image
-        run:
-          docker load --input /tmp/image.tar
+        run: docker load --input /tmp/image.tar
 
       - name: Run tests
         env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: 'postgresql+asyncpg://prefect:prefect@localhost/orion'
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
           pytest tests --all-services -vv
-
 
   run-tests-lower-bounds:
     name: Test with lower requirements
@@ -209,8 +204,7 @@ jobs:
           path: /tmp
 
       - name: Load Docker image
-        run:
-          docker load --input /tmp/image.tar
+        run: docker load --input /tmp/image.tar
 
       - name: Run tests
         env:
