@@ -2,14 +2,38 @@
 
 Prefect's settings are [well-documented][prefect.settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
 
-Settings can be access in Python and viewed from the Orion UI.
+Settings can be viewed from the CLI or the UI.
+
+## Viewing settings from the CLI
+
+The `prefect config view` command will display settings that override default values.
+
+```bash
+$ prefect config view
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='DEBUG'
+```
+
+You may can show the sources of values with `--show-sources`:
 
 
-## Accessing settings from Python
+```bash
+$ prefect config view --show-sources
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='DEBUG' (from env)
+```
 
-From Python, settings can be accessed with `prefect.settings.from_context()` which will load settings from the current profile context and return a `Settings` object.
+You may also include default values with `--show-defaults`:
 
-There is also a `from_env()` function which will load settings with overrides from environment variables, ignoring the profile context. We do not recommend this for general use.
+```bash
+$ prefect config view --show-defaults
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='DEBUG'
+PREFECT_AGENT_PREFETCH_SECONDS='10'
+PREFECT_AGENT_QUERY_INTERVAL='5.0'
+PREFECT_DEBUG_MODE='False'
+...
+```
 
 ## Overriding defaults with environment variables
 
@@ -47,83 +71,86 @@ settings = prefect.settings.from_context()
 settings.orion.api.port # 4242
 ```
 
-## Overriding defaults with profiles
+## Configuration profiles
 
-Profiles allow you to persist settings instead of setting an environment variable each time you open a new shell.
+Prefect allows you to persist settings instead of setting an environment variable each time you open a new shell.
+Settings are persisted to profiles, which allow you to change settings quickly.
 
 The default profile starts out empty:
 
 ```bash
-$ prefect profile inspect
+$ prefect config get-profile
 [default]
 ```
 
-To persist a setting, use `prefect profile set` and the same variable naming scheme as above:
+To persist a setting, use `prefect config set` and the same variable naming scheme as above:
 
 ```bash
-$ prefect profile set PREFECT_ORION_HOST="http://localhost:4200/api"
+$ prefect config set PREFECT_ORION_HOST="http://localhost:4200/api"
 Set variable 'PREFECT_ORION_HOST' to 'http://localhost:4200/api'
 Updated profile 'default'
 ```
 
-This setting has been persisted now:
+This setting has been persisted to the profile:
 
 ```bash
-$ prefect profile inspect
+$ prefect config get-profile
 [default]
 PREFECT_ORION_HOST = "http://localhost:4200/api"
 ```
 
-And will be used on future imports of Prefect:
+And will be used by Prefect in the future:
 
 ```bash
-$ python -c "import prefect.settings; print(prefect.settings.from_context().orion_host)"
-http://localhost:4200/api
+$ prefect config view
+PREFECT_PROFILE="default"
+PREFECT_ORION_HOST='http://localhost:4200/api' (from profile)
 ```
 
-See our [documentation on profiles](#profiles) for more details on working with profiles.
-
-# Profiles
-
-## Creating and removing profiles
+### Creating and removing profiles
 
 Create a new profile with no settings:
 ```bash
-$ prefect profile create test
+$ prefect config create-profile test
 Created profile 'test'.
 ```
 
 Create a new profile with settings cloned from an existing profile:
 ```bash
-$ prefect profile create foo --from default
+$ prefect config create-profile foo --from default
 Created profile 'foo' matching 'default'.
+```
+
+Rename a profile:
+```bash
+$ prefect config rename-profile foo bar
+Renamed profile 'foo' to 'bar'.
 ```
 
 Remove a profile:
 ```bash
-$ prefect profile rm test
+$ prefect config rm-profile test
 Removed profile 'test'.
 ```
 
 Removing the default profile resets it:
 ```
-$ prefect profile rm default
+$ prefect config rm-profile default
 Reset profile 'default'.
 ```
 
-
-## Change values in profiles
+### Change values in profiles
 
 Set a value in the current profile:
 ```
-$ prefect profile set VAR=X
+$ prefect config set VAR=X
 Set variable 'VAR' to 'X'
 Updated profile 'default'
 ```
 
 Set multiple values in the current profile:
 ```
-$ prefect profile set VAR2=Y VAR3=Z
+$ prefect config set VAR2=Y VAR3=Z
 Set variable 'VAR2' to 'Y'
 Set variable 'VAR3' to 'Z'
 Updated profile 'default'
@@ -131,45 +158,55 @@ Updated profile 'default'
 
 Set a value in another profile:
 ```
-$ prefect --profile "foo" profile set VAR=Y
+$ prefect --profile "foo" config set VAR=Y
 Set variable 'VAR' to 'Y'
 Updated profile 'foo'
 ```
 
-Unset values in the current profile:
+Unset values in the current profile to restore the defaults:
 ```
-$ prefect profile unset VAR2 VAR3
+$ prefect config unset VAR2 VAR3
 Unset variable 'VAR2'
 Unset variable 'VAR3'
 Updated profile 'default'
 ```
 
-## Examing profiles
+### Inspecting profiles
 
 List all profiles:
 ```
-$ prefect profile ls
+$ prefect config list-profiles
 default
 foo
 ```
 
-Inspect the current profile:
+View the current profile:
 ```
-$ prefect profile inspect
+$ prefect config get-profile
 [default]
 VAR=X
 ```
 
-Inspect another profile:
+View another profile:
 ```
-$ prefect profile inspect foo
+$ prefect config get-profile foo
 [foo]
 VAR=Y
 ```
 
-Inspect all profiles:
+View multiple profiles:
 ```
-$ prefect profile inspect --all
+$ prefect config get-profile default foo
+[default]
+VAR=X
+
+[foo]
+VAR=Y
+```
+
+View all profiles:
+```
+$ prefect config get-profiles
 [default]
 VAR = "X"
 
@@ -177,7 +214,7 @@ VAR = "X"
 VAR = "Y"
 ```
 
-## Using profiles
+### Using profiles
 
 The profile `"default"` is used by default. To use another profile, set the environment variable `PREFECT_PROFILE` to the name of the profile:
 
@@ -197,8 +234,47 @@ Note that this option must come before the subcommand. For example, to list flow
 $ prefect --profile "foo" flow-run ls
 ```
 
-## Conflicts with environment variables
+You may use the `-p` flag as well:
+
+```
+$ prefect -p "foo" flow-run ls
+```
+
+You may also create an 'alias' to automatically use your profile:
+
+```
+$ alias prefect-foo="prefect --profile 'foo' "
+$ prefect-foo config view  # uses our profile!
+```
+
+### Conflicts with environment variables
 
 If setting the profile from the CLI with `--profile`, environment variables that conflict with settings in the profile will be ignored.
 
 In all other cases, environment variables will take precedence over the value in the profile.
+
+For example, a value set in a profile will be used by default:
+
+```
+$ prefect config set PREFECT_LOGGING_LEVEL="ERROR"
+$ prefect config view --show-sources
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='ERROR' (from profile)
+```
+
+But, setting an environment variable will override the profile setting:
+
+```
+$ export PREFECT_LOGGING_LEVEL="DEBUG"
+$ prefect config view --show-sources
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='DEBUG' (from env)
+```
+
+Unless the profile is explicitly requested when using the CLI:
+
+```
+$ prefect --profile default config view --show-sources
+PREFECT_PROFILE="default"
+PREFECT_LOGGING_LEVEL='ERROR' (from profile)
+```

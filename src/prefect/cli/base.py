@@ -8,7 +8,9 @@ from contextlib import nullcontext
 import rich.console
 import typer
 
+import prefect
 import prefect.context
+import prefect.settings
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
 
@@ -87,8 +89,6 @@ def enter_profile_from_option(fn):
 def version():
     """Get the current Prefect version."""
     # TODO: expand this to a much richer display of version and system information
-    import prefect
-
     console.print(prefect.__version__)
 
 

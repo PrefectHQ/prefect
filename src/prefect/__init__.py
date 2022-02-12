@@ -26,7 +26,6 @@ from .context import tags
 import prefect.serializers
 
 # Iniitialize the process level profile at import time
-import prefect.settings
 import prefect.context
 
 prefect.context.initialize_module_profile()
