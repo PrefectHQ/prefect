@@ -16,7 +16,7 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union, Optional
 from uuid import UUID
 
 import anyio
@@ -566,7 +566,7 @@ class OrionClient:
         name: str,
         blockref: str,
         data: dict,
-    ) -> UUID:
+    ) -> Optional[UUID]:
         """
         Create block data in Orion. This data is used to configure a corresponding
         BlockAPI.
@@ -577,17 +577,18 @@ class OrionClient:
             blockref=blockref,
             data=data,
         )
-        response = await self.post(
-            "/blocks/",
-            json=block_data_create.dict(json_compatible=True),
-        )
+        try:
+            response = await self.post(
+                "/blocks/",
+                json=block_data_create.dict(json_compatible=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                return False
+            else:
+                raise e
 
-        block_data_id = response.json().get("id")
-
-        if not block_data_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(block_data_id)
+            return UUID(response.json().get("id"))
 
     async def delete_block_by_name(
         self,
@@ -877,17 +878,11 @@ class OrionClient:
         try:
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
         except httpx.HTTPStatusError:
-            try:
-                await self.create_block_data(
-                    name="ORION-CONFIG-STORAGE",
-                    blockref="localstorage-block",
-                    data=dict(),
-                )
-            except Exception as e:
-                if "400" in e.args[0]:
-                    pass
-                else:
-                    raise e
+            await self.create_block_data(
+                name="ORION-CONFIG-STORAGE",
+                blockref="localstorage-block",
+                data=dict(),
+            )
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
 
         block_datadoc = await storage_block.write(data)
