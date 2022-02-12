@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ui-tests.yaml
-      - orion-ui/
+      - orion-ui/**
       - .nvmrc
   push:
     branches:
