@@ -16,7 +16,7 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
