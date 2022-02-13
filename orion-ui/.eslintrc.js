@@ -3,48 +3,23 @@ module.exports = {
   env: {
     node: true
   },
-  extends: [
-    'plugin:vue/vue3-essential',
-    'eslint:recommended',
-    '@vue/typescript/recommended',
-    '@vue/prettier',
-    '@vue/prettier/@typescript-eslint'
-  ],
+  extends: ["@prefecthq"],
   parserOptions: {
-    ecmaVersion: 2020
+    ecmaVersion: 2020,
+    project: "./tsconfig.json"
   },
-  rules: {
-    'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-    'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-    'prettier/prettier': [
-      'error',
-      {
-        singleQuote: true,
-        semi: false,
-        trailingComma: 'none',
-        useTabs: false,
-        printWidth: 80,
-        htmlWhitespaceSensitivity: 'strict'
-      }
-    ],
-    quotes: ['error', 'single', { avoidEscape: true }],
-    semi: ['error', 'never'],
-    'vue/valid-v-slot': 'off',
-    '@typescript-eslint/no-inferrable-types': [
-      'off',
-      {
-        ignoreProperties: true
-      }
-    ]
-  },
-  overrides: [
-    {
-      files: ['**/*.spec.js', '**/*.spec.ts'],
-      env: {
-        jest: true
+  settings: {
+    "import/resolver": {
+      typescript: {
+        project: "./tsconfig.json"
       }
     }
-  ],
+  },
+  rules: {
+    "@typescript-eslint/no-explicit-any": "off",
+    "vue/multi-word-component-names": "off",
+    "vue/no-static-inline-styles": "off"
+  },
   globals: {
     defineProps: 'readonly',
     defineEmits: 'readonly'
