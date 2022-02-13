@@ -94,7 +94,7 @@ async def delete_block_by_name(
 @router.patch("/name/{name}")
 async def update_block_data(
     name: str,
-    block: schemas.actions.BlockDataCreate,
+    block: schemas.actions.BlockDataUpdate,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     result = await models.block_data.update_block_data(

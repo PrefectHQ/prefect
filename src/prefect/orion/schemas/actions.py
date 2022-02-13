@@ -1,7 +1,7 @@
 """
 Reduced schemas for accepting API actions.
 """
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field
 
@@ -156,6 +156,13 @@ class BlockDataCreate(
     )
 ):
     """Data used by the Orion API to create a block data container."""
+
+
+class BlockDataUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a block data container."""
+
+    name: Optional[str]
+    data: Optional[dict]
 
 
 class LogCreate(

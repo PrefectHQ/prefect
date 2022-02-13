@@ -85,7 +85,7 @@ async def delete_block_data_by_name(
 async def update_block_data(
     session: sa.orm.Session,
     name: str,
-    block_data: schemas.core.BlockData,
+    block_data: schemas.actions.BlockDataUpdate,
     db: OrionDBInterface,
 ) -> bool:
 

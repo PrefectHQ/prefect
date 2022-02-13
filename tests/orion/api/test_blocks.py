@@ -1,5 +1,5 @@
 from prefect.orion import schemas
-from prefect.orion.schemas.actions import BlockDataCreate
+from prefect.orion.schemas.actions import BlockDataCreate, BlockDataUpdate
 
 
 class TestBlockData:
@@ -102,23 +102,21 @@ class TestBlockData:
         create_response = await client.post("/blocks/", json=second_twin)
         assert create_response.status_code == 400
 
-    async def test_updating_a_block_name(self, session, client):
+    async def test_updating_a_block(self, session, client):
         a_sad_block = BlockDataCreate(
-            name="an-unsatisfying-name",
+            name="the-white-wizard",
             blockref="disappointment",
-            data=dict(),
+            data=dict(palantir="we do not know who else may be watching"),
         ).dict(json_compatible=True)
         create_response = await client.post("/blocks/", json=a_sad_block)
         assert create_response.status_code == 200
 
-        a_wizard = BlockDataCreate(
+        a_better_wizard = BlockDataUpdate(
             name="mithrandir",
-            blockref="disappointment",
-            data=dict(),
         ).dict(json_compatible=True)
 
         patch_response = await client.patch(
-            "/blocks/name/an-unsatisfying-name",
-            json=a_wizard,
+            "/blocks/name/the-white-wizard",
+            json=a_better_wizard,
         )
         assert patch_response.status_code == 200

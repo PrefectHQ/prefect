@@ -590,6 +590,30 @@ class OrionClient:
 
             return UUID(response.json().get("id"))
 
+    async def update_block_name(
+        self,
+        name: str,
+        new_name: str,
+    ) -> Optional[UUID]:
+
+        block_data_create = schemas.actions.BlockDataCreate(
+            name=name,
+            blockref=blockref,
+            data=data,
+        )
+        try:
+            response = await self.post(
+                "/blocks/",
+                json=block_data_create.dict(json_compatible=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                return False
+            else:
+                raise e
+
+            return UUID(response.json().get("id"))
+
     async def delete_block_by_name(
         self,
         name: str,
