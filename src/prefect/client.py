@@ -16,26 +16,26 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
 import httpx
 import pydantic
+from fastapi import FastAPI
 
 import prefect
-import prefect.settings
+import prefect.orion.schemas as schemas
 from prefect import exceptions
 from prefect.logging import get_logger
-from prefect.orion import schemas
-from prefect.orion.api.server import ORION_API_VERSION
-from prefect.orion.api.server import app as orion_app
+from prefect.orion.api.server import app as ephemeral_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
+from prefect.utilities.asyncio import asyncnullcontext
 
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner
@@ -53,16 +53,26 @@ def inject_client(fn):
     """
 
     @wraps(fn)
-    async def wrapper(*args, **kwargs):
-        if "client" in kwargs and kwargs["client"] is not None:
-            return await fn(*args, **kwargs)
-        else:
-            client = OrionClient()
-            async with client:
-                kwargs["client"] = client
-                return await fn(*args, **kwargs)
+    async def with_injected_client(*args, **kwargs):
+        client = None
 
-    return wrapper
+        if "client" in kwargs and kwargs["client"] is not None:
+            client = kwargs["client"]
+            client_context = asyncnullcontext()
+        else:
+            kwargs.pop("client", None)  # Remove null values
+            client_context = get_client()
+
+        async with client_context as client:
+            kwargs.setdefault("client", client)
+            return await fn(*args, **kwargs)
+
+    return with_injected_client
+
+
+def get_client() -> "OrionClient":
+    profile = prefect.context.get_profile_context()
+    return OrionClient(profile.settings.api_url or ephemeral_app)
 
 
 class OrionClient:
@@ -86,32 +96,31 @@ class OrionClient:
 
     def __init__(
         self,
-        host: str = None,
-        api_version: str = ORION_API_VERSION,
+        api: Union[str, FastAPI],
+        *,
         httpx_settings: dict = None,
     ) -> None:
-
-        host = host or prefect.settings.from_context().api_url
-
         httpx_settings = httpx_settings or {}
 
-        if "headers" not in httpx_settings:
-            httpx_settings["headers"] = {}
-
-        httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
-
-        if host:
-            # Connect to an existing instance
-            if "app" in httpx_settings:
+        # Connect to an external application
+        if isinstance(api, str):
+            if httpx_settings.get("app"):
                 raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set with `host`, "
-                    "`app` is only for use with ephemeral instances."
+                    "Invalid httpx settings: `app` cannot be set with `api`, "
+                    "`app` is only for use with ephemeral instances. Provide it as the "
+                    "`api` parameter instead."
                 )
-            httpx_settings.setdefault("base_url", host)
-        else:
-            # Connect to an ephemeral app
-            httpx_settings.setdefault("app", orion_app)
+            httpx_settings.setdefault("base_url", api)
+
+        # Connect to an in-process application
+        elif isinstance(api, FastAPI):
+            httpx_settings.setdefault("app", api)
             httpx_settings.setdefault("base_url", "http://orion/api")
+
+        else:
+            raise TypeError(
+                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
+            )
 
         self._client = httpx.AsyncClient(**httpx_settings)
         self.logger = get_logger("client")
