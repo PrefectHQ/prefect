@@ -321,8 +321,15 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build image
+          name: Build, test and push image
           command: |
+            TAGS="-t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}"
+            TAGS="${TAGS} -t prefecthq/prefect:latest-${PYTHON_TAG}"
+
+            [ << parameters.tag_latest >> -eq 1 ] && \
+            TAGS="${TAGS} -t prefecthq/prefect:latest" && \
+            TAGS="${TAGS} -t prefecthq/prefect:${CIRCLE_TAG}"
+
             set -u
             docker buildx create --use
             docker buildx build --platform=linux/amd64,linux/arm64 \
@@ -331,36 +338,9 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} \
-              -t prefecthq/prefect:latest-${PYTHON_TAG} \
+              $(echo $TAGS | xargs) \
               .
-      - when:
-          condition: << parameters.tag_latest >>
-          steps:
-            - run:
-                name: Tag latest image
-                command: |
-                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:latest
-                  docker tag prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} prefecthq/prefect:${CIRCLE_TAG}
-      - run:
-          name: Test image
-          command: |
-            docker run -dit prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
-      - run:
-          name: Push versioned tags
-          command: |
-            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:${CIRCLE_TAG}-${PYTHON_TAG}
-            docker push prefecthq/prefect:latest-${PYTHON_TAG}
-      - when:
-          condition: << parameters.tag_latest >>
-          steps:
-            - run:
-                name: Push latest tag
-                command: |
-                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:latest
-                  docker push prefecthq/prefect:${CIRCLE_TAG}
+
   build_master_docker_image:
     docker:
       - image: docker
@@ -388,9 +368,10 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: Build image
+          name: Build, test and push image
           command: |
             set -u
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker buildx create --use
             docker buildx build --platform=linux/amd64,linux/arm64 \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
@@ -400,16 +381,7 @@ jobs:
               --build-arg EXTRAS=$EXTRAS \
               -t prefecthq/prefect:master \
               .
-      - run:
-          name: Test image
-          command: |
-            docker run -dit prefecthq/prefect:master /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
-      - run:
-          name: Push master tag
-          command: |
-            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:master
-            
+
   build_core_docker_image:
     docker:
       - image: docker
@@ -439,34 +411,22 @@ jobs:
       - run:
           name: Build core image
           command: |
+            TAGS="-t prefecthq/prefect:core-${CIRCLE_TAG}"
+
+            [ << parameters.tag_latest >> -eq 1 ] && \
+            TAGS="${TAGS} -t prefecthq/prefect:core"
+
             set -u
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker buildx create --use
             docker buildx build --platform=linux/amd64,linux/arm64 \
               --build-arg GIT_SHA=$CIRCLE_SHA1 \
               --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
               --build-arg PREFECT_VERSION=$CIRCLE_TAG \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
-              -t prefecthq/prefect:core-${CIRCLE_TAG} \
-              -t prefecthq/prefect:core \
+              $(echo $TAGS | xargs) \
               .
-      - run:
-          name: Test image
-          command: |
-            docker run -dit prefecthq/prefect:core-${CIRCLE_TAG} /bin/bash -c 'curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python'
-      - run:
-          name: Push core tag
-          command: |
-            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:core-${CIRCLE_TAG}
-      - when:
-          condition: << parameters.tag_latest >>
-          steps:
-            - run:
-                name: Push latest tag
-                command: |
-                  docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-                  docker push prefecthq/prefect:core
-                  
+
   promote_server_artifacts:
     docker:
       - image: docker

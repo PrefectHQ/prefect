@@ -33,3 +33,5 @@ RUN apt update && \
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["tini", "-g", "--", "entrypoint.sh"]
+
+RUN curl -fL0 https://raw.githubusercontent.com/PrefectHQ/prefect/master/examples/retries_with_mapping.py | python
