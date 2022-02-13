@@ -114,7 +114,9 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
         self.logger = get_logger("client")
 
-    async def post(self, route: str, **kwargs) -> httpx.Response:
+    async def post(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a POST request to the provided route.
 
@@ -129,13 +131,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.post(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def patch(self, route: str, **kwargs) -> httpx.Response:
+    async def patch(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a PATCH request to the provided route.
 
@@ -150,10 +154,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.patch(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def delete(self, route: str, **kwargs) -> httpx.Response:
+    async def delete(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a DELETE request to the provided route.
 
@@ -168,12 +177,16 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.delete(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     async def get(
         self,
         route: str,
+        raise_for_status: bool = True,
         **kwargs,
     ) -> httpx.Response:
         """
@@ -190,10 +203,10 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.get(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     # API methods ----------------------------------------------------------------------
@@ -594,6 +607,7 @@ class OrionClient:
         self,
         name: str,
         new_name: str,
+        raise_for_status: bool = True,
     ):
 
         block_data_create = schemas.actions.BlockDataUpdate(name=new_name)
@@ -602,6 +616,7 @@ class OrionClient:
             response = await self.patch(
                 f"/blocks/name/{name}",
                 json=block_data_create.dict(json_compatible=True),
+                raise_for_status=raise_for_status,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
