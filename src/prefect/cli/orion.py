@@ -16,6 +16,7 @@ from anyio.streams.text import TextReceiveStream
 import prefect
 from prefect.cli.base import (
     PrefectTyper,
+    SettingsOption,
     app,
     console,
     exit_with_error,
@@ -45,7 +46,7 @@ app.add_typer(orion_app)
 logger = get_logger(__name__)
 
 
-def generate_welcome_blub(base_url):
+def generate_welcome_blub(base_url, ui_enabled: bool):
     blurb = textwrap.dedent(
         r"""
          ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
@@ -55,7 +56,7 @@ def generate_welcome_blub(base_url):
 
         Configure Prefect to communicate with the server with:
 
-            prefect config set PREFECT_ORION_HOST={api_url}
+            prefect config set PREFECT_API_URL={api_url}
         """
     ).format(api_url=base_url + "/api")
 
@@ -80,7 +81,7 @@ def generate_welcome_blub(base_url):
 
     if not os.path.exists(prefect.__ui_static_path__):
         blurb += dashboard_not_built
-    elif not prefect.settings.from_env().orion.ui.enabled:
+    elif not ui_enabled:
         blurb += dashboard_disabled
     else:
         blurb += visit_dashboard
@@ -119,12 +120,12 @@ async def open_process_and_stream_output(
 
 @orion_app.command()
 async def start(
-    host: str = prefect.settings.from_env().orion.api.host,
-    port: int = prefect.settings.from_env().orion.api.port,
-    log_level: str = prefect.settings.from_env().logging.server_level,
-    services: bool = True,  # Note this differs from the default of `prefect.settings.orion.services.run_in_app`
+    host: str = SettingsOption("PREFECT_ORION_API_HOST"),
+    port: int = SettingsOption("PREFECT_ORION_API_PORT"),
+    log_level: str = SettingsOption("PREFECT_LOGGING_SERVER_LEVEL"),
+    services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
     agent: bool = True,
-    ui: bool = prefect.settings.from_env().orion.ui.enabled,
+    ui: bool = SettingsOption("PREFECT_ORION_UI_ENABLED"),
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -139,7 +140,7 @@ async def start(
     base_url = f"http://{host}:{port}"
 
     agent_env = os.environ.copy()
-    agent_env["PREFECT_ORION_HOST"] = base_url + "/api"
+    agent_env["PREFECT_API_URL"] = base_url + "/api"
 
     async with anyio.create_task_group() as tg:
         console.print("Starting...")
@@ -160,7 +161,7 @@ async def start(
             )
         )
 
-        console.print(generate_welcome_blub(base_url))
+        console.print(generate_welcome_blub(base_url, ui_enabled=ui))
 
         if agent:
             # The server may not be ready yet despite waiting for the process to begin

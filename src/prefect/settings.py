@@ -403,7 +403,7 @@ class AgentSettings(BaseSettings):
 
 
 class Settings(SharedSettings):
-    """Global Prefect prefect.settings.from_context(). To change these settings via environment variable, set
+    """Global Prefect settings. To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
     """
 
@@ -428,7 +428,7 @@ class Settings(SharedSettings):
     )
 
     # the connection url for an orion instance
-    orion_host: str = Field(
+    api_url: str = Field(
         None,
         description="""If provided, the url of an externally-hosted Orion API.
         Defaults to `None`.""",
@@ -438,6 +438,49 @@ class Settings(SharedSettings):
         default_factory=lambda: Path(f"{shared_settings().home}/profiles.toml"),
         description="""The path to a profiles configuration files.""",
     )
+
+    @classmethod
+    def get_field(cls, variable: str):
+        """
+        Get the Pydantic model field for an environment variable key
+
+        Example:
+            >>> from prefect.settings import Settings
+            >>> Settings.get_field("PREFECT_LOGGING_LEVEL")
+            ModelField(name='level', type=str, required=False, default_factory='<function <lambda>>')
+        """
+        obj = cls
+        fields = variable.replace("PREFECT_", "", 1).lower().split("_")
+        while fields:
+            field = fields.pop(0)
+            while not field in obj.__fields__:
+                if not fields:
+                    raise ValueError(f"Unknown setting variable {variable!r}")
+                field += "_" + fields.pop(0)
+            if not fields:
+                break
+            obj = obj.__fields__[field].type_
+        return obj.__fields__[field]
+
+    def get(self, variable: str):
+        """
+        Get the value for a setting from an environment variable key
+
+        Example:
+            >>> from prefect.settings import from_context
+            >>> from_context().get("PREFECT_LOGGING_LEVEL")
+            'DEBUG'
+        """
+        obj = self
+        attrs = variable.replace("PREFECT_", "", 1).lower().split("_")
+        while attrs:
+            attr = attrs.pop(0)
+            while not hasattr(obj, attr):
+                if not attrs:
+                    raise ValueError(f"Unknown setting variable {variable!r}")
+                attr += "_" + attrs.pop(0)
+            obj = getattr(obj, attr)
+        return obj
 
 
 _DEFAULTS_CACHE: Settings = None

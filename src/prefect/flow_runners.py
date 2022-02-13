@@ -390,14 +390,14 @@ class DockerFlowRunner(UniversalFlowRunner):
         We could support an ephemeral server with postgresql, but then we would need to
         sync all of the server settings to the container's ephemeral server.
         """
-        orion_host = self.env.get(
-            "PREFECT_ORION_HOST", prefect.settings.from_context().orion_host
+        api_url = self.env.get(
+            "PREFECT_API_URL", prefect.settings.from_context().api_url
         )
 
-        if not orion_host:
+        if not api_url:
             raise RuntimeError(
                 "The docker flow runner cannot be used with an ephemeral server. "
-                "Provide `PREFECT_ORION_HOST` to connect to an Orion server."
+                "Provide `PREFECT_API_URL` to connect to an Orion server."
             )
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
@@ -615,10 +615,10 @@ class DockerFlowRunner(UniversalFlowRunner):
         if sys.platform == "linux" and (
             # Do not warn if the user has specified a host manually that does not use
             # a local address
-            "PREFECT_ORION_HOST" not in self.env
+            "PREFECT_API_URL" not in self.env
             or re.search(
                 ".*(localhost)|(127.0.0.1)|(host.docker.internal).*",
-                self.env["PREFECT_ORION_HOST"],
+                self.env["PREFECT_API_URL"],
             )
         ):
             user_version = packaging.version.parse(docker_client.version()["Version"])
@@ -642,14 +642,14 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Update local connections to use the docker host
 
-        if prefect.settings.from_context().orion_host:
+        if prefect.settings.from_context().api_url:
             api_url = (
                 prefect.settings.from_context()
-                .orion_host.replace("localhost", "host.docker.internal")
+                .api_url.replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
-            env.setdefault("PREFECT_ORION_HOST", api_url)
+            env.setdefault("PREFECT_API_URL", api_url)
 
         return env
 
@@ -746,14 +746,14 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     def _assert_orion_settings_are_compatible(self):
         """See note in DockerFlowRunner."""
-        orion_host = self.env.get(
-            "PREFECT_ORION_HOST", prefect.settings.from_context().orion_host
+        api_url = self.env.get(
+            "PREFECT_API_URL", prefect.settings.from_context().api_url
         )
 
-        if not orion_host:
+        if not api_url:
             raise RuntimeError(
                 "The Kubernetes flow runner cannot be used with an ephemeral server. "
-                "Provide `PREFECT_ORION_HOST` to connect to an Orion server."
+                "Provide `PREFECT_API_URL` to connect to an Orion server."
             )
 
     def _get_job(self, job_id: str) -> Optional["V1Job"]:
@@ -871,7 +871,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     def _get_environment_variables(self):
         env = self.env.copy()
-        env.setdefault("PREFECT_ORION_HOST", "http://orion:4200/api")
+        env.setdefault("PREFECT_API_URL", "http://orion:4200/api")
         return env
 
     def _create_and_start_job(self, flow_run: FlowRun) -> str:

@@ -4,14 +4,43 @@ Base `prefect` command-line application and utilities
 import functools
 import os
 from contextlib import nullcontext
+from functools import partial
+from typing import TypeVar
 
 import rich.console
 import typer
+import typer.core
 
 import prefect
 import prefect.context
 import prefect.settings
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
+
+T = TypeVar("T")
+
+
+def SettingsOption(variable: str) -> typer.Option:
+    """Custom `typer.Option` factory to load the default value from settings"""
+
+    return typer.Option(
+        # The default is dynamically retrieved
+        default=partial(get_setting_from_context, variable),
+        # Typer shows "(dynamic)" by default. We'd like to actually show the value
+        # that would be used if the parameter is not specified and a reference if the
+        # source is from the environment or profile, but typer does not support this
+        # yet. See https://github.com/tiangolo/typer/issues/354
+        show_default=f"from {variable}",
+    )
+
+
+def SettingsArgument(variable: str) -> typer.Argument:
+    """Custom `typer.Argument` factory to load the default value from settings"""
+
+    # See comments in `SettingsOption`
+    return typer.Argument(
+        default=partial(get_setting_from_context, variable),
+        show_default=f"from {variable}",
+    )
 
 
 class PrefectTyper(typer.Typer):
@@ -52,9 +81,14 @@ def main(
         "-v",
         callback=version_callback,
         help="Display the current version.",
+        is_eager=True,
     ),
     profile: str = typer.Option(
-        None, "--profile", "-p", help="Select a profile for this this CLI run."
+        None,
+        "--profile",
+        "-p",
+        help="Select a profile for this this CLI run.",
+        is_eager=True,
     ),
 ):
     if profile is not None:
@@ -69,7 +103,7 @@ def enter_profile_from_option(fn):
         # Exit early if the profile is set but not valid
         if name is not None:
             try:
-                prefect.context.load_profile(name)
+                prefect.settings.load_profile(name)
             except ValueError:
                 exit_with_error(f"Profile {name!r} not found.")
                 raise ValueError()
@@ -83,6 +117,12 @@ def enter_profile_from_option(fn):
             return fn(*args, **kwargs)
 
     return with_profile_from_option
+
+
+@enter_profile_from_option
+def get_setting_from_context(variable):
+    settings = prefect.settings.from_context()
+    return settings.get(variable)
 
 
 @app.command()
