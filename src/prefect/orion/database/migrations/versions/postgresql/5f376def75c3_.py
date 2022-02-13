@@ -43,7 +43,7 @@ def upgrade():
         sa.Column("blockref", sa.String(), nullable=False),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.JSON(astext_type=Text()),
+            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
             server_default="{}",
             nullable=False,
         ),
