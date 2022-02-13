@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, responses, Response, status
 
 from prefect import settings
 from prefect.orion import models, schemas
@@ -56,7 +56,9 @@ async def read_block(
     )
 
     if not block:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block data not found")
+        return responses.JSONResponse(
+            status_code=404, content={"message": "Block not found"}
+        )
 
     return block
 
@@ -72,7 +74,9 @@ async def read_block_by_name(
     )
 
     if not block:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block data not found")
+        return responses.JSONResponse(
+            status_code=404, content={"message": "Block not found"}
+        )
 
     return block
 
@@ -86,8 +90,8 @@ async def delete_block_by_name(
         session=session, name=name
     )
     if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Block data not found"
+        return responses.JSONResponse(
+            status_code=404, content={"message": "Block not found"}
         )
 
 
@@ -104,6 +108,6 @@ async def update_block_data(
     )
 
     if not result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Block data not found"
+        return responses.JSONResponse(
+            status_code=404, content={"message": "Block not found"}
         )
