@@ -334,7 +334,7 @@ def profile(
         os.makedirs(settings.home, exist_ok=True)
 
     if setup_logging:
-        prefect.logging.configuration.setup_logging(settings)
+        prefect.logging.configuration.setup_logging(settings.logging)
 
     with ProfileContext(name=name, settings=settings, env=env) as ctx:
         yield ctx

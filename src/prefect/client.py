@@ -25,8 +25,8 @@ import pydantic
 from fastapi import FastAPI
 
 import prefect
+import prefect.exceptions
 import prefect.orion.schemas as schemas
-from prefect import exceptions
 from prefect.logging import get_logger
 from prefect.orion.api.server import app as ephemeral_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -1079,7 +1079,7 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise exceptions.Abort(response.details.reason)
+            raise prefect.exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
             self.logger.debug(

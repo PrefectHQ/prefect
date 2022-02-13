@@ -10,9 +10,11 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies, run_history
+from prefect.orion.api.run_history import run_history
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -93,7 +95,7 @@ async def task_run_history(
             detail="History interval must not be less than 1 second.",
         )
 
-    return await run_history.run_history(
+    return await run_history(
         session=session,
         run_type="task_run",
         history_start=history_start,

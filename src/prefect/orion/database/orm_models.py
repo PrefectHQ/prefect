@@ -12,7 +12,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
 
 import prefect
-from prefect.orion.schemas import core, data, schedules, states
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.database import (
     JSON,
     UUID,
@@ -111,7 +111,7 @@ class ORMFlowRunState:
         )
 
     type = sa.Column(
-        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
     )
     timestamp = sa.Column(
         Timestamp(),
@@ -122,12 +122,12 @@ class ORMFlowRunState:
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
     state_details = sa.Column(
-        Pydantic(states.StateDetails),
+        Pydantic(schemas.states.StateDetails),
         server_default="{}",
-        default=states.StateDetails,
+        default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(data.DataDocument), nullable=True)
+    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
 
     @declared_attr
     def flow_run(cls):
@@ -137,8 +137,8 @@ class ORMFlowRunState:
             foreign_keys=[cls.flow_run_id],
         )
 
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
+    def as_state(self) -> schemas.states.State:
+        return schemas.states.State.from_orm(self)
 
     @declared_attr
     def __table_args__(cls):
@@ -165,7 +165,7 @@ class ORMTaskRunState:
         )
 
     type = sa.Column(
-        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
     )
     timestamp = sa.Column(
         Timestamp(),
@@ -176,12 +176,12 @@ class ORMTaskRunState:
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
     state_details = sa.Column(
-        Pydantic(states.StateDetails),
+        Pydantic(schemas.states.StateDetails),
         server_default="{}",
-        default=states.StateDetails,
+        default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(data.DataDocument), nullable=True)
+    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
 
     @declared_attr
     def task_run(cls):
@@ -191,8 +191,8 @@ class ORMTaskRunState:
             foreign_keys=[cls.task_run_id],
         )
 
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
+    def as_state(self) -> schemas.states.State:
+        return schemas.states.State.from_orm(self)
 
     @declared_attr
     def __table_args__(cls):
@@ -241,7 +241,7 @@ class ORMRun:
         nullable=False,
         index=True,
     )
-    state_type = sa.Column(sa.Enum(states.StateType, name="state_type"))
+    state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -259,7 +259,7 @@ class ORMRun:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
-        if self.state and self.state_type == states.StateType.RUNNING:
+        if self.state and self.state_type == schemas.states.StateType.RUNNING:
             return self.total_run_time + (pendulum.now() - self.state.timestamp)
         else:
             return self.total_run_time
@@ -272,7 +272,7 @@ class ORMRun:
             sa.select(
                 sa.case(
                     (
-                        cls.state_type == states.StateType.RUNNING,
+                        cls.state_type == schemas.states.StateType.RUNNING,
                         interval_add(
                             cls.total_run_time,
                             date_diff(now(), state_table.c.timestamp),
@@ -302,7 +302,7 @@ class ORMRun:
             self.start_time is None
             and self.expected_start_time
             and self.expected_start_time < pendulum.now("UTC")
-            and self.state_type not in states.TERMINAL_STATES
+            and self.state_type not in schemas.states.TERMINAL_STATES
         ):
             return (pendulum.now("UTC") - self.expected_start_time).as_interval()
         else:
@@ -318,7 +318,7 @@ class ORMRun:
             (
                 sa.and_(
                     cls.start_time.is_(None),
-                    cls.state_type.not_in(states.TERMINAL_STATES),
+                    cls.state_type.not_in(schemas.states.TERMINAL_STATES),
                     cls.expected_start_time < now(),
                 ),
                 date_diff(now(), cls.expected_start_time),
@@ -359,7 +359,7 @@ class ORMFlowRun(ORMRun):
     @declared_attr
     def flow_runner(cls):
         return sa.orm.composite(
-            core.FlowRunnerSettings,
+            schemas.core.FlowRunnerSettings,
             cls.flow_runner_type,
             cls.flow_runner_config,
         )
@@ -511,14 +511,23 @@ class ORMTaskRun(ORMRun):
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
     empirical_policy = sa.Column(
-        Pydantic(core.TaskRunPolicy),
+        Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
-        default=core.TaskRunPolicy,
+        default=schemas.core.TaskRunPolicy,
         nullable=False,
     )
     task_inputs = sa.Column(
         Pydantic(
-            Dict[str, List[Union[core.TaskRunResult, core.Parameter, core.Constant]]]
+            Dict[
+                str,
+                List[
+                    Union[
+                        schemas.core.TaskRunResult,
+                        schemas.core.Parameter,
+                        schemas.core.Constant,
+                    ]
+                ],
+            ]
         ),
         server_default="{}",
         default=dict,
@@ -645,13 +654,13 @@ class ORMDeployment:
             index=True,
         )
 
-    schedule = sa.Column(Pydantic(schedules.SCHEDULE_TYPES))
+    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
     is_schedule_active = sa.Column(
         sa.Boolean, nullable=False, server_default="1", default=True
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    flow_data = sa.Column(Pydantic(data.DataDocument))
+    flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
 
     flow_runner_type = sa.Column(sa.String)
     flow_runner_config = sa.Column(JSON)
@@ -659,7 +668,7 @@ class ORMDeployment:
     @declared_attr
     def flow_runner(cls):
         return sa.orm.composite(
-            core.FlowRunnerSettings,
+            schemas.core.FlowRunnerSettings,
             cls.flow_runner_type,
             cls.flow_runner_config,
         )

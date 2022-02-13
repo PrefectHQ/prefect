@@ -1,16 +1,17 @@
-import prefect.orion.api.admin
-import prefect.orion.api.flows
-import prefect.orion.api.data
-import prefect.orion.api.run_history
-import prefect.orion.api.flow_runs
-import prefect.orion.api.task_runs
-import prefect.orion.api.flow_run_states
-import prefect.orion.api.task_run_states
-import prefect.orion.api.deployments
-import prefect.orion.api.saved_searches
-import prefect.orion.api.dependencies
-import prefect.orion.api.logs
-import prefect.orion.api.concurrency_limits
-
-# import the server last because it loads all other modules
-import prefect.orion.api.server
+from . import (
+    admin,
+    flows,
+    data,
+    run_history,
+    flow_runs,
+    task_runs,
+    flow_run_states,
+    task_run_states,
+    deployments,
+    saved_searches,
+    dependencies,
+    logs,
+    concurrency_limits,
+    # Server relies on all of the above routes
+    server,
+)
