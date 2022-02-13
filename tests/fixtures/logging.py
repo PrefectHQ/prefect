@@ -12,9 +12,8 @@ def reset_orion_handler():
     stop the logging thread.
     """
     yield
-    if OrionHandler.worker:
-        OrionHandler.flush()
-        OrionHandler.worker = None
+    OrionHandler.flush()
+    OrionHandler.workers = {}
 
 
 @pytest.fixture(autouse=True)
