@@ -116,12 +116,11 @@ class TestBlockDatas:
         too_fancy = await models.block_data.read_block_data_by_name_as_block(
             session=session, name="nd-lattice"
         )
-        assert too_fancy
+        assert too_fancy["blockref"] == "hartree-fock"
 
-    async def test_updating_block_name_on_nonexistent_blocks(self, session):
-        imaginary = schemas.actions.BlockDataCreate(
+    async def test_updating_nonexistent_blocks(self, session):
+        imaginary = schemas.actions.BlockDataUpdate(
             name="willed-into-existence",
-            blockref="a-wild-imagination",
             data=dict(),
         )
 
