@@ -2,12 +2,12 @@ import logging
 import logging.config
 import os
 import re
+import warnings
 from functools import partial
 from pathlib import Path
 
 import yaml
 
-import prefect.settings
 from prefect.settings import LoggingSettings, Settings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
@@ -18,6 +18,8 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 # Regex for detecting interpolated global settings
 interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
+
+PROCESS_LOGGING_SETTINGS: LoggingSettings = None
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -57,17 +59,28 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(settings: Settings) -> None:
+def setup_logging(settings: LoggingSettings) -> None:
+    global PROCESS_LOGGING_SETTINGS
+
+    if PROCESS_LOGGING_SETTINGS:
+        # Do not allow repeated configuration calls, only warn if the settings differ
+        if hash(settings) != hash(PROCESS_LOGGING_SETTINGS):
+            warnings.warn(
+                "Logging can only be setup once per process, the new logging settings "
+                "will be ignored.",
+                stacklevel=2,
+            )
+        return
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.logging.settings_path
-            if settings.logging.settings_path.exists()
+            settings.settings_path
+            if settings.settings_path.exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
-        settings.logging,
+        settings,
     )
 
     logging.config.dictConfig(config)
@@ -75,10 +88,12 @@ def setup_logging(settings: Settings) -> None:
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in settings.logging.get_extra_loggers():
+    for logger_name in settings.get_extra_loggers():
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)
             if logger.level == logging.NOTSET:
                 logger.setLevel(extra_config.level)
             logger.propagate = extra_config.propagate
+
+    PROCESS_LOGGING_SETTINGS = settings

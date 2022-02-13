@@ -13,6 +13,8 @@ import pendulum
 import pytest
 
 import prefect
+import prefect.logging.configuration
+import prefect.settings
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flow_runners import SubprocessFlowRunner
@@ -30,7 +32,7 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import LoggingSettings, Settings
+from prefect.settings import LoggingSettings
 from prefect.utilities.testing import AsyncMock, temporary_settings
 
 
@@ -38,7 +40,12 @@ from prefect.utilities.testing import AsyncMock, temporary_settings
 def dictConfigMock(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr("logging.config.dictConfig", mock)
-    return mock
+    # Reset the process global since we're testing `setup_logging`
+    breakpoint()
+    old = prefect.logging.configuration.PROCESS_LOGGING_SETTINGS
+    prefect.logging.configuration.PROCESS_LOGGING_SETTINGS = None
+    yield mock
+    prefect.logging.configuration.PROCESS_LOGGING_SETTINGS = old
 
 
 @pytest.fixture
@@ -77,39 +84,53 @@ async def logger_test_deployment(orion_client):
 
 
 def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
-    fake_settings = Settings(
-        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
+    fake_settings = LoggingSettings(
+        settings_path=tmp_path.joinpath("does-not-exist.yaml")
     )
 
-    expected_config = load_logging_config(
-        DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
-    )
+    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
 
     setup_logging(fake_settings)
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
+def test_setup_logging_allows_repeated_calls(dictConfigMock):
+    setup_logging(prefect.settings.from_env.logging)
+    dictConfigMock.assert_called_once()
+    setup_logging(prefect.settings.from_env.logging)
+    dictConfigMock.assert_called_once()
+
+
+def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
+    setup_logging(prefect.settings.from_env.logging)
+    dictConfigMock.assert_called_once()
+    with pytest.warns(
+        UserWarning, match="only be setup once per process.* will be ignored"
+    ):
+        setup_logging(prefect.settings.from_env.logging.copy(update={"level": "DEBUG"}))
+    dictConfigMock.assert_called_once()
+
+
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     config_file = tmp_path.joinpath("exists.yaml")
     config_file.write_text("foo: bar")
-    fake_settings = Settings(logging=LoggingSettings(settings_path=config_file))
+    fake_settings = LoggingSettings(settings_path=config_file)
 
     setup_logging(fake_settings)
     expected_config = load_logging_config(
-        tmp_path.joinpath("exists.yaml"), fake_settings.logging
+        tmp_path.joinpath("exists.yaml"), fake_settings
     )
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
-    fake_settings = Settings(
-        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
+    fake_settings = LoggingSettings(
+        settings_path=tmp_path.joinpath("does-not-exist.yaml")
     )
-    expected_config = load_logging_config(
-        DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
-    )
+
+    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
 
     # Test setting a value for a simple key
     monkeypatch.setenv(
@@ -202,11 +223,9 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    fake_settings = Settings(logging=LoggingSettings(level="WARNING"))
+    fake_settings = LoggingSettings(level="WARNING")
 
-    expected_config = load_logging_config(
-        DEFAULT_LOGGING_SETTINGS_PATH, fake_settings.logging
-    )
+    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
 
     assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
     assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
@@ -237,11 +256,22 @@ class TestOrionHandler:
         logger.removeHandler(handler)
 
     def test_handler_instances_share_log_worker(self):
-        assert OrionHandler().get_worker() is OrionHandler().get_worker()
+        assert OrionHandler().get_worker(
+            prefect.settings.from_env
+        ) is OrionHandler().get_worker(prefect.settings.from_env)
+        assert len(OrionHandler.workers) == 1
+
+    def test_log_workers_are_cached_by_settings(self):
+        a = OrionHandler().get_worker(prefect.settings.from_env)
+        b = OrionHandler().get_worker(
+            prefect.settings.from_env.copy(update={"orion_host": "foo"})
+        )
+        assert a is not b
+        assert len(OrionHandler.workers) == 2
 
     def test_instantiates_log_worker(self, mock_log_worker):
-        OrionHandler().get_worker()
-        mock_log_worker.assert_called_once_with()
+        OrionHandler().get_worker(prefect.settings.from_env)
+        mock_log_worker.assert_called_once_with(prefect.settings.from_env)
         mock_log_worker().start.assert_called_once_with()
 
     def test_worker_is_not_started_until_log_is_emitted(self, mock_log_worker, logger):
@@ -254,7 +284,7 @@ class TestOrionHandler:
 
     def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
         handler = OrionHandler()
-        handler.get_worker()
+        handler.get_worker(prefect.settings.from_env)
         handler.close()
         mock_log_worker().flush.assert_called_once()
         # The worker cannot be stopped because it is a singleton and other handler
@@ -276,7 +306,8 @@ class TestOrionHandler:
         self, logger, handler, flow_run, orion_client, capsys
     ):
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.worker.stop()
+        for worker in handler.workers.values():
+            worker.stop()
 
         # Send a log that will not be sent
         logger.info("Test", extra={"flow_run_id": flow_run.id})
@@ -507,9 +538,7 @@ class TestOrionHandler:
         self, task_run, logger, capsys, mock_log_worker
     ):
         with TaskRunContext.construct(task_run=task_run):
-            with temporary_settings(
-                PREFECT_LOGGING_ORION_MAX_LOG_SIZE="1",
-            ):
+            with temporary_settings(PREFECT_LOGGING_ORION_MAX_LOG_SIZE="1"):
                 logger.info("test")
 
         mock_log_worker().enqueue.assert_not_called()
@@ -532,7 +561,7 @@ class TestOrionLogWorker:
 
     @pytest.fixture
     def worker(self):
-        worker = OrionLogWorker()
+        worker = OrionLogWorker(prefect.settings.from_env)
         yield worker
         # Ensures that a worker is stopped _before_ the test is torn down. Otherwise,
         # remaining logs could be written by a background thread after all the tests
@@ -573,7 +602,7 @@ class TestOrionLogWorker:
 
     async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.from_env().orion.api.default_limit
+        count = prefect.settings.from_env.orion.api.default_limit
         log_json.pop("message")
 
         for i in range(count):
@@ -675,7 +704,7 @@ class TestOrionLogWorker:
             worker.enqueue(log_json)
 
         # We want to ensure logs are written without the thread being joined
-        event.wait(1)
+        event.wait()
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
@@ -684,6 +713,9 @@ class TestOrionLogWorker:
 
         with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
             worker.start()
+
+            # Wait for the a loop to complete
+            worker._send_logs_finished_event.wait(1)
 
         worker._flush_event.wait.assert_called_with(5)
 
