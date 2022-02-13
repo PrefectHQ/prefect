@@ -1,13 +1,14 @@
 """
 Command line interface for working with agent services
 """
+from functools import partial
+
 import anyio
 import typer
 
 import prefect.settings
 from prefect.agent import OrionAgent
-from prefect.cli.base import PrefectTyper, app, console
-from prefect.utilities.asyncio import sync_compatible
+from prefect.cli.base import PrefectTyper, SettingsOption, app, console
 
 agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
@@ -27,14 +28,14 @@ ascii_name = r"""
 @agent_app.command()
 async def start(
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
-    host: str = prefect.settings.from_env().orion_host,
+    api: str = SettingsOption("PREFECT_API_URL"),
 ):
     """
     Start an agent process.
     """
     if not hide_welcome:
-        if prefect.settings.from_context().orion_host:
-            console.print(f"Starting agent connected to {host}...")
+        if api:
+            console.print(f"Starting agent connected to {api}...")
         else:
             console.print("Starting agent with ephemeral API...")
 

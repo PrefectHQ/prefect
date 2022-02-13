@@ -16,7 +16,6 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
-from prefect.utilities.asyncio import sync_compatible
 
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."

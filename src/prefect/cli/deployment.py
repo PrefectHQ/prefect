@@ -23,7 +23,6 @@ from prefect.deployments import (
 )
 from prefect.exceptions import FlowScriptError
 from prefect.orion.schemas.filters import FlowFilter
-from prefect.utilities.asyncio import sync_compatible
 
 deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."

@@ -53,7 +53,7 @@ spec:
         command: [ "prefect", "agent", "start"]
         imagePullPolicy: "IfNotPresent"
         env:
-          - name: PREFECT_ORION_HOST
+          - name: PREFECT_API_URL
             value: http://orion:4200/api
 ```
 
@@ -85,7 +85,7 @@ You should see something like this:
 ```bash
 Configure Prefect to communicate with the server with:
 
-    PREFECT_ORION_HOST=http://0.0.0.0:4200/api
+    PREFECT_API_URL=http://0.0.0.0:4200/api
 
 Check out the dashboard at <http://0.0.0.0:4200>
 
@@ -139,10 +139,10 @@ Now that we have Orion running on Kubernetes, let's talk about running your actu
 
 Before we do anything else, we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
 
-To do this, set the `PREFECT_ORION_HOST` environment variable:
+To do this, set the `PREFECT_API_URL` environment variable:
 
 ```bash
-export PREFECT_ORION_HOST=http://localhost:4200/api
+export PREFECT_API_URL=http://localhost:4200/api
 ```
 
 Since we previously configured port forwarding for the localhost port to the Kubernetes environment, we’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.

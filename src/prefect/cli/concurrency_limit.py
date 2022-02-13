@@ -76,4 +76,4 @@ async def delete(tag: str):
     if result:
         exit_with_success(f"Deleted concurrency limit set on the tag: {tag}")
     else:
-        exit_with_failure(f"No concurrency limit found for the tag: {tag}")
+        exit_with_error(f"No concurrency limit found for the tag: {tag}")

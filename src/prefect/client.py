@@ -91,7 +91,7 @@ class OrionClient:
         httpx_settings: dict = None,
     ) -> None:
 
-        host = host or prefect.settings.from_context().orion_host
+        host = host or prefect.settings.from_context().api_url
 
         httpx_settings = httpx_settings or {}
 

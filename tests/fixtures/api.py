@@ -99,8 +99,8 @@ async def hosted_orion_api():
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
     """
-    Sets `PREFECT_ORION_HOST` and `prefect.settings.from_env().orion_host` to the test session's
+    Sets `PREFECT_API_URL` and `prefect.settings.from_env().api_url` to the test session's
     hosted API endpoint.
     """
-    with temporary_settings(PREFECT_ORION_HOST=hosted_orion_api):
+    with temporary_settings(PREFECT_API_URL=hosted_orion_api):
         yield hosted_orion_api

@@ -159,14 +159,14 @@ class TestProfilesContext:
             textwrap.dedent(
                 """
                 [foo]
-                PREFECT_ORION_HOST="test"
+                PREFECT_API_URL="test"
                 """
             )
         )
         with profile("foo") as ctx:
-            assert prefect.settings.from_context().orion_host == "test"
+            assert prefect.settings.from_context().api_url == "test"
             assert ctx.settings == prefect.settings.from_context()
-            assert ctx.env == {"PREFECT_ORION_HOST": "test"}
+            assert ctx.env == {"PREFECT_API_URL": "test"}
             assert ctx.name == "foo"
 
     def test_profile_context_sets_up_logging_if_asked(
@@ -180,7 +180,7 @@ class TestProfilesContext:
             textwrap.dedent(
                 """
                 [foo]
-                PREFECT_ORION_HOST = "test"
+                PREFECT_API_URL = "test"
                 """
             )
         )
@@ -201,22 +201,22 @@ class TestProfilesContext:
             textwrap.dedent(
                 """
                 [foo]
-                PREFECT_ORION_HOST="foo"
+                PREFECT_API_URL="foo"
 
                 [bar]
-                PREFECT_ORION_HOST="bar"
+                PREFECT_API_URL="bar"
                 """
             )
         )
         with profile("foo") as foo_context:
             with profile("bar") as bar_context:
                 assert bar_context.settings == prefect.settings.from_context()
-                assert bar_context.settings.orion_host == "bar"
-                assert bar_context.env == {"PREFECT_ORION_HOST": "bar"}
+                assert bar_context.settings.api_url == "bar"
+                assert bar_context.env == {"PREFECT_API_URL": "bar"}
                 assert bar_context.name == "bar"
             assert foo_context.settings == prefect.settings.from_context()
-            assert foo_context.settings.orion_host == "foo"
-            assert foo_context.env == {"PREFECT_ORION_HOST": "foo"}
+            assert foo_context.settings.api_url == "foo"
+            assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 
     def test_initialize_module_profile(self, monkeypatch):
