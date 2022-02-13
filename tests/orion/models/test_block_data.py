@@ -23,6 +23,7 @@ class TestBlockDatas:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
+        assert blockdata.data == dict()
 
         block = await models.block_data.read_block_data_by_name_as_block(
             session=session, name="hi-im-some-blockdata"
@@ -98,7 +99,7 @@ class TestBlockDatas:
         fancier_blockdata = schemas.actions.BlockDataCreate(
             name="nd-lattice",
             blockref="hartree-fock",
-            data=dict(),
+            data=dict(interactions="nearest-neighbor-spin"),
         )
 
         update_result = await models.block_data.update_block_data(
@@ -117,6 +118,7 @@ class TestBlockDatas:
             session=session, name="nd-lattice"
         )
         assert too_fancy["blockref"] == "hartree-fock"
+        assert too_fancy["interactions"] == "nearest-neighbor-spin"
 
     async def test_updating_nonexistent_blocks(self, session):
         imaginary = schemas.actions.BlockDataUpdate(
