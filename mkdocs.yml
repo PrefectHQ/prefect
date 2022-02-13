@@ -156,7 +156,6 @@ nav:
                 - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
             - 'Utilities':
                 - 'orion.utilities.database': api-ref/orion/utilities/database.md
-                - 'orion.utilities.filesystem': api-ref/orion/utilities/filesystem.md
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
