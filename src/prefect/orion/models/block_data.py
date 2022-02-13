@@ -18,7 +18,9 @@ async def create_block_data(
     block_data: schemas.core.BlockData,
     db: OrionDBInterface,
 ):
-    insert_values = block_data.dict(shallow=True, exclude_unset=True)
+    insert_values = block_data.dict(shallow=True, exclude_unset=False)
+    insert_values.pop("created")
+    insert_values.pop("updated")
     blockname = insert_values["name"]
 
     # set `updated` manually
@@ -89,10 +91,11 @@ async def update_block_data(
     db: OrionDBInterface,
 ) -> bool:
 
+    update_values = block_data.dict(shallow=True, exclude_unset=True)
+    update_values = {k: v for k, v in update_values.items() if v is not None}
+
     update_stmt = (
-        sa.update(db.BlockData)
-        .where(db.BlockData.name == name)
-        .values(**block_data.dict(shallow=True, exclude_unset=True))
+        sa.update(db.BlockData).where(db.BlockData.name == name).values(update_values)
     )
 
     result = await session.execute(update_stmt)

@@ -588,31 +588,28 @@ class OrionClient:
             else:
                 raise e
 
-            return UUID(response.json().get("id"))
+        return UUID(response.json().get("id"))
 
     async def update_block_name(
         self,
         name: str,
         new_name: str,
-    ) -> Optional[UUID]:
+    ):
 
-        block_data_create = schemas.actions.BlockDataCreate(
-            name=name,
-            blockref=blockref,
-            data=data,
-        )
+        block_data_create = schemas.actions.BlockDataUpdate(name=new_name)
+
         try:
-            response = await self.post(
-                "/blocks/",
+            response = await self.patch(
+                f"/blocks/name/{name}",
                 json=block_data_create.dict(json_compatible=True),
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 400:
+            if e.response.status_code == 404:
                 return False
             else:
                 raise e
 
-            return UUID(response.json().get("id"))
+        return True
 
     async def delete_block_by_name(
         self,
@@ -694,7 +691,7 @@ class OrionClient:
         block_data_id = raw_block.get("blockid")
 
         if not block_data_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
+            raise httpx.RequestError(f"Cannot read block: {response}")
 
         blockapi = get_blockapi(raw_block["blockref"])
         block = pydantic.parse_obj_as(blockapi, raw_block)
