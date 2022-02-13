@@ -996,6 +996,10 @@ class TestDockerFlowRunner:
         This test confirms that the flow runner can properly start a flow run in a
         container running an old version of Prefect. This tests for regression in the
         path of "starting a flow run" as well as basic API communication.
+
+        When making a breaking change to the API, it's likely that no compatible image
+        will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
+        version and this test will be skipped until a compatible image can be found.
         """
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
