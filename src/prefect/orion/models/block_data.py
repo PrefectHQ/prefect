@@ -23,10 +23,6 @@ async def create_block_data(
     insert_values.pop("updated")
     blockname = insert_values["name"]
 
-    # set `updated` manually
-    # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
-    # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    block_data.updated = pendulum.now("UTC")
     insert_stmt = (await db.insert(db.BlockData)).values(**insert_values)
 
     await session.execute(insert_stmt)

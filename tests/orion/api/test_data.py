@@ -1,3 +1,4 @@
+import fsspec
 import pytest
 
 import prefect.settings
@@ -23,7 +24,7 @@ class TestPersistData:
             bytes([0, 1, 2]),
         ],
     )
-    async def test_orion_datadoc_is_returned(
+    async def test_file_location_is_returned(
         self, client, tmpdir_dataloc_settings, user_data
     ):
 
@@ -31,16 +32,17 @@ class TestPersistData:
         assert response.status_code == 201
 
         # We have received a file system document
-        fs_datadoc = DataDocument.parse_obj(response.json())
+        file_location = response.json()
 
         # It saved it to a path respecting our dataloc
-        path = fs_datadoc.blob.decode()
+        path = file_location["path"]
         assert path.startswith(
             f"{tmpdir_dataloc_settings.scheme}://{tmpdir_dataloc_settings.base_path}"
         )
 
-        # The fs datadoc can be decode into our data
-        data = fs_datadoc.decode()
+        # This file contains our data
+        with fsspec.open(path, mode="rb") as fp:
+            data = fp.read()
         assert data == user_data
 
 
@@ -57,13 +59,13 @@ class TestRetrieveData:
     async def test_retrieve_data(self, client, tmp_path, user_data):
         path = str(tmp_path.joinpath("data"))
 
-        # Create file data document describing the data and write to disk
-        datadoc = DataDocument.encode(encoding="file", data=user_data, path=path)
+        # Write some data to disk
+        with fsspec.open(path, mode="wb") as fp:
+            fp.write(user_data)
+        return True
 
         # The user data document should be returned
-        response = await client.post(
-            "/data/retrieve", json=datadoc.dict(json_compatible=True)
-        )
+        response = await client.post("/data/retrieve", json={"path": path})
         assert response.status_code == 200
         returned_data = response.content
         assert returned_data == user_data
