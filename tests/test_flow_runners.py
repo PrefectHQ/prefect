@@ -980,6 +980,10 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
+    @pytest.mark.skipif(
+        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        reason="no compatible perfect containers",
+    )
     @pytest.mark.service("docker")
     async def test_execution_is_compatible_with_old_prefect_container_version(
         self,
