@@ -96,7 +96,7 @@ class OrionClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI],
+        api: Union[str, FastAPI] = ephemeral_app,
         *,
         httpx_settings: dict = None,
     ) -> None:
