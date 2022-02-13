@@ -18,6 +18,8 @@ app.add_typer(storage_config_app)
 @storage_config_app.command()
 @sync_compatible
 async def configure(storage_type: str):
+    import pendulum
+
     valid_storageblocks = {"local", "orion", "s3"}
     if storage_type not in valid_storageblocks:
         exit_with_error(
@@ -26,7 +28,12 @@ async def configure(storage_type: str):
 
     async with OrionClient() as client:
         try:
-            await client.delete_block_by_name("ORION-CONFIG-STORAGE")
+            storage_block = await client.read_block_by_name("ORION-CONFIG-STORAGE")
+            if storage_block:
+                await client.update_block_name(
+                    name="ORION-CONFIG-STORAGE",
+                    new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
+                )
         except:
             pass
 
