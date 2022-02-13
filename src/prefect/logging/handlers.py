@@ -7,15 +7,12 @@ import threading
 import time
 import traceback
 import warnings
-from contextvars import copy_context
-from functools import partial
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import anyio
 import pendulum
-import sniffio
 
-import prefect
+import prefect.context
 import prefect.settings
 from prefect.client import get_client
 from prefect.exceptions import MissingContextError
