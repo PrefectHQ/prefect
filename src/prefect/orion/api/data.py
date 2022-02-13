@@ -20,9 +20,9 @@ class PersistencePath(PrefectBaseModel):
 
 
 @router.post("/persist", status_code=status.HTTP_201_CREATED)
-async def create_datadoc(request: Request) -> PersistencePath:
+async def persist_data(request: Request) -> PersistencePath:
     """
-    Exchange data for an orion data document
+    Persist data as a file and return a reference to the file location.
     """
     data = await request.body()
 
@@ -40,11 +40,11 @@ async def create_datadoc(request: Request) -> PersistencePath:
 
 
 @router.post("/retrieve")
-async def read_datadoc(path: PersistencePath):
+async def read_data(path: PersistencePath):
     """
-    Exchange an orion data document for the data previously persisted
+    Read data at the provided file location.
     """
-    # Read data from the file system; once again do not use the dispatcher
+    # Read data from the file system
     data = await asyncio_to_thread(read_blob, path.path)
 
     return Response(content=data, media_type="application/octet-stream")
