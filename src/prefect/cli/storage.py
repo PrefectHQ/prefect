@@ -27,15 +27,12 @@ async def configure(storage_type: str):
         )
 
     async with OrionClient() as client:
-        try:
-            storage_block = await client.read_block_by_name("ORION-CONFIG-STORAGE")
-            if storage_block:
-                await client.update_block_name(
-                    name="ORION-CONFIG-STORAGE",
-                    new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
-                )
-        except:
-            pass
+        storage_block = await client.read_block_by_name("ORION-CONFIG-STORAGE")
+        if storage_block is not None:
+            await client.update_block_name(
+                name="ORION-CONFIG-STORAGE",
+                new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
+            )
 
         if storage_type == "local":
             await client.create_block_data(

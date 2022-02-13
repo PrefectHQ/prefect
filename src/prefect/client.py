@@ -642,7 +642,7 @@ class OrionClient:
     async def read_block(
         self,
         id: str,
-    ) -> BlockAPI:
+    ) -> Optional[BlockAPI]:
         """
         Read the block data by id.
 
@@ -653,7 +653,7 @@ class OrionClient:
             httpx.RequestError: if the block data was not found for any reason
 
         Returns:
-            a hydrated block
+            a hydrated block or None
         """
         response = await self.get(
             f"/blocks/{id}",
@@ -662,7 +662,7 @@ class OrionClient:
         block_data_id = raw_block.get("blockid")
 
         if not block_data_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
+            return None
 
         blockapi = get_blockapi(raw_block["blockref"])
         block = pydantic.parse_obj_as(blockapi, raw_block)
@@ -682,7 +682,7 @@ class OrionClient:
             httpx.RequestError: if the block data was not found for any reason
 
         Returns:
-            a hydrated block
+            a hydrated block or None
         """
         response = await self.get(
             f"/blocks/name/{name}",
@@ -691,7 +691,7 @@ class OrionClient:
         block_data_id = raw_block.get("blockid")
 
         if not block_data_id:
-            raise httpx.RequestError(f"Cannot read block: {response}")
+            return None
 
         blockapi = get_blockapi(raw_block["blockref"])
         block = pydantic.parse_obj_as(blockapi, raw_block)
