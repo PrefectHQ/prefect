@@ -972,10 +972,17 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
-        assert all([log.flow_run_id == flow_run_id for log in logs[:-1]])
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert "Hello world!" in log_messages, "Parent log message is present"
+        assert (
+            logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id
+        ), "Parent log message has correct id"
+        assert "Hello smaller world!" in log_messages, "Child log message is present"
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        ), "Child log message has correct id"
 
     async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
         @task
@@ -1000,8 +1007,11 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
-        assert len(task_run_logs) == 1
-        assert task_run_logs[0].flow_run_id == subflow_run_id
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
+        assert "Hello smaller world!" in log_messages
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        )

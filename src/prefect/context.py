@@ -236,6 +236,15 @@ class ProfileContext(ContextModel):
 
     __var__ = ContextVar("profile")
 
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.name,
+                self.settings,
+                tuple((key, value) for key, value in self.env.items()),
+            )
+        )
+
 
 def get_profile_context() -> ProfileContext:
     profile_ctx = ProfileContext.get()

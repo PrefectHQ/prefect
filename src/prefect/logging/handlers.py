@@ -25,7 +25,7 @@ class OrionLogWorker:
     """
 
     def __init__(self, profile_context: prefect.context.ProfileContext) -> None:
-        self.profile_context = profile_context
+        self.profile_context = profile_context.copy()
 
         self._queue: queue.Queue[dict] = queue.Queue()
 
