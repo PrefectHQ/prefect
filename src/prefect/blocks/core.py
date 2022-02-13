@@ -17,7 +17,6 @@ def register_blockapi(blockref):
 
 
 def get_blockapi(blockref):
-
     return BLOCK_API_REGISTRY.get(blockref)
 
 
