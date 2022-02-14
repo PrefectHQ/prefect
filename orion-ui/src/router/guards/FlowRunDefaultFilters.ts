@@ -5,7 +5,7 @@ import { RouteGuard } from "./RouteGuard";
 
 export class FlowRunDefaultFilters implements RouteGuard {
   public async before(to: RouteLocationNormalized): Promise<void> {
-    const filtersInUrl = to.query.filter ?? []
+    const filtersInRoute = to.query.filter ?? []
     const filtersStore = useFiltersStore()
 
     filtersStore.add({

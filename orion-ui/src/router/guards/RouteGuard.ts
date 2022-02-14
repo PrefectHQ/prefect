@@ -1,4 +1,4 @@
-import { NavigationGuardNext, RouteLocationNormalized, RouteLocationRaw } from "vue-router";
+import { RouteLocationNormalized, RouteLocationRaw } from "vue-router";
 
 export type MaybePromise<T> = T | Promise<T>
 export type RouteGuardReturn = MaybePromise<void | Error | RouteLocationRaw | boolean>
