@@ -264,7 +264,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
         """
@@ -664,7 +664,7 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> schemas.core.Deployment:
         """
@@ -723,7 +723,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.FlowRun]:
         """
@@ -975,7 +975,7 @@ class OrionClient:
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.TaskRunSort = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.TaskRun]:
         """
