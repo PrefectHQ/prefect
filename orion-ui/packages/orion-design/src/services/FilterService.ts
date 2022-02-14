@@ -9,20 +9,20 @@ export class FilterService {
   public static stringify(filters: Required<Filter>[]): string[]
   public static stringify(filterOrFilters: Required<Filter> | Required<Filter>[]): string | string[] {
     if (Array.isArray(filterOrFilters)) {
-      return FilterStringifyService.convertFiltersToTags(filterOrFilters)
+      return FilterStringifyService.stringifyFilters(filterOrFilters)
     }
 
-    return FilterStringifyService.convertFilterToTag(filterOrFilters)
+    return FilterStringifyService.stringifyFilter(filterOrFilters)
   }
 
   public static parse(filter: string): Required<Filter>
   public static parse(filters: string[]): Required<Filter>[]
   public static parse(filterOrFilters: string | string[]): Required<Filter> | Required<Filter>[] {
     if (Array.isArray(filterOrFilters)) {
-      return FilterParseService.parseFilterStrings(filterOrFilters)
+      return FilterParseService.parseFilters(filterOrFilters)
     }
 
-    return FilterParseService.parseFilterString(filterOrFilters)
+    return FilterParseService.parseFilter(filterOrFilters)
   }
 
   public static query(filters: Required<Filter>[]): UnionFilters {

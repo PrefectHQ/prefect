@@ -12,11 +12,11 @@ import {
 import { formatDateTimeNumeric } from '../utilities/dates'
 
 export class FilterStringifyService {
-  public static convertFiltersToTags(filters: Required<Filter>[]): string[] {
-    return filters.map(filter => this.convertFilterToTag(filter))
+  public static stringifyFilters(filters: Required<Filter>[]): string[] {
+    return filters.map(filter => this.stringifyFilter(filter))
   }
 
-  public static convertFilterToTag(filter: Required<Filter>): string {
+  public static stringifyFilter(filter: Required<Filter>): string {
     const tagPrefix = this.createTagPrefix(filter)
     const tagSuffix = this.createTagSuffix(filter)
     const tagValue = this.createTagValue(filter)
