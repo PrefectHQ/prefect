@@ -537,20 +537,22 @@ class TestClientAPIKey:
         app = FastAPI()
         bearer = HTTPBearer()
 
-        # Returns True if an Authorization header is passed, otherwise raises 403
+        # Returns given credentials if an Authorization
+        # header is passed, otherwise raises 403
         @app.get("/api/check_for_auth_header")
         async def check_for_auth_header(credentials=Depends(bearer)):
-            return True
+            return credentials.credentials
 
         return app
 
     async def test_client_passes_api_key_as_auth_header(self, test_app):
+        api_key = "validAPIkey"
         async with OrionClient(
-            api_key="validAPIkey", httpx_settings={"app": test_app}
+            api_key=api_key, httpx_settings={"app": test_app}
         ) as client:
             res = await client.get("/check_for_auth_header")
         assert res.status_code == 200
-        assert res.json() is True
+        assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
         async with OrionClient(httpx_settings={"app": test_app}) as client:
