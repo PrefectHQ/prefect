@@ -10,7 +10,7 @@
     </div>
 
     <div v-if="media.sm" class="ml-auto mr-1 nowrap">
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ taskRunCount }} task {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
@@ -51,9 +51,16 @@ import { toPluralString } from '@/utilities/strings'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
+import { Filter } from '@/../packages/orion-design/src/types/filters'
+import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { useRouter } from 'vue-router'
 
-const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
+const store = useStore()
+const filtersStore = useFiltersStore()
+const router = useRouter()
 
 const start = computed(() => {
   return new Date(props.item.start_time)
@@ -156,6 +163,24 @@ const crumbs = computed(() => {
     { text: props.item.name, to: `/flow-run/${props.item.id}` }
   ]
 })
+
+function filter() {
+  const filterToAdd: Required<Filter> = {
+    object: 'flow_run',
+    property: 'name',
+    type: 'string',
+    operation: 'equals',
+    value: props.item.name
+  }
+  
+  if(hasFilter(filtersStore.all, filterToAdd)) {
+    return
+  }
+
+  const service = new FilterUrlService(router)
+
+  service.add(filterToAdd)
+}
 </script>
 
 <style lang="scss" scoped></style>
