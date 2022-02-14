@@ -5,6 +5,8 @@ from uuid import UUID
 import httpx
 import pendulum
 import pytest
+from fastapi import Depends, FastAPI
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
 from prefect import flow
@@ -17,6 +19,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
+from prefect.utilities.testing import temporary_settings
 
 
 async def test_hello(orion_client):
@@ -527,3 +530,30 @@ class TestClientAPIVersionRequests:
                 "Invalid X-PREFECT-API-VERSION header format."
                 in e.value.response.json()["detail"]
             )
+
+
+class TestClientAPIKey:
+    @pytest.fixture
+    async def test_app(self):
+        app = FastAPI()
+        bearer = HTTPBearer()
+
+        # Returns True if an Authorization header is passed, otherwise raises 403
+        @app.get("/api/check_for_auth_header")
+        async def check_for_auth_header(credentials=Depends(bearer)):
+            return True
+
+        return app
+
+    async def test_client_passes_api_key_as_auth_header(self, test_app):
+        async with OrionClient(
+            api_key="validAPIkey", httpx_settings={"app": test_app}
+        ) as client:
+            res = await client.get("/check_for_auth_header")
+        assert res.status_code == 200
+        assert res.json() is True
+
+    async def test_client_no_auth_header_without_api_key(self, test_app):
+        async with OrionClient(httpx_settings={"app": test_app}) as client:
+            with pytest.raises(httpx.HTTPStatusError, match="403") as e:
+                await client.get("/check_for_auth_header")
