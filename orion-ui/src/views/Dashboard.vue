@@ -118,7 +118,6 @@ import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
-import subDays from 'date-fns/subDays'
 
 const filtersStore = useFiltersStore()
 const store = useStore()
@@ -144,31 +143,14 @@ const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
   return filter.value
 })
 
-const start = computed<Date>(() => {
-  return store.getters['filter/start']
-})
-
-const end = computed<Date>(() => {
-  return store.getters['filter/end']
-})
-
 const countsFilter = (
   state_name: string,
   state_type: string
 ): ComputedRef<UnionFilters> => {
   return computed<UnionFilters>((): UnionFilters => {
-    let start_time: { after_?: string; before_?: string } | undefined =
-      undefined
-
-    if (start.value || end.value) {
-      start_time = {}
-      if (start.value) start_time.after_ = start.value?.toISOString()
-      if (end.value) start_time.before_ = end.value?.toISOString()
-    }
-
     const countsFilter = FiltersQueryService.query(filtersStore.all)
-
     const stateType = state_name == 'Failed'
+
     countsFilter.flow_runs = {
       ...countsFilter.flow_runs,
       state: {
