@@ -979,6 +979,10 @@ class TestDockerFlowRunner:
         )
 
     @pytest.mark.service("docker")
+    @pytest.mark.skipif(
+        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
+    )
     async def test_execution_is_compatible_with_old_prefect_container_version(
         self,
         flow_run,
