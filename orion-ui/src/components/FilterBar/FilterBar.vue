@@ -22,7 +22,7 @@
     <transition-group name="filter-bar-transition" mode="out-in">
 
       <template v-if="isOpen('search')" key="search">
-        <FiltersSearchMenu class="filter-bar__menu" />
+        <FiltersSearchMenu class="filter-bar__menu filter-bar__menu-search" />
       </template>
 
       <template v-if="isOpen('save')" key="save">
@@ -259,6 +259,12 @@ watch(route, () => {
 
   @media (max-width: 640px) {
     top: -62px;
+  }
+}
+
+.filter-bar__menu-search {
+  @media (max-width: 1024px) {
+    top: 100%;
   }
 }
 
