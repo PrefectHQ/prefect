@@ -379,7 +379,7 @@ class AirbyteConfigurationExport(Task):
             Defaults to 8000.
         - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection sync.
             Defaults to v1.
-        - **kwargs (Any, optional): additional kwargs to pass to the
+        - **kwargs (Any, optional): Additional kwargs to pass to the
             base Task constructor
 
     Returns:
