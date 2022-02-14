@@ -75,8 +75,8 @@ class BlobStorageUpload(Task):
         - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
         - container (str, optional): the name of the Azure Blob Storage to upload to
-        - overwrite (bool, optional): if set, an existing blob with the same name will be overwritten.
-            By default, an error will be thrown if the blob already exists.
+        - overwrite (bool, optional): if `True`, an existing blob with the same name will be overwritten.
+            Defaults to `False` and an error will be thrown if the blob already exists.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
