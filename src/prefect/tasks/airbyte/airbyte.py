@@ -384,7 +384,7 @@ class AirbyteConfigurationExport(Task):
 
     Returns:
         - compressed gz file byte array of Airbyte configuration data.
-        Airbyte requires this file type (or .tar) for configuration imports
+        Airbyte requires this file type (or .tar) for configuration imports.
 
     Example:
         from prefect import Flow
