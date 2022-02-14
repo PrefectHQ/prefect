@@ -45,7 +45,7 @@ def _deep_string_coerce(content, json_path="json"):
             for key, value in list(content.items())
         }
     elif isinstance(content, Enum):
-        return content.value
+        return str(content.value)
     raise ValueError(
         f"Type {type(content)} used for parameter {json_path} is not a number or a string"
     )
