@@ -28,4 +28,4 @@ import prefect.serializers
 # Iniitialize the process level profile at import time
 import prefect.context
 
-prefect.context.initialize_module_profile()
+prefect.context.enter_global_profile()

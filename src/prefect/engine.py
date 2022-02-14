@@ -138,6 +138,9 @@ async def create_then_begin_flow_run(
     Creates the flow run in the backend then enters the main flow rum engine
     """
 
+    profile = prefect.context.get_profile_context()
+    profile.initialize()
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -614,7 +617,8 @@ async def enter_task_run_engine_from_worker(
 ):
     with prefect.context.ProfileContext(
         name=f"task-run-{task_run.name}", settings=settings, env={}
-    ):
+    ) as profile:
+        profile.initialize(create_home=False)
         async with get_client() as client:
             return await orchestrate_task_run(
                 task=task,
