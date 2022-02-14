@@ -77,7 +77,7 @@ class AirbyteClient:
         https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#post-/v1/deployment/export
 
         Args:
-            - session: requests session with which to make call to Airbyte server
+            - session: requests session with which to make call to the Airbyte server.
             - airbyte_base_url: URL of Airbyte server
 
         Returns:
