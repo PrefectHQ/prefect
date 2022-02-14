@@ -111,16 +111,17 @@ import type {
 } from '@prefecthq/orion-design'
 
 import { Api, Endpoints, Query } from '@/plugins/api'
-import { useRoute } from 'vue-router'
-import router from '@/router'
+import { useRoute, useRouter } from 'vue-router'
 import { ResultsListTabs } from '@prefecthq/orion-design'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
+import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 
 const filtersStore = useFiltersStore()
 const store = useStore()
 const route = useRoute()
+const router = useRouter()
 
 const resultsTab: Ref<string> = ref('flows')
 
@@ -334,7 +335,9 @@ const tabs: ResultsListTab[] = reactive([
 ])
 
 const applyFilter = (filter: PremadeFilter) => {
-  filtersStore.add({
+  const service = new FilterUrlService(router)
+
+  service.add({
     object: 'flow_run',
     property: 'state',
     type: 'state',
