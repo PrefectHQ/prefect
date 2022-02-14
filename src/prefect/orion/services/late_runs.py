@@ -9,7 +9,7 @@ import datetime
 import sqlalchemy as sa
 
 import prefect
-from prefect.orion import models
+import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import states
