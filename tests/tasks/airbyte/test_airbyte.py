@@ -6,19 +6,20 @@ import logging
 from prefect.tasks.airbyte import (
     AirbyteConnectionTask,
     AirbyteConfigurationExport,
-    AirbyteClient,
 )
 from prefect.tasks.airbyte.airbyte import (
     AirbyteServerNotHealthyException,
     ConnectionNotFoundException,
     JobNotFoundException,
 )
+from prefect.tasks.airbyte.airbyte import AirbyteClient
 
 logging.basicConfig()
 log = logging.getLogger()
 
 
 class TestAirbyte:
+    # test airbyte health check
     @responses.activate
     def test_check_health_status(self):
         airbyte_base_url = "http://localhost:8000/api/v1"
@@ -254,10 +255,17 @@ class TestAirbyte:
         task = AirbyteConfigurationExport()
         assert task.airbyte_server_host == "localhost"
         assert task.airbyte_server_port == 8000
+        assert task.airbyte_api_version == "v1"
 
     @responses.activate
     def test_export_configuration(self):
         airbyte_base_url = "http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"db": True},
+            status=200,
+        )
         responses.add(
             responses.POST,
             airbyte_base_url + "/deployment/export/",
@@ -265,6 +273,5 @@ class TestAirbyte:
             status=200,
         )
         task = AirbyteConfigurationExport()
-        session = requests.Session()
-        airbyte_config = task._export_configuration(session, airbyte_base_url)
+        airbyte_config = task.run()
         assert airbyte_config == b"\x02\x03\x05\x07"

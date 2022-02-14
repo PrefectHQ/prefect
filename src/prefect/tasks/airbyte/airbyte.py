@@ -60,7 +60,7 @@ class AirbyteClient:
         get_connection_url = self.airbyte_base_url + "/health/"
         try:
             response = session.get(get_connection_url)
-            self.logger.info(response.json())
+            self.logger.debug("Health check response: %s", response.json())
             key = "available" if "available" in response.json() else "db"
             health_status = response.json()[key]
             if not health_status:
@@ -70,6 +70,29 @@ class AirbyteClient:
             return True
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
+
+    def _export_configuration(self, session) -> bytearray:
+        """
+        Trigger an export of Airbyte configuration, see:
+        https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#post-/v1/deployment/export
+
+        Args:
+            - session: requests session with which to make call to Airbyte server
+            - airbyte_base_url: URL of Airbyte server
+
+        Returns:
+            - byte array of Airbyte configuration data
+        """
+        get_connection_url = self.airbyte_base_url + "/deployment/export/"
+
+        try:
+            response = session.post(get_connection_url)
+            if response.status_code == 200:
+                self.logger.debug("Export configuration response: %s", response)
+                export_config = response.content
+                return export_config
+        except RequestException as e:
+            raise AirbyteExportConfigurationFailed(e)
 
 
 class AirbyteConnectionTask(Task):
@@ -368,11 +391,16 @@ class AirbyteConfigurationExport(Task):
         from prefect.tasks.airbyte import AirbyteConfigurationExport
         import gzip
 
-        airbyte = AirbyteConfigurationExport()
-        with Flow("airbyte_export") as flow:
-            export = airbyte.run()
+        @task
+        def unzip(export):
             with gzip.open('airbyte.gz', 'wb') as f:
                 f.write(export)
+
+        airbyte = AirbyteConfigurationExport()
+
+        with Flow("airbyte_export") as flow:
+            export = airbyte()
+            unzip(export)
     """
 
     def __init__(
@@ -386,29 +414,6 @@ class AirbyteConfigurationExport(Task):
         self.airbyte_server_port = airbyte_server_port
         self.airbyte_api_version = airbyte_api_version
         super().__init__(**kwargs)
-
-    def _export_configuration(self, session, airbyte_base_url) -> bytearray:
-        """
-        Trigger an export of Airbyte configuration, see:
-        https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#post-/v1/deployment/export
-
-        Args:
-            - session: requests session with which to make call to Airbyte server
-            - airbyte_base_url: URL of Airbyte server
-
-        Returns:
-            - byte array of Airbyte configuration data
-        """
-        get_connection_url = airbyte_base_url + "/deployment/export/"
-
-        try:
-            response = session.post(get_connection_url)
-            if response.status_code == 200:
-                self.logger.debug("Export configuration response: %s", response)
-                export_config = response.content
-                return export_config
-        except RequestException as e:
-            raise AirbyteExportConfigurationFailed(e)
 
     @defaults_from_attrs(
         "airbyte_server_host", "airbyte_server_port", "airbyte_api_version"
@@ -443,6 +448,6 @@ class AirbyteConfigurationExport(Task):
         session = airbyte._establish_session()
 
         self.logger.info("Initiating export of Airbyte configuration")
-        airbyte_config = self._export_configuration(session, airbyte_base_url)
+        airbyte_config = airbyte._export_configuration(session)
 
         return airbyte_config
