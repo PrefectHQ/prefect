@@ -33,12 +33,16 @@ export class FilterStringifyService {
     }
   }
 
-  private static createObjectDateFilterValue(filter: ObjectDateFilter): string {
-    return formatDateTimeNumeric(filter.value)
-  }
-
-  private static createObjectTimeFilterValue(filter: ObjectRelativeDateFilter): string {
-    return filter.value
+  private static createObjectDateFilterValue(filter: ObjectDateFilter | ObjectRelativeDateFilter): string {
+    switch (filter.operation) {
+      case 'after':
+      case 'before':
+        return formatDateTimeNumeric(filter.value)
+      case 'newer':
+      case 'older':
+      case 'upcoming':
+        return filter.value
+    }
   }
 
   private static createObjectStateFilterValue(filter: ObjectStateFilter): string {
@@ -61,7 +65,6 @@ export class FilterStringifyService {
       case 'tag':
         return filter.type[0]
       case 'date':
-      case 'time':
         return filter.operation[0]
     }
   }
@@ -76,8 +79,6 @@ export class FilterStringifyService {
         return this.createObjectTagFilterValue(filter)
       case 'date':
         return this.createObjectDateFilterValue(filter)
-      case 'time':
-        return this.createObjectTimeFilterValue(filter)
     }
   }
 

@@ -17,3 +17,7 @@ export function omit<T extends Record<string, unknown>, K extends (keyof T)[]>(s
 
   return copy
 }
+
+export function clone<T>(source: T): T {
+  return JSON.parse(JSON.stringify(source))
+}

@@ -8,14 +8,14 @@ export class DashboardDefaultFilters implements RouteGuard {
     {
       object: 'flow_run',
       property: 'start_date',
-      type: 'time',
+      type: 'date',
       operation: 'newer',
       value: '1d'
     },
     {
       object: 'flow_run',
       property: 'start_date',
-      type: 'time',
+      type: 'date',
       operation: 'older',
       value: '-1d'
     }
