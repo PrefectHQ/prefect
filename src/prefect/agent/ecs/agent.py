@@ -244,7 +244,7 @@ class ECSAgent(Agent):
                     ] = self.infer_network_configuration()
             else:
                 msg = (
-                    "It seems you are using a capcacity provider please explicitly "
+                    "It seems you are using a capacity provider please explicitly "
                     "configure networkMode and networkConfiguration, using `--run-task-kwargs`"
                 )
                 self.logger.error(msg)

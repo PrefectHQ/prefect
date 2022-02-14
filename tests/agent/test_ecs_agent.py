@@ -69,6 +69,17 @@ class TestMergeRunTaskKwargs:
             "enableECSManagedTags": False,
         }
 
+    def test_merge_run_task_kwargs_top_level_capacity_provider(self):
+        opt1 = {"cluster": "testing", "launchType": "FARGATE"}
+        opt2 = {
+            "cluster": "new",
+            "capacityProviderStrategy": [{"capacityProvider": "SPOT_GPU"}],
+        }
+        assert merge_run_task_kwargs(opt1, opt2) == {
+            "capacityProviderStrategy": [{"capacityProvider": "SPOT_GPU"}],
+            "cluster": "new",
+        }
+
     def test_merge_run_task_kwargs_overrides(self):
         opt1 = {"overrides": {"cpu": "1024", "memory": "2048"}}
         opt2 = {"overrides": {"cpu": "2048", "taskRoleArn": "testing"}}
@@ -342,6 +353,7 @@ class TestGenerateTaskDefinition:
     def test_get_task_run_kwargs_execution_role_arn(
         self, on_run_config, on_agent, expected
     ):
+
         taskdef = self.generate_task_definition(
             ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
         )
@@ -501,6 +513,27 @@ class TestGetRunTaskKwargs:
         )
         assert kwargs["overrides"].get("taskRoleArn") == expected
 
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected_run_config, expected_agent",
+        [
+            (
+                {"capacityProviderStrategy": [{"capacityProvider": "SPOT_GPU"}]},
+                "FARGATE",
+                [{"capacityProvider": "SPOT_GPU"}],
+                None,
+            ),
+        ],
+    )
+    def test_get_task_run_kwargs_capacity_provider_run(
+        self, on_run_config, on_agent, expected_run_config, expected_agent
+    ):
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(run_task_kwargs=on_run_config), launch_type=on_agent
+        )
+        assert kwargs.get("capacityProviderStrategy") == expected_run_config
+        assert kwargs.get("launchType") == expected_agent
+
+  
     @pytest.mark.parametrize(
         "on_run_config, on_agent, expected",
         [
