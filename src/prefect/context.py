@@ -250,7 +250,7 @@ def get_profile_context() -> ProfileContext:
     profile_ctx = ProfileContext.get()
 
     if not profile_ctx:
-        raise MissingContextError("No profile is being used.")
+        raise MissingContextError("No profile context found.")
 
     return profile_ctx
 
