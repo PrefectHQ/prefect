@@ -1,9 +1,12 @@
+import { StateType } from '../../models/StateType'
 import { flip } from '../../utilities/object'
 import { DeploymentFilter } from './deployments'
 import { FlowRunFilter } from './flowRuns'
 import { FlowFilter } from './flows'
 import { TagFilter } from './tags'
 import { TaskRunFilter } from './taskRuns'
+
+export type RelativeDateFilterValue = `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`
 
 export type ObjectStringFilter = {
   type: 'string',
@@ -20,7 +23,7 @@ export type ObjectDateFilter = {
 export type ObjectRelativeDateFilter = {
   type: 'time',
   operation: 'newer' | 'older',
-  value: `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`,
+  value: RelativeDateFilterValue,
 }
 
 export type ObjectTagFilter = {
@@ -32,7 +35,7 @@ export type ObjectTagFilter = {
 export type ObjectStateFilter = {
   type: 'state',
   operation: 'or',
-  value: string[],
+  value: StateType[],
 }
 
 export type ObjectNumberFilter = {
@@ -69,6 +72,8 @@ export type FilterTagPrefix = typeof ObjectTagPrefixDictionaryData[FilterObject]
 export type FilterTagSuffix = typeof ObjectTagSuffixDictionaryData[FilterObject][number]
 
 export type ObjectFilterTagSuffix<T extends FilterObject> = typeof ObjectTagSuffixDictionaryData[T][number]
+
+export type FilterOfObject<T extends FilterObject> = Extract<Filter, { object: T }>
 
 export const ObjectTagPrefixes = Object.values(ObjectTagPrefixDictionaryData)
 export const ObjectTagSuffixes = Object.values(ObjectTagSuffixDictionaryData).flat()

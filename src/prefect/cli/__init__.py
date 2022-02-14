@@ -6,5 +6,5 @@ import prefect.cli.concurrency_limit
 import prefect.cli.agent
 import prefect.cli.flow_run
 import prefect.cli.orion
-import prefect.cli.profile
+import prefect.cli.config
 import prefect.cli.dev

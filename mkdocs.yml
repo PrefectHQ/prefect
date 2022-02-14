@@ -71,6 +71,7 @@ nav:
             - tutorials/deployments.md
             - tutorials/virtual-environments.md
             - tutorials/docker-flow-runner.md
+            - tutorials/kubernetes-flow-runner.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md

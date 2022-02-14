@@ -12,7 +12,6 @@ from contextvars import ContextVar
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
-import toml
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
@@ -219,6 +218,37 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
+class ProfileContext(ContextModel):
+    """
+    The context for a Prefect settings profile.
+
+    Attributes:
+        name: The name of the profile
+        settings: The complete settings model
+        env: The environment variables set in this profile configuration and their
+            current values. These may differ from the profile configuration if the
+            user has overridden them explicitly.
+    """
+
+    name: str
+    settings: Settings
+    env: Dict[str, str]
+
+    __var__ = ContextVar("profile")
+
+
+def get_profile_context() -> ProfileContext:
+    profile_ctx = ProfileContext.get()
+
+    if not profile_ctx:
+        raise MissingContextError("No profile is being used.")
+
+    return profile_ctx
+
+
+_PROFILE_LOCK = threading.Lock()
+
+
 @contextmanager
 def temporary_environ(
     variables, override_existing: bool = True, warn_on_override: bool = False
@@ -240,6 +270,11 @@ def temporary_environ(
 
     try:
         for var, value in variables.items():
+            if value is None and var in os.environ and override_existing:
+                # Allow setting `None` to remove items
+                os.environ.pop(var)
+                continue
+
             value = str(value)
 
             if var not in old_env or override_existing:
@@ -247,7 +282,7 @@ def temporary_environ(
             else:
                 os.environ.setdefault(var, value)
 
-        yield {var: os.environ[var] for var in variables}
+        yield {var: os.environ.get(var) for var in variables}
 
     finally:
         for var in variables:
@@ -257,66 +292,36 @@ def temporary_environ(
                 os.environ.pop(var, None)
 
 
-class ProfileContext(ContextModel):
-    """
-    The context for a Prefect settings profile.
-
-    Attributes:
-        name: The name of the profile
-        settings: The complete settings model
-        env: The environment variables set in this profile configuration and their
-            current values. These may differ from the profile configuration if the
-            use has overridden them explicitly.
-    """
-
-    name: str
-    settings: Settings
-    env: Dict[str, str]
-
-    __var__ = ContextVar("profile")
-
-
-DEFAULT_PROFILES = {"default": {}}
-
-
-def load_profile(name: str) -> Dict[str, str]:
-    """
-    Loads a profile from the TOML file.
-
-    Asserts that all variables are valid string key/value pairs.
-    """
-    path = prefect.settings.from_env().profiles_path
-    if not path.exists():
-        profiles = DEFAULT_PROFILES
-    else:
-        profiles = toml.loads(path.read_text())
-
-    if name not in profiles:
-        raise ValueError(f"Profile {name!r} not found.")
-
-    variables = profiles[name]
-    for var, value in variables.items():
-        try:
-            variables[var] = str(value)
-        except Exception as exc:
-            raise TypeError(
-                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
-            ) from exc
-
-    return variables
-
-
-_PROFILE_LOCK = threading.Lock()
-
-
 @contextmanager
 def profile(
     name: str,
-    create_home: bool = True,
+    create_home: bool = False,
     setup_logging: bool = False,
     override_existing_variables: bool = False,
 ):
-    env = load_profile(name)
+    """
+    Switch to a new profile for the duration of this context.
+
+    Upon initialization, we can create the home directory contained in the settings and
+    configure logging. These steps are optional. Logging can only be set up once per
+    process and later attempts to configure logging will fail.
+
+    Profile contexts are confined to an async context in a single thread.
+
+    Args:
+        name: The name of the profile to load. Must exist.
+        create_home: Create the PREFECT_HOME directory.
+        setup_logging: Configure logging for the current process.
+        override_existing_variables: If set, variables in the profile will take
+            precedence over current environment variables. By default, environment
+            variables will override profile settings.
+
+    Yields:
+        The created `ProfileContext` object
+    """
+    from prefect.context import ProfileContext
+
+    env = prefect.settings.load_profile(name)
 
     # Prevent multiple threads from mutating the environment concurrently
     with _PROFILE_LOCK:
@@ -342,19 +347,6 @@ def initialize_module_profile():
     This should only be called _once_ at Prefect module initialization.
     """
     name = os.environ.get("PREFECT_PROFILE", "default")
-    context = profile(
-        name=name,
-        setup_logging=True,
-        override_existing_variables=False,
-    )
+    context = profile(name=name, create_home=True, setup_logging=True)
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
-
-
-def get_profile_context() -> ProfileContext:
-    profile_ctx = ProfileContext.get()
-
-    if not profile_ctx:
-        raise MissingContextError("No profile is being used.")
-
-    return profile_ctx
