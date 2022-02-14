@@ -7,12 +7,12 @@
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ flowRunCount.toLocaleString() }} flow
         {{ toPluralString('run', flowRunCount) }}
       </ButtonRounded>
 
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ taskRunCount.toLocaleString() }} task
         {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
@@ -43,9 +43,17 @@ import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import { Filter } from '@/../packages/orion-design/src/types/filters'
+import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { useRouter } from 'vue-router'
+
+const props = defineProps<{ item: Flow }>()
 
 const store = useStore()
-const props = defineProps<{ item: Flow }>()
+const filtersStore = useFiltersStore()
+const router = useRouter()
 
 const flows: FlowsFilter = {
   flows: {
@@ -96,6 +104,24 @@ const taskRunCount = computed((): number => {
 const flowRunHistory = computed((): Buckets => {
   return queries.flow_run_history?.response.value || []
 })
+
+function filter() {
+  const filterToAdd: Required<Filter> = {
+    object: 'flow',
+    property: 'name',
+    type: 'string',
+    operation: 'equals',
+    value: props.item.name
+  }
+  
+  if(hasFilter(filtersStore.all, filterToAdd)) {
+    return
+  }
+
+  const service = new FilterUrlService(router)
+
+  service.add(filterToAdd)
+}
 </script>
 
 <style lang="scss" scoped>
