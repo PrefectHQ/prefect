@@ -18,11 +18,11 @@ export class FilterParseService {
     (input: string) => new Date(input),
   ]
 
-  public static parseFilterStrings(inputs: string[]): Required<Filter>[] {
-    return inputs.map(input => this.parseFilterString(input))
+  public static parseFilters(inputs: string[]): Required<Filter>[] {
+    return inputs.map(input => this.parseFilter(input))
   }
 
-  public static parseFilterString(input: string): Required<Filter> {
+  public static parseFilter(input: string): Required<Filter> {
     const [prefix, ...rest] = input.split(':')
     const value = rest.join(':')
 
