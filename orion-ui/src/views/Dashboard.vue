@@ -117,6 +117,7 @@ import { FiltersQueryService } from '@/../packages/orion-design/src/services/Fil
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { Filter, hasFilter } from '@/../packages/orion-design/src/'
 
 const filtersStore = useFiltersStore()
 const store = useStore()
@@ -335,15 +336,21 @@ const tabs: ResultsListTab[] = reactive([
 ])
 
 const applyFilter = (filter: PremadeFilter) => {
-  const service = new FilterUrlService(router)
-
-  service.add({
+  const filterToAdd: Required<Filter> = {
     object: 'flow_run',
     property: 'state',
     type: 'state',
     operation: 'or',
     value: [filter.type]
-  })
+  }
+  
+  if(hasFilter(filtersStore.all, filterToAdd)) {
+    return
+  }
+
+  const service = new FilterUrlService(router)
+
+  service.add(filterToAdd)
 }
 
 watch([resultsTab], () => {
