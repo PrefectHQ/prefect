@@ -1,6 +1,7 @@
 from typing import Any, List, Iterator
 
 from prefect import Client
+from prefect.engine.serializers import Serializer
 from prefect.engine.state import Scheduled, State
 from prefect.engine.result import Result, NoResultType
 from prefect.utilities.graphql import with_args, EnumValue
@@ -53,7 +54,7 @@ class TaskRunView:
         # Uses NotLoaded so to separate from return values of `None`
         self._result: Any = NotLoaded
 
-    def get_result(self) -> Any:
+    def get_result(self, serializer: Serializer = None) -> Any:
         """
         The result of this task run loaded from the `Result` location. Lazily loaded
         on the first call then cached for repeated access. For the parent of mapped
@@ -76,16 +77,16 @@ class TaskRunView:
 
         if self._result is NotLoaded:
             # Load the result from the result location
-            self._result = self._load_result()
+            self._result = self._load_result(serializer=serializer)
 
         return self._result
 
-    def _load_result(self) -> Any:
+    def _load_result(self, serializer: Serializer = None) -> Any:
         if self.state.is_mapped():
             self._load_child_results()
 
-        # Fire the state result hydration
-        self.state.load_result()
+        # Fire the state result hydration, pass through a serializer override
+        self.state.load_result(result=type(self.state.result)(serializer=serializer))
         return self.state.result
 
     def _load_child_results(self) -> None:

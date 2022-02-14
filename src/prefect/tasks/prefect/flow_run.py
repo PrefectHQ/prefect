@@ -57,6 +57,7 @@ from prefect.engine.signals import signal_from_state
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.engine.serializers import Serializer
 
 
 @task
@@ -169,7 +170,11 @@ def create_flow_run(
 
 @task
 def get_task_run_result(
-    flow_run_id: str, task_slug: str, map_index: int = -1, poll_time: int = 5
+    flow_run_id: str,
+    task_slug: str,
+    map_index: int = -1,
+    poll_time: int = 5,
+    serializer: Serializer = None,
 ) -> Any:
     """
     Task to get the result of a task from a flow run.
@@ -230,7 +235,7 @@ def get_task_run_result(
     logger.debug(
         f"Loading task run result from {type(task_run.state._result).__name__}..."
     )
-    return task_run.get_result()
+    return task_run.get_result(serializer=serializer)
 
 
 @task
