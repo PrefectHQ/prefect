@@ -20,7 +20,7 @@
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="store.getters['filter/baseInterval']"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
@@ -38,7 +38,6 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { useStore } from '@/store'
 import type { UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
@@ -58,7 +57,6 @@ import { FilterUrlService } from '@/../packages/orion-design/src/services/Filter
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{ item: FlowRun }>()
-const store = useStore()
 const filtersStore = useFiltersStore()
 const router = useRouter()
 
