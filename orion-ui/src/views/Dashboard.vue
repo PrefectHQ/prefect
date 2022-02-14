@@ -118,28 +118,6 @@ import { FiltersQueryService } from '@/../packages/orion-design/src/services/Fil
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 
 const filtersStore = useFiltersStore()
-
-onMounted(() => {
-  if(filtersStore.all.length == 0) {
-    filtersStore.replaceAll([
-      {
-        object: 'flow_run',
-        property: 'start_date',
-        type: 'time',
-        operation: 'newer',
-        value: '1d'
-      },
-      {
-        object: 'flow_run',
-        property: 'start_date',
-        type: 'time',
-        operation: 'older',
-        value: '-1d'
-      }
-    ])
-  }
-})
-
 const store = useStore()
 const route = useRoute()
 
