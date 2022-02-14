@@ -69,6 +69,9 @@ export class FilterParseService {
       case 'trn':
       case 'task_run_newer':
         return this.filter('task_run', 'start_date', 'time', 'newer', value)
+      case 'tro':
+      case 'task_run_older':
+        return this.filter('task_run', 'start_date', 'time', 'older', value)
       case 'trs':
       case 'task_run_state':
         return this.stateFilter('task_run', 'state', value)
