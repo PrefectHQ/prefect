@@ -104,12 +104,9 @@ class OrionClient:
         httpx_settings: dict = None,
     ) -> None:
 
-        httpx_settings = httpx_settings or {}
-
-        if "headers" not in httpx_settings:
-            httpx_settings["headers"] = {}
-
-        httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
+        httpx_settings = httpx_settings.copy() if httpx_settings else {}
+        httpx_settings.setdefault("headers", {})
+        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
 
         # Connect to an external application
         if isinstance(api, str):
