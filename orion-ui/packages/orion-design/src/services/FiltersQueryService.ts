@@ -111,13 +111,13 @@ export class FiltersQueryService {
               query.expected_start_time.before_ = filter.value.toISOString()
               break
             case 'newer':
-              query.expected_start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              query.expected_start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
             case 'older':
-              query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              query.expected_start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
             case 'upcoming':
-              query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              query.expected_start_time.before_ = this.createUpcomingRelativeDate(filter.value).toISOString()
           }
 
           break
@@ -156,10 +156,10 @@ export class FiltersQueryService {
               query.start_time.before_ = filter.value.toISOString()
               break
             case 'newer':
-              query.start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              query.start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
             case 'older':
-              query.start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              query.start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
           }
 
@@ -174,20 +174,32 @@ export class FiltersQueryService {
     return query
   }
 
-  private static createDateFromRelative(relative: RelativeDateFilterValue): Date {
+  private static createRelativeDate(relative: RelativeDateFilterValue): Date {
     const unit = relative.slice(-1)
     const value = parseInt(relative)
     const valueNegative = value * -1
 
+    return this.createDateFromUnitAndValue(unit, valueNegative)
+
+  }
+
+  private static createUpcomingRelativeDate(relative: RelativeDateFilterValue): Date {
+    const unit = relative.slice(-1)
+    const value = parseInt(relative)
+
+    return this.createDateFromUnitAndValue(unit, value)
+  }
+
+  private static createDateFromUnitAndValue(unit: string, value: number): Date {
     switch (unit) {
       case 'h':
-        return addHours(new Date, valueNegative)
+        return addHours(new Date, value)
       case 'd':
-        return addDays(startOfToday(), valueNegative)
+        return addDays(startOfToday(), value)
       case 'w':
-        return addWeeks(startOfToday(), valueNegative)
+        return addWeeks(startOfToday(), value)
       case 'm':
-        return addMonths(startOfToday(), valueNegative)
+        return addMonths(startOfToday(), value)
       default:
         throw new FilterRelativeDateUnitError()
     }

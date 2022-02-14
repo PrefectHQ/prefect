@@ -116,6 +116,7 @@ import router from '@/router'
 import { ResultsListTabs } from '@prefecthq/orion-design'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { StateType } from '@prefecthq/orion-design/models'
 
 const filtersStore = useFiltersStore()
 const store = useStore()
@@ -238,7 +239,7 @@ const queries: { [key: string]: Query } = {
 type PremadeFilter = {
   label: string
   count: string
-  type: string
+  type: StateType
   name: string
 }
 const premadeFilters = computed<PremadeFilter[]>(() => {
@@ -333,9 +334,13 @@ const tabs: ResultsListTab[] = reactive([
 ])
 
 const applyFilter = (filter: PremadeFilter) => {
-  const globalFilter = { ...store.state.filter }
-  globalFilter.flow_runs.states = [{ name: filter.name, type: filter.type }]
-  store.commit('filter/setFilter', globalFilter)
+  filtersStore.add({
+    object: 'flow_run',
+    property: 'state',
+    type: 'state',
+    operation: 'or',
+    value: [filter.type]
+  })
 }
 
 watch([resultsTab], () => {
