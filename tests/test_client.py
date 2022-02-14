@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
-from prefect.blocks.core import BlockAPI
+from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.client import OrionClient
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
@@ -110,6 +110,84 @@ async def test_deleting_concurrency_limits(orion_client):
     await orion_client.delete_concurrency_limit_by_tag("dead-limit-walking")
     with pytest.raises(httpx.HTTPStatusError, match="404"):
         await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
+
+
+class TestBlockClient:
+    @register_blockapi("a fun friendship")
+    class AFriendshipBasedOnLies(BlockAPI):
+        a_secret: str
+        another_secret: str
+
+        def block_initialization(self):
+            pass
+
+    async def test_create_then_read_blocks(self, orion_client):
+
+        blockid = await orion_client.create_block_data(
+            name="a block with many secrets",
+            blockref="a fun friendship",
+            data={
+                "a_secret": "personally i cant stand eggs",
+                "another_secret": "i eat pineapple with pizza",
+            },
+        )
+
+        block_by_name = await orion_client.read_block_by_name(
+            "a block with many secrets"
+        )
+        assert isinstance(block_by_name, self.AFriendshipBasedOnLies)
+        assert block_by_name.a_secret == "personally i cant stand eggs"
+
+        block_by_id = await orion_client.read_block(blockid)
+        assert block_by_id.another_secret == "i eat pineapple with pizza"
+        assert isinstance(block_by_id, self.AFriendshipBasedOnLies)
+
+        assert block_by_name is not block_by_id
+
+    async def test_deleting_blocks(self, orion_client):
+        blockid = await orion_client.create_block_data(
+            name="a block with lame secrets",
+            blockref="a fun friendship",
+            data={
+                "a_secret": "i smoked a cigarette once",
+                "another_secret": "i jaywalk sometimes",
+            },
+        )
+
+        block = await orion_client.read_block_by_name("a block with lame secrets")
+        assert isinstance(block, self.AFriendshipBasedOnLies)
+        assert block.a_secret == "i smoked a cigarette once"
+
+        result = await orion_client.delete_block_by_name("a block with lame secrets")
+        assert result is True
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await orion_client.read_block_by_name("a block with lame secrets")
+
+    async def test_renaming_blocks(self, orion_client):
+        blockid = await orion_client.create_block_data(
+            name="mysterious and cool",
+            blockref="a fun friendship",
+            data={
+                "a_secret": "i never shower",
+                "another_secret": "i hate dogs",
+            },
+        )
+
+        block = await orion_client.read_block_by_name("mysterious and cool")
+        assert isinstance(block, self.AFriendshipBasedOnLies)
+        assert block.a_secret == "i never shower"
+
+        await orion_client.update_block_name("mysterious and cool", "extremely uncool")
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await orion_client.read_block_by_name("mysterious and cool")
+
+        exposed_for_what_it_is = await orion_client.read_block_by_name(
+            "extremely uncool"
+        )
+        assert isinstance(exposed_for_what_it_is, self.AFriendshipBasedOnLies)
+        assert exposed_for_what_it_is.a_secret == "i never shower"
 
 
 async def test_create_then_read_flow_run(orion_client):
