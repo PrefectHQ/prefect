@@ -93,9 +93,6 @@ class OrionClient:
 
         httpx_settings = httpx_settings or {}
 
-        if "headers" not in httpx_settings:
-            httpx_settings["headers"] = {}
-
         # set headers
         if "headers" not in httpx_settings:
             httpx_settings["headers"] = {}
