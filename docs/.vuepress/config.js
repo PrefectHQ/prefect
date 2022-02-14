@@ -66,7 +66,7 @@ module.exports = {
     docsDir: 'docs',
     editLinks: true,
     // repoLabel: 'GitHub',
-    logo: '/assets/logomark-color.png',
+    logo: '/assets/logomark-gradient.png',
     nav: [
       {
         text: 'Core Engine',
