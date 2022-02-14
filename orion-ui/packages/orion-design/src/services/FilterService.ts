@@ -29,6 +29,10 @@ export class FilterService {
     return FiltersQueryService.query(filters)
   }
 
+  public static query(filters: Required<Filter>[]): UnionFilters {
+    return FiltersQueryService.query(filters)
+  }
+
   public static describe(filter: Filter): string {
     return FilterDescriptionService.describe(filter)
   }
