@@ -56,10 +56,10 @@ Another use case for importing submodules is perform global side-effects that oc
 
 Often, global side-effects on import are a dangerous pattern. Avoid them if feasible.
 
-We have a couple uses of this currently:
+We have a couple acceptable use-cases for this currently:
 
-- To register dispatchable types in `prefect.serializers`.
-- To extend our CLI application in `prefect.cli`.
+- To register dispatchable types, e.g. `prefect.serializers`.
+- To extend a CLI application e.g. `prefect.cli`.
 
 ### Imports in modules
 
