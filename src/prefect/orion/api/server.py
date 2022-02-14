@@ -173,7 +173,7 @@ def create_app() -> FastAPI:
     app.mount("/api", app=api_app)
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.from_env().orion.ui.enabled
+        and prefect.settings.from_context().orion.ui.enabled
     ):
         ui_app.mount(
             "/",
@@ -208,7 +208,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if prefect.settings.from_env().orion.services.run_in_app:
+        if prefect.settings.from_context().orion.services.run_in_app:
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
