@@ -10,10 +10,11 @@ import addHours from 'date-fns/addHours'
 import addMonths from 'date-fns/addMonths'
 import addWeeks from 'date-fns/addWeeks'
 import startOfToday from 'date-fns/startOfToday'
+import subDays from 'date-fns/subDays'
 import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
 import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
-import { UnionFilters } from './Filter'
+import { FlowRunsHistoryFilter, UnionFilters } from './Filter'
 
 export class FiltersQueryService {
 
@@ -47,6 +48,26 @@ export class FiltersQueryService {
     }
 
     return union
+  }
+
+  public static flowHistoryQuery(filters: Required<Filter>[]): FlowRunsHistoryFilter {
+    const query = this.query(filters)
+    const queryEnd = query.flow_runs?.expected_start_time?.before_
+    const queryStart = query.flow_runs?.expected_start_time?.after_
+
+    const historyEnd = queryEnd ? new Date(queryEnd) : addHours(new Date(), 1)
+    const historyStart = queryStart ? new Date(queryStart) : subDays(historyEnd, 7)
+    const interval = this.createInterval(historyStart, historyEnd)
+
+    return {
+      // eslint-disable-next-line camelcase
+      history_end: historyEnd.toISOString(),
+      // eslint-disable-next-line camelcase
+      history_start: historyStart.toISOString(),
+      // eslint-disable-next-line camelcase
+      history_interval_seconds: interval,
+      ...query,
+    }
   }
 
   private static createFlowFilter(filters: Required<FlowFilter>[]): FlowFilterQuery {
@@ -204,6 +225,12 @@ export class FiltersQueryService {
         throw new FilterRelativeDateUnitError()
     }
 
+  }
+
+  private static createInterval(start: Date, end: Date): number {
+    const seconds = (end.getTime() - start.getTime()) / 1000
+
+    return Math.floor(seconds / 30)
   }
 
 }

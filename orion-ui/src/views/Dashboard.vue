@@ -118,6 +118,7 @@ import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
+import subDays from 'date-fns/subDays'
 
 const filtersStore = useFiltersStore()
 const store = useStore()
@@ -135,6 +136,7 @@ const deploymentFilterOff = ref(false)
 const onFilterOff = () => {
   deploymentFilterOff.value = true
 }
+
 const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
   if (deploymentFilterOff.value) {
     return {}
@@ -148,10 +150,6 @@ const start = computed<Date>(() => {
 
 const end = computed<Date>(() => {
   return store.getters['filter/end']
-})
-
-const interval = computed<number>(() => {
-  return store.getters['filter/baseInterval']
 })
 
 const countsFilter = (
@@ -287,19 +285,15 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
-  return {
-    history_start: start.value.toISOString(),
-    history_end: end.value.toISOString(),
-    history_interval_seconds: interval.value,
-    ...FiltersQueryService.query(filtersStore.all)
-  }
+  return FiltersQueryService.flowHistoryQuery(filtersStore.all)
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
+  const interval = flowRunHistoryFilter.value.history_interval_seconds
+
   return {
     ...flowRunHistoryFilter.value,
-    history_interval_seconds: interval.value * 2,
-    ...FiltersQueryService.query(filtersStore.all)
+    history_interval_seconds: interval * 2,
   }
 })
 
