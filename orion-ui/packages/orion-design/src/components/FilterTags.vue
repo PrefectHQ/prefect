@@ -7,8 +7,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { FilterState } from '../stores/filters'
-  import FilterTag from './FilterTag.vue'
+  import FilterTag from '@/components/FilterTag.vue'
+  import { FilterState } from '@/stores/filters'
 
   const emit = defineEmits<{
     (event: 'dismiss', filter: FilterState): void,

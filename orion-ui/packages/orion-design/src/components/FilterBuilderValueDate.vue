@@ -22,9 +22,9 @@
 
 <script lang="ts" setup>
   import { Ref, computed, onMounted } from 'vue'
-  import { FilterOperation, FilterType, FilterValue } from '../types/filters'
-  import { toPluralString } from '../utilities'
-  import DateTimeInput from './DateTimeInput.vue'
+  import DateTimeInput from '@/components/DateTimeInput.vue'
+  import { FilterOperation, FilterType, FilterValue } from '@/types/filters'
+  import { toPluralString } from '@/utilities'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,

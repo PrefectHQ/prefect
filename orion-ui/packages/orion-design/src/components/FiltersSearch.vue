@@ -27,13 +27,13 @@
 
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
-  import { FilterPrefixError } from '../models/FilterPrefixError'
-  import { FilterService } from '../services/FilterService'
-  import { useFiltersStore, FilterState } from '../stores/filters'
-  import { media } from '../utilities/media'
-  import { toPluralString } from '../utilities/strings'
-  import DismissibleTag from './DismissibleTag.vue'
-  import FilterTags from './FilterTags.vue'
+  import { FilterPrefixError } from '@/models/FilterPrefixError'
+  import { FilterService } from '@/services/FilterService'
+  import { useFiltersStore, FilterState } from '@/stores/filters'
+  import { media } from '@/utilities/media'
+  import { toPluralString } from '@/utilities/strings'
+  import DismissibleTag from '@/components/DismissibleTag.vue'
+  import FilterTags from '@/components/FilterTags.vue'
 
   const filtersStore = useFiltersStore()
   const term = ref('')

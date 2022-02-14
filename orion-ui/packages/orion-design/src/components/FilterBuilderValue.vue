@@ -10,11 +10,11 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterOperation, FilterProperty, FilterType, FilterValue } from '../types/filters'
-  import FilterBuilderValueDate from './FilterBuilderValueDate.vue'
-  import FilterBuilderValueState from './FilterBuilderValueState.vue'
-  import FilterBuilderValueString from './FilterBuilderValueString.vue'
-  import FilterBuilderValueTag from './FilterBuilderValueTag.vue'
+  import FilterBuilderValueDate from '@/components/FilterBuilderValueDate.vue'
+  import FilterBuilderValueState from '@/components/FilterBuilderValueState.vue'
+  import FilterBuilderValueString from '@/components/FilterBuilderValueString.vue'
+  import FilterBuilderValueTag from '@/components/FilterBuilderValueTag.vue'
+  import { FilterOperation, FilterProperty, FilterType, FilterValue } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,

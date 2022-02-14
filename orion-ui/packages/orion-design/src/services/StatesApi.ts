@@ -1,4 +1,4 @@
-import { IState } from '../models/State'
+import { IState } from '@/models/State'
 
 export type IStateResponse = {
   id: string,

@@ -38,9 +38,9 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { computed, ref } from 'vue'
-  import { searchApi } from '../services/SearchApi'
-  import { useFiltersStore } from '../stores/filters'
-  import FilterTags from './FilterTags.vue'
+  import FilterTags from '@/components/FilterTags.vue'
+  import { searchApi } from '@/services/SearchApi'
+  import { useFiltersStore } from '@/stores/filters'
 
   const emit = defineEmits<{
     (event: 'close'): void,

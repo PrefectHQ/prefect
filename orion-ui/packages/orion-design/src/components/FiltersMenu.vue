@@ -29,10 +29,10 @@
 
 <script lang="ts" setup>
   import { reactive, watch } from 'vue'
-  import { useFiltersStore } from '../stores/filters'
-  import { Filter } from '../types/filters'
-  import { isCompleteFilter, isFilter } from '../utilities/filters'
-  import FilterBuilder from './FilterBuilder.vue'
+  import FilterBuilder from '@/components/FilterBuilder.vue'
+  import { useFiltersStore } from '@/stores/filters'
+  import { Filter } from '@/types/filters'
+  import { isCompleteFilter, isFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'close'): void,

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { SimpleIdManager } from '../services/SimpleIdManager'
-import { Filter } from '../types/filters'
-import { toRecord } from '../utilities/arrays'
+import { SimpleIdManager } from '@/services/SimpleIdManager'
+import { Filter } from '@/types/filters'
+import { toRecord } from '@/utilities/arrays'
 
 export type FilterState = {
   id: number,
