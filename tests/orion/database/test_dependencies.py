@@ -28,16 +28,14 @@ from prefect.orion.database.query_components import (
     (AsyncPostgresConfiguration, AioSqliteConfiguration),
 )
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
-    with dependencies.temporary_database_config(ConnectionConfig()):
+    with dependencies.temporary_database_config(ConnectionConfig(None)):
         db = dependencies.provide_database_interface()
         assert type(db.database_config) == ConnectionConfig
 
 
 async def test_injecting_a_really_dumb_database_database_config():
     class UselessConfiguration(BaseDatabaseConfiguration):
-        async def engine(
-            self,
-        ):
+        async def engine(self):
             ...
 
         async def session(self, engine):
