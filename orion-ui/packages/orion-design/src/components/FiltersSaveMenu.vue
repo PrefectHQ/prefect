@@ -82,6 +82,7 @@
   padding: var(--p-2);
   display: flex;
 }
+
 .filters-save-menu__title {
   margin: 0;
   font-weight: 600;
