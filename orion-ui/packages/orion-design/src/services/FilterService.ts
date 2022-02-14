@@ -1,7 +1,8 @@
 /* eslint-disable no-dupe-class-members */
 import { Filter } from '../types/filters'
 import { FilterDescriptionService } from './FilterDescriptionService'
-import { FilterParseService, FilterStringifyService } from '.'
+import { FiltersQueryService } from './FiltersQueryService'
+import { FilterParseService, FilterStringifyService, UnionFilters } from '.'
 
 export class FilterService {
   public static stringify(filter: Required<Filter>): string
@@ -24,7 +25,27 @@ export class FilterService {
     return FilterParseService.parseFilterString(filterOrFilters)
   }
 
+  public static query(filters: Required<Filter>[]): UnionFilters {
+    return FiltersQueryService.query(filters)
+  }
+
   public static describe(filter: Filter): string {
     return FilterDescriptionService.describe(filter)
+  }
+
+  public static icon(filter: Filter): string {
+    // eslint-disable-next-line default-case
+    switch (filter.object) {
+      case 'flow':
+        return 'pi-flow'
+      case 'deployment':
+        return 'pi-map-pin-line'
+      case 'flow_run':
+        return 'pi-flow-run'
+      case 'task_run':
+        return 'pi-task'
+      case 'tag':
+        return 'pi-label'
+    }
   }
 }
