@@ -1195,7 +1195,7 @@ class TestKubernetesFlowRunner:
     async def k8s_orion_client(self, k8s_hosted_orion):
         kubernetes = pytest.importorskip("kubernetes")
 
-        async with OrionClient(host=k8s_hosted_orion) as orion_client:
+        async with get_client() as orion_client:
             yield orion_client
 
     @pytest.fixture
