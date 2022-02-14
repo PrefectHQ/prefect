@@ -49,6 +49,11 @@ export function isTagFilter(filter: Filter): filter is TagFilter {
 }
 
 export function isCompleteFilter(filter: Partial<Filter>): filter is Required<Filter> {
+  // the types aren't technically correct for this. Would love to use a NonEmptyArray type here
+  if (Array.isArray(filter.value) && filter.value.length === 0) {
+    return false
+  }
+
   return !!(filter.operation && filter.property && filter.type && filter.value)
 }
 
