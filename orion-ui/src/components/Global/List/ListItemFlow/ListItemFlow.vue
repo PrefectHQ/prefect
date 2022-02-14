@@ -22,7 +22,7 @@
         :items="flowRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="baseInterval * 2"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
         disable-popovers
@@ -33,7 +33,6 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { useStore } from '@/store'
 import type { FlowsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
@@ -48,10 +47,10 @@ import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { useRouter } from 'vue-router'
+import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 
 const props = defineProps<{ item: Flow }>()
 
-const store = useStore()
 const filtersStore = useFiltersStore()
 const router = useRouter()
 
@@ -63,20 +62,18 @@ const flows: FlowsFilter = {
   }
 }
 
-const start = computed<Date>(() => store.getters['filter/start'])
-const end = computed<Date>(() => store.getters['filter/end'])
-const baseInterval = computed<number>(
-  () => store.getters['filter/baseInterval']
-)
-
 const flowRunHistoryFilter = computed(() => {
+  const query = FiltersQueryService.flowHistoryQuery(filtersStore.all)
+
   return {
-    history_start: start.value.toISOString(),
-    history_end: end.value.toISOString(),
-    history_interval_seconds: baseInterval.value * 2,
+    ...query,
+    history_interval_seconds: query.history_interval_seconds * 2,
     flows: flows.flows
   }
 })
+
+const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
+const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
 
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
