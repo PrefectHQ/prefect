@@ -22,7 +22,13 @@ export type ObjectDateFilter = {
 
 export type ObjectRelativeDateFilter = {
   type: 'date',
-  operation: 'newer' | 'older' | 'upcoming',
+  operation: 'newer' | 'older',
+  value: RelativeDateFilterValue,
+}
+
+export type ObjectUpcomingRelativeDateFilter = {
+  type: 'date',
+  operation: 'upcoming',
   value: RelativeDateFilterValue,
 }
 

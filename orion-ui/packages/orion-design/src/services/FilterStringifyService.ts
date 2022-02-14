@@ -7,7 +7,8 @@ import {
   ObjectStringFilter,
   ObjectTagFilter,
   ObjectTagPrefixDictionary,
-  ObjectRelativeDateFilter
+  ObjectRelativeDateFilter,
+  ObjectUpcomingRelativeDateFilter
 } from '../types/filters'
 import { formatDateTimeNumeric } from '../utilities/dates'
 
@@ -33,7 +34,7 @@ export class FilterStringifyService {
     }
   }
 
-  private static createObjectDateFilterValue(filter: ObjectDateFilter | ObjectRelativeDateFilter): string {
+  private static createObjectDateFilterValue(filter: ObjectDateFilter | ObjectRelativeDateFilter | ObjectUpcomingRelativeDateFilter): string {
     switch (filter.operation) {
       case 'after':
       case 'before':
