@@ -38,9 +38,14 @@ def merge_run_task_kwargs(opts1: dict, opts2: dict) -> dict:
 
     out = deepcopy(opts1)
 
-    # if out contains keys for capacityProviderStrategy and LaunchType delete launchType
+    # if opts2 contains keys for capacityProviderStrategy and LaunchType delete launchType
     if "capacityProviderStrategy" in opts2 and "launchType" in out:
         del out["launchType"]
+
+    # if opts2 contains keys for launchType delete capacityProviderStrategy
+    if "capacityProviderStrategy" in out and "launchType" in opts2:
+        del out["capacityProviderStrategy"]
+
 
     # Everything except 'overrides' merge directly
     for k, v in opts2.items():
@@ -242,13 +247,7 @@ class ECSAgent(Agent):
                     self.run_task_kwargs[
                         "networkConfiguration"
                     ] = self.infer_network_configuration()
-            else:
-                msg = (
-                    "It seems you are using a capacity provider please explicitly "
-                    "configure networkMode and networkConfiguration, using `--run-task-kwargs`"
-                )
-                self.logger.error(msg)
-                raise ValueError(msg)
+
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.
