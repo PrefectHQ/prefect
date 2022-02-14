@@ -64,58 +64,18 @@ def inject_client(fn):
     return wrapper
 
 
-class OrionClient:
+class HTTPXClient:
     """
-    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
+    An asynchronous client for making http requests
 
     Args:
-        host: the Orion API URL
         httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
 
-    Examples:
-
-        Say hello to an Orion server
-
-        >>> async with OrionClient() as client:
-        >>>     response = await client.hello()
-        >>>
-        >>> print(response.json())
-        👋
     """
 
-    def __init__(
-        self,
-        host: str = prefect.settings.from_env().orion_host,
-        api_key: str = prefect.settings.from_env().api_key,
-        api_version: str = ORION_API_VERSION,
-        httpx_settings: dict = None,
-    ) -> None:
-
+    def __init__(self, httpx_settings: dict = None) -> None:
         httpx_settings = httpx_settings or {}
-
-        # set headers
-        if "headers" not in httpx_settings:
-            httpx_settings["headers"] = {}
-        if api_key:
-            httpx_settings["headers"].update({"Authorization": f"Bearer {api_key}"})
-        if api_version:
-            httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
-
-        if host:
-            # Connect to an existing instance
-            if "app" in httpx_settings:
-                raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set with `host`, "
-                    "`app` is only for use with ephemeral instances."
-                )
-            httpx_settings.setdefault("base_url", host)
-        else:
-            # Connect to an ephemeral app
-            httpx_settings.setdefault("app", orion_app)
-            httpx_settings.setdefault("base_url", "http://orion/api")
-
         self._client = httpx.AsyncClient(**httpx_settings)
-        self.logger = get_logger("client")
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         """
@@ -198,6 +158,60 @@ class OrionClient:
         #       development
         response.raise_for_status()
         return response
+
+
+class OrionClient(HTTPXClient):
+    """
+    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
+
+    Args:
+        host: the Orion API URL
+        httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
+
+    Examples:
+
+        Say hello to an Orion server
+
+        >>> async with OrionClient() as client:
+        >>>     response = await client.hello()
+        >>>
+        >>> print(response.json())
+        👋
+    """
+
+    def __init__(
+        self,
+        host: str = prefect.settings.from_env().orion_host,
+        api_key: str = prefect.settings.from_env().api_key,
+        api_version: str = ORION_API_VERSION,
+        httpx_settings: dict = None,
+    ) -> None:
+
+        httpx_settings = httpx_settings or {}
+
+        # set headers
+        if "headers" not in httpx_settings:
+            httpx_settings["headers"] = {}
+        if api_key:
+            httpx_settings["headers"].update({"Authorization": f"Bearer {authorization}"})
+        if api_version:
+            httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
+
+        if host:
+            # Connect to an existing instance
+            if "app" in httpx_settings:
+                raise ValueError(
+                    "Invalid httpx settings: `app` cannot be set with `host`, "
+                    "`app` is only for use with ephemeral instances."
+                )
+            httpx_settings.setdefault("base_url", host)
+        else:
+            # Connect to an ephemeral app
+            httpx_settings.setdefault("app", orion_app)
+            httpx_settings.setdefault("base_url", "http://orion/api")
+
+        super().__init__(httpx_settings)
+        self.logger = get_logger("client")
 
     # API methods ----------------------------------------------------------------------
 
