@@ -1201,8 +1201,7 @@ class TestKubernetesFlowRunner:
     @pytest.fixture
     def k8s_hosted_orion(self):
         """
-        Sets `PREFECT_API_URL` and `prefect.settings.from_env().api_url` to the k8s-hosted
-        API endpoint.
+        Sets `PREFECT_API_URL` and to the k8s-hosted API endpoint.
         """
         kubernetes = pytest.importorskip("kubernetes")
 

@@ -16,7 +16,7 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 from uuid import UUID
 
 import anyio
@@ -27,6 +27,7 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.server import app as ephemeral_app
 from prefect.orion.orchestration.rules import OrchestrationResult
