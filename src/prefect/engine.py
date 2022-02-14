@@ -27,6 +27,8 @@ from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 
 import prefect
+import prefect.context
+import prefect.settings
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
@@ -237,7 +239,7 @@ async def begin_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    async with detect_crashes(flow_run=flow_run):
+    async with detect_crashes(flow_run=flow_run, client=client):
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -338,7 +340,7 @@ async def create_and_begin_subflow_run(
             logger.error("Received invalid parameters", exc_info=True)
             return state
 
-    async with detect_crashes(flow_run=flow_run):
+    async with detect_crashes(flow_run=flow_run, client=client):
         async with flow.task_runner.start() as task_runner:
             terminal_state = await orchestrate_flow_run(
                 flow,
@@ -584,12 +586,13 @@ async def create_and_submit_task_run(
 
     future = await flow_run_context.task_runner.submit(
         task_run,
-        run_fn=orchestrate_task_run,
+        run_fn=enter_task_run_engine_from_worker,
         run_kwargs=dict(
             task=task,
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
+            settings=prefect.settings.from_context(),
         ),
         asynchronous=task.isasync,
     )
@@ -602,13 +605,34 @@ async def create_and_submit_task_run(
     return future
 
 
-@inject_client
+async def enter_task_run_engine_from_worker(
+    task: Task,
+    task_run: TaskRun,
+    parameters: Dict[str, Any],
+    wait_for: Optional[Iterable[PrefectFuture]],
+    settings: prefect.settings.Settings,
+):
+    with prefect.context.ProfileContext(
+        name=f"task-run-{task_run.name}", settings=settings, env={}
+    ):
+        async with get_client() as client:
+            return await orchestrate_task_run(
+                task=task,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                client=client,
+                settings=settings,
+            )
+
+
 async def orchestrate_task_run(
     task: Task,
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     client: OrionClient,
+    settings: prefect.settings.Settings,
 ) -> State:
     """
     Execute a task run
@@ -635,6 +659,7 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
+
     context = TaskRunContext(
         task_run=task_run,
         task=task,
@@ -668,7 +693,7 @@ async def orchestrate_task_run(
             with context:
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                if prefect.settings.from_context().debug_mode:
+                if settings.debug_mode:
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -705,10 +730,7 @@ async def orchestrate_task_run(
 
         state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
-        if (
-            state.type != terminal_state.type
-            and prefect.settings.from_context().debug_mode
-        ):
+        if state.type != terminal_state.type and settings.debug_mode:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
                 extra={"send_to_orion": False},
@@ -723,9 +745,7 @@ async def orchestrate_task_run(
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = (
-        repr(state) if prefect.settings.from_context().debug_mode else str(state)
-    )
+    display_state = repr(state) if settings.debug_mode else str(state)
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
@@ -737,7 +757,7 @@ async def orchestrate_task_run(
 
 
 @asynccontextmanager
-async def detect_crashes(flow_run: FlowRun):
+async def detect_crashes(flow_run: FlowRun, client: OrionClient):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -749,27 +769,25 @@ async def detect_crashes(flow_run: FlowRun):
     except anyio.get_cancelled_exc_class() as exc:
         flow_run_logger(flow_run).error("Run cancelled by the async runtime.")
         with anyio.CancelScope(shield=True):
-            async with get_client() as client:
-                await client.propose_state(
-                    state=Failed(
-                        name="Crashed",
-                        message="Execution was interrupted by the async runtime.",
-                        data=DataDocument.encode("cloudpickle", exc),
-                    ),
-                    flow_run_id=flow_run.id,
-                )
-        raise
-    except KeyboardInterrupt as exc:
-        flow_run_logger(flow_run).error("Run received an interrupt signal.")
-        async with get_client() as client:
             await client.propose_state(
                 state=Failed(
                     name="Crashed",
-                    message="Execution was interrupted by the system.",
+                    message="Execution was interrupted by the async runtime.",
                     data=DataDocument.encode("cloudpickle", exc),
                 ),
                 flow_run_id=flow_run.id,
             )
+        raise
+    except KeyboardInterrupt as exc:
+        flow_run_logger(flow_run).error("Run received an interrupt signal.")
+        await client.propose_state(
+            state=Failed(
+                name="Crashed",
+                message="Execution was interrupted by the system.",
+                data=DataDocument.encode("cloudpickle", exc),
+            ),
+            flow_run_id=flow_run.id,
+        )
         raise
 
 
