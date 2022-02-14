@@ -31,7 +31,7 @@
     objects: FilterObject[],
     property: FilterProperty,
     label: string,
-    type?: FilterType,
+    type: FilterType,
   }
 
   const properties: item[] = [
@@ -50,6 +50,7 @@
     {
       property: 'start_date',
       label: 'Start time',
+      type: 'date',
       objects: ['flow_run', 'task_run'],
     },
     {
@@ -64,12 +65,9 @@
     return properties.filter(item => item.objects.includes(props.object))
   })
 
-  function update(property: FilterProperty, type?: FilterType): void {
+  function update(property: FilterProperty, type: FilterType): void {
     emit('update:property', property)
-
-    if (type) {
-      emit('update:type', type)
-    }
+    emit('update:type', type)
   }
 </script>
 

@@ -24,7 +24,7 @@
   import isDate from 'date-fns/isDate'
   import startOfToday from 'date-fns/startOfToday'
   import { Ref, computed, onMounted, watch } from 'vue'
-  import { FilterOperation, FilterType, FilterValue } from '../types/filters'
+  import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
   import { toPluralString } from '../utilities'
   import DateTimeInput from './DateTimeInput.vue'
 
@@ -35,7 +35,7 @@
   }>()
 
   const props = defineProps<{
-    type?: FilterType,
+    object: FilterObject,
     operation?: FilterOperation,
     value?: FilterValue,
   }>()
@@ -46,10 +46,8 @@
     }
   })
 
-  // I really don't like how this component handles values. this watcher is the last straw.
-  // must be refactored. Probably into separate ValueDate and ValueRelativeDate components.
   watch(() => props.operation, () => {
-    if (props.operation == 'newer' || props.operation == 'older' && typeof props.value !== 'string') {
+    if (props.operation == 'newer' || props.operation == 'older' || props.operation == 'upcoming' && typeof props.value !== 'string') {
       emit('update:value', '1h')
     } else if (props.operation == 'after' || props.operation == 'before' && !isDate(props.value)) {
       emit('update:value', startOfToday())
@@ -60,20 +58,7 @@
     get: () => props.operation,
     set: (operation) => {
       emit('update:operation', operation!)
-
-      if (operation == 'before' || operation == 'after') {
-        internalType.value = 'date'
-      }
-
-      if (operation == 'newer' || operation == 'older') {
-        internalType.value = 'time'
-      }
     },
-  })
-
-  const internalType = computed({
-    get: () => props.type,
-    set: (type) => emit('update:type', type!),
   })
 
   const unit: Ref<string> = computed<string>({
@@ -112,13 +97,20 @@
   })
 
   const isDateFilter = computed<boolean>(() => props.operation == 'before' || props.operation == 'after')
+  const operations = computed(() => {
+    const base = [
+      { label: 'Newer than', value: 'newer' },
+      { label: 'Before date', value: 'before' },
+      { label: 'After date', value: 'after' },
+      { label: 'Older than', value: 'older' },
+    ]
 
-  const operations = [
-    { label: 'Before', value: 'before' },
-    { label: 'After', value: 'after' },
-    { label: 'Newer', value: 'newer' },
-    { label: 'Older', value: 'older' },
-  ]
+    if (props.object == 'flow_run') {
+      base.push({ label: 'Upcoming within', value: 'upcoming' })
+    }
+
+    return base
+  })
 
   const units = [
     { label: 'Hour', value: 'h' },

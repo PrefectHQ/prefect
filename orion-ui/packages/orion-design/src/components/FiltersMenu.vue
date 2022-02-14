@@ -34,6 +34,7 @@
   import { useFiltersStore } from '../stores/filters'
   import { Filter } from '../types/filters'
   import { isCompleteFilter, isFilter } from '../utilities/filters'
+  import { clone } from '../utilities/object'
   import FilterBuilder from './FilterBuilder.vue'
 
   const emit = defineEmits<{
@@ -42,7 +43,7 @@
 
   const filters = useFiltersStore()
 
-  const tempFilters: Partial<Filter>[] = reactive([...filters.all])
+  const tempFilters: Partial<Filter>[] = reactive(clone(filters.all))
 
   watch(tempFilters, () => {
     if (tempFilters.every(filter => isFilter(filter))) {

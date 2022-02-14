@@ -50,10 +50,10 @@ export class FilterParseService {
         return this.dateFilter('flow_run', 'start_date', 'before', value)
       case 'frn':
       case 'flow_run_newer':
-        return this.filter('flow_run', 'start_date', 'time', 'newer', value)
+        return this.filter('flow_run', 'start_date', 'date', 'newer', value)
       case 'fro':
       case 'flow_run_older':
-        return this.filter('flow_run', 'start_date', 'time', 'older', value)
+        return this.filter('flow_run', 'start_date', 'date', 'older', value)
       case 'frs':
       case 'flow_run_state':
         return this.stateFilter('flow_run', 'state', value)
@@ -68,10 +68,10 @@ export class FilterParseService {
         return this.dateFilter('task_run', 'start_date', 'before', value)
       case 'trn':
       case 'task_run_newer':
-        return this.filter('task_run', 'start_date', 'time', 'newer', value)
+        return this.filter('task_run', 'start_date', 'date', 'newer', value)
       case 'tro':
       case 'task_run_older':
-        return this.filter('task_run', 'start_date', 'time', 'older', value)
+        return this.filter('task_run', 'start_date', 'date', 'older', value)
       case 'trs':
       case 'task_run_state':
         return this.stateFilter('task_run', 'state', value)

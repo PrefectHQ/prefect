@@ -1,33 +1,30 @@
 <template>
   <component
     :is="component"
-    v-model:type="internalType"
     v-model:operation="internalOperation"
     v-model:value="internalValue"
-    :property="property"
+    v-bind="{ object, property }"
   />
 </template>
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterOperation, FilterProperty, FilterType, FilterValue } from '../types/filters'
+  import { FilterObject, FilterOperation, FilterProperty, FilterValue } from '../types/filters'
   import FilterBuilderValueDate from './FilterBuilderValueDate.vue'
   import FilterBuilderValueState from './FilterBuilderValueState.vue'
   import FilterBuilderValueString from './FilterBuilderValueString.vue'
   import FilterBuilderValueTag from './FilterBuilderValueTag.vue'
 
   const emit = defineEmits<{
-    (event: 'update:type', value: FilterType): void,
     (event: 'update:operation', value: FilterOperation): void,
     (event: 'update:value', value: FilterValue): void,
   }>()
 
   const props = defineProps<{
+    object: FilterObject,
     property: FilterProperty,
-    type?: FilterType,
     operation?: FilterOperation,
     value?: FilterValue,
-
   }>()
 
   // eslint-disable-next-line vue/return-in-computed-property
@@ -43,11 +40,6 @@
       case 'state':
         return FilterBuilderValueState
     }
-  })
-
-  const internalType = computed({
-    get: () => props.type,
-    set: (type) => emit('update:type', type!),
   })
 
   const internalOperation = computed({

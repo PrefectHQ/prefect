@@ -20,7 +20,7 @@
           <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
         </template>
         <template v-else>
-          <FilterBuilderValue v-model:type="innerFilter.type" v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :property="innerFilter.property" />
+          <FilterBuilderValue v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :object="innerFilter.object" :property="innerFilter.property" />
         </template>
         <template v-if="isCompleteFilter(innerFilter)">
           <FilterTag class="filter-builder__tag" :filter="innerFilter" />

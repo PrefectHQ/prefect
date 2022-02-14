@@ -2,7 +2,7 @@ import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilte
 
 export type FlowRunFilter = {
   object: 'flow_run',
-} & Partial<(FlowRunStringFilter | FlowRunDateFilter | FlowRunTimeFilter | FlowRunTagFilter | FlowRunStateFilter)>
+} & Partial<(FlowRunStringFilter | FlowRunDateFilter | FlowRunRelativeDateFilter | FlowRunTagFilter | FlowRunStateFilter)>
 
 export type FlowRunStringFilter = {
   object: 'flow_run',
@@ -14,7 +14,7 @@ export type FlowRunDateFilter = {
   property: 'start_date',
 } & Partial<ObjectDateFilter>
 
-export type FlowRunTimeFilter = {
+export type FlowRunRelativeDateFilter = {
   object: 'flow_run',
   property: 'start_date',
 } & Partial<ObjectRelativeDateFilter>
