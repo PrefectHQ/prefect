@@ -16,15 +16,15 @@ export class DashboardDefaultFilters implements RouteGuard {
       object: 'flow_run',
       property: 'start_date',
       type: 'date',
-      operation: 'older',
-      value: '-1d'
+      operation: 'upcoming',
+      value: '1d'
     }
   ]
 
   public before(to: RouteLocationNormalized): void {
-    const filtersInUrl = to.query.filter ?? []
+    const filtersInRoute = to.query.filter ?? []
 
-    if(filtersInUrl.length == 0) {
+    if(filtersInRoute.length == 0) {
       const filtersStore = useFiltersStore()
 
       filtersStore.replaceAll(this.filters)

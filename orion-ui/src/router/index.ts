@@ -1,9 +1,8 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
-import { FilterUrlService } from '@/../packages/orion-design/src/services'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
-import { RouteGuardExecutor } from './guards/RouteGuardExecutor'
+import { RouteGuardExecutioner } from './guards/RouteGuardExecutioner'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: Array<RouteRecordRaw> = [
@@ -20,7 +19,7 @@ const routes: Array<RouteRecordRaw> = [
     name: 'FlowRun',
     component: () => import('../views/FlowRun.vue'),
     meta: {
-      guards: [ new FlowRunDefaultFilters()]
+      guards: [new FlowRunDefaultFilters()]
     },
     children: [
       {
@@ -54,14 +53,14 @@ const router = createRouter({
   routes
 })
 
-RouteGuardExecutor.register(new GlobalLoadFiltersFromRoute(router))
+RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute(router))
 
 router.beforeEach(async (to, from) => {
-  return await RouteGuardExecutor.before(to, from)
+  return await RouteGuardExecutioner.before(to, from)
 })
 
-router.afterEach(async (to, from) => {
-  return await RouteGuardExecutor.after(to, from)
+router.afterEach((to, from) => {
+  return RouteGuardExecutioner.after(to, from)
 })
 
 export default router

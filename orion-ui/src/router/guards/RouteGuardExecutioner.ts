@@ -1,7 +1,7 @@
 import { RouteLocationNormalized, RouteLocationRaw } from "vue-router";
 import { RouteGuard, RouteGuardReturn } from "./RouteGuard";
 
-export class RouteGuardExecutor {
+export class RouteGuardExecutioner {
   private static global: RouteGuard[] = []
 
   public static async before(to: RouteLocationNormalized, from: RouteLocationNormalized): Promise<Awaited<RouteGuardReturn>> {
@@ -16,7 +16,7 @@ export class RouteGuardExecutor {
     }
   }
 
-  public static async after(to: RouteLocationNormalized, from: RouteLocationNormalized):  Promise<void> {
+  public static after(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
     const guards = this.getRouteGuards(to)
 
     for(let guard of guards) {
