@@ -140,3 +140,7 @@ Note that usage of the type within the module will need quotes e.g. `"State"` si
 #### Importing optional requirements
 
 We do not have a best practice for this yet. See the `kubernetes`, `docker`, and `distributed` implementations for now.
+
+#### Delaying expensive imports
+
+Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
