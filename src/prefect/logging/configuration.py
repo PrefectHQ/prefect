@@ -21,7 +21,6 @@ to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
 
 PROCESS_LOGGING_CONFIG: dict = None
-PROCESS_LOGGING_CONFIG_HASH: int = None
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -77,12 +76,12 @@ def setup_logging(settings: LoggingSettings) -> None:
 
     if PROCESS_LOGGING_CONFIG:
         # Do not allow repeated configuration calls, only warn if the config differs
-        if hash(json.dumps(config)) != PROCESS_LOGGING_CONFIG_HASH:
-            config_diff = {
-                key: value
-                for key, value in config.items()
-                if PROCESS_LOGGING_CONFIG[key] != value
-            }
+        config_diff = {
+            key: value
+            for key, value in config.items()
+            if PROCESS_LOGGING_CONFIG[key] != value
+        }
+        if config_diff:
             warnings.warn(
                 "Logging can only be setup once per process, the new logging config "
                 f"will be ignored. The attempted changes were: {config_diff}",
@@ -104,4 +103,3 @@ def setup_logging(settings: LoggingSettings) -> None:
             logger.propagate = extra_config.propagate
 
     PROCESS_LOGGING_CONFIG = config
-    PROCESS_LOGGING_CONFIG_HASH = hash(json.dumps(PROCESS_LOGGING_CONFIG))

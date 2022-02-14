@@ -88,6 +88,9 @@ def enter_flow_run_engine_from_flow_call(
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
+    profile = prefect.context.get_profile_context()
+    profile.initialize()
+
     begin_run = partial(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
@@ -125,6 +128,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
+    profile = prefect.context.get_profile_context()
+    profile.initialize()
+
     return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
 
@@ -137,10 +143,6 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend then enters the main flow rum engine
     """
-
-    profile = prefect.context.get_profile_context()
-    profile.initialize()
-
     state = Pending()
     if flow.should_validate_parameters:
         try:
