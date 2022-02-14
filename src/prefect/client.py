@@ -29,8 +29,7 @@ import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion.api.server import ORION_API_VERSION
-from prefect.orion.api.server import app as ephemeral_app
+from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.core import TaskRun
@@ -74,7 +73,7 @@ def inject_client(fn):
 
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
-    return OrionClient(profile.settings.api_url or ephemeral_app)
+    return OrionClient(profile.settings.api_url or create_app(profile.settings.orion))
 
 
 class OrionClient:
@@ -98,11 +97,12 @@ class OrionClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI] = ephemeral_app,
+        api: Union[str, FastAPI] = None,
         *,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
+        api = api or create_app()
 
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})

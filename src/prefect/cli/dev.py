@@ -25,6 +25,7 @@ from prefect.cli.base import (
 )
 from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
+from prefect.orion.api.server import create_app
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.utilities.filesystem import tmpchdir
 
@@ -48,10 +49,7 @@ def build_docs(
 
     Note that this command only functions properly with an editable install.
     """
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app
-
-    schema = app.openapi()
+    schema = create_app().openapi()
 
     if not schema_path:
         schema_path = (
