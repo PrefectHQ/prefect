@@ -83,6 +83,8 @@ nav:
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
+    - 'UI & Cloud':
+        - Overview: ui/overview.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
