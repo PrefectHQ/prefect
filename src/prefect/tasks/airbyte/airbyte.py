@@ -32,7 +32,7 @@ class AirbyteExportConfigurationFailed(Exception):
 class AirbyteClient:
     """
     Esablishes a session with an Airbyte instance and evaluates its current health
-    status
+    status.
 
     This client assumes that the Airbyte Open-Source, since "For
     Airbyte Open-Source you don't need the API Token for
