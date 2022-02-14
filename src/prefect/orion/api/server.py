@@ -43,12 +43,34 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Provide a detailed message for request validation errors."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder(
+            {
+                "exception_message": "Invalid request received.",
+                "exception_detail": exc.errors(),
+                "request_body": exc.body,
+            }
+        ),
+    )
+
+
+async def custom_internal_exception_handler(request: Request, exc: Exception):
+    """Log a detailed exception for internal server errors before returning."""
+    logger.error(f"Encountered exception in request:", exc_info=True)
+    return JSONResponse(
+        content={"exception_message": "Internal Server Error"},
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
 def create_orion_api(
     router_prefix: Optional[str] = "",
     include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
-    include_exception_handlers: bool = True,
     fast_api_app_kwargs: dict = None,
 ) -> FastAPI:
     """
@@ -60,8 +82,6 @@ def create_orion_api(
             have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
-        include_exception_handlers: whether or not to include the default
-            exception hanlders for the FastAPI app
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
 
     Returns:
@@ -117,36 +137,6 @@ def create_orion_api(
             api.admin.router, prefix=router_prefix, dependencies=dependencies
         )
 
-    if include_exception_handlers:
-        # custom error handling
-        async def validation_exception_handler(
-            request: Request, exc: RequestValidationError
-        ):
-            """Provide a detailed message for request validation errors."""
-            return JSONResponse(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                content=jsonable_encoder(
-                    {
-                        "exception_message": "Invalid request received.",
-                        "exception_detail": exc.errors(),
-                        "request_body": exc.body,
-                    }
-                ),
-            )
-
-        async def custom_http_exception_handler(request: Request, exc: Exception):
-            """Log a detailed exception for internal server errors before returning."""
-            logger.error(f"Encountered exception in request:", exc_info=True)
-            return JSONResponse(
-                content={"exception_message": "Internal Server Error"},
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        api_app.add_exception_handler(
-            RequestValidationError, validation_exception_handler
-        )
-        api_app.add_exception_handler(Exception, custom_http_exception_handler)
-
     return api_app
 
 
@@ -154,7 +144,14 @@ def create_app() -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
 
     app = FastAPI(title=TITLE, version=API_VERSION)
-    api_app = create_orion_api()
+    api_app = create_orion_api(
+        fast_api_app_kwargs={
+            "exception_handlers": {
+                Exception: custom_internal_exception_handler,
+                RequestValidationError: validation_exception_handler,
+            }
+        }
+    )
     ui_app = FastAPI(title=UI_TITLE)
 
     # middleware
