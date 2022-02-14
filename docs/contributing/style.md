@@ -39,9 +39,8 @@ schemas.core.FlowRun
 
 If exposing a submodule, use a relative import as you would when exposing an object.
 
-Right:
-
 ```
+# Correct
 from . import flows
 ```
 
@@ -56,10 +55,10 @@ Another use case for importing submodules is perform global side-effects that oc
 
 Often, global side-effects on import are a dangerous pattern. Avoid them if feasible.
 
-We have a couple uses of this currently:
+We have a couple acceptable use-cases for this currently:
 
-- To register dispatchable types in `prefect.serializers`.
-- To extend our CLI application in `prefect.cli`.
+- To register dispatchable types, e.g. `prefect.serializers`.
+- To extend a CLI application e.g. `prefect.cli`.
 
 ### Imports in modules
 
@@ -140,3 +139,7 @@ Note that usage of the type within the module will need quotes e.g. `"State"` si
 #### Importing optional requirements
 
 We do not have a best practice for this yet. See the `kubernetes`, `docker`, and `distributed` implementations for now.
+
+#### Delaying expensive imports
+
+Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
