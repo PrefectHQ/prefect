@@ -39,9 +39,8 @@ schemas.core.FlowRun
 
 If exposing a submodule, use a relative import as you would when exposing an object.
 
-Right:
-
 ```
+# Correct
 from . import flows
 ```
 
