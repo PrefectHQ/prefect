@@ -21,7 +21,7 @@ export class DashboardDefaultFilters implements RouteGuard {
     }
   ]
 
-  public before(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
+  public before(to: RouteLocationNormalized): void {
     const filtersInUrl = to.query.filter ?? []
 
     if(filtersInUrl.length == 0) {
