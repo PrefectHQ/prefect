@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
-from prefect.client import OrionClient
+from prefect.client import OrionClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION
@@ -400,7 +400,7 @@ async def test_put_then_retrieve_object(put_obj, orion_client):
 
 async def test_client_non_async_with_is_helpful():
     with pytest.raises(RuntimeError, match="must be entered with an async context"):
-        with OrionClient():
+        with get_client():
             pass
 
 
@@ -438,7 +438,7 @@ class TestResolveDataDoc:
         )
 
     async def test_resolves_persisted_data_documents(self, orion_client):
-        async with OrionClient() as client:
+        async with get_client() as client:
             assert (
                 await orion_client.resolve_datadoc(
                     await client.persist_data(
@@ -467,12 +467,12 @@ class TestClientAPIVersionRequests:
         return int(versions[2])
 
     async def test_default_requests_succeeds(self):
-        async with OrionClient() as client:
+        async with get_client() as client:
             res = await client.hello()
             assert res.status_code == 200
 
     async def test_no_api_version_header_succeeds(self):
-        async with OrionClient() as client:
+        async with get_client() as client:
             # remove default header X-PREFECT-API-VERSION
             client._client.headers = {}
             res = await client.hello()

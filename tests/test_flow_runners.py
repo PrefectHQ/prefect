@@ -23,7 +23,7 @@ from typing_extensions import Literal
 from urllib3.exceptions import MaxRetryError
 
 import prefect
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
