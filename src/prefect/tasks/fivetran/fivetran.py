@@ -65,7 +65,7 @@ class FivetranSyncTask(Task):
             - schedule_type (str, optional): Either manual or auto. If manual (default),
                 connector will run on Prefect's schedule. If auto, connector will remain on Fivetran's
         Returns:
-            - dict: connector_id (str) and succeeded_at (timestamp str)
+            - A dict with connector_id (str) and succeeded_at (timestamp str)
         """
 
         def parse_timestamp(api_time: str):
