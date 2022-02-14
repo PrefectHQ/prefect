@@ -4,6 +4,7 @@ import { FilterUrlService } from '@/../packages/orion-design/src/services'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
 import { RouteGuardExecutor } from './guards/RouteGuardExecutor'
+import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -53,21 +54,7 @@ const router = createRouter({
   routes
 })
 
-// router.beforeEach((to) => {
-//   if(to.query.filter === undefined && to.meta.defaultFilters) {
-//     const service = new FilterUrlService(router)
-
-//     service.replaceAll(to.meta.defaultFilters as any, { updateUrl: false })
-//   }
-// })
-
-// router.afterEach((to, from) => {
-//   if(to.query.filter !== from.query.filter) {
-//     const service = new FilterUrlService(router)
-    
-//     service.updateStore()
-//   }
-// })
+RouteGuardExecutor.register(new GlobalLoadFiltersFromRoute(router))
 
 router.beforeEach(async (to, from) => {
   return await RouteGuardExecutor.before(to, from)
