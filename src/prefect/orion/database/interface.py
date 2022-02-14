@@ -62,20 +62,13 @@ class OrionDBInterface(metaclass=DBSingleton):
         """Run all downgrade migrations"""
         await run_sync_in_worker_thread(alembic_downgrade)
 
-    async def engine(
-        self,
-        connection_url: str = None,
-        echo: bool = None,
-        timeout: float = None,
-    ):
+    async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
         """
-        engine = await self.database_config.engine(
-            connection_url=connection_url, echo=echo, timeout=timeout
-        )
+        engine = await self.database_config.engine()
 
-        if self.database_config.is_inmemory(engine):
+        if self.database_config.is_inmemory():
             async with engine.begin() as conn:
                 await self.database_config.create_db(conn, self.Base.metadata)
 
