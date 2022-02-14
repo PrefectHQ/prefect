@@ -46,7 +46,6 @@ def merge_run_task_kwargs(opts1: dict, opts2: dict) -> dict:
     if "capacityProviderStrategy" in out and "launchType" in opts2:
         del out["capacityProviderStrategy"]
 
-
     # Everything except 'overrides' merge directly
     for k, v in opts2.items():
         if k != "overrides":
@@ -247,7 +246,6 @@ class ECSAgent(Agent):
                     self.run_task_kwargs[
                         "networkConfiguration"
                     ] = self.infer_network_configuration()
-
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.
