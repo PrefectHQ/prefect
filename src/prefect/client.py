@@ -121,7 +121,7 @@ class OrionClient:
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
             httpx_settings.setdefault("app", api)
-            httpx_settings.setdefault("base_url", "http://orion/api")
+            httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
 
         else:
             raise TypeError(
