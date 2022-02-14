@@ -1,3 +1,4 @@
+import json
 import logging
 import logging.config
 import os
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from prefect.settings import LoggingSettings, Settings
+from prefect.settings import LoggingSettings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
@@ -19,7 +20,8 @@ to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 # Regex for detecting interpolated global settings
 interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
 
-PROCESS_LOGGING_SETTINGS: LoggingSettings = None
+PROCESS_LOGGING_CONFIG: dict = None
+PROCESS_LOGGING_CONFIG_HASH: int = None
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -60,17 +62,7 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
 
 
 def setup_logging(settings: LoggingSettings) -> None:
-    global PROCESS_LOGGING_SETTINGS
-
-    if PROCESS_LOGGING_SETTINGS:
-        # Do not allow repeated configuration calls, only warn if the settings differ
-        if hash(settings) != hash(PROCESS_LOGGING_SETTINGS):
-            warnings.warn(
-                "Logging can only be setup once per process, the new logging settings "
-                "will be ignored.",
-                stacklevel=2,
-            )
-        return
+    global PROCESS_LOGGING_CONFIG, PROCESS_LOGGING_CONFIG_HASH
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
@@ -82,6 +74,21 @@ def setup_logging(settings: LoggingSettings) -> None:
         ),
         settings,
     )
+
+    if PROCESS_LOGGING_CONFIG:
+        # Do not allow repeated configuration calls, only warn if the config differs
+        if hash(json.dumps(config)) != PROCESS_LOGGING_CONFIG_HASH:
+            config_diff = {
+                key: value
+                for key, value in config.items()
+                if PROCESS_LOGGING_CONFIG[key] != value
+            }
+            warnings.warn(
+                "Logging can only be setup once per process, the new logging config "
+                f"will be ignored. The attempted changes were: {config_diff}",
+                stacklevel=2,
+            )
+        return
 
     logging.config.dictConfig(config)
 
@@ -96,4 +103,5 @@ def setup_logging(settings: LoggingSettings) -> None:
                 logger.setLevel(extra_config.level)
             logger.propagate = extra_config.propagate
 
-    PROCESS_LOGGING_SETTINGS = settings
+    PROCESS_LOGGING_CONFIG = config
+    PROCESS_LOGGING_CONFIG_HASH = hash(json.dumps(PROCESS_LOGGING_CONFIG))

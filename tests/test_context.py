@@ -12,9 +12,9 @@ from prefect.context import (
     FlowRunContext,
     ProfileContext,
     TaskRunContext,
+    enter_global_profile,
     get_profile_context,
     get_run_context,
-    initialize_module_profile,
     profile,
 )
 from prefect.exceptions import MissingContextError
@@ -149,8 +149,8 @@ class TestProfilesContext:
                 """
             )
         )
-        with profile("foo", create_home=True):
-            pass
+        with profile("foo", initialize=False) as ctx:
+            ctx.initialize(create_home=True)
 
         assert home.exists()
 
@@ -184,16 +184,18 @@ class TestProfilesContext:
                 """
             )
         )
-        with profile("foo", setup_logging=True) as ctx:
-            setup_logging.assert_called_once_with(ctx.settings)
+        with profile("foo", initialize=False) as ctx:
+            ctx.initialize(setup_logging=True)
+            setup_logging.assert_called_once_with(ctx.settings.logging)
 
-    def test_profile_context_does_not_setup_logging_by_default(self, monkeypatch):
+    def test_profile_context_does_not_setup_logging_if_asked(self, monkeypatch):
         setup_logging = MagicMock()
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
 
-        with profile("default"):
+        with profile("default", initialize=False) as ctx:
+            ctx.initialize(setup_logging=False)
             setup_logging.assert_not_called()
 
     def test_profile_context_nesting(self, temporary_profiles_path):
@@ -219,20 +221,16 @@ class TestProfilesContext:
             assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 
-    def test_initialize_module_profile(self, monkeypatch):
+    def test_enter_global_profilee(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
-        initialize_module_profile()
-        profile.assert_called_once_with(
-            name="default", create_home=True, setup_logging=True
-        )
+        enter_global_profile()
+        profile.assert_called_once_with(name="default", initialize=False)
         profile().__enter__.assert_called_once_with()
 
-    def test_initialize_module_profile_respects_name_env_variable(self, monkeypatch):
+    def test_enter_global_profilee_respects_name_env_variable(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
         monkeypatch.setenv("PREFECT_PROFILE", "test")
-        initialize_module_profile()
-        profile.assert_called_once_with(
-            name="test", create_home=True, setup_logging=True
-        )
+        enter_global_profile()
+        profile.assert_called_once_with(name="test", initialize=False)
