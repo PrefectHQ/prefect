@@ -34,7 +34,7 @@ class AirbyteClient:
     Esablishes a session with an Airbyte instance and evaluates its current health
     status.
 
-    This client assumes that the Airbyte Open-Source, since "For
+    This client assumes that you're using Airbyte Open-Source, since "For
     Airbyte Open-Source you don't need the API Token for
     Authentication! All endpoints are possible to access using the
     API without it."
