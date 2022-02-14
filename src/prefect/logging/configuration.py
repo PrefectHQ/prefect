@@ -61,7 +61,7 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
 
 
 def setup_logging(settings: LoggingSettings) -> None:
-    global PROCESS_LOGGING_CONFIG, PROCESS_LOGGING_CONFIG_HASH
+    global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
