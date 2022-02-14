@@ -78,7 +78,7 @@ class AirbyteClient:
 
         Args:
             - session: requests session with which to make call to the Airbyte server.
-            - airbyte_base_url: URL of Airbyte server
+            - airbyte_base_url: URL of Airbyte server.
 
         Returns:
             - byte array of Airbyte configuration data
