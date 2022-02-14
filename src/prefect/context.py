@@ -255,7 +255,7 @@ def get_profile_context() -> ProfileContext:
     return profile_ctx
 
 
-_PROFILE_LOCK = threading.Lock()
+_PROFILE_ENV_LOCK = threading.Lock()
 
 
 @contextmanager
@@ -333,7 +333,7 @@ def profile(
     env = prefect.settings.load_profile(name)
 
     # Prevent multiple threads from mutating the environment concurrently
-    with _PROFILE_LOCK:
+    with _PROFILE_ENV_LOCK:
         with temporary_environ(
             env, override_existing=override_existing_variables, warn_on_override=True
         ):
