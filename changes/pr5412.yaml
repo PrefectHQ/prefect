@@ -1,0 +1,26 @@
+# An example changelog entry
+#
+# 1. Choose one (or more if a PR encompasses multiple changes) of the following headers:
+#   - feature
+#   - enhancement
+#   - task
+#   - fix
+#   - deprecation
+#   - breaking (for breaking changes)
+#
+# 2. Fill in one (or more) bullet points under the heading, describing the change.
+#    Markdown syntax may be used.
+#
+# 3. If you would like to be credited as helping with this release, add a
+#    contributor section with your name and github username.
+#
+# Here's an example of a PR that adds an enhancement
+
+enhancement:
+  - "Implementation of Hashicorp Vault Kubernetes based authentication - [#5412](https://github.com/PrefectHQ/prefect/pull/5412)"
+
+deprication:
+  - "Replacing depricated HVAC API calls from VaultSecret class made [redundant since version 1.0.0](https://hvac.readthedocs.io/en/stable/source/hvac_v1.html#hvac.v1.Client.auth_approle) of the HVAC library"
+
+contributor:
+  - "[Andrew Klimovski](https://github.com/klimbot)"
