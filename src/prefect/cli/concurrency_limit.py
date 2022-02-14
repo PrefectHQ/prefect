@@ -1,15 +1,20 @@
 """
 Command line interface for working with concurrency limits.
 """
-import httpx
 import typer
 from rich.pretty import Pretty
 
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.client import OrionClient
 from prefect.utilities.asyncio import sync_compatible
 
-concurrency_limit_app = typer.Typer(
+concurrency_limit_app = PrefectTyper(
     name="concurrency-limit",
     help="Commands for managing task-level concurrency limits",
 )
@@ -17,7 +22,6 @@ app.add_typer(concurrency_limit_app)
 
 
 @concurrency_limit_app.command()
-@sync_compatible
 async def create(tag: str, concurrency_limit: int):
     """
     Create a concurrency limit against a tag.
@@ -36,7 +40,6 @@ async def create(tag: str, concurrency_limit: int):
 
 
 @concurrency_limit_app.command()
-@sync_compatible
 async def read(tag: str):
     """
     View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
@@ -50,7 +53,6 @@ async def read(tag: str):
 
 
 @concurrency_limit_app.command()
-@sync_compatible
 async def ls(limit: int = 15, offset: int = 0):
     """
     View all concurrency limits.
@@ -63,7 +65,6 @@ async def ls(limit: int = 15, offset: int = 0):
 
 
 @concurrency_limit_app.command()
-@sync_compatible
 async def delete(tag: str):
     """
     Delete the concurrency limit set on the specified tag.

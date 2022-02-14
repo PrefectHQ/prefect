@@ -32,7 +32,8 @@ else:
 @contextmanager
 def temporary_settings(**kwargs):
     """
-    Temporarily override setting values.
+    Temporarily override setting values by updating the current os.environ and changing
+    the profile context.
 
     This will _not_ mutate values that have been already been accessed at module
     load time.
@@ -43,23 +44,28 @@ def temporary_settings(**kwargs):
         >>> import prefect.settings
         >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
         >>>    assert prefect.settings.from_env().orion_host == "foo"
+        >>>    assert prefect.settings.from_context().orion_host == "foo"
         >>> assert prefect.settings.from_env().orion_host is None
     """
     old_env = os.environ.copy()
-    old_settings = prefect.settings.from_env()
+
+    # Cast to strings
+    variables = {key: str(value) for key, value in kwargs.items()}
 
     try:
-        for setting in kwargs:
-            os.environ[setting] = str(kwargs[setting])
+        for key in variables:
+            os.environ[key] = str(variables[key])
 
-        assert old_env != os.environ, "Environment did not change"
         new_settings = prefect.settings.from_env()
-        assert new_settings != old_settings, "Temporary settings did not change values"
-        yield new_settings
+
+        with prefect.context.ProfileContext(
+            name="temporary", settings=new_settings, env=variables
+        ):
+            yield new_settings
 
     finally:
-        for setting in kwargs:
-            if old_env.get(setting):
-                os.environ[setting] = old_env[setting]
+        for key in variables:
+            if old_env.get(key):
+                os.environ[key] = old_env[key]
             else:
-                os.environ.pop(setting, None)
+                os.environ.pop(key, None)
