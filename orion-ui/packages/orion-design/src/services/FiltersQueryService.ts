@@ -13,7 +13,7 @@ import startOfToday from 'date-fns/startOfToday'
 import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
 import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
-import { UnionFilters } from './Filter'
+import { UnionFilters } from '@/services/Filter'
 
 export class FiltersQueryService {
 

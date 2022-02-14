@@ -22,9 +22,9 @@
   import { showToast } from '@prefecthq/miter-design'
   import { subscribe } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { searchApi } from '../services/SearchApi'
-  import { useFiltersStore } from '../stores/filters'
-  import { Filter } from '../types/filters'
+  import { searchApi } from '@/services/SearchApi'
+  import { useFiltersStore } from '@/stores/filters'
+  import { Filter } from '@/types/filters'
 
   const filtersStore = useFiltersStore()
 

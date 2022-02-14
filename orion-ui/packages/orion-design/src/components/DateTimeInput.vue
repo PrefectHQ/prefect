@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
-  import { formatDateTimeNumeric } from '../utilities/dates'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
   const props = defineProps<{
     label: string,

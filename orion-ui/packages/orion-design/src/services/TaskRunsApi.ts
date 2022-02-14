@@ -1,8 +1,8 @@
 import { AxiosResponse } from 'axios'
-import { StateType } from '../models/StateType'
-import { TaskRun } from '../models/TaskRun'
-import { Api } from './Api'
-import { IStateResponse, statesApi } from './StatesApi'
+import { StateType } from '@/models/StateType'
+import { TaskRun } from '@/models/TaskRun'
+import { Api } from '@/services/Api'
+import { IStateResponse, statesApi } from '@/services/StatesApi'
 
 export type ITaskRunResponse = {
   id: string,
