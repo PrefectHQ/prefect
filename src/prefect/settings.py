@@ -434,7 +434,7 @@ class Settings(SharedSettings):
         Defaults to `None`.""",
     )
 
-    # credentials used for connecting to
+    # credentials used for authenticating against an orion instance
     api_key: str = Field(
         None,
         description="""API key used to authenticate against Orion API.
