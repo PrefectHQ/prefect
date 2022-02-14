@@ -759,7 +759,7 @@ classes = ["CensusSyncTask"]
 [pages.tasks.airbyte]
 title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
-classes = ["AirbyteConnectionTask"]
+classes = ["AirbyteConnectionTask","AirbyteConfigurationExport"]
 verified_task = true
 
 [pages.tasks.cubejs]
