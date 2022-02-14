@@ -120,10 +120,8 @@ import { FilterUrlService } from '@/../packages/orion-design/src/services/Filter
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
 
 const filtersStore = useFiltersStore()
-const store = useStore()
 const route = useRoute()
 const router = useRouter()
-
 const resultsTab: Ref<string> = ref('flows')
 
 const filter = computed<UnionFilters>(() => {
