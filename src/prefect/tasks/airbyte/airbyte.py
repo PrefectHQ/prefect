@@ -31,7 +31,7 @@ class AirbyteExportConfigurationFailed(Exception):
 
 class AirbyteClient:
     """
-    Esablishes a session with an Airbyte instance and evaluates it's current health
+    Esablishes a session with an Airbyte instance and evaluates its current health
     status
 
     This client assumes that the Airbyte Open-Source, since "For
