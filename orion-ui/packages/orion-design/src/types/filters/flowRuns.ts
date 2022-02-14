@@ -1,4 +1,4 @@
-import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilter, ObjectRelativeDateFilter } from '.'
+import { ObjectStringFilter, ObjectDateFilter, ObjectTagFilter, ObjectStateFilter, ObjectRelativeDateFilter, ObjectUpcomingRelativeDateFilter } from '.'
 
 export type FlowRunFilter = {
   object: 'flow_run',
@@ -17,7 +17,7 @@ export type FlowRunDateFilter = {
 export type FlowRunRelativeDateFilter = {
   object: 'flow_run',
   property: 'start_date',
-} & Partial<ObjectRelativeDateFilter>
+} & Partial<(ObjectRelativeDateFilter | ObjectUpcomingRelativeDateFilter)>
 
 export type FlowRunTagFilter = {
   object: 'flow_run',

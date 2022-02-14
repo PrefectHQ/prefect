@@ -54,6 +54,9 @@ export class FilterParseService {
       case 'fro':
       case 'flow_run_older':
         return this.filter('flow_run', 'start_date', 'date', 'older', value)
+      case 'fru':
+      case 'flow_run_upcoming':
+        return this.filter('flow_run', 'start_date', 'date', 'upcoming', value)
       case 'frs':
       case 'flow_run_state':
         return this.stateFilter('flow_run', 'state', value)

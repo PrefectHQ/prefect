@@ -116,6 +116,8 @@ export class FiltersQueryService {
             case 'older':
               query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
               break
+            case 'upcoming':
+              query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
           }
 
           break
