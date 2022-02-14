@@ -140,3 +140,17 @@ export function isObjectStateFilter(filter: ObjectFilter): filter is ObjectState
 export function isObjectTagFilter(filter: ObjectFilter): filter is ObjectTagFilter {
   return filter.type == 'tag'
 }
+
+export function hasFilter(haystack: Filter[], needle: Filter): boolean {
+  return haystack.some((filter: Filter) => {
+    if (filter.object != needle.object || filter.property != needle.property || filter.operation != needle.operation) {
+      return false
+    }
+
+    if (Array.isArray(filter.value) && Array.isArray(needle.value)) {
+      return filter.value.some(value => (needle.value as unknown[]).includes(value))
+    }
+
+    return filter.value == needle.value
+  })
+}
