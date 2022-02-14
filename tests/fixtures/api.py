@@ -6,12 +6,17 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from prefect.orion.api.server import app
+from prefect.orion.api.server import create_app
 from prefect.utilities.testing import temporary_settings
 
 
+@pytest.fixture()
+def app():
+    return create_app()
+
+
 @pytest.fixture
-async def client():
+async def client(app):
     """
     Yield a test client for testing the orion api
     """
@@ -21,7 +26,7 @@ async def client():
 
 
 @pytest.fixture
-async def client_without_exceptions():
+async def client_without_exceptions(app):
     """
     Yield a test client that does not raise app exceptions.
 
@@ -57,7 +62,7 @@ async def hosted_orion_api():
     async with await anyio.open_process(
         command=[
             "uvicorn",
-            "prefect.orion.api.server:app",
+            "prefect.orion.api.server:create_app",
             "--host",
             "0.0.0.0",  # required for access across networked docker containers in CI
             "--port",
