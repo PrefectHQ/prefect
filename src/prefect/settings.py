@@ -535,6 +535,13 @@ def from_context() -> Settings:
     return get_profile_context().settings
 
 
+def get(variable: str):
+    """
+    Get a setting from the context.
+    """
+    return from_context().get(variable)
+
+
 DEFAULT_PROFILES = {"default": {}}
 
 

@@ -24,7 +24,7 @@ def SettingsOption(variable: str) -> typer.Option:
 
     return typer.Option(
         # The default is dynamically retrieved
-        default=partial(get_setting_from_context, variable),
+        default=partial(enter_profile_from_option(prefect.settings.get), variable),
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
         # source is from the environment or profile, but typer does not support this
@@ -38,7 +38,7 @@ def SettingsArgument(variable: str) -> typer.Argument:
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        default=partial(get_setting_from_context, variable),
+        default=partial(enter_profile_from_option(prefect.settings.get), variable),
         show_default=f"from {variable}",
     )
 
@@ -117,12 +117,6 @@ def enter_profile_from_option(fn):
             return fn(*args, **kwargs)
 
     return with_profile_from_option
-
-
-@enter_profile_from_option
-def get_setting_from_context(variable):
-    settings = prefect.settings.from_context()
-    return settings.get(variable)
 
 
 @app.command()
