@@ -7,8 +7,8 @@ Explore the client by communicating with an in-memory webserver - no setup requi
 ```
 $ # start python REPL with native await functionality
 $ python -m asyncio
->>> from prefect.client import OrionClient
->>> async with OrionClient() as client:
+>>> from prefect.client import get_client
+>>> async with get_client() as client:
 ...     response = await client.hello()
 ...     print(response.json())
 👋
@@ -88,7 +88,7 @@ class OrionClient:
 
         Say hello to an Orion server
 
-        >>> async with OrionClient() as client:
+        >>> async with get_client() as client:
         >>>     response = await client.hello()
         >>>
         >>> print(response.json())

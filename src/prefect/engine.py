@@ -27,7 +27,7 @@ from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 
 import prefect
-from prefect.client import OrionClient, inject_client
+from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
@@ -749,7 +749,7 @@ async def detect_crashes(flow_run: FlowRun):
     except anyio.get_cancelled_exc_class() as exc:
         flow_run_logger(flow_run).error("Run cancelled by the async runtime.")
         with anyio.CancelScope(shield=True):
-            async with OrionClient() as client:
+            async with get_client() as client:
                 await client.propose_state(
                     state=Failed(
                         name="Crashed",
@@ -761,7 +761,7 @@ async def detect_crashes(flow_run: FlowRun):
         raise
     except KeyboardInterrupt as exc:
         flow_run_logger(flow_run).error("Run received an interrupt signal.")
-        async with OrionClient() as client:
+        async with get_client() as client:
             await client.propose_state(
                 state=Failed(
                     name="Crashed",

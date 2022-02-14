@@ -7,7 +7,7 @@ import pydantic
 import pytest
 
 from prefect import flow, get_run_logger, tags, task
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
@@ -107,7 +107,7 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
@@ -123,7 +123,7 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}

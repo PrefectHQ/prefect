@@ -356,7 +356,7 @@ To update your tag concurrency limits programmatically, use [`OrionClient.create
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```python
-from prefect.client import OrionClient
+from prefect.client import get_client
 
 with OrionClient as client:
     # set a concurrency limit of 10 on the 'small_instance' tag
