@@ -424,7 +424,9 @@ class TestGenerateTaskDefinition:
 
 
 class TestGetRunTaskKwargs:
-    def get_run_task_kwargs(self, run_config, tenant_id: str = None, **kwargs):
+    def get_run_task_kwargs(
+        self, run_config, tenant_id: str = None, taskdef=None, **kwargs
+    ):
         agent = ECSAgent(**kwargs)
         if tenant_id:
             agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
@@ -443,7 +445,9 @@ class TestGetRunTaskKwargs:
                 "id": "flow-run-id",
             }
         )
-        return agent.get_run_task_kwargs(flow_run, run_config)
+        if taskdef is None:
+            taskdef = agent.generate_task_definition(flow_run, run_config)
+        return agent.get_run_task_kwargs(flow_run, run_config, taskdef)
 
     @pytest.mark.parametrize("launch_type", ["EC2", "FARGATE"])
     @pytest.mark.parametrize("cluster", [None, "my-cluster"])
@@ -517,6 +521,42 @@ class TestGetRunTaskKwargs:
             ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
         )
         assert kwargs["overrides"].get("executionRoleArn") == expected
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_taskdef, on_agent, expected",
+        [
+            (None, None, None, None),
+            ("task-role-1", None, None, "task-role-1"),
+            (None, "task-role-2", None, "task-role-2"),
+            (None, None, "task-role-3", "task-role-3"),
+            ("task-role-1", "task-role-2", None, "task-role-1"),
+            ("task-role-1", None, "task-role-3", "task-role-1"),
+            (None, "task-role-2", "task-role-3", "task-role-2"),
+            ("task-role-1", "task-role-2", "task-role-3", "task-role-1"),
+        ],
+    )
+    def test_get_task_run_kwargs_task_role_arn(
+        self, on_run_config, on_taskdef, on_agent, expected
+    ):
+        taskdef = None
+        if on_taskdef:
+            taskdef = {
+                "networkMode": "awsvpc",
+                "cpu": 1024,
+                "memory": 2048,
+                "containerDefinitions": [
+                    {
+                        "name": "flow",
+                    }
+                ],
+                "taskRoleArn": on_taskdef,
+            }
+
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(task_role_arn=on_run_config, task_definition=taskdef),
+            task_role_arn=on_agent,
+        )
+        assert kwargs["overrides"].get("taskRoleArn") == expected
 
     def test_get_run_task_kwargs_environment(self, tmpdir, backend):
         path = str(tmpdir.join("kwargs.yaml"))
