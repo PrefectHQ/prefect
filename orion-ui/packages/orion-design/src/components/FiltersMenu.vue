@@ -49,6 +49,8 @@
 
 <script lang="ts" setup>
   import { reactive, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { FilterUrlService } from '../services/FilterUrlService'
   import { useFiltersStore } from '../stores/filters'
   import { Filter } from '../types/filters'
   import { isCompleteFilter, isFilter } from '../utilities/filters'
@@ -60,6 +62,7 @@
   }>()
 
   const filters = useFiltersStore()
+  const router = useRouter()
 
   const tempFilters: Partial<Filter>[] = reactive(clone(filters.all))
 
@@ -86,11 +89,12 @@
   }
 
   function apply(): void {
+    const service = new FilterUrlService(router)
     // currently just ignore non complete filters
     // probably will want to let the user know what's happening some how
     const completeFilters = tempFilters.filter(isCompleteFilter)
 
-    filters.replaceAll(completeFilters)
+    service.replaceAll(completeFilters)
 
     emit('close')
   }
