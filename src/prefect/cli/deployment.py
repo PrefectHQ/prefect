@@ -13,7 +13,7 @@ from rich.padding import Padding
 from rich.pretty import Pretty
 from rich.traceback import Traceback
 
-from prefect.cli.base import app, console, exit_with_error
+from prefect.cli.base import PrefectTyper, app, console, exit_with_error
 from prefect.client import OrionClient
 from prefect.deployments import (
     create_deployment_from_spec,
@@ -25,7 +25,7 @@ from prefect.exceptions import FlowScriptError
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
-deployment_app = typer.Typer(
+deployment_app = PrefectTyper(
     name="deployment", help="Commands for working with deployments."
 )
 app.add_typer(deployment_app)
@@ -39,7 +39,6 @@ def assert_deployment_name_format(name: str) -> None:
 
 
 @deployment_app.command()
-@sync_compatible
 async def inspect(name: str):
     """
     View details about a deployment.
@@ -74,7 +73,6 @@ async def inspect(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
     View all deployments or deployments for specific flows.
@@ -102,7 +100,6 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 
 @deployment_app.command()
-@sync_compatible
 async def run(name: str):
     """
     Create a flow run for the given flow and deployment.
@@ -119,7 +116,6 @@ async def run(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def execute(name: str):
     """
     Create and execute a local flow run for the given deployment.
@@ -140,7 +136,6 @@ async def execute(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def create(
     path: Path = typer.Argument(
         ...,
