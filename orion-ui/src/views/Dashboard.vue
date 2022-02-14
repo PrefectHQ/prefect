@@ -10,9 +10,7 @@
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
-            <span class="font--secondary subheader">
-              {{ filter.count }}
-            </span>
+            <span class="font--secondary subheader">{{ filter.count }}</span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
           <i class="pi pi-filter-3-line pi-lg text--grey-80" />
@@ -23,15 +21,9 @@
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
-      <RunTimeIntervalBarChart
-        :filter="flowRunStatsFilter"
-        class="run-duration flex-grow-0"
-      />
+      <RunTimeIntervalBarChart :filter="flowRunStatsFilter" class="run-duration flex-grow-0" />
 
-      <LatenessIntervalBarChart
-        :filter="flowRunStatsFilter"
-        class="run-lateness flex-grow-0"
-      />
+      <LatenessIntervalBarChart :filter="flowRunStatsFilter" class="run-lateness flex-grow-0" />
     </div>
 
     <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-5" />
@@ -44,25 +36,15 @@
       </span>
     </div>
 
-    <section
-      class="results-section d-flex flex-column align-stretch justify-stretch"
-    >
+    <section class="results-section d-flex flex-column align-stretch justify-stretch">
       <transition name="tab-fade" mode="out-in" css>
-        <div
-          v-if="resultsCount === 0"
-          class="text-center my-8"
-          key="no-results"
-        >
+        <div v-if="resultsCount === 0" class="text-center my-8" key="no-results">
           <template v-if="resultsTab == 'deployments'">
-            <h2> No scheduled deployments found </h2>
-            <div class="my-2">
-              Deployments can only be created using the Prefect CLI
-            </div>
-            <Button color="alternate" @click="onFilterOff">
-              Show all deployments
-            </Button>
+            <h2>No scheduled deployments found</h2>
+            <div class="my-2">Deployments can only be created using the Prefect CLI</div>
+            <Button color="alternate" @click="onFilterOff">Show all deployments</Button>
           </template>
-          <h2 v-else> No results found </h2>
+          <h2 v-else>No results found</h2>
         </div>
 
         <ResultsList
@@ -114,7 +96,8 @@ import {
   onBeforeMount,
   ComputedRef,
   watch,
-  reactive
+  reactive,
+  onMounted
 } from 'vue'
 import { useStore } from '@/store'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
@@ -128,17 +111,23 @@ import type {
 } from '@prefecthq/orion-design'
 
 import { Api, Endpoints, Query } from '@/plugins/api'
-import { useRoute } from 'vue-router'
-import router from '@/router'
-import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
+import { useRoute, useRouter } from 'vue-router'
+import { ResultsListTabs } from '@prefecthq/orion-design'
+import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { StateType } from '@prefecthq/orion-design/models'
+import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { Filter, hasFilter } from '@/../packages/orion-design/src/'
 
+const filtersStore = useFiltersStore()
 const store = useStore()
 const route = useRoute()
+const router = useRouter()
 
 const resultsTab: Ref<string> = ref('flows')
 
 const filter = computed<UnionFilters>(() => {
-  return buildFilter(store.state.filter)
+  return FiltersQueryService.query(filtersStore.all)
 })
 
 const deploymentFilterOff = ref(false)
@@ -146,6 +135,7 @@ const deploymentFilterOff = ref(false)
 const onFilterOff = () => {
   deploymentFilterOff.value = true
 }
+
 const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
   if (deploymentFilterOff.value) {
     return {}
@@ -153,35 +143,14 @@ const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
   return filter.value
 })
 
-const start = computed<Date>(() => {
-  return store.getters['filter/start']
-})
-
-const end = computed<Date>(() => {
-  return store.getters['filter/end']
-})
-
-const interval = computed<number>(() => {
-  return store.getters['filter/baseInterval']
-})
-
 const countsFilter = (
   state_name: string,
   state_type: string
 ): ComputedRef<UnionFilters> => {
   return computed<UnionFilters>((): UnionFilters => {
-    let start_time: { after_?: string; before_?: string } | undefined =
-      undefined
-
-    if (start.value || end.value) {
-      start_time = {}
-      if (start.value) start_time.after_ = start.value?.toISOString()
-      if (end.value) start_time.before_ = end.value?.toISOString()
-    }
-
-    const countsFilter = buildFilter(store.state.filter)
-
+    const countsFilter = FiltersQueryService.query(filtersStore.all)
     const stateType = state_name == 'Failed'
+
     countsFilter.flow_runs = {
       ...countsFilter.flow_runs,
       state: {
@@ -252,7 +221,7 @@ const queries: { [key: string]: Query } = {
 type PremadeFilter = {
   label: string
   count: string
-  type: string
+  type: StateType
   name: string
 }
 const premadeFilters = computed<PremadeFilter[]>(() => {
@@ -298,19 +267,15 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
-  return {
-    history_start: start.value.toISOString(),
-    history_end: end.value.toISOString(),
-    history_interval_seconds: interval.value,
-    ...buildFilter(store.state.filter)
-  }
+  return FiltersQueryService.flowHistoryQuery(filtersStore.all)
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
+  const interval = flowRunHistoryFilter.value.history_interval_seconds
+
   return {
     ...flowRunHistoryFilter.value,
-    history_interval_seconds: interval.value * 2,
-    ...buildFilter(store.state.filter)
+    history_interval_seconds: interval * 2,
   }
 })
 
@@ -347,13 +312,25 @@ const tabs: ResultsListTab[] = reactive([
 ])
 
 const applyFilter = (filter: PremadeFilter) => {
-  const globalFilter = { ...store.state.filter }
-  globalFilter.flow_runs.states = [{ name: filter.name, type: filter.type }]
-  store.commit('filter/setFilter', globalFilter)
+  const filterToAdd: Required<Filter> = {
+    object: 'flow_run',
+    property: 'state',
+    type: 'state',
+    operation: 'or',
+    value: [filter.type]
+  }
+  
+  if(hasFilter(filtersStore.all, filterToAdd)) {
+    return
+  }
+
+  const service = new FilterUrlService(router)
+
+  service.add(filterToAdd)
 }
 
 watch([resultsTab], () => {
-  router.push({ hash: `#${resultsTab.value}` })
+  router.push({ ...route, hash: `#${resultsTab.value}` })
 })
 
 onBeforeMount(() => {

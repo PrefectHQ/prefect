@@ -710,8 +710,8 @@ class ORMSavedSearch:
     name = sa.Column(sa.String, nullable=False)
     filters = sa.Column(
         JSON,
-        server_default="{}",
-        default=dict,
+        server_default="[]",
+        default=list,
         nullable=False,
     )
 
