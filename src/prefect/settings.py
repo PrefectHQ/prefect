@@ -441,6 +441,12 @@ class Settings(SharedSettings):
         Defaults to `None`.""",
     )
 
+    nebula_host: str = Field(
+        # TODO - this needs to be w/e the actual prefect cloud api url
+        "http://127.0.0.1:8000",
+        description=""""""
+    )
+
     profiles_path: Path = Field(
         default_factory=lambda: Path(f"{shared_settings().home}/profiles.toml"),
         description="""The path to a profiles configuration files.""",
