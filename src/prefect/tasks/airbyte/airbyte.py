@@ -41,7 +41,8 @@ class AirbyteClient:
     For more information refer to the [Airbyte docs](https://docs.airbyte.io/api-documentation).
 
     Args:
-        - airbyte_base_url (str, mandatory):
+        - airbyte_base_url (str, mandatory): base api endpoint url for airbyte.
+          ex. http://localhost:8000/api/v1
 
     Returns:
         - session connection with Airbyte
