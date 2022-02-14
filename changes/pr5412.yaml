@@ -1,8 +1,5 @@
 enhancement:
   - "Implementation of Hashicorp Vault Kubernetes based authentication - [#5412](https://github.com/PrefectHQ/prefect/pull/5412)"
 
-deprication:
-  - "Replacing depricated HVAC API calls from VaultSecret class made [redundant since version 1.0.0](https://hvac.readthedocs.io/en/stable/source/hvac_v1.html#hvac.v1.Client.auth_approle) of the HVAC library"
-
 contributor:
   - "[Andrew Klimovski](https://github.com/klimbot)"
