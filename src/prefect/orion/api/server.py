@@ -9,13 +9,11 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
 import prefect.settings
@@ -50,6 +48,8 @@ def create_orion_api(
     include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
+    include_exception_handlers: bool = True,
+    fast_api_app_kwargs: dict = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
@@ -60,11 +60,15 @@ def create_orion_api(
             have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
+        include_exception_handlers: whether or not to include the default
+            exception hanlders for the FastAPI app
+        fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
 
     Returns:
         a FastAPI app that serves the Orion API
     """
-    api_app = FastAPI(title=API_TITLE)
+    fast_api_app_kwargs = fast_api_app_kwargs or {}
+    api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
     @api_app.get(health_check_path)
     async def health_check():
@@ -113,32 +117,35 @@ def create_orion_api(
             api.admin.router, prefix=router_prefix, dependencies=dependencies
         )
 
-    # custom error handling
-    async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
-    ):
-        """Provide a detailed message for request validation errors."""
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=jsonable_encoder(
-                {
-                    "exception_message": "Invalid request received.",
-                    "exception_detail": exc.errors(),
-                    "request_body": exc.body,
-                }
-            ),
+    if include_exception_handlers:
+        # custom error handling
+        async def validation_exception_handler(
+            request: Request, exc: RequestValidationError
+        ):
+            """Provide a detailed message for request validation errors."""
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content=jsonable_encoder(
+                    {
+                        "exception_message": "Invalid request received.",
+                        "exception_detail": exc.errors(),
+                        "request_body": exc.body,
+                    }
+                ),
+            )
+
+        async def custom_http_exception_handler(request: Request, exc: Exception):
+            """Log a detailed exception for internal server errors before returning."""
+            logger.error(f"Encountered exception in request:", exc_info=True)
+            return JSONResponse(
+                content={"exception_message": "Internal Server Error"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        api_app.add_exception_handler(
+            RequestValidationError, validation_exception_handler
         )
-
-    async def custom_http_exception_handler(
-        request: Request, exc: StarletteHTTPException
-    ):
-        """Log a detailed exception for internal server errors before returning."""
-        logger.error(f"Encountered exception in request:", exc_info=True)
-        # pass to fastapi's default error handling
-        return await http_exception_handler(request=request, exc=exc)
-
-    api_app.add_exception_handler(RequestValidationError, validation_exception_handler)
-    api_app.add_exception_handler(StarletteHTTPException, custom_http_exception_handler)
+        api_app.add_exception_handler(Exception, custom_http_exception_handler)
 
     return api_app
 
