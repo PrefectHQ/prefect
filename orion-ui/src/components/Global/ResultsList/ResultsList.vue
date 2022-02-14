@@ -60,7 +60,11 @@ const filter_ = computed(() => {
 
 const queries: { query: Query; watcher: WatchStopHandle }[] = []
 
+let watcher: WatchStopHandle
+
 const getData = async () => {
+  if (watcher) watcher()
+
   loading.value = true
 
   const query = Api.query({
@@ -71,7 +75,7 @@ const getData = async () => {
     }
   })
 
-  const watcher = watch(query.response, (val) => {
+  watcher = watch(query.response, (val) => {
     if (val) {
       val.forEach((r: any) => {
         items.value.set(r.id, r)
@@ -136,6 +140,8 @@ onMounted(() => {
 watch(
   () => props.filter,
   () => {
+    items.value.clear()
+    itemRefs.value = {}
     offset.value = 0
     limit.value = 20
     init()
