@@ -1,0 +1,2 @@
+fix:
+  - "Allow ECS task definition role ARNs to override ECSAgent defaults. - [#5366](https://github.com/PrefectHQ/prefect/pull/5366)"
