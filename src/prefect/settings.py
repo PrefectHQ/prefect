@@ -434,6 +434,13 @@ class Settings(SharedSettings):
         Defaults to `None`.""",
     )
 
+    # credentials used for connecting to
+    api_key: str = Field(
+        None,
+        description="""API key used to authenticate against Orion API.
+        Defaults to `None`.""",
+    )
+
     profiles_path: Path = Field(
         default_factory=lambda: Path(f"{shared_settings().home}/profiles.toml"),
         description="""The path to a profiles configuration files.""",
