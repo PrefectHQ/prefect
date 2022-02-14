@@ -3,23 +3,28 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
+import atexit
+import os
+import threading
+import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar
-from logging import Logger
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
-from uuid import UUID
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
+import prefect.logging.configuration
+import prefect.settings
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
+from prefect.settings import Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 
@@ -211,3 +216,137 @@ def tags(*new_tags: str) -> Set[str]:
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
+
+
+class ProfileContext(ContextModel):
+    """
+    The context for a Prefect settings profile.
+
+    Attributes:
+        name: The name of the profile
+        settings: The complete settings model
+        env: The environment variables set in this profile configuration and their
+            current values. These may differ from the profile configuration if the
+            user has overridden them explicitly.
+    """
+
+    name: str
+    settings: Settings
+    env: Dict[str, str]
+
+    __var__ = ContextVar("profile")
+
+
+def get_profile_context() -> ProfileContext:
+    profile_ctx = ProfileContext.get()
+
+    if not profile_ctx:
+        raise MissingContextError("No profile is being used.")
+
+    return profile_ctx
+
+
+_PROFILE_LOCK = threading.Lock()
+
+
+@contextmanager
+def temporary_environ(
+    variables, override_existing: bool = True, warn_on_override: bool = False
+):
+    """
+    Temporarily override default values in os.environ.
+
+    Yields a dictionary of the key/value pairs matching the provided keys.
+    """
+    old_env = os.environ.copy()
+
+    if override_existing:
+        overrides = set(old_env.keys()).intersection(variables.keys())
+        if overrides and warn_on_override:
+            warnings.warn(
+                f"Temporary environment is overriding key(s): {', '.join(overrides)}",
+                stacklevel=3,
+            )
+
+    try:
+        for var, value in variables.items():
+            if value is None and var in os.environ and override_existing:
+                # Allow setting `None` to remove items
+                os.environ.pop(var)
+                continue
+
+            value = str(value)
+
+            if var not in old_env or override_existing:
+                os.environ[var] = value
+            else:
+                os.environ.setdefault(var, value)
+
+        yield {var: os.environ.get(var) for var in variables}
+
+    finally:
+        for var in variables:
+            if old_env.get(var):
+                os.environ[var] = old_env[var]
+            else:
+                os.environ.pop(var, None)
+
+
+@contextmanager
+def profile(
+    name: str,
+    create_home: bool = False,
+    setup_logging: bool = False,
+    override_existing_variables: bool = False,
+):
+    """
+    Switch to a new profile for the duration of this context.
+
+    Upon initialization, we can create the home directory contained in the settings and
+    configure logging. These steps are optional. Logging can only be set up once per
+    process and later attempts to configure logging will fail.
+
+    Profile contexts are confined to an async context in a single thread.
+
+    Args:
+        name: The name of the profile to load. Must exist.
+        create_home: Create the PREFECT_HOME directory.
+        setup_logging: Configure logging for the current process.
+        override_existing_variables: If set, variables in the profile will take
+            precedence over current environment variables. By default, environment
+            variables will override profile settings.
+
+    Yields:
+        The created `ProfileContext` object
+    """
+    from prefect.context import ProfileContext
+
+    env = prefect.settings.load_profile(name)
+
+    # Prevent multiple threads from mutating the environment concurrently
+    with _PROFILE_LOCK:
+        with temporary_environ(
+            env, override_existing=override_existing_variables, warn_on_override=True
+        ):
+            settings = prefect.settings.from_env()
+
+    if create_home and not os.path.exists(settings.home):
+        os.makedirs(settings.home, exist_ok=True)
+
+    if setup_logging:
+        prefect.logging.configuration.setup_logging(settings)
+
+    with ProfileContext(name=name, settings=settings, env=env) as ctx:
+        yield ctx
+
+
+def initialize_module_profile():
+    """
+    Initialize the profle that will exist as the root context for the module.
+
+    This should only be called _once_ at Prefect module initialization.
+    """
+    name = os.environ.get("PREFECT_PROFILE", "default")
+    context = profile(name=name, create_home=True, setup_logging=True)
+    context.__enter__()
+    atexit.register(lambda: context.__exit__(None, None, None))
