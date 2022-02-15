@@ -1,9 +1,7 @@
-import { FilterService } from "@/../packages/orion-design/src/services/FilterService";
-import { useFiltersStore } from "@/../packages/orion-design/src/stores/filters";
+import { FilterService } from "@prefecthq/orion-design/services";
+import { useFiltersStore, RouteGuard } from "@prefecthq/orion-design";
 import { RouteLocationNormalized, Router } from "vue-router";
-import { RouteGuard } from "@/../packages/orion-design/src/types/RouteGuard";
-import { asArray } from "@/../packages/orion-design/src/utilities/arrays";
-import { isString } from "@/../packages/orion-design/src/utilities/strings";
+import { asArray, isString } from "@prefecthq/orion-design/utilities";
 
 export class GlobalLoadFiltersFromRoute implements RouteGuard {
   private router: Router
