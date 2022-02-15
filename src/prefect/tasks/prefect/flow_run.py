@@ -142,11 +142,11 @@ def create_flow_run(
     logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
     if idempotency_key is None:
+        # Generate a default key, if the context is missing this data just fall through
+        # to `None`
+        idempotency_key = prefect.context.get("task_run_id")
         map_index = prefect.context.get("map_index")
-        task_run_id = prefect.context.get("task_run_id")
-        if task_run_id:
-            idempotency_key = task_run_id
-        if map_index is not None:
+        if idempotency_key and map_index is not None:
             idempotency_key += f"-{map_index}"
 
     if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
