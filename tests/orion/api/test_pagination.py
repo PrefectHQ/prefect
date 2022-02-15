@@ -22,9 +22,9 @@ class TestPagination:
         @app.post("/")
         def get_results(
             limit: int = Body(
-                prefect.settings.from_env().orion.api.default_limit,
+                prefect.settings.get_settings_from_env().orion.api.default_limit,
                 ge=0,
-                le=prefect.settings.from_env().orion.api.default_limit,
+                le=prefect.settings.get_settings_from_env().orion.api.default_limit,
             ),
             offset: int = Body(0, ge=0),
         ):

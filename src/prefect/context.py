@@ -251,11 +251,13 @@ class ProfileContext(ContextModel):
         configure logging. These steps are optional. Logging can only be set up once per
         process and later attempts to configure logging will fail.
         """
-        if create_home and not os.path.exists(self.settings.home):
-            os.makedirs(self.settings.home, exist_ok=True)
+        if create_home and not os.path.exists(
+            self.settings.get(prefect.settings.PREFECT_HOME)
+        ):
+            os.makedirs(self.settings.get(prefect.settings.PREFECT_HOME), exist_ok=True)
 
         if setup_logging:
-            prefect.logging.configuration.setup_logging(self.settings.logging)
+            prefect.logging.configuration.setup_logging(self.settings)
 
 
 def get_profile_context() -> ProfileContext:
@@ -343,7 +345,7 @@ def profile(
         with temporary_environ(
             env, override_existing=override_existing_variables, warn_on_override=True
         ):
-            settings = prefect.settings.from_env()
+            settings = prefect.settings.get_settings_from_env()
 
     with ProfileContext(name=name, settings=settings, env=env) as ctx:
         if initialize:

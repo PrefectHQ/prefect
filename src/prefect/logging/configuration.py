@@ -9,10 +9,15 @@ from pathlib import Path
 
 import yaml
 
-from prefect.settings import LoggingSettings
+from prefect.settings import (
+    PREFECT_LOGGING_EXTRA_LOGGERS,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_SETTINGS_PATH,
+    Settings,
+)
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
-# This path will be used if `LoggingSettings.settings_path` does not exist
+# This path will be used if `Settings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
@@ -23,7 +28,7 @@ interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
 PROCESS_LOGGING_CONFIG: dict = None
 
 
-def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
+def load_logging_config(path: Path, settings: Settings) -> dict:
     """
     Loads logging configuration from a path allowing override from the environment
     """
@@ -60,15 +65,15 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(settings: LoggingSettings) -> None:
+def setup_logging(settings: Settings) -> None:
     global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.settings_path
-            if settings.settings_path.exists()
+            settings.get(PREFECT_LOGGING_SETTINGS_PATH)
+            if settings.get(PREFECT_LOGGING_SETTINGS_PATH).exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
         settings,
@@ -94,7 +99,7 @@ def setup_logging(settings: LoggingSettings) -> None:
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in settings.get_extra_loggers():
+    for logger_name in settings.get(PREFECT_LOGGING_EXTRA_LOGGERS):
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)

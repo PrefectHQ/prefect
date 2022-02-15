@@ -203,8 +203,8 @@ def view(show_defaults: bool = False, show_sources: bool = False):
     profile = prefect.context.get_profile_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
-    default_settings = dict_to_flatdict(prefect.settings.defaults().dict())
-    env_settings = dict_to_flatdict(prefect.settings.from_env().dict())
+    default_settings = dict_to_flatdict(prefect.settings.get_default_settings().dict())
+    env_settings = dict_to_flatdict(prefect.settings.get_settings_from_env().dict())
     current_settings = dict_to_flatdict(profile.settings.dict())
 
     output = [f"PREFECT_PROFILE={profile.name!r}"]
