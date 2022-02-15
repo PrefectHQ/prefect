@@ -155,7 +155,8 @@ async def start(
                 open_process_and_stream_output,
                 command=[
                     "uvicorn",
-                    "prefect.orion.api.server:app",
+                    "--factory",
+                    "prefect.orion.api.server:create_app",
                     "--host",
                     str(host),
                     "--port",
