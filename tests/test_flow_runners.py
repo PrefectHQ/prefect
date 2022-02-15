@@ -93,11 +93,7 @@ def virtualenv_environment_path(tmp_path):
     """
     Generates a temporary virtualenv environment with development dependencies installed
     """
-    try:
-        pytest.importorskip("virtualenv")
-    except AttributeError:
-        # pytest.importorskip started failing on Python 3.7, so I added this workaround
-        pytest.skip()
+    pytest.importorskip("virtualenv")
 
     environment_path = tmp_path / "test"
 
