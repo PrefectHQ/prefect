@@ -124,6 +124,27 @@ const route = useRoute()
 const router = useRouter()
 const resultsTab: Ref<string> = ref('flows')
 
+const firstFlowRun = await Api.query({
+  endpoint: Endpoints.flow_runs,
+  body: {
+    limit: 1,
+    sort: 'EXPECTED_START_TIME_ASC'
+  }
+}).fetch()
+
+const historyStart = firstFlowRun.response.value?.[0].expected_start_time
+
+
+const lastFlowRun = await Api.query({
+  endpoint: Endpoints.flow_runs,
+  body: {
+    limit: 1,
+    sort: 'EXPECTED_START_TIME_DESC'
+  }
+}).fetch()
+
+const historyEnd = lastFlowRun.response.value?.[0].expected_start_time
+
 const filter = computed<UnionFilters>(() => {
   return FiltersQueryService.query(filtersStore.all)
 })
@@ -265,7 +286,11 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
-  return FiltersQueryService.flowHistoryQuery(filtersStore.all)
+  if (!historyStart || !historyEnd) {
+    return FiltersQueryService.flowHistoryQuery(filtersStore.all)
+  }
+
+  return FiltersQueryService.flowHistoryQuery(filtersStore.all, new Date(historyStart), new Date(historyEnd))
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
@@ -317,8 +342,8 @@ const applyFilter = (filter: PremadeFilter) => {
     operation: 'or',
     value: [filter.type]
   }
-  
-  if(hasFilter(filtersStore.all, filterToAdd)) {
+
+  if (hasFilter(filtersStore.all, filterToAdd)) {
     return
   }
 
