@@ -1,6 +1,6 @@
 import pytest
 
-from src.plexflow.tasks.aws.parameter_store_manager import AWSParametersManager
+from src.prefect.tasks.aws.parameter_store_manager import AWSParametersManager
 
 pytest.importorskip("boto3")
 
