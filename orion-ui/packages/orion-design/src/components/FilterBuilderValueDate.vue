@@ -2,7 +2,7 @@
   <div class="filter-builder-value-date">
     <m-select v-model="internalOperation" :options="operations" />
     <template v-if="isDateFilter">
-      <DateTimeInput v-model:value="date" label="Date" />
+      <DateTimeInput v-model:value="date" label="Date" class="filter-builder-value-date__picker" />
     </template>
     <template v-else>
       <div class="filter-builder-value-date__relative">
@@ -121,11 +121,15 @@
   ]
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-value-date {
   display: flex;
   gap: var(--m-2);
   align-items: flex-end;
+}
+
+.filter-builder-value-date__picker {
+  flex-grow: 1;
 }
 
 .filter-builder-value-date__relative {
