@@ -10,6 +10,11 @@ import prefect.settings
 from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.settings import (
+    PREFECT_ORION_DATA_BASE_PATH,
+    PREFECT_ORION_DATA_NAME,
+    PREFECT_ORION_DATA_SCHEME,
+)
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -99,7 +104,7 @@ def get_instance_data_location() -> DataLocation:
     Return the current data location configured for this Orion instance
     """
     return DataLocation(
-        name=prefect.settings.from_context().orion.data.name,
-        base_path=prefect.settings.from_context().orion.data.base_path,
-        scheme=prefect.settings.from_context().orion.data.scheme.lower(),
+        name=PREFECT_ORION_DATA_NAME.get(),
+        base_path=PREFECT_ORION_DATA_BASE_PATH.get(),
+        scheme=PREFECT_ORION_DATA_SCHEME.get().lower(),
     )

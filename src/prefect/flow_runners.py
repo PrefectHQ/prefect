@@ -33,6 +33,7 @@ from typing_extensions import Literal
 import prefect
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
+from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
@@ -214,7 +215,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     def ensure_only_one_env_was_given(cls, values):
         if values.get("condaenv") and values.get("virtualenv"):
             raise ValueError(
-                "Received incompatible prefect.settings.from_context(). You cannot provide both a conda and "
+                "Received incompatible settings. You cannot provide both a conda and "
                 "virtualenv to use."
             )
         return values
@@ -390,9 +391,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         We could support an ephemeral server with postgresql, but then we would need to
         sync all of the server settings to the container's ephemeral server.
         """
-        api_url = self.env.get(
-            "PREFECT_API_URL", prefect.settings.from_context().api_url
-        )
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.get())
 
         if not api_url:
             raise RuntimeError(
@@ -642,10 +641,10 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Update local connections to use the docker host
 
-        if prefect.settings.from_context().api_url:
+        if PREFECT_API_URL.get():
             api_url = (
-                prefect.settings.from_context()
-                .api_url.replace("localhost", "host.docker.internal")
+                PREFECT_API_URL.get()
+                .replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
             )
 
@@ -746,9 +745,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     def _assert_orion_settings_are_compatible(self):
         """See note in DockerFlowRunner."""
-        api_url = self.env.get(
-            "PREFECT_API_URL", prefect.settings.from_context().api_url
-        )
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.get())
 
         if not api_url:
             raise RuntimeError(

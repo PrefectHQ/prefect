@@ -31,6 +31,12 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.settings import (
+    PREFECT_LOGGING_SERVER_LEVEL,
+    PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_PORT,
+    PREFECT_ORION_UI_ENABLED,
+)
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 orion_app = PrefectTyper(
@@ -120,12 +126,12 @@ async def open_process_and_stream_output(
 
 @orion_app.command()
 async def start(
-    host: str = SettingsOption("PREFECT_ORION_API_HOST"),
-    port: int = SettingsOption("PREFECT_ORION_API_PORT"),
-    log_level: str = SettingsOption("PREFECT_LOGGING_SERVER_LEVEL"),
+    host: str = SettingsOption(PREFECT_ORION_API_HOST),
+    port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
     agent: bool = True,
-    ui: bool = SettingsOption("PREFECT_ORION_UI_ENABLED"),
+    ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface

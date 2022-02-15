@@ -13,10 +13,16 @@ import anyio
 import pendulum
 
 import prefect.context
-import prefect.settings
 from prefect.client import get_client
 from prefect.exceptions import MissingContextError
 from prefect.orion.schemas.actions import LogCreate
+from prefect.settings import (
+    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
+    PREFECT_LOGGING_ORION_BATCH_SIZE,
+    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_SERVER_LEVEL,
+)
 
 
 class OrionLogWorker:
@@ -70,9 +76,7 @@ class OrionLogWorker:
         with self.profile_context:
             while not self._stop_event.is_set():
                 # Wait until flush is called or the batch interval is reached
-                self._flush_event.wait(
-                    prefect.settings.from_context().logging.orion.batch_interval
-                )
+                self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.get())
                 self._flush_event.clear()
 
                 anyio.run(self.send_logs)
@@ -103,9 +107,9 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            prefect.settings.from_context().logging.orion.batch_size
-            - prefect.settings.from_context().logging.orion.max_log_size,
-            prefect.settings.from_context().logging.orion.max_log_size,
+            PREFECT_LOGGING_ORION_BATCH_SIZE.get()
+            - PREFECT_LOGGING_ORION_MAX_LOG_SIZE.get(),
+            PREFECT_LOGGING_ORION_MAX_LOG_SIZE.get(),
         )
 
         # Loop until the queue is empty or we encounter an error
@@ -152,7 +156,7 @@ class OrionLogWorker:
                         else:
                             sys.stderr.write(
                                 "The log worker will attempt to send these logs again in "
-                                f"{prefect.settings.from_context().logging.orion.batch_interval}s\n"
+                                f"{PREFECT_LOGGING_ORION_BATCH_INTERVAL.get()}s\n"
                             )
 
                     if self._retries > self._max_retries:
@@ -245,7 +249,7 @@ class OrionHandler(logging.Handler):
         try:
             profile = prefect.context.get_profile_context()
 
-            if not profile.settings.logging.orion.enabled:
+            if not profile.settings.get(PREFECT_LOGGING_ORION_ENABLED):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
@@ -318,10 +322,10 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = sys.getsizeof(log)
-        if log_size > settings.logging.orion.max_log_size:
+        if log_size > PREFECT_LOGGING_ORION_MAX_LOG_SIZE.get():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{settings.logging.orion.max_log_size}"
+                f"{PREFECT_LOGGING_ORION_MAX_LOG_SIZE.get()}"
             )
 
         return log

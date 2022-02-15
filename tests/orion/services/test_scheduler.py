@@ -2,12 +2,14 @@ import datetime
 
 import pendulum
 
-import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.services.scheduler import Scheduler
-
-settings = prefect.settings.from_env().orion.services
+from prefect.settings import (
+    PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
+    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+)
 
 
 async def test_create_schedules_from_deployment(flow, session, flow_function):
@@ -132,7 +134,8 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     # create deployments that will have to insert
     # flow runs in batches of scheduler_insertion_batch_size
     deployments_to_schedule = (
-        settings.scheduler_insert_batch_size // settings.scheduler_max_runs
+        PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.get()
+        // PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get()
     ) + 1
     for i in range(deployments_to_schedule):
         await models.deployments.create_deployment(
@@ -156,8 +159,11 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     # should insert more than the batch size successfully
     await Scheduler().start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == deployments_to_schedule * settings.scheduler_max_runs
-    assert len(runs) > settings.scheduler_insert_batch_size
+    assert (
+        len(runs)
+        == deployments_to_schedule * PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get()
+    )
+    assert len(runs) > PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.get()
 
 
 async def test_scheduler_respects_schedule_is_active(flow, session, flow_function):

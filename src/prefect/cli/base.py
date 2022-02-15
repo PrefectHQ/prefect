@@ -13,33 +13,33 @@ import typer.core
 
 import prefect
 import prefect.context
-import prefect.settings
+from prefect.settings import Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
 T = TypeVar("T")
 
 
-def SettingsOption(variable: str) -> typer.Option:
+def SettingsOption(setting: Setting) -> typer.Option:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
         # The default is dynamically retrieved
-        default=partial(enter_profile_from_option(prefect.settings.get), variable),
+        default=enter_profile_from_option(setting.get),
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
         # source is from the environment or profile, but typer does not support this
         # yet. See https://github.com/tiangolo/typer/issues/354
-        show_default=f"from {variable}",
+        show_default=f"from {setting.name}",
     )
 
 
-def SettingsArgument(variable: str) -> typer.Argument:
+def SettingsArgument(setting: Setting) -> typer.Argument:
     """Custom `typer.Argument` factory to load the default value from settings"""
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        default=partial(enter_profile_from_option(prefect.settings.get), variable),
-        show_default=f"from {variable}",
+        default=enter_profile_from_option(setting.get),
+        show_default=f"from {setting.name}",
     )
 
 

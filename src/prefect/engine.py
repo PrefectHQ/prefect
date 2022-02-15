@@ -28,7 +28,6 @@ from anyio.abc import BlockingPortal
 
 import prefect
 import prefect.context
-import prefect.settings
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
@@ -55,6 +54,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.settings import PREFECT_DEBUG_MODE, get_current_settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
@@ -268,9 +268,7 @@ async def begin_flow_run(
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = (
-        repr(terminal_state)
-        if prefect.settings.from_context().debug_mode
-        else str(terminal_state)
+        repr(terminal_state) if PREFECT_DEBUG_MODE.get() else str(terminal_state)
     )
 
     logger.log(
@@ -363,9 +361,7 @@ async def create_and_begin_subflow_run(
 
     # Display the full state (including the result) if debugging
     display_state = (
-        repr(terminal_state)
-        if prefect.settings.from_context().debug_mode
-        else str(terminal_state)
+        repr(terminal_state) if PREFECT_DEBUG_MODE.get() else str(terminal_state)
     )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
@@ -432,7 +428,7 @@ async def orchestrate_flow_run(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
 
-                if prefect.settings.from_context().debug_mode:
+                if PREFECT_DEBUG_MODE.get():
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -597,7 +593,7 @@ async def create_and_submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-            settings=prefect.settings.from_context(),
+            settings=get_current_settings(),
         ),
         asynchronous=task.isasync,
     )
@@ -628,7 +624,6 @@ async def enter_task_run_engine_from_worker(
                 parameters=parameters,
                 wait_for=wait_for,
                 client=client,
-                settings=settings,
             )
 
 
@@ -638,7 +633,6 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     client: OrionClient,
-    settings: prefect.settings.Settings,
 ) -> State:
     """
     Execute a task run
@@ -699,7 +693,7 @@ async def orchestrate_task_run(
             with context:
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                if settings.debug_mode:
+                if PREFECT_DEBUG_MODE.get():
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -736,7 +730,7 @@ async def orchestrate_task_run(
 
         state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
-        if state.type != terminal_state.type and settings.debug_mode:
+        if state.type != terminal_state.type and PREFECT_DEBUG_MODE.get():
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
                 extra={"send_to_orion": False},
@@ -751,7 +745,7 @@ async def orchestrate_task_run(
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = repr(state) if settings.debug_mode else str(state)
+    display_state = repr(state) if PREFECT_DEBUG_MODE.get() else str(state)
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,

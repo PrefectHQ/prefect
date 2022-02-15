@@ -13,7 +13,6 @@ import anyio
 import typer
 
 import prefect
-import prefect.settings
 from prefect.cli.agent import start as start_agent
 from prefect.cli.base import (
     PrefectTyper,
@@ -27,6 +26,11 @@ from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
 from prefect.orion.api.server import create_app
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_PORT,
+)
 from prefect.utilities.filesystem import tmpchdir
 
 DEV_HELP = """
@@ -110,8 +114,8 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption("PREFECT_ORION_API_HOST"),
-    port: int = SettingsOption("PREFECT_ORION_API_PORT"),
+    host: str = SettingsOption(PREFECT_ORION_API_HOST),
+    port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -141,7 +145,7 @@ async def api(
 
 
 @dev_app.command()
-async def agent(api_url: str = SettingsOption("PREFECT_API_URL")):
+async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     """
     Starts a hot-reloading development agent process.
     """
@@ -178,9 +182,9 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{prefect.settings.from_context().orion.api.host}:{prefect.settings.from_context().orion.api.port}/api"
+                host = f"http://{PREFECT_ORION_API_HOST.get()}:{PREFECT_ORION_API_PORT.get()}/api"
             else:
-                host = prefect.settings.from_context().api_url
+                host = PREFECT_API_URL.get()
             tg.start_soon(agent, host)
 
 

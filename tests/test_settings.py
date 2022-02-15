@@ -6,8 +6,13 @@ import pytest
 import prefect.settings
 from prefect.settings import (
     DEFAULT_PROFILES,
-    LoggingSettings,
+    PREFECT_API_URL,
+    PREFECT_LOGGING_EXTRA_LOGGERS,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_ORION_DATABASE_ECHO,
+    PREFECT_TEST_MODE,
     Settings,
+    get_current_settings,
     load_profile,
     load_profiles,
     write_profiles,
@@ -15,90 +20,62 @@ from prefect.settings import (
 from prefect.utilities.testing import temporary_settings
 
 
-class TestGet:
-    def test_get_root_setting(self):
-        with temporary_settings(PREFECT_API_URL="test"):
-            assert (
-                prefect.settings.get("PREFECT_API_URL")
-                == prefect.settings.from_context().api_url
-            )
-
-    def test_get_nested_setting(self):
-        assert (
-            prefect.settings.get("PREFECT_LOGGING_LEVEL")
-            == prefect.settings.from_context().logging.level
+def test_get_root_setting():
+    with temporary_settings(PREFECT_API_URL="test"):
+        assert prefect.settings.PREFECT_API_URL.get() == get_current_settings().get(
+            PREFECT_API_URL
         )
 
-    def test_get_missing_setting(self):
-        with pytest.raises(ValueError, match="Unknown setting variable"):
-            prefect.settings.get("PREFECT_FOOBAR")
 
-
-class TestGetField:
-    def test_get_root_field(self):
-        assert (
-            prefect.settings.Settings.get_field("PREFECT_API_URL")
-            == prefect.settings.Settings.__fields__["api_url"]
-        )
-
-    def test_get_nested_field(self):
-        assert (
-            prefect.settings.Settings.get_field("PREFECT_LOGGING_LEVEL")
-            == prefect.settings.LoggingSettings.__fields__["level"]
-        )
-
-    def test_get_missing_field(self):
-        with pytest.raises(ValueError, match="Unknown setting variable"):
-            prefect.settings.Settings.get_field("PREFECT_FOOBAR")
+def test_get_nested_setting():
+    assert prefect.settings.PREFECT_LOGGING_LEVEL.get() == get_current_settings().get(
+        PREFECT_LOGGING_LEVEL
+    )
 
 
 def test_settings():
-    assert prefect.settings.get_settings_from_env().test_mode is True
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True
 
 
 def test_temporary_settings():
-    assert prefect.settings.get_settings_from_env().test_mode is True
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True
     with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
-        assert new_settings.test_mode is False, "Yields the new settings"
+        assert new_settings.get(PREFECT_TEST_MODE) is False, "Yields the new settings"
+        assert get_current_settings().get(PREFECT_TEST_MODE) is False, "Loads from env"
         assert (
-            prefect.settings.get_settings_from_env().test_mode is False
-        ), "Loads from env"
-        assert prefect.settings.from_context().test_mode is False, "Loads from context"
+            get_current_settings().get(PREFECT_TEST_MODE) is False
+        ), "Loads from context"
 
-    assert (
-        prefect.settings.get_settings_from_env().test_mode is True
-    ), "Restores old setting"
-    assert prefect.settings.from_context().test_mode is True, "Restores old profile"
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old setting"
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old profile"
 
 
 def test_temporary_settings_restores_on_error():
-    assert prefect.settings.get_settings_from_env().test_mode is True
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True
 
     with pytest.raises(ValueError):
         with temporary_settings(PREFECT_TEST_MODE=False):
             raise ValueError()
 
     assert os.environ["PREFECT_TEST_MODE"] == "1", "Restores os environ."
-    assert (
-        prefect.settings.get_settings_from_env().test_mode is True
-    ), "Restores old setting"
-    assert prefect.settings.from_context().test_mode is True, "Restores old profile"
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old setting"
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old profile"
 
 
 def test_refresh_settings(monkeypatch):
-    assert prefect.settings.get_settings_from_env().test_mode is True
+    assert get_current_settings().get(PREFECT_TEST_MODE) is True
 
     monkeypatch.setenv("PREFECT_TEST_MODE", "0")
     new_settings = Settings()
-    assert new_settings.test_mode is False
+    assert new_settings.get(PREFECT_TEST_MODE) is False
 
 
 def test_nested_settings(monkeypatch):
-    assert prefect.settings.get_settings_from_env().orion.database.echo is False
+    assert get_current_settings().get(PREFECT_ORION_DATABASE_ECHO) is False
 
     monkeypatch.setenv("PREFECT_ORION_DATABASE_ECHO", "1")
     new_settings = Settings()
-    assert new_settings.orion.database.echo is True
+    assert new_settings.get(PREFECT_ORION_DATABASE_ECHO) is True
 
 
 @pytest.mark.parametrize(
@@ -110,8 +87,8 @@ def test_nested_settings(monkeypatch):
     ],
 )
 def test_extra_loggers(value, expected):
-    settings = LoggingSettings(extra_loggers=value)
-    assert settings.get_extra_loggers() == expected
+    settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
+    assert settings.get(PREFECT_LOGGING_EXTRA_LOGGERS) == expected
 
 
 class TestProfiles:
@@ -129,25 +106,31 @@ class TestProfiles:
             textwrap.dedent(
                 """
                 [foo]
-                test = "bar"
+                PREFECT_API_KEY = "bar"
                 """
             )
         )
-        assert load_profiles() == {**DEFAULT_PROFILES, "foo": {"test": "bar"}}
+        assert load_profiles() == {
+            **DEFAULT_PROFILES,
+            "foo": {"PREFECT_API_KEY": "bar"},
+        }
 
     def test_load_profiles_with_default(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
                 [default]
-                test = "foo"
+                PREFECT_API_KEY = "foo"
 
                 [foo]
-                test = "bar"
+                PREFECT_API_KEY = "bar"
                 """
             )
         )
-        assert load_profiles() == {"default": {"test": "foo"}, "foo": {"test": "bar"}}
+        assert load_profiles() == {
+            "default": {"PREFECT_API_KEY": "foo"},
+            "foo": {"PREFECT_API_KEY": "bar"},
+        }
 
     def test_write_profiles_includes_default(self, temporary_profiles_path):
         write_profiles({})
@@ -161,19 +144,21 @@ class TestProfiles:
         )
 
     def test_write_profiles_allows_default_override(self, temporary_profiles_path):
-        write_profiles({"default": {"test": "foo"}})
+        write_profiles({"default": {"PREFECT_API_KEY": "foo"}})
         assert (
             temporary_profiles_path.read_text()
             == textwrap.dedent(
                 """
                 [default]
-                test = "foo"
+                PREFECT_API_KEY = "foo"
                 """
             ).lstrip()
         )
 
     def test_write_profiles_additional_profiles(self, temporary_profiles_path):
-        write_profiles({"foo": {"test": "bar"}, "foobar": {"test": 1}})
+        write_profiles(
+            {"foo": {"PREFECT_API_KEY": "bar"}, "foobar": {"PREFECT_API_KEY": 1}}
+        )
         assert (
             temporary_profiles_path.read_text()
             == textwrap.dedent(
@@ -181,10 +166,10 @@ class TestProfiles:
                 [default]
 
                 [foo]
-                test = "bar"
+                PREFECT_API_KEY = "bar"
 
                 [foobar]
-                test = 1
+                PREFECT_API_KEY = 1
                 """
             ).lstrip()
         )
@@ -201,23 +186,38 @@ class TestProfiles:
             textwrap.dedent(
                 """
                 [foo]
-                test = "bar"
-                number = 1
+                PREFECT_API_KEY = "bar"
+                PREFECT_DEBUG_MODE = 1
                 """
             )
         )
-        assert load_profile("foo") == {"test": "bar", "number": "1"}
+        assert load_profile("foo") == {
+            "PREFECT_API_KEY": "bar",
+            "PREFECT_DEBUG_MODE": "1",
+        }
 
-    def test_load_profile_casts_nested_data_to_strings(self, temporary_profiles_path):
-        # Not a suggested pattern, but not banned yet
+    def test_load_profile_does_not_allow_nested_data(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
                 [foo]
-                test = "bar"
+                PREFECT_API_KEY = "bar"
+                
                 [foo.nested]
-                test = "okay"
                 """
             )
         )
-        assert load_profile("foo") == {"test": "bar", "nested": "{'test': 'okay'}"}
+        with pytest.raises(ValueError, match="Unknown setting.*'nested'"):
+            load_profile("foo")
+
+    def test_load_profile_with_invalid_key(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                test = "unknown-key"
+                """
+            )
+        )
+        with pytest.raises(ValueError, match="Unknown setting.*'test'"):
+            load_profile("foo")

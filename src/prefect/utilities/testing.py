@@ -41,11 +41,10 @@ def temporary_settings(**kwargs):
     This function should only be used for testing.
 
     Example:
-        >>> import prefect.settings
+        >>> from prefect.settings import PREFECT_API_URL
         >>> with temporary_settings(PREFECT_API_URL="foo"):
-        >>>    assert prefect.settings.from_context().api_url == "foo"
-        >>>    assert prefect.settings.from_context().api_url == "foo"
-        >>> assert prefect.settings.from_context().api_url is None
+        >>>    assert PREFECT_API_URL.get() == "foo"
+        >>> assert PREFECT_API_URL.get() is None
     """
     old_env = os.environ.copy()
 

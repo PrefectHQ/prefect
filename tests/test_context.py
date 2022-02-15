@@ -166,8 +166,8 @@ class TestProfilesContext:
             )
         )
         with profile("foo") as ctx:
-            assert prefect.settings.from_context().api_url == "test"
-            assert ctx.settings == prefect.settings.from_context()
+            assert prefect.settings.PREFECT_API_URL.get() == "test"
+            assert ctx.settings == prefect.settings.get_current_settings()
             assert ctx.env == {"PREFECT_API_URL": "test"}
             assert ctx.name == "foo"
 
@@ -188,7 +188,7 @@ class TestProfilesContext:
         )
         with profile("foo", initialize=False) as ctx:
             ctx.initialize(setup_logging=True)
-            setup_logging.assert_called_once_with(ctx.settings.logging)
+            setup_logging.assert_called_once_with(ctx.settings)
 
     def test_profile_context_does_not_setup_logging_if_asked(self, monkeypatch):
         setup_logging = MagicMock()
@@ -214,12 +214,14 @@ class TestProfilesContext:
         )
         with profile("foo") as foo_context:
             with profile("bar") as bar_context:
-                assert bar_context.settings == prefect.settings.from_context()
-                assert bar_context.settings.api_url == "bar"
+                assert bar_context.settings == prefect.settings.get_current_settings()
+                assert (
+                    bar_context.settings.get(prefect.settings.PREFECT_API_URL) == "bar"
+                )
                 assert bar_context.env == {"PREFECT_API_URL": "bar"}
                 assert bar_context.name == "bar"
-            assert foo_context.settings == prefect.settings.from_context()
-            assert foo_context.settings.api_url == "foo"
+            assert foo_context.settings == prefect.settings.get_current_settings()
+            assert foo_context.settings.get(prefect.settings.PREFECT_API_URL) == "foo"
             assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 

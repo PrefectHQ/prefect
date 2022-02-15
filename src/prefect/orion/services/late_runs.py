@@ -8,14 +8,16 @@ import datetime
 
 import sqlalchemy as sa
 
-import prefect
 import prefect.orion.models as models
-import prefect.settings
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
 from prefect.orion.utilities.database import date_add, now
+from prefect.settings import (
+    PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS,
+    PREFECT_ORION_SERVICES_MARK_LATE_AFTER,
+)
 
 
 class MarkLateRuns(LoopService):
@@ -28,11 +30,14 @@ class MarkLateRuns(LoopService):
     """
 
     def __init__(self, loop_seconds: float = None):
-        settings = prefect.settings.from_context().orion.services
-        super().__init__(loop_seconds or settings.late_runs_loop_seconds)
+        super().__init__(
+            loop_seconds or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.get()
+        )
 
         # mark runs late if they are this far past their expected start time
-        self.mark_late_after: datetime.timedelta = settings.mark_late_after
+        self.mark_late_after: datetime.timedelta = (
+            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.get()
+        )
 
         self.batch_size: int = 100
 
