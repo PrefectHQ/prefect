@@ -106,8 +106,6 @@ class OrionClient:
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
-        api = api or create_app()
-
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
         if api_version:
