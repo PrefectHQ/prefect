@@ -1,14 +1,12 @@
 """
 Command line interface for working with agent services
 """
-from functools import partial
-
 import anyio
 import typer
 
-import prefect.settings
 from prefect.agent import OrionAgent
 from prefect.cli.base import PrefectTyper, SettingsOption, app, console
+from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
@@ -28,7 +26,7 @@ ascii_name = r"""
 @agent_app.command()
 async def start(
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
-    api: str = SettingsOption("PREFECT_API_URL"),
+    api: str = SettingsOption(PREFECT_API_URL),
 ):
     """
     Start an agent process.
@@ -49,6 +47,6 @@ async def start(
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(prefect.settings.from_context().agent.query_interval)
+            await anyio.sleep(PREFECT_AGENT_QUERY_INTERVAL.get())
 
     console.print("Agent stopped!")

@@ -219,9 +219,9 @@ async def prefect_settings_test_deployment(orion_client):
 
     @prefect.flow
     def my_flow():
-        import prefect
+        import prefect.settings
 
-        return prefect.settings.from_env()
+        return prefect.settings.get_current_settings()
 
     flow_id = await orion_client.create_flow(my_flow)
 

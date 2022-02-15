@@ -60,7 +60,7 @@ def debug_mode_log_level(settings, value):
         return value
 
 
-def template(*upstream_settings: Setting) -> Callable[[T], T]:
+def template(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `get_callback` that will template the given settings into the runtime
     value for the setting.
@@ -319,7 +319,7 @@ PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
     """,
 )
 
-PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_TIME = Setting(
+PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
     int,
     default=500,
     description="""The number of flow runs the scheduler will attempt to insert
@@ -404,6 +404,9 @@ class PrefectBaseSettings(BaseSettings):
         """
         values = max_log_size_smaller_than_batch_size(values)
         return values
+
+    class Config:
+        frozen = True
 
 
 Settings = create_model(

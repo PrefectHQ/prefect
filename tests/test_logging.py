@@ -33,7 +33,7 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import LoggingSettings
+from prefect.settings import Settings
 from prefect.utilities.testing import AsyncMock, temporary_settings
 
 
@@ -84,8 +84,8 @@ async def logger_test_deployment(orion_client):
 
 
 def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
-    fake_settings = LoggingSettings(
-        settings_path=tmp_path.joinpath("does-not-exist.yaml")
+    fake_settings = prefect.settings.Settings(
+        PREFECT_LOGGING_SETTINGS_PATH=tmp_path.joinpath("does-not-exist.yaml")
     )
 
     expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
@@ -96,22 +96,20 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_allows_repeated_calls(dictConfigMock):
-    setup_logging(prefect.settings.get_settings_from_env().logging)
+    setup_logging(prefect.settings.Settings())
     dictConfigMock.assert_called_once()
-    setup_logging(prefect.settings.get_settings_from_env().logging)
+    setup_logging(prefect.settings.Settings())
     dictConfigMock.assert_called_once()
 
 
 def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging(prefect.settings.get_settings_from_env().logging)
+    setup_logging(prefect.settings.Settings())
     dictConfigMock.assert_called_once()
     with pytest.warns(
         UserWarning, match="only be setup once per process.* will be ignored"
     ):
         setup_logging(
-            prefect.settings.get_settings_from_env().logging.copy(
-                update={"level": "ERROR"}
-            )
+            prefect.settings.Settings().copy(update={"PREFECT_LOGGING_LEVEL": "ERROR"})
         )
     dictConfigMock.assert_called_once()
 
@@ -119,7 +117,7 @@ def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock)
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     config_file = tmp_path.joinpath("exists.yaml")
     config_file.write_text("foo: bar")
-    fake_settings = LoggingSettings(settings_path=config_file)
+    fake_settings = Settings(PREFECT_LOGGING_SETTINGS_PATH=config_file)
 
     setup_logging(fake_settings)
     expected_config = load_logging_config(
@@ -130,41 +128,36 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
-    fake_settings = LoggingSettings(
-        settings_path=tmp_path.joinpath("does-not-exist.yaml")
+    fake_settings = Settings(
+        PREFECT_LOGGING_SETTINGS_PATH=tmp_path.joinpath("does-not-exist.yaml")
     )
 
     expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
+    env = {}
 
     # Test setting a value for a simple key
-    monkeypatch.setenv(
-        LoggingSettings.Config.env_prefix + "HANDLERS_ORION_LEVEL", "ORION_LEVEL_VAL"
-    )
+    env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
     expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
 
     # Test setting a value for the root logger
-    monkeypatch.setenv(
-        LoggingSettings.Config.env_prefix + "ROOT_LEVEL", "ROOT_LEVEL_VAL"
-    )
+    env["PREFECT_LOGGING_ROOT_LEVEL"] = "ROOT_LEVEL_VAL"
     expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
     # Test setting a value where the a key contains underscores
-    monkeypatch.setenv(
-        LoggingSettings.Config.env_prefix + "FORMATTERS_FLOW_RUNS_DATEFMT",
-        "UNDERSCORE_KEY_VAL",
-    )
+    env["PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_DATEFMT"] = "UNDERSCORE_KEY_VAL"
     expected_config["formatters"]["flow_runs"]["datefmt"] = "UNDERSCORE_KEY_VAL"
 
     # Test setting a value where the key contains a period
-    monkeypatch.setenv(
-        LoggingSettings.Config.env_prefix + "LOGGERS_PREFECT_FLOW_RUNS_LEVEL",
-        "FLOW_RUN_VAL",
-    )
+    env["PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"] = "FLOW_RUN_VAL"
+
     expected_config["loggers"]["prefect.flow_runs"]["level"] = "FLOW_RUN_VAL"
 
     # Test setting a value that does not exist in the yaml config and should not be
     # set in the expected_config since there is no value to override
-    monkeypatch.setenv(LoggingSettings.Config.env_prefix + "_FOO", "IGNORED")
+    env["PREFECT_LOGGING_FOO"] = "IGNORED"
+
+    for var, value in env.items():
+        monkeypatch.setenv(var, value)
 
     setup_logging(fake_settings)
 
@@ -227,7 +220,7 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    fake_settings = LoggingSettings(level="WARNING")
+    fake_settings = Settings(PREFECT_LOGGING_LEVEL="WARNING")
 
     expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
 
@@ -620,7 +613,7 @@ class TestOrionLogWorker:
 
     async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.get_settings_from_env().orion.api.default_limit
+        count = prefect.settings.PREFECT_ORION_API_DEFAULT_LIMIT.get()
         log_json.pop("message")
 
         for i in range(count):

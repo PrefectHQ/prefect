@@ -3,6 +3,7 @@ import logging
 import logging.config
 import os
 import re
+import string
 import warnings
 from functools import partial
 from pathlib import Path
@@ -11,8 +12,8 @@ import yaml
 
 from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
-    PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_SETTINGS_PATH,
+    SETTINGS,
     Settings,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
@@ -32,32 +33,24 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
     """
     Loads logging configuration from a path allowing override from the environment
     """
-    config = yaml.safe_load(path.read_text())
+    template = string.Template(path.read_text())
+    config = yaml.safe_load(
+        template.substitute(
+            {setting.name: str(settings.get(setting)) for setting in SETTINGS.values()}
+        )
+    )
 
     # Load overrides from the environment
     flat_config = dict_to_flatdict(config)
 
     for key_tup, val in flat_config.items():
 
-        # first check if the value was overriden via env var
         env_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
-            to_envvar((settings.Config.env_prefix + "_".join(key_tup)).upper())
+            to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
         )
         if env_val:
             val = env_val
-
-        # next check if the value refers to a global setting
-        # only perform this check if the value is a string beginning with '{{'
-        if isinstance(val, str) and val.startswith(r"{{"):
-            # this regex looks for `{{KEY}}`
-            # and returns `KEY` as its first capture group
-            matched_settings = interpolated_settings.match(val)
-            if matched_settings:
-                # retrieve the matched key
-                matched_key = matched_settings.group(1)
-                # retrieve the global logging setting corresponding to the key
-                val = getattr(settings, matched_key, None)
 
         # reassign the updated value
         flat_config[key_tup] = val

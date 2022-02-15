@@ -25,7 +25,7 @@ async def hello():
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
     """Get the current Orion settings"""
-    return prefect.settings.from_context()
+    return prefect.settings.get_current_settings()
 
 
 @router.get("/version")
