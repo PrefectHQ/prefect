@@ -8,27 +8,59 @@ from prefect.orion.schemas import filters
 
 class TestCreateSavedSearch:
     async def test_create_saved_search_succeeds(self, session):
+        filters = [
+            {
+                "object": "flow",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "foo",
+            },
+            {
+                "object": "flow_run",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "bar",
+            },
+        ]
         saved_search = await models.saved_searches.create_saved_search(
             session=session,
             saved_search=schemas.core.SavedSearch(
-                name="My SavedSearch",
+                name="My SavedSearch", filters=filters
             ),
         )
         assert saved_search.name == "My SavedSearch"
+        assert saved_search.filters == filters
 
     async def test_create_saved_search_updates_existing_saved_search(
         self,
         session,
     ):
+        filters = [
+            {
+                "object": "flow",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "foo",
+            },
+            {
+                "object": "flow_run",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "bar",
+            },
+        ]
         saved_search = await models.saved_searches.create_saved_search(
             session=session,
             saved_search=schemas.core.SavedSearch(
-                name="My SavedSearch",
-                filters=dict(x=1),
+                name="My SavedSearch", filters=filters
             ),
         )
         assert saved_search.name == "My SavedSearch"
-        assert saved_search.filters == dict(x=1)
+        assert saved_search.filters == filters
 
         saved_search = await models.saved_searches.create_saved_search(
             session=session,

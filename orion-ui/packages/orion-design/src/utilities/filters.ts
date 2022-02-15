@@ -21,7 +21,8 @@ import {
   ObjectStringFilter,
   ObjectDateFilter,
   ObjectStateFilter,
-  ObjectTagFilter
+  ObjectTagFilter,
+  FilterOperation
 } from '@/types/filters'
 
 export function isFilter(filter: Partial<Filter>): filter is Filter {
@@ -49,6 +50,11 @@ export function isTagFilter(filter: Filter): filter is TagFilter {
 }
 
 export function isCompleteFilter(filter: Partial<Filter>): filter is Required<Filter> {
+  // the types aren't technically correct for this. Would love to use a NonEmptyArray type here
+  if (Array.isArray(filter.value) && filter.value.length === 0) {
+    return false
+  }
+
   return !!(filter.operation && filter.property && filter.type && filter.value)
 }
 
@@ -134,4 +140,26 @@ export function isObjectStateFilter(filter: ObjectFilter): filter is ObjectState
 
 export function isObjectTagFilter(filter: ObjectFilter): filter is ObjectTagFilter {
   return filter.type == 'tag'
+}
+
+export function hasFilter(haystack: Filter[], needle: Filter): boolean {
+  return haystack.some((filter: Filter) => {
+    if (filter.object != needle.object || filter.property != needle.property || filter.operation != needle.operation) {
+      return false
+    }
+
+    if (Array.isArray(filter.value) && Array.isArray(needle.value)) {
+      return filter.value.some(value => (needle.value as unknown[]).includes(value))
+    }
+
+    return filter.value == needle.value
+  })
+}
+
+export function isRelativeDateOperation(value: FilterOperation): value is 'newer' | 'older' | 'upcoming' {
+  return ['newer', 'older', 'upcoming'].includes(value)
+}
+
+export function isDateOperation(value: FilterOperation): value is 'after' | 'before' {
+  return ['after', 'before'].includes(value)
 }
