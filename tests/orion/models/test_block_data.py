@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.models.block_data import pack_blockdata, unpack_blockdata
 from tests.fixtures.database import session
 
 
@@ -132,3 +133,18 @@ class TestBlockDatas:
             block_data=imaginary,
         )
         assert update_result is False
+
+    async def test_packing_and_unpacking_data_are_invertable(self, session):
+        starting_blockdata = {
+            "blockname": "neo",
+            "blockref": "the matrix",
+            "needs": "trinity",
+            "also_needs": "smith",
+        }
+
+        packed_blockdata = schemas.core.BlockData(
+            **pack_blockdata(starting_blockdata.copy())
+        )
+        roundtrip_blockdata = unpack_blockdata(packed_blockdata)
+        roundtrip_blockdata.pop("blockid")
+        assert starting_blockdata == roundtrip_blockdata
