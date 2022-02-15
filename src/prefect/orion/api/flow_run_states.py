@@ -8,8 +8,9 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, status
 
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/flow_run_states", tags=["Flow Run States"])
