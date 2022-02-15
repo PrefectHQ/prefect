@@ -1,10 +1,10 @@
 /* eslint-disable no-dupe-class-members */
-import { Filter } from '@/types/filters'
 import { FilterDescriptionService } from '@/services/FilterDescriptionService'
-import { FiltersQueryService } from '@/services/FiltersQueryService'
 import { FilterParseService } from '@/services/FilterParseService'
-import {FilterStringifyService} from '@/services/FilterStringifyService'
-import {UnionFilters} from '@/services/UnionFilters'
+import { FiltersQueryService } from '@/services/FiltersQueryService'
+import { FilterStringifyService } from '@/services/FilterStringifyService'
+import { UnionFilters } from '@/services/UnionFilters'
+import { Filter } from '@/types/filters'
 
 export class FilterService {
   public static stringify(filter: Required<Filter>): string

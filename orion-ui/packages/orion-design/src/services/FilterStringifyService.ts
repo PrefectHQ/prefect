@@ -8,8 +8,8 @@ import {
   ObjectTagFilter,
   ObjectTagPrefixDictionary,
   ObjectRelativeDateFilter
-} from '../types/filters'
-import { formatDateTimeNumeric } from '../utilities/dates'
+} from '@/types/filters'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 
 export class FilterStringifyService {
   public static convertFiltersToTags(filters: Required<Filter>[]): string[] {
