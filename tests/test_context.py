@@ -121,11 +121,13 @@ class TestProfilesContext:
 
     def test_profile_context_variable(self):
         with ProfileContext(
-            name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
+            name="test",
+            settings=prefect.settings.get_settings_from_env(),
+            env={"FOO": "BAR"},
         ) as context:
             assert get_profile_context() is context
             assert context.name == "test"
-            assert context.settings == prefect.settings.from_env()
+            assert context.settings == prefect.settings.get_settings_from_env()
             assert context.env == {"FOO": "BAR"}
 
     def test_get_profile_context_missing(self, monkeypatch):

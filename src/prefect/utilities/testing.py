@@ -56,7 +56,7 @@ def temporary_settings(**kwargs):
         for key in variables:
             os.environ[key] = str(variables[key])
 
-        new_settings = prefect.settings.from_env()
+        new_settings = prefect.settings.get_settings_from_env()
 
         with prefect.context.ProfileContext(
             name="temporary", settings=new_settings, env=variables

@@ -96,20 +96,22 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_allows_repeated_calls(dictConfigMock):
-    setup_logging(prefect.settings.from_env().logging)
+    setup_logging(prefect.settings.get_settings_from_env().logging)
     dictConfigMock.assert_called_once()
-    setup_logging(prefect.settings.from_env().logging)
+    setup_logging(prefect.settings.get_settings_from_env().logging)
     dictConfigMock.assert_called_once()
 
 
 def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging(prefect.settings.from_env().logging)
+    setup_logging(prefect.settings.get_settings_from_env().logging)
     dictConfigMock.assert_called_once()
     with pytest.warns(
         UserWarning, match="only be setup once per process.* will be ignored"
     ):
         setup_logging(
-            prefect.settings.from_env().logging.copy(update={"level": "ERROR"})
+            prefect.settings.get_settings_from_env().logging.copy(
+                update={"level": "ERROR"}
+            )
         )
     dictConfigMock.assert_called_once()
 
@@ -618,7 +620,7 @@ class TestOrionLogWorker:
 
     async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.from_env().orion.api.default_limit
+        count = prefect.settings.get_settings_from_env().orion.api.default_limit
         log_json.pop("message")
 
         for i in range(count):
