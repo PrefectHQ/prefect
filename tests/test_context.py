@@ -166,7 +166,7 @@ class TestProfilesContext:
             )
         )
         with profile("foo") as ctx:
-            assert prefect.settings.PREFECT_API_URL.get() == "test"
+            assert prefect.settings.PREFECT_API_URL.value() == "test"
             assert ctx.settings == prefect.settings.get_current_settings()
             assert ctx.env == {"PREFECT_API_URL": "test"}
             assert ctx.name == "foo"

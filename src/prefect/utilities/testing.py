@@ -43,8 +43,8 @@ def temporary_settings(**kwargs):
     Example:
         >>> from prefect.settings import PREFECT_API_URL
         >>> with temporary_settings(PREFECT_API_URL="foo"):
-        >>>    assert PREFECT_API_URL.get() == "foo"
-        >>> assert PREFECT_API_URL.get() is None
+        >>>    assert PREFECT_API_URL.value() == "foo"
+        >>> assert PREFECT_API_URL.value() is None
     """
     old_env = os.environ.copy()
 

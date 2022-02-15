@@ -27,8 +27,8 @@ class BaseDatabaseConfiguration(ABC):
         timeout: float = None,
     ):
         self.connection_url = connection_url
-        self.echo = echo or PREFECT_ORION_DATABASE_ECHO.get()
-        self.timeout = timeout or PREFECT_ORION_DATABASE_TIMEOUT.get()
+        self.echo = echo or PREFECT_ORION_DATABASE_ECHO.value()
+        self.timeout = timeout or PREFECT_ORION_DATABASE_TIMEOUT.value()
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """

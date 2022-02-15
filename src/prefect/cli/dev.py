@@ -182,9 +182,9 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{PREFECT_ORION_API_HOST.get()}:{PREFECT_ORION_API_PORT.get()}/api"
+                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"
             else:
-                host = PREFECT_API_URL.get()
+                host = PREFECT_API_URL.value()
             tg.start_soon(agent, host)
 
 

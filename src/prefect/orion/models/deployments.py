@@ -306,13 +306,13 @@ async def schedule_runs(
         a list of flow run ids scheduled for the deployment
     """
     if max_runs is None:
-        max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get()
+        max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
         start_time = pendulum.now("UTC")
     start_time = pendulum.instance(start_time)
     if end_time is None:
         end_time = start_time + (
-            PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.get()
+            PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
     end_time = pendulum.instance(end_time)
 

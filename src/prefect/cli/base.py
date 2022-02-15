@@ -24,7 +24,7 @@ def SettingsOption(setting: Setting) -> typer.Option:
 
     return typer.Option(
         # The default is dynamically retrieved
-        default=enter_profile_from_option(setting.get),
+        default=enter_profile_from_option(setting.value),
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
         # source is from the environment or profile, but typer does not support this
@@ -38,7 +38,7 @@ def SettingsArgument(setting: Setting) -> typer.Argument:
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        default=enter_profile_from_option(setting.get),
+        default=enter_profile_from_option(setting.value),
         show_default=f"from {setting.name}",
     )
 

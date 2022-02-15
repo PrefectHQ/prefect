@@ -613,7 +613,7 @@ class TestOrionLogWorker:
 
     async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
-        count = prefect.settings.PREFECT_ORION_API_DEFAULT_LIMIT.get()
+        count = prefect.settings.PREFECT_ORION_API_DEFAULT_LIMIT.value()
         log_json.pop("message")
 
         for i in range(count):

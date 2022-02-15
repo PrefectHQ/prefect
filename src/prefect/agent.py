@@ -37,7 +37,7 @@ class OrionAgent:
             next_scheduled_start_time=dict(
                 before_=pendulum.now("utc").add(
                     seconds=self.prefetch_seconds
-                    or PREFECT_AGENT_PREFETCH_SECONDS.get()
+                    or PREFECT_AGENT_PREFETCH_SECONDS.value()
                 )
             ),
             deployment_id=dict(is_null_=False),
