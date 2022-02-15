@@ -45,6 +45,5 @@ def test_s3_block_write_and_read_roundtrips(user_data):
         {"blockref": "s3storage-block", "bucket": "with-holes"}
     )
 
-    loop = asyncio.get_event_loop()
-    storage_token = loop.run_until_complete(storage_block.write(user_data))
-    assert loop.run_until_complete(storage_block.read(storage_token)) == user_data
+    storage_token = asyncio.run(storage_block.write(user_data))
+    assert asyncio.run(storage_block.read(storage_token)) == user_data
