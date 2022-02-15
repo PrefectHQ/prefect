@@ -1,9 +1,10 @@
+from pathlib import PosixPath
+
 import fsspec
 import pytest
-
 from fastapi import HTTPException
+
 import prefect.settings
-from pathlib import PosixPath
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.testing import temporary_settings
 
