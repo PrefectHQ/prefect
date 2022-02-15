@@ -118,32 +118,27 @@ import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
+import { flowRunsApi } from '@/../packages/orion-design/src/services/FlowRunsApi'
+import { subscribe } from '@prefecthq/vue-compositions/src'
 
 const filtersStore = useFiltersStore()
 const route = useRoute()
 const router = useRouter()
 const resultsTab: Ref<string> = ref('flows')
 
-const firstFlowRun = await Api.query({
-  endpoint: Endpoints.flow_runs,
-  body: {
+const firstFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [{
     limit: 1,
     sort: 'EXPECTED_START_TIME_ASC'
-  }
-}).fetch()
+}])
 
-const historyStart = firstFlowRun.response.value?.[0].expected_start_time
+const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0].expected_start_time)
 
-
-const lastFlowRun = await Api.query({
-  endpoint: Endpoints.flow_runs,
-  body: {
+const lastFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [{
     limit: 1,
     sort: 'EXPECTED_START_TIME_DESC'
-  }
-}).fetch()
+}])
 
-const historyEnd = lastFlowRun.response.value?.[0].expected_start_time
+const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0].expected_start_time)
 
 const filter = computed<UnionFilters>(() => {
   return FiltersQueryService.query(filtersStore.all)
@@ -286,11 +281,11 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
-  if (!historyStart || !historyEnd) {
-    return FiltersQueryService.flowHistoryQuery(filtersStore.all)
+  if(historyStart.value && historyEnd.value) {
+    return FiltersQueryService.flowHistoryQuery(filtersStore.all, new Date(historyStart.value), new Date(historyEnd.value))
   }
-
-  return FiltersQueryService.flowHistoryQuery(filtersStore.all, new Date(historyStart), new Date(historyEnd))
+  
+  return FiltersQueryService.flowHistoryQuery(filtersStore.all)
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
