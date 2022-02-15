@@ -70,7 +70,7 @@ class S3Block(OrionStorageAPI):
 
 
 @register_blockapi("tempstorage-block")
-class LocalStorageBlock(OrionStorageAPI):
+class TempStorageBlock(OrionStorageAPI):
     def block_initialization(self) -> None:
         pass
 

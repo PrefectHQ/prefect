@@ -1,7 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Dict
+from typing import Dict, Optional
 
 from pydantic import BaseModel, parse_obj_as
 
@@ -32,6 +32,6 @@ class BlockAPI(BaseModel, ABC):
     def block_initialization(self) -> None:
         pass
 
-    blockname: str
     blockref: str
-    blockid: str
+    blockname: Optional[str]
+    blockid: Optional[str]
