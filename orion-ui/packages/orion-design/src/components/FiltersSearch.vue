@@ -3,11 +3,13 @@
     <template v-if="!hasFilters">
       <i class="pi pi-search-line" />
     </template>
-    <template v-if="hasFilters && filters.length < 5 && media.sm">
-      <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
-    </template>
-    <template v-else-if="hasFilters">
-      <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
+    <template v-else>
+      <template v-if="filters.length < 5 && media.sm">
+        <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
+      </template>
+      <template v-else>
+        <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
+      </template>
     </template>
     <input
       v-model="term"
