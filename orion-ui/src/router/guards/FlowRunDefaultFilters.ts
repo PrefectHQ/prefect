@@ -1,7 +1,7 @@
 import { useFiltersStore } from "@/../packages/orion-design/src/stores/filters";
 import { flowRunsApi } from "@/../packages/orion-design/src/services/FlowRunsApi";
 import { RouteLocationNormalized } from "vue-router";
-import { RouteGuard } from "./RouteGuard";
+import { RouteGuard } from "@/../packages/orion-design/src/types/RouteGuard";
 import { hasFilter } from "@/../packages/orion-design/src/utilities/filters";
 import { Filter } from "@/../packages/orion-design/src/types/filters/index";
 
@@ -19,7 +19,7 @@ export class FlowRunDefaultFilters implements RouteGuard {
       }
 
       if(!hasFilter(filtersStore.all, defaultFilter)) {
-        filtersStore.add(defaultFilter)
+        filtersStore.replaceAll([defaultFilter])
       }
     })
   }

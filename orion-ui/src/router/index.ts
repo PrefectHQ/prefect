@@ -2,7 +2,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
-import { RouteGuardExecutioner } from './guards/RouteGuardExecutioner'
+import { RouteGuardExecutioner } from '@/../packages/orion-design/src/services/RouteGuardExecutioner'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: Array<RouteRecordRaw> = [
