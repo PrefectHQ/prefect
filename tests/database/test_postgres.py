@@ -7,9 +7,9 @@ import prefect.settings
 from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
 pytestmark = pytest.mark.skipif(
-    not prefect.settings.get_settings_from_env()
-    .get(PREFECT_ORION_DATABASE_CONNECTION_URL)
-    .startswith("postgresql"),
+    not PREFECT_ORION_DATABASE_CONNECTION_URL.value_from(
+        prefect.settings.get_settings_from_env()
+    ).startswith("postgresql"),
     reason="These tests apply only to Postgres",
 )
 

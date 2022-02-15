@@ -20,62 +20,64 @@ from prefect.settings import (
 from prefect.utilities.testing import temporary_settings
 
 
-def test_get_root_setting():
-    with temporary_settings(PREFECT_API_URL="test"):
-        assert prefect.settings.PREFECT_API_URL.value() == get_current_settings().get(
-            PREFECT_API_URL
-        )
+def test_get_value_root_setting():
+    with temporary_settings(PREFECT_API_URL="test"):  # Set a value so its not null
+        value = prefect.settings.PREFECT_API_URL.value()
+        value_of = get_current_settings().value_of(PREFECT_API_URL)
+        value_from = PREFECT_API_URL.value_from(get_current_settings())
+        assert value == value_of == value_from == "test"
 
 
-def test_get_nested_setting():
-    assert prefect.settings.PREFECT_LOGGING_LEVEL.value() == get_current_settings().get(
-        PREFECT_LOGGING_LEVEL
-    )
+def test_get_value_nested_setting():
+    value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
+    value_of = get_current_settings().value_of(PREFECT_LOGGING_LEVEL)
+    value_from = PREFECT_LOGGING_LEVEL.value_from(get_current_settings())
+    assert value == value_of == value_from
 
 
 def test_settings():
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True
+    assert PREFECT_TEST_MODE.value() is True
 
 
 def test_temporary_settings():
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True
+    assert PREFECT_TEST_MODE.value() is True
     with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
-        assert new_settings.get(PREFECT_TEST_MODE) is False, "Yields the new settings"
-        assert get_current_settings().get(PREFECT_TEST_MODE) is False, "Loads from env"
         assert (
-            get_current_settings().get(PREFECT_TEST_MODE) is False
-        ), "Loads from context"
+            PREFECT_TEST_MODE.value_from(new_settings) is False
+        ), "Yields the new settings"
+        assert PREFECT_TEST_MODE.value() is False, "Loads from env"
+        assert PREFECT_TEST_MODE.value() is False, "Loads from context"
 
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old setting"
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old profile"
+    assert PREFECT_TEST_MODE.value() is True, "Restores old setting"
+    assert PREFECT_TEST_MODE.value() is True, "Restores old profile"
 
 
 def test_temporary_settings_restores_on_error():
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True
+    assert PREFECT_TEST_MODE.value() is True
 
     with pytest.raises(ValueError):
         with temporary_settings(PREFECT_TEST_MODE=False):
             raise ValueError()
 
     assert os.environ["PREFECT_TEST_MODE"] == "1", "Restores os environ."
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old setting"
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True, "Restores old profile"
+    assert PREFECT_TEST_MODE.value() is True, "Restores old setting"
+    assert PREFECT_TEST_MODE.value() is True, "Restores old profile"
 
 
 def test_refresh_settings(monkeypatch):
-    assert get_current_settings().get(PREFECT_TEST_MODE) is True
+    assert PREFECT_TEST_MODE.value() is True
 
     monkeypatch.setenv("PREFECT_TEST_MODE", "0")
     new_settings = Settings()
-    assert new_settings.get(PREFECT_TEST_MODE) is False
+    assert PREFECT_TEST_MODE.value_from(new_settings) is False
 
 
 def test_nested_settings(monkeypatch):
-    assert get_current_settings().get(PREFECT_ORION_DATABASE_ECHO) is False
+    assert PREFECT_ORION_DATABASE_ECHO.value() is False
 
     monkeypatch.setenv("PREFECT_ORION_DATABASE_ECHO", "1")
     new_settings = Settings()
-    assert new_settings.get(PREFECT_ORION_DATABASE_ECHO) is True
+    assert PREFECT_ORION_DATABASE_ECHO.value_from(new_settings) is True
 
 
 @pytest.mark.parametrize(
@@ -88,7 +90,7 @@ def test_nested_settings(monkeypatch):
 )
 def test_extra_loggers(value, expected):
     settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
-    assert settings.get(PREFECT_LOGGING_EXTRA_LOGGERS) == expected
+    assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
 
 
 class TestProfiles:

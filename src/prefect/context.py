@@ -252,9 +252,11 @@ class ProfileContext(ContextModel):
         process and later attempts to configure logging will fail.
         """
         if create_home and not os.path.exists(
-            self.settings.get(prefect.settings.PREFECT_HOME)
+            prefect.settings.PREFECT_HOME.value_from(self.settings)
         ):
-            os.makedirs(self.settings.get(prefect.settings.PREFECT_HOME), exist_ok=True)
+            os.makedirs(
+                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
+            )
 
         if setup_logging:
             prefect.logging.configuration.setup_logging(self.settings)

@@ -36,7 +36,10 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
     template = string.Template(path.read_text())
     config = yaml.safe_load(
         template.substitute(
-            {setting.name: str(settings.get(setting)) for setting in SETTINGS.values()}
+            {
+                setting.name: str(setting.value_from(settings))
+                for setting in SETTINGS.values()
+            }
         )
     )
 
@@ -65,8 +68,8 @@ def setup_logging(settings: Settings) -> None:
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.get(PREFECT_LOGGING_SETTINGS_PATH)
-            if settings.get(PREFECT_LOGGING_SETTINGS_PATH).exists()
+            PREFECT_LOGGING_SETTINGS_PATH.value_from(settings)
+            if PREFECT_LOGGING_SETTINGS_PATH.value_from(settings).exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
         settings,
@@ -92,7 +95,7 @@ def setup_logging(settings: Settings) -> None:
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in settings.get(PREFECT_LOGGING_EXTRA_LOGGERS):
+    for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings):
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)
