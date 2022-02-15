@@ -610,12 +610,12 @@ class OrionClient:
         raise_for_status: bool = True,
     ):
 
-        block_data_create = schemas.actions.BlockDataUpdate(name=new_name)
+        block_data_update = schemas.actions.BlockDataUpdate(name=new_name)
 
         try:
             response = await self.patch(
                 f"/blocks/name/{name}",
-                json=block_data_create.dict(json_compatible=True),
+                json=block_data_update.dict(json_compatible=True),
                 raise_for_status=raise_for_status,
             )
         except httpx.HTTPStatusError as e:
@@ -921,10 +921,10 @@ class OrionClient:
             )
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
 
-        block_datadoc = await storage_block.write(data)
+        storage_token = await storage_block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": block_datadoc, "blockid": storage_block.blockid},
+            data={"data": storage_token, "blockid": storage_block.blockid},
         )
         return storage_datadoc
 
