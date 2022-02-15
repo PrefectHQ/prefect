@@ -48,6 +48,7 @@ extras = {
     "airtable": ["airtable-python-wrapper >= 0.11"],
     "aws": orchestration_extras["aws"],
     "azure": [
+        "azure-core >= 1.10.0",
         "azure-storage-blob >= 12.1.0",
         "azureml-sdk >= 1.0.6",
         "azure-cosmos >= 3.1.1",
