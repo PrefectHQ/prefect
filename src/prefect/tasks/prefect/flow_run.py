@@ -103,7 +103,8 @@ def create_flow_run(
         - idempotency_key: a unique idempotency key for scheduling the
             flow run. Duplicate flow runs with the same idempotency key will only create
             a single flow run. This is useful for ensuring that only one run is created
-            if this task is retried. If not provided, defaults to the active `task_run_id`.
+            if this task is retried. If not provided, defaults to the active `task_run_id`
+            and its map index.
 
     Returns:
         str: The UUID of the created flow run
@@ -141,7 +142,12 @@ def create_flow_run(
     logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
     if idempotency_key is None:
-        idempotency_key = prefect.context.get("task_run_id", None)
+        map_index = prefect.context.get("map_index")
+        task_run_id = prefect.context.get("task_run_id")
+        if task_run_id:
+            idempotency_key = task_run_id
+        if map_index is not None:
+            idempotency_key += f"-{map_index}"
 
     if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
         scheduled_start_time = pendulum.now("utc") + scheduled_start_time
