@@ -29,7 +29,7 @@ MODELS_DEPENDENCIES = {
 
 
 def provide_database_interface():
-    connection_url = prefect.settings.from_env().orion.database.connection_url
+    connection_url = prefect.settings.from_context().orion.database.connection_url
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")
