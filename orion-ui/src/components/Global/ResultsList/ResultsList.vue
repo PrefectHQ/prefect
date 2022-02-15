@@ -63,7 +63,9 @@ const queries: { query: Query; watcher: WatchStopHandle }[] = []
 let watcher: WatchStopHandle
 
 const getData = async () => {
-  if (watcher) watcher()
+  if (watcher) {
+      watcher()
+  }
 
   loading.value = true
 
