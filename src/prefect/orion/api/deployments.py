@@ -13,7 +13,6 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
@@ -96,11 +95,7 @@ async def read_deployment(
 
 @router.post("/filter")
 async def read_deployments(
-    limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit,
-        ge=0,
-        le=prefect.settings.from_env().orion.api.default_limit,
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,

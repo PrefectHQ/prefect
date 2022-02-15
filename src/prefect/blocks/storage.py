@@ -128,18 +128,18 @@ class OrionStorageBlock(OrionStorageAPI):
         pass
 
     async def write(self, data):
-        from prefect.client import OrionClient
+        from prefect.client import get_client
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             response = await client.post("/data/persist", content=data)
             return response.json()
 
     async def read(self, path_payload):
-        from prefect.client import OrionClient
+        from prefect.client import get_client
 
         if path_payload is None:
             raise RuntimeError
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             response = await client.post("/data/retrieve", json=path_payload)
             return response.content

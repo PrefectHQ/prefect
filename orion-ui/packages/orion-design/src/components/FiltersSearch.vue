@@ -3,11 +3,13 @@
     <template v-if="!hasFilters">
       <i class="pi pi-search-line" />
     </template>
-    <template v-if="filters.length < 5 && media.sm">
-      <FilterTags :filters="filters" class="filters-search__tags" dismissible @dismiss="dismiss" />
-    </template>
-    <template v-else-if="hasFilters">
-      <DismissibleTag :label="filtersLabel" dismissible @dismiss="dismissAll" />
+    <template v-else>
+      <template v-if="filters.length <= 3 && media.sm">
+        <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
+      </template>
+      <template v-else>
+        <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
+      </template>
     </template>
     <input
       v-model="term"
@@ -17,7 +19,7 @@
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
-    <template v-if="filters.length">
+    <template v-if="term.length">
       <button type="button" class="filters-search__clear" @click="clear">
         <i class="pi pi-sm pi-close-circle-fill" />
       </button>
@@ -28,14 +30,21 @@
 <script lang="ts" setup>
   import media from '@/utilities/media'
   import { computed, ref } from 'vue'
+  import {  useRouter } from 'vue-router'
   import { FilterPrefixError } from '../models/FilterPrefixError'
+  import { FilterUrlService } from '../services'
   import { FilterService } from '../services/FilterService'
   import { useFiltersStore, FilterState } from '../stores/filters'
   import { toPluralString } from '../utilities/strings'
   import DismissibleTag from './DismissibleTag.vue'
   import FilterTags from './FilterTags.vue'
 
+  defineProps<{
+    dismissable?: boolean,
+  }>()
+
   const filtersStore = useFiltersStore()
+  const filterUrlService = new FilterUrlService(useRouter())
   const term = ref('')
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
@@ -49,7 +58,7 @@
     try {
       const filter = FilterService.parse(term.value)
 
-      filtersStore.add(filter)
+      filterUrlService.add(filter)
       clear()
     } catch (error) {
       if (error instanceof FilterPrefixError && !term.value.includes(':')) {
@@ -63,11 +72,11 @@
   }
 
   function dismiss(filter: FilterState): void {
-    filtersStore.remove(filter)
+    filterUrlService.remove(filter)
   }
 
   function dismissAll(): void {
-    filtersStore.removeAll()
+    filterUrlService.removeAll()
   }
 
   function clear(): void {
@@ -76,6 +85,8 @@
 </script>
 
 <style lang="scss" scoped>
+@use 'sass:map';
+
 .filters-search {
   display: flex;
   align-items: center;
@@ -97,8 +108,14 @@
   background-color: transparent;
   font-size: 16px;
   flex-grow: 1;
-  min-width: 200px;
-  height: 30px;
+  min-width: 100px;
+  min-height: 30px;
+  align-self: stretch;
+  width: 100px;
+
+  @media (min-width: map.get($breakpoints, 'sm')) {
+    width: auto;
+  }
 
   &::placeholder {
     color: var(--grey-40);
