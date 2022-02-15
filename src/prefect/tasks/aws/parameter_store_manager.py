@@ -49,6 +49,8 @@ class AWSParametersManager(SecretBase):
 
         ssm_client = get_boto_client("ssm", credentials=credentials, **self.boto_kwargs)
 
-        parameter_value = ssm_client.get_parameter(Name=parameter_name)
+        parameter_response = ssm_client.get_parameter(Name=parameter_name)
 
-        return parameter_value["Parameter"]["Value"]
+        parameter_value = str(parameter_response["Parameter"]["Value"])
+
+        return parameter_value
