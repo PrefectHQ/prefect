@@ -5,9 +5,11 @@ import os
 import string
 import textwrap
 from datetime import timedelta
+from functools import partial
 from pathlib import Path
 from typing import Callable, Dict, Generic, List, Optional, Type, TypeVar
 
+import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator
 
@@ -420,6 +422,9 @@ class PrefectBaseSettings(BaseSettings):
 
     class Config:
         frozen = True
+
+    def __reduce__(self):
+        return (partial(pydantic.parse_raw_as, type(self)), (self.json(),))
 
 
 # This model is dynamically created
