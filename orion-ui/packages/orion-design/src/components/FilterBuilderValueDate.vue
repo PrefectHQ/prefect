@@ -25,7 +25,7 @@
   import startOfToday from 'date-fns/startOfToday'
   import { Ref, computed, onMounted, watch } from 'vue'
   import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
-  import { toPluralString } from '../utilities'
+  import { isDateOperation, isRelativeDateOperation, toPluralString } from '../utilities'
   import DateTimeInput from './DateTimeInput.vue'
 
   const emit = defineEmits<{
@@ -47,9 +47,15 @@
   })
 
   watch(() => props.operation, () => {
-    if ((props.operation == 'newer' || props.operation == 'older' || props.operation == 'upcoming') && typeof props.value !== 'string') {
+    if(props.operation === undefined) {
+      return
+    }
+
+    if(isRelativeDateOperation(props.operation) && typeof props.value !== 'string') {
       emit('update:value', '1h')
-    } else if ((props.operation == 'after' || props.operation == 'before') && !isDate(props.value)) {
+    }
+
+    else if(isDateOperation(props.operation) && !isDate(props.value)) {
       emit('update:value', startOfToday())
     }
   })

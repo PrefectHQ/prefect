@@ -21,7 +21,8 @@ import {
   ObjectStringFilter,
   ObjectDateFilter,
   ObjectStateFilter,
-  ObjectTagFilter
+  ObjectTagFilter,
+  FilterOperation
 } from '../types/filters'
 
 export function isFilter(filter: Partial<Filter>): filter is Filter {
@@ -153,4 +154,12 @@ export function hasFilter(haystack: Filter[], needle: Filter): boolean {
 
     return filter.value == needle.value
   })
+}
+
+export function isRelativeDateOperation(value: FilterOperation): value is 'newer' | 'older' | 'upcoming' {
+  return ['newer', 'older', 'upcoming'].includes(value)
+}
+
+export function isDateOperation(value: FilterOperation): value is 'after' | 'before' {
+  return ['after', 'before'].includes(value)
 }
