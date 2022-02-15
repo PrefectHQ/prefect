@@ -55,9 +55,11 @@ export class FiltersQueryService {
     const queryEnd = query.flow_runs?.expected_start_time?.before_
     const queryStart = query.flow_runs?.expected_start_time?.after_
 
+    // eslint-disable-next-line no-nested-ternary
     const historyEnd = queryEnd ? new Date(queryEnd) : defaultHistoryEnd ? defaultHistoryEnd : addHours(new Date(), 1)
+    // eslint-disable-next-line no-nested-ternary
     const historyStart = queryStart ? new Date(queryStart) : defaultHistoryStart ? defaultHistoryStart : subDays(historyEnd, 7)
-    const interval = this.createInterval(historyStart, historyEnd)
+    const interval = this.createIntervalSeconds(historyStart, historyEnd)
 
     return {
       // eslint-disable-next-line camelcase
@@ -227,10 +229,11 @@ export class FiltersQueryService {
 
   }
 
-  private static createInterval(start: Date, end: Date): number {
+  private static createIntervalSeconds(start: Date, end: Date): number {
     const seconds = (end.getTime() - start.getTime()) / 1000
+    const defaultInterval = 60
 
-    return Math.floor(seconds / 30)
+    return Math.floor(seconds / 30) || defaultInterval
   }
 
 }
