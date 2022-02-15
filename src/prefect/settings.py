@@ -31,19 +31,25 @@ class Setting(Generic[T]):
         self.name = None  # Will be populated after all settings are defined
         self.get_callback = get_callback
 
-    def value(self, settings: "Settings" = None) -> T:
+    def value(self) -> T:
         """
         Get the current value of a setting.
 
-        For example:
+        Example:
         >>> from prefect.settings import PREFECT_API_URL
         >>> PREFECT_API_URL.value()
-
-        A custom settings object may be provided:
-        >>> from prefect.settings import get_default_settings
-        >>> PREFECT_API_URL.value(get_default_settings())
         """
-        return (settings or get_current_settings()).get(self)
+        return self.value_from(get_current_settings())
+
+    def value_from(self, settings: "Settings") -> T:
+        """
+        Get the value of a setting from a settings object
+
+        Example:
+        >>> from prefect.settings import get_default_settings
+        >>> PREFECT_API_URL.value_from(get_default_settings())
+        """
+        return settings.value_of(self)
 
     def __repr__(self) -> str:
         return f"Setting({self.type.__name__}, {self.field!r})"
@@ -65,7 +71,7 @@ def debug_mode_log_level(settings, value):
     `get_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
     when debug mode is enabled.
     """
-    if settings.get(PREFECT_DEBUG_MODE):
+    if PREFECT_DEBUG_MODE.value_from(settings):
         return "DEBUG"
     else:
         return value
@@ -80,7 +86,7 @@ def template(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     def templater(settings, value):
         original_type = type(value)
         template_values = {
-            setting.name: settings.get(setting) for setting in upstream_settings
+            setting.name: setting.value_from(settings) for setting in upstream_settings
         }
         template = string.Template(str(value))
         return original_type(template.substitute(template_values))
@@ -395,13 +401,12 @@ for name, setting in SETTINGS.items():
 
 
 class PrefectBaseSettings(BaseSettings):
-    def get(self, setting: Setting[T]) -> T:
+    def value_of(self, setting: Setting[T]) -> T:
         """
-        Retrieve a setting's value
+        Retrieve a setting's value.
 
-        Example:
-        >>> settings = Settings()
-        >>> settings.get(PREFECT_HOME)
+        It is recommended to use: `SETTING.value_from(settings)` instead of
+        `settings.value_of(SETTING)`
         """
         value = getattr(self, setting.name)
         if setting.get_callback:
@@ -490,7 +495,7 @@ def load_profiles() -> Dict[str, Dict[str, str]]:
     """
     Load all profiles from the profiles path.
     """
-    path = get_settings_from_env().get(PREFECT_PROFILES_PATH)
+    path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
     if not path.exists():
         profiles = DEFAULT_PROFILES
     else:
@@ -507,7 +512,7 @@ def write_profiles(profiles: dict):
 
     Asserts that all variables are known settings names.
     """
-    path = get_settings_from_env().get(PREFECT_PROFILES_PATH)
+    path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
 
     for profile, variables in profiles.items():
         unknown_keys = set(variables).difference(SETTINGS)

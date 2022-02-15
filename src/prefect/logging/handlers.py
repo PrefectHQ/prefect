@@ -249,7 +249,7 @@ class OrionHandler(logging.Handler):
         try:
             profile = prefect.context.get_profile_context()
 
-            if not profile.settings.get(PREFECT_LOGGING_ORION_ENABLED):
+            if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
