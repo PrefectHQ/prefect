@@ -132,7 +132,6 @@ PREFECT_TEST_MODE = Setting(
         behavior to faciliate testing. Defaults to `False`.""",
 )
 
-
 PREFECT_API_URL = Setting(
     str,
     default=None,
@@ -175,7 +174,6 @@ PREFECT_LOGGING_SETTINGS_PATH = Setting(
     no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
     get_callback=template(PREFECT_HOME),
 )
-
 
 PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
     str,
@@ -285,14 +283,12 @@ PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     interactions made by the API. Defaults to `1`.""",
 )
 
-
 PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(
     bool,
     default=False,
     description="""If `True`, Orion services are started as part of the
     webserver and run in the same event loop. Defaults to `False`.""",
 )
-
 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
@@ -392,12 +388,13 @@ SETTINGS = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
-# Assign names to settings objects
+# Populate names in settings objects from assignments above
 
 for name, setting in SETTINGS.items():
     setting.name = name
 
-# Generate a model to validate & load settings
+
+# Define the pydantic model for loading from the environment / validating settings
 
 
 class PrefectBaseSettings(BaseSettings):
@@ -425,25 +422,24 @@ class PrefectBaseSettings(BaseSettings):
         frozen = True
 
 
+# This model is dynamically created
+
 Settings = create_model(
     "Settings",
     __base__=PrefectBaseSettings,
-    **{
-        name: (val.type, val.field)
-        for name, val in tuple(globals().items())
-        if isinstance(val, Setting)
-    },
+    **{setting.name: (setting.type, setting.field) for setting in SETTINGS.values()},
 )
+
+# Functions to instantiate `Settings` instances
+
+_DEFAULTS_CACHE: Settings = None
+_FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
 def get_current_settings() -> Settings:
     from prefect.context import get_profile_context
 
     return get_profile_context().settings
-
-
-_DEFAULTS_CACHE: Settings = None
-_FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
 def get_settings_from_env() -> Settings:
