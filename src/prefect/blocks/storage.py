@@ -30,7 +30,7 @@ class OrionStorageAPI(BlockAPI):
 
 
 @register_blockapi("s3storage-block")
-class S3Block(OrionStorageAPI):
+class S3StorageBlock(OrionStorageAPI):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_session_token: Optional[str] = None
