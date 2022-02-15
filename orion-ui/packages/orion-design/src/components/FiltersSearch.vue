@@ -83,6 +83,8 @@
 </script>
 
 <style lang="scss" scoped>
+@use 'sass:map';
+
 .filters-search {
   display: flex;
   align-items: center;
@@ -104,9 +106,14 @@
   background-color: transparent;
   font-size: 16px;
   flex-grow: 1;
-  min-width: 200px;
+  min-width: 100px;
   min-height: 30px;
   align-self: stretch;
+  width: 100px;
+
+  @media (min-width: map.get($breakpoints, 'sm')) {
+    width: auto;
+  }
 
   &::placeholder {
     color: var(--grey-40);
