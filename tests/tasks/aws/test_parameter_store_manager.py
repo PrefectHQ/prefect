@@ -1,8 +1,12 @@
+from unittest.mock import MagicMock
+
 import pytest
 
-from src.prefect.tasks.aws.parameter_store_manager import AWSParametersManager
-
 pytest.importorskip("boto3")
+
+import prefect
+from prefect.tasks.aws import AWSParametersManager
+from prefect.utilities.configuration import set_temporary_config
 
 
 class TestAWSParameterManager:
