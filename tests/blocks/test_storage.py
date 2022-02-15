@@ -1,15 +1,19 @@
+import asyncio
+import boto3
 import pytest
+
+from moto import mock_s3
 from tempfile import TemporaryDirectory
 from itertools import product
 from prefect.blocks import storage
 
-user_data = [
+TEST_DATA = [
     # Test a couple forms of bytes
     b"test!",
     bytes([0, 1, 2]),
 ]
 
-storage_blocks = [
+FS_STORAGE_BLOCKS = [
     storage.OrionStorageBlock.parse_obj({"blockref": "orionstorage-block"}),
     storage.TempStorageBlock.parse_obj({"blockref": "tempstorage-block"}),
     storage.LocalStorageBlock.parse_obj(
@@ -19,7 +23,7 @@ storage_blocks = [
 
 
 @pytest.mark.parametrize(
-    ["user_data", "storage_block"], product(user_data, storage_blocks)
+    ["user_data", "storage_block"], product(TEST_DATA, FS_STORAGE_BLOCKS)
 )
 async def test_write_and_read_rountdrips(
     user_data,
@@ -27,3 +31,19 @@ async def test_write_and_read_rountdrips(
 ):
     storage_token = await storage_block.write(user_data)
     assert await storage_block.read(storage_token) == user_data
+
+
+@mock_s3
+@pytest.mark.parametrize("user_data", TEST_DATA)
+def test_s3_block_write_and_read_roundtrips(user_data):
+    # initialize mock-aws with an S3 bucket to write to
+    s3_client = boto3.client("s3")
+    s3_client.create_bucket(Bucket="with-holes")
+
+    storage_block = storage.S3StorageBlock.parse_obj(
+        {"blockref": "s3storage-block", "bucket": "with-holes"}
+    )
+
+    loop = asyncio.get_event_loop()
+    storage_token = loop.run_until_complete(storage_block.write(user_data))
+    assert loop.run_until_complete(storage_block.read(storage_token)) == user_data
