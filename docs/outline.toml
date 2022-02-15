@@ -305,7 +305,7 @@ classes = ["WriteAirtableRow", "ReadAirtableRow"]
 [pages.tasks.aws]
 title = "AWS Tasks"
 module = "prefect.tasks.aws"
-classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager", "BatchSubmit", "AWSClientWait"]
+classes = ["S3Download", "S3Upload", "S3List", "LambdaCreate", "LambdaDelete" , "LambdaInvoke", "LambdaList", "StepActivate", "AWSSecretsManager", "AWSParametersManager", "BatchSubmit", "AWSClientWait"]
 
 [pages.tasks.azure]
 title = "Azure Tasks"
