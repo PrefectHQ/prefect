@@ -20,7 +20,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
       alias: [
         {
           find: '@',
-          replacement: resolve(__dirname, '../../src'),
+          replacement: resolve(__dirname, './src'),
         },
       ],
     },
