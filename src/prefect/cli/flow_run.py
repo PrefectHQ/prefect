@@ -12,11 +12,10 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect.cli.base import PrefectTyper, app, console, exit_with_error
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
-from prefect.utilities.asyncio import sync_compatible
 
 flow_run_app = PrefectTyper(
     name="flow-run", help="Commands for interacting with flow runs."
@@ -29,7 +28,7 @@ async def inspect(id: UUID):
     """
     View details about a flow run.
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
         except httpx.HTTPStatusError as exc:
@@ -50,7 +49,7 @@ async def ls(
     """
     View recent flow runs or flow runs for specific flows
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         flow_runs = await client.read_flow_runs(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None,
             flow_run_filter=(
