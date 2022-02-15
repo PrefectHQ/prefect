@@ -113,7 +113,7 @@ class OrionClient:
         if api_version:
             httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
-            httpx_settings["headers"].setdefault({"Authorization": f"Bearer {api_key}"})
+            httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
         # Connect to an external application
         if isinstance(api, str):

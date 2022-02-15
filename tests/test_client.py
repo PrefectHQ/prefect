@@ -19,6 +19,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
+from prefect.utilities.testing import temporary_settings
 
 
 async def test_hello(orion_client):
@@ -480,49 +481,55 @@ class TestClientAPIVersionRequests:
             res = await client.hello()
             assert res.status_code == 200
 
-    async def test_major_version(self, major_version, minor_version, patch_version):
+    async def test_major_version(
+        self, app, major_version, minor_version, patch_version
+    ):
         # higher client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400"):
                 await client.hello()
 
         # lower client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400"):
                 await client.hello()
 
-    async def test_minor_version(self, major_version, minor_version, patch_version):
+    async def test_minor_version(
+        self, app, major_version, minor_version, patch_version
+    ):
         # higher client minor version fails
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400"):
                 await client.hello()
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400"):
                 await client.hello()
 
-    async def test_patch_version(self, major_version, minor_version, patch_version):
+    async def test_patch_version(
+        self, app, major_version, minor_version, patch_version
+    ):
         # higher client patch version fails
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400"):
                 await client.hello()
 
         # lower client minor version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             res = await client.hello()
             assert res.status_code == 200
 
-    async def test_invalid_header(self):
+    async def test_invalid_header(self, app):
         # Invalid header is rejected
         api_version = "not a real version header"
-        async with OrionClient(api_version=api_version) as client:
+        async with OrionClient(app, api_version=api_version) as client:
             with pytest.raises(httpx.HTTPStatusError, match="400") as e:
                 await client.hello()
             assert (
@@ -547,14 +554,18 @@ class TestClientAPIKey:
 
     async def test_client_passes_api_key_as_auth_header(self, test_app):
         api_key = "validAPIkey"
-        async with OrionClient(
-            api_key=api_key, httpx_settings={"app": test_app}
-        ) as client:
+        async with OrionClient(test_app, api_key=api_key) as client:
             res = await client.get("/check_for_auth_header")
         assert res.status_code == 200
         assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
-        async with OrionClient(httpx_settings={"app": test_app}) as client:
+        async with OrionClient(test_app) as client:
             with pytest.raises(httpx.HTTPStatusError, match="403") as e:
                 await client.get("/check_for_auth_header")
+
+    async def test_get_client_includes_api_key_from_context(self):
+        with temporary_settings(PREFECT_API_KEY="test"):
+            client = get_client()
+
+        assert client._client.headers["Authorization"] == "Bearer test"
