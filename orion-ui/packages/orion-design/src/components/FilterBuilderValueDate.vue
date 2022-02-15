@@ -47,9 +47,9 @@
   })
 
   watch(() => props.operation, () => {
-    if (props.operation == 'newer' || props.operation == 'older' || props.operation == 'upcoming' && typeof props.value !== 'string') {
+    if ((props.operation == 'newer' || props.operation == 'older' || props.operation == 'upcoming') && typeof props.value !== 'string') {
       emit('update:value', '1h')
-    } else if (props.operation == 'after' || props.operation == 'before' && !isDate(props.value)) {
+    } else if ((props.operation == 'after' || props.operation == 'before') && !isDate(props.value)) {
       emit('update:value', startOfToday())
     }
   })
