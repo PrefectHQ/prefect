@@ -17,13 +17,10 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal
-
-import prefect
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import A, Async, Sync, sync, sync_compatible
+from prefect.utilities.asyncio import A, Async, Sync, sync
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:

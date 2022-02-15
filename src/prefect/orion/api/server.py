@@ -5,7 +5,7 @@ Defines the Orion FastAPI app.
 import asyncio
 import os
 from functools import partial
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -142,8 +142,15 @@ def create_orion_api(
     return api_app
 
 
-def create_app() -> FastAPI:
+APP_CACHE: Dict[prefect.settings.OrionSettings, FastAPI] = {}
+
+
+def create_app(settings: prefect.settings.OrionSettings = None) -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
+    settings = settings or prefect.settings.from_context().orion
+
+    if settings in APP_CACHE:
+        return APP_CACHE[settings]
 
     app = FastAPI(title=TITLE, version=API_VERSION)
     api_app = create_orion_api(
@@ -175,10 +182,7 @@ def create_app() -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if (
-        os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.from_env().orion.ui.enabled
-    ):
+    if os.path.exists(prefect.__ui_static_path__) and settings.ui.enabled:
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
@@ -212,7 +216,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if prefect.settings.from_env().orion.services.run_in_app:
+        if settings.services.run_in_app:
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
@@ -257,7 +261,6 @@ def create_app() -> FastAPI:
         else:
             logger.info(f"{service.name} service stopped!")
 
+    APP_CACHE[settings] = app
+
     return app
-
-
-app = create_app()
