@@ -5,10 +5,16 @@ import addMonths from 'date-fns/addMonths'
 import addWeeks from 'date-fns/addWeeks'
 import startOfToday from 'date-fns/startOfToday'
 import subDays from 'date-fns/subDays'
-import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
-import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
-import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '@/types/filters'
-import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '@/utilities/filters'
+import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
+import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
+import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
+import { FlowRunsHistoryFilter, UnionFilters } from './Filter'
+import {
+  FlowFilter as FlowFilterQuery,
+  DeploymentFilter as DeploymentFilterQuery,
+  FlowRunFilter as FlowRunFilterQuery,
+  TaskRunFilter as TaskRunFilterQuery
+} from '@/types/filters/server-types'
 
 export class FiltersQueryService {
 
