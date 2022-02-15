@@ -1,10 +1,11 @@
 import asyncio
+from itertools import product
+from tempfile import TemporaryDirectory
+
 import boto3
 import pytest
-
 from moto import mock_s3
-from tempfile import TemporaryDirectory
-from itertools import product
+
 from prefect.blocks import storage
 
 TEST_DATA = [
