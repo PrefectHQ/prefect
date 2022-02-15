@@ -24,7 +24,7 @@ spec:
         command: [ "prefect", "agent", "start"]
         imagePullPolicy: "IfNotPresent"
         env:
-          - name: PREFECT_ORION_HOST
+          - name: PREFECT_API_URL
             value: http://orion:4200/api
 
 ---

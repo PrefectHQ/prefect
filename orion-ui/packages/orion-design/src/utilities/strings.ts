@@ -10,3 +10,7 @@ export function toPluralString(word: string, count: number): string {
 
   return `${word}${ending}`
 }
+
+export function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}

@@ -5,7 +5,7 @@ import typer
 from rich.pretty import Pretty
 
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.utilities.asyncio import sync_compatible
 
 storage_config_app = typer.Typer(
@@ -26,7 +26,7 @@ async def configure(storage_type: str):
             f"Invalid storage type: pick one of {list(valid_storageblocks)}"
         )
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         await client.update_block_name(
             name="ORION-CONFIG-STORAGE",
             new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",

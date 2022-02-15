@@ -2,9 +2,9 @@ import pytest
 
 from prefect.blocks.core import (
     BLOCK_API_REGISTRY,
+    BlockAPI,
     get_blockapi,
     register_blockapi,
-    BlockAPI,
 )
 
 

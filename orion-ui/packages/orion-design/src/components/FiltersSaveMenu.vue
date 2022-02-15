@@ -40,6 +40,8 @@
   import { computed, ref } from 'vue'
   import { searchApi } from '../services/SearchApi'
   import { useFiltersStore } from '../stores/filters'
+  import { Filter } from '../types/filters'
+  import { omit } from '../utilities/object'
   import FilterTags from './FilterTags.vue'
 
   const emit = defineEmits<{
@@ -54,7 +56,9 @@
   function save(): void {
     loading.value = true
 
-    searchApi.createSearch(name.value, filtersStore.all)
+    const payload = filtersStore.all.map(filter => omit(filter, ['id'])) as Filter[]
+
+    searchApi.createSearch(name.value, payload)
       .then(() => {
         showToast('Saved search', 'success')
 
@@ -71,13 +75,14 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use 'sass:map';
 
 .filters-save-menu__header {
   padding: var(--p-2);
   display: flex;
 }
+
 .filters-save-menu__title {
   margin: 0;
   font-weight: 600;
