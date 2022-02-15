@@ -358,17 +358,17 @@ For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 ```python
 from prefect.client import get_client
 
-with OrionClient as client:
+async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag
-    limit_id = client.create_concurrency_limit(tag="small_instance", concurrency_limit=10)
+    limit_id = await client.create_concurrency_limit(tag="small_instance", concurrency_limit=10)
 ```
 
 To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:
 
 ```python
-with OrionClient as client:
+async with get_client() as client:
     # remove a concurrency limit on the 'small_instance' tag
-    client.delete_concurrency_limit_by_tag(tag="small_instance")
+    await client.delete_concurrency_limit_by_tag(tag="small_instance")
 ```
 
 If you wish to query for the currently set limit on a tag, use [`OrionClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limit_by_tag), passing the tag:
@@ -376,7 +376,7 @@ If you wish to query for the currently set limit on a tag, use [`OrionClient.rea
 To see _all_ of your limits across all of your tags, use [`OrionClient.read_concurrency_limits`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limits).
 
 ```python
-with OrionClient as client:
+async with get_client() as client:
     # query the concurrency limit on the 'small_instance' tag
-    limit = client.read_concurrency_limit_by_tag(tag="small_instance")
+    limit = await client.read_concurrency_limit_by_tag(tag="small_instance")
 ```
