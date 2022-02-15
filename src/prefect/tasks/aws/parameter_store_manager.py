@@ -33,6 +33,7 @@ class AWSParametersManager(SecretBase):
     def run(self, parameter_name: str = None, credentials: str = None) -> str:
         """
         Task run method.
+
         Args:
             - parameter_name (str): the name of the parameter to retrieve
             - credentials (dict, optional): your AWS credentials passed from an upstream
@@ -40,6 +41,7 @@ class AWSParametersManager(SecretBase):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+
         Returns:
             - str: the parameter value, as a string
         """
