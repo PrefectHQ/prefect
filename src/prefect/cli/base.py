@@ -4,7 +4,6 @@ Base `prefect` command-line application and utilities
 import functools
 import os
 from contextlib import nullcontext
-from functools import partial
 from typing import TypeVar
 
 import rich.console
@@ -106,14 +105,17 @@ def enter_profile_from_option(fn):
                 prefect.settings.load_profile(name)
             except ValueError:
                 exit_with_error(f"Profile {name!r} not found.")
-                raise ValueError()
 
         context = (
-            prefect.context.profile(name, override_existing_variables=True)
+            prefect.context.profile(
+                name, override_existing_variables=True, initialize=False
+            )
             if name
             else nullcontext()
         )
         with context:
+            # Ensure that the profile is initialized so logging is configured
+            prefect.context.get_profile_context().initialize()
             return fn(*args, **kwargs)
 
     return with_profile_from_option
