@@ -391,7 +391,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         We could support an ephemeral server with postgresql, but then we would need to
         sync all of the server settings to the container's ephemeral server.
         """
-        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.get())
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
 
         if not api_url:
             raise RuntimeError(
@@ -641,9 +641,9 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Update local connections to use the docker host
 
-        if PREFECT_API_URL.get():
+        if PREFECT_API_URL.value():
             api_url = (
-                PREFECT_API_URL.get()
+                PREFECT_API_URL.value()
                 .replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
             )
@@ -745,7 +745,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     def _assert_orion_settings_are_compatible(self):
         """See note in DockerFlowRunner."""
-        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.get())
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
 
         if not api_url:
             raise RuntimeError(

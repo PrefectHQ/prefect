@@ -98,7 +98,7 @@ def LimitBody() -> Depends:
             description="Defaults to PREFECT_ORION_API_DEFAULT_LIMIT if not provided.",
         )
     ):
-        default_limit = PREFECT_ORION_API_DEFAULT_LIMIT.get()
+        default_limit = PREFECT_ORION_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit
         if not limit >= 0:
             raise HTTPException(

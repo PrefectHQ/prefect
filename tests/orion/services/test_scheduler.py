@@ -134,8 +134,8 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     # create deployments that will have to insert
     # flow runs in batches of scheduler_insertion_batch_size
     deployments_to_schedule = (
-        PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.get()
-        // PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get()
+        PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
+        // PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     ) + 1
     for i in range(deployments_to_schedule):
         await models.deployments.create_deployment(
@@ -161,9 +161,9 @@ async def test_create_schedules_from_multiple_deployments_in_batches(
     runs = await models.flow_runs.read_flow_runs(session)
     assert (
         len(runs)
-        == deployments_to_schedule * PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get()
+        == deployments_to_schedule * PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     )
-    assert len(runs) > PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.get()
+    assert len(runs) > PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
 
 
 async def test_scheduler_respects_schedule_is_active(flow, session, flow_function):

@@ -22,13 +22,13 @@ from prefect.utilities.testing import temporary_settings
 
 def test_get_root_setting():
     with temporary_settings(PREFECT_API_URL="test"):
-        assert prefect.settings.PREFECT_API_URL.get() == get_current_settings().get(
+        assert prefect.settings.PREFECT_API_URL.value() == get_current_settings().get(
             PREFECT_API_URL
         )
 
 
 def test_get_nested_setting():
-    assert prefect.settings.PREFECT_LOGGING_LEVEL.get() == get_current_settings().get(
+    assert prefect.settings.PREFECT_LOGGING_LEVEL.value() == get_current_settings().get(
         PREFECT_LOGGING_LEVEL
     )
 

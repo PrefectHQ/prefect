@@ -31,7 +31,18 @@ class Setting(Generic[T]):
         self.name = None  # Will be populated after all settings are defined
         self.get_callback = get_callback
 
-    def get(self, settings: "Settings" = None) -> T:
+    def value(self, settings: "Settings" = None) -> T:
+        """
+        Get the current value of a setting.
+
+        For example:
+        >>> from prefect.settings import PREFECT_API_URL
+        >>> PREFECT_API_URL.value()
+
+        A custom settings object may be provided:
+        >>> from prefect.settings import get_default_settings
+        >>> PREFECT_API_URL.value(get_default_settings())
+        """
         return (settings or get_current_settings()).get(self)
 
     def __repr__(self) -> str:

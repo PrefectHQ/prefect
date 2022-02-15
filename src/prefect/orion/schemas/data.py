@@ -104,7 +104,7 @@ def get_instance_data_location() -> DataLocation:
     Return the current data location configured for this Orion instance
     """
     return DataLocation(
-        name=PREFECT_ORION_DATA_NAME.get(),
-        base_path=PREFECT_ORION_DATA_BASE_PATH.get(),
-        scheme=PREFECT_ORION_DATA_SCHEME.get().lower(),
+        name=PREFECT_ORION_DATA_NAME.value(),
+        base_path=PREFECT_ORION_DATA_BASE_PATH.value(),
+        scheme=PREFECT_ORION_DATA_SCHEME.value().lower(),
     )

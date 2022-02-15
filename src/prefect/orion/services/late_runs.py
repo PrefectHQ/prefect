@@ -31,12 +31,12 @@ class MarkLateRuns(LoopService):
 
     def __init__(self, loop_seconds: float = None):
         super().__init__(
-            loop_seconds or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.get()
+            loop_seconds or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.value()
         )
 
         # mark runs late if they are this far past their expected start time
         self.mark_late_after: datetime.timedelta = (
-            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.get()
+            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.value()
         )
 
         self.batch_size: int = 100

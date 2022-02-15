@@ -644,10 +644,10 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
             start=pendulum.now(),
             end=pendulum.now()
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.get(),
+            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -665,7 +665,7 @@ class TestScheduleDeployment:
             n=5,
             start=pendulum.now(),
             end=pendulum.now()
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.get(),
+            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -681,10 +681,10 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
             start=pendulum.now().add(days=120),
             end=pendulum.now().add(days=120)
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.get(),
+            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -700,7 +700,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC").add(days=7),
         )
@@ -722,7 +722,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.get(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
             start=pendulum.now("UTC").subtract(days=20),
             end=pendulum.now("UTC"),
         )

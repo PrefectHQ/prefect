@@ -29,7 +29,7 @@ MODELS_DEPENDENCIES = {
 
 
 def provide_database_interface():
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.get()
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")
