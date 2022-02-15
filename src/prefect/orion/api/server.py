@@ -5,22 +5,22 @@ Defines the Orion FastAPI app.
 import asyncio
 import os
 from functools import partial
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
-from prefect import settings
+import prefect.orion.api as api
+import prefect.orion.services as services
+import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion import api, services
+from prefect.orion.api.dependencies import CheckVersionCompatibility
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -30,7 +30,7 @@ ORION_API_VERSION = "0.1.0"
 
 logger = get_logger("orion")
 
-version_checker = api.dependencies.CheckVersionCompatibility(ORION_API_VERSION, logger)
+version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
 class SPAStaticFiles(StaticFiles):
@@ -45,11 +45,35 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Provide a detailed message for request validation errors."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder(
+            {
+                "exception_message": "Invalid request received.",
+                "exception_detail": exc.errors(),
+                "request_body": exc.body,
+            }
+        ),
+    )
+
+
+async def custom_internal_exception_handler(request: Request, exc: Exception):
+    """Log a detailed exception for internal server errors before returning."""
+    logger.error(f"Encountered exception in request:", exc_info=True)
+    return JSONResponse(
+        content={"exception_message": "Internal Server Error"},
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
 def create_orion_api(
     router_prefix: Optional[str] = "",
     include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
+    fast_api_app_kwargs: dict = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
@@ -60,11 +84,13 @@ def create_orion_api(
             have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
+        fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
 
     Returns:
         a FastAPI app that serves the Orion API
     """
-    api_app = FastAPI(title=API_TITLE)
+    fast_api_app_kwargs = fast_api_app_kwargs or {}
+    api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
     @api_app.get(health_check_path)
     async def health_check():
@@ -113,41 +139,28 @@ def create_orion_api(
             api.admin.router, prefix=router_prefix, dependencies=dependencies
         )
 
-    # custom error handling
-    async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
-    ):
-        """Provide a detailed message for request validation errors."""
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=jsonable_encoder(
-                {
-                    "exception_message": "Invalid request received.",
-                    "exception_detail": exc.errors(),
-                    "request_body": exc.body,
-                }
-            ),
-        )
-
-    async def custom_http_exception_handler(
-        request: Request, exc: StarletteHTTPException
-    ):
-        """Log a detailed exception for internal server errors before returning."""
-        logger.error(f"Encountered exception in request:", exc_info=True)
-        # pass to fastapi's default error handling
-        return await http_exception_handler(request=request, exc=exc)
-
-    api_app.add_exception_handler(RequestValidationError, validation_exception_handler)
-    api_app.add_exception_handler(StarletteHTTPException, custom_http_exception_handler)
-
     return api_app
 
 
-def create_app() -> FastAPI:
+APP_CACHE: Dict[prefect.settings.OrionSettings, FastAPI] = {}
+
+
+def create_app(settings: prefect.settings.OrionSettings = None) -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
+    settings = settings or prefect.settings.from_context().orion
+
+    if settings in APP_CACHE:
+        return APP_CACHE[settings]
 
     app = FastAPI(title=TITLE, version=API_VERSION)
-    api_app = create_orion_api()
+    api_app = create_orion_api(
+        fast_api_app_kwargs={
+            "exception_handlers": {
+                Exception: custom_internal_exception_handler,
+                RequestValidationError: validation_exception_handler,
+            }
+        }
+    )
     ui_app = FastAPI(title=UI_TITLE)
 
     # middleware
@@ -169,7 +182,7 @@ def create_app() -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if os.path.exists(prefect.__ui_static_path__) and settings.orion.ui.enabled:
+    if os.path.exists(prefect.__ui_static_path__) and settings.ui.enabled:
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
@@ -203,7 +216,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if settings.orion.services.run_in_app:
+        if settings.services.run_in_app:
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
@@ -248,7 +261,6 @@ def create_app() -> FastAPI:
         else:
             logger.info(f"{service.name} service stopped!")
 
+    APP_CACHE[settings] = app
+
     return app
-
-
-app = create_app()

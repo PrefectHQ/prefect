@@ -45,6 +45,9 @@ import { CopyButton } from '@prefecthq/orion-design'
 import { media } from '@prefecthq/orion-design/utilities'
 
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+
+const filtersStore = useFiltersStore()
 
 const route = useRoute()
 
@@ -131,6 +134,22 @@ onBeforeMount(() => {
 watch(id, () => {
   if (!id.value) return
   queries.flow.fetch()
+})
+
+const flowRunWatcher = watch(() => flowRun.value, () => {
+  if(flowRun.value.name && filtersStore.all.length == 0) {
+    filtersStore.replaceAll([
+      {
+        object: 'flow_run',
+        property: 'name',
+        type: 'string',
+        operation: 'equals',
+        value: flowRun.value.name
+      }
+    ])
+
+    flowRunWatcher()
+  }
 })
 </script>
 

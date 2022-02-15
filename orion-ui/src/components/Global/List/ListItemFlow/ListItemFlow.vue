@@ -7,12 +7,12 @@
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ flowRunCount.toLocaleString() }} flow
         {{ toPluralString('run', flowRunCount) }}
       </ButtonRounded>
 
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ taskRunCount.toLocaleString() }} task
         {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
@@ -22,7 +22,7 @@
         :items="flowRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="baseInterval * 2"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
         disable-popovers
@@ -33,7 +33,6 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { useStore } from '@/store'
 import type { FlowsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
@@ -42,9 +41,17 @@ import { Buckets } from '@/typings/run_history'
 import { media, toPluralString } from '@prefecthq/orion-design/utilities'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import { Filter } from '@/../packages/orion-design/src/types/filters'
+import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
+import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { useRouter } from 'vue-router'
+import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 
-const store = useStore()
 const props = defineProps<{ item: Flow }>()
+
+const filtersStore = useFiltersStore()
+const router = useRouter()
 
 const flows: FlowsFilter = {
   flows: {
@@ -54,20 +61,18 @@ const flows: FlowsFilter = {
   }
 }
 
-const start = computed<Date>(() => store.getters['filter/start'])
-const end = computed<Date>(() => store.getters['filter/end'])
-const baseInterval = computed<number>(
-  () => store.getters['filter/baseInterval']
-)
-
 const flowRunHistoryFilter = computed(() => {
+  const query = FiltersQueryService.flowHistoryQuery(filtersStore.all)
+
   return {
-    history_start: start.value.toISOString(),
-    history_end: end.value.toISOString(),
-    history_interval_seconds: baseInterval.value * 2,
+    ...query,
+    history_interval_seconds: query.history_interval_seconds * 2,
     flows: flows.flows
   }
 })
+
+const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
+const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
 
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
@@ -95,6 +100,24 @@ const taskRunCount = computed((): number => {
 const flowRunHistory = computed((): Buckets => {
   return queries.flow_run_history?.response.value || []
 })
+
+function filter() {
+  const filterToAdd: Required<Filter> = {
+    object: 'flow',
+    property: 'name',
+    type: 'string',
+    operation: 'equals',
+    value: props.item.name
+  }
+  
+  if(hasFilter(filtersStore.all, filterToAdd)) {
+    return
+  }
+
+  const service = new FilterUrlService(router)
+
+  service.add(filterToAdd)
+}
 </script>
 
 <style lang="scss" scoped>

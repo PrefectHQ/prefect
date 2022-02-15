@@ -1,14 +1,16 @@
+import json
 import logging
 import logging.config
 import os
 import re
+import warnings
 from functools import partial
 from pathlib import Path
 
 import yaml
 
+from prefect.settings import LoggingSettings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-from prefect.utilities.settings import LoggingSettings, Settings
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
@@ -17,6 +19,8 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 # Regex for detecting interpolated global settings
 interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
+
+PROCESS_LOGGING_CONFIG: dict = None
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -56,28 +60,46 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(settings: Settings) -> None:
+def setup_logging(settings: LoggingSettings) -> None:
+    global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.logging.settings_path
-            if settings.logging.settings_path.exists()
+            settings.settings_path
+            if settings.settings_path.exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
-        settings.logging,
+        settings,
     )
+
+    if PROCESS_LOGGING_CONFIG:
+        # Do not allow repeated configuration calls, only warn if the config differs
+        config_diff = {
+            key: value
+            for key, value in config.items()
+            if PROCESS_LOGGING_CONFIG[key] != value
+        }
+        if config_diff:
+            warnings.warn(
+                "Logging can only be setup once per process, the new logging config "
+                f"will be ignored. The attempted changes were: {config_diff}",
+                stacklevel=2,
+            )
+        return
 
     logging.config.dictConfig(config)
 
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in settings.logging.get_extra_loggers():
+    for logger_name in settings.get_extra_loggers():
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)
             if logger.level == logging.NOTSET:
                 logger.setLevel(extra_config.level)
             logger.propagate = extra_config.propagate
+
+    PROCESS_LOGGING_CONFIG = config
