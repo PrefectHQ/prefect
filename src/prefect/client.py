@@ -916,7 +916,7 @@ class OrionClient:
         except httpx.HTTPStatusError:
             await self.create_block_data(
                 name="ORION-CONFIG-STORAGE",
-                blockref="orionstorage-block",
+                blockref="tempstorage-block",
                 data=dict(),
             )
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
