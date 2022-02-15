@@ -1,3 +1,5 @@
+import isDate from 'date-fns/isDate'
+
 export function flip<K extends string, V extends string>(obj: Record<K, V>): Record<V, K> {
   const result = {} as Record<V, K>
 
@@ -19,5 +21,21 @@ export function omit<T extends Record<string, unknown>, K extends (keyof T)[]>(s
 }
 
 export function clone<T>(source: T): T {
-  return JSON.parse(JSON.stringify(source))
+  if (source === null || typeof source !== 'object') {
+    return source
+  }
+
+  if (isDate(source)) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    return new Date(source)
+  }
+
+  const copy = new (source as any).constructor()
+
+  for (const key in source) {
+    copy[key] = clone(source[key])
+  }
+
+  return copy
 }
