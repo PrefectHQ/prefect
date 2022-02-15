@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.orion.schemas.data import DataDocument
+from prefect.settings import Settings
 
 
 class OrionStorageAPI(BlockAPI):
@@ -68,14 +69,43 @@ class S3Block(OrionStorageAPI):
         return output
 
 
-@register_blockapi("localstorage-block")
+@register_blockapi("tempstorage-block")
 class LocalStorageBlock(OrionStorageAPI):
     def block_initialization(self) -> None:
         pass
 
     def basepath(self):
-        # return Path(TemporaryDirectory().name)
-        return Path("/tmp/localstorageblock")
+        return Path(TemporaryDirectory().name)
+
+    async def write(self, data):
+        import fsspec
+
+        storage_path = str(self.basepath() / str(uuid4()))
+        with fsspec.open(storage_path, mode="wb") as fp:
+            fp.write(data)
+        return storage_path
+
+    async def read(self, storage_path):
+        import fsspec
+
+        with fsspec.open(storage_path, mode="rb") as fp:
+            return fp.read()
+
+
+@register_blockapi("localstorage-block")
+class LocalStorageBlock(OrionStorageAPI):
+    storage_path: Optional[str]
+
+    def block_initialization(self) -> None:
+        self._storage_path = (
+            self.storage_path
+            if self.storage_path is not None
+            else Settings().home / "storage"
+        )
+
+    def basepath(self):
+
+        return Path(self._storage_path).absolute()
 
     async def write(self, data):
         import fsspec
