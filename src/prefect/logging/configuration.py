@@ -23,11 +23,8 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 # Stores the configuration used to setup logging in this Python process
 PROCESS_LOGGING_CONFIG: dict = None
 
-
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
-# Regex for detecting interpolated global settings
-interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
 
 
 def load_logging_config(path: Path, settings: Settings) -> dict:
@@ -36,6 +33,7 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
     """
     template = string.Template(path.read_text())
     config = yaml.safe_load(
+        # Substitute settings into the template in format $SETTING / ${SETTING}
         template.substitute(
             {
                 setting.name: str(setting.value_from(settings))
@@ -48,7 +46,6 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
     flat_config = dict_to_flatdict(config)
 
     for key_tup, val in flat_config.items():
-
         env_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
             to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
