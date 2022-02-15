@@ -1,9 +1,9 @@
 <template>
-  <transition-group name="filter-tags-transition" tag="div" class="filter-tags">
+  <div class="filter-tags">
     <template v-for="filter in filters" :key="filter.id">
       <FilterTag class="filter-tags__tag" v-bind="{ filter, dismissible }" @dismiss="emit('dismiss', filter)" />
     </template>
-  </transition-group>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -30,14 +30,5 @@
 
 .filter-tags__tag {
   opacity: 1;
-}
-
-.filter-tags-transition-enter-active,
-.filter-tags-transition-leave-active {
-  transition: opacity 0.1s ease;
-}
-.filter-tags-transition-enter-from,
-.filter-tags-transition-leave-to {
-  opacity: 0;
 }
 </style>

@@ -2,7 +2,7 @@
   <div class="filter-builder-value-date">
     <m-select v-model="internalOperation" :options="operations" />
     <template v-if="isDateFilter">
-      <DateTimeInput v-model:value="date" label="Date" />
+      <DateTimeInput v-model:value="date" label="Date" class="filter-builder-value-date__picker" />
     </template>
     <template v-else>
       <div class="filter-builder-value-date__relative">
@@ -14,17 +14,21 @@
             {{ toPluralString(label, count) }}
           </template>
         </m-select>
-        <m-number-input v-model="count" min="1" />
+        <m-number-input v-model="count" class="filter-builder-value-date__number" />
       </div>
     </template>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { Ref, computed, onMounted } from 'vue'
-  import DateTimeInput from '@/components/DateTimeInput.vue'
-  import { FilterOperation, FilterType, FilterValue } from '@/types/filters'
-  import { toPluralString } from '@/utilities'
+  // eslint-disable-next-line import/no-duplicates
+  import isDate from 'date-fns/isDate'
+  // eslint-disable-next-line import/no-duplicates
+  import startOfToday from 'date-fns/startOfToday'
+  import { Ref, computed, onMounted, watch } from 'vue'
+  import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
+  import { isDateOperation, isRelativeDateOperation, toPluralString } from '../utilities'
+  import DateTimeInput from './DateTimeInput.vue'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,
@@ -33,7 +37,7 @@
   }>()
 
   const props = defineProps<{
-    type?: FilterType,
+    object: FilterObject,
     operation?: FilterOperation,
     value?: FilterValue,
   }>()
@@ -44,24 +48,23 @@
     }
   })
 
+  watch(() => props.operation, () => {
+    if (props.operation === undefined) {
+      return
+    }
+
+    if (isRelativeDateOperation(props.operation) && typeof props.value !== 'string') {
+      emit('update:value', '1h')
+    } else if (isDateOperation(props.operation) && !isDate(props.value)) {
+      emit('update:value', startOfToday())
+    }
+  })
+
   const internalOperation = computed({
     get: () => props.operation,
     set: (operation) => {
       emit('update:operation', operation!)
-
-      if (operation == 'before' || operation == 'after') {
-        internalType.value = 'date'
-      }
-
-      if (operation == 'newer' || operation == 'older') {
-        internalType.value = 'time'
-      }
     },
-  })
-
-  const internalType = computed({
-    get: () => props.type,
-    set: (type) => emit('update:type', type!),
   })
 
   const unit: Ref<string> = computed<string>({
@@ -100,13 +103,20 @@
   })
 
   const isDateFilter = computed<boolean>(() => props.operation == 'before' || props.operation == 'after')
+  const operations = computed(() => {
+    const base = [
+      { label: 'Newer than', value: 'newer' },
+      { label: 'Before date', value: 'before' },
+      { label: 'After date', value: 'after' },
+      { label: 'Older than', value: 'older' },
+    ]
 
-  const operations = [
-    { label: 'Before', value: 'before' },
-    { label: 'After', value: 'after' },
-    { label: 'Newer', value: 'newer' },
-    { label: 'Older', value: 'older' },
-  ]
+    if (props.object == 'flow_run') {
+      base.push({ label: 'Upcoming within', value: 'upcoming' })
+    }
+
+    return base
+  })
 
   const units = [
     { label: 'Hour', value: 'h' },
@@ -117,17 +127,33 @@
   ]
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-value-date {
-  display: grid;
+  display: flex;
   gap: var(--m-2);
   align-items: flex-end;
-  grid-template-columns: minmax(100px, 350px) minmax(100px, 1fr);
+}
+
+.filter-builder-value-date__picker {
+  flex-grow: 1;
 }
 
 .filter-builder-value-date__relative {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: inherit;
+  flex-grow: 1;
+  min-width: 200px;
+}
+
+.filter-builder-value-date__number :deep(.number-input__container) {
+  height: 58px;
+}
+
+.filter-builder-value-date__number :deep(.number-input__spin-buttons) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 0;
 }
 </style>

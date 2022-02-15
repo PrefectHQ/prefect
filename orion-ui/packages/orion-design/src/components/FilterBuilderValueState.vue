@@ -38,20 +38,20 @@
     set: (value) => emit('update:value', value!),
   })
 
-  const states: { label: string, value: Lowercase<StateType> }[] = [
-    { label: 'Scheduled', value: 'scheduled' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Running', value: 'running' },
-    { label: 'Completed', value: 'completed' },
-    { label: 'Failed', value: 'failed' },
-    { label: 'Cancelled', value: 'cancelled' },
+  const states: { label: string, value: StateType }[] = [
+    { label: 'Scheduled', value: 'SCHEDULED' },
+    { label: 'Pending', value: 'PENDING' },
+    { label: 'Running', value: 'RUNNING' },
+    { label: 'Completed', value: 'COMPLETED' },
+    { label: 'Failed', value: 'FAILED' },
+    { label: 'Cancelled', value: 'CANCELLED' },
   ]
 
-  function isChecked(value: Lowercase<StateType>): boolean {
+  function isChecked(value: StateType): boolean {
     return internalValue.value.includes(value)
   }
 
-  function toggle(value: Lowercase<StateType>): void {
+  function toggle(value: StateType): void {
     const values = internalValue.value
     const index = values.indexOf(value)
 
