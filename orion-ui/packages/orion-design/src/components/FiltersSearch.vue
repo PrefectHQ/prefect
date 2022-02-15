@@ -4,7 +4,7 @@
       <i class="pi pi-search-line" />
     </template>
     <template v-else>
-      <template v-if="filters.length < 3 && media.sm">
+      <template v-if="filters.length <= 3 && media.sm">
         <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
       </template>
       <template v-else>
