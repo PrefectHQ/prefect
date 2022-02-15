@@ -5,7 +5,7 @@ from pathlib import PosixPath
 from uuid import uuid4
 
 import fsspec
-from fastapi import Request, Response, status, HTTPException
+from fastapi import HTTPException, Request, Response, status
 
 from prefect.orion.schemas.data import get_instance_data_location
 from prefect.orion.utilities.schemas import PrefectBaseModel
