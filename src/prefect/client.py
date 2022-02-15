@@ -73,7 +73,10 @@ def inject_client(fn):
 
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
-    return OrionClient(profile.settings.api_url or create_app(profile.settings.orion))
+    return OrionClient(
+        profile.settings.api_url or create_app(profile.settings.orion),
+        api_key=profile.settings.api_key,
+    )
 
 
 class OrionClient:
@@ -97,8 +100,9 @@ class OrionClient:
 
     def __init__(
         self,
-        api: Union[str, FastAPI] = None,
+        api: Union[str, FastAPI],
         *,
+        api_key: str = None,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
@@ -106,7 +110,10 @@ class OrionClient:
 
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
-        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_version:
+            httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_key:
+            httpx_settings["headers"].setdefault({"Authorization": f"Bearer {api_key}"})
 
         # Connect to an external application
         if isinstance(api, str):
