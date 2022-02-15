@@ -98,6 +98,15 @@ async def update_block_data(
     return result.rowcount > 0
 
 
+def pack_blockdata(raw_block):
+    raw_blockdata = dict()
+    raw_blockdata["name"] = raw_block.pop("blockname")
+    raw_blockdata["blockref"] = raw_block.pop("blockref")
+    raw_block.pop("blockid", None)
+    raw_blockdata["data"] = raw_block
+    return raw_blockdata
+
+
 def unpack_blockdata(blockdata):
     if blockdata:
         block = {

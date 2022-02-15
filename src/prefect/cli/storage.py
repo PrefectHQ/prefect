@@ -34,12 +34,12 @@ async def configure(storage_type: str):
         )
 
         if storage_type == "local":
-            await client.create_block_data(
-                name="ORION-CONFIG-STORAGE", blockref="localstorage-block", data=dict()
+            await client.create_block(
+                name="ORION-CONFIG-STORAGE", blockref="localstorage-block"
             )
         elif storage_type == "orion":
-            await client.create_block_data(
-                name="ORION-CONFIG-STORAGE", blockref="orionstorage-block", data=dict()
+            await client.create_block(
+                name="ORION-CONFIG-STORAGE", blockref="orionstorage-block"
             )
         elif storage_type == "s3":
             console.print("Follow the prompts to configure s3 storage")
@@ -53,8 +53,8 @@ async def configure(storage_type: str):
                 "What s3 bucket would you like to persist data to?"
             )
 
-            await client.create_block_data(
-                name="ORION-CONFIG-STORAGE", blockref="s3storage-block", data=s3_data
+            await client.create_block(
+                name="ORION-CONFIG-STORAGE", blockref="s3storage-block", **s3_data
             )
 
         exit_with_success("Successfully configured Orion storage location!")

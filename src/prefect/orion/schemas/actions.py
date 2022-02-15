@@ -158,6 +158,11 @@ class BlockDataCreate(
     """Data used by the Orion API to create a block data container."""
 
 
+class BlockCreate(PrefectBaseModel):
+    block: dict
+    """Data used by the Orion API to create a block data container."""
+
+
 class BlockDataUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block data container."""
 
