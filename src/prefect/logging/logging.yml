@@ -1,6 +1,9 @@
 # Prefect logging config file.
 #
-# Templated values can be used to insert settings at runtime.
+# Any item in this file can be overridden with an environment variable:
+#    `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+#
+# Templated values can be used to insert values from the Prefect settings at runtime.
 
 version: 1
 disable_existing_loggers: False
