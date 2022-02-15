@@ -20,13 +20,15 @@ router = OrionRouter(prefix="/blocks", tags=["Block data"])
 
 @router.post("/")
 async def create_block(
-    block_data: schemas.actions.BlockDataCreate,
+    block: schemas.actions.BlockCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockData:
 
     # hydrate the input model into a full model
+    raw_blockdata = models.block_data.pack_blockdata(block.block)
+    block_data = schemas.actions.BlockDataCreate(**raw_blockdata)
     block_data_model = schemas.core.BlockData(**block_data.dict())
 
     try:

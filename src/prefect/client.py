@@ -574,26 +574,27 @@ class OrionClient:
 
         return True
 
-    async def create_block_data(
+    async def create_block(
         self,
         name: str,
         blockref: str,
-        data: dict,
+        **fields,
     ) -> Optional[UUID]:
         """
         Create block data in Orion. This data is used to configure a corresponding
         BlockAPI.
         """
+        raw_block = {
+            "blockname": name,
+            "blockref": blockref,
+            **fields,
+        }
 
-        block_data_create = schemas.actions.BlockDataCreate(
-            name=name,
-            blockref=blockref,
-            data=data,
-        )
+        block_create = schemas.actions.BlockCreate(block=raw_block)
         try:
             response = await self.post(
                 "/blocks/",
-                json=block_data_create.dict(json_compatible=True),
+                json=block_create.dict(json_compatible=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
@@ -914,10 +915,9 @@ class OrionClient:
         try:
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
         except httpx.HTTPStatusError:
-            await self.create_block_data(
+            await self.create_block(
                 name="ORION-CONFIG-STORAGE",
                 blockref="orionstorage-block",
-                data=dict(),
             )
             storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
 

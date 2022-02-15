@@ -123,13 +123,11 @@ class TestBlockClient:
 
     async def test_create_then_read_blocks(self, orion_client):
 
-        blockid = await orion_client.create_block_data(
+        blockid = await orion_client.create_block(
             name="a block with many secrets",
             blockref="a fun friendship",
-            data={
-                "a_secret": "personally i cant stand eggs",
-                "another_secret": "i eat pineapple with pizza",
-            },
+            a_secret="personally i cant stand eggs",
+            another_secret="i eat pineapple with pizza",
         )
 
         block_by_name = await orion_client.read_block_by_name(
@@ -145,13 +143,11 @@ class TestBlockClient:
         assert block_by_name is not block_by_id
 
     async def test_deleting_blocks(self, orion_client):
-        blockid = await orion_client.create_block_data(
+        blockid = await orion_client.create_block(
             name="a block with lame secrets",
             blockref="a fun friendship",
-            data={
-                "a_secret": "i smoked a cigarette once",
-                "another_secret": "i jaywalk sometimes",
-            },
+            a_secret="i smoked a cigarette once",
+            another_secret="i jaywalk sometimes",
         )
 
         block = await orion_client.read_block_by_name("a block with lame secrets")
@@ -165,13 +161,11 @@ class TestBlockClient:
             await orion_client.read_block_by_name("a block with lame secrets")
 
     async def test_renaming_blocks(self, orion_client):
-        blockid = await orion_client.create_block_data(
+        blockid = await orion_client.create_block(
             name="mysterious and cool",
             blockref="a fun friendship",
-            data={
-                "a_secret": "i never shower",
-                "another_secret": "i hate dogs",
-            },
+            a_secret="i never shower",
+            another_secret="i hate dogs",
         )
 
         block = await orion_client.read_block_by_name("mysterious and cool")
