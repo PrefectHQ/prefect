@@ -50,13 +50,13 @@ export class FiltersQueryService {
     return union
   }
 
-  public static flowHistoryQuery(filters: Required<Filter>[]): FlowRunsHistoryFilter {
+  public static flowHistoryQuery(filters: Required<Filter>[], defaultHistoryStart?: Date, defaultHistoryEnd?: Date): FlowRunsHistoryFilter {
     const query = this.query(filters)
     const queryEnd = query.flow_runs?.expected_start_time?.before_
     const queryStart = query.flow_runs?.expected_start_time?.after_
 
-    const historyEnd = queryEnd ? new Date(queryEnd) : addHours(new Date(), 1)
-    const historyStart = queryStart ? new Date(queryStart) : subDays(historyEnd, 7)
+    const historyEnd = queryEnd ? new Date(queryEnd) : defaultHistoryEnd ? defaultHistoryEnd : addHours(new Date(), 1)
+    const historyStart = queryStart ? new Date(queryStart) : defaultHistoryStart ? defaultHistoryStart : subDays(historyEnd, 7)
     const interval = this.createInterval(historyStart, historyEnd)
 
     return {
@@ -166,7 +166,7 @@ export class FiltersQueryService {
           query.tags.all_?.push(...filter.value)
           break
         case 'start_date':
-        // eslint-disable-next-line camelcase
+          // eslint-disable-next-line camelcase
           query.start_time ??= {}
 
           switch (filter.operation) {
