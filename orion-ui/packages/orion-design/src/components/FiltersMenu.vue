@@ -16,6 +16,7 @@
         />
       </div>
     </template>
+
     <div class="filters-menu__filters">
       <template v-for="(filter, index) in tempFilters" :key="filter.id">
         <FilterBuilder :filter="filter" dismissable expanded @update:filter="updateFilter(index, $event)" @dismiss="removeFilter(index)" />
@@ -153,6 +154,7 @@
   display: grid;
   gap: var(--m-1);
   padding: var(--p-2);
+  max-height: 85vh;
 }
 
 .filters-menu__footer {
