@@ -21,7 +21,9 @@
 </template>
 
 <script lang="ts" setup>
+  // eslint-disable-next-line import/no-duplicates
   import isDate from 'date-fns/isDate'
+  // eslint-disable-next-line import/no-duplicates
   import startOfToday from 'date-fns/startOfToday'
   import { Ref, computed, onMounted, watch } from 'vue'
   import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
@@ -47,15 +49,13 @@
   })
 
   watch(() => props.operation, () => {
-    if(props.operation === undefined) {
+    if (props.operation === undefined) {
       return
     }
 
-    if(isRelativeDateOperation(props.operation) && typeof props.value !== 'string') {
+    if (isRelativeDateOperation(props.operation) && typeof props.value !== 'string') {
       emit('update:value', '1h')
-    }
-
-    else if(isDateOperation(props.operation) && !isDate(props.value)) {
+    } else if (isDateOperation(props.operation) && !isDate(props.value)) {
       emit('update:value', startOfToday())
     }
   })
