@@ -49,10 +49,9 @@ import { media, toPluralString } from '@prefecthq/orion-design/utilities'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
-import { Filter } from '@/../packages/orion-design/src/types/filters'
-import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
-import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { Filter, useFiltersStore } from '@prefecthq/orion-design'
+import { hasFilter } from '@prefecthq/orion-design/utilities'
+import { FilterUrlService } from '@prefecthq/orion-design/services'
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{ item: FlowRun }>()
