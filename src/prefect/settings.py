@@ -467,12 +467,15 @@ def get_default_settings() -> Settings:
     return _DEFAULTS_CACHE
 
 
-# Loading settings to/from profiles
+# Profile input / output
 
 DEFAULT_PROFILES = {"default": {}}
 
 
 def load_profiles() -> Dict[str, Dict[str, str]]:
+    """
+    Load all profiles from the profiles path.
+    """
     path = get_settings_from_env().get(PREFECT_PROFILES_PATH)
     if not path.exists():
         profiles = DEFAULT_PROFILES
@@ -483,7 +486,22 @@ def load_profiles() -> Dict[str, Dict[str, str]]:
 
 
 def write_profiles(profiles: dict):
+    """
+    Writes all profiles to the profiles path.
+
+    Existing data will be lost.
+
+    Asserts that all variables are known settings names.
+    """
     path = get_settings_from_env().get(PREFECT_PROFILES_PATH)
+
+    for profile, variables in profiles.items():
+        unknown_keys = set(variables).difference(SETTINGS)
+        if unknown_keys:
+            raise ValueError(
+                f"Unknown setting(s) found in profile {profile!r}: {unknown_keys}"
+            )
+
     profiles = {**DEFAULT_PROFILES, **profiles}
     return path.write_text(toml.dumps(profiles))
 
@@ -492,7 +510,8 @@ def load_profile(name: str) -> Dict[str, str]:
     """
     Loads a profile from the TOML file.
 
-    Asserts that all variables are valid string key/value pairs.
+    Asserts that all variables are valid string key/value pairs and that keys are valid
+    setting names.
     """
     profiles = load_profiles()
 
@@ -507,5 +526,9 @@ def load_profile(name: str) -> Dict[str, str]:
             raise TypeError(
                 f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
             ) from exc
+
+    unknown_keys = set(variables).difference(SETTINGS)
+    if unknown_keys:
+        raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
 
     return variables
