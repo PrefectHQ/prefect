@@ -8,9 +8,10 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, Response
 from starlette import status
 
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/logs", tags=["Logs"])
@@ -29,11 +30,7 @@ async def create_logs(
 
 @router.post("/filter")
 async def read_logs(
-    limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit,
-        ge=0,
-        le=prefect.settings.from_env().orion.api.default_limit,
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,
     sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),

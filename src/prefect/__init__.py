@@ -16,8 +16,8 @@ del _version
 # User-facing API
 # For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
 
-from .logging.loggers import get_run_logger
 from .orion.schemas.states import State
+from .logging import get_run_logger
 from .flows import flow
 from .tasks import task
 from .context import tags
@@ -28,4 +28,4 @@ import prefect.serializers
 # Iniitialize the process level profile at import time
 import prefect.context
 
-prefect.context.initialize_module_profile()
+prefect.context.enter_global_profile()

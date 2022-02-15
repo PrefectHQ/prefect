@@ -11,7 +11,7 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.utilities.asyncio import sync_compatible
 
 concurrency_limit_app = PrefectTyper(
@@ -30,7 +30,7 @@ async def create(tag: str, concurrency_limit: int):
     Running state.
     """
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         await client.create_concurrency_limit(
             tag=tag, concurrency_limit=concurrency_limit
         )
@@ -46,7 +46,7 @@ async def read(tag: str):
     which are currently using a concurrency slot.
     """
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         result = await client.read_concurrency_limit_by_tag(tag=tag)
 
     console.print(Pretty(result))
@@ -58,7 +58,7 @@ async def ls(limit: int = 15, offset: int = 0):
     View all concurrency limits.
     """
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         result = await client.read_concurrency_limits(limit=limit, offset=offset)
 
     console.print(Pretty(result))
@@ -70,10 +70,10 @@ async def delete(tag: str):
     Delete the concurrency limit set on the specified tag.
     """
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         result = await client.delete_concurrency_limit_by_tag(tag=tag)
 
     if result:
         exit_with_success(f"Deleted concurrency limit set on the tag: {tag}")
     else:
-        exit_with_failure(f"No concurrency limit found for the tag: {tag}")
+        exit_with_error(f"No concurrency limit found for the tag: {tag}")

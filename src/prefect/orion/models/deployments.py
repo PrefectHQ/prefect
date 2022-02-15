@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 import prefect
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -302,13 +302,13 @@ async def schedule_runs(
         a list of flow run ids scheduled for the deployment
     """
     if max_runs is None:
-        max_runs = prefect.settings.from_env().orion.services.scheduler_max_runs
+        max_runs = prefect.settings.from_context().orion.services.scheduler_max_runs
     if start_time is None:
         start_time = pendulum.now("UTC")
     start_time = pendulum.instance(start_time)
     if end_time is None:
         end_time = start_time + (
-            prefect.settings.from_env().orion.services.scheduler_max_scheduled_time
+            prefect.settings.from_context().orion.services.scheduler_max_scheduled_time
         )
     end_time = pendulum.instance(end_time)
 
