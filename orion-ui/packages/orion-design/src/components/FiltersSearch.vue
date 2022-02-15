@@ -36,6 +36,7 @@
   import { FilterService } from '@/services/FilterService'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore, FilterState } from '@/stores/filters'
+  import { media } from '@/utilities/media'
   import { toPluralString } from '@/utilities/strings'
 
   defineProps<{

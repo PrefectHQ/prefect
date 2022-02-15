@@ -1,9 +1,9 @@
 /* eslint-disable no-dupe-class-members */
+import { UnionFilters } from '@/services/Filter'
 import { FilterDescriptionService } from '@/services/FilterDescriptionService'
 import { FilterParseService } from '@/services/FilterParseService'
 import { FiltersQueryService } from '@/services/FiltersQueryService'
 import { FilterStringifyService } from '@/services/FilterStringifyService'
-import { UnionFilters } from '@/services/UnionFilters'
 import { Filter } from '@/types/filters'
 
 export class FilterService {
