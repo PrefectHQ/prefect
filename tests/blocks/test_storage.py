@@ -1,4 +1,5 @@
 import pytest
+from tempfile import TemporaryDirectory
 from itertools import product
 from prefect.blocks import storage
 
@@ -8,7 +9,13 @@ user_data = [
     bytes([0, 1, 2]),
 ]
 
-storage_blocks = [storage.TempStorageBlock.parse_obj({"blockref": "tempstorage-block"})]
+storage_blocks = [
+    storage.OrionStorageBlock.parse_obj({"blockref": "orionstorage-block"}),
+    storage.TempStorageBlock.parse_obj({"blockref": "tempstorage-block"}),
+    storage.LocalStorageBlock.parse_obj(
+        {"blockref": "localstorage-block", "storage_path": TemporaryDirectory().name}
+    ),
+]
 
 
 @pytest.mark.parametrize(
