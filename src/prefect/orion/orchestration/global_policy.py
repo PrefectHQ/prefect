@@ -9,7 +9,7 @@ Because these transforms record information about the validated state committed 
 state database, they should be the most deeply nested contexts in orchestration loop.
 """
 
-from prefect.orion import models
+import prefect.orion.models as models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
