@@ -23,13 +23,13 @@ class Setting(Generic[T]):
         self,
         type: Type[T],
         *,
-        get_callback: Callable[["Settings", T], T] = None,
+        value_callback: Callable[["Settings", T], T] = None,
         **kwargs,
     ) -> None:
         self.field = Field(**kwargs)
         self.type = type
         self.name = None  # Will be populated after all settings are defined
-        self.get_callback = get_callback
+        self.value_callback = value_callback
 
     def value(self) -> T:
         """
@@ -60,7 +60,7 @@ class Setting(Generic[T]):
 
 def get_extra_loggers(_: "Settings", value: str) -> List[str]:
     """
-    `get_callback` for `PREFECT_LOGGING_EXTRA_LOGGERS`that parses the CSV string into a
+    `value_callback` for `PREFECT_LOGGING_EXTRA_LOGGERS`that parses the CSV string into a
     list and trims whitespace from logger names.
     """
     return [name.strip() for name in value.split(",")] if value else []
@@ -68,7 +68,7 @@ def get_extra_loggers(_: "Settings", value: str) -> List[str]:
 
 def debug_mode_log_level(settings, value):
     """
-    `get_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
+    `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
     when debug mode is enabled.
     """
     if PREFECT_DEBUG_MODE.value_from(settings):
@@ -79,7 +79,7 @@ def debug_mode_log_level(settings, value):
 
 def template(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
-    Returns a `get_callback` that will template the given settings into the runtime
+    Returns a `value_callback` that will template the given settings into the runtime
     value for the setting.
     """
 
@@ -150,7 +150,7 @@ PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
     description="""The path to a profiles configuration files.""",
-    get_callback=template(PREFECT_HOME),
+    value_callback=template(PREFECT_HOME),
 )
 
 PREFECT_LOGGING_LEVEL = Setting(
@@ -158,7 +158,7 @@ PREFECT_LOGGING_LEVEL = Setting(
     default="INFO",
     description="""The default logging level for Prefect loggers. Defaults to 
     "INFO" during normal operation. Is forced to "DEBUG" during debug mode.""",
-    get_callback=debug_mode_log_level,
+    value_callback=debug_mode_log_level,
 )
 
 PREFECT_LOGGING_SERVER_LEVEL = Setting(
@@ -172,7 +172,7 @@ PREFECT_LOGGING_SETTINGS_PATH = Setting(
     default=Path("${PREFECT_HOME}/logging.yml"),
     description=f"""The path to a custom YAML logging configuration file. If
     no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
-    get_callback=template(PREFECT_HOME),
+    value_callback=template(PREFECT_HOME),
 )
 
 PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
@@ -183,7 +183,7 @@ PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
     will be added to these loggers. Additionally, if the level is not set, it will
     be set to the same level as the 'prefect' logger.
     """,
-    get_callback=get_extra_loggers,
+    value_callback=get_extra_loggers,
 )
 
 PREFECT_LOGGING_ORION_ENABLED = Setting(
@@ -267,7 +267,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
         Defaults to a sqlite database stored in the Prefect home directory.
         """
     ),
-    get_callback=template(PREFECT_HOME),
+    value_callback=template(PREFECT_HOME),
 )
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
@@ -406,8 +406,8 @@ class PrefectBaseSettings(BaseSettings):
         `settings.value_of(SETTING)`
         """
         value = getattr(self, setting.name)
-        if setting.get_callback:
-            value = setting.get_callback(self, value)
+        if setting.value_callback:
+            value = setting.value_callback(self, value)
         return value
 
     @root_validator

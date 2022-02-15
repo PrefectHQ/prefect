@@ -41,6 +41,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
+from prefect.settings import PREFECT_API_URL
 from prefect.utilities.testing import AsyncMock, temporary_settings
 
 
@@ -974,7 +975,7 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert runtime_settings.api_url == hosted_orion_api.replace(
+        assert PREFECT_API_URL.value_from(runtime_settings) == hosted_orion_api.replace(
             "localhost", "host.docker.internal"
         )
 
