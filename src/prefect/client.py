@@ -24,9 +24,9 @@ import httpx
 import pydantic
 
 import prefect
+import prefect.orion.schemas as schemas
 from prefect import exceptions, settings
 from prefect.logging import get_logger
-from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult

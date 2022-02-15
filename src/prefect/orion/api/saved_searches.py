@@ -9,9 +9,10 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/saved_searches", tags=["SavedSearchs"])
