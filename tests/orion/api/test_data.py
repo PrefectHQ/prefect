@@ -1,7 +1,9 @@
 import fsspec
 import pytest
 
+from fastapi import HTTPException
 import prefect.settings
+from pathlib import PosixPath
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.testing import temporary_settings
 
@@ -24,48 +26,29 @@ class TestPersistData:
             bytes([0, 1, 2]),
         ],
     )
-    async def test_file_location_is_returned(
+    async def test_persisting_and_retrieving_data(
         self, client, tmpdir_dataloc_settings, user_data
     ):
 
-        response = await client.post("/data/persist", content=user_data)
-        assert response.status_code == 201
+        persist_response = await client.post("/data/persist", content=user_data)
+        assert persist_response.status_code == 201
 
-        # We have received a file system document
-        file_location = response.json()
+        # We have received a file identifier
+        file_identifier = persist_response.json()
 
-        # It saved it to a path respecting our dataloc
-        path = file_location["path"]
-        assert path.startswith(
-            f"{tmpdir_dataloc_settings.scheme}://{tmpdir_dataloc_settings.base_path}"
-        )
+        # The file identifier obscures information about the actual file location
+        assert len(PosixPath(file_identifier["id"]).parts) == 1
 
-        # This file contains our data
-        with fsspec.open(path, mode="rb") as fp:
-            data = fp.read()
-        assert data == user_data
-
-
-class TestRetrieveData:
-    @pytest.mark.parametrize(
-        "user_data",
-        [
-            # Test a couple forms of bytes
-            DataDocument(encoding="foo", blob=b"hello").json().encode(),
-            b"test!",
-            bytes([0, 1, 2]),
-        ],
-    )
-    async def test_retrieve_data(self, client, tmp_path, user_data):
-        path = str(tmp_path.joinpath("data"))
-
-        # Write some data to disk
-        with fsspec.open(path, mode="wb") as fp:
-            fp.write(user_data)
-        return True
-
-        # The user data document should be returned
-        response = await client.post("/data/retrieve", json={"path": path})
-        assert response.status_code == 200
-        returned_data = response.content
+        # This identifier can be used to retrieve data
+        retrieve_response = await client.post("/data/retrieve", json=file_identifier)
+        assert retrieve_response.status_code == 200
+        returned_data = retrieve_response.content
         assert returned_data == user_data
+
+    async def test_retrieving_data_cannot_receive_complex_paths(
+        self, client, tmpdir_dataloc_settings
+    ):
+        malicious_file_identifier = {"id": "../../file-i-shouldnt-access"}
+
+        response = await client.post("/data/retrieve", json=malicious_file_identifier)
+        assert response.status_code == 403
