@@ -12,7 +12,8 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import models, schemas
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy, MinimalFlowPolicy

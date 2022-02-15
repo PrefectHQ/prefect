@@ -13,6 +13,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,

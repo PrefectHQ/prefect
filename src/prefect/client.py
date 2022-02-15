@@ -7,8 +7,8 @@ Explore the client by communicating with an in-memory webserver - no setup requi
 ```
 $ # start python REPL with native await functionality
 $ python -m asyncio
->>> from prefect.client import OrionClient
->>> async with OrionClient() as client:
+>>> from prefect.client import get_client
+>>> async with get_client() as client:
 ...     response = await client.hello()
 ...     print(response.json())
 👋
@@ -22,19 +22,21 @@ from uuid import UUID
 import anyio
 import httpx
 import pydantic
+from fastapi import FastAPI
 
 import prefect
-from prefect import exceptions, settings
+import prefect.exceptions
+import prefect.orion.schemas as schemas
+import prefect.settings
 from prefect.logging import get_logger
-from prefect.orion import schemas
-from prefect.orion.api.server import ORION_API_VERSION
-from prefect.orion.api.server import app as orion_app
+from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
+from prefect.utilities.asyncio import asyncnullcontext
 
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner
@@ -52,30 +54,87 @@ def inject_client(fn):
     """
 
     @wraps(fn)
-    async def wrapper(*args, **kwargs):
+    async def with_injected_client(*args, **kwargs):
+        client = None
+
         if "client" in kwargs and kwargs["client"] is not None:
-            return await fn(*args, **kwargs)
+            client = kwargs["client"]
+            client_context = asyncnullcontext()
         else:
-            client = OrionClient()
-            async with client:
-                kwargs["client"] = client
-                return await fn(*args, **kwargs)
+            kwargs.pop("client", None)  # Remove null values
+            client_context = get_client()
 
-    return wrapper
+        async with client_context as client:
+            kwargs.setdefault("client", client)
+            return await fn(*args, **kwargs)
+
+    return with_injected_client
 
 
-class HTTPXClient:
+def get_client() -> "OrionClient":
+    profile = prefect.context.get_profile_context()
+    return OrionClient(
+        profile.settings.api_url or create_app(profile.settings.orion),
+        api_key=profile.settings.api_key,
+    )
+
+
+class OrionClient:
     """
-    An asynchronous client for making http requests
+    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
 
     Args:
+        host: the Orion API URL
         httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
 
+    Examples:
+
+        Say hello to an Orion server
+
+        >>> async with get_client() as client:
+        >>>     response = await client.hello()
+        >>>
+        >>> print(response.json())
+        👋
     """
 
-    def __init__(self, httpx_settings: dict = None) -> None:
-        httpx_settings = httpx_settings or {}
+    def __init__(
+        self,
+        api: Union[str, FastAPI],
+        *,
+        api_key: str = None,
+        api_version: str = ORION_API_VERSION,
+        httpx_settings: dict = None,
+    ) -> None:
+        httpx_settings = httpx_settings.copy() if httpx_settings else {}
+        httpx_settings.setdefault("headers", {})
+        if api_version:
+            httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_key:
+            httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        # Connect to an external application
+        if isinstance(api, str):
+            if httpx_settings.get("app"):
+                raise ValueError(
+                    "Invalid httpx settings: `app` cannot be set with `api`, "
+                    "`app` is only for use with ephemeral instances. Provide it as the "
+                    "`api` parameter instead."
+                )
+            httpx_settings.setdefault("base_url", api)
+
+        # Connect to an in-process application
+        elif isinstance(api, FastAPI):
+            httpx_settings.setdefault("app", api)
+            httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
+
+        else:
+            raise TypeError(
+                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
+            )
+
         self._client = httpx.AsyncClient(**httpx_settings)
+        self.logger = get_logger("client")
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         """
@@ -159,60 +218,6 @@ class HTTPXClient:
         response.raise_for_status()
         return response
 
-
-class OrionClient(HTTPXClient):
-    """
-    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
-
-    Args:
-        host: the Orion API URL
-        httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
-
-    Examples:
-
-        Say hello to an Orion server
-
-        >>> async with OrionClient() as client:
-        >>>     response = await client.hello()
-        >>>
-        >>> print(response.json())
-        👋
-    """
-
-    def __init__(
-        self,
-        host: str = prefect.settings.from_env().orion_host,
-        api_key: str = prefect.settings.from_env().api_key,
-        api_version: str = ORION_API_VERSION,
-        httpx_settings: dict = None,
-    ) -> None:
-
-        httpx_settings = httpx_settings or {}
-
-        # set headers
-        if "headers" not in httpx_settings:
-            httpx_settings["headers"] = {}
-        if api_key:
-            httpx_settings["headers"].update({"Authorization": f"Bearer {authorization}"})
-        if api_version:
-            httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
-
-        if host:
-            # Connect to an existing instance
-            if "app" in httpx_settings:
-                raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set with `host`, "
-                    "`app` is only for use with ephemeral instances."
-                )
-            httpx_settings.setdefault("base_url", host)
-        else:
-            # Connect to an ephemeral app
-            httpx_settings.setdefault("app", orion_app)
-            httpx_settings.setdefault("base_url", "http://orion/api")
-
-        super().__init__(httpx_settings)
-        self.logger = get_logger("client")
-
     # API methods ----------------------------------------------------------------------
 
     async def hello(self) -> httpx.Response:
@@ -264,7 +269,7 @@ class OrionClient(HTTPXClient):
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
         """
@@ -664,7 +669,7 @@ class OrionClient(HTTPXClient):
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> schemas.core.Deployment:
         """
@@ -723,7 +728,7 @@ class OrionClient(HTTPXClient):
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.FlowRun]:
         """
@@ -975,7 +980,7 @@ class OrionClient(HTTPXClient):
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.TaskRunSort = None,
-        limit: int = prefect.settings.from_env().orion.api.default_limit,
+        limit: int = None,
         offset: int = 0,
     ) -> List[schemas.core.TaskRun]:
         """
@@ -1085,7 +1090,7 @@ class OrionClient(HTTPXClient):
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise exceptions.Abort(response.details.reason)
+            raise prefect.exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
             self.logger.debug(

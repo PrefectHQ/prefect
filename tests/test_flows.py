@@ -1,13 +1,15 @@
 import enum
 import time
 from typing import List
+from unittest.mock import MagicMock
 
 import anyio
 import pydantic
 import pytest
 
+import prefect.context
 from prefect import flow, get_run_logger, tags, task
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
@@ -107,11 +109,28 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
+
+    async def test_call_initializes_current_profile(self):
+        @flow
+        def foo():
+            pass
+
+        mock = MagicMock()
+
+        global_profile = prefect.context.get_profile_context()
+        with prefect.context.ProfileContext(
+            name="test", settings=global_profile.settings, env=global_profile.env
+        ) as profile:
+            object.__setattr__(profile, "initialize", mock)
+
+            foo()
+
+        mock.assert_called_once_with()
 
     async def test_async_call_creates_flow_run_and_runs(self):
         @flow(version="test")
@@ -123,7 +142,7 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
@@ -972,10 +991,17 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
-        assert all([log.flow_run_id == flow_run_id for log in logs[:-1]])
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert "Hello world!" in log_messages, "Parent log message is present"
+        assert (
+            logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id
+        ), "Parent log message has correct id"
+        assert "Hello smaller world!" in log_messages, "Child log message is present"
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        ), "Child log message has correct id"
 
     async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
         @task
@@ -1000,8 +1026,11 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
-        assert len(task_run_logs) == 1
-        assert task_run_logs[0].flow_run_id == subflow_run_id
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
+        assert "Hello smaller world!" in log_messages
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        )

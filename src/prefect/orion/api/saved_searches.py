@@ -9,9 +9,10 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/saved_searches", tags=["SavedSearchs"])
@@ -63,11 +64,7 @@ async def read_saved_search(
 
 @router.post("/filter")
 async def read_saved_searches(
-    limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit,
-        ge=0,
-        le=prefect.settings.from_env().orion.api.default_limit,
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.SavedSearch]:
