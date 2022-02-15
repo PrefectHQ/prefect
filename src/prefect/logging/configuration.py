@@ -1,4 +1,3 @@
-import json
 import logging
 import logging.config
 import os
@@ -18,15 +17,17 @@ from prefect.settings import (
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
-# This path will be used if `Settings.settings_path` does not exist
+# This path will be used if `PREFECT_LOGGING_SETTINGS_PATH` is null
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
+
+# Stores the configuration used to setup logging in this Python process
+PROCESS_LOGGING_CONFIG: dict = None
+
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 # Regex for detecting interpolated global settings
 interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
-
-PROCESS_LOGGING_CONFIG: dict = None
 
 
 def load_logging_config(path: Path, settings: Settings) -> dict:
