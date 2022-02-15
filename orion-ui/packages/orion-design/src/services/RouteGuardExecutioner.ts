@@ -8,6 +8,8 @@ export class RouteGuardExecutioner {
     const guards = this.getRouteGuards(to)
 
     for (const guard of guards) {
+      // this is intentional to allow each guard to cancel navigation
+      // eslint-disable-next-line no-await-in-loop
       const result = await guard.before?.(to, from)
 
       if (this.isRouteLocation(result)) {
