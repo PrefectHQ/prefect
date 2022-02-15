@@ -7,7 +7,8 @@ from fastapi import Body, Depends, Response, status
 from sqlalchemy import orm
 
 import prefect
-from prefect.orion.api import dependencies
+import prefect.orion.api.dependencies as dependencies
+import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
@@ -22,9 +23,9 @@ async def hello():
 
 
 @router.get("/settings")
-async def read_settings() -> prefect.utilities.settings.Settings:
+async def read_settings() -> prefect.settings.Settings:
     """Get the current Orion settings"""
-    return prefect.settings
+    return prefect.settings.from_context()
 
 
 @router.get("/version")

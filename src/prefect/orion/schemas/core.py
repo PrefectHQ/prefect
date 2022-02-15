@@ -10,7 +10,7 @@ import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
@@ -326,12 +326,24 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
+class SavedSearchFilter(PrefectBaseModel):
+    """A filter for a saved search model"""
+
+    object: str = Field(..., description="The object over which to filter.")
+    property: str = Field(
+        ..., description="The property of the object on which to filter."
+    )
+    type: str = Field(..., description="TODO")
+    operation: str = Field(..., description="TODO")
+    value: str = Field(..., description="TODO")
+
+
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(..., description="The name of the saved search.")
-    filters: dict = Field(
-        default_factory=dict, description="The filter set for the saved search."
+    filters: List[SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
     )
 
 

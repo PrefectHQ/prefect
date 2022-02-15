@@ -10,9 +10,11 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
-from prefect import settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies, run_history
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
+import prefect.settings
+from prefect.orion.api.run_history import run_history
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -93,7 +95,7 @@ async def task_run_history(
             detail="History interval must not be less than 1 second.",
         )
 
-    return await run_history.run_history(
+    return await run_history(
         session=session,
         run_type="task_run",
         history_start=history_start,
@@ -125,9 +127,7 @@ async def read_task_run(
 @router.post("/filter")
 async def read_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
-    limit: int = Body(
-        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,

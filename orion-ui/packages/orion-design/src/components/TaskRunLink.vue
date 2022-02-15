@@ -10,8 +10,8 @@
 <script lang="ts" setup>
   import { subscribe } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { taskRunsApi } from '../services/TaskRunsApi'
-  import StateTypeIcon from './StateTypeIcon.vue'
+  import StateTypeIcon from '@/components/StateTypeIcon.vue'
+  import { taskRunsApi } from '@/services/TaskRunsApi'
 
   const props = defineProps({
     taskId: {

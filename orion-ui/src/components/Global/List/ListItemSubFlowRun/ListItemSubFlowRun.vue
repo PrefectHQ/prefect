@@ -20,7 +20,7 @@
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="store.getters['filter/baseInterval']"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
@@ -44,12 +44,10 @@ import { Api, Query, Endpoints } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import { Buckets } from '@/typings/run_history'
-import { useStore } from 'vuex'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { media, toPluralString } from '@prefecthq/orion-design/utilities'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
-const store = useStore()
 const props = defineProps<{ item: TaskRun }>()
 
 const start = computed(() => {

@@ -1,5 +1,5 @@
-import { StateType } from './StateType'
-import { IState } from './State'
+import { IState } from '@/models/State'
+import { StateType } from '@/models/StateType'
 
 export interface ITaskRun {
   id: string,

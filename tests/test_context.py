@@ -1,17 +1,25 @@
+import textwrap
 from contextvars import ContextVar
+from unittest.mock import ANY, MagicMock
 
 import pytest
 from pendulum.datetime import DateTime
 
+import prefect.settings
 from prefect import flow, task
 from prefect.context import (
     ContextModel,
     FlowRunContext,
+    ProfileContext,
     TaskRunContext,
+    enter_global_profile,
+    get_profile_context,
     get_run_context,
+    profile,
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
+from prefect.utilities.testing import temporary_settings
 
 
 class ExampleContext(ContextModel):
@@ -102,3 +110,127 @@ async def test_get_run_context(orion_client):
             assert get_run_context() is task_ctx, "Task context takes precendence"
 
         assert get_run_context() is flow_ctx, "Flow context is restored and retrieved"
+
+
+class TestProfilesContext:
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path):
+        path = tmp_path / "profiles.toml"
+        with temporary_settings(PREFECT_PROFILES_PATH=path):
+            yield path
+
+    def test_profile_context_variable(self):
+        with ProfileContext(
+            name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
+        ) as context:
+            assert get_profile_context() is context
+            assert context.name == "test"
+            assert context.settings == prefect.settings.from_env()
+            assert context.env == {"FOO": "BAR"}
+
+    def test_get_profile_context_missing(self, monkeypatch):
+        # It's kind of hard to actually exit the default profile, so we patch `get`
+        monkeypatch.setattr(
+            "prefect.context.ProfileContext.get", MagicMock(return_value=None)
+        )
+        with pytest.raises(MissingContextError, match="No profile"):
+            get_profile_context()
+
+    def test_profile_context_creates_home_if_asked(
+        self, tmp_path, temporary_profiles_path
+    ):
+        home = tmp_path / "home"
+        assert not home.exists()
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                f"""
+                [foo]
+                PREFECT_HOME = "{home}"
+                """
+            )
+        )
+        with profile("foo", initialize=False) as ctx:
+            ctx.initialize(create_home=True)
+
+        assert home.exists()
+
+    def test_profile_context_uses_settings(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_API_URL="test"
+                """
+            )
+        )
+        with profile("foo") as ctx:
+            assert prefect.settings.from_context().api_url == "test"
+            assert ctx.settings == prefect.settings.from_context()
+            assert ctx.env == {"PREFECT_API_URL": "test"}
+            assert ctx.name == "foo"
+
+    def test_profile_context_sets_up_logging_if_asked(
+        self, monkeypatch, temporary_profiles_path
+    ):
+        setup_logging = MagicMock()
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_API_URL = "test"
+                """
+            )
+        )
+        with profile("foo", initialize=False) as ctx:
+            ctx.initialize(setup_logging=True)
+            setup_logging.assert_called_once_with(ctx.settings.logging)
+
+    def test_profile_context_does_not_setup_logging_if_asked(self, monkeypatch):
+        setup_logging = MagicMock()
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+
+        with profile("default", initialize=False) as ctx:
+            ctx.initialize(setup_logging=False)
+            setup_logging.assert_not_called()
+
+    def test_profile_context_nesting(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                [foo]
+                PREFECT_API_URL="foo"
+
+                [bar]
+                PREFECT_API_URL="bar"
+                """
+            )
+        )
+        with profile("foo") as foo_context:
+            with profile("bar") as bar_context:
+                assert bar_context.settings == prefect.settings.from_context()
+                assert bar_context.settings.api_url == "bar"
+                assert bar_context.env == {"PREFECT_API_URL": "bar"}
+                assert bar_context.name == "bar"
+            assert foo_context.settings == prefect.settings.from_context()
+            assert foo_context.settings.api_url == "foo"
+            assert foo_context.env == {"PREFECT_API_URL": "foo"}
+            assert foo_context.name == "foo"
+
+    def test_enter_global_profilee(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        enter_global_profile()
+        profile.assert_called_once_with(name="default", initialize=False)
+        profile().__enter__.assert_called_once_with()
+
+    def test_enter_global_profilee_respects_name_env_variable(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setenv("PREFECT_PROFILE", "test")
+        enter_global_profile()
+        profile.assert_called_once_with(name="test", initialize=False)

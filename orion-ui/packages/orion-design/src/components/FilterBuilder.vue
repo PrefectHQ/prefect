@@ -20,7 +20,7 @@
           <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
         </template>
         <template v-else>
-          <FilterBuilderValue v-model:type="innerFilter.type" v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :property="innerFilter.property" />
+          <FilterBuilderValue v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :object="innerFilter.object" :property="innerFilter.property" />
         </template>
         <template v-if="isCompleteFilter(innerFilter)">
           <FilterTag class="filter-builder__tag" :filter="innerFilter" />
@@ -32,13 +32,13 @@
 
 <script lang="ts" setup>
   import { computed, ref, watch } from 'vue'
-  import { Filter } from '../types/filters'
-  import { isCompleteFilter } from '../utilities/filters'
-  import FilterBuilderHeading from './FilterBuilderHeading.vue'
-  import FilterBuilderObject from './FilterBuilderObject.vue'
-  import FilterBuilderProperty from './FilterBuilderProperty.vue'
-  import FilterBuilderValue from './FilterBuilderValue.vue'
-  import FilterTag from './FilterTag.vue'
+  import FilterBuilderHeading from '@/components/FilterBuilderHeading.vue'
+  import FilterBuilderObject from '@/components/FilterBuilderObject.vue'
+  import FilterBuilderProperty from '@/components/FilterBuilderProperty.vue'
+  import FilterBuilderValue from '@/components/FilterBuilderValue.vue'
+  import FilterTag from '@/components/FilterTag.vue'
+  import { Filter } from '@/types/filters'
+  import { isCompleteFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'update:filter', value: Partial<Filter>): void,

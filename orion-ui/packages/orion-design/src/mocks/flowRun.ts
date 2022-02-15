@@ -1,5 +1,5 @@
-import { FlowRun } from '../models'
-import { MockFunction } from '../services'
+import { FlowRun } from '@/models/FlowRun'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomFlowRun: MockFunction<FlowRun> = function() {
   return {

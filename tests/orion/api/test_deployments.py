@@ -10,7 +10,7 @@ from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.data import DataDocument
 
-services_settings = prefect.settings.orion.services
+services_settings = prefect.settings.from_env().orion.services
 
 
 class TestCreateDeployment:

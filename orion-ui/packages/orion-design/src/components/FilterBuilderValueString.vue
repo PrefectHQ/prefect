@@ -1,13 +1,13 @@
 <template>
   <div class="filter-builder-value-string">
-    <m-select v-model="internalOperation" :options="operations" />
+    <!-- <m-select v-model="internalOperation" :options="operations" /> -->
     <m-input v-model="internalValue" label="Text" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { computed, onMounted } from 'vue'
-  import { FilterOperation, FilterValue } from '../types/filters'
+  import { FilterOperation, FilterValue } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:operation', value: FilterOperation): void,
@@ -21,7 +21,7 @@
 
   onMounted(() => {
     if (props.operation === undefined) {
-      internalOperation.value = 'contains'
+      internalOperation.value = 'equals'
     }
   })
 
@@ -35,10 +35,10 @@
     set: (value) => emit('update:value', value!),
   })
 
-  const operations = [
-    { label: 'Contains', value: 'contains' },
-    { label: 'Equals', value: 'equals' },
-  ]
+  // const operations = [
+  //   { label: 'Contains', value: 'contains' },
+  //   { label: 'Equals', value: 'equals' },
+  // ]
 </script>
 
 <style lang="scss" scoped>
