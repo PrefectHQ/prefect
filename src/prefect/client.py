@@ -86,16 +86,20 @@ class OrionClient:
     def __init__(
         self,
         host: str = prefect.settings.from_env().orion_host,
+        api_key: str = prefect.settings.from_env().api_key,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
     ) -> None:
 
         httpx_settings = httpx_settings or {}
 
+        # set headers
         if "headers" not in httpx_settings:
             httpx_settings["headers"] = {}
-
-        httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
+        if api_key:
+            httpx_settings["headers"].update({"Authorization": f"Bearer {api_key}"})
+        if api_version:
+            httpx_settings["headers"].update({"X-PREFECT-API-VERSION": api_version})
 
         if host:
             # Connect to an existing instance
