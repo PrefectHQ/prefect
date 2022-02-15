@@ -3,7 +3,7 @@
 ## 2.0a12
 
 ### Filters
-Orion captures valuable metadata about your flows, deployments, and their runs. We want it to be just as simple to retrieve this information as it is to record it. This release exposes a powerful set of filter operations to cut through this body of information with ease and precision. Want to see all of the runs of your `daily-etl` flow? Now its as easy as typing `flow:daily-etl` into the filter bar. This update also includes a query builder UI, so you can utilize and learn these operators quickly and easily.
+Orion captures valuable metadata about your flows, deployments, and their runs. We want it to be just as simple to retrieve this information as it is to record it. This release exposes a powerful set of filter operations to cut through this body of information with ease and precision. Want to see all of the runs of your Daily ETL flow? Now its as easy as typing `flow:"Daily ETL"` into the filter bar. This update also includes a query builder UI, so you can utilize and learn these operators quickly and easily.
 
 ## 2.0a11
 
