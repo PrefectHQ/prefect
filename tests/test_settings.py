@@ -15,6 +15,43 @@ from prefect.settings import (
 from prefect.utilities.testing import temporary_settings
 
 
+class TestGet:
+    def test_get_root_setting(self):
+        with temporary_settings(PREFECT_API_URL="test"):
+            assert (
+                prefect.settings.get("PREFECT_API_URL")
+                == prefect.settings.from_context().api_url
+            )
+
+    def test_get_nested_setting(self):
+        assert (
+            prefect.settings.get("PREFECT_LOGGING_LEVEL")
+            == prefect.settings.from_context().logging.level
+        )
+
+    def test_get_missing_setting(self):
+        with pytest.raises(ValueError, match="Unknown setting variable"):
+            prefect.settings.get("PREFECT_FOOBAR")
+
+
+class TestGetField:
+    def test_get_root_field(self):
+        assert (
+            prefect.settings.Settings.get_field("PREFECT_API_URL")
+            == prefect.settings.Settings.__fields__["api_url"]
+        )
+
+    def test_get_nested_field(self):
+        assert (
+            prefect.settings.Settings.get_field("PREFECT_LOGGING_LEVEL")
+            == prefect.settings.LoggingSettings.__fields__["level"]
+        )
+
+    def test_get_missing_field(self):
+        with pytest.raises(ValueError, match="Unknown setting variable"):
+            prefect.settings.Settings.get_field("PREFECT_FOOBAR")
+
+
 def test_settings():
     assert prefect.settings.from_env().test_mode is True
 
