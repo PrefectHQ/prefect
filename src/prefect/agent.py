@@ -9,8 +9,7 @@ import anyio.to_process
 import pendulum
 from anyio.abc import TaskGroup
 
-import prefect.settings
-from prefect.client import get_client
+from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
 from prefect.logging import get_logger
@@ -19,13 +18,11 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, StateType
+from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
-    def __init__(
-        self,
-        prefetch_seconds: int = prefect.settings.from_context().agent.prefetch_seconds,
-    ) -> None:
+    def __init__(self, prefetch_seconds: int = None) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
@@ -38,7 +35,10 @@ class OrionAgent:
             id=dict(not_any_=self.submitting_flow_run_ids),
             state=dict(type=dict(any_=[StateType.SCHEDULED])),
             next_scheduled_start_time=dict(
-                before_=pendulum.now("utc").add(seconds=self.prefetch_seconds)
+                before_=pendulum.now("utc").add(
+                    seconds=self.prefetch_seconds
+                    or PREFECT_AGENT_PREFETCH_SECONDS.value()
+                )
             ),
             deployment_id=dict(is_null_=False),
         )
