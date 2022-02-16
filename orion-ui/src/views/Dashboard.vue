@@ -26,100 +26,115 @@
       <LatenessIntervalBarChart :filter="flowRunStatsFilter" class="run-lateness flex-grow-0" />
     </div>
 
-    <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-5" />
+    <RouterTabSet :tabs="tabs" class="mt-5">
+      <template #after-tab="{ tab }">
+        <span class="dashboard__tab-badge caption">{{ getCount(tab.key).toLocaleString() }}</span>
+      </template>
+      <template #before-tab-content="{ selectedTab }">
+        <div class="font--secondary caption my-2" style="min-height: 17px">
+          <span
+            v-if="getCount(selectedTab.key) > 0"
+          >{{ getCount(selectedTab.key).toLocaleString() }} {{ toPluralString('Result', getCount(selectedTab.key)) }}</span>
+        </div>
+      </template>
 
-    <div class="font--secondary caption my-2" style="min-height: 17px">
-      <span v-show="resultsCount > 0">
-        {{ resultsCount.toLocaleString() }} Result{{
-          resultsCount !== 1 ? 's' : ''
-        }}
-      </span>
-    </div>
+      <template #flows="{ tab }">
+        <section class="results-section">
+          <ResultsList
+            v-if="getCount(tab.key) > 0"
+            key="flows"
+            :filter="filter"
+            component="ListItemFlow"
+            endpoint="flows"
+            :poll-interval="15000"
+          />
+          <div v-else class="text-center my-8">
+            <h2>No results found</h2>
+          </div>
+        </section>
+      </template>
 
-    <section class="results-section d-flex flex-column align-stretch justify-stretch">
-      <transition name="tab-fade" mode="out-in" css>
-        <div v-if="resultsCount === 0" class="text-center my-8" key="no-results">
-          <template v-if="resultsTab == 'deployments'">
+      <template #deployments="{ tab }">
+        <section class="results-section">
+          <ResultsList
+            v-if="getCount(tab.key) > 0"
+            key="deployments"
+            :filter="deploymentsFilter"
+            component="ListItemDeployment"
+            endpoint="deployments"
+            :poll-interval="15000"
+          />
+          <div v-else class="text-center my-8">
             <h2>No scheduled deployments found</h2>
             <div class="my-2">Deployments can only be created using the Prefect CLI</div>
             <Button color="alternate" @click="onFilterOff">Show all deployments</Button>
-          </template>
-          <h2 v-else>No results found</h2>
-        </div>
+          </div>
+        </section>
+      </template>
 
-        <ResultsList
-          v-else-if="resultsTab == 'flows'"
-          key="flows"
-          :filter="filter"
-          component="ListItemFlow"
-          endpoint="flows"
-          :poll-interval="15000"
-        />
+      <template #flow_runs="{ tab }">
+        <section class="results-section">
+          <ResultsList
+            v-if="getCount(tab.key) > 0"
+            key="flow_runs"
+            :filter="filter"
+            component="ListItemFlowRun"
+            endpoint="flow_runs"
+            :poll-interval="7500"
+          />
+          <div v-else class="text-center my-8">
+            <h2>No results found</h2>
+          </div>
+        </section>
+      </template>
 
-        <div v-else-if="resultsTab == 'deployments'">
-          <M-Button class="mb-2" color="alternate" small @click="onFilterOff">
-            Show all deployments
-          </M-Button>
-
-        <ResultsList
-          key="deployments"
-          :filter="deploymentsFilter"
-          component="ListItemDeployment"
-          endpoint="deployments"
-          :poll-interval="15000"
-        />
-        </div>
-
-        <ResultsList
-          v-else-if="resultsTab == 'flow_runs'"
-          key="flow_runs"
-          :filter="filter"
-          component="ListItemFlowRun"
-          endpoint="flow_runs"
-          :poll-interval="7500"
-        />
-
-        <ResultsList
-          v-else-if="resultsTab == 'task_runs'"
-          key="task_runs"
-          :filter="filter"
-          component="ListItemTaskRun"
-          endpoint="task_runs"
-          :poll-interval="10000"
-        />
-      </transition>
-    </section>
+      <template #task_runs="{ tab }">
+        <section class="results-section d-flex flex-column align-stretch justify-stretch">
+          <ResultsList
+            v-if="getCount(tab.key) > 0"
+            key="task_runs"
+            :filter="filter"
+            component="ListItemTaskRun"
+            endpoint="task_runs"
+            :poll-interval="10000"
+          />
+          <div v-else class="text-center my-8">
+            <h2>No results found</h2>
+          </div>
+        </section>
+      </template>
+    </RouterTabSet>
+    
     <hr class="results-hr mt-3" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import {computed, ref, Ref, onBeforeMount, ComputedRef, watch, reactive} from 'vue'
+import { computed, ref, ComputedRef } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
 import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@prefecthq/orion-design'
 
-import { Api, Endpoints, Query } from '@/plugins/api'
-import { useRoute, useRouter } from 'vue-router'
-import ResultsListTabs from '../components/ResultsListTabs.vue'
+import { Api, Endpoints, Query } from  '@/plugins/api'
+import { useRouter } from 'vue-router'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
 import { flowRunsApi } from '@/../packages/orion-design/src/services/FlowRunsApi'
-import { subscribe } from '@prefecthq/vue-compositions/src'
+import { RouterTabSet } from '@prefecthq/orion-design/components'
+import { toPluralString } from '@prefecthq/orion-design/utilities'
+import { subscribe } from '@prefecthq/vue-compositions'
 
 const filtersStore = useFiltersStore()
-const route = useRoute()
 const router = useRouter()
-const resultsTab: Ref<string> = ref('flows')
 
 const firstFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [{
     limit: 1,
     sort: 'EXPECTED_START_TIME_ASC'
-}])
+    }])
 
 const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expected_start_time)
 
@@ -287,37 +302,55 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   }
 })
 
-const resultsCount = computed<number>(() => {
-  if (!resultsTab.value) return 0
-  return queries[resultsTab.value].response.value || 0
-})
+const countMap = computed(() => ({
+  'flows': flowsCount.value,
+  'deployments': deploymentsCount.value,
+  'flow_runs': flowRunsCount.value,
+  'task_runs': taskRunsCount.value,
+}))
 
-const tabs = reactive([
+const getCount = (key: 'flows'|'deployments'|'flow_runs'|'task_runs'): number => {
+  return countMap.value[key]
+} 
+
+const tabs = [
   {
-    label: 'Flows',
-    href: 'flows',
+    title: 'Flows',
+    key: 'flows',
+    route: {
+      name: 'Dashboard',
+      hash: 'flows'
+    },
     icon: 'pi-flow',
-    count: flowsCount
   },
   {
-    label: 'Deployments',
-    href: 'deployments',
+    title: 'Deployments',
+    key: 'deployments',
+    route: {
+      name: 'Dashboard',
+      hash: 'deployments'
+    },
     icon: 'pi-map-pin-line',
-    count: deploymentsCount
   },
   {
-    label: 'Flow Runs',
-    href: 'flow_runs',
+    title: 'Flow Runs',
+    key: 'flow_runs',
+    route: {
+      name: 'Dashboard',
+      hash: 'flow_runs'
+    },
     icon: 'pi-flow-run',
-    count: flowRunsCount
   },
   {
-    label: 'Task Runs',
-    href: 'task_runs',
+    title: 'Task Runs',
+    key: 'task_runs',
+    route: {
+      name: 'Dashboard',
+      hash: 'task_runs'
+    },
     icon: 'pi-task',
-    count: taskRunsCount
   }
-])
+]
 
 const applyFilter = (filter: PremadeFilter) => {
   const filterToAdd: Required<Filter> = {
@@ -336,22 +369,31 @@ const applyFilter = (filter: PremadeFilter) => {
 
   service.add(filterToAdd)
 }
-
-watch([resultsTab], () => {
-  router.push({ ...route, hash: `#${resultsTab.value}` })
-})
-
-onBeforeMount(() => {
-  resultsTab.value = route.hash?.substr(1) || 'flows'
-})
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use '@/styles/views/dashboard.scss';
 
-.tab-fade-enter-active,
-.tab-fade-leave-active {
-  opacity: 0;
-  transition: opacity 150ms ease;
+.dashboard__tab-badge {
+    background-color: $white;
+    border-radius: 16px;
+    font-weight: 400;
+    padding: 0 8px;
+    min-width: 24px;
+    transition: 150ms all;
+}
+.tab-set__tab--active {
+    background-color: $primary;
+    color: $white;
+    .dashboard__tab-badge {
+        background-color: $primary;
+        color: $white;
+    }
+}
+.results-section {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  flex-direction: column; 
 }
 </style>
