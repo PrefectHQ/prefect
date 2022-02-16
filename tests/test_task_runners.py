@@ -203,6 +203,12 @@ async def test_task_runner_cannot_be_started_while_running():
                 pass
 
 
+@pytest.fixture(autouse=True)
+async def fail_on_hang():
+    async with anyio.fail_after(60):
+        yield
+
+
 @parameterize_with_all_task_runners
 def test_flow_run_by_task_runner(task_runner):
     @task
