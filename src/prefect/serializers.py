@@ -11,7 +11,7 @@ from typing import Any
 import cloudpickle
 import pydantic
 
-from prefect.client import OrionClient, inject_client
+from prefect.client import get_client, inject_client
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.serializers import register_serializer
 

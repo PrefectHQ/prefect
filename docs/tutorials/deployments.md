@@ -109,9 +109,9 @@ Now that the deployment is created, we can interact with it in multiple ways (cl
     We can additionally use the REST API directly; to faciliate this, we will demonstrate how this works with the convenient Python Orion Client:
     
     ```python
-    from prefect.client import OrionClient
+    from prefect.client import get_client
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployment = await client.read_deployment_by_name("Addition Machine/my-first-deployment")
         flow_run = await client.create_flow_run_from_deployment(deployment)
     ```

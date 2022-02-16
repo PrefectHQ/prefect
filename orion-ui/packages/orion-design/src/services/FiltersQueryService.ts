@@ -10,10 +10,11 @@ import addHours from 'date-fns/addHours'
 import addMonths from 'date-fns/addMonths'
 import addWeeks from 'date-fns/addWeeks'
 import startOfToday from 'date-fns/startOfToday'
+import subDays from 'date-fns/subDays'
 import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
 import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
-import { UnionFilters } from './Filter'
+import { FlowRunsHistoryFilter, UnionFilters } from './Filter'
 
 export class FiltersQueryService {
 
@@ -47,6 +48,28 @@ export class FiltersQueryService {
     }
 
     return union
+  }
+
+  public static flowHistoryQuery(filters: Required<Filter>[], defaultHistoryStart?: Date, defaultHistoryEnd?: Date): FlowRunsHistoryFilter {
+    const query = this.query(filters)
+    const queryEnd = query.flow_runs?.expected_start_time?.before_
+    const queryStart = query.flow_runs?.expected_start_time?.after_
+
+    // eslint-disable-next-line no-nested-ternary
+    const historyEnd = queryEnd ? new Date(queryEnd) : defaultHistoryEnd ? defaultHistoryEnd : addHours(new Date(), 1)
+    // eslint-disable-next-line no-nested-ternary
+    const historyStart = queryStart ? new Date(queryStart) : defaultHistoryStart ? defaultHistoryStart : subDays(historyEnd, 7)
+    const interval = this.createIntervalSeconds(historyStart, historyEnd)
+
+    return {
+      // eslint-disable-next-line camelcase
+      history_end: historyEnd.toISOString(),
+      // eslint-disable-next-line camelcase
+      history_start: historyStart.toISOString(),
+      // eslint-disable-next-line camelcase
+      history_interval_seconds: interval,
+      ...query,
+    }
   }
 
   private static createFlowFilter(filters: Required<FlowFilter>[]): FlowFilterQuery {
@@ -111,11 +134,13 @@ export class FiltersQueryService {
               query.expected_start_time.before_ = filter.value.toISOString()
               break
             case 'newer':
-              query.expected_start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              query.expected_start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
             case 'older':
-              query.expected_start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              query.expected_start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
+            case 'upcoming':
+              query.expected_start_time.before_ = this.createUpcomingRelativeDate(filter.value).toISOString()
           }
 
           break
@@ -143,7 +168,7 @@ export class FiltersQueryService {
           query.tags.all_?.push(...filter.value)
           break
         case 'start_date':
-        // eslint-disable-next-line camelcase
+          // eslint-disable-next-line camelcase
           query.start_time ??= {}
 
           switch (filter.operation) {
@@ -154,10 +179,10 @@ export class FiltersQueryService {
               query.start_time.before_ = filter.value.toISOString()
               break
             case 'newer':
-              query.start_time.after_ = this.createDateFromRelative(filter.value).toISOString()
+              query.start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
             case 'older':
-              query.start_time.before_ = this.createDateFromRelative(filter.value).toISOString()
+              query.start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
           }
 
@@ -172,24 +197,43 @@ export class FiltersQueryService {
     return query
   }
 
-  private static createDateFromRelative(relative: RelativeDateFilterValue): Date {
+  private static createRelativeDate(relative: RelativeDateFilterValue): Date {
     const unit = relative.slice(-1)
     const value = parseInt(relative)
     const valueNegative = value * -1
 
+    return this.createDateFromUnitAndValue(unit, valueNegative)
+
+  }
+
+  private static createUpcomingRelativeDate(relative: RelativeDateFilterValue): Date {
+    const unit = relative.slice(-1)
+    const value = parseInt(relative)
+
+    return this.createDateFromUnitAndValue(unit, value)
+  }
+
+  private static createDateFromUnitAndValue(unit: string, value: number): Date {
     switch (unit) {
       case 'h':
-        return addHours(new Date, valueNegative)
+        return addHours(new Date, value)
       case 'd':
-        return addDays(startOfToday(), valueNegative)
+        return addDays(startOfToday(), value)
       case 'w':
-        return addWeeks(startOfToday(), valueNegative)
+        return addWeeks(startOfToday(), value)
       case 'm':
-        return addMonths(startOfToday(), valueNegative)
+        return addMonths(startOfToday(), value)
       default:
         throw new FilterRelativeDateUnitError()
     }
 
+  }
+
+  private static createIntervalSeconds(start: Date, end: Date): number {
+    const seconds = (end.getTime() - start.getTime()) / 1000
+    const defaultInterval = 60
+
+    return Math.floor(seconds / 30) || defaultInterval
   }
 
 }
