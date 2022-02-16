@@ -165,7 +165,7 @@ def upgrade():
         sa.Column(
             "filters",
             prefect.orion.utilities.database.JSON(astext_type=Text()),
-            server_default="{}",
+            server_default="[]",
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_saved_search")),
