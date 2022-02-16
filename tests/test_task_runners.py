@@ -77,6 +77,8 @@ def inprocess_ray_cluster():
     """
     cluster = ray.cluster_utils.Cluster(initialize_head=True)
     try:
+        # Add another node, or this will not run tasks in parallel
+        cluster.add_node(wait=True)
         yield cluster
     finally:
         cluster.shutdown()
@@ -87,7 +89,15 @@ def ray_task_runner_with_inprocess_cluster(inprocess_ray_cluster):
     """
     Generate a ray task runner that's connected to an in-process cluster
     """
-    yield RayTaskRunner(address=inprocess_ray_cluster.address)
+    yield RayTaskRunner(
+        address=inprocess_ray_cluster.address,
+        init_kwargs={
+            "runtime_env": {
+                "working_dir": str(prefect.__root_path__),
+                "excludes": ["**/.git"],
+            }
+        },
+    )
 
 
 @contextmanager
