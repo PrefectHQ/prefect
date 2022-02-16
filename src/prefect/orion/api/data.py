@@ -45,6 +45,12 @@ async def read_data(identifier: PersistenceID):
     """
     Read data at the provided file location.
     """
+
+    # the blob is read from a file location constructed from a configured base path and
+    # an identifier, by restricting the number of directory parts contained inside this
+    # identifier to 1, we can restrict access to Orion's filesystem to the configured
+    # storage directory
+
     identifier = identifier.id
     if len(PosixPath(identifier).parts) > 1:
         raise HTTPException(

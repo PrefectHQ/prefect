@@ -689,11 +689,8 @@ class OrionClient:
         Args:
             id: the block data id
 
-        Raises:
-            httpx.RequestError: if the block data was not found for any reason
-
         Returns:
-            a hydrated block or None
+            a hydrated block or None if no Block could be found
         """
         response = await self.get(
             f"/blocks/{id}",
