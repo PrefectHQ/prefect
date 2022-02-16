@@ -16,7 +16,6 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
-from prefect.utilities.collections import dict_to_flatdict
 
 config_app = PrefectTyper(
     name="config", help="Commands for interacting with Prefect settings."
@@ -203,21 +202,19 @@ def view(show_defaults: bool = False, show_sources: bool = False):
     profile = prefect.context.get_profile_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
-    default_settings = dict_to_flatdict(prefect.settings.defaults().dict())
-    env_settings = dict_to_flatdict(prefect.settings.from_env().dict())
-    current_settings = dict_to_flatdict(profile.settings.dict())
+    default_settings = prefect.settings.get_default_settings().dict()
+    env_settings = prefect.settings.get_settings_from_env().dict()
+    current_settings = profile.settings.dict()
 
     output = [f"PREFECT_PROFILE={profile.name!r}"]
 
     # Collect differences from defaults set in the env and the profile
     env_overrides = {
-        "PREFECT_" + "_".join(key).upper(): val
-        for key, val in env_settings.items()
-        if val != default_settings[key]
+        key: val for key, val in env_settings.items() if val != default_settings[key]
     }
 
     current_overrides = {
-        "PREFECT_" + "_".join(key).upper(): val
+        key: val
         for key, val in current_settings.items()
         if val != default_settings[key]
     }
@@ -229,7 +226,6 @@ def view(show_defaults: bool = False, show_sources: bool = False):
 
     if show_defaults:
         for key, value in sorted(default_settings.items()):
-            key = "PREFECT_" + "_".join(key).upper()
             source_blurb = f" (from defaults)" if show_sources else ""
             output.append(f"{key}='{value}'{source_blurb}")
 

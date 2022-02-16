@@ -201,7 +201,6 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             client=orion_client,
-            settings=prefect.settings.from_env(),
         )
 
         sleep.assert_awaited_once()
@@ -236,7 +235,6 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             client=orion_client,
-            settings=prefect.settings.from_env(),
         )
 
         sleep.assert_not_called()
@@ -288,7 +286,6 @@ class TestOrchestrateTaskRun:
             parameters={},
             wait_for=None,
             client=orion_client,
-            settings=prefect.settings.from_env(),
         )
 
         # Check for a proper final result
@@ -358,7 +355,6 @@ class TestOrchestrateTaskRun:
             parameters={"x": {"nested": [future]}},
             wait_for=None,
             client=orion_client,
-            settings=prefect.settings.from_env(),
         )
 
         # The task did not run
@@ -401,7 +397,6 @@ class TestOrchestrateTaskRun:
             parameters={"x": upstream_task_state},
             wait_for=None,
             client=orion_client,
-            settings=prefect.settings.from_env(),
         )
 
         # The task ran with the state as its input

@@ -1,11 +1,9 @@
 # Prefect logging config file.
 #
-# Any config in this file can be set with an env var
-# `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+# Any item in this file can be overridden with an environment variable:
+#    `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
 #
-# Global logging settings values can be interpolated by setting `key: "{{key}}"`
-# (note the quotations and double curly brackets). Note that only keys available
-# under `prefect.settings.logging` will be interpolated.
+# Templated values can be used to insert values from the Prefect settings at runtime.
 
 version: 1
 disable_existing_loggers: False
@@ -63,12 +61,12 @@ handlers:
 
 loggers:
     prefect:
-        level: "{{level}}"
+        level: "${PREFECT_LOGGING_LEVEL}"
         handlers: [console]
         propagate: no
 
     prefect.extra:
-        level: "{{level}}"
+        level: "${PREFECT_LOGGING_LEVEL}"
         handlers: [orion, console]
         propagate: no
 
@@ -83,15 +81,15 @@ loggers:
         propagate: no
 
     prefect.orion:
-        level: "{{server_level}}"
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
     uvicorn:
-        level: "{{server_level}}"
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
         handlers: [console]
         propagate: no
 
     fastapi:
-        level: "{{server_level}}"
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
         handlers: [console]
         propagate: no
 

@@ -37,6 +37,29 @@ def test_context_get_outside_context_is_null():
     assert ExampleContext.get() is None
 
 
+def test_single_context_object_cannot_be_entered_multiple_times():
+    context = ExampleContext(x=1)
+    with context:
+        with pytest.raises(RuntimeError, match="Context already entered"):
+            with context:
+                pass
+
+
+def test_copied_context_object_can_be_reentered():
+    context = ExampleContext(x=1)
+    with context:
+        with context.copy():
+            assert ExampleContext.get().x == 1
+
+
+def test_exiting_a_context_more_than_entering_raises():
+    context = ExampleContext(x=1)
+
+    with pytest.raises(RuntimeError, match="Asymmetric use of context"):
+        with context:
+            context.__exit__()
+
+
 def test_context_exit_restores_previous_context():
     with ExampleContext(x=1):
         with ExampleContext(x=2):
@@ -121,11 +144,13 @@ class TestProfilesContext:
 
     def test_profile_context_variable(self):
         with ProfileContext(
-            name="test", settings=prefect.settings.from_env(), env={"FOO": "BAR"}
+            name="test",
+            settings=prefect.settings.get_settings_from_env(),
+            env={"FOO": "BAR"},
         ) as context:
             assert get_profile_context() is context
             assert context.name == "test"
-            assert context.settings == prefect.settings.from_env()
+            assert context.settings == prefect.settings.get_settings_from_env()
             assert context.env == {"FOO": "BAR"}
 
     def test_get_profile_context_missing(self, monkeypatch):
@@ -164,8 +189,8 @@ class TestProfilesContext:
             )
         )
         with profile("foo") as ctx:
-            assert prefect.settings.from_context().api_url == "test"
-            assert ctx.settings == prefect.settings.from_context()
+            assert prefect.settings.PREFECT_API_URL.value() == "test"
+            assert ctx.settings == prefect.settings.get_current_settings()
             assert ctx.env == {"PREFECT_API_URL": "test"}
             assert ctx.name == "foo"
 
@@ -186,7 +211,7 @@ class TestProfilesContext:
         )
         with profile("foo", initialize=False) as ctx:
             ctx.initialize(setup_logging=True)
-            setup_logging.assert_called_once_with(ctx.settings.logging)
+            setup_logging.assert_called_once_with(ctx.settings)
 
     def test_profile_context_does_not_setup_logging_if_asked(self, monkeypatch):
         setup_logging = MagicMock()
@@ -212,25 +237,44 @@ class TestProfilesContext:
         )
         with profile("foo") as foo_context:
             with profile("bar") as bar_context:
-                assert bar_context.settings == prefect.settings.from_context()
-                assert bar_context.settings.api_url == "bar"
+                assert bar_context.settings == prefect.settings.get_current_settings()
+                assert (
+                    prefect.settings.PREFECT_API_URL.value_from(bar_context.settings)
+                    == "bar"
+                )
                 assert bar_context.env == {"PREFECT_API_URL": "bar"}
                 assert bar_context.name == "bar"
-            assert foo_context.settings == prefect.settings.from_context()
-            assert foo_context.settings.api_url == "foo"
+            assert foo_context.settings == prefect.settings.get_current_settings()
+            assert (
+                prefect.settings.PREFECT_API_URL.value_from(foo_context.settings)
+                == "foo"
+            )
             assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 
-    def test_enter_global_profilee(self, monkeypatch):
+    def test_enter_global_profile(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
         enter_global_profile()
         profile.assert_called_once_with(name="default", initialize=False)
         profile().__enter__.assert_called_once_with()
+        assert prefect.context.GLOBAL_PROFILE_CM is not None
 
-    def test_enter_global_profilee_respects_name_env_variable(self, monkeypatch):
+    def test_enter_global_profile_is_idempotent(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
+        enter_global_profile()
+        enter_global_profile()
+        enter_global_profile()
+        profile.assert_called_once()
+        profile().__enter__.assert_called_once()
+
+    def test_enter_global_profile_respects_name_env_variable(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "test")
         enter_global_profile()
         profile.assert_called_once_with(name="test", initialize=False)

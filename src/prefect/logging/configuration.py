@@ -1,58 +1,57 @@
-import json
 import logging
 import logging.config
 import os
 import re
+import string
 import warnings
 from functools import partial
 from pathlib import Path
 
 import yaml
 
-from prefect.settings import LoggingSettings
+from prefect.settings import (
+    PREFECT_LOGGING_EXTRA_LOGGERS,
+    PREFECT_LOGGING_SETTINGS_PATH,
+    SETTING_VARIABLES,
+    Settings,
+)
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 
-# This path will be used if `LoggingSettings.settings_path` does not exist
+# This path will be used if `PREFECT_LOGGING_SETTINGS_PATH` is null
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
+
+# Stores the configuration used to setup logging in this Python process
+PROCESS_LOGGING_CONFIG: dict = None
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
-# Regex for detecting interpolated global settings
-interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
-
-PROCESS_LOGGING_CONFIG: dict = None
 
 
-def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
+def load_logging_config(path: Path, settings: Settings) -> dict:
     """
     Loads logging configuration from a path allowing override from the environment
     """
-    config = yaml.safe_load(path.read_text())
+    template = string.Template(path.read_text())
+    config = yaml.safe_load(
+        # Substitute settings into the template in format $SETTING / ${SETTING}
+        template.substitute(
+            {
+                setting.name: str(setting.value_from(settings))
+                for setting in SETTING_VARIABLES.values()
+            }
+        )
+    )
 
     # Load overrides from the environment
     flat_config = dict_to_flatdict(config)
 
     for key_tup, val in flat_config.items():
-
-        # first check if the value was overriden via env var
         env_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
-            to_envvar((settings.Config.env_prefix + "_".join(key_tup)).upper())
+            to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
         )
         if env_val:
             val = env_val
-
-        # next check if the value refers to a global setting
-        # only perform this check if the value is a string beginning with '{{'
-        if isinstance(val, str) and val.startswith(r"{{"):
-            # this regex looks for `{{KEY}}`
-            # and returns `KEY` as its first capture group
-            matched_settings = interpolated_settings.match(val)
-            if matched_settings:
-                # retrieve the matched key
-                matched_key = matched_settings.group(1)
-                # retrieve the global logging setting corresponding to the key
-                val = getattr(settings, matched_key, None)
 
         # reassign the updated value
         flat_config[key_tup] = val
@@ -60,15 +59,15 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(settings: LoggingSettings) -> None:
+def setup_logging(settings: Settings) -> None:
     global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            settings.settings_path
-            if settings.settings_path.exists()
+            PREFECT_LOGGING_SETTINGS_PATH.value_from(settings)
+            if PREFECT_LOGGING_SETTINGS_PATH.value_from(settings).exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
         ),
         settings,
@@ -94,7 +93,7 @@ def setup_logging(settings: LoggingSettings) -> None:
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in settings.get_extra_loggers():
+    for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings):
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)
