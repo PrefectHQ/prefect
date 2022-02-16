@@ -86,8 +86,8 @@ $ prefect config get-profile
 To persist a setting, use `prefect config set` and the same variable naming scheme as above:
 
 ```bash
-$ prefect config set PREFECT_ORION_HOST="http://localhost:4200/api"
-Set variable 'PREFECT_ORION_HOST' to 'http://localhost:4200/api'
+$ prefect config set PREFECT_API_URL="http://localhost:4200/api"
+Set variable 'PREFECT_API_URL' to 'http://localhost:4200/api'
 Updated profile 'default'
 ```
 
@@ -96,7 +96,7 @@ This setting has been persisted to the profile:
 ```bash
 $ prefect config get-profile
 [default]
-PREFECT_ORION_HOST = "http://localhost:4200/api"
+PREFECT_API_URL = "http://localhost:4200/api"
 ```
 
 And will be used by Prefect in the future:
@@ -104,7 +104,7 @@ And will be used by Prefect in the future:
 ```bash
 $ prefect config view
 PREFECT_PROFILE="default"
-PREFECT_ORION_HOST='http://localhost:4200/api' (from profile)
+PREFECT_API_URL='http://localhost:4200/api' (from profile)
 ```
 
 ### Creating and removing profiles
@@ -278,3 +278,15 @@ $ prefect --profile default config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 ```
+
+### Profile files
+
+Profiles are persisted to the `PREFECT_PROFILES_PATH`, which can be changed with an environment variable.
+
+By default, it is stored in your `PREFECT_HOME` directory:
+```
+$ prefect config view --show-defaults | grep PROFILES_PATH
+PREFECT_PROFILES_PATH='~/.prefect/profiles.toml'
+```
+
+The [TOML](https://toml.io/en/) format is used to store profile data.

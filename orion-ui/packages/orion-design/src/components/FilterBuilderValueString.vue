@@ -35,10 +35,10 @@
     set: (value) => emit('update:value', value!),
   })
 
-  const operations = [
-    { label: 'Contains', value: 'contains' },
-    { label: 'Equals', value: 'equals' },
-  ]
+  // const operations = [
+  //   { label: 'Contains', value: 'contains' },
+  //   { label: 'Equals', value: 'equals' },
+  // ]
 </script>
 
 <style lang="scss" scoped>

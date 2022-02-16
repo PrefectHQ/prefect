@@ -2,7 +2,7 @@
   <div class="filter-builder-value-date">
     <m-select v-model="internalOperation" :options="operations" />
     <template v-if="isDateFilter">
-      <DateTimeInput v-model:value="date" label="Date" />
+      <DateTimeInput v-model:value="date" label="Date" class="filter-builder-value-date__picker" />
     </template>
     <template v-else>
       <div class="filter-builder-value-date__relative">
@@ -21,11 +21,13 @@
 </template>
 
 <script lang="ts" setup>
+  // eslint-disable-next-line import/no-duplicates
   import isDate from 'date-fns/isDate'
+  // eslint-disable-next-line import/no-duplicates
   import startOfToday from 'date-fns/startOfToday'
   import { Ref, computed, onMounted, watch } from 'vue'
   import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
-  import { toPluralString } from '../utilities'
+  import { isDateOperation, isRelativeDateOperation, toPluralString } from '../utilities'
   import DateTimeInput from './DateTimeInput.vue'
 
   const emit = defineEmits<{
@@ -47,9 +49,13 @@
   })
 
   watch(() => props.operation, () => {
-    if (props.operation == 'newer' || props.operation == 'older' || props.operation == 'upcoming' && typeof props.value !== 'string') {
+    if (props.operation === undefined) {
+      return
+    }
+
+    if (isRelativeDateOperation(props.operation) && typeof props.value !== 'string') {
       emit('update:value', '1h')
-    } else if (props.operation == 'after' || props.operation == 'before' && !isDate(props.value)) {
+    } else if (isDateOperation(props.operation) && !isDate(props.value)) {
       emit('update:value', startOfToday())
     }
   })
@@ -121,11 +127,15 @@
   ]
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-value-date {
   display: flex;
   gap: var(--m-2);
   align-items: flex-end;
+}
+
+.filter-builder-value-date__picker {
+  flex-grow: 1;
 }
 
 .filter-builder-value-date__relative {

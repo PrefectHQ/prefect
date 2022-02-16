@@ -10,7 +10,7 @@ import pendulum
 from anyio.abc import TaskGroup
 
 import prefect.settings
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
 from prefect.logging import get_logger
@@ -24,7 +24,7 @@ from prefect.orion.schemas.states import Failed, Pending, StateType
 class OrionAgent:
     def __init__(
         self,
-        prefetch_seconds: int = prefect.settings.from_env().agent.prefetch_seconds,
+        prefetch_seconds: int = prefect.settings.from_context().agent.prefetch_seconds,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
@@ -150,7 +150,7 @@ class OrionAgent:
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
-        self.client = OrionClient()
+        self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
 

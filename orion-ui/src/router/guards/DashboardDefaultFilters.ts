@@ -1,7 +1,7 @@
 import { Filter } from "@/../packages/orion-design/src/types/filters/index";
 import { useFiltersStore } from "@/../packages/orion-design/src/stores/filters";
 import { RouteLocationNormalized } from "vue-router";
-import { RouteGuard } from "./RouteGuard";
+import { RouteGuard } from "@/../packages/orion-design/src/types/RouteGuard";
 
 export class DashboardDefaultFilters implements RouteGuard {
   private readonly filters: Required<Filter>[] = [

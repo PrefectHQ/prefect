@@ -89,42 +89,41 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  computed,
-  ref,
-  Ref,
-  onBeforeMount,
-  ComputedRef,
-  watch,
-  reactive,
-  onMounted
-} from 'vue'
-import { useStore } from '@/store'
+import {computed, ref, Ref, onBeforeMount, ComputedRef, watch, reactive} from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
-import type {
-  UnionFilters,
-  FlowRunsHistoryFilter,
-  DeploymentsFilter,
-  ResultsListTab
-} from '@prefecthq/orion-design'
+import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@prefecthq/orion-design'
 
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute, useRouter } from 'vue-router'
-import { ResultsListTabs } from '@prefecthq/orion-design'
+import ResultsListTabs from '../components/ResultsListTabs.vue'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
 import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
 import { Filter, hasFilter } from '@/../packages/orion-design/src/'
+import { flowRunsApi } from '@/../packages/orion-design/src/services/FlowRunsApi'
+import { subscribe } from '@prefecthq/vue-compositions/src'
 
 const filtersStore = useFiltersStore()
-const store = useStore()
 const route = useRoute()
 const router = useRouter()
-
 const resultsTab: Ref<string> = ref('flows')
+
+const firstFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [{
+    limit: 1,
+    sort: 'EXPECTED_START_TIME_ASC'
+}])
+
+const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expected_start_time)
+
+const lastFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [{
+    limit: 1,
+    sort: 'EXPECTED_START_TIME_DESC'
+}])
+
+const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expected_start_time)
 
 const filter = computed<UnionFilters>(() => {
   return FiltersQueryService.query(filtersStore.all)
@@ -267,6 +266,10 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
+  if(historyStart.value && historyEnd.value) {
+    return FiltersQueryService.flowHistoryQuery(filtersStore.all, new Date(historyStart.value), new Date(historyEnd.value))
+  }
+  
   return FiltersQueryService.flowHistoryQuery(filtersStore.all)
 })
 
@@ -284,7 +287,7 @@ const resultsCount = computed<number>(() => {
   return queries[resultsTab.value].response.value || 0
 })
 
-const tabs: ResultsListTab[] = reactive([
+const tabs = reactive([
   {
     label: 'Flows',
     href: 'flows',
@@ -319,8 +322,8 @@ const applyFilter = (filter: PremadeFilter) => {
     operation: 'or',
     value: [filter.type]
   }
-  
-  if(hasFilter(filtersStore.all, filterToAdd)) {
+
+  if (hasFilter(filtersStore.all, filterToAdd)) {
     return
   }
 

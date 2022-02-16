@@ -93,10 +93,10 @@ The agent can be run standalone with `prefect agent start`. However, if you star
 
 If you do not have the Orion API hosted already, start the Orion API locally with `prefect orion start --no-agent`. The `--no-agent` flag will disable the agent that is usually started alongside the server.
 
-To connect the agent to your API, provide the `PREFECT_ORION_HOST` environment variable:
+To connect the agent to your API, provide the `PREFECT_API_URL` environment variable:
 
 ```bash
-PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
+PREFECT_API_URL="http://127.0.0.1:4200/api/" prefect agent start
 ```
 
 The API must be available from within the flow run container. To faciliate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.

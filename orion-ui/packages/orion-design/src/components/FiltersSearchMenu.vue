@@ -16,7 +16,7 @@
         <m-loader :loading="true" class="filters-search-menu__loader" />
       </template>
 
-      <template v-if="empty && !loading" key="empty">
+      <template v-else-if="empty" key="empty">
         <p class="filters-search-menu__empty">
           Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
         </p>
