@@ -49,6 +49,8 @@ class DatabricksGetJobID(Task):
             unreachable. Its value must be greater than or equal to 1.
         - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
             might be a floating point number).
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
 
     Returns:
         - job_id (int): Job id of the job name.
