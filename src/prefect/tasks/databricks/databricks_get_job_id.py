@@ -42,7 +42,7 @@ class DatabricksGetJobID(Task):
             string using `PrefectSecret`.
         - job_name (str, optional): The job_name of an existing Databricks job.
         - search_limit (int, optional): Controls the number of jobs to return per API call,
-            This value must be greater than 0 and less or equal to 25.
+            This value must be greater than 0 and less than or equal to 25.
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
             this run. By default the task will poll every 30 seconds.
         - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
