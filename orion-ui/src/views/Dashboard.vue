@@ -287,7 +287,7 @@ const resultsCount = computed<number>(() => {
   return queries[resultsTab.value].response.value || 0
 })
 
-const tabs: ResultsListTab[] = reactive([
+const tabs = reactive([
   {
     label: 'Flows',
     href: 'flows',
