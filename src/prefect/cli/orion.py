@@ -3,6 +3,7 @@ Command line interface for working with Orion
 """
 import os
 import subprocess
+import sys
 import textwrap
 from functools import partial
 from string import Template
@@ -14,7 +15,14 @@ import typer
 from anyio.streams.text import TextReceiveStream
 
 import prefect
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    SettingsOption,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -24,13 +32,19 @@ from prefect.orion.database.alembic_commands import (
     alembic_upgrade,
 )
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
+from prefect.settings import (
+    PREFECT_LOGGING_SERVER_LEVEL,
+    PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_PORT,
+    PREFECT_ORION_UI_ENABLED,
+)
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
-orion_app = typer.Typer(
+orion_app = PrefectTyper(
     name="orion",
     help="Commands for interacting with backend services.",
 )
-database_app = typer.Typer(
+database_app = PrefectTyper(
     name="database", help="Commands for interacting with the database."
 )
 orion_app.add_typer(database_app)
@@ -39,11 +53,9 @@ app.add_typer(orion_app)
 logger = get_logger(__name__)
 
 
-def generate_welcome_blub(base_url):
-    api_url = base_url + "/api"
-
+def generate_welcome_blub(base_url, ui_enabled: bool):
     blurb = textwrap.dedent(
-        f"""
+        r"""
          ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
         | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
         |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
@@ -51,9 +63,9 @@ def generate_welcome_blub(base_url):
 
         Configure Prefect to communicate with the server with:
 
-            PREFECT_ORION_HOST={api_url}
+            prefect config set PREFECT_API_URL={api_url}
         """
-    )
+    ).format(api_url=base_url + "/api")
 
     visit_dashboard = textwrap.dedent(
         f"""
@@ -76,7 +88,7 @@ def generate_welcome_blub(base_url):
 
     if not os.path.exists(prefect.__ui_static_path__):
         blurb += dashboard_not_built
-    elif not prefect.settings.from_env().orion.ui.enabled:
+    elif not ui_enabled:
         blurb += dashboard_disabled
     else:
         blurb += visit_dashboard
@@ -98,30 +110,30 @@ async def open_process_and_stream_output(
             The task will report itself as started once the process is started.
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
-    process = await anyio.open_process(command, stderr=subprocess.STDOUT, **kwargs)
+    process = await anyio.open_process(
+        command, stderr=subprocess.STDOUT, stdout=sys.stdout, **kwargs
+    )
     if task_status:
         task_status.started()
 
     try:
-        async for text in TextReceiveStream(process.stdout):
-            print(text, end="")  # Output is already new-line terminated
-    except Exception:
-        logger.debug("Ignoring exception in subprocess text stream", exc_info=True)
-    except BaseException:
+        await process.wait()
+    finally:
         with anyio.CancelScope(shield=True):
-            process.terminate()
-        raise
+            try:
+                process.terminate()
+            except Exception:
+                pass  # Process may already be terminated
 
 
 @orion_app.command()
-@sync_compatible
 async def start(
-    host: str = prefect.settings.from_env().orion.api.host,
-    port: int = prefect.settings.from_env().orion.api.port,
-    log_level: str = prefect.settings.from_env().logging.server_level,
-    services: bool = True,  # Note this differs from the default of `prefect.settings.from_env().orion.services.run_in_app`
+    host: str = SettingsOption(PREFECT_ORION_API_HOST),
+    port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+    services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
     agent: bool = True,
-    ui: bool = prefect.settings.from_env().orion.ui.enabled,
+    ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -136,7 +148,7 @@ async def start(
     base_url = f"http://{host}:{port}"
 
     agent_env = os.environ.copy()
-    agent_env["PREFECT_ORION_HOST"] = base_url + "/api"
+    agent_env["PREFECT_API_URL"] = base_url + "/api"
 
     async with anyio.create_task_group() as tg:
         console.print("Starting...")
@@ -145,7 +157,8 @@ async def start(
                 open_process_and_stream_output,
                 command=[
                     "uvicorn",
-                    "prefect.orion.api.server:app",
+                    "--factory",
+                    "prefect.orion.api.server:create_app",
                     "--host",
                     str(host),
                     "--port",
@@ -157,7 +170,7 @@ async def start(
             )
         )
 
-        console.print(generate_welcome_blub(base_url))
+        console.print(generate_welcome_blub(base_url, ui_enabled=ui))
 
         if agent:
             # The server may not be ready yet despite waiting for the process to begin
@@ -204,7 +217,6 @@ def kubernetes_manifest():
 
 
 @database_app.command()
-@sync_compatible
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
     db = provide_database_interface()
@@ -224,7 +236,6 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
 
 
 @database_app.command()
-@sync_compatible
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -250,7 +261,6 @@ async def upgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -280,7 +290,6 @@ async def downgrade(
 
 
 @database_app.command()
-@sync_compatible
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
@@ -294,7 +303,6 @@ async def revision(message: str = None, autogenerate: bool = False):
 
 
 @database_app.command()
-@sync_compatible
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 

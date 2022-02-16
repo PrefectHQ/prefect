@@ -9,7 +9,7 @@ import datetime
 import json
 import re
 import uuid
-from typing import List
+from typing import List, Union
 
 import pendulum
 import pydantic
@@ -19,8 +19,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-
-import prefect.settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -537,36 +535,31 @@ def _json_has_all_keys_sqlite(element, compiler, **kwargs):
 
 
 def get_dialect(
-    session=None,
-    engine=None,
-    connection_url: str = None,
+    obj: Union[str, sa.orm.Session, sa.engine.Engine],
 ) -> sa.engine.Dialect:
     """
     Get the dialect of a session, engine, or connection url.
 
-    If none of the above is provided, dialect will be retrieved
-    from the Orion API database connection url.
-
-    Primary use case is figuring out whether the Orion API is
-    communicating with SQLite or Postgres.
+    Primary use case is figuring out whether the Orion API is communicating with
+    SQLite or Postgres.
 
     Example:
         ```python
+        import prefect.settings
         from prefect.orion.utilities.database import get_dialect
 
-        dialect = get_dialect()
+        dialect = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value())
         if dialect == "sqlite":
             print("Using SQLite!")
         else:
             print("Using Postgres!")
         ```
     """
-    if session is not None:
-        url = session.bind.url
-    elif engine is not None:
-        url = engine.url
+    if isinstance(obj, sa.orm.Session):
+        url = obj.bind.url
+    elif isinstance(obj, sa.engine.Engine):
+        url = obj.url
     else:
-        if connection_url is None:
-            connection_url = prefect.settings.from_env().orion.database.connection_url
-        url = sa.engine.url.make_url(connection_url)
+        url = sa.engine.url.make_url(obj)
+
     return url.get_dialect()

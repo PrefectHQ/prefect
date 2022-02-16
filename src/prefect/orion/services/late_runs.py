@@ -1,6 +1,6 @@
 """
 The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
-The threshold for a late run can be configured by changing `prefect.settings.from_env().orion.services.mark_late_after`.
+The threshold for a late run can be configured by changing `PREFECT_ORION_SERVICES_MARK_LATE_AFTER`.
 """
 
 import asyncio
@@ -8,15 +8,16 @@ import datetime
 
 import sqlalchemy as sa
 
-import prefect
-from prefect.orion import models
+import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
 from prefect.orion.utilities.database import date_add, now
-
-settings = prefect.settings.from_env().orion.services
+from prefect.settings import (
+    PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS,
+    PREFECT_ORION_SERVICES_MARK_LATE_AFTER,
+)
 
 
 class MarkLateRuns(LoopService):
@@ -25,19 +26,20 @@ class MarkLateRuns(LoopService):
 
     A flow run is defined as "late" if has not scheduled within a certain amount
     of time after its scheduled start time. The exact amount is configurable in
-    Orion prefect.settings.from_env().
+    Orion Settings.
     """
 
-    loop_seconds: float = (
-        prefect.settings.from_env().orion.services.late_runs_loop_seconds
-    )
+    def __init__(self, loop_seconds: float = None):
+        super().__init__(
+            loop_seconds or PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS.value()
+        )
 
-    # mark runs late if they are this far past their expected start time
-    mark_late_after: datetime.timedelta = (
-        prefect.settings.from_env().orion.services.mark_late_after
-    )
+        # mark runs late if they are this far past their expected start time
+        self.mark_late_after: datetime.timedelta = (
+            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.value()
+        )
 
-    batch_size: int = 100
+        self.batch_size: int = 100
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):

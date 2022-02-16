@@ -4,18 +4,17 @@ Command line interface for working with agent services
 import anyio
 import typer
 
-import prefect.settings
 from prefect.agent import OrionAgent
-from prefect.cli.base import app, console
-from prefect.utilities.asyncio import sync_compatible
+from prefect.cli.base import PrefectTyper, SettingsOption, app, console
+from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
-agent_app = typer.Typer(
+agent_app = PrefectTyper(
     name="agent", help="Commands for starting and interacting with agent processes."
 )
 app.add_typer(agent_app)
 
 
-ascii_name = """
+ascii_name = r"""
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____ 
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
  |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |  
@@ -25,17 +24,16 @@ ascii_name = """
 
 
 @agent_app.command()
-@sync_compatible
 async def start(
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
-    host: str = prefect.settings.from_env().orion_host,
+    api: str = SettingsOption(PREFECT_API_URL),
 ):
     """
     Start an agent process.
     """
     if not hide_welcome:
-        if prefect.settings.from_env().orion_host:
-            console.print(f"Starting agent connected to {host}...")
+        if api:
+            console.print(f"Starting agent connected to {api}...")
         else:
             console.print("Starting agent with ephemeral API...")
 
@@ -49,6 +47,6 @@ async def start(
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(prefect.settings.from_env().agent.query_interval)
+            await anyio.sleep(PREFECT_AGENT_QUERY_INTERVAL.value())
 
     console.print("Agent stopped!")

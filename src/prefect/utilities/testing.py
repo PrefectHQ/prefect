@@ -32,7 +32,8 @@ else:
 @contextmanager
 def temporary_settings(**kwargs):
     """
-    Temporarily override setting values.
+    Temporarily override setting values by updating the current os.environ and changing
+    the profile context.
 
     This will _not_ mutate values that have been already been accessed at module
     load time.
@@ -40,26 +41,30 @@ def temporary_settings(**kwargs):
     This function should only be used for testing.
 
     Example:
-        >>> import prefect.settings
-        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
-        >>>    assert prefect.settings.from_env().orion_host == "foo"
-        >>> assert prefect.settings.from_env().orion_host is None
+        >>> from prefect.settings import PREFECT_API_URL
+        >>> with temporary_settings(PREFECT_API_URL="foo"):
+        >>>    assert PREFECT_API_URL.value() == "foo"
+        >>> assert PREFECT_API_URL.value() is None
     """
     old_env = os.environ.copy()
-    old_settings = prefect.settings.from_env()
+
+    # Cast to strings
+    variables = {key: str(value) for key, value in kwargs.items()}
 
     try:
-        for setting in kwargs:
-            os.environ[setting] = str(kwargs[setting])
+        for key in variables:
+            os.environ[key] = str(variables[key])
 
-        assert old_env != os.environ, "Environment did not change"
-        new_settings = prefect.settings.from_env()
-        assert new_settings != old_settings, "Temporary settings did not change values"
-        yield new_settings
+        new_settings = prefect.settings.get_settings_from_env()
+
+        with prefect.context.ProfileContext(
+            name="temporary", settings=new_settings, env=variables
+        ):
+            yield new_settings
 
     finally:
-        for setting in kwargs:
-            if old_env.get(setting):
-                os.environ[setting] = old_env[setting]
+        for key in variables:
+            if old_env.get(key):
+                os.environ[key] = old_env[key]
             else:
-                os.environ.pop(setting, None)
+                os.environ.pop(key, None)

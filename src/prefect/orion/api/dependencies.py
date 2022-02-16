@@ -3,11 +3,12 @@ Utilities for injecting FastAPI dependencies.
 """
 import logging
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Body, Depends, Header, HTTPException, status
 
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import response_scoped_dependency
+from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
 
 
 @response_scoped_dependency
@@ -83,3 +84,32 @@ class CheckVersionCompatibility:
                     f" only supports version {self.api_version} and below."
                 ),
             )
+
+
+def LimitBody() -> Depends:
+    """
+    A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
+    request body while determing the default from the current settings.
+    """
+
+    def get_limit(
+        limit: int = Body(
+            None,
+            description="Defaults to PREFECT_ORION_API_DEFAULT_LIMIT if not provided.",
+        )
+    ):
+        default_limit = PREFECT_ORION_API_DEFAULT_LIMIT.value()
+        limit = limit if limit is not None else default_limit
+        if not limit >= 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid limit: must be greater than or equal to 0.",
+            )
+        if limit > default_limit:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid limit: must be less than or equal to {default_limit}.",
+            )
+        return limit
+
+    return Depends(get_limit)

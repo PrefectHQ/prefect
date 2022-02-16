@@ -7,6 +7,7 @@ import anyio
 import pendulum
 import pytest
 
+import prefect.settings
 from prefect import flow, task
 from prefect.engine import (
     begin_flow_run,

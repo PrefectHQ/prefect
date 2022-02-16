@@ -7,16 +7,22 @@ import threading
 import time
 import traceback
 import warnings
-from typing import List
+from typing import Dict, List
 
 import anyio
 import pendulum
 
-import prefect
-import prefect.settings
-from prefect.client import OrionClient
+import prefect.context
+from prefect.client import get_client
 from prefect.exceptions import MissingContextError
 from prefect.orion.schemas.actions import LogCreate
+from prefect.settings import (
+    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
+    PREFECT_LOGGING_ORION_BATCH_SIZE,
+    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_SERVER_LEVEL,
+)
 
 
 class OrionLogWorker:
@@ -24,8 +30,11 @@ class OrionLogWorker:
     Manages the submission of logs to Orion in a background thread.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, profile_context: prefect.context.ProfileContext) -> None:
+        self.profile_context = profile_context.copy()
+
         self._queue: queue.Queue[dict] = queue.Queue()
+
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
             name="orion-log-worker",
@@ -41,6 +50,8 @@ class OrionLogWorker:
         # Tracks logs that have been pulled from the queue but not sent successfully
         self._pending_logs: List[dict] = []
         self._pending_size: int = 0
+        self._retries = 0
+        self._max_retries = 3
 
         # Ensure stop is called at exit
         if sys.version_info < (3, 9):
@@ -61,23 +72,23 @@ class OrionLogWorker:
 
         Runs until the `stop_event` is set.
         """
-        while not self._stop_event.is_set():
-            # Wait until flush is called or the batch interval is reached
-            self._flush_event.wait(
-                prefect.settings.from_env().logging.orion.batch_interval
-            )
-            self._flush_event.clear()
+        # Initialize prefect in this new thread, but do not reconfigure logging
+        with self.profile_context:
+            while not self._stop_event.is_set():
+                # Wait until flush is called or the batch interval is reached
+                self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
+                self._flush_event.clear()
 
-            anyio.run(self.send_logs)
+                anyio.run(self.send_logs)
 
-            # Notify watchers that logs were sent
+                # Notify watchers that logs were sent
+                self._send_logs_finished_event.set()
+                self._send_logs_finished_event.clear()
+
+            # After the stop event, we are exiting...
+            # Try to send any remaining logs
+            anyio.run(self.send_logs, True)
             self._send_logs_finished_event.set()
-            self._send_logs_finished_event.clear()
-
-        # After the stop event, we are exiting...
-        # Try to send any remaining logs
-        anyio.run(self.send_logs, True)
-        self._send_logs_finished_event.set()
 
     async def send_logs(self, exiting: bool = False) -> None:
         """
@@ -96,9 +107,9 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            prefect.settings.from_env().logging.orion.batch_size
-            - prefect.settings.from_env().logging.orion.max_log_size,
-            prefect.settings.from_env().logging.orion.max_log_size,
+            PREFECT_LOGGING_ORION_BATCH_SIZE.value()
+            - PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
+            PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
         )
 
         # Loop until the queue is empty or we encounter an error
@@ -117,14 +128,16 @@ class OrionLogWorker:
             if not self._pending_logs:
                 continue
 
-            async with OrionClient() as client:
+            async with get_client() as client:
                 try:
                     await client.create_logs(self._pending_logs)
                     self._pending_logs = []
                     self._pending_size = 0
+                    self._retries = 0
                 except Exception:
                     # Attempt to send these logs on the next call instead
                     done = True
+                    self._retries += 1
 
                     # Roughly replicate the behavior of the stdlib logger error handling
                     if logging.raiseExceptions and sys.stderr:
@@ -135,11 +148,22 @@ class OrionLogWorker:
                             sys.stderr.write(
                                 "The log worker is stopping and these logs will not be sent.\n"
                             )
+                        elif self._retries > self._max_retries:
+                            sys.stderr.write(
+                                "The log worker has tried to send these logs "
+                                f"{self._retries} times and will now drop them."
+                            )
                         else:
                             sys.stderr.write(
                                 "The log worker will attempt to send these logs again in "
-                                f"{prefect.settings.from_env().logging.orion.batch_interval}s\n"
+                                f"{PREFECT_LOGGING_ORION_BATCH_INTERVAL.value()}s\n"
                             )
+
+                    if self._retries > self._max_retries:
+                        # Drop this batch of logs
+                        self._pending_logs = []
+                        self._pending_size = 0
+                        self._retries = 0
 
     def worker_info(self) -> str:
         """Returns a debugging string with worker log stats"""
@@ -159,6 +183,8 @@ class OrionLogWorker:
 
     def flush(self, block: bool = False) -> None:
         with self._lock:
+            if not self._started and not self._stopped:
+                raise RuntimeError("Worker was never started.")
             self._flush_event.set()
             if block:
                 self._send_logs_finished_event.wait()
@@ -197,14 +223,14 @@ class OrionHandler(logging.Handler):
     the background.
     """
 
-    worker: OrionLogWorker = None
+    workers: Dict[prefect.context.ProfileContext, OrionLogWorker] = {}
 
-    @classmethod
-    def get_worker(cls) -> OrionLogWorker:
-        if not cls.worker:
-            cls.worker = OrionLogWorker()
-            cls.worker.start()
-        return cls.worker
+    def get_worker(self, context: prefect.context.ProfileContext) -> OrionLogWorker:
+        if context not in self.workers:
+            worker = self.workers[context] = OrionLogWorker(context)
+            worker.start()
+
+        return self.workers[context]
 
     @classmethod
     def flush(cls, block: bool = False):
@@ -213,19 +239,22 @@ class OrionHandler(logging.Handler):
 
         Blocks until enqueued logs are sent if `block` is set.
         """
-        if cls.worker:
-            cls.worker.flush(block)
+        for worker in cls.workers.values():
+            worker.flush(block)
 
     def emit(self, record: logging.LogRecord):
         """
         Send a log to the `OrionLogWorker`
         """
         try:
-            if not prefect.settings.from_env().logging.orion.enabled:
+            profile = prefect.context.get_profile_context()
+
+            if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
-            self.get_worker().enqueue(self.prepare(record))
+
+            self.get_worker(profile).enqueue(self.prepare(record, profile.settings))
         except Exception:
             self.handleError(record)
 
@@ -241,7 +270,9 @@ class OrionHandler(logging.Handler):
         # Display a longer traceback for other errors
         return super().handleError(record)
 
-    def prepare(self, record: logging.LogRecord) -> LogCreate:
+    def prepare(
+        self, record: logging.LogRecord, settings: prefect.settings.Settings
+    ) -> LogCreate:
         """
         Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
 
@@ -291,20 +322,20 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = sys.getsizeof(log)
-        if log_size > prefect.settings.from_env().logging.orion.max_log_size:
+        if log_size > PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{prefect.settings.from_env().logging.orion.max_log_size}"
+                f"{PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value()}"
             )
 
         return log
 
     def close(self) -> None:
         """
-        Shuts down this handler and the flushes the `OrionLogWorker`.
+        Shuts down this handler and the flushes the `OrionLogWorkers`
         """
-        if self.worker:
-            # We flush instead of closing ecause another class instance may be using the
-            # worker
-            self.worker.flush()
+        for worker in self.workers.values():
+            # Flush instead of closing ecause another instance may be using the worker
+            worker.flush()
+
         return super().close()

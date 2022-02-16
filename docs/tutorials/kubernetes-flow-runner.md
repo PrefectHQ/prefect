@@ -24,40 +24,9 @@ An easy way to get started is to use [Docker Desktop](https://www.docker.com/pro
 
 The easiest way to get started with the Kubernetes flow runner is to run Orion itself on Kubernetes. 
 
-The Prefect CLI includes a command that automatically generates a manifest that runs Orion as a Kubernetes deployment. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary. The deployment portion of the manifest looks like this:
+The Prefect CLI includes a command that automatically generates a manifest that runs Orion as a Kubernetes deployment. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary. 
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: orion
-spec:
-  selector:
-    matchLabels:
-      app: orion
-  replicas: 1  # We're using SQLite, so we should only run 1 pod
-  template:
-    metadata:
-      labels:
-        app: orion
-    spec:
-      containers:
-      - name: api
-        image: prefecthq/prefect:dev-python3.8
-        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--no-agent", "--log-level", "DEBUG"]
-        imagePullPolicy: "IfNotPresent"
-        ports:
-        - containerPort: 4200
-      - name: agent
-        image: prefecthq/prefect:dev-python3.8
-        command: [ "prefect", "agent", "start"]
-        imagePullPolicy: "IfNotPresent"
-        env:
-          - name: PREFECT_ORION_HOST
-            value: http://orion:4200/api
-```
-
-You can see that the default name for the deployment is "orion" and it uses a pre-built `prefecthq/prefect:dev-python3.8` image for its containers.
+The default name for the deployment is "orion" and it uses a pre-built Prefect image for its containers.
 
 In this case, we'll pipe the output directly to `kubectl` and apply the manifest to a Kubernetes cluster:
 
@@ -85,7 +54,7 @@ You should see something like this:
 ```bash
 Configure Prefect to communicate with the server with:
 
-    PREFECT_ORION_HOST=http://0.0.0.0:4200/api
+    PREFECT_API_URL=http://0.0.0.0:4200/api
 
 Check out the dashboard at <http://0.0.0.0:4200>
 
@@ -139,10 +108,10 @@ Now that we have Orion running on Kubernetes, let's talk about running your actu
 
 Before we do anything else, we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
 
-To do this, set the `PREFECT_ORION_HOST` environment variable:
+To do this, set the `PREFECT_API_URL` environment variable:
 
 ```bash
-export PREFECT_ORION_HOST=http://localhost:4200/api
+export PREFECT_API_URL=http://localhost:4200/api
 ```
 
 Since we previously configured port forwarding for the localhost port to the Kubernetes environment, we’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.

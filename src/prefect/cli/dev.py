@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import textwrap
 import time
+from functools import partial
 from string import Template
 
 import anyio
@@ -14,11 +15,23 @@ import typer
 
 import prefect
 from prefect.cli.agent import start as start_agent
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    SettingsOption,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.cli.orion import open_process_and_stream_output
 from prefect.flow_runners import get_prefect_image_name
+from prefect.orion.api.server import create_app
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import sync_compatible
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_PORT,
+)
 from prefect.utilities.filesystem import tmpchdir
 
 DEV_HELP = """
@@ -26,7 +39,9 @@ Commands for development.
 
 Note that many of these commands require extra dependencies (such as npm and MkDocs) to function properly.
 """
-dev_app = typer.Typer(name="dev", short_help="Commands for development.", help=DEV_HELP)
+dev_app = PrefectTyper(
+    name="dev", short_help="Commands for development.", help=DEV_HELP
+)
 app.add_typer(dev_app)
 
 
@@ -39,10 +54,7 @@ def build_docs(
 
     Note that this command only functions properly with an editable install.
     """
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app as orion_fastapi_app
-
-    schema = orion_fastapi_app.openapi()
+    schema = create_app().openapi()
 
     if not schema_path:
         schema_path = (
@@ -88,7 +100,6 @@ def build_ui():
 
 
 @dev_app.command()
-@sync_compatible
 async def ui():
     """
     Starts a hot-reloading development UI.
@@ -103,10 +114,9 @@ async def ui():
 
 
 @dev_app.command()
-@sync_compatible
 async def api(
-    host: str = prefect.settings.from_env().orion.api.host,
-    port: int = prefect.settings.from_env().orion.api.port,
+    host: str = SettingsOption(PREFECT_ORION_API_HOST),
+    port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -117,40 +127,43 @@ async def api(
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = "False"
 
-    await open_process_and_stream_output(
-        command=[
-            "uvicorn",
-            "prefect.orion.api.server:app",
-            "--host",
-            str(host),
-            "--port",
-            str(port),
-            "--log-level",
-            log_level.lower(),
-            "--reload",
-            "--reload-dir",
-            prefect.__module_path__,
-        ],
-        env=server_env,
-    )
+    command = [
+        "uvicorn",
+        "--factory",
+        "prefect.orion.api.server:create_app",
+        "--host",
+        str(host),
+        "--port",
+        str(port),
+        "--log-level",
+        log_level.lower(),
+        "--reload",
+        "--reload-dir",
+        str(prefect.__module_path__),
+    ]
+
+    console.print(f"Running: {' '.join(command)}")
+
+    await open_process_and_stream_output(command=command, env=server_env)
 
 
 @dev_app.command()
-@sync_compatible
-async def agent(host: str = prefect.settings.from_env().orion_host):
+async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     """
     Starts a hot-reloading development agent process.
     """
     # Delayed import since this is only a 'dev' dependency
     import watchgod
 
+    console.print("Creating hot-reloading agent process...")
     await watchgod.arun_process(
-        prefect.__module_path__, start_agent, kwargs=dict(host=host)
+        prefect.__module_path__,
+        start_agent,
+        kwargs=dict(hide_welcome=False, api=api_url),
     )
 
 
 @dev_app.command()
-@sync_compatible
 async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
@@ -169,15 +182,21 @@ async def start(
 
     async with anyio.create_task_group() as tg:
         if not exclude_api:
-            tg.start_soon(api)
+            tg.start_soon(
+                partial(
+                    api,
+                    host=PREFECT_ORION_API_HOST.value(),
+                    port=PREFECT_ORION_API_PORT.value(),
+                )
+            )
         if not exclude_ui:
             tg.start_soon(ui)
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{prefect.settings.from_env().orion.api.host}:{prefect.settings.from_env().orion.api.port}/api"
+                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"
             else:
-                host = prefect.settings.from_env().orion_host
+                host = PREFECT_API_URL.value()
             tg.start_soon(agent, host)
 
 

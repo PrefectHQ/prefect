@@ -21,12 +21,9 @@ import {
   ObjectStringFilter,
   ObjectDateFilter,
   ObjectStateFilter,
-  ObjectTagFilter
+  ObjectTagFilter,
+  FilterOperation
 } from '../types/filters'
-
-export function isCompleteFilter(filter: Partial<Filter>): filter is Required<Filter> {
-  return !!(filter.operation && filter.property && filter.type && filter.value)
-}
 
 export function isFilter(filter: Partial<Filter>): filter is Filter {
   return filter.object !== undefined
@@ -50,6 +47,35 @@ export function isTaskRunFilter(filter: Filter): filter is TaskRunFilter {
 
 export function isTagFilter(filter: Filter): filter is TagFilter {
   return filter.object === 'tag'
+}
+
+export function isCompleteFilter(filter: Partial<Filter>): filter is Required<Filter> {
+  // the types aren't technically correct for this. Would love to use a NonEmptyArray type here
+  if (Array.isArray(filter.value) && filter.value.length === 0) {
+    return false
+  }
+
+  return !!(filter.operation && filter.property && filter.type && filter.value)
+}
+
+export function isCompleteFlowFilter(filter: Filter): filter is Required<FlowFilter> {
+  return isFlowFilter(filter) && isCompleteFilter(filter)
+}
+
+export function isCompleteDeploymentFilter(filter: Filter): filter is Required<DeploymentFilter> {
+  return isDeploymentFilter(filter) && isCompleteFilter(filter)
+}
+
+export function isCompleteFlowRunFilter(filter: Filter): filter is Required<FlowRunFilter> {
+  return isFlowRunFilter(filter) && isCompleteFilter(filter)
+}
+
+export function isCompleteTaskRunFilter(filter: Filter): filter is Required<TaskRunFilter> {
+  return isTaskRunFilter(filter) && isCompleteFilter(filter)
+}
+
+export function isCompleteTagFilter(filter: Filter): filter is Required<TagFilter> {
+  return isTagFilter(filter) && isCompleteFilter(filter)
 }
 
 export function isFlowStringFilter(filter: Filter): filter is FlowStringFilter {
@@ -114,4 +140,26 @@ export function isObjectStateFilter(filter: ObjectFilter): filter is ObjectState
 
 export function isObjectTagFilter(filter: ObjectFilter): filter is ObjectTagFilter {
   return filter.type == 'tag'
+}
+
+export function hasFilter(haystack: Filter[], needle: Filter): boolean {
+  return haystack.some((filter: Filter) => {
+    if (filter.object != needle.object || filter.property != needle.property || filter.operation != needle.operation) {
+      return false
+    }
+
+    if (Array.isArray(filter.value) && Array.isArray(needle.value)) {
+      return filter.value.some(value => (needle.value as unknown[]).includes(value))
+    }
+
+    return filter.value == needle.value
+  })
+}
+
+export function isRelativeDateOperation(value: FilterOperation): value is 'newer' | 'older' | 'upcoming' {
+  return ['newer', 'older', 'upcoming'].includes(value)
+}
+
+export function isDateOperation(value: FilterOperation): value is 'after' | 'before' {
+  return ['after', 'before'].includes(value)
 }
