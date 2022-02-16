@@ -35,15 +35,15 @@ class AWSParametersManager(SecretBase):
         Task run method.
 
         Args:
-            - parameter_name (str): the name of the parameter to retrieve
-            - credentials (dict, optional): your AWS credentials passed from an upstream
+            - parameter_name (str): The name of the parameter to retrieve from SSM.
+            - credentials (dict, optional): Your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
-                passed directly to `boto3`.  If not provided here or in context, `boto3`
+                passed directly to `boto3`. If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
 
         Returns:
-            - str: the parameter value, as a string
+            - str: The parameter value, as a string.
         """
 
         if parameter_name is None:
