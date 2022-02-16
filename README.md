@@ -84,7 +84,7 @@ Orion provides a number of programmatic workflow interfaces, each of which is do
 
 ### Contributing
 
-See our [documentation on contributing to Orion](https://orion-docs.prefect.io/contributing/).
+See our [documentation on contributing to Orion](https://orion-docs.prefect.io/contributing/overview/).
 
 
 ## Join the community
