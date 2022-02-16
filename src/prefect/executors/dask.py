@@ -138,6 +138,7 @@ class DaskExecutor(Executor):
         client_kwargs: dict = None,
         debug: bool = None,
         performance_report_path: str = None,
+        disable_cancellation_event: bool = False,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -180,6 +181,7 @@ class DaskExecutor(Executor):
         self.cluster_kwargs = cluster_kwargs
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
+        self.disable_cancellation_event = disable_cancellation_event
         # Runtime attributes
         self.client = None
         # These are coupled - they're either both None, or both non-None.
@@ -309,7 +311,9 @@ class DaskExecutor(Executor):
         from distributed import Event
 
         is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
-        if self.address is not None or is_inproc:
+        if (
+            self.address is not None or is_inproc
+        ) and not self.disable_cancellation_event:
             self._futures = weakref.WeakSet()
             self._should_run_event = Event(
                 f"prefect-{uuid.uuid4().hex}", client=self.client
