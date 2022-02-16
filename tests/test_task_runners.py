@@ -8,6 +8,7 @@ import anyio
 import cloudpickle
 import distributed
 import pytest
+import ray
 
 from prefect import flow, task
 from prefect.context import get_run_context
@@ -19,6 +20,7 @@ from prefect.task_runners import (
     BaseTaskRunner,
     ConcurrentTaskRunner,
     DaskTaskRunner,
+    RayTaskRunner,
     SequentialTaskRunner,
 )
 
@@ -32,6 +34,16 @@ def dask_task_runner_with_existing_cluster():
         with distributed.Client(cluster) as client:
             address = client.scheduler.address
             yield DaskTaskRunner(address=address)
+
+
+@contextmanager
+def ray_task_runner_with_existing_cluster():
+    """
+    Generate a dask task runner that's connected to a local cluster
+    """
+    ray.init()
+    yield RayTaskRunner(address="auto")
+    ray.shutdown()
 
 
 @contextmanager
@@ -94,6 +106,8 @@ parameterize_with_all_task_runners = pytest.mark.parametrize(
         DaskTaskRunner,
         SequentialTaskRunner,
         ConcurrentTaskRunner,
+        RayTaskRunner,
+        ray_task_runner_with_existing_cluster,
         dask_task_runner_with_existing_cluster,
         dask_task_runner_with_process_pool,
         dask_task_runner_with_thread_pool,
@@ -107,6 +121,7 @@ parameterize_with_parallel_task_runners = pytest.mark.parametrize(
     [
         DaskTaskRunner,
         ConcurrentTaskRunner,
+        RayTaskRunner,
         dask_task_runner_with_existing_cluster,
     ],
     indirect=True,

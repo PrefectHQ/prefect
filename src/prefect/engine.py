@@ -632,7 +632,7 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    client: OrionClient,
+    client: OrionClient = None,
 ) -> State:
     """
     Execute a task run
@@ -659,7 +659,6 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-
     context = TaskRunContext(
         task_run=task_run,
         task=task,
