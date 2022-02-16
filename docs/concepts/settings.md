@@ -278,3 +278,15 @@ $ prefect --profile default config view --show-sources
 PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 ```
+
+### Profile files
+
+Profiles are stored persisted to the `PREFECT_PROFILES_PATH`, which can be changed with an environment variable.
+
+By default, it is stored in your `PREFECT_HOME` directory:
+```
+$ prefect config view --show-defaults | grep PROFILES_PATH
+PREFECT_PROFILES_PATH='~/.prefect/profiles.toml'
+```
+
+The [TOML](https://toml.io/en/) format is used to store profile data.
