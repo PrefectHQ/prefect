@@ -50,4 +50,4 @@ export const useFiltersStore = defineStore('filters', {
   },
 })
 
-export const key: InjectionKey<ReturnType<typeof useFiltersStore>> = Symbol()
+export const filterStoreKey: InjectionKey<ReturnType<typeof useFiltersStore>> = Symbol()
