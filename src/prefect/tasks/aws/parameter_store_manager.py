@@ -8,15 +8,15 @@ class AWSParametersManager(SecretBase):
     Task for retrieving values from AWS SSM Parameters Store and returning the parameter value.
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
     For authentication, there are two options: you can set the `AWS_CREDENTIALS` Prefect Secret
-    containing your AWS access keys which will be passed directly to the `boto3` client, or you
+    containing your AWS access keys, which will be passed directly to the `boto3` client, or you
     can [configure your flow's runtime
     environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
     Args:
-        - parameter_name (str, optional): the name of the parameter to retrieve via ssm
-        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+        - parameter_name (str, optional): The name of the parameter to retrieve via SSM.
+        - boto_kwargs (dict, optional): Additional keyword arguments to forward to the boto client.
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(self, parameter_name: str = None, boto_kwargs: dict = None, **kwargs):
