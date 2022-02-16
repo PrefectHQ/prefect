@@ -42,10 +42,10 @@ class DatabricksRunNowTestOverride(DatabricksRunNow):
 class DatabricksGetJobIDTestOverride(DatabricksGetJobID):
     """
     Overrides `DatabricksGetJobID` to allow mocked API responses
-    to be returned using `DatabricksHookTestOverride`
+    to be returned using `DatabricksHookTestOverride`.
 
     Args:
-        - mocked_response (dict): JSON response of API call
+        - mocked_response (dict): JSON response of API call.
     """
 
     def __init__(self, mocked_response, **kwargs) -> None:

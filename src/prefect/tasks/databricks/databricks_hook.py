@@ -325,10 +325,10 @@ class DatabricksHook:
         Retrieves job_id from run_id.
 
         Args:
-            - job_name (str): name of the job
+            - job_name (str): Name of the job.
 
         Returns
-            - int: Job id for given Databricks job
+            - int: Job id for given Databricks job.
         """
         matching_jobs = []
         while True:
@@ -343,7 +343,7 @@ class DatabricksHook:
         if len(matching_jobs) > 1:
             raise ValueError(
                 f"Job with name '{job_name}' is duplicated. Please make sure job names "
-                f"are unique in Databricks"
+                f"are unique in Databricks."
             )
 
         if not matching_jobs:
