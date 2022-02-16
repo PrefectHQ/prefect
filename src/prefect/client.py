@@ -27,8 +27,6 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
-import prefect.settings
-from prefect import exceptions, settings
 from prefect.blocks.core import BlockAPI, get_blockapi
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -38,6 +36,7 @@ from prefect.orion.schemas.core import BlockData, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.asyncio import asyncnullcontext
 
 if TYPE_CHECKING:
@@ -76,8 +75,8 @@ def inject_client(fn):
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
     return OrionClient(
-        profile.settings.api_url or create_app(profile.settings.orion),
-        api_key=profile.settings.api_key,
+        PREFECT_API_URL.value_from(profile.settings) or create_app(profile.settings),
+        api_key=PREFECT_API_KEY.value_from(profile.settings),
     )
 
 

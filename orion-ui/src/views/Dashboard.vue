@@ -56,14 +56,19 @@
           :poll-interval="15000"
         />
 
+        <div v-else-if="resultsTab == 'deployments'">
+          <M-Button class="mb-2" color="alternate" small @click="onFilterOff">
+            Show all deployments
+          </M-Button>
+
         <ResultsList
-          v-else-if="resultsTab == 'deployments'"
           key="deployments"
           :filter="deploymentsFilter"
           component="ListItemDeployment"
           endpoint="deployments"
           :poll-interval="15000"
         />
+        </div>
 
         <ResultsList
           v-else-if="resultsTab == 'flow_runs'"
@@ -89,30 +94,15 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  computed,
-  ref,
-  Ref,
-  onBeforeMount,
-  ComputedRef,
-  watch,
-  reactive,
-  onMounted
-} from 'vue'
-import { useStore } from '@/store'
+import {computed, ref, Ref, onBeforeMount, ComputedRef, watch, reactive} from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
-import type {
-  UnionFilters,
-  FlowRunsHistoryFilter,
-  DeploymentsFilter,
-  ResultsListTab
-} from '@prefecthq/orion-design'
+import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@prefecthq/orion-design'
 
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute, useRouter } from 'vue-router'
-import { ResultsListTabs } from '@prefecthq/orion-design'
+import ResultsListTabs from '../components/ResultsListTabs.vue'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
@@ -302,7 +292,7 @@ const resultsCount = computed<number>(() => {
   return queries[resultsTab.value].response.value || 0
 })
 
-const tabs: ResultsListTab[] = reactive([
+const tabs = reactive([
   {
     label: 'Flows',
     href: 'flows',

@@ -5,7 +5,6 @@ import inspect
 from contextlib import contextmanager
 from functools import wraps
 
-import prefect.settings
 from prefect.orion.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
@@ -20,6 +19,7 @@ from prefect.orion.database.query_components import (
     AsyncPostgresQueryComponents,
 )
 from prefect.orion.utilities.database import get_dialect
+from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
 MODELS_DEPENDENCIES = {
     "database_config": None,
@@ -29,7 +29,7 @@ MODELS_DEPENDENCIES = {
 
 
 def provide_database_interface():
-    connection_url = prefect.settings.from_context().orion.database.connection_url
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")

@@ -16,6 +16,13 @@ import prefect.settings
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService
+from prefect.settings import (
+    PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
+    PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
+    PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+)
 from prefect.utilities.collections import batched_iterable
 
 
@@ -25,14 +32,19 @@ class Scheduler(LoopService):
     """
 
     def __init__(self, loop_seconds: float = None):
-        settings = prefect.settings.from_context().orion.services
-        super().__init__(loop_seconds or settings.scheduler_loop_seconds)
-        self.deployment_batch_size: int = settings.scheduler_deployment_batch_size
-        self.max_runs: int = settings.scheduler_max_runs
-        self.max_scheduled_time: datetime.timedelta = (
-            settings.scheduler_max_scheduled_time
+        super().__init__(
+            loop_seconds or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value()
         )
-        self.insert_batch_size = settings.scheduler_insert_batch_size
+        self.deployment_batch_size: int = (
+            PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
+        )
+        self.max_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        self.max_scheduled_time: datetime.timedelta = (
+            PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+        )
+        self.insert_batch_size = (
+            PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
+        )
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
