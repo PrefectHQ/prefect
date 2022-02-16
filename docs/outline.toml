@@ -570,7 +570,7 @@ classes = ["MixpanelExportTask"]
 [pages.tasks.databricks]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
-classes = ["DatabricksSubmitRun", "DatabricksRunNow"]
+classes = ["DatabricksSubmitRun", "DatabricksRunNow", "DatabricksGetJobID"]
 
 [pages.tasks.spacy]
 title = "spaCy Tasks"

@@ -28,6 +28,8 @@ CANCEL_RUN_ENDPOINT = ("POST", "api/2.0/jobs/runs/cancel")
 
 USER_AGENT_HEADER = {"user-agent": "prefect-{v}".format(v=prefect.__version__)}
 
+LIST_JOB_ENDPOINT = ("GET", "api/2.1/jobs/list")
+
 
 class RunState:
     """
@@ -317,6 +319,37 @@ class DatabricksHook:
             - json (dict): json dictionary containing cluster specification.
         """
         self._do_api_call(TERMINATE_CLUSTER_ENDPOINT, json)
+
+    def get_job_id_by_name(self, job_name: str, limit: int = 25) -> int:
+        """
+        Retrieves job_id from run_id.
+
+        Args:
+            - job_name (str): name of the job
+
+        Returns
+            - int: Job id for given Databricks job
+        """
+        matching_jobs = []
+        while True:
+            response_payload = self._do_api_call(LIST_JOB_ENDPOINT, {"limit": limit})
+            all_jobs = response_payload.get("jobs", [])
+            for j in all_jobs:
+                if j["settings"]["name"] == job_name:
+                    matching_jobs.append(j)
+            if not response_payload["has_more"]:
+                break
+
+        if len(matching_jobs) > 1:
+            raise ValueError(
+                f"Job with name '{job_name}' is duplicated. Please make sure job names "
+                f"are unique in Databricks"
+            )
+
+        if not matching_jobs:
+            raise ValueError(f"Job with name '{job_name}' not found")
+
+        return matching_jobs[0]["job_id"]
 
 
 def _retryable_error(exception):
