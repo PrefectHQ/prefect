@@ -13,5 +13,5 @@ pytest-env
 requests
 virtualenv
 watchgod
-setuptools == 60.8.2; python_version < '3.8'
+setuptools != 60.9.0; python_version < '3.8'
 mock; python_version < '3.8'
