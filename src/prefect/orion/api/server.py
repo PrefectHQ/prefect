@@ -184,7 +184,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
     app.mount("/api", app=api_app)
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED
+        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
     ):
         ui_app.mount(
             "/",
