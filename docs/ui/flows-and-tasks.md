@@ -49,3 +49,4 @@ You can use [Filters](/ui/filters/) to display only the task runs that meet your
 
 ## Radar view
 
+![Radar view of flow and task relationships.](/img/ui/orion-flow-radar.png)
