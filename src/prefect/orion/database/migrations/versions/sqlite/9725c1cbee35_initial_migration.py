@@ -1,4 +1,4 @@
-"""initial migration
+"""Add the block data table.
 
 Revision ID: 9725c1cbee35
 Revises: 
