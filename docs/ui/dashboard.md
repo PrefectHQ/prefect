@@ -44,7 +44,7 @@ The details area of the dashboard provides a listing of:
 
 - Flows the Orion server knows about
 - Deployments created with the Orion server
-- Flow runs that have attempted to execute
+- Flow runs that are scheduled or have attempted to execute
 - Task runs created by flows runs
 
 [Filters](#filters) control what's shown in the details section. See the [Flows and Tasks](/ui/flows-and-tasks/) documentation for more information.
