@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import azure.storage.blob
 import prefect
 from prefect.tasks.azure import BlobStorageDownload, BlobStorageUpload
 from prefect.utilities.configuration import set_temporary_config
@@ -62,3 +61,23 @@ class TestBlobStorageUpload:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
                 assert task.run(data="")
+
+    def test_overwrite_passed_to_upload_blob(self, monkeypatch):
+        task = BlobStorageUpload(container="bob", overwrite=True)
+
+        data = "blob_data"
+        upload_blob = MagicMock()
+        blob_client = MagicMock(upload_blob=upload_blob)
+        blob_service_client = MagicMock(
+            get_blob_client=MagicMock(return_value=blob_client)
+        )
+        from_connection_string = MagicMock(return_value=blob_service_client)
+        blob = MagicMock(
+            BlobServiceClient=MagicMock(from_connection_string=from_connection_string)
+        )
+        monkeypatch.setattr("prefect.tasks.azure.blobstorage.azure.storage.blob", blob)
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(AZ_CONNECTION_STRING="conn")):
+                assert task.run(data=data)
+                upload_blob.assert_called_once_with(data, overwrite=True)
