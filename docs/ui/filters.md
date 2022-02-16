@@ -34,7 +34,6 @@ You can create more granular filters based on:
 - State
 - Timeframes
 
-Clear filters by clicking **Clear all** in the filters area.
 
 ## Filter behavior
 
