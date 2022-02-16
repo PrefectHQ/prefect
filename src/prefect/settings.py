@@ -417,23 +417,40 @@ class PrefectBaseSettings(BaseSettings):
         """
         Add root validation functions for settings here.
         """
+        # TODO: These should probably be attached to the dynamic `Settings` model
+        #       instead but we aren't using it enough to justify digging into pydantic
+        #       yet.
         values = max_log_size_smaller_than_batch_size(values)
         return values
 
     class Config:
         frozen = True
 
-    def __reduce__(self):
-        return (partial(pydantic.parse_raw_as, type(self)), (self.json(),))
+
+def reduce_settings(settings):
+    # Workaround for issues with cloudpickle when using cythonized pydantic which
+    # throws exceptions when attempting to pickle the class which has "compiled"
+    # validator methods dynamically attached to it.
+    return (
+        unreduce_settings,
+        (settings.json(),),
+    )
+
+
+def unreduce_settings(json):
+    """Helper for restoring settings"""
+    return Settings.parse_raw(json)
 
 
 # This model is dynamically created
 
-Settings = create_model(
+Settings: PrefectBaseSettings = create_model(
     "Settings",
     __base__=PrefectBaseSettings,
     **{setting.name: (setting.type, setting.field) for setting in SETTINGS.values()},
 )
+Settings.__reduce__ = reduce_settings
+
 
 # Functions to instantiate `Settings` instances
 
