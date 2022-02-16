@@ -15,7 +15,6 @@ The dashboard provides high-level visibility into the status of your flow and ta
 - Deployments
 - Flow runs
 - Task runs
-- Logs
 
 When Prefect Server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200). If you're running a local server or accessing a server running in a container or cluster, the default initial view is the dashboard.
 
