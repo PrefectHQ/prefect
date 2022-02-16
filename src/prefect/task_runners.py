@@ -609,11 +609,6 @@ class RayTaskRunner(BaseTaskRunner):
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
-        if not self._task_group:
-            raise RuntimeError(
-                "The concurrent task runner cannot be used to submit work after "
-                "serialization."
-            )
 
         # Ray does not support the submission of async functions and we must create a
         # sync entrypoint
@@ -629,12 +624,6 @@ class RayTaskRunner(BaseTaskRunner):
         prefect_future: PrefectFuture,
         timeout: float = None,
     ) -> Optional[State]:
-        if not self._task_group:
-            raise RuntimeError(
-                "The concurrent task runner cannot be used to wait for work after "
-                "serialization."
-            )
-
         ref = self._get_ray_ref(prefect_future)
         with anyio.move_on_after(timeout):
             # We await the reference directly instead of using `ray.get` so we can
@@ -676,10 +665,6 @@ class RayTaskRunner(BaseTaskRunner):
         else:
             self.logger.info("Creating a local Ray instance")
             init_args = ()
-
-        import prefect.utilities.settings
-
-        self._ray.cloudpickle.register_pickle_by_value(prefect.utilities.settings)
 
         # When connecting to an out-of-process cluster, this returns a `ClientContext`
         # otherwise it returns a `dict`
