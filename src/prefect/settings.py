@@ -13,6 +13,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import toml
 from pydantic import BaseSettings, Field, root_validator
 
 
@@ -402,7 +403,7 @@ class AgentSettings(BaseSettings):
 
 
 class Settings(SharedSettings):
-    """Global Prefect prefect.settings.from_env(). To change these settings via environment variable, set
+    """Global Prefect settings. To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
     """
 
@@ -427,14 +428,92 @@ class Settings(SharedSettings):
     )
 
     # the connection url for an orion instance
-    orion_host: str = Field(
+    api_url: str = Field(
         None,
         description="""If provided, the url of an externally-hosted Orion API.
         Defaults to `None`.""",
     )
 
+    # credentials used for authenticating against an orion instance
+    api_key: str = Field(
+        None,
+        description="""API key used to authenticate against Orion API.
+        Defaults to `None`.""",
+    )
 
+    profiles_path: Path = Field(
+        default_factory=lambda: Path(f"{shared_settings().home}/profiles.toml"),
+        description="""The path to a profiles configuration files.""",
+    )
+
+    @classmethod
+    def get_field(cls, variable: str):
+        """
+        Get the Pydantic model field for an environment variable key
+
+        Example:
+            >>> from prefect.settings import Settings
+            >>> Settings.get_field("PREFECT_LOGGING_LEVEL")
+            ModelField(name='level', type=str, required=False, default_factory='<function <lambda>>')
+        """
+        obj = cls
+        fields = variable.replace("PREFECT_", "", 1).lower().split("_")
+        while fields:
+            field = fields.pop(0)
+            while not field in obj.__fields__:
+                if not fields:
+                    raise ValueError(f"Unknown setting variable {variable!r}")
+                field += "_" + fields.pop(0)
+            if not fields:
+                break
+            obj = obj.__fields__[field].type_
+        return obj.__fields__[field]
+
+    def get(self, variable: str):
+        """
+        Get the value for a setting from an environment variable key
+
+        Example:
+            >>> from prefect.settings import from_context
+            >>> from_context().get("PREFECT_LOGGING_LEVEL")
+            'DEBUG'
+        """
+        obj = self
+        attrs = variable.replace("PREFECT_", "", 1).lower().split("_")
+        while attrs:
+            attr = attrs.pop(0)
+            while not hasattr(obj, attr):
+                if not attrs:
+                    raise ValueError(f"Unknown setting variable {variable!r}")
+                attr += "_" + attrs.pop(0)
+            obj = getattr(obj, attr)
+        return obj
+
+
+_DEFAULTS_CACHE: Settings = None
 _FROM_ENV_CACHE: Dict[int, Settings] = {}
+
+
+def defaults() -> Settings:
+    """
+    Returns a settings object populated with default values, ignoring any overrides
+    from environment variables.
+
+    This is cached since the defaults should not change during the lifetime of the
+    module.
+    """
+    global _DEFAULTS_CACHE
+
+    from prefect.context import temporary_environ
+
+    if not _DEFAULTS_CACHE:
+        overrides = {key: None for key in os.environ if key.startswith("PREFECT_")}
+        with temporary_environ(overrides):
+            settings = from_env()
+
+        _DEFAULTS_CACHE = settings
+
+    return _DEFAULTS_CACHE
 
 
 def from_env() -> Settings:
@@ -452,3 +531,61 @@ def from_env() -> Settings:
         _FROM_ENV_CACHE[cache_key] = Settings()
 
     return _FROM_ENV_CACHE[cache_key]
+
+
+def from_context() -> Settings:
+    """
+    Returns a settings object loaded from the current profile context.
+    """
+    from prefect.context import get_profile_context
+
+    return get_profile_context().settings
+
+
+def get(variable: str):
+    """
+    Get a setting from the context.
+    """
+    return from_context().get(variable)
+
+
+DEFAULT_PROFILES = {"default": {}}
+
+
+def load_profiles() -> Dict[str, Dict[str, str]]:
+    path = from_env().profiles_path
+    if not path.exists():
+        profiles = DEFAULT_PROFILES
+    else:
+        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
+
+    return profiles
+
+
+def write_profiles(profiles: dict):
+    path = from_env().profiles_path
+    profiles = {**DEFAULT_PROFILES, **profiles}
+    return path.write_text(toml.dumps(profiles))
+
+
+def load_profile(name: str) -> Dict[str, str]:
+    """
+    Loads a profile from the TOML file.
+
+    Asserts that all variables are valid string key/value pairs.
+    """
+    profiles = load_profiles()
+
+    if name not in profiles:
+        raise ValueError(f"Profile {name!r} not found.")
+
+    variables = profiles[name]
+    for var, value in variables.items():
+        try:
+            variables[var] = str(value)
+        except Exception as exc:
+            raise TypeError(
+                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
+            ) from exc
+
+    return variables

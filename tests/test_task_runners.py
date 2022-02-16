@@ -39,6 +39,11 @@ def dask_task_runner_with_process_pool():
     yield DaskTaskRunner(cluster_kwargs={"processes": True})
 
 
+@contextmanager
+def dask_task_runner_with_thread_pool():
+    yield DaskTaskRunner(cluster_kwargs={"processes": False})
+
+
 @pytest.fixture
 def distributed_client_init(monkeypatch):
     mock = MagicMock()
@@ -91,6 +96,7 @@ parameterize_with_all_task_runners = pytest.mark.parametrize(
         ConcurrentTaskRunner,
         dask_task_runner_with_existing_cluster,
         dask_task_runner_with_process_pool,
+        dask_task_runner_with_thread_pool,
     ],
     indirect=True,
 )
