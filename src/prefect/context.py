@@ -65,6 +65,12 @@ class ContextModel(BaseModel):
     def get(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
 
+    def copy(self, **kwargs):
+        """Remove the token on copy to avoid re-entrance errors"""
+        new = super().copy(**kwargs)
+        new._token = None
+        return new
+
 
 class RunContext(ContextModel):
     """

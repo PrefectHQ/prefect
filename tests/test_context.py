@@ -45,6 +45,13 @@ def test_single_context_object_cannot_be_entered_multiple_times():
                 pass
 
 
+def test_copied_context_object_can_be_reentered():
+    context = ExampleContext(x=1)
+    with context:
+        with context.copy():
+            assert ExampleContext.get().x == 1
+
+
 def test_exiting_a_context_more_than_entering_raises():
     context = ExampleContext(x=1)
 
