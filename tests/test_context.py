@@ -37,6 +37,27 @@ def test_context_get_outside_context_is_null():
     assert ExampleContext.get() is None
 
 
+def test_single_context_object_can_be_entered_multiple_times():
+    context = ExampleContext(x=1)
+    with context:
+        assert ExampleContext.get().x == 1
+        with context:
+            assert ExampleContext.get().x == 1
+            with context:
+                assert ExampleContext.get().x == 1
+    assert ExampleContext.get() is None
+
+
+def test_exiting_a_context_more_than_entering_raises():
+    context = ExampleContext(x=1)
+
+    with pytest.raises(RuntimeError, match="exited more than it was entered"):
+        with context:
+            with context:
+                pass
+            context.__exit__()
+
+
 def test_context_exit_restores_previous_context():
     with ExampleContext(x=1):
         with ExampleContext(x=2):
