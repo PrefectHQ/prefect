@@ -54,7 +54,7 @@ async def configure(storage_type: str):
                 name="ORION-CONFIG-STORAGE", blockref="orionstorage-block"
             )
         elif storage_type == "s3":
-            console.print("Follow the prompts to configure s3 storage")
+            console.print("Follow the prompts to configure S3 storage")
             s3_data = dict()
 
             aws_access_key_id = typer.prompt(
@@ -91,7 +91,7 @@ async def configure(storage_type: str):
             s3_data["region_name"] = region_name if region_name is not "None" else None
 
             s3_data["bucket"] = typer.prompt(
-                "What s3 bucket would you like to persist data to?"
+                "To which S3 bucket would you like to persist data?"
             )
 
             await client.create_block(

@@ -659,13 +659,13 @@ class OrionClient:
         Delete block with the specified name.
 
         Args:
-            name: the block name
+            name: The block name
 
         Raises:
             httpx.RequestError
 
         Returns:
-            True if the block was deleted, False otherwise
+            True if the block was deleted, False otherwise.
         """
         try:
             response = await self.delete(
@@ -960,10 +960,10 @@ class OrionClient:
         Exchange a storage data document for the data previously persisted.
 
         Args:
-            data_document: the data document used to store data
+            data_document: The data document used to store data.
 
         Returns:
-            the persisted data in bytes
+            The persisted data in bytes.
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
@@ -979,10 +979,10 @@ class OrionClient:
 
         Args:
             obj: the object to persist
-            encoder: an optional encoder for data document
+            encoder: An optional encoder for the data document.
 
         Returns:
-            data document pointing to persisted data
+            Data document pointing to persisted data.
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return await self.persist_data(datadoc.json().encode())
@@ -992,7 +992,7 @@ class OrionClient:
         Exchange a data document for the object previously persisted.
 
         Args:
-            storage_datadoc: the orion data document to retrieve
+            storage_datadoc: The storage data document to retrieve.
 
         Returns:
             the persisted object
