@@ -714,9 +714,13 @@ class ORMConcurrencyLimit:
 
 @declarative_mixin
 class ORMBlockData:
-    name = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    name = sa.Column(sa.String, nullable=False, index=True)
     blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
 @declarative_mixin
