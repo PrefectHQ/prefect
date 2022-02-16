@@ -137,6 +137,16 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.ConcurrencyLimit
 
     @property
+    def WorkQueue(self):
+        """A work queue model"""
+        return self.orm.WorkQueue
+
+    @property
+    def Agent(self):
+        """An agent model"""
+        return self.orm.Agent
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
