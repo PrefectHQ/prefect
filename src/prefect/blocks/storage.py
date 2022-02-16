@@ -2,11 +2,10 @@ import io
 from abc import abstractmethod
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from prefect.blocks.core import BlockAPI, register_blockapi
-from prefect.client import get_client
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import Settings
 
@@ -24,7 +23,7 @@ class OrionStorageAPI(BlockAPI):
         """
 
     @abstractmethod
-    async def read(self, *args, **kwargs):
+    async def read(self, obj: Any):
         """
         Accepts a JSON-serializable Python object to retrieve persisted bytes.
         """
@@ -132,11 +131,15 @@ class OrionStorageBlock(OrionStorageAPI):
         pass
 
     async def write(self, data):
+        from prefect.client import get_client
+
         async with get_client() as client:
             response = await client.post("/data/persist", content=data)
             return response.json()
 
     async def read(self, path_payload):
+        from prefect.client import get_client
+
         if path_payload is None:
             raise RuntimeError
 
