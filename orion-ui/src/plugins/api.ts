@@ -234,7 +234,7 @@ export interface QueryConfig {
   options?: QueryOptions
 }
 
-const base_url = 'http://localhost:4200/api'
+const base_url = 'http://127.0.0.1:4200/api'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
