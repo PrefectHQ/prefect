@@ -1,7 +1,7 @@
 import io
 from abc import abstractmethod
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import gettempdir
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -76,7 +76,7 @@ class TempStorageBlock(OrionStorageAPI):
         pass
 
     def basepath(self):
-        return Path(TemporaryDirectory().name)
+        return Path(gettempdir())
 
     async def write(self, data):
         import fsspec
