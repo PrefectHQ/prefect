@@ -3,11 +3,13 @@ The Telemetry service.
 """
 
 import asyncio
+from uuid import uuid4
+
 import httpx
 import pendulum
+
 import prefect
 from prefect.orion.services.loop_service import LoopService
-from uuid import uuid4
 
 
 class Telemetry(LoopService):
