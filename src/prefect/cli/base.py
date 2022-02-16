@@ -97,7 +97,7 @@ def main(
 def enter_profile_from_option(fn):
     @functools.wraps(fn)
     def with_profile_from_option(*args, **kwargs):
-        name = os.environ.get("PREFECT_PROFILE", None)
+        name = os.environ.get("PREFECT_PROFILE", "default")
 
         # Exit early if the profile is set but not valid
         if name is not None:
@@ -106,16 +106,10 @@ def enter_profile_from_option(fn):
             except ValueError:
                 exit_with_error(f"Profile {name!r} not found.")
 
-        context = (
-            prefect.context.profile(
-                name, override_existing_variables=True, initialize=False
-            )
-            if name
-            else nullcontext()
+        context = prefect.context.profile(
+            name, override_existing_variables=True, initialize=True
         )
         with context:
-            # Ensure that the profile is initialized so logging is configured
-            prefect.context.get_profile_context().initialize()
             return fn(*args, **kwargs)
 
     return with_profile_from_option
