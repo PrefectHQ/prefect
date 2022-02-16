@@ -12,7 +12,7 @@ from prefect.settings import Settings
 
 class OrionStorageAPI(BlockAPI):
     """
-    A block API that used to persist bytes. Can be be used by Orion to persist data.
+    A block API that is used to persist bytes. Can be be used by Orion to persist data.
     """
 
     @abstractmethod
