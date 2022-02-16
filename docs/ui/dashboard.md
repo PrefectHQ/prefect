@@ -28,7 +28,7 @@ The following sections discuss each section of the dashboard view.
 
 ## Filters
 
-The Filters area at the top of the dashboard provides controls that enable you to display selected details of flow runs on the dashboard. Filters include flow run status, tags, time, and more. See the [Filters](/ui/filters/) documentation for more information.
+The Filters area at the top of the dashboard provides controls that enable you to display selected details of flow runs on the dashboard. Filters include flow run state, tags, time, and more. See the [Filters](/ui/filters/) documentation for more information.
 
 ![Highlighting the filters section of the dashboard.](/img/ui/orion-dash-filters.png)
 
