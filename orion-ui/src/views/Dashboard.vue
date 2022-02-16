@@ -97,7 +97,7 @@ import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@pref
 
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute, useRouter } from 'vue-router'
-import { ResultsListTabs } from '@prefecthq/orion-design'
+import ResultsListTabs from '../components/ResultsListTabs.vue'
 import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
 import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
 import { StateType } from '@prefecthq/orion-design/models'
