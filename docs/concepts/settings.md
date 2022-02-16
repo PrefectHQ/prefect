@@ -1,6 +1,6 @@
 # Settings
 
-Prefect's settings are [well-documented][prefect.settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
+Prefect's settings are [well-documented][prefect.settings.Settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
 
 Settings can be viewed from the CLI or the UI.
 
@@ -37,17 +37,11 @@ PREFECT_DEBUG_MODE='False'
 
 ## Overriding defaults with environment variables
 
-All settings can be modified via environment variables using the following syntax:
-```
-[PREFIX]_[SETTING]=value
-```
-
-- The `PREFIX` is a string that describes the fully-qualified name of the setting. All prefixes begin with `PREFECT_` and add additional words only to describe nested settings. For example, the prefix for `home` is just `PREFECT_`, because it is a top-level key in the `PrefectSettings` object. The prefix for `orion.api.port` is `PREFECT_ORION_API_`, indicating its nested position.
-- The `SETTING` corresponds directly to the name of the prefect setting's key. Note that while keys are lowercase, we provide environment variables as uppercase by convention.
+All settings have keys that match the enviroment variable that can be used to override them.
 
 ### Examples
 
-Configuring a top-level setting:
+Configuring the home directory:
 
 ```shell
 # environment variable
@@ -55,11 +49,11 @@ export PREFECT_HOME="/path/to/home"
 ```
 ```python
 # python
-settings = prefect.settings.from_context()
-settings.home  # PosixPath('/path/to/home')
+import prefect.settings
+prefect.settings.PREFECT_HOME.value()  # PosixPath('/path/to/home')
 ```
 
-Configuring a nested setting:
+Configuring the server's port:
 
 ```shell
 # environment variable
@@ -67,8 +61,7 @@ export PREFECT_ORION_API_PORT=4242
 ```
 ```python
 # python
-settings = prefect.settings.from_context()
-settings.orion.api.port # 4242
+prefect.settings.PREFECT_ORION_API_PORT.value()  # 4242
 ```
 
 ## Configuration profiles
