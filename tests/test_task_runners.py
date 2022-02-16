@@ -1,6 +1,6 @@
+import subprocess
 import sys
 import time
-import subprocess
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -8,9 +8,9 @@ from uuid import uuid4
 import anyio
 import cloudpickle
 import distributed
-import ray.cluster_utils
 import pytest
 import ray
+import ray.cluster_utils
 
 import prefect
 from prefect import flow, task
