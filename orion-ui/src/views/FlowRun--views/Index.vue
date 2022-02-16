@@ -186,8 +186,9 @@ import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
-import type { UnionFilters, FlowsFilter } from '@prefecthq/orion-design'
-import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
+import type { UnionFilters } from '@prefecthq/orion-design'
+import { ResultsListTab } from '@/components/ResultsListTab'
+import ResultsListTabs from '@/components/ResultsListTabs.vue'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
 import { toPluralString } from '@/utilities/strings'
 
@@ -233,7 +234,7 @@ const deploymentFilter = computed(() => {
   }
 })
 
-const parentFlowFilter = computed<FlowsFilter>(() => {
+const parentFlowFilter = computed(() => {
   return {
     task_runs: {
       id: {
