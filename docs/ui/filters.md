@@ -44,7 +44,7 @@ The default behavior of the filter bar UI depends on what page you're viewing in
 
 When on the dashboard, default filter behavior will be oriented towards flow runs:
 
-- Any text entered into the filter bar without a specified prefix will be applied as a contains filter to flow names. For example, if you enter "etl" in the search bar, the query will return all the flows that contain "etl" in the name as well as all of the deployments, flow runs, and task runs for those flows.
+- Any text entered into the filter bar without a specified prefix will be applied as a flow name filter. For example, if you enter "etl" in the search bar, the query will return all the flows with the name "etl" as well as all of the deployments, flow runs, and task runs for those flows.
 - State filters will apply to flow run states by default.
 - Start time filters will apply to flow run start times by default.
 
