@@ -33,7 +33,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
         fileName,
       },
       rollupOptions: {
-        external: ['vue', 'vue-router', 'pinia'],
+        external: ['vue', 'vue-router', 'pinia', 'vuex'],
         output: {
           exports: 'named',
           globals: {
