@@ -1,5 +1,20 @@
 # Orion Release Notes
 
+## 2.0a12
+
+### Filters
+Orion captures valuable metadata about your flows, deployments, and their runs. We want it to be just as simple to retrieve this information as it is to record it. This release exposes a powerful set of filter operations to cut through this body of information with ease and precision. Want to see all of the runs of your Daily ETL flow? Now its as easy as typing `flow:"Daily ETL"` into the filter bar. This update also includes a query builder UI, so you can utilize and learn these operators quickly and easily.
+
+## 2.0a11
+
+### Run Orion on Kubernetes
+You can now can run the Orion API, UI, and agent on Kubernetes. We've included a new Prefect CLI command, `prefect orion kubernetes-manifest`, that you can use to automatically generate a manifest that runs Orion as a Kubernetes deployment.
+
+### Run flows on Kubernetes
+With the Kubernetes [flow runner](https://orion-docs.prefect.io/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
+
+Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://orion-docs.prefect.io/tutorials/kubernetes-flow-runner/) tutorial. 
+
 ## 2.0a10
 
 ### Concurrent task runner

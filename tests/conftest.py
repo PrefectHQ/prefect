@@ -5,10 +5,16 @@ import pathlib
 
 import pytest
 
+# Initialize logging
+import prefect
+
 from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.database import *
 from .fixtures.logging import *
+
+profile = prefect.context.get_profile_context()
+profile.initialize()
 
 
 def pytest_addoption(parser):

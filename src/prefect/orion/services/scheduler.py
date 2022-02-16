@@ -11,14 +11,12 @@ import pendulum
 import sqlalchemy as sa
 
 import prefect
+import prefect.orion.models as models
 import prefect.settings
-from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService
 from prefect.utilities.collections import batched_iterable
-
-settings = prefect.settings.from_env().orion.services
 
 
 class Scheduler(LoopService):
@@ -26,10 +24,15 @@ class Scheduler(LoopService):
     A loop service that schedules flow runs from deployments.
     """
 
-    loop_seconds: float = settings.scheduler_loop_seconds
-    deployment_batch_size: int = settings.scheduler_deployment_batch_size
-    max_runs: int = settings.scheduler_max_runs
-    max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
+    def __init__(self, loop_seconds: float = None):
+        settings = prefect.settings.from_context().orion.services
+        super().__init__(loop_seconds or settings.scheduler_loop_seconds)
+        self.deployment_batch_size: int = settings.scheduler_deployment_batch_size
+        self.max_runs: int = settings.scheduler_max_runs
+        self.max_scheduled_time: datetime.timedelta = (
+            settings.scheduler_max_scheduled_time
+        )
+        self.insert_batch_size = settings.scheduler_insert_batch_size
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
@@ -72,9 +75,7 @@ class Scheduler(LoopService):
                         all_runs.extend(runs)
 
                     # bulk insert the runs based on batch size setting
-                    for batch in batched_iterable(
-                        all_runs, settings.scheduler_insert_batch_size
-                    ):
+                    for batch in batched_iterable(all_runs, self.insert_batch_size):
                         inserted_runs = await self._insert_scheduled_flow_runs(
                             session=session, runs=batch
                         )
