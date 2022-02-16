@@ -281,7 +281,7 @@ PREFECT_LOGGING_LEVEL='ERROR' (from profile)
 
 ### Profile files
 
-Profiles are stored persisted to the `PREFECT_PROFILES_PATH`, which can be changed with an environment variable.
+Profiles are persisted to the `PREFECT_PROFILES_PATH`, which can be changed with an environment variable.
 
 By default, it is stored in your `PREFECT_HOME` directory:
 ```
