@@ -56,14 +56,19 @@
           :poll-interval="15000"
         />
 
+        <div v-else-if="resultsTab == 'deployments'">
+          <M-Button class="mb-2" color="alternate" small @click="onFilterOff">
+            Show all deployments
+          </M-Button>
+
         <ResultsList
-          v-else-if="resultsTab == 'deployments'"
           key="deployments"
           :filter="deploymentsFilter"
           component="ListItemDeployment"
           endpoint="deployments"
           :poll-interval="15000"
         />
+        </div>
 
         <ResultsList
           v-else-if="resultsTab == 'flow_runs'"
