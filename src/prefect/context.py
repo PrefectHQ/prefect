@@ -8,7 +8,7 @@ import threading
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -362,7 +362,7 @@ def profile(
         yield ctx
 
 
-GLOBAL_PROFILE_CONTEXT: ProfileContext = None
+GLOBAL_PROFILE_CM: ContextManager[ProfileContext] = None
 
 
 def enter_global_profile():
@@ -376,11 +376,11 @@ def enter_global_profile():
     """
     # We set a global variable because otherwise the context object will be garbage
     # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_PROFILE_CONTEXT
+    global GLOBAL_PROFILE_CM
 
-    if GLOBAL_PROFILE_CONTEXT:
+    if GLOBAL_PROFILE_CM:
         return  # A global context already has been entered
 
     name = os.environ.get("PREFECT_PROFILE", "default")
-    GLOBAL_PROFILE_CONTEXT = profile(name=name, initialize=False)
-    GLOBAL_PROFILE_CONTEXT.__enter__()
+    GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
+    GLOBAL_PROFILE_CM.__enter__()

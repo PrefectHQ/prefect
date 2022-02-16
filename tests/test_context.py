@@ -250,16 +250,29 @@ class TestProfilesContext:
             assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 
-    def test_enter_global_profilee(self, monkeypatch):
+    def test_enter_global_profile(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
         enter_global_profile()
         profile.assert_called_once_with(name="default", initialize=False)
         profile().__enter__.assert_called_once_with()
+        assert prefect.context.GLOBAL_PROFILE_CM is not None
 
-    def test_enter_global_profilee_respects_name_env_variable(self, monkeypatch):
+    def test_enter_global_profile_is_idempotent(self, monkeypatch):
         profile = MagicMock()
         monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
+        enter_global_profile()
+        enter_global_profile()
+        enter_global_profile()
+        profile.assert_called_once()
+        profile().__enter__.assert_called_once()
+
+    def test_enter_global_profile_respects_name_env_variable(self, monkeypatch):
+        profile = MagicMock()
+        monkeypatch.setattr("prefect.context.profile", profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "test")
         enter_global_profile()
         profile.assert_called_once_with(name="test", initialize=False)
