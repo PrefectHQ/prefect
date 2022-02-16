@@ -7,7 +7,6 @@ export * from './stores'
 export * from './types'
 export * from './utilities'
 
-
 import { App } from 'vue'
 
 import * as components from './components'
