@@ -36,7 +36,7 @@ import ListItemSubFlowRun from '@/components/Global/List/ListItemSubFlowRun/List
 const props = withDefaults(
   defineProps<{
     filter: FilterBody
-    component: 'ListItemDeployment' | 'ListItemFlow' | 'ListItemTaskRun' | 'ListItemFlowRun'
+    component: 'ListItemDeployment' | 'ListItemFlow' | 'ListItemTaskRun' | 'ListItemFlowRun' | 'ListItemSubFlowRun'
     endpoint: string
     pollInterval?: number
   }>(),
