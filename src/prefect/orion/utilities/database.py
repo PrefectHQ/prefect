@@ -20,8 +20,6 @@ from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
 
-import prefect.settings
-
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 
@@ -550,7 +548,7 @@ def get_dialect(
         import prefect.settings
         from prefect.orion.utilities.database import get_dialect
 
-        dialect = get_dialect(prefect.settings.get("PREFECT_ORION_DATABASE_CONNECTION_URL"))
+        dialect = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value())
         if dialect == "sqlite":
             print("Using SQLite!")
         else:

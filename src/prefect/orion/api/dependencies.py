@@ -5,10 +5,10 @@ import logging
 
 from fastapi import Body, Depends, Header, HTTPException, status
 
-import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import response_scoped_dependency
+from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
 
 
 @response_scoped_dependency
@@ -98,12 +98,18 @@ def LimitBody() -> Depends:
             description="Defaults to PREFECT_ORION_API_DEFAULT_LIMIT if not provided.",
         )
     ):
-        default_limit = prefect.settings.get("PREFECT_ORION_API_DEFAULT_LIMIT")
-        limit = limit or default_limit
-        if not limit > 0:
-            raise ValueError("Invalid limit: must be a positive value.")
+        default_limit = PREFECT_ORION_API_DEFAULT_LIMIT.value()
+        limit = limit if limit is not None else default_limit
+        if not limit >= 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid limit: must be greater than or equal to 0.",
+            )
         if limit > default_limit:
-            raise ValueError("Invalid limit: limit too large.")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid limit: must be less than or equal to {default_limit}.",
+            )
         return limit
 
     return Depends(get_limit)
