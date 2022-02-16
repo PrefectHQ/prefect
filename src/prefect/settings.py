@@ -1,11 +1,10 @@
 """
-Prefect settings
+Prefect settings management.
 """
 import os
 import string
 import textwrap
 from datetime import timedelta
-from functools import partial
 from pathlib import Path
 from typing import Callable, Dict, Generic, List, Optional, Type, TypeVar
 
@@ -28,18 +27,22 @@ class Setting(Generic[T]):
         value_callback: Callable[["Settings", T], T] = None,
         **kwargs,
     ) -> None:
-        self.field = Field(**kwargs)
+        self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
-        self.name = None  # Will be populated after all settings are defined
         self.value_callback = value_callback
+        self.name = None  # Will be populated after all settings are defined
+
+        self.__doc__ = self.field.description
 
     def value(self) -> T:
         """
         Get the current value of a setting.
 
         Example:
-        >>> from prefect.settings import PREFECT_API_URL
-        >>> PREFECT_API_URL.value()
+        ```python
+        from prefect.settings import PREFECT_API_URL
+        PREFECT_API_URL.value()
+        ```
         """
         return self.value_from(get_current_settings())
 
@@ -48,8 +51,10 @@ class Setting(Generic[T]):
         Get the value of a setting from a settings object
 
         Example:
-        >>> from prefect.settings import get_default_settings
-        >>> PREFECT_API_URL.value_from(get_default_settings())
+        ```python
+        from prefect.settings import get_default_settings
+        PREFECT_API_URL.value_from(get_default_settings())
+        ```
         """
         return settings.value_of(self)
 
@@ -399,13 +404,70 @@ for name, setting in SETTINGS.items():
 # Define the pydantic model for loading from the environment / validating settings
 
 
-class PrefectBaseSettings(BaseSettings):
+def reduce_settings(settings):
+    """
+    Workaround for issues with cloudpickle when using cythonized pydantic which
+    throws exceptions when attempting to pickle the class which has "compiled"
+    validator methods dynamically attached to it.
+
+    We cannot define this in the model class because the class is the type that
+    contains unserializable methods.
+
+    Note that issue is not specific to the `Settings` model or its implementation.
+    Any model using some features of Pydantic (e.g. `Path` validation) with a Cython
+    compiled Pydantic installation may encounter pickling issues.
+
+    See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
+    """
+    # TODO: Consider moving this to the cloudpickle serializer and applying it to all
+    #       pydantic models
+    return (
+        unreduce_settings,
+        (settings.json(),),
+    )
+
+
+def unreduce_settings(json):
+    """Helper for restoring settings"""
+    return Settings.parse_raw(json)
+
+
+# Dynamically create a pydantic model that includes all of our settings
+
+SettingsFieldsMixin = create_model(
+    "SettingsFieldsMixin",
+    __base__=BaseSettings,
+    **{setting.name: (setting.type, setting.field) for setting in SETTINGS.values()},
+)
+
+
+# Defining a class after this that inherits the dynamic class rather than setting
+# __base__ to the following class ensures that mkdocstrings properly generates
+# reference documentation. It does support module-level variables, even if they have
+# __doc__ set.
+
+
+class Settings(SettingsFieldsMixin):
+    """
+    Contains validated Prefect settings.
+
+    Settings should be accessed using the relevant `Setting` object. For example:
+    ```python
+    from prefect.settings import PREFECT_HOME
+    PREFECT_HOME.value()
+    ```
+
+    Accessing a setting attribute directly will ignore any `value_callback` mutations.
+    This is not recommended:
+    ```python
+    from prefect.settings import Settings
+    Settings().PREFECT_PROFILE_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
+    ```
+    """
+
     def value_of(self, setting: Setting[T]) -> T:
         """
         Retrieve a setting's value.
-
-        It is recommended to use: `SETTING.value_from(settings)` instead of
-        `settings.value_of(SETTING)`
         """
         value = getattr(self, setting.name)
         if setting.value_callback:
@@ -426,30 +488,7 @@ class PrefectBaseSettings(BaseSettings):
     class Config:
         frozen = True
 
-
-def reduce_settings(settings):
-    # Workaround for issues with cloudpickle when using cythonized pydantic which
-    # throws exceptions when attempting to pickle the class which has "compiled"
-    # validator methods dynamically attached to it.
-    return (
-        unreduce_settings,
-        (settings.json(),),
-    )
-
-
-def unreduce_settings(json):
-    """Helper for restoring settings"""
-    return Settings.parse_raw(json)
-
-
-# This model is dynamically created
-
-Settings: PrefectBaseSettings = create_model(
-    "Settings",
-    __base__=PrefectBaseSettings,
-    **{setting.name: (setting.type, setting.field) for setting in SETTINGS.values()},
-)
-Settings.__reduce__ = reduce_settings
+    __reduce__ = reduce_settings
 
 
 # Functions to instantiate `Settings` instances

@@ -4,7 +4,6 @@ Routes for admin-level interactions with the Orion API.
 
 import sqlalchemy as sa
 from fastapi import Body, Depends, Response, status
-from sqlalchemy import orm
 
 import prefect
 import prefect.orion.api.dependencies as dependencies
