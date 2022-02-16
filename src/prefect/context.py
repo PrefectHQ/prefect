@@ -38,8 +38,7 @@ class ContextModel(BaseModel):
 
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
-
-    _tokens: List[Token] = PrivateAttr(default_factory=list)
+    _token: Token = PrivateAttr(None)
 
     class Config:
         allow_mutation = False
@@ -47,19 +46,20 @@ class ContextModel(BaseModel):
         extra = "forbid"
 
     def __enter__(self):
-        # We've frozen the rest of the data on the class but we'd like to still store
-        # this token for resetting on context exit
-        self._tokens.append(self.__var__.set(self))
+        if self._token is not None:
+            raise RuntimeError(
+                "Context already entered. Context enter calls cannot be nested."
+            )
+        self._token = self.__var__.set(self)
         return self
 
     def __exit__(self, *_):
-        try:
-            token = self._tokens.pop()
-        except IndexError:
+        if not self._token:
             raise RuntimeError(
-                "Asymmetric use of context. Context was exited more than it was entered."
+                "Asymmetric use of context. Context exit called without an enter."
             )
-        self.__var__.reset(token)
+        self.__var__.reset(self._token)
+        self._token = None
 
     @classmethod
     def get(cls: Type[T]) -> Optional[T]:
