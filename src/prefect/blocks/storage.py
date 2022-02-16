@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import uuid4
 
 from prefect.blocks.core import BlockAPI, register_blockapi
+from prefect.client import get_client
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import Settings
 
@@ -52,6 +53,7 @@ class S3StorageBlock(OrionStorageAPI):
     async def write(self, data: bytes):
         import boto3
 
+        # TODO: make storage nonblocking
         s3_client = self.aws_session.client("s3")
         with io.BytesIO(data) as stream:
             data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
@@ -80,6 +82,7 @@ class TempStorageBlock(OrionStorageAPI):
     async def write(self, data):
         import fsspec
 
+        # TODO: make storage nonblocking
         storage_path = str(self.basepath() / str(uuid4()))
         with fsspec.open(storage_path, mode="wb") as fp:
             fp.write(data)
@@ -110,6 +113,7 @@ class LocalStorageBlock(OrionStorageAPI):
     async def write(self, data):
         import fsspec
 
+        # TODO: make storage nonblocking
         storage_path = str(self.basepath() / str(uuid4()))
         with fsspec.open(storage_path, mode="wb") as fp:
             fp.write(data)
@@ -128,15 +132,11 @@ class OrionStorageBlock(OrionStorageAPI):
         pass
 
     async def write(self, data):
-        from prefect.client import get_client
-
         async with get_client() as client:
             response = await client.post("/data/persist", content=data)
             return response.json()
 
     async def read(self, path_payload):
-        from prefect.client import get_client
-
         if path_payload is None:
             raise RuntimeError
 

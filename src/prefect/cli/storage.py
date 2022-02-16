@@ -1,6 +1,7 @@
 """
 Command line interface for managing storage settings
 """
+import pendulum
 import typer
 from rich.pretty import Pretty
 
@@ -19,7 +20,6 @@ app.add_typer(storage_config_app)
 @storage_config_app.command()
 @sync_compatible
 async def configure(storage_type: str):
-    import pendulum
 
     valid_storageblocks = {"temp", "local", "orion", "s3"}
     if storage_type not in valid_storageblocks:
