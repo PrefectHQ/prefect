@@ -7,6 +7,8 @@ import { calculateEnd, calculateStart, isValidTimeFrame } from '@/utilities/time
 type StringKeys<T extends Filter> = Extract<keyof T, string>
 interface Sortable<T extends Filter> {
   sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
+  limit?: number,
+  offset?: number,
 }
 
 export type DeploymentsFilter = { deployments?: DeploymentFilter }

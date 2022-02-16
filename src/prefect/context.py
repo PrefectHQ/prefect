@@ -236,17 +236,38 @@ class ProfileContext(ContextModel):
 
     __var__ = ContextVar("profile")
 
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.name,
+                self.settings,
+                tuple((key, value) for key, value in self.env.items()),
+            )
+        )
+
+    def initialize(self, create_home: bool = True, setup_logging: bool = True):
+        """
+        Upon initialization, we can create the home directory contained in the settings and
+        configure logging. These steps are optional. Logging can only be set up once per
+        process and later attempts to configure logging will fail.
+        """
+        if create_home and not os.path.exists(self.settings.home):
+            os.makedirs(self.settings.home, exist_ok=True)
+
+        if setup_logging:
+            prefect.logging.configuration.setup_logging(self.settings.logging)
+
 
 def get_profile_context() -> ProfileContext:
     profile_ctx = ProfileContext.get()
 
     if not profile_ctx:
-        raise MissingContextError("No profile is being used.")
+        raise MissingContextError("No profile context found.")
 
     return profile_ctx
 
 
-_PROFILE_LOCK = threading.Lock()
+_PROFILE_ENV_LOCK = threading.Lock()
 
 
 @contextmanager
@@ -294,27 +315,21 @@ def temporary_environ(
 
 @contextmanager
 def profile(
-    name: str,
-    create_home: bool = False,
-    setup_logging: bool = False,
-    override_existing_variables: bool = False,
+    name: str, override_existing_variables: bool = False, initialize: bool = True
 ):
     """
-    Switch to a new profile for the duration of this context.
+    Switch to a profile for the duration of this context.
 
-    Upon initialization, we can create the home directory contained in the settings and
-    configure logging. These steps are optional. Logging can only be set up once per
-    process and later attempts to configure logging will fail.
 
     Profile contexts are confined to an async context in a single thread.
 
     Args:
         name: The name of the profile to load. Must exist.
-        create_home: Create the PREFECT_HOME directory.
-        setup_logging: Configure logging for the current process.
         override_existing_variables: If set, variables in the profile will take
             precedence over current environment variables. By default, environment
             variables will override profile settings.
+        initialize: By default, the profile is initialized. If you would like to
+            initialize the profile manually, toggle this to `False`.
 
     Yields:
         The created `ProfileContext` object
@@ -324,29 +339,28 @@ def profile(
     env = prefect.settings.load_profile(name)
 
     # Prevent multiple threads from mutating the environment concurrently
-    with _PROFILE_LOCK:
+    with _PROFILE_ENV_LOCK:
         with temporary_environ(
             env, override_existing=override_existing_variables, warn_on_override=True
         ):
             settings = prefect.settings.from_env()
 
-    if create_home and not os.path.exists(settings.home):
-        os.makedirs(settings.home, exist_ok=True)
-
-    if setup_logging:
-        prefect.logging.configuration.setup_logging(settings)
-
     with ProfileContext(name=name, settings=settings, env=env) as ctx:
+        if initialize:
+            ctx.initialize()
         yield ctx
 
 
-def initialize_module_profile():
+def enter_global_profile():
     """
-    Initialize the profle that will exist as the root context for the module.
+    Enter the profile that will exist as the root context for the module.
+
+    We do not initialize this profile so there are no logging/file system side effects
+    on module import. Instead, the profile is initialized lazily in `prefect.engine`.
 
     This should only be called _once_ at Prefect module initialization.
     """
     name = os.environ.get("PREFECT_PROFILE", "default")
-    context = profile(name=name, create_home=True, setup_logging=True)
+    context = profile(name=name, initialize=False)
     context.__enter__()
     atexit.register(lambda: context.__exit__(None, None, None))
