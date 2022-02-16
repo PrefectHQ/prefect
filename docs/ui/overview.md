@@ -22,7 +22,7 @@ The UI displays many useful insights about your flow runs, including:
 - Radar flow and task dependency visualizer 
 - Logs
 
-You can filter the information displayed in the UI by time, flow status, and tags.
+You can filter the information displayed in the UI by time, flow state, and tags.
 
 ## Using the Orion UI
 
