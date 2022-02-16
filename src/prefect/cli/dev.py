@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import textwrap
 import time
+from functools import partial
 from string import Template
 
 import anyio
@@ -126,22 +127,24 @@ async def api(
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = "False"
 
-    await open_process_and_stream_output(
-        command=[
-            "uvicorn",
-            "prefect.orion.api.server:app",
-            "--host",
-            str(host),
-            "--port",
-            str(port),
-            "--log-level",
-            log_level.lower(),
-            "--reload",
-            "--reload-dir",
-            prefect.__module_path__,
-        ],
-        env=server_env,
-    )
+    command = [
+        "uvicorn",
+        "--factory",
+        "prefect.orion.api.server:create_app",
+        "--host",
+        str(host),
+        "--port",
+        str(port),
+        "--log-level",
+        log_level.lower(),
+        "--reload",
+        "--reload-dir",
+        str(prefect.__module_path__),
+    ]
+
+    console.print(f"Running: {' '.join(command)}")
+
+    await open_process_and_stream_output(command=command, env=server_env)
 
 
 @dev_app.command()
@@ -152,8 +155,11 @@ async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     # Delayed import since this is only a 'dev' dependency
     import watchgod
 
+    console.print("Creating hot-reloading agent process...")
     await watchgod.arun_process(
-        prefect.__module_path__, start_agent, kwargs=dict(api_url=api_url)
+        prefect.__module_path__,
+        start_agent,
+        kwargs=dict(hide_welcome=False, api=api_url),
     )
 
 
@@ -176,7 +182,13 @@ async def start(
 
     async with anyio.create_task_group() as tg:
         if not exclude_api:
-            tg.start_soon(api)
+            tg.start_soon(
+                partial(
+                    api,
+                    host=PREFECT_ORION_API_HOST.value(),
+                    port=PREFECT_ORION_API_PORT.value(),
+                )
+            )
         if not exclude_ui:
             tg.start_soon(ui)
         if not exclude_agent:
