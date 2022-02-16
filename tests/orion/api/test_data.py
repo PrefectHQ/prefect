@@ -1,7 +1,6 @@
 import pytest
 
-import prefect.settings
-from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.data import DataDocument, get_instance_data_location
 from prefect.utilities.testing import temporary_settings
 
 
@@ -10,7 +9,7 @@ def tmpdir_dataloc_settings(tmp_path):
     with temporary_settings(
         PREFECT_ORION_DATA_SCHEME="file", PREFECT_ORION_DATA_BASE_PATH=tmp_path
     ):
-        yield prefect.settings.from_context().orion.data
+        yield get_instance_data_location()
 
 
 class TestPersistData:
