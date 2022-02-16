@@ -1,16 +1,18 @@
-import { RouteLocationNormalized, RouteLocationRaw } from "vue-router";
-import { RouteGuard, RouteGuardReturn } from "./RouteGuard";
+import { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
+import { RouteGuard, RouteGuardReturn } from '../types/RouteGuard'
 
 export class RouteGuardExecutioner {
-  private static global: RouteGuard[] = []
+  private static readonly global: RouteGuard[] = []
 
   public static async before(to: RouteLocationNormalized, from: RouteLocationNormalized): Promise<Awaited<RouteGuardReturn>> {
-    const guards = this.getRouteGuards(to)    
-    
-    for(let guard of guards) {
+    const guards = this.getRouteGuards(to)
+
+    for (const guard of guards) {
+      // this is intentional to allow each guard to cancel navigation
+      // eslint-disable-next-line no-await-in-loop
       const result = await guard.before?.(to, from)
 
-      if(this.isRouteLocation(result)) {
+      if (this.isRouteLocation(result)) {
         return result
       }
     }
@@ -19,7 +21,7 @@ export class RouteGuardExecutioner {
   public static after(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
     const guards = this.getRouteGuards(to)
 
-    for(let guard of guards) {
+    for (const guard of guards) {
       guard.after?.(to, from)
     }
   }
@@ -29,7 +31,7 @@ export class RouteGuardExecutioner {
   }
 
   private static getRouteGuards(route: RouteLocationNormalized): RouteGuard[] {
-    const routeGuards = route.meta.guards ?? []
+    const routeGuards = (route.meta.guards ?? []) as RouteGuard[]
 
     return [...this.global, ...routeGuards]
   }

@@ -84,9 +84,9 @@ Orion provides a number of programmatic workflow interfaces, each of which is do
 
 ### Contributing
 
-See our [documentation on contributing to Orion](https://orion-docs.prefect.io/contributing/).
+See our [documentation on contributing to Orion](https://orion-docs.prefect.io/contributing/overview/).
 
 
 ## Join the community
 
-Orion was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. Join us and thousands of friendly data engineers to help build a new kind of workflow system.
+Orion was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data engineers to help build a new kind of workflow system.

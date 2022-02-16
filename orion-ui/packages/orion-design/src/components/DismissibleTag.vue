@@ -55,6 +55,13 @@
   white-space: nowrap;
 }
 
+.dismissible-tag__label {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 300px;
+  text-overflow: ellipsis;
+}
+
 .dismissible-tag--dismissible {
   cursor: pointer;
 

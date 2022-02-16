@@ -160,11 +160,7 @@ async def read_flow_run_graph(
 @router.post("/filter")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
-    limit: int = Body(
-        prefect.settings.from_env().orion.api.default_limit,
-        ge=0,
-        le=prefect.settings.from_env().orion.api.default_limit,
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,

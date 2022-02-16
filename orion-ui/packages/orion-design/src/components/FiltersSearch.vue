@@ -3,11 +3,13 @@
     <template v-if="!hasFilters">
       <i class="pi pi-search-line" />
     </template>
-    <template v-if="hasFilters && filters.length < 5 && media.sm">
-      <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
-    </template>
-    <template v-else-if="hasFilters">
-      <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
+    <template v-else>
+      <template v-if="filters.length <= 3 && media.sm">
+        <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
+      </template>
+      <template v-else>
+        <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
+      </template>
     </template>
     <input
       v-model="term"
@@ -83,6 +85,8 @@
 </script>
 
 <style lang="scss" scoped>
+@use 'sass:map';
+
 .filters-search {
   display: flex;
   align-items: center;
@@ -104,9 +108,14 @@
   background-color: transparent;
   font-size: 16px;
   flex-grow: 1;
-  min-width: 200px;
+  min-width: 100px;
   min-height: 30px;
   align-self: stretch;
+  width: 100px;
+
+  @media (min-width: map.get($breakpoints, 'sm')) {
+    width: auto;
+  }
 
   &::placeholder {
     color: var(--grey-40);
