@@ -3,7 +3,6 @@ Base `prefect` command-line application and utilities
 """
 import functools
 import os
-from contextlib import nullcontext
 from typing import TypeVar
 
 import rich.console
@@ -100,11 +99,10 @@ def enter_profile_from_option(fn):
         name = os.environ.get("PREFECT_PROFILE", "default")
 
         # Exit early if the profile is set but not valid
-        if name is not None:
-            try:
-                prefect.settings.load_profile(name)
-            except ValueError:
-                exit_with_error(f"Profile {name!r} not found.")
+        try:
+            prefect.settings.load_profile(name)
+        except ValueError:
+            exit_with_error(f"Profile {name!r} not found.")
 
         context = prefect.context.profile(
             name, override_existing_variables=True, initialize=True
