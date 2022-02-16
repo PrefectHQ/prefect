@@ -53,6 +53,7 @@ class DatabricksGetJobID(Task):
     Returns:
         - job_id (int): Job id of the job name.
     """
+
     def __init__(
         self,
         databricks_conn_secret: dict,
