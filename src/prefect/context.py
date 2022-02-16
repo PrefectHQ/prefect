@@ -3,18 +3,17 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
-import atexit
 import os
 import threading
 import warnings
 from contextlib import contextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from typing import Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging.configuration
 import prefect.settings
@@ -40,6 +39,8 @@ class ContextModel(BaseModel):
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
 
+    _tokens: List[Token] = PrivateAttr(default_factory=list)
+
     class Config:
         allow_mutation = False
         arbitrary_types_allowed = True
@@ -48,11 +49,17 @@ class ContextModel(BaseModel):
     def __enter__(self):
         # We've frozen the rest of the data on the class but we'd like to still store
         # this token for resetting on context exit
-        object.__setattr__(self, "__token", self.__var__.set(self))
+        self._tokens.append(self.__var__.set(self))
         return self
 
     def __exit__(self, *_):
-        self.__var__.reset(getattr(self, "__token"))
+        try:
+            token = self._tokens.pop()
+        except IndexError:
+            raise RuntimeError(
+                "Asymmetric use of context. Context was exited more than it was entered."
+            )
+        self.__var__.reset(token)
 
     @classmethod
     def get(cls: Type[T]) -> Optional[T]:
@@ -355,6 +362,9 @@ def profile(
         yield ctx
 
 
+GLOBAL_PROFILE_CONTEXT: ProfileContext = None
+
+
 def enter_global_profile():
     """
     Enter the profile that will exist as the root context for the module.
@@ -362,9 +372,15 @@ def enter_global_profile():
     We do not initialize this profile so there are no logging/file system side effects
     on module import. Instead, the profile is initialized lazily in `prefect.engine`.
 
-    This should only be called _once_ at Prefect module initialization.
+    This function is safe to call multiple times.
     """
+    # We set a global variable because otherwise the context object will be garbage
+    # collected which will call __exit__ as soon as this function scope ends.
+    global GLOBAL_PROFILE_CONTEXT
+
+    if GLOBAL_PROFILE_CONTEXT:
+        return  # A global context already has been entered
+
     name = os.environ.get("PREFECT_PROFILE", "default")
-    context = profile(name=name, initialize=False)
-    context.__enter__()
-    atexit.register(lambda: context.__exit__(None, None, None))
+    GLOBAL_PROFILE_CONTEXT = profile(name=name, initialize=False)
+    GLOBAL_PROFILE_CONTEXT.__enter__()

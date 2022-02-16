@@ -3,6 +3,7 @@ Command line interface for working with Orion
 """
 import os
 import subprocess
+import sys
 import textwrap
 from functools import partial
 from string import Template
@@ -109,19 +110,20 @@ async def open_process_and_stream_output(
             The task will report itself as started once the process is started.
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
-    process = await anyio.open_process(command, stderr=subprocess.STDOUT, **kwargs)
+    process = await anyio.open_process(
+        command, stderr=subprocess.STDOUT, stdout=sys.stdout, **kwargs
+    )
     if task_status:
         task_status.started()
 
     try:
-        async for text in TextReceiveStream(process.stdout):
-            print(text, end="")  # Output is already new-line terminated
-    except Exception:
-        logger.debug("Ignoring exception in subprocess text stream", exc_info=True)
-    except BaseException:
+        await process.wait()
+    finally:
         with anyio.CancelScope(shield=True):
-            process.terminate()
-        raise
+            try:
+                process.terminate()
+            except Exception:
+                pass  # Process may already be terminated
 
 
 @orion_app.command()
