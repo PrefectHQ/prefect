@@ -12,7 +12,7 @@ import yaml
 from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_SETTINGS_PATH,
-    SETTINGS,
+    SETTING_VARIABLES,
     Settings,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
@@ -37,7 +37,7 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
         template.substitute(
             {
                 setting.name: str(setting.value_from(settings))
-                for setting in SETTINGS.values()
+                for setting in SETTING_VARIABLES.values()
             }
         )
     )

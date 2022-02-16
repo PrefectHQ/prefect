@@ -84,7 +84,7 @@ def debug_mode_log_level(settings, value):
         return value
 
 
-def template(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
+def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `value_callback` that will template the given settings into the runtime
     value for the setting.
@@ -116,6 +116,7 @@ def max_log_size_smaller_than_batch_size(values):
 
 
 # Setting definitions
+
 
 PREFECT_HOME = Setting(
     Path,
@@ -157,7 +158,7 @@ PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
     description="""The path to a profiles configuration files.""",
-    value_callback=template(PREFECT_HOME),
+    value_callback=template_with_settings(PREFECT_HOME),
 )
 
 PREFECT_LOGGING_LEVEL = Setting(
@@ -179,7 +180,7 @@ PREFECT_LOGGING_SETTINGS_PATH = Setting(
     default=Path("${PREFECT_HOME}/logging.yml"),
     description=f"""The path to a custom YAML logging configuration file. If
     no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
-    value_callback=template(PREFECT_HOME),
+    value_callback=template_with_settings(PREFECT_HOME),
 )
 
 PREFECT_LOGGING_EXTRA_LOGGERS = Setting(
@@ -274,7 +275,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
         Defaults to a sqlite database stored in the Prefect home directory.
         """
     ),
-    value_callback=template(PREFECT_HOME),
+    value_callback=template_with_settings(PREFECT_HOME),
 )
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
@@ -391,15 +392,14 @@ PREFECT_ORION_UI_ENABLED = Setting(
 
 # Collect all defined settings
 
-SETTINGS = {
+SETTING_VARIABLES = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
 }
 
 # Populate names in settings objects from assignments above
 
-for name, setting in SETTINGS.items():
+for name, setting in SETTING_VARIABLES.items():
     setting.name = name
-
 
 # Define the pydantic model for loading from the environment / validating settings
 
@@ -436,15 +436,19 @@ def unreduce_settings(json):
 
 SettingsFieldsMixin = create_model(
     "SettingsFieldsMixin",
+    # Inheriting from `BaseSettings` provides environment variable loading
     __base__=BaseSettings,
-    **{setting.name: (setting.type, setting.field) for setting in SETTINGS.values()},
+    **{
+        setting.name: (setting.type, setting.field)
+        for setting in SETTING_VARIABLES.values()
+    },
 )
 
 
 # Defining a class after this that inherits the dynamic class rather than setting
 # __base__ to the following class ensures that mkdocstrings properly generates
-# reference documentation. It does support module-level variables, even if they have
-# __doc__ set.
+# reference documentation. It does not support module-level variables, even if they are
+# an object which has __doc__ set.
 
 
 class Settings(SettingsFieldsMixin):
@@ -479,9 +483,9 @@ class Settings(SettingsFieldsMixin):
         """
         Add root validation functions for settings here.
         """
-        # TODO: These should probably be attached to the dynamic `Settings` model
-        #       instead but we aren't using it enough to justify digging into pydantic
-        #       yet.
+        # TODO: We could probably register these dynamically but this is the simpler
+        #       approach for now. We can explore more interesting validation features
+        #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         return values
 
@@ -498,6 +502,9 @@ _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 
 def get_current_settings() -> Settings:
+    """
+    Returns a settings object populated with values from the current profile.
+    """
     from prefect.context import get_profile_context
 
     return get_profile_context().settings
@@ -506,9 +513,10 @@ def get_current_settings() -> Settings:
 def get_settings_from_env() -> Settings:
     """
     Returns a settings object populated with default values and overrides from
-    environment variables.
+    environment variables, ignoring any values in profiles.
 
-    Calls with the same environment return a cached object instead of reconstructing.
+    Calls with the same environment return a cached object instead of reconstructing
+    to avoid validation overhead.
     """
     # Since os.environ is a Dict[str, str] we can safely hash it by contents, but we
     # must be careful to avoid hashing a generator instead of a tuple
@@ -523,7 +531,7 @@ def get_settings_from_env() -> Settings:
 def get_default_settings() -> Settings:
     """
     Returns a settings object populated with default values, ignoring any overrides
-    from environment variables.
+    from environment variables or profiles.
 
     This is cached since the defaults should not change during the lifetime of the
     module.
@@ -572,7 +580,7 @@ def write_profiles(profiles: dict):
     path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
 
     for profile, variables in profiles.items():
-        unknown_keys = set(variables).difference(SETTINGS)
+        unknown_keys = set(variables).difference(SETTING_VARIABLES)
         if unknown_keys:
             raise ValueError(
                 f"Unknown setting(s) found in profile {profile!r}: {unknown_keys}"
@@ -603,7 +611,7 @@ def load_profile(name: str) -> Dict[str, str]:
                 f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
             ) from exc
 
-    unknown_keys = set(variables).difference(SETTINGS)
+    unknown_keys = set(variables).difference(SETTING_VARIABLES)
     if unknown_keys:
         raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
 
