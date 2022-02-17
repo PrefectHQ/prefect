@@ -142,9 +142,9 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.BlockData
 
     @property
-    def AccountInfo(self):
+    def Configuration(self):
         """An account info model"""
-        return self.orm.AccountInfo
+        return self.orm.Configuration
 
     @property
     def deployment_unique_upsert_columns(self):
