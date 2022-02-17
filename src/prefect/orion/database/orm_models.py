@@ -773,7 +773,7 @@ class ORMAgent:
     def work_queue_id(cls):
         return sa.Column(
             UUID,
-            sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
+            sa.ForeignKey("work_queue.id"),
             nullable=False,
             index=True,
         )

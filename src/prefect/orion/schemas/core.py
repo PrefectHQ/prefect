@@ -408,8 +408,12 @@ class WorkQueue(ORMBaseModel):
 class Agent(ORMBaseModel):
     """An ORM representation of an agent"""
 
-    work_queue_id: Optional[UUID] = Field(
-        None, description="An optional work queue with which the agent is associated."
+    name: str = Field(
+        default_factory=lambda: coolname.generate_slug(2),
+        description="The name of the agent. If a name is not provided, it will be auto-generated.",
+    )
+    work_queue_id: UUID = Field(
+        ..., description="The work queue with which the agent is associated."
     )
     last_activity_time: Optional[datetime.datetime] = Field(
         None, description="The last time this agent polled for work."
