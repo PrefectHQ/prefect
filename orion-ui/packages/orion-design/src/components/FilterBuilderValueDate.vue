@@ -26,9 +26,9 @@
   // eslint-disable-next-line import/no-duplicates
   import startOfToday from 'date-fns/startOfToday'
   import { Ref, computed, onMounted, watch } from 'vue'
-  import { FilterOperation, FilterType, FilterValue, FilterObject } from '../types/filters'
-  import { isDateOperation, isRelativeDateOperation, toPluralString } from '../utilities'
-  import DateTimeInput from './DateTimeInput.vue'
+  import DateTimeInput from '@/components/DateTimeInput.vue'
+  import { FilterOperation, FilterType, FilterValue, FilterObject } from '@/types/filters'
+  import { isDateOperation, isRelativeDateOperation, toPluralString } from '@/utilities'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,
