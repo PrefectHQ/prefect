@@ -68,7 +68,7 @@ def event_loop(request):
     asyncio_logger.setLevel("WARNING")
     asyncio_logger.addHandler(logging.StreamHandler())
     loop.set_debug(True)
-    loop.slow_callback_duration = 0.1
+    loop.slow_callback_duration = 0.25
 
     try:
         yield loop
