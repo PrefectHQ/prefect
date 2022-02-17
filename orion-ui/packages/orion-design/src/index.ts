@@ -14,15 +14,12 @@ import * as components from './components'
 /* eslint-disable import/namespace */
 function install(app: App): void {
   for (const component in components) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
+    // @ts-expect-error any is fine here
     if (components[component].install) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
+      // @ts-expect-error any is fine here
       components[component].install(app)
     } else {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
+      // @ts-expect-error any is fine here
       app.component(`O${component}`, components[component])
     }
   }
