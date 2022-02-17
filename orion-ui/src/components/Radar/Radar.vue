@@ -513,7 +513,12 @@
     const node = visibleNodes.value.get(item.id)
     if (!node) {
       return
-    }document.querySelector(`#node-${item.id}`)?.focus()
+    }
+
+    const element = document.querySelector(`#node-${item.id}`) as HTMLElement | undefined
+    if (element) {
+      element.focus()
+    }
 
     const zoomIdentity = d3.zoomIdentity
       .translate(width.value / 2, height.value / 2)
