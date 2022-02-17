@@ -305,6 +305,7 @@ def test_failing_flow_run_by_task_runner(task_runner):
     )
 
 
+@pytest.mark.services("dask")  # Right now, all these parameter combinations use Dask
 @pytest.mark.parametrize(
     "parent_task_runner,child_task_runner",
     [
