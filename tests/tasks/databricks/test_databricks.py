@@ -182,17 +182,13 @@ def run_now_task_template(
 
 @pytest.fixture
 def get_jobid_task_template(databricks_list_api_response_success):
-    def _task_template(job_name):
-        return DatabricksGetJobIDTestOverride(
-            mocked_response=databricks_list_api_response_success,
-            databricks_conn_secret={
-                "host": "https://cloud.databricks.com",
-                "token": "databricks-token",
-            },
-            job_name=job_name,
-        )
-
-    return _task_template
+    return DatabricksGetJobIDTestOverride(
+        mocked_response=databricks_list_api_response_success,
+        databricks_conn_secret={
+            "host": "https://cloud.databricks.com",
+            "token": "databricks-token",
+        },
+    )
 
 
 def test_raises_if_invalid_host_submitrun(job_config):
@@ -293,26 +289,24 @@ class TestDatabricksRunNowAttributeOverrides:
 
 class TestDatabricksGetJobID:
     def test_initialization(self):
-        DatabricksGetJobID({}, "test")
+        DatabricksGetJobID({})
 
     def test_initialization_passes_to_task_constructor(self):
         task = DatabricksGetJobID(
-            job_name="test",
             databricks_conn_secret={"host": "host_name"},
             search_limit=1,
         )
-        assert task.job_name == "test"
         assert task.databricks_conn_secret == {"host": "host_name"}
         assert task.search_limit == 1
 
     def test_raises_cant_find_matching_job_name(self, get_jobid_task_template):
         with pytest.raises(ValueError, match="name"):
-            get_jobid_task_template(job_name="none").run()
+            get_jobid_task_template.run(job_name="none")
 
     def test_raises_on_duplicate_job_name(self, get_jobid_task_template):
         with pytest.raises(ValueError, match="duplicate"):
-            get_jobid_task_template(job_name="duplicate").run()
+            get_jobid_task_template.run(job_name="duplicate")
 
     def test_find_matching_job_name(self, get_jobid_task_template):
-        task_result = get_jobid_task_template(job_name="job_name").run()
+        task_result = get_jobid_task_template.run(job_name="job_name")
         assert task_result == 76
