@@ -4,10 +4,10 @@ export interface IDeployment {
   updated: Date,
   name: string,
   flowId: string,
-  flowData: Record<string, any> | null,
-  schedule: Record<string, any> | null,
+  flowData: Record<string, unknown> | null,
+  schedule: Record<string, unknown> | null,
   isScheduleActive: boolean,
-  parameters: Record<string, any> | null,
+  parameters: Record<string, unknown> | null,
   tags: string[],
 }
 
@@ -17,13 +17,13 @@ export class Deployment implements IDeployment {
   public updated: Date
   public name: string
   public readonly flowId: string
-  public flowData: Record<string, any> | null
-  public schedule: Record<string, any> | null
+  public flowData: Record<string, unknown> | null
+  public schedule: Record<string, unknown> | null
   public isScheduleActive: boolean
-  public parameters: Record<string, any> | null
+  public parameters: Record<string, unknown> | null
   public tags: string[]
 
-  constructor(deployment: IDeployment) {
+  public constructor(deployment: IDeployment) {
     this.id = deployment.id
     this.created = deployment.created
     this.updated = deployment.updated
