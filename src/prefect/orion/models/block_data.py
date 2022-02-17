@@ -13,7 +13,7 @@ from cryptography.fernet import Fernet
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models import account_info
+from prefect.orion.models import configurations
 
 
 @inject_db
@@ -156,18 +156,18 @@ async def get_fernet_encryption(session):
     if environment_key:
         return Fernet(environment_key.encode())
 
-    configured_key = await account_info.read_account_info_by_key(
+    configured_key = await configurations.read_configuration_by_key(
         session, "BLOCK_ENCRYPTION_KEY"
     )
 
     if configured_key is None:
         encryption_key = Fernet.generate_key()
-        configured_key = schemas.core.AccountInfo(
-            key="BLOCK_ENCRYPTION_KEY", value=encryption_key.decode()
+        configured_key = schemas.core.Configuration(
+            key="BLOCK_ENCRYPTION_KEY", value={"fernet_key": encryption_key.decode()}
         )
-        await account_info.create_account_info(session, configured_key)
+        await configurations.create_configuration(session, configured_key)
     else:
-        encryption_key = configured_key.value.encode()
+        encryption_key = configured_key.value["fernet_key"].encode()
     return Fernet(encryption_key)
 
 
