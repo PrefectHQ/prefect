@@ -8,7 +8,7 @@ docs](https://docs.greatexpectations.io/en/latest/tutorials/getting_started/set_
 You can use these task library tasks to interact with your Great Expectations checkpoint from a
 Prefect flow.
 """
-from typing import Dict, Optional
+from typing import Optional
 
 import great_expectations as ge
 from great_expectations.checkpoint import Checkpoint
@@ -106,7 +106,7 @@ class RunGreatExpectationsValidation(Task):
         self,
         checkpoint_name: str = None,
         ge_checkpoint: Checkpoint = None,
-        checkpoint_kwargs: Dict = None,
+        checkpoint_kwargs: dict = None,
         context: ge.DataContext = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
@@ -157,7 +157,7 @@ class RunGreatExpectationsValidation(Task):
         self,
         checkpoint_name: str = None,
         ge_checkpoint: Checkpoint = None,
-        checkpoint_kwargs: Dict = None,
+        checkpoint_kwargs: dict = None,
         context: ge.DataContext = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,

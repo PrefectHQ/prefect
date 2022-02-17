@@ -4,7 +4,7 @@ from pathlib import Path
 import great_expectations as ge
 import pandas as pd
 import pytest
-from great_expectations.checkpoint.checkpoint import CheckpointResult
+from great_expectations.checkpoint.checkpoint import CheckpointResult, Checkpoint
 from great_expectations.core.batch import RuntimeBatchRequest
 from great_expectations.data_context import BaseDataContext
 from great_expectations.data_context.types.base import (
@@ -133,60 +133,9 @@ def in_memory_data_context():
 
 @pytest.fixture
 def in_memory_checkpoint():
-    checkpoint = instantiate_class_from_config(
-        config=CheckpointConfig(
-            **{
-                "name": "taxi.pass.from_config",
-                "config_version": 1.0,
-                "template_name": None,
-                "module_name": "great_expectations.checkpoint",
-                "class_name": "Checkpoint",
-                "run_name_template": "%Y%m%d-%H%M%S-my-run-name-template",
-                "expectation_suite_name": None,
-                "batch_request": None,
-                "action_list": [
-                    {
-                        "name": "store_validation_result",
-                        "action": {"class_name": "StoreValidationResultAction"},
-                    },
-                    {
-                        "name": "store_evaluation_params",
-                        "action": {"class_name": "StoreEvaluationParametersAction"},
-                    },
-                    {
-                        "name": "update_data_docs",
-                        "action": {
-                            "class_name": "UpdateDataDocsAction",
-                            "site_names": [],
-                        },
-                    },
-                ],
-                "evaluation_parameters": {},
-                "runtime_configuration": {},
-                "validations": [
-                    {
-                        "batch_request": {
-                            "datasource_name": "data__dir",
-                            "data_connector_name": "data__dir_example_data_connector",
-                            "data_asset_name": "yellow_tripdata_sample_2019-01.csv",
-                            "data_connector_query": {"index": -1},
-                        },
-                        "expectation_suite_name": "taxi.demo_pass",
-                    }
-                ],
-                "profilers": [],
-                "ge_cloud_id": None,
-                "expectation_suite_ge_cloud_id": None,
-            }
-        ).to_json_dict(),
-        runtime_environment={
-            "data_context": ge.DataContext(
-                context_root_dir=str(V3_API_PATH),
-            )
-        },
-        config_defaults={"module_name": "great_expectations.checkpoint"},
-    )
-    return checkpoint
+    return ge.DataContext(
+        context_root_dir=str(V3_API_PATH),
+    ).get_checkpoint("my_checkpoint_pass")
 
 
 @pytest.fixture
