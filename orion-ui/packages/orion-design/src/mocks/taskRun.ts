@@ -1,5 +1,5 @@
-import { TaskRun } from '../models'
-import { MockFunction } from '../services'
+import { TaskRun } from '@/models/TaskRun'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomTaskRun: MockFunction<TaskRun> = function() {
   return new TaskRun({

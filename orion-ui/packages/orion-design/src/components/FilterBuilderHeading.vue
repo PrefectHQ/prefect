@@ -7,9 +7,9 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterService } from '../services/FilterService'
-  import { Filter } from '../types/filters'
-  import { isFilter } from '../utilities/filters'
+  import { FilterService } from '@/services/FilterService'
+  import { Filter } from '@/types/filters'
+  import { isFilter } from '@/utilities/filters'
 
   type Props = {
     filter: Partial<Filter>,

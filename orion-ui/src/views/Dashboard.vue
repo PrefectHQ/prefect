@@ -102,13 +102,11 @@ import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@pref
 
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRoute, useRouter } from 'vue-router'
-import ResultsListTabs from '../components/ResultsListTabs.vue'
-import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { ResultsListTab } from '@/components/ResultsListTab'
+import ResultsListTabs from '@/components/ResultsListTabs.vue'
+import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
 import { StateType } from '@prefecthq/orion-design/models'
-import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
-import { Filter, hasFilter } from '@/../packages/orion-design/src/'
-import { flowRunsApi } from '@/../packages/orion-design/src/services/FlowRunsApi'
+import { Filter, useFiltersStore, hasFilter } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions/src'
 
 const filtersStore = useFiltersStore()

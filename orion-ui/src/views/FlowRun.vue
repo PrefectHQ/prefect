@@ -44,7 +44,7 @@ import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch, onMounted } 
 import { CopyButton } from '@prefecthq/orion-design'
 import media from '@/utilities/media'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { useFiltersStore } from '@prefecthq/orion-design'
 
 const filtersStore = useFiltersStore()
 

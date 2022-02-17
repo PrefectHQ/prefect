@@ -38,10 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-import FiltersSearch from '@/../packages/orion-design/src/components/FiltersSearch.vue';
-import FiltersSearchMenu from '@/../packages/orion-design/src/components/FiltersSearchMenu.vue';
-import FiltersSaveMenu from '@/../packages/orion-design/src/components/FiltersSaveMenu.vue';
-import FiltersMenu from '@/../packages/orion-design/src/components/FiltersMenu.vue';
+import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@prefecthq/orion-design/components';
 import media from '@/utilities/media'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
