@@ -37,8 +37,9 @@ class TestAWSSecretsManager:
     def test_retrieve_plaintext_secret(self, mocked_boto_client):
         def mocked_response(*args, **kwargs):
             return {
-                "SecretString": "{\"top-secret-string\"}",
+                "SecretString": '{"top-secret-string"}',
             }
+
         task = AWSSecretsManager(secret="test")
         mocked_boto_client.get_secret_value.side_effect = mocked_response
         returned_data = task.run()
@@ -48,8 +49,9 @@ class TestAWSSecretsManager:
     def test_retrieve_key_value_secret(self, mocked_boto_client):
         def mocked_response(*args, **kwargs):
             return {
-                "SecretString": "{\"Key\":\"top-secret-value\"}",
+                "SecretString": '{"Key":"top-secret-value"}',
             }
+
         task = AWSSecretsManager(secret="test")
         mocked_boto_client.get_secret_value.side_effect = mocked_response
         returned_data = task.run()
