@@ -11,7 +11,7 @@ from prefect.tasks.databricks import (
     DatabricksRunNow,
     DatabricksSubmitMultitaskRun,
     DatabricksSubmitRun,
-    DatabricksGetJobID
+    DatabricksGetJobID,
 )
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
 from prefect.tasks.databricks.models import (
