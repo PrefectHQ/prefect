@@ -50,7 +50,7 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("description", sa.String(), server_default="", nullable=False),
-        sa.Column("is_paused", sa.Boolean(), server_default="0", nullable=False),
+        sa.Column("is_paused", sa.Boolean(), nullable=True),
         sa.Column(
             "concurrency_limit", sa.Integer(), server_default="0", nullable=False
         ),
