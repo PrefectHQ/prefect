@@ -9,14 +9,7 @@ import typer
 
 import prefect.context
 import prefect.settings
-
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    exit_with_error,
-    exit_with_success,
-)
-
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_URL
 
 cloud_app = PrefectTyper(
@@ -30,9 +23,11 @@ app.add_typer(cloud_app)
 
 
 def build_url_from_workspace(workspace: Dict) -> str:
-    return f"{PREFECT_CLOUD_URL.value()}" \
-           f"/accounts/{workspace['account_id']}" \
-           f"/workspaces/{workspace['workspace_id']}"
+    return (
+        f"{PREFECT_CLOUD_URL.value()}"
+        f"/accounts/{workspace['account_id']}"
+        f"/workspaces/{workspace['workspace_id']}"
+    )
 
 
 def confirm_logged_in():
@@ -140,8 +135,10 @@ async def login(
     env["PREFECT_API_KEY"] = key
     prefect.settings.write_profiles(profiles)
 
-    exit_with_success(f"Successfully logged in and set workspace to "
-                      f"{workspace_handle!r} with profile {profile.name!r}.")
+    exit_with_success(
+        f"Successfully logged in and set workspace to "
+        f"{workspace_handle!r} with profile {profile.name!r}."
+    )
 
 
 @cloud_app.command()
