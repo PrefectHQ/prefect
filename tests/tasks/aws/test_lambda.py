@@ -36,7 +36,24 @@ class TestLambdaCreate:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().create_function"
-        called_method.assert_called_once_with({"FOO": "BAR"})
+        client().create_function.assert_called_once_with(
+            FunctionName="test",
+            Runtime="python3.7",
+            Role="aws_role",
+            Handler="file.handler",
+            Code={"S3Bucket": "", "S3Key": ""},
+            Description="",
+            Timeout=3,
+            MemorySize=128,
+            Publish=True,
+            VpcConfig={},
+            DeadLetterConfig={},
+            Environment={"Variables": {}},
+            KMSKeyArn="",
+            TracingConfig={"Mode": "PassThrough"},
+            Tags={},
+            Layers=[],
+        )
 
 
 class TestLambdaDelete:
@@ -53,7 +70,7 @@ class TestLambdaDelete:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().delete_function"
-        called_method.assert_called_once_with({"FunctionName": "test"})
+        client().delete_function.assert_called_once_with(FunctionName="test")
 
 
 class TestLambdaInvoke:
@@ -69,7 +86,14 @@ class TestLambdaInvoke:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().invoke"
-        called_method.assert_called_once_with({"FunctionName": "test"})
+        client().invoke.assert_called_once_with(
+            FunctionName="test",
+            InvocationType="RequestResponse",
+            LogType="None",
+            ClientContext="eyJjdXN0b20iOiBudWxsLCAiZW52IjogbnVsbCwgImNsaWVudCI6IG51bGx9",
+            Payload="null",
+            Qualifier="$LATEST",
+        )
 
 
 class TestLambdaList:
@@ -85,4 +109,8 @@ class TestLambdaList:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().list_functions"
-        called_method.assert_called_once_with({"FunctionName": "test"})
+        client().list_functions.assert_called_once_with(
+            MasterRegion="ALL",
+            FunctionVersion="ALL",
+            MaxItems=50,
+        )
