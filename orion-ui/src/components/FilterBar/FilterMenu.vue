@@ -175,7 +175,7 @@ import FilterAccordion from './FilterAccordion.vue'
 import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
 import FormDateTime from './composables/Form--DateTime.vue'
-import media from '@/utilities/media'
+import { media } from '@prefecthq/orion-design/utilities'
 import { GlobalFilter, RunTimeFrame } from '@/typings/global'
 import { GlobalFilterDefaults } from '@prefecthq/orion-design/models'
 

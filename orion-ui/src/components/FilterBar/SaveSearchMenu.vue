@@ -66,7 +66,7 @@ import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
 import { showToast } from '@prefecthq/miter-design'
 import Tag from './Tag.vue'
-import media from '@/utilities/media'
+import { media } from '@prefecthq/orion-design/utilities'
 
 const store = useStore()
 const emit = defineEmits(['close'])

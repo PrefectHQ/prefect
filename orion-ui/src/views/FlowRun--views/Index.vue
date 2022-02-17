@@ -190,7 +190,7 @@ import type { UnionFilters } from '@prefecthq/orion-design'
 import { ResultsListTab } from '@/components/ResultsListTab'
 import ResultsListTabs from '@/components/ResultsListTabs.vue'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
-import { toPluralString } from '@/utilities/strings'
+import { toPluralString } from '@prefecthq/orion-design/utilities'
 
 const route = useRoute()
 

@@ -33,17 +33,14 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { FlowsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
-import media from '@/utilities/media'
-import { toPluralString } from '@/utilities/strings'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
-import { Filter, useFiltersStore } from '@prefecthq/orion-design'
-import { hasFilter } from '@prefecthq/orion-design/utilities'
+import { Filter, useFiltersStore, FlowsFilter } from '@prefecthq/orion-design'
+import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
 import { FilterUrlService, FiltersQueryService } from '@prefecthq/orion-design/services'
 import { useRouter } from 'vue-router'
 

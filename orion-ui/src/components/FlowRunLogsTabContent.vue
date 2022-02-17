@@ -72,7 +72,7 @@
 
 <script lang="ts" setup>
 import {
-  Logs,
+  logsApi,
   LogsRequestFilter,
   FlowRunLogs,
   Log,
@@ -123,7 +123,7 @@ const filter = computed<LogsRequestFilter>(() => {
 const options: SubscriptionOptions = {
   interval: props.running ? 5000 : undefined
 }
-const subscription = subscribe(Logs.filter.bind(Logs), [filter], options)
+const subscription = subscribe(logsApi.filter.bind(logsApi), [filter], options)
 const logs = computed<Log[]>(() => subscription.response.value ?? [])
 const loading = computed<boolean>(() => subscription.loading.value ?? true)
 
