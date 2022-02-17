@@ -6,12 +6,11 @@ import FlowMock from './models/flowMock'
 import FlowRunHistoryMock from './models/flowRunHistoryMock'
 import FlowRunMock from './models/flowRunMock'
 import FlowRunStateHistoryMock from './models/flowRunStateHistoryMock'
-import { HistoryFilter } from './plugins/api'
-import { StateNames } from './types/states'
+import { StateNames } from '@prefecthq/orion-design'
 import { server } from './utilities/api'
 import { unique } from './utilities/arrays'
 import { fakerRandomArray } from './utilities/faker'
-import { snakeCase } from './utilities/strings'
+import { snakeCase } from '@prefecthq/orion-design/utilities'
 
 export function startServer() {
   return createServer({
@@ -45,7 +44,7 @@ export function startServer() {
       })
 
       this.post('/flow_runs/history', (schema, { requestBody }) => {
-        const filter: HistoryFilter = JSON.parse(requestBody)
+        const filter: any = JSON.parse(requestBody)
         const history: FlowRunHistoryMock[] = []
         const start = new Date(filter.history_start)
         const end = new Date(filter.history_end)

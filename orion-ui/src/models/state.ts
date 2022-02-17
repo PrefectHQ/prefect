@@ -1,4 +1,4 @@
-import { State as StateType } from '@/types/states'
+import { State as StateType } from '@prefecthq/orion-design'
 
 export interface IState {
   id: string

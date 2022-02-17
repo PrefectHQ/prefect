@@ -2,7 +2,7 @@
 import State, { IState } from './state'
 import faker from 'faker'
 import { fakerRandomState } from '@/utilities/faker'
-import { StateNames } from '@/types/states'
+import { StateNames } from '@prefecthq/orion-design'
 
 export default class StateMock extends State {
   constructor(state: Partial<IState> = {}) {

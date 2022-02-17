@@ -39,7 +39,7 @@
 
 <script lang="ts" setup>
 import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@prefecthq/orion-design/components';
-import media from '@/utilities/media'
+import { media } from '@prefecthq/orion-design/utilities'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
