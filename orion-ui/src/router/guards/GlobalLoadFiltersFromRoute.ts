@@ -4,11 +4,6 @@ import { RouteLocationNormalized, Router } from "vue-router";
 import { asArray, isString } from "@prefecthq/orion-design/utilities";
 
 export class GlobalLoadFiltersFromRoute implements RouteGuard {
-  private router: Router
-
-  public constructor(router: Router) {
-    this.router = router
-  }
   
   public before(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
     if(JSON.stringify(to.query.filter) !== JSON.stringify(from.query.filter)) {
