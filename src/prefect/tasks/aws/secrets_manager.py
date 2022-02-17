@@ -66,7 +66,7 @@ class AWSSecretsManager(SecretBase):
             secret_dict = json.loads(secret_string)
         except JSONDecodeError:
             self.logger.info(
-                "Secret value could not be parsed as json, returning " "as a string."
+                "Secret value could not be parsed as json, returning value as a string."
             )
             return secret_string
 
