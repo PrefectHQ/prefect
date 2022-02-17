@@ -713,6 +713,17 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
+class ORMBlockData:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    blockref = sa.Column(sa.String, nullable=False)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -749,6 +760,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_data_mixin: block data orm mixin, combined with Base orm class
 
     TODO - example
     """
@@ -767,6 +779,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        block_data_mixin=ORMBlockData,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -806,6 +819,7 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            block_data_mixin=block_data_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -839,6 +853,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        block_data_mixin=ORMBlockData,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -875,6 +890,9 @@ class BaseORMConfiguration(ABC):
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
             pass
 
+        class BlockData(block_data_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -885,6 +903,7 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.BlockData = BlockData
 
     @property
     @abstractmethod
