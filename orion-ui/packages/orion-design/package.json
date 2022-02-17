@@ -20,7 +20,8 @@
         "dev-services": "vite build --mode services --watch",
         "dev-stores": "vite build --mode stores --watch",
         "dev-utilities": "vite build --mode utilities --watch",
-        "postbuild": "node scripts/fix-types.js"
+        "postbuild": "node scripts/fix-types.js",
+        "lint:fix": "eslint src --fix --debug"
     },
     "main": "./dist/orion-design.umd.js",
     "module": "./dist/orion-design.es.js",
@@ -81,7 +82,6 @@
     "peerDependencies": {
         "pinia": "2.0.11",
         "vue": "^3.0.5",
-        "vue-router": "^4.0.12",
-        "vuex": "^4.0.2"
+        "vue-router": "^4.0.12"
     }
 }

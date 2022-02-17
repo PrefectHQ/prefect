@@ -12,13 +12,13 @@
     </template>
 
     <transition-group name="filters-search-menu-transition">
-      <template v-if="loading" key="loader">
-        <m-loader :loading="true" class="filters-search-menu__loader" />
+      <template v-if="loading">
+        <m-loader key="loader" :loading="true" class="filters-search-menu__loader" />
       </template>
 
-      <template v-else-if="empty" key="empty">
-        <p class="filters-search-menu__empty">
-          Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
+      <template v-else-if="empty">
+        <p key="empty" class="filters-search-menu__empty">
+          Click the <i class="pi pi-star-Fiine" /> icon to save a search and it will show here.
         </p>
       </template>
     </transition-group>
