@@ -2,13 +2,13 @@
 Functions for interacting with block data ORM objects.
 Intended for internal use by the Orion API.
 """
+import json
 from uuid import UUID
 
-import json
 import pendulum
 import sqlalchemy as sa
-
 from cryptography.fernet import Fernet
+
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
