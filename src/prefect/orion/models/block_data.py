@@ -117,7 +117,8 @@ async def update_block_data(
 
     update_values = block_data.dict(shallow=True, exclude_unset=True)
     update_values = {k: v for k, v in update_values.items() if v is not None}
-    update_values["data"] = await encrypt_blockdata(session, update_values["data"])
+    if "data" in update_values:
+        update_values["data"] = await encrypt_blockdata(session, update_values["data"])
 
     update_stmt = (
         sa.update(db.BlockData).where(db.BlockData.name == name).values(update_values)
