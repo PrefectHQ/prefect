@@ -143,7 +143,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     @property
     def Configuration(self):
-        """An account info model"""
+        """An configuration model"""
         return self.orm.Configuration
 
     @property
