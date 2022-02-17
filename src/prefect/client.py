@@ -686,7 +686,7 @@ class OrionClient:
         Read the block data by id.
 
         Args:
-            id: the block data id
+            id: The block data id.
 
         Returns:
             a hydrated block or None if no Block could be found
@@ -712,13 +712,13 @@ class OrionClient:
         Read the block data with the specified name.
 
         Args:
-            name: the block data name
+            name: The block data name.
 
         Raises:
             httpx.RequestError: if the block data was not found for any reason
 
         Returns:
-            a hydrated block or None
+            A hydrated block or None.
         """
         response = await self.get(
             f"/blocks/name/{name}",
@@ -929,7 +929,7 @@ class OrionClient:
             data: the data to persist
 
         Returns:
-            orion data document pointing to persisted data
+            Orion data document pointing to persisted data.
         """
 
         try:
