@@ -1,10 +1,11 @@
+import MiterDesign from '@prefecthq/miter-design'
+import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
 import api from './plugins/api'
 import router from './router'
 import store, { key } from './store'
-import { createPinia } from 'pinia'
 
 if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
   const { startServer } = await import('./server')
@@ -32,11 +33,9 @@ import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
 import RadarNode from '@/components/Radar/Nodes/Node.vue'
 import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 
+// styles
 import '@prefecthq/miter-design/dist/style.css'
-import MiterDesign from '@prefecthq/miter-design'
-
 import '@prefecthq/orion-design/dist/style.css'
-
 import '@/styles/main.scss'
 
 const storageKey = 'orion-color-mode'
