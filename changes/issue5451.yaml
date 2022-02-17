@@ -1,0 +1,5 @@
+fix:
+  - "Adds support for AWS secret manager to parse non key-value type secrets - (#5451)[https://github.com/PrefectHQ/prefect/issues/5451]"
+
+contributor:
+  - "[Raymond Yu](https://github.com/raymonds-backyard)"
