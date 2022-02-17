@@ -106,7 +106,7 @@ class RunGreatExpectationsValidation(Task):
         self,
         checkpoint_name: str = None,
         ge_checkpoint: Checkpoint = None,
-        checkpoint_kwargs: Dict = {},
+        checkpoint_kwargs: Dict = None,
         context: ge.DataContext = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
@@ -157,7 +157,7 @@ class RunGreatExpectationsValidation(Task):
         self,
         checkpoint_name: str = None,
         ge_checkpoint: Checkpoint = None,
-        checkpoint_kwargs: Dict = {},
+        checkpoint_kwargs: Dict = None,
         context: ge.DataContext = None,
         assets_to_validate: list = None,
         batch_kwargs: dict = None,
@@ -232,6 +232,7 @@ class RunGreatExpectationsValidation(Task):
             )
 
         runtime_environment = runtime_environment or dict()
+        checkpoint_kwargs = checkpoint_kwargs or dict()
 
         # Load context if not provided directly
         if not context:
