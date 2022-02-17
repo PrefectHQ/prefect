@@ -51,7 +51,7 @@
     "jest-puppeteer": "^6.0.0",
     "miragejs": "^0.1.43",
     "prettier": "^2.4.1",
-    "puppeteer": "^11.0.0",
+    "puppeteer": "^13.3.2",
     "sass": "^1.35.2",
     "ts-jest": "^27.0.7",
     "ts-node": "10.1.0",
