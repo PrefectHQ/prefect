@@ -9,7 +9,7 @@
 <script lang="ts" setup>
   import { computed, PropType } from 'vue'
   import { useRouter } from 'vue-router'
-  import TabSet from './TabSet.vue'
+  import TabSet from '@/components/TabSet.vue'
 
   type Route = {
     name: string,

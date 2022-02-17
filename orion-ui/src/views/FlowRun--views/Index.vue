@@ -196,8 +196,8 @@ import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import type { UnionFilters } from '@prefecthq/orion-design'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
-import { toPluralString } from '@/utilities/strings'
-import TabSet from '@prefecthq/orion-design/components'
+import { toPluralString } from '@prefecthq/orion-design/utilities'
+import { TabSet } from '@prefecthq/orion-design/components'
 
 const route = useRoute()
 

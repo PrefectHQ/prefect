@@ -1,5 +1,5 @@
-import { Filter } from '../types/filters'
-import { Api } from './Api'
+import { Api } from '@/services/Api'
+import { Filter } from '@/types/filters'
 
 export type SavedSearchRequest = {
   name: string,

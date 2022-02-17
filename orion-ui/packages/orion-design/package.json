@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "private": false,
     "keywords": [
         "prefect",
@@ -8,7 +8,7 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vite build --watch && npm run dev-components && npm run dev-models && npm run dev-services && npm run dev-utilities",
+        "dev": "vue-tsc & vite build --watch & npm run dev-components & npm run dev-models & npm run dev-services & npm run dev-utilities",
         "build": "vue-tsc && vite build && npm run build-components && npm run build-models && npm run build-services && npm run build-utilities",
         "build-components": "vite build --mode components",
         "build-models": "vite build --mode models",
@@ -60,11 +60,7 @@
         "@prefecthq/vue-compositions": "0.1.9",
         "axios": "^0.24.0",
         "core-js": "^3.6.5",
-        "d3": "^7.0.0",
-        "pinia": "2.0.11",
-        "vue": "^3.0.5",
-        "vue-router": "^4.0.12",
-        "vuex": "^4.0.2"
+        "d3": "^7.0.0"
     },
     "devDependencies": {
         "@babel/helper-compilation-targets": "^7.16.3",
@@ -81,5 +77,11 @@
         "vite": "^2.4.2",
         "vue-class-component": "^8.0.0-0",
         "vue-tsc": "^0.30.1"
+    },
+    "peerDependencies": {
+        "pinia": "2.0.11",
+        "vue": "^3.0.5",
+        "vue-router": "^4.0.12",
+        "vuex": "^4.0.2"
     }
 }

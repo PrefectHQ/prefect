@@ -4,13 +4,7 @@ import pytest
 from typing_extensions import Literal
 
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.serializers import (
-    _SERIALIZERS,
-    FileSerializer,
-    OrionSerializer,
-    Serializer,
-    register_serializer,
-)
+from prefect.orion.serializers import _SERIALIZERS, Serializer, register_serializer
 
 
 @pytest.fixture(autouse=True)
@@ -63,20 +57,3 @@ class TestDataDocument:
 
         datadoc = DataDocument(encoding="foo", blob=b"test")
         assert datadoc.decode() == "testfoo"
-
-    @pytest.mark.parametrize(
-        "encoding,serializer",
-        [
-            ("orion", OrionSerializer),
-            ("file", FileSerializer),
-            ("s3", FileSerializer),
-        ],
-    )
-    def test_supports_known_server_encodings(self, encoding, serializer, monkeypatch):
-        # Mock dumps because the passed data will be invalid
-        mock = MagicMock(return_value=b"data")
-        monkeypatch.setattr(serializer, "dumps", mock)
-
-        result = DataDocument.encode(encoding=encoding, data="data")
-        assert result.encoding == encoding
-        assert result.blob == b"data"

@@ -1,7 +1,8 @@
+import { toRecord } from '@/utilities/arrays'
 import { defineStore } from 'pinia'
-import { SimpleIdManager } from '../services/SimpleIdManager'
-import { Filter } from '../types/filters'
-import { toRecord } from '../utilities/arrays'
+import { InjectionKey } from 'vue'
+import { SimpleIdManager } from '@/services/SimpleIdManager'
+import { Filter } from '@/types/filters'
 
 export type FilterState = {
   id: number,
@@ -48,3 +49,5 @@ export const useFiltersStore = defineStore('filters', {
     all: (state) => Object.values(state.filters),
   },
 })
+
+export const filterStoreKey: InjectionKey<ReturnType<typeof useFiltersStore>> = Symbol()

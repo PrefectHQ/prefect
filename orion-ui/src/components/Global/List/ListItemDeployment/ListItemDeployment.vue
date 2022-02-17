@@ -128,7 +128,7 @@ import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
 import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
-import media from '@/utilities/media'
+import { media } from '@prefecthq/orion-design/utilities'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 

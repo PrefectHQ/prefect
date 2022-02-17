@@ -5,7 +5,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 export abstract class Api {
   // todo: can this will need to be defined by the server itself
   // https://github.com/PrefectHQ/orion/issues/667
-  protected server: string = 'http://localhost:4200'
+  protected server: string = 'http://127.0.0.1:4200'
 
   private _config: AxiosRequestConfig | null = null
   private _instance: AxiosInstance | null = null

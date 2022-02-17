@@ -66,3 +66,11 @@ export const StateColors: ReadonlyMap<State, StateColor> = new Map([
   [States.FAILED, 'var(--failed)'],
   [States.CANCELLED, 'var(--cancelled)']
 ])
+
+export function isState(value: unknown): value is State {
+  return Object.values(States).includes(value)
+}
+
+export function isSubState(value: unknown): value is SubState {
+  return SubStates.includes(value as SubState)
+}

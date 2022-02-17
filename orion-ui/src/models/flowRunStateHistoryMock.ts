@@ -3,7 +3,7 @@
 import FlowRunStateHistory, {
   IFlowRunStateHistory
 } from './flowRunStateHistory'
-import { StateNames } from '@/types/states'
+import { StateNames } from '@prefecthq/orion-design'
 import { fakerRandomState } from '@/utilities/faker'
 import faker from 'faker'
 
