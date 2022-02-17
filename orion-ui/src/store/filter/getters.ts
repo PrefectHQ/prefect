@@ -1,7 +1,7 @@
 import { GetterTree } from 'vuex'
-import { calculateStart, calculateEnd } from '@/utilities/timeFrame'
 import type { RootState } from '@/store'
 import { GlobalFilter } from '@/typings/global'
+import { calculateStart, calculateEnd } from '@/utilities/timeFrame'
 
 export const getters: GetterTree<GlobalFilter, RootState> = {
   baseInterval(state: GlobalFilter, getters): number {
@@ -11,7 +11,9 @@ export const getters: GetterTree<GlobalFilter, RootState> = {
   },
   start(state: GlobalFilter): Date {
     const timeframe = state.flow_runs.timeframe?.from
-    if (!timeframe) return new Date()
+    if (!timeframe) {
+      return new Date()
+    }
 
     const startDate = calculateStart(timeframe)
     if (!startDate) {
@@ -22,7 +24,9 @@ export const getters: GetterTree<GlobalFilter, RootState> = {
   },
   end(state: GlobalFilter): Date {
     const timeframe = state.flow_runs.timeframe?.to
-    if (!timeframe) return new Date()
+    if (!timeframe) {
+      return new Date()
+    }
 
     const endDate = calculateEnd(timeframe)
     if (!endDate) {
@@ -30,5 +34,5 @@ export const getters: GetterTree<GlobalFilter, RootState> = {
     }
 
     return endDate
-  }
+  },
 }

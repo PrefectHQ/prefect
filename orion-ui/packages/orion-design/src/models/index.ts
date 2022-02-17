@@ -1,4 +1,3 @@
-export * from './DashboardFilters'
 export * from './Deployment'
 export * from './FilterDateError'
 export * from './FilterPrefixError'

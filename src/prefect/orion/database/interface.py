@@ -147,6 +147,11 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.Agent
 
     @property
+    def BlockData(self):
+        """A block model"""
+        return self.orm.BlockData
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns

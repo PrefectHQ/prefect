@@ -713,6 +713,17 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
+class ORMBlockData:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    blockref = sa.Column(sa.String, nullable=False)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -799,6 +810,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_data_mixin: block data orm mixin, combined with Base orm class
 
     """
 
@@ -816,8 +828,12 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+<<<<<<< HEAD
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+=======
+        block_data_mixin=ORMBlockData,
+>>>>>>> e31a5c0b575cb160451365ed8eb2915bbf0937b6
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -859,6 +875,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
+            block_data_mixin=block_data_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -894,6 +911,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_data_mixin=ORMBlockData,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -935,6 +953,8 @@ class BaseORMConfiguration(ABC):
 
         class Agent(agent_mixin, self.Base):
             pass
+        class BlockData(block_data_mixin, self.Base):
+            pass
 
         self.Flow = Flow
         self.FlowRunState = FlowRunState
@@ -948,6 +968,7 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
+        self.BlockData = BlockData
 
     @property
     @abstractmethod

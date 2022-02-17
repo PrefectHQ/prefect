@@ -1,4 +1,4 @@
-import { IState } from '../models/State'
+import { IState } from '@/models/State'
 
 export type IStateResponse = {
   id: string,
@@ -26,4 +26,4 @@ export class StatesApi {
 
 }
 
-export const States = new StatesApi()
+export const statesApi = new StatesApi()

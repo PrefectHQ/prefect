@@ -1,5 +1,5 @@
-import { Deployment } from '../models'
-import { MockFunction } from '../services'
+import { Deployment } from '@/models/Deployment'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomDeployment: MockFunction<Deployment> = function() {
   return {
