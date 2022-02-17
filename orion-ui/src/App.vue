@@ -9,18 +9,18 @@
 </template>
 
 <script lang="ts" setup>
-import NavBar from '@/components/ApplicationNav/NavBar.vue'
-import FilterBar from '@/components/FilterBar/FilterBar.vue'
+import NavBar from '@/components/NavBar.vue'
+import FilterBar from '@/components/FilterBar.vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
+  const route = useRoute()
 
-const invalidRoutes = ['/settings']
+  const invalidRoutes = ['/settings']
 
-const validFilterRoute = computed(() => {
-  return !invalidRoutes.includes(route.path)
-})
+  const validFilterRoute = computed(() => {
+    return !invalidRoutes.includes(route.path)
+  })
 </script>
 
 <style lang="scss">

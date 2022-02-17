@@ -3,9 +3,9 @@ import FlowRunStateHistory, {
 } from './flowRunStateHistory'
 
 export type IFlowRunHistory = {
-  interval_start: Date
-  interval_end: Date
-  states: IFlowRunStateHistory[]
+  interval_start: Date,
+  interval_end: Date,
+  states: IFlowRunStateHistory[],
 }
 
 export default class FlowRunHistory implements IFlowRunHistory {

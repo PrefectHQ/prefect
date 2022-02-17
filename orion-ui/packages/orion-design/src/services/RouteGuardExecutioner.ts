@@ -1,5 +1,5 @@
 import { RouteLocationNormalized, RouteLocationRaw } from 'vue-router'
-import { RouteGuard, RouteGuardReturn } from '../types/RouteGuard'
+import { RouteGuard, RouteGuardReturn } from '@/types/RouteGuard'
 
 export class RouteGuardExecutioner {
   private static readonly global: RouteGuard[] = []

@@ -22,19 +22,6 @@ type before_ = { before_?: string }
 /** A date-time string to include results starting at or after this time */
 type after_ = { after_?: string }
 
-/**
- * Max: 200
- * Min: 0
- * Default: 200
- */
-type limit = number
-
-/**
- * Min: 0
- * Default: 0
- */
-type offset = number
-
 export interface Filter {
   id?: any_,
   name?: any_,

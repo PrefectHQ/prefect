@@ -9,8 +9,8 @@ import {
   ObjectTagPrefixDictionary,
   ObjectRelativeDateFilter,
   ObjectUpcomingRelativeDateFilter
-} from '../types/filters'
-import { formatDateTimeNumeric } from '../utilities/dates'
+} from '@/types/filters'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 
 export class FilterStringifyService {
   public static stringifyFilters(filters: Required<Filter>[]): string[] {
