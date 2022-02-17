@@ -828,12 +828,9 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
-<<<<<<< HEAD
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-=======
         block_data_mixin=ORMBlockData,
->>>>>>> e31a5c0b575cb160451365ed8eb2915bbf0937b6
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -953,6 +950,7 @@ class BaseORMConfiguration(ABC):
 
         class Agent(agent_mixin, self.Base):
             pass
+
         class BlockData(block_data_mixin, self.Base):
             pass
 
