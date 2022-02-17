@@ -10,7 +10,7 @@
 
 <script lang="ts" setup>
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
-import FilterBar from '@/components/FilterBar/FilterBar.vue'
+import FilterBar from '@/components/FilterBar.vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
