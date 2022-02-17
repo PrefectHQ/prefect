@@ -755,7 +755,8 @@ class ORMWorkQueue:
     description = sa.Column(sa.String, nullable=False, default="", server_default="")
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     concurrency_limit = sa.Column(
-        sa.Integer, nullable=False, default=0, server_default="0"
+        sa.Integer,
+        nullable=True,
     )
 
     @declared_attr
