@@ -34,8 +34,6 @@ class TestLambdaCreate:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run()
 
-        called_method = client.mock_calls[1]
-        assert called_method[0] == "().create_function"
         client().create_function.assert_called_once_with(
             FunctionName="test",
             Runtime="python3.7",
@@ -68,8 +66,6 @@ class TestLambdaDelete:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run()
 
-        called_method = client.mock_calls[1]
-        assert called_method[0] == "().delete_function"
         client().delete_function.assert_called_once_with(FunctionName="test")
 
 
@@ -84,8 +80,6 @@ class TestLambdaInvoke:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run()
 
-        called_method = client.mock_calls[1]
-        assert called_method[0] == "().invoke"
         client().invoke.assert_called_once_with(
             FunctionName="test",
             InvocationType="RequestResponse",
@@ -107,8 +101,6 @@ class TestLambdaList:
         monkeypatch.setattr("prefect.utilities.aws.boto3", boto3)
         task.run()
 
-        called_method = client.mock_calls[1]
-        assert called_method[0] == "().list_functions"
         client().list_functions.assert_called_once_with(
             MasterRegion="ALL",
             FunctionVersion="ALL",
