@@ -68,13 +68,15 @@
         @click="showFromDateTimeMenu = !showFromDateTimeMenu"
       />
 
-      <teleport to=".application" v-if="showFromDateTimeMenu">
+      <teleport v-if="showFromDateTimeMenu" to=".application">
         <div class="date-picker pa-2">
-          <h2 class="font-weight-semibold mb-2">Timeframe Start</h2>
+          <h2 class="font-weight-semibold mb-2">
+            Timeframe Start
+          </h2>
           <m-date-picker v-model="tempFromTimestamp" />
           <m-time-picker v-model="tempFromTimestamp" class="py-1" />
 
-          <hr />
+          <hr>
           <div class="mt-2 d-flex align-center justify-end">
             <m-button
               flat
@@ -103,13 +105,15 @@
         @click="showToDateTimeMenu = !showToDateTimeMenu"
       />
 
-      <teleport to=".application" v-if="showToDateTimeMenu">
+      <teleport v-if="showToDateTimeMenu" to=".application">
         <div class="date-picker pa-2">
-          <h2 class="font-weight-semibold">Timeframe End</h2>
+          <h2 class="font-weight-semibold">
+            Timeframe End
+          </h2>
           <m-date-picker v-model="tempToTimestamp" />
           <m-time-picker v-model="tempToTimestamp" class="py-1" />
 
-          <hr />
+          <hr>
           <div class="mt-2 d-flex align-center justify-end">
             <m-button
               flat
@@ -135,80 +139,80 @@
 </template>
 
 <script lang="ts" setup>
-import { RunTimeFrame } from '@/typings/global';
-import { ref, watch, computed, withDefaults } from 'vue'
+  import { ref, watch, computed, withDefaults } from 'vue'
+  import { RunTimeFrame } from '@/typings/global'
 
-const props = withDefaults(
-  defineProps<{
-    modelValue?: RunTimeFrame
-    title?: string
-    icon?: string
-  }>(),
-  {
-    modelValue: () => {
-      return {
-        dynamic: false,
-        from: { timestamp: new Date(), unit: 'minutes', value: 60 },
-        to: { timestamp: new Date(), unit: 'minutes', value: 60 }
-      }
+  const props = withDefaults(
+    defineProps<{
+      modelValue?: RunTimeFrame,
+      title?: string,
+      icon?: string,
+    }>(),
+    {
+      modelValue: () => {
+        return {
+          dynamic: false,
+          from: { timestamp: new Date(), unit: 'minutes', value: 60 },
+          to: { timestamp: new Date(), unit: 'minutes', value: 60 },
+        }
+      },
+      title: 'Timeframe',
+      icon: 'pi-time-line',
     },
-    title: 'Timeframe',
-    icon: 'pi-time-line'
-  }
-)
+  )
 
-const emit = defineEmits(['update:modelValue'])
+  const emit = defineEmits(['update:modelValue'])
 
-const showFromDateTimeMenu = ref(false)
-const showToDateTimeMenu = ref(false)
+  const showFromDateTimeMenu = ref(false)
+  const showToDateTimeMenu = ref(false)
 
-const fromUnit = ref(props.modelValue.from.unit)
-const toUnit = ref(props.modelValue.to.unit)
-const fromValue = ref(props.modelValue.from.value)
-const toValue = ref(props.modelValue.to.value)
-const fromTimestamp = ref(props.modelValue.from.timestamp || new Date())
-const toTimestamp = ref(props.modelValue.to.timestamp || new Date())
+  const fromUnit = ref(props.modelValue.from.unit)
+  const toUnit = ref(props.modelValue.to.unit)
+  const fromValue = ref(props.modelValue.from.value)
+  const toValue = ref(props.modelValue.to.value)
+  const fromTimestamp = ref(props.modelValue.from.timestamp || new Date())
+  const toTimestamp = ref(props.modelValue.to.timestamp || new Date())
 
-const tempFromTimestamp = ref(props.modelValue.from.timestamp || new Date())
-const tempToTimestamp = ref(props.modelValue.to.timestamp || new Date())
+  const tempFromTimestamp = ref(props.modelValue.from.timestamp || new Date())
+  const tempToTimestamp = ref(props.modelValue.to.timestamp || new Date())
 
-const value = computed(() => {
-  return {
-    dynamic: timeframeSelector.value == 'simple',
-    from: {
-      timestamp:
-        timeframeSelector.value == 'simple' ? null : fromTimestamp.value,
-      unit: fromUnit.value,
-      value: fromValue.value
-    },
-    to: {
-      timestamp: timeframeSelector.value == 'simple' ? null : toTimestamp.value,
-      unit: toUnit.value,
-      value: toValue.value
+  const value = computed(() => {
+    return {
+      dynamic: timeframeSelector.value == 'simple',
+      from: {
+        timestamp:
+          timeframeSelector.value == 'simple' ? null : fromTimestamp.value,
+        unit: fromUnit.value,
+        value: fromValue.value,
+      },
+      to: {
+        timestamp: timeframeSelector.value == 'simple' ? null : toTimestamp.value,
+        unit: toUnit.value,
+        value: toValue.value,
+      },
     }
+  })
+
+  const applyTempFromTimestamp = () => {
+    fromTimestamp.value = new Date(tempFromTimestamp.value)
+    showFromDateTimeMenu.value = false
   }
-})
 
-const applyTempFromTimestamp = () => {
-  fromTimestamp.value = new Date(tempFromTimestamp.value)
-  showFromDateTimeMenu.value = false
-}
-
-const applyTempToTimestamp = () => {
-  toTimestamp.value = new Date(tempToTimestamp.value)
-  showToDateTimeMenu.value = false
-}
-
-const timeframeSelector = ref('simple')
-
-const unitOptions = ['minutes', 'hours', 'days']
-
-watch(
-  [fromUnit, toUnit, fromValue, toValue, fromTimestamp, toTimestamp],
-  () => {
-    emit('update:modelValue', value.value)
+  const applyTempToTimestamp = () => {
+    toTimestamp.value = new Date(tempToTimestamp.value)
+    showToDateTimeMenu.value = false
   }
-)
+
+  const timeframeSelector = ref('simple')
+
+  const unitOptions = ['minutes', 'hours', 'days']
+
+  watch(
+    [fromUnit, toUnit, fromValue, toValue, fromTimestamp, toTimestamp],
+    () => {
+      emit('update:modelValue', value.value)
+    },
+  )
 </script>
 
 <style lang="scss" scoped>

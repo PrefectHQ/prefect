@@ -19,11 +19,11 @@
 </template>
 
 <script lang="ts" setup>
-import { RadarNodes } from '@/typings/radar'
+  import { RadarNodes } from '@/typings/radar'
 
-const props = defineProps<{
-  nodes?: RadarNodes
-}>()
+  const props = defineProps<{
+    nodes?: RadarNodes,
+  }>()
 </script>
 
 <style lang="scss" scoped>

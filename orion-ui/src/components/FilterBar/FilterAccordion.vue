@@ -31,12 +31,13 @@
     </div>
   </div>
 </template>
+
 <script lang="ts" setup>
-import { ref } from 'vue'
+  import { ref } from 'vue'
 
-const expanded = ref(false)
+  const expanded = ref(false)
 
-const props = defineProps<{ icon: string; title: string }>()
+  const props = defineProps<{ icon: string, title: string }>()
 </script>
 
 <style lang="scss" scoped>

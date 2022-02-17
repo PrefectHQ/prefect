@@ -1,12 +1,12 @@
 export const createCappedBar = (
   options: {
-    capTop: boolean
-    capBottom: boolean
-    x: number
-    y: number
-    height: number
-    width: number
-    radius: number
+    capTop: boolean,
+    capBottom: boolean,
+    x: number,
+    y: number,
+    height: number,
+    width: number,
+    radius: number,
   } = {
     capTop: true,
     capBottom: true,
@@ -14,8 +14,8 @@ export const createCappedBar = (
     y: 0,
     height: 0,
     width: 0,
-    radius: 1
-  }
+    radius: 1,
+  },
 ): string => {
   const { capTop, capBottom, height, width, x, y, radius } = options
 
