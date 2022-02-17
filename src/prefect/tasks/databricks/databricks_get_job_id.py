@@ -16,10 +16,11 @@ class DatabricksGetJobID(Task):
 
     ```
     conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    job_id = DatabricksGetJobID(job_name="name", databricks_conn_secret=conn)
+    get_job_id = DatabricksGetJobID(databricks_conn_secret=conn)
+    dbx_job_id = get_job_id(job_name="dbx")
 
     notebook_run = DatabricksRunNow(
-        job_id = job_id,
+        job_id = dbx_job_id,
         notebook_params=notebook_params,
         python_params=python_params,
         spark_submit_params=spark_submit_params,
@@ -40,7 +41,6 @@ class DatabricksGetJobID(Task):
             '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
             See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
             string using `PrefectSecret`.
-        - job_name (str, optional): The job_name of an existing Databricks job.
         - search_limit (int, optional): Controls the number of jobs to return per API call,
             This value must be greater than 0 and less than or equal to 25.
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
@@ -58,8 +58,7 @@ class DatabricksGetJobID(Task):
 
     def __init__(
         self,
-        databricks_conn_secret: dict,
-        job_name: str,
+        databricks_conn_secret: dict = None,
         search_limit: int = 25,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -67,7 +66,6 @@ class DatabricksGetJobID(Task):
         **kwargs
     ) -> None:
         self.databricks_conn_secret = databricks_conn_secret
-        self.job_name = job_name
         self.search_limit = search_limit
         self.polling_period_seconds = polling_period_seconds
         self.databricks_retry_limit = databricks_retry_limit
@@ -77,7 +75,6 @@ class DatabricksGetJobID(Task):
 
     @defaults_from_attrs(
         "databricks_conn_secret",
-        "job_name",
         "search_limit",
         "polling_period_seconds",
         "databricks_retry_limit",
@@ -85,8 +82,8 @@ class DatabricksGetJobID(Task):
     )
     def run(
         self,
+        job_name: str = None,
         databricks_conn_secret: dict = None,
-        job_name: str = "",
         search_limit: int = 25,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -96,6 +93,7 @@ class DatabricksGetJobID(Task):
         Task run method.
 
         Args:
+            - job_name (str): The job_name of an existing Databricks job.
             - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
                 Connection String. Structure must be a string of valid JSON. To use token based
                 authentication, provide the key `token` in the string for the connection and create the
@@ -107,7 +105,6 @@ class DatabricksGetJobID(Task):
                 '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
                 See documentation of the `DatabricksSubmitRun` Task to see how to pass in the connection
                 string using `PrefectSecret`.
-            - job_name (str, optional): The job_name of an existing Databricks job.
             - search_limit (int, optional): Controls the number of jobs to return per API call,
                 This value must be greater than 0 and less or equal to 25.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
@@ -121,15 +118,18 @@ class DatabricksGetJobID(Task):
             - job_id (int): Job id of the job name.
         """
 
+        if job_name is None:
+            raise ValueError("A job name must be provided.")
+
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
         hook = self.get_hook()
 
         # Fetch Job ID
-        self.logger.info("Searching for job_ids with name: %s ", self.job_name)
+        self.logger.info("Searching for job_ids with name: %s ", job_name)
         job_id = hook.get_job_id_by_name(
-            job_name=self.job_name, limit=self.search_limit
+            job_name=job_name, limit=self.search_limit
         )
         self.logger.info("%s completed successfully.", self.name)
 
