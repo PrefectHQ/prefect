@@ -14,7 +14,6 @@ import inquirer
 from prefect.cli.base import (
     PrefectTyper,
     app,
-    console,
     exit_with_error,
     exit_with_success,
 )
@@ -56,18 +55,19 @@ class NebulaClient:
 @workspace_app.command()
 async def login(
     api_key: str = typer.Option(
-        ..., help="api kalksdmfakldsmfaklsdmfkajsdnfmakjsndf fix this", prompt=True
+        ..., help="API Key to authenticate with Prefect", prompt=True
     ),
     workspace_handle: str = typer.Option(
         None,
-        help="Full handle of workspace to login to. e.x. '<account_handle>`/<workspace_handle>'",
+        help="Full handle of workspace to login to (e.x. '<account_handle>`/<workspace_handle>').",
     ),
 ):
+    """Login. Sets PREFECT_API_URL and PREFECT_API_KEY."""
 
     client = NebulaClient(api_key=api_key)
     try:
         workspaces = await client.read_workspaces()
-    except httpx.HTTPStatusError as e:
+    except httpx.HTTPStatusError:
         exit_with_error(
             "Unable to authenticate. Please ensure your credentials are correct."
         )
@@ -81,7 +81,7 @@ async def login(
         if workspace_handle not in workspaces:
             exit_with_error(
                 f"Workspace {workspace_handle!r} not found. "
-                f"Leave `workspace-handle` blank to select a workspace."
+                f"Leave `--workspace-handle` blank to select a workspace."
             )
         workspace = workspaces[workspace_handle]
     else:
@@ -117,6 +117,7 @@ async def login(
 
 @workspace_app.command()
 async def logout():
+    """Logout. Unsets PREFECT_API_URL and PREFECT_API_KEY."""
     profiles = prefect.settings.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
