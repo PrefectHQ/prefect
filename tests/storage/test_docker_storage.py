@@ -3,7 +3,7 @@ import sys
 import json
 import tempfile
 import textwrap
-from unittest.mock import MagicMock, ANY
+from unittest.mock import MagicMock, ANY, patch
 from collections import OrderedDict
 
 import cloudpickle
@@ -394,7 +394,7 @@ def test_build_image_passes_and_pushes(monkeypatch):
     assert "reg" in push_image.call_args[0][0]
     assert "reg" in remove.call_args[1]["image"]
 
-
+@patch("prefect.storage.Docker._get_client")
 def test_build_with_default_rm_true(monkeypatch):
     storage = Docker(
         registry_url="reg",
@@ -406,16 +406,15 @@ def test_build_with_default_rm_true(monkeypatch):
     pull_image = MagicMock()
     monkeypatch.setattr("prefect.storage.Docker.pull_image", pull_image)
 
-    build = MagicMock()
-    monkeypatch.setattr("docker.APIClient.build", build)
+    mock_docker_client = MagicMock()
+    mock_docker_client.images.return_value = ["test"]
+    with patch.object(storage, "_get_client") as mock_docker_client_fn:
+        mock_docker_client_fn.return_value = mock_docker_client
 
-    images = MagicMock(return_value=["test"])
-    monkeypatch.setattr("docker.APIClient.images", images)
-
-    output = storage.build(push=False)
-    build.assert_called_once_with(
-        dockerfile=ANY, path=ANY, tag="reg/test:latest", rm=True
-    )
+        output = storage.build(push=False)
+        mock_docker_client.build.assert_called_once_with(
+            dockerfile=ANY, path=ANY, tag="reg/test:latest", rm=True
+        )
 
 
 def test_build_with_rm_override(monkeypatch):
@@ -427,19 +426,15 @@ def test_build_with_rm_override(monkeypatch):
         build_kwargs={"rm": False},
     )
 
-    pull_image = MagicMock()
-    monkeypatch.setattr("prefect.storage.Docker.pull_image", pull_image)
+    mock_docker_client = MagicMock()
+    mock_docker_client.images.return_value = ["test"]
+    with patch.object(storage, "_get_client") as mock_docker_client_fn:
+        mock_docker_client_fn.return_value = mock_docker_client
 
-    build = MagicMock()
-    monkeypatch.setattr("docker.APIClient.build", build)
-
-    images = MagicMock(return_value=["test"])
-    monkeypatch.setattr("docker.APIClient.images", images)
-
-    output = storage.build(push=False)
-    build.assert_called_once_with(
-        dockerfile=ANY, path=ANY, tag="reg/test:latest", rm=False
-    )
+        output = storage.build(push=False)
+        mock_docker_client.build.assert_called_once_with(
+            dockerfile=ANY, path=ANY, tag="reg/test:latest", rm=False
+        )
 
 
 def test_create_dockerfile_from_base_image():
