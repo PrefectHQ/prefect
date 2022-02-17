@@ -65,7 +65,6 @@ class AWSSecretsManager(SecretBase):
         try:
             secret_dict = json.loads(secret_string)
         except JSONDecodeError:
-            secret_string = secret_string.strip('{"}')
             return secret_string
 
         return secret_dict
