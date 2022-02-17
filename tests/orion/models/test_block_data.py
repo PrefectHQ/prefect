@@ -24,7 +24,6 @@ class TestBlockDatas:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data == dict()
 
         block = await models.block_data.read_block_data_by_name_as_block(
             session=session, name="hi-im-some-blockdata"
@@ -142,9 +141,7 @@ class TestBlockDatas:
             "also_needs": "smith",
         }
 
-        packed_blockdata = schemas.core.BlockData(
-            **pack_blockdata(starting_blockdata.copy())
-        )
+        packed_blockdata = pack_blockdata(starting_blockdata.copy())
         roundtrip_blockdata = unpack_blockdata(packed_blockdata)
-        roundtrip_blockdata.pop("blockid")
+        roundtrip_blockdata.pop("blockid", None)
         assert starting_blockdata == roundtrip_blockdata
