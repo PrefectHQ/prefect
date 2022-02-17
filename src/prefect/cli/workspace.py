@@ -1,40 +1,51 @@
 """
 Command line interface for interacting with workspaces
 """
-from typing import List
+from typing import Dict, Iterable, List
 
 import httpx
+import inquirer
 import typer
 
 import prefect.context
 import prefect.settings
 
-import inquirer
-
 from prefect.cli.base import (
     PrefectTyper,
     app,
-    console,
     exit_with_error,
     exit_with_success,
 )
 
-from prefect.settings import PREFECT_API_KEY, PREFECT_BASE_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_URL
 
-workspace_app = PrefectTyper(
-    name="workspace", help="Commands for interacting with Prefect workspaces"
+cloud_app = PrefectTyper(
+    name="cloud", help="Commands for interacting with Prefect Cloud"
 )
-app.add_typer(workspace_app)
+workspace_app = PrefectTyper(
+    name="workspace", help="Commands for interacting with Workspaces"
+)
+cloud_app.add_typer(workspace_app)
+app.add_typer(cloud_app)
 
 
-def format_handle(account_handle, workspace_handle) -> str:
-    return f"{account_handle}/{workspace_handle}"
+def build_url_from_workspace(workspace: Dict) -> str:
+    return f"{PREFECT_CLOUD_URL.value()}" \
+           f"/accounts/{workspace['account_id']}" \
+           f"/workspaces/{workspace['workspace_id']}"
 
 
-class NebulaClient:
+def confirm_logged_in():
+    if PREFECT_API_KEY.value() is None:
+        exit_with_error(
+            "Currently not logged in. Please login with `prefect cloud login`."
+        )
+
+
+class CloudClient:
     def __init__(
         self,
-        host: str = PREFECT_BASE_URL.value(),
+        host: str = PREFECT_CLOUD_URL.value(),
         api_key: str = PREFECT_API_KEY.value(),
         httpx_settings: dict = None,
     ) -> None:
@@ -46,113 +57,102 @@ class NebulaClient:
         httpx_settings.setdefault("base_url", host)
         self._client = httpx.AsyncClient(**httpx_settings)
 
-    async def read_workspaces(self) -> List[dict]:
-        res = await self._client.get("/api/me/workspaces")
-        res.raise_for_status()
+    async def get(self, route, **kwargs):
+        try:
+            res = await self._client.get(route, **kwargs)
+            res.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 403:
+                exit_with_error(
+                    "Unable to authenticate. Please ensure your credentials are correct."
+                )
+            else:
+                raise exc
+
         return res.json()
 
+    async def read_current_workspace(self) -> Dict:
+        return await self.get(PREFECT_API_URL.value())
 
-@workspace_app.command()
-async def list(
-    key: str = typer.Option(
-        None, "--key", "-k", help="API Key to authenticate with Prefect"
-    ),
-):
-    """Lists workspaces."""
+    async def read_workspaces(self) -> List[Dict]:
+        return await self.get("/me/workspaces")
 
-    api_key = key or PREFECT_API_KEY.value()
-    if api_key is None:
-        exit_with_error(
-            "Currently not logged in. Please provide `--key` to list workspaces."
+
+def prompt_select_workspace(workspaces: Iterable[str]) -> str:
+    """
+    Prompt the user to select a workspace via the CLI.
+
+    Args:
+        workspaces: list of workspaces
+
+    Returns:
+        the workspace that was selected
+    """
+    questions = [
+        inquirer.List(
+            "workspace",
+            message="Select a workspace",
+            choices=sorted(workspaces),
+            carousel=True,
         )
-
-    client = NebulaClient(api_key=api_key)
-    try:
-        workspaces = await client.read_workspaces()
-    except httpx.HTTPStatusError:
-        exit_with_error(
-            "Unable to authenticate. Please ensure your credentials are correct."
-        )
-
-    workspace_handles = [
-        format_handle(workspace["account_handle"], workspace["workspace_handle"])
-        for workspace in workspaces
     ]
-    for handle in sorted(workspace_handles):
-        console.print(handle)
+    return inquirer.prompt(questions)["workspace"]
 
 
-@workspace_app.command()
+@cloud_app.command()
 async def login(
     key: str = typer.Option(
         ..., "--key", "-k", help="API Key to authenticate with Prefect", prompt=True
     ),
-    name: str = typer.Option(
+    workspace_handle: str = typer.Option(
         None,
-        "--name",
-        "-n",
-        help="Full handle of workspace to login in the format '<account_handle>/<workspace_handle>'",
+        "--workspace",
+        "-w",
+        help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
     ),
 ):
     """
-    Login. Sets PREFECT_API_URL and PREFECT_API_KEY for profile.
+    Login into Prefect Cloud.
+    Sets PREFECT_API_URL and PREFECT_API_KEY for profile.
     If those values are already set they will be overwritten.
     """
 
-    client = NebulaClient(api_key=key)
-    try:
-        workspaces = await client.read_workspaces()
-    except httpx.HTTPStatusError:
-        exit_with_error(
-            "Unable to authenticate. Please ensure your credentials are correct."
-        )
+    client = CloudClient(api_key=key)
 
+    workspaces = await client.read_workspaces()
     workspaces = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
     }
 
-    if name:
-        if name not in workspaces:
-            exit_with_error(
-                f"Workspace {name!r} not found. "
-                f"Leave `--workspace-handle` blank to select a workspace."
-            )
-        workspace = workspaces[name]
-    else:
-        questions = [
-            inquirer.List(
-                "handle",
-                message="Select a workspace",
-                choices=sorted(workspaces.keys()),
-                carousel=True,
-            )
-        ]
-        workspace_handle = inquirer.prompt(questions)["handle"]
-        workspace = workspaces[workspace_handle]
+    if not workspace_handle:
+        workspace_handle = prompt_select_workspace(workspaces.keys())
+
+    if workspace_handle not in workspaces:
+        exit_with_error(
+            f"Workspace {workspace_handle!r} not found. "
+            f"Leave `--workspace` blank to select a workspace."
+        )
 
     profiles = prefect.settings.load_profiles()
     profile = prefect.context.get_profile_context()
     env = profiles[profile.name]
 
-    account_id = workspace["account_id"]
-    workspace_id = workspace["workspace_id"]
-    host_url = (
-        f"{PREFECT_BASE_URL.value()}/accounts/{account_id}/workspaces/{workspace_id}/"
-    )
-
-    env["PREFECT_API_URL"] = host_url
+    env["PREFECT_API_URL"] = build_url_from_workspace(workspaces[workspace_handle])
     env["PREFECT_API_KEY"] = key
     prefect.settings.write_profiles(profiles)
 
-    exit_with_success(
-        f"Successfully logged into workspace {name!r} with profile {profile.name!r}."
-    )
+    exit_with_success(f"Successfully logged in and set workspace to "
+                      f"{workspace_handle!r} with profile {profile.name!r}.")
 
 
-@workspace_app.command()
+@cloud_app.command()
 async def logout():
-    """Logout. Removes PREFECT_API_URL and PREFECT_API_KEY from profile."""
+    """
+    Logout of Prefect Cloud.
+    Removes PREFECT_API_URL and PREFECT_API_KEY from profile.
+    """
+    confirm_logged_in()
 
     profiles = prefect.settings.load_profiles()
     profile = prefect.context.get_profile_context()
@@ -165,3 +165,43 @@ async def logout():
     prefect.settings.write_profiles(profiles)
 
     exit_with_success(f"Successfully logged out with profile {profile.name!r}")
+
+
+@workspace_app.command()
+async def set(
+    workspace_handle: str = typer.Option(
+        None,
+        "--workspace",
+        "-w",
+        help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
+    ),
+):
+    """Set current workspace."""
+
+    confirm_logged_in()
+
+    client = CloudClient()
+    workspaces = await client.read_workspaces()
+    workspaces = {
+        f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
+        for workspace in workspaces
+    }
+
+    if not workspace_handle:
+        workspace_handle = prompt_select_workspace(workspaces)
+
+    if workspace_handle not in workspaces:
+        exit_with_error(
+            f"Workspace {workspace_handle!r} not found. "
+            f"Leave `--workspace` blank to select a workspace."
+        )
+
+    profiles = prefect.settings.load_profiles()
+    profile = prefect.context.get_profile_context()
+    env = profiles[profile.name]
+
+    env["PREFECT_API_URL"] = build_url_from_workspace(workspaces[workspace_handle])
+    prefect.settings.write_profiles(profiles)
+    exit_with_success(
+        f"Successfully set workspace to {workspace_handle!r} with profile {profile.name!r}."
+    )
