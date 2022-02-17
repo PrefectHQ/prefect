@@ -3,18 +3,17 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
-import atexit
 import os
 import threading
 import warnings
 from contextlib import contextmanager
-from contextvars import ContextVar
-from typing import Dict, List, Optional, Set, Type, TypeVar, Union
+from contextvars import ContextVar, Token
+from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging.configuration
 import prefect.settings
@@ -39,6 +38,7 @@ class ContextModel(BaseModel):
 
     # The context variable for storing data must be defined by the child class
     __var__: ContextVar
+    _token: Token = PrivateAttr(None)
 
     class Config:
         allow_mutation = False
@@ -46,17 +46,30 @@ class ContextModel(BaseModel):
         extra = "forbid"
 
     def __enter__(self):
-        # We've frozen the rest of the data on the class but we'd like to still store
-        # this token for resetting on context exit
-        object.__setattr__(self, "__token", self.__var__.set(self))
+        if self._token is not None:
+            raise RuntimeError(
+                "Context already entered. Context enter calls cannot be nested."
+            )
+        self._token = self.__var__.set(self)
         return self
 
     def __exit__(self, *_):
-        self.__var__.reset(getattr(self, "__token"))
+        if not self._token:
+            raise RuntimeError(
+                "Asymmetric use of context. Context exit called without an enter."
+            )
+        self.__var__.reset(self._token)
+        self._token = None
 
     @classmethod
     def get(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
+
+    def copy(self, **kwargs):
+        """Remove the token on copy to avoid re-entrance errors"""
+        new = super().copy(**kwargs)
+        new._token = None
+        return new
 
 
 class RunContext(ContextModel):
@@ -251,11 +264,15 @@ class ProfileContext(ContextModel):
         configure logging. These steps are optional. Logging can only be set up once per
         process and later attempts to configure logging will fail.
         """
-        if create_home and not os.path.exists(self.settings.home):
-            os.makedirs(self.settings.home, exist_ok=True)
+        if create_home and not os.path.exists(
+            prefect.settings.PREFECT_HOME.value_from(self.settings)
+        ):
+            os.makedirs(
+                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
+            )
 
         if setup_logging:
-            prefect.logging.configuration.setup_logging(self.settings.logging)
+            prefect.logging.configuration.setup_logging(self.settings)
 
 
 def get_profile_context() -> ProfileContext:
@@ -343,12 +360,15 @@ def profile(
         with temporary_environ(
             env, override_existing=override_existing_variables, warn_on_override=True
         ):
-            settings = prefect.settings.from_env()
+            settings = prefect.settings.get_settings_from_env()
 
     with ProfileContext(name=name, settings=settings, env=env) as ctx:
         if initialize:
             ctx.initialize()
         yield ctx
+
+
+GLOBAL_PROFILE_CM: ContextManager[ProfileContext] = None
 
 
 def enter_global_profile():
@@ -358,9 +378,15 @@ def enter_global_profile():
     We do not initialize this profile so there are no logging/file system side effects
     on module import. Instead, the profile is initialized lazily in `prefect.engine`.
 
-    This should only be called _once_ at Prefect module initialization.
+    This function is safe to call multiple times.
     """
+    # We set a global variable because otherwise the context object will be garbage
+    # collected which will call __exit__ as soon as this function scope ends.
+    global GLOBAL_PROFILE_CM
+
+    if GLOBAL_PROFILE_CM:
+        return  # A global context already has been entered
+
     name = os.environ.get("PREFECT_PROFILE", "default")
-    context = profile(name=name, initialize=False)
-    context.__enter__()
-    atexit.register(lambda: context.__exit__(None, None, None))
+    GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
+    GLOBAL_PROFILE_CM.__enter__()

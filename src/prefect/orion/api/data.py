@@ -1,24 +1,28 @@
 """
 Routes for interacting with the Orion Data API.
 """
-
 from pathlib import PosixPath
 from uuid import uuid4
 
-from fastapi import Request, Response, status
+import fsspec
+from fastapi import HTTPException, Request, Response, status
 
-from prefect.orion.schemas.data import DataDocument, get_instance_data_location
-from prefect.orion.serializers import FileSerializer, OrionSerializer
+from prefect.orion.schemas.data import get_instance_data_location
+from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.compat import asyncio_to_thread
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
 
+class PersistenceID(PrefectBaseModel):
+    id: str
+
+
 @router.post("/persist", status_code=status.HTTP_201_CREATED)
-async def create_datadoc(request: Request) -> DataDocument:
+async def persist_data(request: Request) -> PersistenceID:
     """
-    Exchange data for an orion data document
+    Persist data as a file and return a reference to the file location.
     """
     data = await request.body()
 
@@ -26,35 +30,50 @@ async def create_datadoc(request: Request) -> DataDocument:
     dataloc = get_instance_data_location()
 
     # Generate a path to write the data
-    path = PosixPath(dataloc.base_path).joinpath(uuid4().hex).absolute()
+    identifier = uuid4().hex
+    path = PosixPath(dataloc.base_path).joinpath(identifier).absolute()
     path = f"{dataloc.scheme}://{path}"
 
     # Write the data to the path and create a file system document
-    file_datadoc = await asyncio_to_thread(
-        DataDocument.encode, encoding=dataloc.scheme, data=data, path=path
-    )
+    await asyncio_to_thread(write_blob, blob=data, path=path)
 
-    # Return an Orion datadoc to show that it should be resolved by GET /data
-    orion_datadoc = DataDocument.encode(encoding="orion", data=file_datadoc)
-
-    return orion_datadoc
+    return PersistenceID(id=identifier)
 
 
 @router.post("/retrieve")
-async def read_datadoc(orion_datadoc: DataDocument):
+async def read_data(identifier: PersistenceID):
     """
-    Exchange an orion data document for the data previously persisted
+    Read data at the provided file location.
     """
-    if orion_datadoc.encoding != "orion":
-        raise ValueError(
-            f"Invalid encoding: {orion_datadoc.encoding!r}. Only 'orion' data documents can "
-            "be retrieved from the Orion API."
+
+    # the blob is read from a file location constructed from a configured base path and
+    # an identifier, by restricting the number of directory parts contained inside this
+    # identifier to 1, we can restrict access to Orion's filesystem to the configured
+    # storage directory
+
+    identifier = identifier.id
+    if len(PosixPath(identifier).parts) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid file identifier"
         )
 
-    # Explicitly use the `OrionSerializer` instead of the dispatcher for safety
-    inner_datadoc = OrionSerializer.loads(orion_datadoc.blob)
-
-    # Read data from the file system; once again do not use the dispatcher
-    data = await asyncio_to_thread(FileSerializer.loads, inner_datadoc.blob)
+    # Read data from the file system
+    dataloc = get_instance_data_location()
+    path = PosixPath(dataloc.base_path).joinpath(identifier).absolute()
+    data = await asyncio_to_thread(read_blob, path)
 
     return Response(content=data, media_type="application/octet-stream")
+
+
+def write_blob(blob: bytes, path: PosixPath) -> bool:
+    """Write a blob to a file path."""
+    with fsspec.open(path, mode="wb") as fp:
+        fp.write(blob)
+    return True
+
+
+def read_blob(path: str) -> bytes:
+    """Read a blob from a file path."""
+    with fsspec.open(path, mode="rb") as fp:
+        blob = fp.read()
+    return blob

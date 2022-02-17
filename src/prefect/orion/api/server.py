@@ -26,7 +26,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.1.0"
+ORION_API_VERSION = "0.2.0"
 
 logger = get_logger("orion")
 
@@ -133,6 +133,9 @@ def create_orion_api(
     api_app.include_router(
         api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
     )
+    api_app.include_router(
+        api.blocks.router, prefix=router_prefix, dependencies=dependencies
+    )
 
     if include_admin_router:
         api_app.include_router(
@@ -142,12 +145,12 @@ def create_orion_api(
     return api_app
 
 
-APP_CACHE: Dict[prefect.settings.OrionSettings, FastAPI] = {}
+APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
 
 
-def create_app(settings: prefect.settings.OrionSettings = None) -> FastAPI:
+def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
-    settings = settings or prefect.settings.from_context().orion
+    settings = settings or prefect.settings.get_current_settings()
 
     if settings in APP_CACHE:
         return APP_CACHE[settings]
@@ -182,7 +185,10 @@ def create_app(settings: prefect.settings.OrionSettings = None) -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if os.path.exists(prefect.__ui_static_path__) and settings.ui.enabled:
+    if (
+        os.path.exists(prefect.__ui_static_path__)
+        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+    ):
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
@@ -216,7 +222,7 @@ def create_app(settings: prefect.settings.OrionSettings = None) -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if settings.services.run_in_app:
+        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP.value():
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
