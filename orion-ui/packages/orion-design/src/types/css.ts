@@ -1,1 +1,1 @@
-export type ClassValue = string | (string | { [key: string]: boolean })[]
+export type ClassValue = string | (string | Record<string, boolean>)[]
