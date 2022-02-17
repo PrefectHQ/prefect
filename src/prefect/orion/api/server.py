@@ -26,7 +26,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.1.0"
+ORION_API_VERSION = "0.2.0"
 
 logger = get_logger("orion")
 
@@ -132,6 +132,9 @@ def create_orion_api(
     )
     api_app.include_router(
         api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.blocks.router, prefix=router_prefix, dependencies=dependencies
     )
 
     if include_admin_router:
