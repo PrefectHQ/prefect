@@ -1,6 +1,6 @@
 <template>
   <m-card class="menu font--primary" tabindex="0">
-    <template v-if="!media.md" v-slot:header>
+    <template v-if="!media.md" #header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3 class="d-flex align-center font--secondary ml-auto">
           <i class="pi pi-search-line mr-1" />
@@ -70,7 +70,7 @@
               "
               :class="{
                 disabled: loadingIds.includes(search.id),
-                active: selectedSearch?.id == search.id
+                active: selectedSearch?.id == search.id,
               }"
               tabindex="0"
               @click.self="
@@ -91,7 +91,7 @@
       </transition>
     </div>
 
-    <template v-if="!media.md" v-slot:actions>
+    <template v-if="!media.md" #actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
         <m-button
           color="primary"
@@ -107,140 +107,145 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
-import { useStore } from '@/store'
-import { Api, Endpoints } from '@/plugins/api'
-import { showToast } from '@prefecthq/miter-design'
-import { media } from '@prefecthq/orion-design/utilities'
+  import { showToast } from '@prefecthq/miter-design'
+  import { media } from '@prefecthq/orion-design/utilities'
+  import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
+  import { Api, Endpoints } from '@/plugins/api'
+  import { useStore } from '@/store'
 
-const store = useStore()
-const emit = defineEmits(['close'])
+  const store = useStore()
+  const emit = defineEmits(['close'])
 
-type SavedSearch = {
-  name: string
-  id: string
-  filters: any
-}
+  type SavedSearch = {
+    name: string,
+    id: string,
+    filters: any,
+  }
 
-const selectedSearch = ref<SavedSearch>()
-const searches = ref<SavedSearch[]>([])
-const loadingIds = ref<string[]>([])
-const error = ref()
-const loading = ref()
+  const selectedSearch = ref<SavedSearch>()
+  const searches = ref<SavedSearch[]>([])
+  const loadingIds = ref<string[]>([])
+  const error = ref()
+  const loading = ref()
 
-const getSavedSearches = async () => {
-  loading.value = true
+  const getSavedSearches = async () => {
+    loading.value = true
 
-  try {
-    const query = Api.query({
-      endpoint: Endpoints.saved_searches,
-      options: { paused: true }
+    try {
+      const query = Api.query({
+        endpoint: Endpoints.saved_searches,
+        options: { paused: true },
+      })
+
+      const res = await query.fetch()
+
+      if (res.response.error) {
+        error.value = res.response.error
+      } else {
+        searches.value = res.response.value
+      }
+    } catch (e) {
+      error.value = e
+    } finally {
+      loading.value = false
+      console.log(searches.value)
+    }
+  }
+
+  const close = () => {
+    emit('close')
+  }
+
+  const selectSearch = (search: SavedSearch) => {
+    selectedSearch.value = search
+  }
+
+  const selectAndApply = (search: SavedSearch) => {
+    selectSearch(search)
+    applyFilter()
+  }
+
+  const applyFilter = () => {
+    if (!selectedSearch.value) {
+      return
+    }
+    const gf = { ...selectedSearch.value?.filters }
+
+    if (gf.flow_runs?.timeframe?.from?.timestamp) {
+      gf.flow_runs.timeframe.from.timestamp = new Date(
+        gf.flow_runs.timeframe.from.timestamp,
+      )
+    }
+    if (gf.flow_runs?.timeframe?.to?.timestamp) {
+      gf.flow_runs.timeframe.to.timestamp = new Date(
+        gf.flow_runs.timeframe.to.timestamp,
+      )
+    }
+    if (gf.task_runs?.timeframe?.from?.timestamp) {
+      gf.task_runs.timeframe.from.timestamp = new Date(
+        gf.task_runs.timeframe.from.timestamp,
+      )
+    }
+    if (gf.task_runs?.timeframe?.to?.timestamp) {
+      gf.task_runs.timeframe.to.timestamp = new Date(
+        gf.task_runs.timeframe.to.timestamp,
+      )
+    }
+
+    store.commit('filter/setFilter', selectedSearch.value?.filters)
+    emit('close')
+  }
+
+  // TODO: Add keyboard arrow navigation for search results (tab navigation works)
+  // const currentItem = ref<number>(0)
+  // const selectNextItem = (e: KeyboardEvent) => {
+  //   switch (e.key) {
+  //     case 'Down': // IE/Edge specific value
+  //     case 'ArrowDown':
+  //       if (currentItem.value > 0) currentItem.value--
+  //       else currentItem.value = searches.value.length - 1
+  //       break
+  //     case 'Up': // IE/Edge specific value
+  //     case 'ArrowUp':
+  //       if (currentItem.value < searches.value.length - 1) currentItem.value++
+  //       else currentItem.value = 0
+  //       break
+  //     default:
+  //       break
+  //   }
+  // }
+
+  onBeforeMount(() => {
+    getSavedSearches()
+  // window.addEventListener('keyup', selectNextItem)
+  })
+
+  onBeforeUnmount(() => {
+  // window.removeEventListener('keyup', selectNextItem)
+  })
+
+  const remove = async (id: string) => {
+    loadingIds.value.push(id)
+
+    const query = await Api.query({
+      endpoint: Endpoints.delete_search,
+      body: {
+        id: id,
+      },
+      options: { paused: true },
     })
 
     const res = await query.fetch()
 
-    if (res.response.error) error.value = res.response.error
-    else searches.value = res.response.value
-  } catch (e) {
-    error.value = e
-  } finally {
-    loading.value = false
-    console.log(searches.value)
+    showToast({
+      type: res.error ? 'error' : 'success',
+      message: res.error ? `Error: ${res.error}` : 'Search removed',
+      timeout: 10000,
+    })
+
+    await getSavedSearches()
+    loadingIds.value.splice(loadingIds.value.indexOf(id), 1)
   }
-}
-
-const close = () => {
-  emit('close')
-}
-
-const selectSearch = (search: SavedSearch) => {
-  selectedSearch.value = search
-}
-
-const selectAndApply = (search: SavedSearch) => {
-  selectSearch(search)
-  applyFilter()
-}
-
-const applyFilter = () => {
-  if (!selectedSearch.value) return
-  const gf = { ...selectedSearch.value?.filters }
-
-  if (gf.flow_runs?.timeframe?.from?.timestamp) {
-    gf.flow_runs.timeframe.from.timestamp = new Date(
-      gf.flow_runs.timeframe.from.timestamp
-    )
-  }
-  if (gf.flow_runs?.timeframe?.to?.timestamp) {
-    gf.flow_runs.timeframe.to.timestamp = new Date(
-      gf.flow_runs.timeframe.to.timestamp
-    )
-  }
-  if (gf.task_runs?.timeframe?.from?.timestamp) {
-    gf.task_runs.timeframe.from.timestamp = new Date(
-      gf.task_runs.timeframe.from.timestamp
-    )
-  }
-  if (gf.task_runs?.timeframe?.to?.timestamp) {
-    gf.task_runs.timeframe.to.timestamp = new Date(
-      gf.task_runs.timeframe.to.timestamp
-    )
-  }
-
-  store.commit('filter/setFilter', selectedSearch.value?.filters)
-  emit('close')
-}
-
-// TODO: Add keyboard arrow navigation for search results (tab navigation works)
-// const currentItem = ref<number>(0)
-// const selectNextItem = (e: KeyboardEvent) => {
-//   switch (e.key) {
-//     case 'Down': // IE/Edge specific value
-//     case 'ArrowDown':
-//       if (currentItem.value > 0) currentItem.value--
-//       else currentItem.value = searches.value.length - 1
-//       break
-//     case 'Up': // IE/Edge specific value
-//     case 'ArrowUp':
-//       if (currentItem.value < searches.value.length - 1) currentItem.value++
-//       else currentItem.value = 0
-//       break
-//     default:
-//       break
-//   }
-// }
-
-onBeforeMount(() => {
-  getSavedSearches()
-  // window.addEventListener('keyup', selectNextItem)
-})
-
-onBeforeUnmount(() => {
-  // window.removeEventListener('keyup', selectNextItem)
-})
-
-const remove = async (id: string) => {
-  loadingIds.value.push(id)
-
-  const query = await Api.query({
-    endpoint: Endpoints.delete_search,
-    body: {
-      id: id
-    },
-    options: { paused: true }
-  })
-
-  const res = await query.fetch()
-
-  showToast({
-    type: res.error ? 'error' : 'success',
-    message: res.error ? `Error: ${res.error}` : 'Search removed',
-    timeout: 10000
-  })
-
-  await getSavedSearches()
-  loadingIds.value.splice(loadingIds.value.indexOf(id), 1)
-}
 </script>
 
 <style lang="scss" scoped>

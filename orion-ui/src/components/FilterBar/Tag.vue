@@ -15,8 +15,8 @@
 </template>
 
 <script lang="ts" setup>
-const props = defineProps<{ clearable?: boolean }>()
-const emit = defineEmits(['remove'])
+  const props = defineProps<{ clearable?: boolean }>()
+  const emit = defineEmits(['remove'])
 </script>
 
 <style lang="scss" scoped>

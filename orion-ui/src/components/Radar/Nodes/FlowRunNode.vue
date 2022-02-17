@@ -4,9 +4,9 @@
     class="node d-flex position-relative"
     :class="{
       observed: observed,
-      [state.type.toLowerCase() + '-border']: true,
-      [state.type.toLowerCase() + '-bg']: true,
-      selected: props.selected
+      [`${state.type.toLowerCase() }-border`]: true,
+      [`${state.type.toLowerCase() }-bg`]: true,
+      selected: props.selected,
     }"
     @click="handleClick"
   >
@@ -15,7 +15,7 @@
     >
       <i
         class="pi text--white pi-lg"
-        :class="'pi-' + state.type.toLowerCase()"
+        :class="`pi-${ state.type.toLowerCase()}`"
       />
     </div>
 
@@ -91,163 +91,171 @@
     </transition>
   </div>
   <!-- DNR: This is used for testing placement -->
-  <!-- <div
+  <!--
+    <div
     v-else
     class="circle-node cursor-pointer"
     :class="state.type.toLowerCase() + '-bg'"
-  /> -->
+    />
+  -->
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
-import type { UnionFilters } from '@prefecthq/orion-design'
-import { Api, Endpoints, Query } from '@/plugins/api'
-import { RadarNode } from '@/typings/radar'
-import { State, FlowRun } from '@/typings/objects'
-import { secondsToApproximateString } from '@/util/util'
+  import type { UnionFilters } from '@prefecthq/orion-design'
+  import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
+  import { Api, Endpoints, Query } from '@/plugins/api'
+  import { State, FlowRun } from '@/typings/objects'
+  import { RadarNode } from '@/typings/radar'
+  import { secondsToApproximateString } from '@/util/util'
 
-const emit = defineEmits(['toggle-tree'])
+  const emit = defineEmits(['toggle-tree'])
 
-const props = defineProps<{
-  node: RadarNode
-  collapsed?: undefined | Map<string, RadarNode>
-  selected?: boolean
-}>()
+  const props = defineProps<{
+    node: RadarNode,
+    collapsed?: undefined | Map<string, RadarNode>,
+    selected?: boolean,
+  }>()
 
-const flowRunId = computed<string>(() => {
-  return props.node.data.state.state_details.child_flow_run_id
-})
-
-const task_runs_count_filter_body: UnionFilters = {
-  flow_runs: {
-    id: {
-      any_: [flowRunId.value]
-    }
-  },
-  task_runs: {
-    subflow_runs: {
-      exists_: false
-    }
-  }
-}
-
-const flow_runs_count_filter_body: UnionFilters = {
-  flow_runs: {
-    id: {
-      any_: [flowRunId.value]
-    }
-  },
-  task_runs: {
-    subflow_runs: {
-      exists_: true
-    }
-  }
-}
-
-const queries: { [key: string]: Query } = {
-  flow_run: Api.query({
-    endpoint: Endpoints.flow_run,
-    body: {
-      id: flowRunId.value
-    },
-    options: {
-      pollInterval: 5000
-    }
-  }),
-  task_run_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: task_runs_count_filter_body
-  }),
-  flow_run_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: flow_runs_count_filter_body
+  const flowRunId = computed<string>(() => {
+    return props.node.data.state.state_details.child_flow_run_id
   })
-}
 
-const toggle = () => {
-  emit('toggle-tree', props.node)
-}
-
-const node = computed<RadarNode>(() => {
-  return props.node
-})
-
-const collapsed = computed(() => {
-  return props.collapsed
-})
-
-const state = computed<State>(() => {
-  return flowRun.value?.state || props.node.data.state
-})
-
-const duration = computed<string>(() => {
-  return flowRun.value?.estimated_run_time
-    ? secondsToApproximateString(flowRun.value.estimated_run_time)
-    : '--'
-})
-
-const flowRun = computed<FlowRun>(() => {
-  return queries.flow_run.response.value || {}
-})
-
-const taskRunCount = computed((): number => {
-  return queries.task_run_count?.response?.value || 0
-})
-
-const flowRunCount = computed((): number => {
-  return queries.flow_run_count?.response?.value || 0
-})
-
-const handleClick = () => {
-  return
-}
-
-/**
- * Intersection Observer
- */
-
-const observed: Ref<boolean> = ref(false)
-
-const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
-  if (entry.isIntersecting) {
-    observed.value = entry.isIntersecting
-    queries.flow_run.resume()
-  } else {
-    queries.flow_run.pause()
-  }
-}
-
-const observe = ref<Element>()
-
-let observer: IntersectionObserver
-
-const createIntersectionObserver = (margin: string) => {
-  if (observe.value) observer?.unobserve(observe.value)
-
-  const options = {
-    rootMargin: margin,
-    threshold: [0.5, 1]
+  const task_runs_count_filter_body: UnionFilters = {
+    flow_runs: {
+      id: {
+        any_: [flowRunId.value],
+      },
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: false,
+      },
+    },
   }
 
-  observer = new IntersectionObserver(handleEmit, options)
-  if (observe.value) observer.observe(observe.value)
-}
-
-const terminalStates = ['COMPLETED', 'FAILED', 'CANCELLED']
-
-watch(flowRun, () => {
-  if (terminalStates.includes(flowRun.value?.state_type)) {
-    queries.flow_run.pollInterval = 0
+  const flow_runs_count_filter_body: UnionFilters = {
+    flow_runs: {
+      id: {
+        any_: [flowRunId.value],
+      },
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: true,
+      },
+    },
   }
-})
 
-onMounted(() => {
-  createIntersectionObserver('12px')
-})
+  const queries: Record<string, Query> = {
+    flow_run: Api.query({
+      endpoint: Endpoints.flow_run,
+      body: {
+        id: flowRunId.value,
+      },
+      options: {
+        pollInterval: 5000,
+      },
+    }),
+    task_run_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: task_runs_count_filter_body,
+    }),
+    flow_run_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: flow_runs_count_filter_body,
+    }),
+  }
 
-onBeforeUnmount(() => {
-  if (observe.value) observer?.unobserve(observe.value)
-})
+  const toggle = () => {
+    emit('toggle-tree', props.node)
+  }
+
+  const node = computed<RadarNode>(() => {
+    return props.node
+  })
+
+  const collapsed = computed(() => {
+    return props.collapsed
+  })
+
+  const state = computed<State>(() => {
+    return flowRun.value?.state || props.node.data.state
+  })
+
+  const duration = computed<string>(() => {
+    return flowRun.value?.estimated_run_time
+      ? secondsToApproximateString(flowRun.value.estimated_run_time)
+      : '--'
+  })
+
+  const flowRun = computed<FlowRun>(() => {
+    return queries.flow_run.response.value || {}
+  })
+
+  const taskRunCount = computed((): number => {
+    return queries.task_run_count?.response?.value || 0
+  })
+
+  const flowRunCount = computed((): number => {
+    return queries.flow_run_count?.response?.value || 0
+  })
+
+  const handleClick = () => {
+
+  }
+
+  /**
+   * Intersection Observer
+   */
+
+  const observed: Ref<boolean> = ref(false)
+
+  const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
+    if (entry.isIntersecting) {
+      observed.value = entry.isIntersecting
+      queries.flow_run.resume()
+    } else {
+      queries.flow_run.pause()
+    }
+  }
+
+  const observe = ref<Element>()
+
+  let observer: IntersectionObserver
+
+  const createIntersectionObserver = (margin: string) => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+
+    const options = {
+      rootMargin: margin,
+      threshold: [0.5, 1],
+    }
+
+    observer = new IntersectionObserver(handleEmit, options)
+    if (observe.value) {
+      observer.observe(observe.value)
+    }
+  }
+
+  const terminalStates = ['COMPLETED', 'FAILED', 'CANCELLED']
+
+  watch(flowRun, () => {
+    if (terminalStates.includes(flowRun.value?.state_type)) {
+      queries.flow_run.pollInterval = 0
+    }
+  })
+
+  onMounted(() => {
+    createIntersectionObserver('12px')
+  })
+
+  onBeforeUnmount(() => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+  })
 </script>
 
 <style lang="scss" scoped>

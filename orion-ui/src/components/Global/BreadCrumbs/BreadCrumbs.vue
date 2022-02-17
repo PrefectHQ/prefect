@@ -7,7 +7,7 @@
         :key="index"
         class="bread-crumbs__crumb"
         :class="{
-          'bread-crumbs__crumb--bold': bold && index === crumbs.length - 1
+          'bread-crumbs__crumb--bold': bold && index === crumbs.length - 1,
         }"
       >
         <BreadCrumb :crumb="crumb" />
@@ -17,21 +17,21 @@
 </template>
 
 <script lang="ts" setup>
-import { withDefaults } from 'vue'
-import { Crumb } from '../utils'
-import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
+  import { withDefaults } from 'vue'
+  import { Crumb } from '../utils'
+  import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 
-interface Props {
-  crumbs: Crumb[]
-  icon?: string
-  tag?: string
-  bold?: boolean
-}
+  interface Props {
+    crumbs: Crumb[],
+    icon?: string,
+    tag?: string,
+    bold?: boolean,
+  }
 
-const props = withDefaults(defineProps<Props>(), {
-  tag: 'h1',
-  bold: false
-})
+  const props = withDefaults(defineProps<Props>(), {
+    tag: 'h1',
+    bold: false,
+  })
 </script>
 
 <style lang="scss" scoped>

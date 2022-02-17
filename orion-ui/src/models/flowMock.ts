@@ -15,7 +15,7 @@ export default class FlowMock extends Flow {
       created,
       updated,
       name,
-      tags
+      tags,
     })
   }
 }

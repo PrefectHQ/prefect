@@ -7,8 +7,8 @@
 
     <m-input
       v-model="input"
-      @keyup.enter="addTag"
       placeholder="Press enter to add a tag"
+      @keyup.enter="addTag"
     />
 
     <div class="mt-2 tag-container">
@@ -27,34 +27,38 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, reactive, withDefaults } from 'vue'
-import Tag from '../Tag.vue'
+  import { ref, watch, reactive, withDefaults } from 'vue'
+  import Tag from '../Tag.vue'
 
-const props = withDefaults(
-  defineProps<{ modelValue?: string[]; title?: string; icon?: string }>(),
-  { modelValue: () => [], title: 'Tags', icon: 'pi-label' }
-)
+  const props = withDefaults(
+    defineProps<{ modelValue?: string[], title?: string, icon?: string }>(),
+    { modelValue: () => [], title: 'Tags', icon: 'pi-label' },
+  )
 
-const emit = defineEmits(['update:modelValue'])
+  const emit = defineEmits(['update:modelValue'])
 
-const input = ref('')
+  const input = ref('')
 
-const tags = reactive([...props.modelValue])
+  const tags = reactive([...props.modelValue])
 
-const addTag = () => {
-  if (!input.value) return
-  if (tags.includes(input.value)) return
-  tags.push(input.value)
-  input.value = ''
-}
+  const addTag = () => {
+    if (!input.value) {
+      return
+    }
+    if (tags.includes(input.value)) {
+      return
+    }
+    tags.push(input.value)
+    input.value = ''
+  }
 
-const removeTag = (i: number) => {
-  tags.splice(i, 1)
-}
+  const removeTag = (i: number) => {
+    tags.splice(i, 1)
+  }
 
-watch(tags, () => {
-  emit('update:modelValue', tags)
-})
+  watch(tags, () => {
+    emit('update:modelValue', tags)
+  })
 </script>
 
 <style lang="scss" scoped>
