@@ -10,10 +10,8 @@ from prefect.orion.models.block_data import pack_blockdata, unpack_blockdata
 from tests.fixtures.database import session
 
 
-class TestBlockDatas:
-    async def test_creating_block_datii_then_reading_as_blocks(self, session):
-        # the plural of data is datii right?
-
+class TestBlockData:
+    async def test_creating_block_data_then_reading_by_name_as_blocks(self, session):
         blockdata = await models.block_data.create_block_data(
             session=session,
             block_data=schemas.core.BlockData(
@@ -24,6 +22,7 @@ class TestBlockDatas:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
+        assert blockdata.data != dict(), "block data is encrypted"
 
         block = await models.block_data.read_block_data_by_name_as_block(
             session=session, name="hi-im-some-blockdata"
@@ -32,19 +31,23 @@ class TestBlockDatas:
         assert isinstance(block, dict)
         assert block["blockname"] == blockdata.name
         assert block["blockref"] == blockdata.blockref
+        assert (
+            len(block) == 3
+        ), "because the data field is empty, the unpacked block will have only 3 fields"
 
-    async def test_creating_block_datees_then_reading_as_blocks(self, session):
+    async def test_creating_block_data_then_reading_as_blocks(self, session):
 
         blockdata = await models.block_data.create_block_data(
             session=session,
             block_data=schemas.core.BlockData(
                 name="hi-im-some-blockdata",
                 blockref="a-definitely-implemented-stateful-api",
-                data=dict(),
+                data=dict(realdata=42),
             ),
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
+        assert blockdata.data != dict(realdata=42), "block data is encrypted"
 
         block = await models.block_data.read_block_data_as_block(
             session=session, block_data_id=blockdata.id
@@ -53,8 +56,10 @@ class TestBlockDatas:
         assert isinstance(block, dict)
         assert block["blockname"] == blockdata.name
         assert block["blockref"] == blockdata.blockref
+        assert block["blockref"] == blockdata.blockref
+        assert block["realdata"] == 42
 
-    async def test_deleting_block_datums(self, session):
+    async def test_deleting_block_data(self, session):
 
         blockdata = await models.block_data.create_block_data(
             session=session,
