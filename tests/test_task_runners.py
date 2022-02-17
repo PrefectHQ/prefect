@@ -46,7 +46,8 @@ def machine_ray_instance():
     Starts a ray instance for the current machine
     """
     subprocess.check_call(
-        ["ray", "start", "--head", "--num-cpus", "2"], cwd=str(prefect.__root_path__)
+        ["ray", "start", "--head", "--include-dashboard", "False"],
+        cwd=str(prefect.__root_path__),
     )
     try:
         yield "ray://127.0.0.1:10001"
@@ -56,10 +57,14 @@ def machine_ray_instance():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def ray_task_runner_with_existing_cluster(machine_ray_instance, use_hosted_orion):
+def ray_task_runner_with_existing_cluster(
+    machine_ray_instance, use_hosted_orion, hosted_orion_api
+):
     """
     Generate a ray task runner that's connected to a ray instance running in a separate
-    process
+    process.
+
+    This tests connection via `ray://` which is a client-based connection.
     """
     yield RayTaskRunner(
         address=machine_ray_instance,
@@ -82,8 +87,7 @@ def inprocess_ray_cluster():
     """
     cluster = ray.cluster_utils.Cluster(initialize_head=True)
     try:
-        # Add another node, or this will not run tasks in parallel
-        cluster.add_node(wait=True)
+        cluster.add_node()  # We need to add a second node for parallelism
         yield cluster
     finally:
         cluster.shutdown()
@@ -91,9 +95,13 @@ def inprocess_ray_cluster():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def ray_task_runner_with_inprocess_cluster(inprocess_ray_cluster):
+def ray_task_runner_with_inprocess_cluster(
+    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api
+):
     """
-    Generate a ray task runner that's connected to an in-process cluster
+    Generate a ray task runner that's connected to an in-process cluster.
+
+    This tests connection via 'localhost' which is not a client-based connection.
     """
     yield RayTaskRunner(
         address=inprocess_ray_cluster.address,
@@ -305,7 +313,7 @@ def test_failing_flow_run_by_task_runner(task_runner):
     )
 
 
-@pytest.mark.services("dask")  # Right now, all these parameter combinations use Dask
+@pytest.mark.service("dask")  # Right now, all these parameter combinations use Dask
 @pytest.mark.parametrize(
     "parent_task_runner,child_task_runner",
     [

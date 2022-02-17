@@ -666,9 +666,11 @@ class RayTaskRunner(BaseTaskRunner):
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
-        # When connecting to an out-of-process cluster, this returns a `ClientContext`
-        # otherwise it returns a `dict`
-        context_or_metadata = self._ray.init(*init_args, **self.init_kwargs)
+        # When connecting to an out-of-process cluster (e.g. ray://ip) this returns a
+        # `ClientContext` otherwise it returns a `dict`.
+        context_or_metadata = self._ray.init(
+            *init_args, namespace="prefect", **self.init_kwargs
+        )
         if isinstance(context_or_metadata, dict):
             metadata = context_or_metadata
             context = None
@@ -681,8 +683,10 @@ class RayTaskRunner(BaseTaskRunner):
 
         # Shutdown differs depending on the connection type
         if context:
+            # Just disconnect the client
             exit_stack.push(context)
         else:
+            # Shutdown ray
             exit_stack.push_async_callback(self._shutdown_ray)
 
         if metadata and metadata.get("webui_url"):

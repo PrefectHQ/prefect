@@ -76,25 +76,27 @@ async def hosted_orion_api():
         stderr=subprocess.STDOUT,
     ) as process:
 
-        api_url = "http://localhost:2222/api"
+        api_url = "http://127.0.0.1:2222/api"
 
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
-            attempts = 0
             response = None
-            while attempts < 20:  # Wait for 2 seconds maximum
-                attempts += 1
-                try:
-                    response = await client.get(api_url + "/admin/hello")
-                except httpx.ConnectError:
-                    pass
-                else:
-                    if response.status_code == 200:
-                        break
-                await anyio.sleep(0.1)
+            with anyio.move_on_after(2):
+                while True:
+                    try:
+                        response = await client.get(api_url + "/admin/hello")
+                    except httpx.ConnectError:
+                        pass
+                    else:
+                        if response.status_code == 200:
+                            break
+                    await anyio.sleep(0.1)
             if response:
                 response.raise_for_status()
-
+            if not response:
+                raise RuntimeError(
+                    "Timed out while attempting to connect to hosted test Orion."
+                )
         try:
             yield api_url
         finally:
