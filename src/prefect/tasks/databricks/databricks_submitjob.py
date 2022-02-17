@@ -767,8 +767,7 @@ class DatabricksSubmitMultitaskRun(Task):
             The default value is "Job run created by Prefect flow run {flow_run_name}".
         - idempotency_token (str, optional): An optional token that can be used to guarantee
             the idempotency of job run requests. Defaults to the flow run ID.
-        - access_control_list (List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]]):
-            List of permissions to set on the job.
+        - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
         - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
             this run. By default the task will poll every 30 seconds.
         - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
@@ -859,8 +858,49 @@ class DatabricksSubmitMultitaskRun(Task):
             conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
             submit_multitask_run(databricks_conn_secret=conn)
         ```
+    """
 
+    def __init__(
+        self,
+        databricks_conn_secret: dict = None,
+        tasks: List[JobTaskSettings] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        idempotency_token: str = None,
+        access_control_list: List[
+            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+        ] = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+        **kwargs,
+    ):
+        self.databricks_conn_secret = databricks_conn_secret
+        self.tasks = tasks
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
+        self.idempotency_token = idempotency_token
+        self.access_control_list = access_control_list
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def convert_dict_to_kwargs(input: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Method to convert a dict that matches the structure of the Databricks API call into the required
+        object types for the task input
+
+        Args:
+            - input (Dict): A dictionary representing the input to the task
+
+        Returns:
+            - A dictionary with values that match the input types of the class
+
+        Example:
         Use a JSON-like dict as input
+
         ```
         from prefect import Flow
         from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
@@ -931,36 +971,7 @@ class DatabricksSubmitMultitaskRun(Task):
             conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
             submit_multitask_run(**databricks_kwargs, databricks_conn_secret=conn)
         ```
-    """
-
-    def __init__(
-        self,
-        databricks_conn_secret: dict = None,
-        tasks: List[JobTaskSettings] = None,
-        run_name: str = None,
-        timeout_seconds: int = None,
-        idempotency_token: str = None,
-        access_control_list: List[
-            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
-        ] = None,
-        polling_period_seconds: int = 30,
-        databricks_retry_limit: int = 3,
-        databricks_retry_delay: float = 1,
-        **kwargs,
-    ):
-        self.databricks_conn_secret = databricks_conn_secret
-        self.tasks = tasks
-        self.run_name = run_name
-        self.timeout_seconds = timeout_seconds
-        self.idempotency_token = idempotency_token
-        self.access_control_list = access_control_list
-        self.polling_period_seconds = polling_period_seconds
-        self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_retry_delay = databricks_retry_delay
-        super().__init__(**kwargs)
-
-    @staticmethod
-    def convert_dict_to_kwargs(input: Dict[str, Any]):
+        """
         kwargs = {**input, "tasks": parse_obj_as(List[JobTaskSettings], input["tasks"])}
 
         if input.get("access_control_list"):
@@ -1015,8 +1026,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 The default value is "Job run created by Prefect flow run {flow_run_name}".
             - idempotency_token (str, optional): An optional token that can be used to guarantee
                 the idempotency of job run requests. Defaults to the flow run ID.
-            - access_control_list (List[Union[AccessControlRequestForUser,
-                AccessControlRequestForGroup]]): List of permissions to set on the job.
+            - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
             - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
