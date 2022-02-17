@@ -1,4 +1,4 @@
-import { State, StateName } from '@/types/states'
+import { State, StateName } from '@prefecthq/orion-design'
 
 export type IFlowRunStateHistory = {
   state_type: State
