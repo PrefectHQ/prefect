@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 
 import anyio
 import httpx
@@ -68,11 +69,11 @@ async def hosted_orion_api():
             "--port",
             "2222",
             "--log-level",
-            "error",
+            "info",
         ],
         env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=sys.stdout,
+        stderr=subprocess.STDOUT,
     ) as process:
 
         api_url = "http://localhost:2222/api"
@@ -98,7 +99,10 @@ async def hosted_orion_api():
             yield api_url
         finally:
             if not process.returncode:
-                process.terminate()
+                try:
+                    process.terminate()
+                except Exception:
+                    pass  # May already be terminated
 
 
 @pytest.fixture
