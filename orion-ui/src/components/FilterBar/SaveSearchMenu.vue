@@ -1,6 +1,6 @@
 <template>
   <m-card class="menu font--primary" height="100%" tabindex="0">
-    <template v-if="!media.md" v-slot:header>
+    <template v-if="!media.md" #header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3
           class="d-flex align-center font--primary font-weight-semibold ml-auto"
@@ -19,12 +19,14 @@
         />
       </div>
     </template>
-    <template v-else v-slot:header>
-      <h3 class="pa-2 font--primary font-weight-semibold">Save Search</h3>
+    <template v-else #header>
+      <h3 class="pa-2 font--primary font-weight-semibold">
+        Save Search
+      </h3>
     </template>
 
     <div class="menu-content pa-2">
-      <m-input label="Name" placeholder="New Filter" v-model="name" />
+      <m-input v-model="name" label="Name" placeholder="New Filter" />
 
       <div class="my-4">
         <Tag v-for="(filter, i) in filters" :key="i" class="mr--half mb--half">
@@ -34,7 +36,7 @@
       </div>
     </div>
 
-    <template v-slot:actions>
+    <template #actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
         <m-button
           v-if="media.md"
@@ -60,54 +62,54 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
-import { useStore } from '@/store'
-import { parseFilters, FilterObject } from './util'
-import { Api, Endpoints } from '@/plugins/api'
-import { showToast } from '@prefecthq/miter-design'
-import Tag from './Tag.vue'
-import { media } from '@prefecthq/orion-design/utilities'
+  import { showToast } from '@prefecthq/miter-design'
+  import { media } from '@prefecthq/orion-design/utilities'
+  import { computed, ref } from 'vue'
+  import Tag from './Tag.vue'
+  import { parseFilters, FilterObject } from './util'
+  import { Api, Endpoints } from '@/plugins/api'
+  import { useStore } from '@/store'
 
-const store = useStore()
-const emit = defineEmits(['close'])
-const loading = ref(false)
+  const store = useStore()
+  const emit = defineEmits(['close'])
+  const loading = ref(false)
 
-const name = ref('')
+  const name = ref('')
 
-const close = () => {
-  emit('close')
-}
-
-const save = async () => {
-  loading.value = true
-  const gf = JSON.parse(JSON.stringify(store.state.filter))
-
-  const query = await Api.query({
-    endpoint: Endpoints.save_search,
-    body: {
-      name: name.value,
-      filters: gf
-    },
-    options: { paused: true }
-  })
-
-  const res = await query.fetch()
-
-  showToast({
-    type: res.error ? 'error' : 'success',
-    message: res.error ? `Error: ${res.error}` : 'Filter saved!',
-    timeout: 10000
-  })
-
-  if (!res.error) {
-    close()
+  const close = () => {
+    emit('close')
   }
-  loading.value = false
-}
 
-const filters = computed<FilterObject[]>(() => {
-  return parseFilters(store.state.filter)
-})
+  const save = async () => {
+    loading.value = true
+    const gf = JSON.parse(JSON.stringify(store.state.filter))
+
+    const query = await Api.query({
+      endpoint: Endpoints.save_search,
+      body: {
+        name: name.value,
+        filters: gf,
+      },
+      options: { paused: true },
+    })
+
+    const res = await query.fetch()
+
+    showToast({
+      type: res.error ? 'error' : 'success',
+      message: res.error ? `Error: ${res.error}` : 'Filter saved!',
+      timeout: 10000,
+    })
+
+    if (!res.error) {
+      close()
+    }
+    loading.value = false
+  }
+
+  const filters = computed<FilterObject[]>(() => {
+    return parseFilters(store.state.filter)
+  })
 </script>
 
 <style lang="scss" scoped>

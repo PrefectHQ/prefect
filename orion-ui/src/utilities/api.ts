@@ -6,6 +6,6 @@ export const server = 'http://127.0.0.1:4200/api'
 
 export function createApi(suffix = ''): AxiosInstance {
   return axios.create({
-    baseURL: `${server}${suffix}`
+    baseURL: `${server}${suffix}`,
   })
 }

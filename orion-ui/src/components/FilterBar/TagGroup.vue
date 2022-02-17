@@ -23,32 +23,32 @@
 </template>
 
 <script lang="ts" setup="context">
-import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
-import { FilterObject } from './util'
-import Tag from './Tag.vue'
+  import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
+  import Tag from './Tag.vue'
+  import { FilterObject } from './util'
 
-const props = defineProps<{
-  tags: FilterObject[]
-  clearable?: boolean
-}>()
-const emit = defineEmits(['remove', 'click-tag'])
-const maxWidth = ref(0)
-const container = ref()
+  const props = defineProps<{
+    tags: FilterObject[],
+    clearable?: boolean,
+  }>()
+  const emit = defineEmits(['remove', 'click-tag'])
+  const maxWidth = ref(0)
+  const container = ref()
 
-const overflow = computed(() => {
-  return props.tags.length * 250 + 250 > maxWidth.value
-})
+  const overflow = computed(() => {
+    return props.tags.length * 250 + 250 > maxWidth.value
+  })
 
-const handleResize = () => {
-  maxWidth.value = container.value.parentNode.offsetWidth
-}
+  const handleResize = () => {
+    maxWidth.value = container.value.parentNode.offsetWidth
+  }
 
-onMounted(() => {
-  handleResize()
-  window.addEventListener('resize', handleResize)
-})
+  onMounted(() => {
+    handleResize()
+    window.addEventListener('resize', handleResize)
+  })
 
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-})
+  onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleResize)
+  })
 </script>

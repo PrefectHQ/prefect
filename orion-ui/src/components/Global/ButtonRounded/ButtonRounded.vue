@@ -5,20 +5,20 @@
 </template>
 
 <script lang="ts">
-import { Vue, Options, prop } from 'vue-class-component'
+  import { Vue, Options, prop } from 'vue-class-component'
 
-class Props {
-  disabled = prop<boolean>({ default: false, type: Boolean })
-}
+  class Props {
+    disabled = prop<boolean>({ default: false, type: Boolean })
+  }
 
-@Options({})
-export default class ButtonCard extends Vue.with(Props) {
-  get classes() {
-    return {
-      'button-rounded--disabled': this.disabled
+  @Options({})
+  export default class ButtonCard extends Vue.with(Props) {
+    get classes() {
+      return {
+        'button-rounded--disabled': this.disabled,
+      }
     }
   }
-}
 </script>
 
 <style lang="scss" scoped>

@@ -1,8 +1,10 @@
 <template>
   <m-card shadow="sm" class="interval-bar-chart-card">
-    <template v-slot:header>
+    <template #header>
       <div class="interval-bar-chart-card__header">
-        <div class="subheader">{{ props.title }}</div>
+        <div class="subheader">
+          {{ props.title }}
+        </div>
         <template v-if="items.length">
           <slot name="total" :total="total">
             <div class="font--secondary">
@@ -15,40 +17,41 @@
 
     <div class="px-2 pb-2" :style="{ height }">
       <IntervalBarChart v-bind="{ items, intervalStart, intervalEnd }">
-        <template v-slot:popover-header="item">
+        <template #popover-header="item">
           <slot name="popover-header" v-bind="{ item, total }" />
         </template>
-        <template v-slot:popover-content="item">
+        <template #popover-content="item">
           <slot name="popover-content" v-bind="{ item, total }" />
         </template>
       </IntervalBarChart>
     </div>
   </m-card>
 </template>
+
 <script lang="ts" setup>
-import { computed } from 'vue'
-import IntervalBarChart from './IntervalBarChart.vue'
-import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
-import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
+  import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
+  import IntervalBarChart from './IntervalBarChart.vue'
+  import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
 
-const props = defineProps<{
-  filter: FlowRunsHistoryFilter
-  title: string
-  height: string
-  items: IntervalBarChartItem[]
-}>()
+  const props = defineProps<{
+    filter: FlowRunsHistoryFilter,
+    title: string,
+    height: string,
+    items: IntervalBarChartItem[],
+  }>()
 
-const intervalStart = computed(() => {
-  return new Date(props.filter.history_start)
-})
+  const intervalStart = computed(() => {
+    return new Date(props.filter.history_start)
+  })
 
-const intervalEnd = computed(() => {
-  return new Date(props.filter.history_end)
-})
+  const intervalEnd = computed(() => {
+    return new Date(props.filter.history_end)
+  })
 
-const total = computed<number>(() => {
-  return props.items.reduce((total, item) => total + item.value, 0)
-})
+  const total = computed<number>(() => {
+    return props.items.reduce((total, item) => total + item.value, 0)
+  })
 </script>
 
 <style lang="scss">

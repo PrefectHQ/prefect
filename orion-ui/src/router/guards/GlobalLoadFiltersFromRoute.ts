@@ -1,17 +1,17 @@
-import { FilterService } from "@prefecthq/orion-design/services";
-import { useFiltersStore, RouteGuard } from "@prefecthq/orion-design";
-import { RouteLocationNormalized, Router } from "vue-router";
-import { asArray, isString } from "@prefecthq/orion-design/utilities";
+import { useFiltersStore, RouteGuard } from '@prefecthq/orion-design'
+import { FilterService } from '@prefecthq/orion-design/services'
+import { asArray, isString } from '@prefecthq/orion-design/utilities'
+import { RouteLocationNormalized, Router } from 'vue-router'
 
 export class GlobalLoadFiltersFromRoute implements RouteGuard {
-  private router: Router
+  private readonly router: Router
 
   public constructor(router: Router) {
     this.router = router
   }
-  
+
   public before(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
-    if(JSON.stringify(to.query.filter) !== JSON.stringify(from.query.filter)) {
+    if (JSON.stringify(to.query.filter) !== JSON.stringify(from.query.filter)) {
       const filterStrings = asArray(to.query.filter).filter(isString)
       const parsedFilters = FilterService.parse(filterStrings)
       const filtersStore = useFiltersStore()
@@ -19,5 +19,5 @@ export class GlobalLoadFiltersFromRoute implements RouteGuard {
       filtersStore.replaceAll(parsedFilters)
     }
   }
-  
+
 }
