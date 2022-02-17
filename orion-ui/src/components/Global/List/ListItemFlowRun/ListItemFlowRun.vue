@@ -38,22 +38,18 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import type { UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
-import media from '@/utilities/media'
-import { toPluralString } from '@/utilities/strings'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
-import { Filter } from '@/../packages/orion-design/src/types/filters'
-import { hasFilter } from '@/../packages/orion-design/src/utilities/filters'
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
-import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
+import { Filter, useFiltersStore, UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
+import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
+import { FilterUrlService } from '@prefecthq/orion-design/services'
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{ item: FlowRun }>()

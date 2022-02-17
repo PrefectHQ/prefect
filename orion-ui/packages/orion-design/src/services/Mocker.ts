@@ -1,4 +1,4 @@
-import { mocks } from '../mocks'
+import { mocks } from '@/mocks'
 
 type Mock = (...args: any[]) => any
 type MockParams<T extends Mock> = Parameters<T>

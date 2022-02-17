@@ -1,4 +1,4 @@
-import { State } from '@/types/states'
+import { State } from '@prefecthq/orion-design'
 import { State as StateObj } from '@/typings/objects'
 
 export interface IFlowRun {

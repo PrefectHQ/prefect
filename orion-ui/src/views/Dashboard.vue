@@ -116,17 +116,14 @@ import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
 import type {UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter} from '@prefecthq/orion-design'
 
-import { Api, Endpoints, Query } from  '@/plugins/api'
+import { Api, Endpoints, Query } from '@/plugins/api'
 import { useRouter } from 'vue-router'
-import { FiltersQueryService } from '@/../packages/orion-design/src/services/FiltersQueryService'
-import { useFiltersStore } from '@/../packages/orion-design/src/stores/filters'
+import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
 import { StateType } from '@prefecthq/orion-design/models'
-import { FilterUrlService } from '@/../packages/orion-design/src/services/FilterUrlService'
-import { Filter, hasFilter } from '@/../packages/orion-design/src/'
-import { flowRunsApi } from '@/../packages/orion-design/src/services/FlowRunsApi'
+import { Filter, useFiltersStore, hasFilter } from '@prefecthq/orion-design'
+import { subscribe } from '@prefecthq/vue-compositions/src'
 import { RouterTabSet } from '@prefecthq/orion-design/components'
 import { toPluralString } from '@prefecthq/orion-design/utilities'
-import { subscribe } from '@prefecthq/vue-compositions'
 
 const filtersStore = useFiltersStore()
 const router = useRouter()

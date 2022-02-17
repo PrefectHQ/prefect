@@ -28,11 +28,11 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { subscribe } from '@prefecthq/vue-compositions'
-  import { FilterUrlService } from '../services'
   import { computed } from 'vue'
-  import { searchApi } from '../services/SearchApi'
-  import { Filter } from '../types/filters'
   import { useRouter } from 'vue-router'
+  import { FilterUrlService } from '@/services/FilterUrlService'
+  import { searchApi } from '@/services/SearchApi'
+  import { Filter } from '@/types/filters'
 
   const subscription = subscribe(searchApi.filter.bind(searchApi), [])
   const filters = computed(() => subscription.response.value ?? [])
