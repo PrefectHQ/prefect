@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-
 from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
