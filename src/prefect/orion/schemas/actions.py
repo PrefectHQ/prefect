@@ -4,8 +4,8 @@ Reduced schemas for accepting API actions.
 
 from typing import Optional
 
-from pydantic import Field
 import coolname
+from pydantic import Field
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
