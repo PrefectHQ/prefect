@@ -143,6 +143,12 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend then enters the main flow rum engine
     """
+    can_connect = await client.api_healthcheck()
+    if not can_connect:
+        raise RuntimeError(
+            f"Cannot create flow run. Failed to reach API at {client.api_url}."
+        )
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -618,6 +624,13 @@ async def enter_task_run_engine_from_worker(
     ) as profile:
         profile.initialize(create_home=False)
         async with get_client() as client:
+            can_connect = await client.api_healthcheck()
+            if not can_connect:
+                raise RuntimeError(
+                    f"Cannot orchestrate task run '{task_run.id}'. "
+                    f"Failed to connect to API at {client.api_url}."
+                )
+
             with TaskRunContext(
                 task_run=task_run,
                 task=task,
