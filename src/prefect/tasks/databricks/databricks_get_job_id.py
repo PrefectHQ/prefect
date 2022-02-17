@@ -128,9 +128,7 @@ class DatabricksGetJobID(Task):
 
         # Fetch Job ID
         self.logger.info("Searching for job_ids with name: %s ", job_name)
-        job_id = hook.get_job_id_by_name(
-            job_name=job_name, limit=self.search_limit
-        )
+        job_id = hook.get_job_id_by_name(job_name=job_name, limit=self.search_limit)
         self.logger.info("%s completed successfully.", self.name)
 
         return job_id
