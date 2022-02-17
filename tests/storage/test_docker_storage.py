@@ -394,6 +394,7 @@ def test_build_image_passes_and_pushes(monkeypatch):
     assert "reg" in push_image.call_args[0][0]
     assert "reg" in remove.call_args[1]["image"]
 
+
 @patch("prefect.storage.Docker._get_client")
 def test_build_with_default_rm_true(monkeypatch):
     storage = Docker(
