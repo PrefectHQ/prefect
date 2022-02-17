@@ -39,7 +39,7 @@ class TestAWSSecretsManager:
 
         def mocked_response(*args, **kwargs):
             return {
-                "SecretString": f'{{"{secret_value}"}}',
+                "SecretString": f"{secret_value}",
             }
 
         task = AWSSecretsManager(secret="test")
