@@ -1,11 +1,11 @@
 import { State, StateName } from '@prefecthq/orion-design'
 
 export type IFlowRunStateHistory = {
-  state_type: State
-  state_name: StateName
-  count_runs: number
-  sum_estimated_run_time: number
-  sum_estimated_lateness: number
+  state_type: State,
+  state_name: StateName,
+  count_runs: number,
+  sum_estimated_run_time: number,
+  sum_estimated_lateness: number,
 }
 
 export default class FlowRunStateHistory implements IFlowRunStateHistory {

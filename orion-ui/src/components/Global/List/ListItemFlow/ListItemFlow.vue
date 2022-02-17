@@ -32,88 +32,88 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Api, Query, Endpoints } from '@/plugins/api'
-import { Flow } from '@/typings/objects'
-import { Buckets } from '@/typings/run_history'
-import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
-import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
-import { Filter, useFiltersStore, FlowsFilter } from '@prefecthq/orion-design'
-import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
-import { FilterUrlService, FiltersQueryService } from '@prefecthq/orion-design/services'
-import { useRouter } from 'vue-router'
+  import { Filter, useFiltersStore, FlowsFilter } from '@prefecthq/orion-design'
+  import { FilterUrlService, FiltersQueryService } from '@prefecthq/orion-design/services'
+  import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
+  import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
+  import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+  import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+  import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+  import { Api, Query, Endpoints } from '@/plugins/api'
+  import { Flow } from '@/typings/objects'
+  import { Buckets } from '@/typings/run_history'
 
-const props = defineProps<{ item: Flow }>()
+  const props = defineProps<{ item: Flow }>()
 
-const filtersStore = useFiltersStore()
-const router = useRouter()
+  const filtersStore = useFiltersStore()
+  const router = useRouter()
 
-const flows: FlowsFilter = {
-  flows: {
-    id: {
-      any_: [props.item.id]
+  const flows: FlowsFilter = {
+    flows: {
+      id: {
+        any_: [props.item.id],
+      },
+    },
+  }
+
+  const flowRunHistoryFilter = computed(() => {
+    const query = FiltersQueryService.flowHistoryQuery(filtersStore.all)
+
+    return {
+      ...query,
+      history_interval_seconds: query.history_interval_seconds * 2,
+      flows: flows.flows,
     }
-  }
-}
-
-const flowRunHistoryFilter = computed(() => {
-  const query = FiltersQueryService.flowHistoryQuery(filtersStore.all)
-
-  return {
-    ...query,
-    history_interval_seconds: query.history_interval_seconds * 2,
-    flows: flows.flows
-  }
-})
-
-const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
-const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
-
-const queries: { [key: string]: Query } = {
-  flow_run_history: Api.query({
-    endpoint: Endpoints.flow_runs_history,
-    body: flowRunHistoryFilter.value
-  }),
-  flow_run_count: Api.query({
-    endpoint: Endpoints.flow_runs_count,
-    body: flows
-  }),
-  task_run_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: flows
   })
-}
 
-const flowRunCount = computed((): number => {
-  return queries.flow_run_count?.response?.value || 0
-})
+  const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
+  const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
 
-const taskRunCount = computed((): number => {
-  return queries.task_run_count?.response?.value || 0
-})
-
-const flowRunHistory = computed((): Buckets => {
-  return queries.flow_run_history?.response.value || []
-})
-
-function filter() {
-  const filterToAdd: Required<Filter> = {
-    object: 'flow',
-    property: 'name',
-    type: 'string',
-    operation: 'equals',
-    value: props.item.name
-  }
-  
-  if(hasFilter(filtersStore.all, filterToAdd)) {
-    return
+  const queries: Record<string, Query> = {
+    flow_run_history: Api.query({
+      endpoint: Endpoints.flow_runs_history,
+      body: flowRunHistoryFilter.value,
+    }),
+    flow_run_count: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: flows,
+    }),
+    task_run_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: flows,
+    }),
   }
 
-  const service = new FilterUrlService(router)
+  const flowRunCount = computed((): number => {
+    return queries.flow_run_count?.response?.value || 0
+  })
 
-  service.add(filterToAdd)
-}
+  const taskRunCount = computed((): number => {
+    return queries.task_run_count?.response?.value || 0
+  })
+
+  const flowRunHistory = computed((): Buckets => {
+    return queries.flow_run_history?.response.value || []
+  })
+
+  function filter() {
+    const filterToAdd: Required<Filter> = {
+      object: 'flow',
+      property: 'name',
+      type: 'string',
+      operation: 'equals',
+      value: props.item.name,
+    }
+
+    if (hasFilter(filtersStore.all, filterToAdd)) {
+      return
+    }
+
+    const service = new FilterUrlService(router)
+
+    service.add(filterToAdd)
+  }
 </script>
 
 <style lang="scss" scoped>

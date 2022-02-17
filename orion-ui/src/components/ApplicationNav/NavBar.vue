@@ -1,7 +1,7 @@
 <template>
   <div class="navbar" tabindex="-1">
     <router-link to="/" class="nav-item">
-      <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
+      <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg">
     </router-link>
 
     <router-link to="/settings" class="nav-item mt-auto ml-auto">
@@ -11,9 +11,9 @@
 </template>
 
 <script lang="ts">
-import { Vue } from 'vue-class-component'
+  import { Vue } from 'vue-class-component'
 
-export default class NavBar extends Vue {}
+  export default class NavBar extends Vue {}
 </script>
 
 <style lang="scss" scoped>

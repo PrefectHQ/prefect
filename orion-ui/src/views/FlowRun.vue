@@ -38,119 +38,124 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints } from '@/plugins/api'
-import { FlowRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
-import { CopyButton } from '@prefecthq/orion-design'
-import { media } from '@prefecthq/orion-design/utilities'
+  import { CopyButton, useFiltersStore } from '@prefecthq/orion-design'
+  import { media } from '@prefecthq/orion-design/utilities'
+  import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
 
-import { useRoute, onBeforeRouteLeave } from 'vue-router'
-import { useFiltersStore } from '@prefecthq/orion-design'
+  import { useRoute, onBeforeRouteLeave } from 'vue-router'
+  import { Api, Query, Endpoints } from '@/plugins/api'
+  import { FlowRun, Flow } from '@/typings/objects'
 
-const filtersStore = useFiltersStore()
+  const filtersStore = useFiltersStore()
 
-const route = useRoute()
+  const route = useRoute()
 
-const resultsTab: Ref<string | null> = ref(null)
+  const resultsTab: Ref<string | null> = ref(null)
 
-const id = ref(route?.params.id as string)
+  const id = ref(route?.params.id as string)
 
-const idWatcher = watch(route, () => {
-  id.value = route?.params.id as string
-})
-
-onBeforeRouteLeave(() => {
-  idWatcher()
-})
-
-const version = computed<string>(() => {
-  return flowRun.value.flow_version ?? '--'
-})
-
-const flowRunBaseBody = computed(() => {
-  return {
-    id: id.value
-  }
-})
-
-const flowRunBase: Query = await Api.query({
-  endpoint: Endpoints.flow_run,
-  body: flowRunBaseBody,
-  options: {
-    pollInterval: 5000
-  }
-}).fetch()
-
-const flowBody = computed(() => {
-  return {
-    id: flowRunBase.response.value.flow_id
-  }
-})
-
-const queries: { [key: string]: Query } = {
-  flow: Api.query({
-    endpoint: Endpoints.flow,
-    body: flowBody
+  const idWatcher = watch(route, () => {
+    id.value = route?.params.id as string
   })
-}
 
-const flow = computed<Flow>(() => {
-  return queries.flow.response?.value || {}
-})
+  onBeforeRouteLeave(() => {
+    idWatcher()
+  })
 
-const flowRun = computed<FlowRun>(() => {
-  return flowRunBase.response?.value || {}
-})
+  const version = computed<string>(() => {
+    return flowRun.value.flow_version ?? '--'
+  })
 
-const crumbs = computed(() => {
-  const arr = [
-    { text: flow.value?.name },
-    { text: flowRun.value?.name, to: '' }
-  ]
+  const flowRunBaseBody = computed(() => {
+    return {
+      id: id.value,
+    }
+  })
 
-  const timelinePage = route.fullPath.includes('/timeline')
-  const radarPage = route.fullPath.includes('/radar')
-  if (timelinePage || radarPage) {
-    arr[1].to = `/flow-run/${id.value}`
+  const flowRunBase: Query = await Api.query({
+    endpoint: Endpoints.flow_run,
+    body: flowRunBaseBody,
+    options: {
+      pollInterval: 5000,
+    },
+  }).fetch()
 
-    if (timelinePage) arr.push({ text: 'Timeline' })
-    if (radarPage) arr.push({ text: 'Radar' })
+  const flowBody = computed(() => {
+    return {
+      id: flowRunBase.response.value.flow_id,
+    }
+  })
+
+  const queries: Record<string, Query> = {
+    flow: Api.query({
+      endpoint: Endpoints.flow,
+      body: flowBody,
+    }),
   }
 
-  return arr
-})
+  const flow = computed<Flow>(() => {
+    return queries.flow.response?.value || {}
+  })
 
-// This cleanup is necessary since the initial flow run query isn't
-// wrapped in the queries object
-onBeforeUnmount(() => {
-  flowRunBase.stopPolling()
-  Api.queries.delete(flowRunBase.id)
-})
+  const flowRun = computed<FlowRun>(() => {
+    return flowRunBase.response?.value || {}
+  })
 
-onBeforeMount(() => {
-  resultsTab.value = route.hash?.substr(1) || 'task_runs'
-})
+  const crumbs = computed(() => {
+    const arr = [
+      { text: flow.value?.name },
+      { text: flowRun.value?.name, to: '' },
+    ]
 
-watch(id, () => {
-  if (!id.value) return
-  queries.flow.fetch()
-})
+    const timelinePage = route.fullPath.includes('/timeline')
+    const radarPage = route.fullPath.includes('/radar')
+    if (timelinePage || radarPage) {
+      arr[1].to = `/flow-run/${id.value}`
 
-const flowRunWatcher = watch(() => flowRun.value, () => {
-  if(flowRun.value.name && filtersStore.all.length == 0) {
-    filtersStore.replaceAll([
-      {
-        object: 'flow_run',
-        property: 'name',
-        type: 'string',
-        operation: 'equals',
-        value: flowRun.value.name
+      if (timelinePage) {
+        arr.push({ text: 'Timeline' })
       }
-    ])
+      if (radarPage) {
+        arr.push({ text: 'Radar' })
+      }
+    }
 
-    flowRunWatcher()
-  }
-})
+    return arr
+  })
+
+  // This cleanup is necessary since the initial flow run query isn't
+  // wrapped in the queries object
+  onBeforeUnmount(() => {
+    flowRunBase.stopPolling()
+    Api.queries.delete(flowRunBase.id)
+  })
+
+  onBeforeMount(() => {
+    resultsTab.value = route.hash?.substr(1) || 'task_runs'
+  })
+
+  watch(id, () => {
+    if (!id.value) {
+      return
+    }
+    queries.flow.fetch()
+  })
+
+  const flowRunWatcher = watch(() => flowRun.value, () => {
+    if (flowRun.value.name && filtersStore.all.length == 0) {
+      filtersStore.replaceAll([
+        {
+          object: 'flow_run',
+          property: 'name',
+          type: 'string',
+          operation: 'equals',
+          value: flowRun.value.name,
+        },
+      ])
+
+      flowRunWatcher()
+    }
+  })
 </script>
 
 <style lang="scss" scoped>

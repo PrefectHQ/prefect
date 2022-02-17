@@ -12,7 +12,7 @@
     </button>
 
     <teleport to="#app">
-      <div class="filter-bar__observe" ref="observe" />
+      <div ref="observe" class="filter-bar__observe" />
     </teleport>
 
     <teleport v-if="overlay" to=".application">
@@ -20,7 +20,6 @@
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
-
       <template v-if="isOpen('search')" key="search">
         <FiltersSearchMenu class="filter-bar__menu filter-bar__menu-search" />
       </template>
@@ -32,103 +31,108 @@
       <template v-if="isOpen('filters')" key="filters">
         <FiltersMenu class="filter-bar__menu" @close="close" />
       </template>
-
     </transition-group>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@prefecthq/orion-design/components';
-import { media } from '@prefecthq/orion-design/utilities'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@prefecthq/orion-design/components'
+  import { media } from '@prefecthq/orion-design/utilities'
+  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+  import { useRoute } from 'vue-router'
 
-type Menu = 'none' | 'search' | 'save' | 'filters'
+  type Menu = 'none' | 'search' | 'save' | 'filters'
 
-const menu = ref<Menu>('none')
-const detached = ref(false)
-const overlay = computed(() => menu.value !== 'none')
-const route = useRoute()
+  const menu = ref<Menu>('none')
+  const detached = ref(false)
+  const overlay = computed(() => menu.value !== 'none')
+  const route = useRoute()
 
-const isDashboard = computed(() => route.name === 'Dashboard')
+  const isDashboard = computed(() => route.name === 'Dashboard')
 
-const classes = computed(() => ({
-  root: {
-    'filter-bar--disabled': !isDashboard.value,
-    'filter-bar--detached': detached.value
-  },
-  saveButton: {
-    'filter-bar__button--open': isOpen('save')
-  },
-  filtersButton: {
-    'filter-bar__button--open': isOpen('filters')
-  }
-}))
+  const classes = computed(() => ({
+    root: {
+      'filter-bar--disabled': !isDashboard.value,
+      'filter-bar--detached': detached.value,
+    },
+    saveButton: {
+      'filter-bar__button--open': isOpen('save'),
+    },
+    filtersButton: {
+      'filter-bar__button--open': isOpen('filters'),
+    },
+  }))
 
-function isOpen(value: Menu): boolean {
-  return menu.value == value
-}
-
-function show(value: Menu): void {
-  menu.value = value
-}
-
-function toggle(value: Menu): void {
-  if(menu.value === value) {
-    close()
-  } else {
-    show(value)
-  }
-}
-
-function close(): void {
-  menu.value = 'none'
-
-  ;(document.activeElement as HTMLElement).blur()
-}
-
-/**
- * This section is for performantly handling intersection of the filter bar
- */
-
-const handleEmit = ([entry]: IntersectionObserverEntry[]) =>
-  (detached.value = !entry.isIntersecting)
-
-const observe = ref<Element>()
-
-let observer: IntersectionObserver
-
-const createIntersectionObserver = (margin: string) => {
-  if (observe.value) observer?.unobserve(observe.value)
-
-  const options = {
-    rootMargin: margin,
-    threshold: [0.1, 1]
+  function isOpen(value: Menu): boolean {
+    return menu.value == value
   }
 
-  observer = new IntersectionObserver(handleEmit, options)
-
-  if (observe.value) {
-    observer.observe(observe.value)
+  function show(value: Menu): void {
+    menu.value = value
   }
-}
 
-onMounted(() => {
-  createIntersectionObserver('0px')
-})
-
-onBeforeUnmount(() => {
-  if (observe.value) observer?.unobserve(observe.value)
-})
-
-watch(route, () => {
-  if (route.name == 'Dashboard') {
-    if (observe.value) observer?.observe(observe.value)
-  } else {
-    if (observe.value) observer?.unobserve(observe.value)
-    detached.value = true
+  function toggle(value: Menu): void {
+    if (menu.value === value) {
+      close()
+    } else {
+      show(value)
+    }
   }
-})
+
+  function close(): void {
+    menu.value = 'none';
+    (document.activeElement as HTMLElement).blur()
+  }
+
+  /**
+   * This section is for performantly handling intersection of the filter bar
+   */
+
+  const handleEmit = ([entry]: IntersectionObserverEntry[]) => detached.value = !entry.isIntersecting
+
+  const observe = ref<Element>()
+
+  let observer: IntersectionObserver
+
+  const createIntersectionObserver = (margin: string) => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+
+    const options = {
+      rootMargin: margin,
+      threshold: [0.1, 1],
+    }
+
+    observer = new IntersectionObserver(handleEmit, options)
+
+    if (observe.value) {
+      observer.observe(observe.value)
+    }
+  }
+
+  onMounted(() => {
+    createIntersectionObserver('0px')
+  })
+
+  onBeforeUnmount(() => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+  })
+
+  watch(route, () => {
+    if (route.name == 'Dashboard') {
+      if (observe.value) {
+        observer?.observe(observe.value)
+      }
+    } else {
+      if (observe.value) {
+        observer?.unobserve(observe.value)
+      }
+      detached.value = true
+    }
+  })
 </script>
 
 <style lang="scss">
@@ -217,11 +221,11 @@ watch(route, () => {
   align-items: center;
   padding: 0 var(--p-2);
   cursor: pointer;
-  border-left: 1px solid var(--secondary-hover); 
+  border-left: 1px solid var(--secondary-hover);
   font-family: var(--font-secondary);
   font-size: 14px;
   color: var(--grey-80);
-  
+
   &:not(.filter-bar__button--open) {
     &:hover,
     &.active,
@@ -275,7 +279,7 @@ watch(route, () => {
     width: auto !important;
   }
 
-  > div, 
+  > div,
   > div > header {
     border-radius: 0 !important; // m-card...
   }

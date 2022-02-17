@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import { State, StateNames, States } from '@prefecthq/orion-design'
+import faker from 'faker'
 import FlowRunHistory, { IFlowRunHistory } from './flowRunHistory'
 import FlowRunStateHistoryMock from './flowRunStateHistoryMock'
-import faker from 'faker'
 import { fakerRandomArray } from '@/utilities/faker'
-import { State, StateNames, States } from '@prefecthq/orion-design'
 
 export default class FlowRunHistoryMock extends FlowRunHistory {
   constructor(flow: Partial<IFlowRunHistory> = {}) {
@@ -27,9 +27,9 @@ export default class FlowRunHistoryMock extends FlowRunHistory {
             state_name,
             count_runs: faker.datatype.number(20),
             sum_estimated_run_time: faker.datatype.number(20),
-            sum_estimated_lateness: faker.datatype.number(20)
+            sum_estimated_lateness: faker.datatype.number(20),
           })
-        })
+        }),
     })
   }
 }

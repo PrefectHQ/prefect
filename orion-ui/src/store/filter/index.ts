@@ -9,7 +9,7 @@ const counter: Module<GlobalFilter, RootState> = {
   namespaced: true,
   state,
   getters,
-  mutations
+  mutations,
 }
 
 export default counter
