@@ -23,6 +23,18 @@ Prefect is the easiest way to transform any function into a unit of work that ca
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
 
+### No DAGs required
+
+You don’t need to rewrite your entire workflow as a directed acyclic graph (DAG) to take advantage of Orion. DAGs represent a rigid, constrained, outdated framework for creating modern, dynamic data and computation workflows. 
+
+With Prefect Orion, you're not limited by the rigid requirements of DAGs. 
+
+- You can use native code alongside Prefect flows and tasks in workflows, enabling you to choose which individual elements of your workflow code you want to be registered with the orchestration API.
+- Flows can include logic to determine execution paths at runtime, using native constructs such as `if` statements and Prefect constructs such as futures and state.
+- Workflows can be modified at any time: you can run flows and tasks with custom runtime parameters, change schedules at any time, execute ad hoc runs, and even generate flow runs in response to runtime conditions or streaming events.
+
+For a deeper discussion about how and why Prefect Orion moved away from a reliance on DAGs, see [Prefect Orion: Our Second-Generation Workflow Engine](https://www.prefect.io/blog/announcing-prefect-orion/).
+
 ### Basic orchestration
 
 Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.

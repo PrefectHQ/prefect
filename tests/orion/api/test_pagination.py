@@ -2,7 +2,7 @@ import pytest
 from fastapi import Body, FastAPI
 from httpx import AsyncClient
 
-import prefect.settings
+from prefect.orion.api.dependencies import LimitBody
 
 
 @pytest.fixture
@@ -21,11 +21,7 @@ class TestPagination:
     def create_app_route(self, app):
         @app.post("/")
         def get_results(
-            limit: int = Body(
-                prefect.settings.from_env().orion.api.default_limit,
-                ge=0,
-                le=prefect.settings.from_env().orion.api.default_limit,
-            ),
+            limit: int = LimitBody(),
             offset: int = Body(0, ge=0),
         ):
             return {"limit": limit, "offset": offset}
