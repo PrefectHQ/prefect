@@ -22,58 +22,45 @@ type before_ = { before_?: string }
 /** A date-time string to include results starting at or after this time */
 type after_ = { after_?: string }
 
-/**
- * Max: 200
- * Min: 0
- * Default: 200
- */
-type limit = number
-
-/**
- * Min: 0
- * Default: 0
- */
-type offset = number
-
 export interface Filter {
-  id?: any_
-  name?: any_
-  tags?: all_ & is_null_
+  id?: any_,
+  name?: any_,
+  tags?: all_ & is_null_,
 }
 
 export interface DeploymentFilter extends Filter {
-  is_schedule_active?: eq_
+  is_schedule_active?: eq_,
 }
 
 export type FlowFilter = Filter
 
 export type StateFilter = {
-  type?: any_
-  name?: any_
+  type?: any_,
+  name?: any_,
 }
 
 export type TimeFrameFilter = before_ & after_
 
 export interface FlowRunFilter extends Filter {
-  id?: any_ & not_any_
-  deployment_id?: any_ & is_null_
-  state?: StateFilter
-  flow_version?: any_
+  id?: any_ & not_any_,
+  deployment_id?: any_ & is_null_,
+  state?: StateFilter,
+  flow_version?: any_,
   /**
    * Flow run actual starts
    */
-  start_time?: TimeFrameFilter
+  start_time?: TimeFrameFilter,
   /**
    * Flow run scheduled starts
    */
-  expected_start_time?: TimeFrameFilter
-  next_scheduled_start_time?: TimeFrameFilter
-  parent_task_run_id?: any_ & is_null_
+  expected_start_time?: TimeFrameFilter,
+  next_scheduled_start_time?: TimeFrameFilter,
+  parent_task_run_id?: any_ & is_null_,
 }
 
 export interface TaskRunFilter extends Filter {
-  id?: any_ & not_any_
-  state?: StateFilter
-  start_time?: TimeFrameFilter
-  subflow_runs?: exists_
+  id?: any_ & not_any_,
+  state?: StateFilter,
+  start_time?: TimeFrameFilter,
+  subflow_runs?: exists_,
 }

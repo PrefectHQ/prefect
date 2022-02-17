@@ -1,8 +1,8 @@
-import { toRecord } from '@/utilities/arrays'
 import { defineStore } from 'pinia'
 import { InjectionKey } from 'vue'
 import { SimpleIdManager } from '@/services/SimpleIdManager'
 import { Filter } from '@/types/filters'
+import { toRecord } from '@/utilities/arrays'
 
 export type FilterState = {
   id: number,
