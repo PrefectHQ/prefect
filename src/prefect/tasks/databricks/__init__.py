@@ -6,7 +6,7 @@ try:
     from prefect.tasks.databricks.databricks_submitjob import (
         DatabricksSubmitRun,
         DatabricksRunNow,
-        DatabricksSubmitMultitaskRun
+        DatabricksSubmitMultitaskRun,
     )
     from prefect.tasks.databricks.databricks_get_job_id import DatabricksGetJobID
 except ImportError as err:
