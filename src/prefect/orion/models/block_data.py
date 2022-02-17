@@ -3,6 +3,7 @@ Functions for interacting with block data ORM objects.
 Intended for internal use by the Orion API.
 """
 import json
+import os
 from uuid import UUID
 
 import pendulum
@@ -151,14 +152,18 @@ def unpack_blockdata(blockdata):
 
 
 async def get_fernet_encryption(session):
+    environment_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
+    if environment_key:
+        return Fernet(environment_key.encode())
+
     configured_key = await account_info.read_account_info_by_key(
-        session, "BLOCK-ENCRYPTION"
+        session, "BLOCK_ENCRYPTION_KEY"
     )
 
     if configured_key is None:
         encryption_key = Fernet.generate_key()
         configured_key = schemas.core.AccountInfo(
-            key="BLOCK-ENCRYPTION", value=encryption_key.decode()
+            key="BLOCK_ENCRYPTION_KEY", value=encryption_key.decode()
         )
         await account_info.create_account_info(session, configured_key)
     else:
