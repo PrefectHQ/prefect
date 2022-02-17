@@ -2,6 +2,7 @@ ipython
 mkdocs
 mkdocs-material
 mkdocstrings
+moto
 mypy 
 pre-commit
 pytest
