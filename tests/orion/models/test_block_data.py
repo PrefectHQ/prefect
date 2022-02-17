@@ -1,10 +1,12 @@
 import time
 from uuid import uuid4
 
+import os
 import pendulum
 import pytest
 import sqlalchemy as sa
 
+from cryptography.fernet import Fernet, InvalidToken
 from prefect.orion import models, schemas
 from prefect.orion.models.block_data import pack_blockdata, unpack_blockdata
 from tests.fixtures.database import session
@@ -59,6 +61,31 @@ class TestBlockData:
         assert block["blockref"] == blockdata.blockref
         assert block["realdata"] == 42
 
+    async def test_environment_variable_encryption_key_override(self, session):
+
+        blockdata = await models.block_data.create_block_data(
+            session=session,
+            block_data=schemas.core.BlockData(
+                name="encrypt-me-please",
+                blockref="my-deepest-darkest-secret",
+                data=dict(favorite_band="nsync"),
+            ),
+        )
+        assert blockdata.name == "encrypt-me-please"
+        assert blockdata.blockref == "my-deepest-darkest-secret"
+        assert "favorite_band" not in blockdata.data, "block data is encrypted"
+
+        old_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
+        os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+
+        with pytest.raises(InvalidToken):
+            bad_block = await models.block_data.read_block_data_as_block(
+                session=session, block_data_id=blockdata.id
+            )
+
+        if old_key:
+            os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = old_key
+
     async def test_deleting_block_data(self, session):
 
         blockdata = await models.block_data.create_block_data(
@@ -97,7 +124,7 @@ class TestBlockData:
             block_data=schemas.core.BlockData(
                 name="2d-lattice",
                 blockref="transfer-matrix-methods",
-                data=dict(),
+                data=dict(interactions="ising model"),
             ),
         )
 
