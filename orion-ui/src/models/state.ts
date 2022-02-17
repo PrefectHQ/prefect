@@ -1,21 +1,21 @@
-import { State as StateType } from '@/types/states'
+import { State as StateType } from '@prefecthq/orion-design'
 
 export interface IState {
-  id: string
-  type: StateType
-  message: string
-  state_details: { [key: string]: any }
-  data: { [key: string]: any }
-  timestamp: string
-  name: string
+  id: string,
+  type: StateType,
+  message: string,
+  state_details: Record<string, any>,
+  data: Record<string, any>,
+  timestamp: string,
+  name: string,
 }
 
 export default class State implements IState {
   public id: string
   public type: StateType
   public message: string
-  public state_details: { [key: string]: any }
-  public data: { [key: string]: any }
+  public state_details: Record<string, any>
+  public data: Record<string, any>
   public timestamp: string
   public name: string
 

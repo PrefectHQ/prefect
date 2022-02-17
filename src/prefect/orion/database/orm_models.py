@@ -707,9 +707,13 @@ class ORMLog:
 
 @declarative_mixin
 class ORMConcurrencyLimit:
-    tag = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    tag = sa.Column(sa.String, nullable=False, index=True)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("tag"),)
 
 
 @declarative_mixin

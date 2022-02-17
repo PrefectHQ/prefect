@@ -6,9 +6,9 @@
         :options="levelOptions"
         class="flow-run-logs-tabs-content__filter"
       />
-       <CopyButton text :value="makeCsv" class="flow-run-logs__copy" toast="Logs copied to clipboard">
-          Copy Logs
-        </CopyButton>
+      <CopyButton text :value="makeCsv" class="flow-run-logs__copy" toast="Logs copied to clipboard">
+        Copy Logs
+      </CopyButton>
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
@@ -71,102 +71,102 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  Logs,
-  LogsRequestFilter,
-  FlowRunLogs,
-  Log,
-  logLevelLabel,
-  formatDateTimeNumeric
-} from '@prefecthq/orion-design'
-import { subscribe } from '@prefecthq/vue-compositions'
-import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-import { computed, nextTick, ref, watch } from 'vue'
-import { CopyButton } from '@prefecthq/orion-design'
+  import {
+    logsApi,
+    LogsRequestFilter,
+    FlowRunLogs,
+    Log,
+    logLevelLabel,
+    formatDateTimeNumeric
+    , CopyButton
+  } from '@prefecthq/orion-design'
+  import { subscribe } from '@prefecthq/vue-compositions'
+  import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
+  import { computed, nextTick, ref, watch } from 'vue'
 
-const props = defineProps({
-  flowRunId: {
-    type: String,
-    required: true
-  },
-  running: {
-    type: Boolean
-  }
-})
+  const props = defineProps({
+    flowRunId: {
+      type: String,
+      required: true,
+    },
+    running: {
+      type: Boolean,
+    },
+  })
 
-const logsRef = ref<HTMLDivElement>()
+  const logsRef = ref<HTMLDivElement>()
 
-const levelOptions = [
-  { label: 'Critical only', value: 50 },
-  { label: 'Error and above', value: 40 },
-  { label: 'Warning and above', value: 30 },
-  { label: 'Info and above', value: 20 },
-  { label: 'Debug and above', value: 10 },
-  { label: 'All log levels', value: 0 }
-]
-const levelFilter = ref<number>(0)
+  const levelOptions = [
+    { label: 'Critical only', value: 50 },
+    { label: 'Error and above', value: 40 },
+    { label: 'Warning and above', value: 30 },
+    { label: 'Info and above', value: 20 },
+    { label: 'Debug and above', value: 10 },
+    { label: 'All log levels', value: 0 },
+  ]
+  const levelFilter = ref<number>(0)
 
-// todo: paginate this with limit/offset
-const filter = computed<LogsRequestFilter>(() => {
-  return {
-    logs: {
-      flow_run_id: {
-        any_: [props.flowRunId]
+  // todo: paginate this with limit/offset
+  const filter = computed<LogsRequestFilter>(() => {
+    return {
+      logs: {
+        flow_run_id: {
+          any_: [props.flowRunId],
+        },
+        level: {
+          ge_: levelFilter.value,
+        },
       },
-      level: {
-        ge_: levelFilter.value
-      }
+    }
+  })
+
+  const options: SubscriptionOptions = {
+    interval: props.running ? 5000 : undefined,
+  }
+  const subscription = subscribe(logsApi.filter.bind(logsApi), [filter], options)
+  const logs = computed<Log[]>(() => subscription.response.value ?? [])
+  const loading = computed<boolean>(() => subscription.loading.value ?? true)
+
+  const clearFilters = () => {
+    levelFilter.value = 0
+  }
+
+  const updateScrollPosition = (): void => {
+    if (!logsRef.value) {
+      return
+    }
+
+    const div = logsRef.value
+    const hasScrolled = div.scrollTop > 0
+    const atBottom = div.scrollTop + div.offsetHeight === div.scrollHeight
+
+    if (hasScrolled && atBottom) {
+      nextTick(() => {
+        div.scrollTop = div.scrollHeight
+      })
     }
   }
-})
 
-const options: SubscriptionOptions = {
-  interval: props.running ? 5000 : undefined
-}
-const subscription = subscribe(Logs.filter.bind(Logs), [filter], options)
-const logs = computed<Log[]>(() => subscription.response.value ?? [])
-const loading = computed<boolean>(() => subscription.loading.value ?? true)
+  const makeCsv = (): string => {
+    return logs.value
+      .map((log) => {
+        const level = logLevelLabel(log.level)
+        const time = formatDateTimeNumeric(log.timestamp)
 
-const clearFilters = () => {
-  levelFilter.value = 0
-}
-
-const updateScrollPosition = (): void => {
-  if (!logsRef.value) {
-    return
+        return `${level}\t${time}\t${log.message}`
+      })
+      .join('\n')
   }
 
-  const div = logsRef.value
-  const hasScrolled = div.scrollTop > 0
-  const atBottom = div.scrollTop + div.offsetHeight === div.scrollHeight
+  watch(
+    () => props.running,
+    () => subscription.unsubscribe(),
+  )
 
-  if (hasScrolled && atBottom) {
-    nextTick(() => {
-      div.scrollTop = div.scrollHeight
-    })
-  }
-}
-
-const makeCsv = (): string => {
-  return logs.value
-    .map((log) => {
-      const level = logLevelLabel(log.level)
-      const time = formatDateTimeNumeric(log.timestamp)
-
-      return `${level}\t${time}\t${log.message}`
-    })
-    .join('\n')
-}
-
-watch(
-  () => props.running,
-  () => subscription.unsubscribe()
-)
-
-watch(
-  () => subscription.response.value,
-  () => updateScrollPosition()
-)
+  watch(
+    () => subscription.response.value,
+    () => updateScrollPosition(),
+  )
 </script>
 
 <style lang="scss">

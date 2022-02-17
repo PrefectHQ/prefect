@@ -1,29 +1,29 @@
-import Flow from '@/models/flow'
 import type { FlowsFilter } from '@prefecthq/orion-design'
-import { createApi } from '@/utilities/api'
 import { AxiosResponse } from 'axios'
+import Flow from '@/models/flow'
+import { createApi } from '@/utilities/api'
 
 const API = createApi('/flows')
 
 interface IFlowResponse {
-  id: string
-  name: string
-  flow_id: string
-  deployment_id: string
-  flow_version: string
-  parameters: unknown
-  created: string
-  updated: string
-  tags: string[]
+  id: string,
+  name: string,
+  flow_id: string,
+  deployment_id: string,
+  flow_version: string,
+  parameters: unknown,
+  created: string,
+  updated: string,
+  tags: string[],
 }
 
 interface IPostFlowRequest extends FlowsFilter {
-  name?: string
-  flow_id: string
-  deployment_id?: string
-  flow_version?: string
-  parameters?: unknown
-  tags?: string[]
+  name?: string,
+  flow_id: string,
+  deployment_id?: string,
+  flow_version?: string,
+  parameters?: unknown,
+  tags?: string[],
 }
 
 function flowMapper(flow: IFlowResponse): Flow {
@@ -32,7 +32,7 @@ function flowMapper(flow: IFlowResponse): Flow {
     created: new Date(flow.created),
     updated: new Date(flow.updated),
     name: flow.name,
-    tags: flow.tags
+    tags: flow.tags,
   })
 }
 
