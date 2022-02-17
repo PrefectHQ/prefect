@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/member-ordering */
+/* eslint-disable max-classes-per-file */
 import { reactive, watch } from 'vue'
 import { Router } from 'vue-router'
 
 class Reactive {
-  constructor() {
+  public constructor() {
+    // eslint-disable-next-line no-constructor-return
     return reactive(this)
   }
 }
@@ -10,11 +13,13 @@ class Reactive {
 export class UrlQueryParams extends Reactive {
   private readonly router: Router
 
-  private get query() {
-    //@ts-expect-error currentRoute is unwrapped
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private get query(): any {
+    // @ts-expect-error currentRoute is unwrapped
     return this.router.currentRoute.query
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private nestedHandler(filter: string): ProxyHandler<any[] | object> {
     return {
       set: (target, prop, value) => {
@@ -42,7 +47,7 @@ export class UrlQueryParams extends Reactive {
         } catch {
           return value
         }
-      }
+      },
     }
   }
 
@@ -74,7 +79,7 @@ export class UrlQueryParams extends Reactive {
       } catch {
         return value
       }
-    }
+    },
   }
 
   public constructor(router: Router) {
@@ -85,9 +90,10 @@ export class UrlQueryParams extends Reactive {
     watch(
       () => this.query,
       () => this.updateClassFromParams(),
-      { deep: true }
+      { deep: true },
     )
 
+    // eslint-disable-next-line no-constructor-return
     return new Proxy(this, this.rootHandler)
   }
 

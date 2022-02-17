@@ -54,7 +54,7 @@ export class FlowRun implements IFlowRun {
   public taskRunCount: number
   public updated: Date
 
-  constructor(flow: IFlowRun) {
+  public constructor(flow: IFlowRun) {
     this.id = flow.id
     this.deploymentId = flow.deploymentId
     this.flowId = flow.flowId
