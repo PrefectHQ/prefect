@@ -4,12 +4,7 @@ import { asArray, isString } from '@prefecthq/orion-design/utilities'
 import { RouteLocationNormalized, Router } from 'vue-router'
 
 export class GlobalLoadFiltersFromRoute implements RouteGuard {
-  private readonly router: Router
-
-  public constructor(router: Router) {
-    this.router = router
-  }
-
+  
   public before(to: RouteLocationNormalized, from: RouteLocationNormalized): void {
     if (JSON.stringify(to.query.filter) !== JSON.stringify(from.query.filter)) {
       const filterStrings = asArray(to.query.filter).filter(isString)

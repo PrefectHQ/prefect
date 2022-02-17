@@ -53,7 +53,7 @@ const router = createRouter({
   routes,
 })
 
-RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute(router))
+RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute())
 
 router.beforeEach(async (to, from) => {
   return await RouteGuardExecutioner.before(to, from)
