@@ -154,10 +154,10 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
-PREFECT_BASE_URL = Setting(
+PREFECT_CLOUD_URL = Setting(
     str,
     # TODO - this needs to be w/e the final cloud URL is
-    default="http://localhost:8000",
+    default="http://localhost:8000/api",
     description="",
 )
 
