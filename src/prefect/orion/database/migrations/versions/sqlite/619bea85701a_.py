@@ -1,4 +1,4 @@
-"""empty message
+"""Add the block data table.
 
 Revision ID: 619bea85701a
 Revises: 9725c1cbee35
