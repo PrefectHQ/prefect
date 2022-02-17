@@ -36,7 +36,7 @@ class TestLambdaCreate:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().create_function"
-        called_method.assert_called_once_with({"FunctionName": "test"})
+        called_method.assert_called_once_with({"FOO": "BAR"})
 
 
 class TestLambdaDelete:
