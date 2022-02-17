@@ -591,7 +591,10 @@ class RayTaskRunner(BaseTaskRunner):
     ):
         # Store settings
         self.address = address
-        self.init_kwargs = init_kwargs or {}
+        self.init_kwargs = init_kwargs.copy() if init_kwargs else {}
+
+        self.init_kwargs.setdefault("namespace", "prefect")
+        self.init_kwargs
 
         # Runtime attributes
         self._ray_refs: Dict[UUID, "ray.ObjectRef"] = {}
@@ -668,9 +671,7 @@ class RayTaskRunner(BaseTaskRunner):
 
         # When connecting to an out-of-process cluster (e.g. ray://ip) this returns a
         # `ClientContext` otherwise it returns a `dict`.
-        context_or_metadata = self._ray.init(
-            *init_args, namespace="prefect", **self.init_kwargs
-        )
+        context_or_metadata = self._ray.init(*init_args, **self.init_kwargs)
         if isinstance(context_or_metadata, dict):
             metadata = context_or_metadata
             context = None
@@ -678,7 +679,7 @@ class RayTaskRunner(BaseTaskRunner):
             metadata = None  # TODO: Some of this may be retrievable from the client ctx
             context = context_or_metadata
 
-        # Wait for all futures exiting
+        # Wait for all futures on exit
         exit_stack.push_async_callback(self._wait_for_all_futures)
 
         # Shutdown differs depending on the connection type
@@ -688,6 +689,11 @@ class RayTaskRunner(BaseTaskRunner):
         else:
             # Shutdown ray
             exit_stack.push_async_callback(self._shutdown_ray)
+
+        # Display some information about the cluster
+        nodes = ray.nodes()
+        living_nodes = [node for node in nodes if node.get("alive")]
+        self.logger.info(f"Using Ray cluster with {len(living_nodes)} nodes.")
 
         if metadata and metadata.get("webui_url"):
             self.logger.info(
