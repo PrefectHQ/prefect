@@ -1,8 +1,7 @@
 from uuid import uuid4
 
-import pytest
-
 import pendulum
+import pytest
 from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
