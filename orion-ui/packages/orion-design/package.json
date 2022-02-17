@@ -20,7 +20,8 @@
         "dev-services": "vite build --mode services --watch",
         "dev-stores": "vite build --mode stores --watch",
         "dev-utilities": "vite build --mode utilities --watch",
-        "postbuild": "node scripts/fix-types.js"
+        "postbuild": "node scripts/fix-types.js",
+        "lint:fix": "eslint src --fix --debug"
     },
     "main": "./dist/orion-design.umd.js",
     "module": "./dist/orion-design.es.js",

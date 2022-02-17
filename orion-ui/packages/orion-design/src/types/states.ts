@@ -37,7 +37,7 @@ export const StateNames: ReadonlyMap<State, StateName> = new Map([
   [States.SCHEDULED, 'Scheduled'],
   [States.PENDING, 'Pending'],
   [States.FAILED, 'Failed'],
-  [States.CANCELLED, 'Cancelled']
+  [States.CANCELLED, 'Cancelled'],
 ])
 
 export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
@@ -46,7 +46,7 @@ export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
   [States.SCHEDULED, -1],
   [States.PENDING, -1],
   [States.FAILED, 1],
-  [States.CANCELLED, 1]
+  [States.CANCELLED, 1],
 ])
 
 export const StateIcons: ReadonlyMap<State, StateIcon> = new Map([
@@ -55,7 +55,7 @@ export const StateIcons: ReadonlyMap<State, StateIcon> = new Map([
   [States.SCHEDULED, 'pi-scheduled'],
   [States.PENDING, 'pi-pending'],
   [States.FAILED, 'pi-failed'],
-  [States.CANCELLED, 'pi-cancelled']
+  [States.CANCELLED, 'pi-cancelled'],
 ])
 
 export const StateColors: ReadonlyMap<State, StateColor> = new Map([
@@ -64,7 +64,7 @@ export const StateColors: ReadonlyMap<State, StateColor> = new Map([
   [States.SCHEDULED, 'var(--scheduled)'],
   [States.PENDING, 'var(--pending)'],
   [States.FAILED, 'var(--failed)'],
-  [States.CANCELLED, 'var(--cancelled)']
+  [States.CANCELLED, 'var(--cancelled)'],
 ])
 
 export function isState(value: unknown): value is State {
