@@ -1,5 +1,5 @@
 """
-Command line interface for interacting with workspaces
+Command line interface for interacting with Prefect Cloud
 """
 from typing import Dict, Iterable, List
 
@@ -23,7 +23,7 @@ cloud_app = PrefectTyper(
     name="cloud", help="Commands for interacting with Prefect Cloud"
 )
 workspace_app = PrefectTyper(
-    name="workspace", help="Commands for interacting with Workspaces"
+    name="workspace", help="Commands for interacting with Prefect Cloud Workspaces"
 )
 cloud_app.add_typer(workspace_app)
 app.add_typer(cloud_app)
@@ -38,7 +38,8 @@ def build_url_from_workspace(workspace: Dict) -> str:
 def confirm_logged_in():
     if PREFECT_API_KEY.value() is None:
         exit_with_error(
-            "Currently not logged in. Please login with `prefect cloud login`."
+            "Currently not logged in. "
+            "Please login with `prefect cloud login --key <API_KEY>`."
         )
 
 
@@ -70,9 +71,6 @@ class CloudClient:
                 raise exc
 
         return res.json()
-
-    async def read_current_workspace(self) -> Dict:
-        return await self.get(PREFECT_API_URL.value())
 
     async def read_workspaces(self) -> List[Dict]:
         return await self.get("/me/workspaces")
