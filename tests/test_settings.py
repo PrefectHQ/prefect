@@ -3,6 +3,7 @@ import textwrap
 
 import pytest
 
+import prefect.context
 import prefect.settings
 from prefect.settings import (
     DEFAULT_PROFILES,
@@ -15,6 +16,7 @@ from prefect.settings import (
     get_current_settings,
     load_profile,
     load_profiles,
+    update_profile,
     write_profiles,
 )
 from prefect.utilities.testing import temporary_settings
@@ -223,3 +225,32 @@ class TestProfiles:
         )
         with pytest.raises(ValueError, match="Unknown setting.*'test'"):
             load_profile("foo")
+
+    def test_update_profile_adds_key(self, temporary_profiles_path):
+        update_profile(name="test", PREFECT_API_URL="hello")
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
+
+    def test_update_profile_updates_key(self, temporary_profiles_path):
+        update_profile(name="test", PREFECT_API_URL="hello")
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
+        update_profile(name="test", PREFECT_API_URL="goodbye")
+        assert load_profile("test") == {"PREFECT_API_URL": "goodbye"}
+
+    def test_update_profile_mixed_add_and_update(self, temporary_profiles_path):
+        update_profile(name="test", PREFECT_API_URL="hello")
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
+        update_profile(
+            name="test", PREFECT_API_URL="goodbye", PREFECT_LOGGING_LEVEL="DEBUG"
+        )
+        assert load_profile("test") == {
+            "PREFECT_API_URL": "goodbye",
+            "PREFECT_LOGGING_LEVEL": "DEBUG",
+        }
+
+    def test_update_profile_uses_current_profile_name(self, temporary_profiles_path):
+        with prefect.context.ProfileContext(
+            name="test", settings=get_current_settings(), env={}
+        ):
+            update_profile(PREFECT_API_URL="hello")
+
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
