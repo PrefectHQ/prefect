@@ -76,7 +76,7 @@ async def hosted_orion_api():
         stderr=subprocess.STDOUT,
     ) as process:
 
-        api_url = "http://127.0.0.1:2222/api"
+        api_url = "http://localhost:2222/api"
 
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
