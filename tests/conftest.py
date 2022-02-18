@@ -90,8 +90,8 @@ def pytest_collection_modifyitems(session, config, items):
             )
         return
 
-    only_services = set(config.getoption("--only-services"))
-    if only_services:
+    only_run_service_tests = config.getoption("--only-services")
+    if only_run_service_tests:
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             if not item_services:
@@ -106,9 +106,9 @@ def pytest_collection_modifyitems(session, config, items):
             )
         return
 
-    only_service = set(config.getoption("--only-service"))
-    if only_service:
-        only_running_blurb = f"Only running tests for service(s): {', '.join(repr(s) for s in only_service)}."
+    only_services = set(config.getoption("--only-service"))
+    if only_services:
+        only_running_blurb = f"Only running tests for service(s): {', '.join(repr(s) for s in only_services)}."
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             not_in_only_services = only_services.difference(item_services)
