@@ -12,6 +12,7 @@ from . import (
     dependencies,
     logs,
     concurrency_limits,
+    blocks,
     # Server relies on all of the above routes
     server,
 )

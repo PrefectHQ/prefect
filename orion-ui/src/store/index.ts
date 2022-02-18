@@ -1,4 +1,3 @@
-import { GlobalFilter } from '@/typings/global'
 import { InjectionKey } from 'vue'
 import {
   createStore,
@@ -7,18 +6,19 @@ import {
   useStore as baseUseStore
 } from 'vuex'
 import filter from './filter'
+import { GlobalFilter } from '@/typings/global'
 
 type RootState = {
-  filter: GlobalFilter
+  filter: GlobalFilter,
 }
 
 export const key: InjectionKey<VuexStore<RootState>> = Symbol()
 
 const store = createStore<RootState>({
   modules: {
-    filter
+    filter,
   },
-  plugins: [createLogger()]
+  plugins: [createLogger()],
 })
 
 export function useStore() {

@@ -8,7 +8,6 @@ from typing_extensions import Literal
 
 import prefect.settings
 from prefect.orion.serializers import lookup_serializer
-from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
     PREFECT_ORION_DATA_BASE_PATH,
@@ -94,7 +93,6 @@ class DataLocation(PrefectBaseModel):
     """Represents the location of data stored in a file"""
 
     name: str
-    # TODO: Consider using `FILE_SYSTEM_SCHEMES` which would need to be an Enum
     scheme: Literal["file", "s3"] = "file"
     base_path: str = "/tmp"
 
