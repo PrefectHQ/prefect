@@ -98,7 +98,6 @@ class VaultSecret(SecretBase):
             "VAULT_KUBE_AUTH_ROLE" in vault_creds.keys()
             and "VAULT_KUBE_AUTH_PATH" in vault_creds.keys()
         ):
-
             token_file = vault_creds.get(
                 "VAULT_KUBE_TOKEN_FILE",
                 "/var/run/secrets/kubernetes.io/serviceaccount/token",
