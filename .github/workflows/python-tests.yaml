@@ -103,7 +103,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests --all-services -vv
+          pytest tests --all-services --not-service ray -vv
 
   run-tests-postgres:
     name: Test with Postgres
@@ -165,7 +165,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests --all-services -vv
+          pytest tests --all-services --not-service ray -vv
 
   run-tests-lower-bounds:
     name: Test with lower requirements
@@ -210,4 +210,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests --all-services -vv
+          pytest tests --all-services --not-service ray -vv
