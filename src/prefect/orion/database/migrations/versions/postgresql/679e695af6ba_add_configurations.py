@@ -1,8 +1,8 @@
-"""Add the configuration table.
+"""Add the configurations table.
 
-Revision ID: 448f174ce8de
-Revises: 5f376def75c3
-Create Date: 2022-02-17 18:20:28.540389
+Revision ID: 679e695af6ba
+Revises: 5bff7878e700
+Create Date: 2022-02-17 21:17:27.832400
 
 """
 import sqlalchemy as sa
@@ -11,8 +11,8 @@ from alembic import op
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "448f174ce8de"
-down_revision = "5f376def75c3"
+revision = "679e695af6ba"
+down_revision = "5bff7878e700"
 branch_labels = None
 depends_on = None
 
