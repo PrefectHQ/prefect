@@ -1,5 +1,5 @@
-import { Api } from './Api'
-import { UnionFilters } from './Filter'
+import { Api } from '@/services/Api'
+import { UnionFilters } from '@/services/Filter'
 
 export type IFlowRunResponse = {
   name: 'string',
