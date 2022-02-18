@@ -236,6 +236,12 @@ class TestProfiles:
         update_profile(name="test", PREFECT_API_URL="goodbye")
         assert load_profile("test") == {"PREFECT_API_URL": "goodbye"}
 
+    def test_update_profile_removes_key(self, temporary_profiles_path):
+        update_profile(name="test", PREFECT_API_URL="hello")
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
+        update_profile(name="test", PREFECT_API_URL=None)
+        assert load_profile("test") == {}
+
     def test_update_profile_mixed_add_and_update(self, temporary_profiles_path):
         update_profile(name="test", PREFECT_API_URL="hello")
         assert load_profile("test") == {"PREFECT_API_URL": "hello"}
@@ -244,6 +250,15 @@ class TestProfiles:
         )
         assert load_profile("test") == {
             "PREFECT_API_URL": "goodbye",
+            "PREFECT_LOGGING_LEVEL": "DEBUG",
+        }
+
+    def test_update_profile_retains_existing_keys(self, temporary_profiles_path):
+        update_profile(name="test", PREFECT_API_URL="hello")
+        assert load_profile("test") == {"PREFECT_API_URL": "hello"}
+        update_profile(name="test", PREFECT_LOGGING_LEVEL="DEBUG")
+        assert load_profile("test") == {
+            "PREFECT_API_URL": "hello",
             "PREFECT_LOGGING_LEVEL": "DEBUG",
         }
 
