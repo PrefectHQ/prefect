@@ -10,7 +10,7 @@ The fundamental building blocks of Prefect are [flows](flows.md) and [tasks](tas
 
 ## Deployment and Orchestration 
 
-If you are looking to configure the rules that govern your tasks' state transitions, or better understand how runs are orchestrated in the backend then diving into [states](states.md) and [orchestration rules](orchestration.md) should help orient you.
+If you are looking to configure the rules that govern your tasks' state transitions, or better understand how runs are orchestrated in the backend then diving into [states](states.md) and the [Orion UI](/ui/overview/) should help orient you.
 
 Once you are comfortable writing and running workflows interactively and/or manually via scripts, you will most likely want to "deploy" them; deploying a workflow in Prefect requires understanding [deployments](deployments.md) and [scheduling](schedules.md).
 
