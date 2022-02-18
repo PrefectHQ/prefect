@@ -99,6 +99,11 @@ class DaskExecutor(Executor):
             your Prefect configuration.
         - performance_report_path (str, optional): An optional path for the [dask performance
             report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report).
+        - disable_cancellation_event (bool, optional): By default, Prefect uses a
+            Dask event to allow for better cancellation of task runs. Sometimes this
+            can cause strain on the scheduler as each task needs to retrieve a client
+            to check the status of the cancellation event. If set to `False`, we will
+            skip this check.
 
     Examples:
 
