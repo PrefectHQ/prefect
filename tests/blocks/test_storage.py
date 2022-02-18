@@ -1,7 +1,6 @@
 import asyncio
 from itertools import product
 from tempfile import TemporaryDirectory
-from unittest import mock
 from unittest.mock import MagicMock
 
 import boto3
