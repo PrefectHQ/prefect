@@ -41,6 +41,32 @@ def test_settings():
     assert PREFECT_TEST_MODE.value() is True
 
 
+def test_settings_in_truthy_statements_use_value():
+    if PREFECT_TEST_MODE:
+        assert True, "Treated as truth"
+    else:
+        assert False, "Not treated as truth"
+
+    with temporary_settings(PREFECT_TEST_MODE=False):
+        if not PREFECT_TEST_MODE:
+            assert True, "Treated as truth"
+        else:
+            assert False, "Not treated as truth"
+
+    # Test with a non-boolean setting
+
+    if PREFECT_LOGGING_LEVEL:
+        assert True, "Treated as truth"
+    else:
+        assert False, "Not treated as truth"
+
+    with temporary_settings(PREFECT_LOGGING_LEVEL=""):
+        if not PREFECT_LOGGING_LEVEL:
+            assert True, "Treated as truth"
+        else:
+            assert False, "Not treated as truth"
+
+
 def test_temporary_settings():
     assert PREFECT_TEST_MODE.value() is True
     with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
@@ -206,7 +232,7 @@ class TestProfiles:
                 """
                 [foo]
                 PREFECT_API_KEY = "bar"
-                
+
                 [foo.nested]
                 """
             )
