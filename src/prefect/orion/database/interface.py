@@ -137,6 +137,16 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.ConcurrencyLimit
 
     @property
+    def WorkQueue(self):
+        """A work queue model"""
+        return self.orm.WorkQueue
+
+    @property
+    def Agent(self):
+        """An agent model"""
+        return self.orm.Agent
+
+    @property
     def BlockData(self):
         """A block model"""
         return self.orm.BlockData

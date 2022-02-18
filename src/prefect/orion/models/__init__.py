@@ -9,4 +9,6 @@ from . import (
     task_runs,
     saved_searches,
     logs,
+    work_queues,
+    agents,
 )

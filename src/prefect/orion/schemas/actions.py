@@ -1,8 +1,10 @@
 """
 Reduced schemas for accepting API actions.
 """
-from typing import List, Optional
 
+from typing import Optional
+
+import coolname
 from pydantic import Field
 
 import prefect.orion.schemas as schemas
@@ -184,3 +186,35 @@ class LogCreate(
     )
 ):
     """Data used by the Orion API to create a log."""
+
+
+class WorkQueueCreate(
+    schemas.core.WorkQueue.subclass(
+        "WorkQueueCreate",
+        include_fields=[
+            "filter",
+            "name",
+            "description",
+            "is_paused",
+            "concurrency_limit",
+        ],
+    )
+):
+    """Data used by the Orion API to create a work queue."""
+
+
+class WorkQueueUpdate(
+    schemas.core.WorkQueue.subclass(
+        "WorkQueueUpdate",
+        include_fields=[
+            "filter",
+            "name",
+            "description",
+            "is_paused",
+            "concurrency_limit",
+        ],
+    )
+):
+    """Data used by the Orion API to update a work queue."""
+
+    name: Optional[str] = Field(None, description="The name of the work queue.")
