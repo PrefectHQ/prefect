@@ -156,23 +156,15 @@ class OrionStorageBlock(OrionStorageAPI):
 class GoogleCloudStorageBlock(OrionStorageAPI):
     bucket: str
     project: Optional[str]
-    service_account_file_path: Optional[str]
     service_account_info: Optional[Dict[str, str]]
 
     def block_initialization(self) -> None:
         if self.service_account_info:
-            self.storage_client = gcs.Client(
-                project=self.project,
-                credentials=service_account.Credentials.from_service_account_info(
-                    self.service_account_info
-                ),
+            credentials = service_account.Credentials.from_service_account_info(
+                self.service_account_info
             )
-        elif self.service_account_file_path:
             self.storage_client = gcs.Client(
-                project=self.project,
-                credentials=service_account.Credentials.from_service_account_file(
-                    self.service_account_file_path
-                ),
+                project=self.project or credentials.project_id, credentials=credentials
             )
         else:
             self.storage_client = gcs.Client(project=self.project)
