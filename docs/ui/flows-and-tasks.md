@@ -47,6 +47,10 @@ You can see details about the flow run including:
 - Logs
 - [Radar](#radar-view) view of the flow run
 
+Click **Task Runs** to see the task run details for the flow run.
+
+Click **Subflow Runs** to see any subflows for the flow run.
+
 Click **Logs** to see log messages for the flow run. See [Logging](/concepts/logs/) for more information about configuring and customizing log messages.
 
 ![Display logs for a specific flow run.](/img/ui/orion-flow-run-logs.png)

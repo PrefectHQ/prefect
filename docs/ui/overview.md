@@ -31,6 +31,12 @@ When Prefect Server is running, you can access the UI at [http://127.0.0.1:4200]
 
 ![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
 
+The following sections provide details about Orion UI pages and visualizations:
+
+- [Dashboard](/ui/dashboard/) provides a high-level overview of your flows, tasks, and deployments.
+- [Flows and Tasks](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
+- [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
+
 <!-- ## Prefect Cloud
 
 Prefect Cloud provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
@@ -49,7 +55,7 @@ If you're working directly with the Prefect Orion repository &mdash; whether for
 If the UI has not been built, you'll see output like the following noting that the "dashboard is not built" when starting the Orion server:
 
 ```bash
-❯ prefect orion start
+$ prefect orion start
 Starting...
 
  ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
