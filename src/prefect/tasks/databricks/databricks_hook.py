@@ -17,7 +17,6 @@ START_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/start")
 
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/delete")
 
-
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.0/jobs/runs/submit")
@@ -346,14 +345,18 @@ class DatabricksHook:
             - int: Job id for given Databricks job.
         """
         matching_jobs = []
-        while True:
-            response_payload = self._do_api_call(LIST_JOB_ENDPOINT, {"limit": limit})
+        more_jobs_to_list = True
+        list_api_offset = 0
+        while more_jobs_to_list:
+            response_payload = self._do_api_call(
+                LIST_JOB_ENDPOINT, {"limit": limit, "offset": list_api_offset}
+            )
             all_jobs = response_payload.get("jobs", [])
             for j in all_jobs:
                 if j["settings"]["name"] == job_name:
                     matching_jobs.append(j)
-            if not response_payload["has_more"]:
-                break
+            list_api_offset = list_api_offset + limit
+            more_jobs_to_list = response_payload["has_more"]
 
         if len(matching_jobs) > 1:
             raise ValueError(

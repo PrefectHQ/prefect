@@ -124,7 +124,7 @@ class DatabricksGetJobID(Task):
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
-        hook = self.get_hook()
+        hook = self._get_hook()
 
         # Fetch Job ID
         self.logger.info("Searching for job_ids with name: %s ", job_name)
@@ -133,7 +133,7 @@ class DatabricksGetJobID(Task):
 
         return job_id
 
-    def get_hook(self):
+    def _get_hook(self):
         return DatabricksHook(
             self.databricks_conn_secret,
             retry_limit=self.databricks_retry_limit,
