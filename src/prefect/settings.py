@@ -61,6 +61,12 @@ class Setting(Generic[T]):
     def __repr__(self) -> str:
         return f"Setting({self.type.__name__}, {self.field!r})"
 
+    def __bool__(self) -> bool:
+        """
+        Returns a truthy check of the current value.
+        """
+        return bool(self.value())
+
 
 # Callbacks and validators
 
