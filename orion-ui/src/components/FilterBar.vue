@@ -20,24 +20,23 @@
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
-      <template v-if="isOpen('search')" key="search">
-        <FiltersSearchMenu class="filter-bar__menu filter-bar__menu-search" />
+      <template v-if="isOpen('search')">
+        <FiltersSearchMenu key="search" class="filter-bar__menu filter-bar__menu-search" />
       </template>
 
-      <template v-if="isOpen('save')" key="save">
-        <FiltersSaveMenu class="filter-bar__menu filter-bar__menu--save" @close="close" />
+      <template v-if="isOpen('save')">
+        <FiltersSaveMenu key="save" class="filter-bar__menu filter-bar__menu--save" @close="close" />
       </template>
 
-      <template v-if="isOpen('filters')" key="filters">
-        <FiltersMenu class="filter-bar__menu" @close="close" />
+      <template v-if="isOpen('filters')">
+        <FiltersMenu key="filters" class="filter-bar__menu" @close="close" />
       </template>
     </transition-group>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@prefecthq/orion-design/components'
-  import { media } from '@prefecthq/orion-design/utilities'
+  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu, media } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
   import { useRoute } from 'vue-router'
 
@@ -48,7 +47,8 @@
   const overlay = computed(() => menu.value !== 'none')
   const route = useRoute()
 
-  const isDashboard = computed(() => route.name === 'Dashboard')
+  const dashboardRoute = 'Dashboard'
+  const isDashboard = computed(() => route.name === dashboardRoute)
 
   const classes = computed(() => ({
     root: {
@@ -64,7 +64,7 @@
   }))
 
   function isOpen(value: Menu): boolean {
-    return menu.value == value
+    return menu.value === value
   }
 
   function show(value: Menu): void {
@@ -72,7 +72,7 @@
   }
 
   function toggle(value: Menu): void {
-    if (menu.value === value) {
+    if (isOpen(value)) {
       close()
     } else {
       show(value)
@@ -80,24 +80,25 @@
   }
 
   function close(): void {
-    menu.value = 'none';
-    (document.activeElement as HTMLElement).blur()
+    menu.value = 'none'
+    const activeElement = document.activeElement as HTMLElement
+    activeElement.blur()
   }
 
   /**
    * This section is for performantly handling intersection of the filter bar
    */
 
-  const handleEmit = ([entry]: IntersectionObserverEntry[]) => detached.value = !entry.isIntersecting
+  const handleEmit = ([entry]: IntersectionObserverEntry[]): boolean => {
+    return detached.value = !entry.isIntersecting
+  }
 
   const observe = ref<Element>()
 
-  let observer: IntersectionObserver
+  let observer: IntersectionObserver | null
 
-  const createIntersectionObserver = (margin: string) => {
-    if (observe.value) {
-      observer?.unobserve(observe.value)
-    }
+  const createIntersectionObserver = (margin: string): void => {
+    tryUnobserve()
 
     const options = {
       rootMargin: margin,
@@ -106,8 +107,18 @@
 
     observer = new IntersectionObserver(handleEmit, options)
 
+    tryObserve()
+  }
+
+  const tryObserve = (): void => {
     if (observe.value) {
-      observer.observe(observe.value)
+      observer?.observe(observe.value)
+    }
+  }
+
+  const tryUnobserve = (): void => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
     }
   }
 
@@ -121,15 +132,11 @@
     }
   })
 
-  watch(route, () => {
-    if (route.name == 'Dashboard') {
-      if (observe.value) {
-        observer?.observe(observe.value)
-      }
+  watch(() => route.name, () => {
+    if (isDashboard.value) {
+      tryObserve()
     } else {
-      if (observe.value) {
-        observer?.unobserve(observe.value)
-      }
+      tryUnobserve()
       detached.value = true
     }
   })
