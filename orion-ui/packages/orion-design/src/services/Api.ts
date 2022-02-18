@@ -2,10 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ApiRouteParams } from '@/models/ApiRouteParams'
+import { Require } from '@/types/utilities'
 
 export type Route = string | ((params?: ApiRouteParams) => string)
-
-type Require<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
 
 export abstract class Api {
   // todo: can this will need to be defined by the server itself
