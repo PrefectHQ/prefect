@@ -5,10 +5,10 @@ Revises: 7c91cb86dc4e
 Create Date: 2022-02-17 21:17:37.538086
 
 """
-from alembic import op
 import sqlalchemy as sa
-import prefect
+from alembic import op
 
+import prefect
 
 # revision identifiers, used by Alembic.
 revision = "28ae48128c75"
@@ -44,7 +44,7 @@ def upgrade():
         sa.Column("key", sa.String(), nullable=False),
         sa.Column(
             "value",
-            prefect.orion.utilities.database.JSON(astext_type=Text()),
+            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_configuration")),
