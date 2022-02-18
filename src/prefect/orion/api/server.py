@@ -222,7 +222,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
     @app.on_event("startup")
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP.value():
+        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
             loop = asyncio.get_running_loop()
             service_instances = [
                 services.scheduler.Scheduler(),
