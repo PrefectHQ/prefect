@@ -629,23 +629,14 @@ class RayTaskRunner(BaseTaskRunner):
     ) -> Optional[State]:
         ref = self._get_ray_ref(prefect_future)
 
+        result = None
+
         with anyio.move_on_after(timeout):
             # We await the reference directly instead of using `ray.get` so we can
             # avoid blocking the event loop
-            return await ref
+            result = await ref
 
-        # Sometimes, `await ref` will not succeed. This has only been observed on CI
-        # machines for now.
-        future = ref.future()
-        if future.done():
-            self.logger.info(
-                "Awaiting the Ray `ObjectRef` timed out, but the task is done. "
-                "The result will be retrieved from their futures API instead. "
-                "Please open an issue with your system information."
-            )
-            return future.result()
-
-        return None
+        return result
 
     @property
     def _ray(self) -> "ray":
