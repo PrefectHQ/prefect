@@ -1,59 +1,59 @@
+import { RouteGuardExecutioner } from '@prefecthq/orion-design/services'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
-import { RouteGuardExecutioner } from '@/../packages/orion-design/src/services/RouteGuardExecutioner'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
-const routes: Array<RouteRecordRaw> = [
+const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Dashboard',
     component: Dashboard, // We don't implement route level code splitting for the Dashboard route because we don't want this to load asyncronously
     meta: {
-      guards: [new DashboardDefaultFilters()] 
-    }
+      guards: [new DashboardDefaultFilters()],
+    },
   },
   {
     path: '/flow-run/:id',
     name: 'FlowRun',
     component: () => import('../views/FlowRun.vue'),
     meta: {
-      guards: [new FlowRunDefaultFilters()]
+      guards: [new FlowRunDefaultFilters()],
     },
     children: [
       {
         path: '',
-        component: () => import('../views/FlowRun--views/Index.vue')
+        component: () => import('../views/FlowRun--views/Index.vue'),
       },
       {
         path: 'timeline',
-        component: () => import('../views/FlowRun--views/Timeline.vue')
+        component: () => import('../views/FlowRun--views/Timeline.vue'),
       },
       {
         path: 'radar',
-        component: () => import('../views/FlowRun--views/Radar.vue')
-      }
-    ]
+        component: () => import('../views/FlowRun--views/Radar.vue'),
+      },
+    ],
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: () => import('../views/Settings.vue')
+    component: () => import('../views/Settings.vue'),
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('../views/NotFound.vue')
-  }
+    component: () => import('../views/NotFound.vue'),
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes
+  routes,
 })
 
-RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute(router))
+RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute())
 
 router.beforeEach(async (to, from) => {
   return await RouteGuardExecutioner.before(to, from)

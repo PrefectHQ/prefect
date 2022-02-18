@@ -7,6 +7,7 @@ Ring 1+:
 
 */
 
+import { max, pow2, cos, sin, sqrt, pi, floor, ceil } from './math'
 import {
   Link,
   RadarNodes,
@@ -18,11 +19,10 @@ import {
   Position,
   Items
 } from '@/typings/radar'
-import { max, pow2, cos, sin, sqrt, pi, floor, ceil } from './math'
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
-    ([, position]) => position.nodes.size == 0
+    ([, position]) => position.nodes.size == 0,
   )
 }
 
@@ -146,10 +146,11 @@ export class Radar {
    */
   traverse(
     curr: RadarNode,
-    callback?: (node: RadarNode) => void
+    callback?: (node: RadarNode) => void,
   ): Map<string, RadarNode> {
-    if (!curr)
+    if (!curr) {
       throw new Error('No starting node was provided to the traverse method.')
+    }
 
     const queue: [RadarNode] = [curr]
     let node: RadarNode | undefined
@@ -209,7 +210,7 @@ export class Radar {
           data: item,
           downstreamNodes: new Map(),
           upstreamNodes: new Map(),
-          ring: node.ring
+          ring: node.ring,
         })
       } else {
         this.nodes.set(item[this._id], {
@@ -220,7 +221,7 @@ export class Radar {
           data: item,
           downstreamNodes: new Map(),
           upstreamNodes: new Map(),
-          ring: 0
+          ring: 0,
         })
       }
     }
@@ -245,8 +246,8 @@ export class Radar {
             radius: 0,
             nodes: new Map([[key, node]]),
             positions: new Map(),
-            links: []
-          }
+            links: [],
+          },
         ]
       }
     }
@@ -263,7 +264,7 @@ export class Radar {
         const source = this.nodes.get(upstream[j][this._id])
         const link: Link = {
           target: node!,
-          source: source!
+          source: source!,
         }
 
         node.upstreamNodes.set(upstream[j][this._id], source!)
@@ -282,13 +283,14 @@ export class Radar {
       direction == 'up'
         ? 'upstreamNodes'
         : direction == 'down'
-        ? 'downstreamNodes'
-        : undefined
+          ? 'downstreamNodes'
+          : undefined
 
-    if (key == undefined)
+    if (key == undefined) {
       throw new Error(
-        "Direction wasn't provided; accepted values: 'up' or 'down'."
+        "Direction wasn't provided; accepted values: 'up' or 'down'.",
       )
+    }
 
     const dfs = (node: RadarNode, depth = 0) => {
       if (node[key].size > 0) {
@@ -313,7 +315,7 @@ export class Radar {
     // Compute ring radius and positions
     for (let i = start; i < rings.length; i++) {
       const n = rings[0][1].nodes.size
-      const size = rings[i][1].nodes.size
+      const { size } = rings[i][1].nodes
       const prevRing = rings[i - 1]?.[1]
 
       let radius
@@ -328,7 +330,7 @@ export class Radar {
         // TODO: Make this more precise
         const circumference = sqrt(pow2(this.height) + pow2(this.width))
 
-        radius = max(ceil((size * circumference) / (pi * 2)), radius)
+        radius = max(ceil(size * circumference / (pi * 2)), radius)
       }
 
       const positions = this.computeRingPositions(radius)
@@ -337,7 +339,9 @@ export class Radar {
 
       for (let j = 0; j < positions.size; j++) {
         const position = positions.get(j)
-        if (!position) continue
+        if (!position) {
+          continue
+        }
         this.positions.set(position.id, position)
       }
     }
@@ -355,7 +359,9 @@ export class Radar {
   }
 
   private computeInitialPositions() {
-    if (this.rings.size === 0) return
+    if (this.rings.size === 0) {
+      return
+    }
 
     let _r: Ring | undefined = undefined
 
@@ -383,11 +389,13 @@ export class Radar {
 
     this.nodes = new Map(
       [...this.nodes].sort(([, aNode], [, bNode]) => {
-        if (!aNode.position || !bNode.position) return 0
+        if (!aNode.position || !bNode.position) {
+          return 0
+        }
         return aNode.ring == bNode.ring
           ? aNode.position.id - bNode.position.id
           : aNode.ring - bNode.ring
-      })
+      }),
     )
   }
 
@@ -403,15 +411,15 @@ export class Radar {
     let _delta = 0
 
     const positionalArray = [0]
-    const limit = pi / 2 - (this.width * 0.8) / 2 / radius
+    const limit = pi / 2 - this.width * 0.8 / 2 / radius
 
     while (total < limit) {
       const lambda = 1.25 - 0.3 * sin(total)
       const arcLength = sqrt(
         pow2(this.height) * pow2(cos(_delta)) +
-          pow2(this.width) * pow2(sin(_delta))
+          pow2(this.width) * pow2(sin(_delta)),
       )
-      const delta = (lambda * arcLength) / radius
+      const delta = lambda * arcLength / radius
 
       _delta += delta
       total += delta
@@ -431,8 +439,7 @@ export class Radar {
 
     positionalArray
       .sort()
-      .forEach((p: number, i: number) =>
-        positions.set(i, { id: i, radian: p, nodes: new Map(), radius: radius })
+      .forEach((p: number, i: number) => positions.set(i, { id: i, radian: p, nodes: new Map(), radius: radius }),
       )
 
     return positions
@@ -442,7 +449,7 @@ export class Radar {
     node: RadarNode,
     rid: number,
     _r: Ring | undefined,
-    node_index: number = 0
+    node_index: number = 0,
   ): Position {
     const r = this.rings.get(rid)!
     const p = r.positions
@@ -475,12 +482,14 @@ export class Radar {
         const [, _u] = upstream.next().value || [null, null]
         // If there are no more upstream nodes to compare against
         // we exit (and take the first available position)
-        if (!_u) break
+        if (!_u) {
+          break
+        }
 
         // We get the equivalent position on the current ring
         // as this upstream node
         const equivalentPosition = floor(
-          (_u.position / _r!.positions.size) * p.size
+          _u.position / _r!.positions.size * p.size,
         )
         const potentialPosition = p.get(equivalentPosition)
 

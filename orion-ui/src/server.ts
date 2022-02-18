@@ -1,3 +1,5 @@
+import { StateNames } from '@prefecthq/orion-design'
+import { snakeCase } from '@prefecthq/orion-design/utilities'
 import addSeconds from 'date-fns/addSeconds'
 import isBefore from 'date-fns/isBefore'
 import isWithinInterval from 'date-fns/isWithinInterval'
@@ -6,12 +8,9 @@ import FlowMock from './models/flowMock'
 import FlowRunHistoryMock from './models/flowRunHistoryMock'
 import FlowRunMock from './models/flowRunMock'
 import FlowRunStateHistoryMock from './models/flowRunStateHistoryMock'
-import { HistoryFilter } from './plugins/api'
-import { StateNames } from './types/states'
 import { server } from './utilities/api'
 import { unique } from './utilities/arrays'
 import { fakerRandomArray } from './utilities/faker'
-import { snakeCase } from './utilities/strings'
 
 export function startServer() {
   return createServer({
@@ -21,8 +20,8 @@ export function startServer() {
     models: {
       flow: Model,
       flowRun: Model.extend({
-        flow: belongsTo()
-      })
+        flow: belongsTo(),
+      }),
     },
     serializers: {
       application: JSONAPISerializer.extend({
@@ -34,8 +33,8 @@ export function startServer() {
         },
         keyForRelationship(key) {
           return snakeCase(key)
-        }
-      })
+        },
+      }),
     },
     routes() {
       this.urlPrefix = server
@@ -45,7 +44,7 @@ export function startServer() {
       })
 
       this.post('/flow_runs/history', (schema, { requestBody }) => {
-        const filter: HistoryFilter = JSON.parse(requestBody)
+        const filter: any = JSON.parse(requestBody)
         const history: FlowRunHistoryMock[] = []
         const start = new Date(filter.history_start)
         const end = new Date(filter.history_end)
@@ -53,16 +52,15 @@ export function startServer() {
         let interval_start = new Date(start)
         let interval_end = addSeconds(
           interval_start,
-          filter.history_interval_seconds
+          filter.history_interval_seconds,
         )
 
         while (isBefore(interval_end, end)) {
           const runs: FlowRunMock[] = schema.db.flowRuns.where(
-            (run: FlowRunMock) =>
-              isWithinInterval(run.start_time, {
-                start: interval_start,
-                end: interval_end
-              })
+            (run: FlowRunMock) => isWithinInterval(run.start_time, {
+              start: interval_start,
+              end: interval_end,
+            }),
           )
 
           const states: FlowRunStateHistoryMock[] = []
@@ -76,8 +74,8 @@ export function startServer() {
                 state_type: state_type,
                 count_runs: stateRuns.length,
                 sum_estimated_lateness: 0, // todo
-                sum_estimated_run_time: 0 // todo
-              })
+                sum_estimated_run_time: 0, // todo
+              }),
             )
           })
 
@@ -85,14 +83,14 @@ export function startServer() {
             new FlowRunHistoryMock({
               interval_start,
               interval_end,
-              states
-            })
+              states,
+            }),
           )
 
           interval_start = interval_end
           interval_end = addSeconds(
             interval_start,
-            filter.history_interval_seconds
+            filter.history_interval_seconds,
           )
         }
 
@@ -103,13 +101,11 @@ export function startServer() {
         const request = JSON.parse(requestBody)
 
         if (request.flow_runs?.id?.any_) {
-          const flowRuns = schema.db.flowRuns.where((run: FlowRunMock) =>
-            request.flow_runs.id.any_.includes(run.id)
+          const flowRuns = schema.db.flowRuns.where((run: FlowRunMock) => request.flow_runs.id.any_.includes(run.id),
           )
           const flowIds = flowRuns.map((run: FlowRunMock) => run.flow_id)
 
-          return schema.db.flows.where((run: FlowRunMock) =>
-            flowIds.includes(run.id)
+          return schema.db.flows.where((run: FlowRunMock) => flowIds.includes(run.id),
           )
         }
 
@@ -181,10 +177,10 @@ export function startServer() {
         fakerRandomArray({ min: 1, max: 10 }, () => {
           server.create('flowRun', {
             ...new FlowRunMock({ flow_id: flow.id }),
-            flow
+            flow,
           })
         })
       })
-    }
+    },
   })
 }

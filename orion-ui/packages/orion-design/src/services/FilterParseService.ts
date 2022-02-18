@@ -1,5 +1,5 @@
-import { FilterDateError } from '../models/FilterDateError'
-import { FilterPrefixError } from '../models/FilterPrefixError'
+import { FilterDateError } from '@/models/FilterDateError'
+import { FilterPrefixError } from '@/models/FilterPrefixError'
 import {
   Filter,
   FilterObject,
@@ -8,8 +8,8 @@ import {
   FilterType,
   FilterValue,
   ObjectStringFilter
-} from '../types'
-import { parseDateTimeNumeric } from '../utilities/dates'
+} from '@/types'
+import { parseDateTimeNumeric } from '@/utilities/dates'
 
 export class FilterParseService {
 

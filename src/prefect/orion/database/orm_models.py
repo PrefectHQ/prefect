@@ -707,9 +707,24 @@ class ORMLog:
 
 @declarative_mixin
 class ORMConcurrencyLimit:
-    tag = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    tag = sa.Column(sa.String, nullable=False, index=True)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("tag"),)
+
+
+@declarative_mixin
+class ORMBlockData:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    blockref = sa.Column(sa.String, nullable=False)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
 @declarative_mixin
@@ -722,6 +737,57 @@ class ORMSavedSearch:
         server_default="[]",
         default=list,
         nullable=False,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMWorkQueue:
+    """SQLAlchemy model of a work queue"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    filter = sa.Column(
+        Pydantic(schemas.core.QueueFilter),
+        server_default="{}",
+        default=dict,
+        nullable=False,
+    )
+    description = sa.Column(sa.String, nullable=False, default="", server_default="")
+    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
+    concurrency_limit = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMAgent:
+    """SQLAlchemy model of an agent"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id"),
+            nullable=False,
+            index=True,
+        )
+
+    last_activity_time = sa.Column(
+        Timestamp(),
+        nullable=False,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
     )
 
     @declared_attr
@@ -749,8 +815,8 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_data_mixin: block data orm mixin, combined with Base orm class
 
-    TODO - example
     """
 
     def __init__(
@@ -767,6 +833,9 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_data_mixin=ORMBlockData,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -806,6 +875,9 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            work_queue_mixin=work_queue_mixin,
+            agent_mixin=agent_mixin,
+            block_data_mixin=block_data_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -839,6 +911,9 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_data_mixin=ORMBlockData,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -875,6 +950,15 @@ class BaseORMConfiguration(ABC):
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
             pass
 
+        class WorkQueue(work_queue_mixin, self.Base):
+            pass
+
+        class Agent(agent_mixin, self.Base):
+            pass
+
+        class BlockData(block_data_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -885,6 +969,9 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.WorkQueue = WorkQueue
+        self.Agent = Agent
+        self.BlockData = BlockData
 
     @property
     @abstractmethod

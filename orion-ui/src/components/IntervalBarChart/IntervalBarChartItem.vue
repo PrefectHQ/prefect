@@ -3,7 +3,7 @@
     class="interval-bar-chart-item"
     :placement="['bottom', 'top', 'leftTop', 'rightTop']"
   >
-    <template v-slot:trigger="{ open, close }">
+    <template #trigger="{ open, close }">
       <div
         class="interval-bar-chart-item__bucket"
         tabindex="0"
@@ -13,14 +13,14 @@
         @mouseleave="close"
       />
     </template>
-    <template v-slot:header>
+    <template #header>
       <div class="interval-bar-chart-item__popover-header">
         <slot name="popover-header" v-bind="item">
           <span>{{ title }}</span>
         </slot>
       </div>
     </template>
-    <template v-slot:default>
+    <template #default>
       <div class="interval-bar-chart-item__popover-content">
         <slot name="popover-content" v-bind="item">
           <table class="table table--data">
@@ -48,13 +48,13 @@
 </template>
 
 <script lang="ts" setup>
-import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
-import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
-const props = defineProps<{
-  title: string
-  item: IntervalBarChartItem
-}>()
+  const props = defineProps<{
+    title: string,
+    item: IntervalBarChartItem,
+  }>()
 </script>
 
 <style lang="scss">

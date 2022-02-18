@@ -4,6 +4,7 @@ mkdocs
 mkdocs-material
 mkdocstrings
 mock; python_version < '3.8'
+moto
 mypy 
 pre-commit
 pytest

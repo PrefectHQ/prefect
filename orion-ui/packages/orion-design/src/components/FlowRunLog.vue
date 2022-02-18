@@ -16,14 +16,14 @@
 </template>
 
 <script lang="ts">
-  import CopyButton from './CopyButton.vue'
-  import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
   import { formatDateTimeNumeric, formatTimeNumeric } from '..'
-  import { Log } from '../models'
-  import { logLevelLabel } from '../utilities'
-  import LogLevelLabel from './LogLevelLabel.vue'
-  import TaskRunLink from './TaskRunLink.vue'
+  import CopyButton from '@/components/CopyButton.vue'
+  import LogLevelLabel from '@/components/LogLevelLabel.vue'
+  import TaskRunLink from '@/components/TaskRunLink.vue'
+  import { Log } from '@/models'
+  import { logLevelLabel } from '@/utilities'
+  import { snakeCase } from '@/utilities/strings'
 
   export default defineComponent({
     name: 'FlowRunLog',

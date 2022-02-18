@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/member-ordering */
-import { GlobalFilter, RunState, RunTimeFrame } from '@/typings/global'
+import { GlobalFilter, RunState, RunTimeFrame } from '@/types/filters/global'
 
 export class GlobalFilterDefaults implements GlobalFilter {
   private readonly defaultStates: RunState[] = [
@@ -24,9 +24,11 @@ export class GlobalFilterDefaults implements GlobalFilter {
 
   public flows = {}
   public deployments = {}
+  // eslint-disable-next-line camelcase
   public flow_runs = {
     timeframe: this.defaultTimeFrame,
     states: this.defaultStates,
   }
+  // eslint-disable-next-line camelcase
   public task_runs = {}
 }

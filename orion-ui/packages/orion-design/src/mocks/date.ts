@@ -1,4 +1,4 @@
-import { MockFunction } from '../services'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomDate: MockFunction<Date> = function(start?: Date, end?: Date) {
   if (!start) {
