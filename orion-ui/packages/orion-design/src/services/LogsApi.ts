@@ -1,5 +1,6 @@
 import { AxiosResponse } from 'axios'
 import { LogsRequestFilter } from '..'
+import { Route } from '.'
 import { Log } from '@/models/Log'
 import { Api } from '@/services/Api'
 
@@ -17,7 +18,7 @@ export type ILogResponse = {
 
 export class LogsApi extends Api {
 
-  protected route: string = '/api/logs'
+  protected route: Route = '/logs'
 
   public filter(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post('/filter', filter).then(response => this.logsResponseMapper(response))

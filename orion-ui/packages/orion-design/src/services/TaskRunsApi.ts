@@ -1,4 +1,5 @@
 import { AxiosResponse } from 'axios'
+import { Route } from '.'
 import { StateType } from '@/models/StateType'
 import { TaskRun } from '@/models/TaskRun'
 import { Api } from '@/services/Api'
@@ -35,7 +36,7 @@ export type ITaskRunResponse = {
 
 export class TaskRunsApi extends Api {
 
-  protected route: string = '/api/task_runs'
+  protected route: Route = '/task_runs'
 
   public getTaskRun(id: string): Promise<TaskRun> {
     return this.get(`/${id}`).then(response => this.taskRunResponseMapper(response))

@@ -1,4 +1,4 @@
-import { Api } from '@/services/Api'
+import { Api, Route } from '@/services/Api'
 import { Filter } from '@/types/filters'
 
 export type SavedSearchRequest = {
@@ -16,7 +16,7 @@ export type SavedSearchResponse = {
 
 export class SearchApi extends Api {
 
-  protected route: string = '/api/saved_searches'
+  protected route: Route = '/saved_searches'
 
   public createSearch(name: string, filters: Filter[]): Promise<SavedSearchResponse> {
     return this.put<SavedSearchResponse>('/', {

@@ -1,3 +1,4 @@
+import { Route } from '.'
 import { Api } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 
@@ -8,7 +9,7 @@ export type IFlowRunResponse = {
 
 export class FlowRunsApi extends Api {
 
-  protected route: string = '/api/flow_runs'
+  protected route: Route = '/flow_runs'
 
   public getFlowRun(id: string): Promise<IFlowRunResponse> {
     return this.get<IFlowRunResponse>(`/${id}`).then(response => response.data)
