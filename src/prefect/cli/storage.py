@@ -2,6 +2,7 @@
 Command line interface for managing storage settings
 """
 import json
+
 import pendulum
 import typer
 from rich.pretty import Pretty
