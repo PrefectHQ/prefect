@@ -1,6 +1,7 @@
 """
 Command line interface for managing storage settings
 """
+import json
 import pendulum
 import typer
 from rich.pretty import Pretty
@@ -21,7 +22,7 @@ app.add_typer(storage_config_app)
 @sync_compatible
 async def configure(storage_type: str):
 
-    valid_storageblocks = {"temp", "local", "orion", "s3"}
+    valid_storageblocks = {"temp", "local", "orion", "s3", "gcs"}
     if storage_type not in valid_storageblocks:
         exit_with_error(
             f"Invalid storage type: pick one of {list(valid_storageblocks)}"
@@ -96,6 +97,38 @@ async def configure(storage_type: str):
 
             await client.create_block(
                 name="ORION-CONFIG-STORAGE", blockref="s3storage-block", **s3_data
+            )
+        elif storage_type == "gcs":
+            console.print("Follow the prompts to configure Google Cloud Storage")
+            gcs_data = dict()
+
+            gcs_data["project"] = typer.prompt(
+                "Which GCP project would like to use for storage?",
+                default=None,
+                show_default=True,
+            )
+
+            gcs_data["bucket"] = typer.prompt(
+                "To which GCS bucket would you like to persist data?"
+            )
+
+            path_to_service_account_credentials = typer.prompt(
+                "What is the path to your service account credentials file?",
+                default=None,
+                show_default=True,
+            )
+            try:
+                with open(path_to_service_account_credentials, "r") as sa_creds_file:
+                    gcs_data["service_account_info"] = json.load(sa_creds_file)
+            except FileNotFoundError:
+                exit_with_error("Unable to find service account credentials file")
+            except json.JSONDecodeError:
+                exit_with_error(
+                    "Unable to parse service account credentials file. Is it a valid json file?"
+                )
+
+            await client.create_block(
+                name="ORION-CONFIG-STORAGE", blockref="googlecloudstorage-block", **gcs_data
             )
 
         exit_with_success("Successfully configured Orion storage location!")
