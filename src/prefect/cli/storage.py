@@ -128,7 +128,9 @@ async def configure(storage_type: str):
                 )
 
             await client.create_block(
-                name="ORION-CONFIG-STORAGE", blockref="googlecloudstorage-block", **gcs_data
+                name="ORION-CONFIG-STORAGE",
+                blockref="googlecloudstorage-block",
+                **gcs_data,
             )
 
         exit_with_success("Successfully configured Orion storage location!")
