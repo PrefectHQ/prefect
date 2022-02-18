@@ -1,6 +1,7 @@
 import filecmp
 import json
 import os
+import copy
 import re
 import shutil
 import sys
@@ -172,7 +173,8 @@ class Docker(Storage):
 
         self.base_url = base_url or os.environ.get("DOCKER_HOST", default_url)
         self.tls_config = tls_config
-        self.build_kwargs = build_kwargs or {}
+        self.build_kwargs = copy.copy(build_kwargs) or {}
+        self.rm_build_kwarg = self.build_kwargs.pop("rm", True)
         self.extra_dockerfile_commands = extra_dockerfile_commands
 
         version = prefect.__version__.split("+")
@@ -380,6 +382,7 @@ class Docker(Storage):
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
+                rm=self.rm_build_kwarg,
                 **self.build_kwargs,
             )
             self._parse_generator_output(output)
