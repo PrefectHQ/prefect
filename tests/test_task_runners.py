@@ -1,7 +1,6 @@
 import subprocess
 import sys
 import time
-from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -9,8 +8,6 @@ import anyio
 import cloudpickle
 import distributed
 import pytest
-import ray
-import ray.cluster_utils
 
 import prefect
 
@@ -28,6 +25,9 @@ from prefect.task_runners import (
     RayTaskRunner,
     SequentialTaskRunner,
 )
+
+
+PYTHON_MINOR_VERSION = sys.version_info[1]
 
 
 @pytest.fixture
@@ -82,8 +82,16 @@ def ray_task_runner_with_existing_cluster(
 
 
 @pytest.fixture(scope="module")
+def ray():
+    import ray
+    import ray.cluster_utils
+
+    yield ray
+
+
+@pytest.fixture(scope="module")
 @pytest.mark.service("ray")
-def inprocess_ray_cluster():
+def inprocess_ray_cluster(ray):
     """
     Starts a ray cluster in-process
     """
@@ -204,35 +212,58 @@ def parameterize_with_task_runners(*values):
     )
 
 
-parameterize_with_all_task_runners = parameterize_with_task_runners(
+all_task_runners = [
     default_sequential_task_runner,
     default_concurrent_task_runner,
-    # ray
-    default_ray_task_runner,
-    ray_task_runner_with_existing_cluster,
-    ray_task_runner_with_inprocess_cluster,
     # dask
     default_dask_task_runner,
     dask_task_runner_with_existing_cluster,
     dask_task_runner_with_process_pool,
     dask_task_runner_with_thread_pool,
-)
+]
 
-
-parameterize_with_parallel_task_runners = parameterize_with_task_runners(
+parallel_task_runners = [
     default_concurrent_task_runner,
-    # ray
-    default_ray_task_runner,
-    ray_task_runner_with_existing_cluster,
     # dask
     dask_task_runner_with_existing_cluster,
     default_dask_task_runner,
-)
+]
 
+
+# Add ray tests if running on supported Python versions
+if PYTHON_MINOR_VERSION < 10:
+    all_task_runners.extend(
+        [
+            default_ray_task_runner,
+            ray_task_runner_with_existing_cluster,
+            ray_task_runner_with_inprocess_cluster,
+        ]
+    )
+
+    parallel_task_runners.append(
+        [
+            default_ray_task_runner,
+            ray_task_runner_with_existing_cluster,
+        ]
+    )
+
+parameterize_with_all_task_runners = parameterize_with_task_runners(*all_task_runners)
+
+parameterize_with_parallel_task_runners = parameterize_with_task_runners(
+    *parallel_task_runners
+)
 
 parameterize_with_sequential_task_runners = parameterize_with_task_runners(
     default_sequential_task_runner
 )
+
+
+@pytest.mark.skipif(
+    PYTHON_MINOR_VERSION > 9,
+    reason=f"Skipping ray tests because ray does not support Python 3.{PYTHON_MINOR_VERSION}.",
+)
+def test_ray_compatible_python_version():
+    """A test that informs users that we skipped ray tests"""
 
 
 async def test_task_runner_cannot_be_started_while_running():
