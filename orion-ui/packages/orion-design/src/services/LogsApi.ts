@@ -1,7 +1,7 @@
 import { AxiosResponse } from 'axios'
 import { LogsRequestFilter } from '..'
-import { Log } from '../models/Log'
-import { Api } from './Api'
+import { Log } from '@/models/Log'
+import { Api } from '@/services/Api'
 
 export type ILogResponse = {
   id: string,
@@ -42,4 +42,4 @@ export class LogsApi extends Api {
   }
 }
 
-export const Logs = new LogsApi()
+export const logsApi = new LogsApi()

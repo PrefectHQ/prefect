@@ -3,7 +3,7 @@ import { MutationTree } from 'vuex'
 import { GlobalFilter, RunState, RunTimeFrame } from '@/typings/global'
 
 interface TimeFramePayload extends RunTimeFrame {
-  object: 'flow_runs' | 'task_runs'
+  object: 'flow_runs' | 'task_runs',
 }
 
 export const mutations: MutationTree<GlobalFilter> = {
@@ -23,16 +23,16 @@ export const mutations: MutationTree<GlobalFilter> = {
   },
   states(
     state: GlobalFilter,
-    payload: { object: 'task_runs' | 'flow_runs'; states: RunState[] }
+    payload: { object: 'task_runs' | 'flow_runs', states: RunState[] },
   ) {
     state[payload.object].states = payload.states
   },
   tags(
     state: GlobalFilter,
     payload: {
-      object: 'task_runs' | 'flow_runs' | 'deployments' | 'flows'
-      tags: string[]
-    }
+      object: 'task_runs' | 'flow_runs' | 'deployments' | 'flows',
+      tags: string[],
+    },
   ) {
     state[payload.object].tags = payload.tags
   },
@@ -40,7 +40,7 @@ export const mutations: MutationTree<GlobalFilter> = {
     state[timeframe.object].timeframe = {
       dynamic: timeframe.dynamic,
       from: timeframe.from,
-      to: timeframe.to
+      to: timeframe.to,
     }
-  }
+  },
 }

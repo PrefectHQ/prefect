@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import State, { IState } from './state'
+import { StateNames } from '@prefecthq/orion-design'
 import faker from 'faker'
+import State, { IState } from './state'
 import { fakerRandomState } from '@/utilities/faker'
-import { StateNames } from '@/types/states'
 
 export default class StateMock extends State {
   constructor(state: Partial<IState> = {}) {
@@ -24,7 +24,7 @@ export default class StateMock extends State {
       message,
       state_details,
       data,
-      timestamp
+      timestamp,
     })
   }
 }

@@ -16,7 +16,7 @@ $ python -m asyncio
 </div>
 """
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -27,11 +27,12 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
+from prefect.blocks.core import BlockAPI, get_blockapi
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.core import BlockData, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -138,9 +139,14 @@ class OrionClient:
 
     @property
     def api_url(self) -> str:
+        """
+        Get the base url for the API
+        """
         return self._client.base_url
 
-    async def post(self, route: str, **kwargs) -> httpx.Response:
+    async def post(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a POST request to the provided route.
 
@@ -155,13 +161,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.post(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def patch(self, route: str, **kwargs) -> httpx.Response:
+    async def patch(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a PATCH request to the provided route.
 
@@ -176,10 +184,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.patch(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def delete(self, route: str, **kwargs) -> httpx.Response:
+    async def delete(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a DELETE request to the provided route.
 
@@ -194,12 +207,16 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.delete(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     async def get(
         self,
         route: str,
+        raise_for_status: bool = True,
         **kwargs,
     ) -> httpx.Response:
         """
@@ -216,10 +233,10 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.get(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     # API methods ----------------------------------------------------------------------
@@ -522,7 +539,6 @@ class OrionClient:
 
         Args:
             tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
             httpx.RequestError: if the concurrency limit was not created for any reason
@@ -595,6 +611,142 @@ class OrionClient:
                 raise e
 
         return True
+
+    async def create_block(
+        self,
+        name: str,
+        blockref: str,
+        **fields,
+    ) -> Optional[UUID]:
+        """
+        Create block data in Orion. This data is used to configure a corresponding
+        BlockAPI.
+        """
+        raw_block = {
+            "blockname": name,
+            "blockref": blockref,
+            **fields,
+        }
+
+        block_create = schemas.actions.BlockCreate(block=raw_block)
+        try:
+            response = await self.post(
+                "/blocks/",
+                json=block_create.dict(json_compatible=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                return False
+            else:
+                raise e
+
+        return UUID(response.json().get("id"))
+
+    async def update_block_name(
+        self,
+        name: str,
+        new_name: str,
+        raise_for_status: bool = True,
+    ):
+
+        block_data_update = schemas.actions.BlockDataUpdate(name=new_name)
+
+        try:
+            response = await self.patch(
+                f"/blocks/name/{name}",
+                json=block_data_update.dict(json_compatible=True),
+                raise_for_status=raise_for_status,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
+
+    async def delete_block_by_name(
+        self,
+        name: str,
+    ):
+        """
+        Delete block with the specified name.
+
+        Args:
+            name: The block name
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            True if the block was deleted, False otherwise.
+        """
+        try:
+            response = await self.delete(
+                f"/blocks/name/{name}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
+
+    async def read_block(
+        self,
+        id: str,
+    ) -> Optional[BlockAPI]:
+        """
+        Read the block data by id.
+
+        Args:
+            id: The block data id.
+
+        Returns:
+            a hydrated block or None if no Block could be found
+        """
+        response = await self.get(
+            f"/blocks/{id}",
+        )
+        raw_block = response.json()
+        block_data_id = raw_block.get("blockid")
+
+        if not block_data_id:
+            return None
+
+        blockapi = get_blockapi(raw_block["blockref"])
+        block = pydantic.parse_obj_as(blockapi, raw_block)
+        return block
+
+    async def read_block_by_name(
+        self,
+        name: str,
+    ):
+        """
+        Read the block data with the specified name.
+
+        Args:
+            name: The block data name.
+
+        Raises:
+            httpx.RequestError: if the block data was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.get(
+            f"/blocks/name/{name}",
+        )
+        raw_block = response.json()
+        block_data_id = raw_block.get("blockid")
+
+        if not block_data_id:
+            return None
+
+        blockapi = get_blockapi(raw_block["blockref"])
+        block = pydantic.parse_obj_as(blockapi, raw_block)
+        return block
 
     async def create_deployment(
         self,
@@ -792,32 +944,43 @@ class OrionClient:
             data: the data to persist
 
         Returns:
-            orion data document pointing to persisted data
+            Orion data document pointing to persisted data.
         """
-        response = await self.post("/data/persist", content=data)
-        orion_doc = DataDocument.parse_obj(response.json())
-        return orion_doc
+
+        try:
+            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
+        except httpx.HTTPStatusError:
+            await self.create_block(
+                name="ORION-CONFIG-STORAGE",
+                blockref="orionstorage-block",
+            )
+            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
+
+        storage_token = await storage_block.write(data)
+        storage_datadoc = DataDocument.encode(
+            encoding="blockstorage",
+            data={"data": storage_token, "blockid": storage_block.blockid},
+        )
+        return storage_datadoc
 
     async def retrieve_data(
         self,
-        orion_datadoc: DataDocument,
+        data_document: DataDocument,
     ) -> bytes:
         """
-        Exchange an orion data document for the data previously persisted.
+        Exchange a storage data document for the data previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            data_document: The data document used to store data.
 
         Returns:
-            the persisted data in bytes
+            The persisted data in bytes.
         """
-        if orion_datadoc.has_cached_data():
-            return orion_datadoc.decode()
-
-        response = await self.post(
-            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
-        )
-        return response.content
+        block_document = data_document.decode()
+        embedded_datadoc = block_document["data"]
+        blockid = block_document["blockid"]
+        storage_block = await self.read_block(blockid)
+        return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
         self, obj: Any, encoder: str = "cloudpickle"
@@ -827,25 +990,25 @@ class OrionClient:
 
         Args:
             obj: the object to persist
-            encoder: an optional encoder for data document
+            encoder: An optional encoder for the data document.
 
         Returns:
-            orion data document pointing to persisted data
+            Data document pointing to persisted data.
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return await self.persist_data(datadoc.json().encode())
 
-    async def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
+    async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
         """
-        Exchange an orion data document for the object previously persisted.
+        Exchange a data document for the object previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            storage_datadoc: The storage data document to retrieve.
 
         Returns:
             the persisted object
         """
-        datadoc = DataDocument.parse_raw(await self.retrieve_data(orion_datadoc))
+        datadoc = DataDocument.parse_raw(await self.retrieve_data(storage_datadoc))
         return datadoc.decode()
 
     async def set_flow_run_state(
@@ -1117,7 +1280,7 @@ class OrionClient:
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
             if server_state.data:
-                if server_state.data.encoding == "orion":
+                if server_state.data.encoding == "blockstorage":
                     datadoc = DataDocument.parse_raw(
                         await self.retrieve_data(server_state.data)
                     )
@@ -1245,7 +1408,7 @@ class OrionClient:
                     return data
 
             if isinstance(data, DataDocument):
-                if data.encoding == "orion":
+                if data.encoding == "blockstorage":
                     data = await self.retrieve_data(data)
                 else:
                     data = data.decode()

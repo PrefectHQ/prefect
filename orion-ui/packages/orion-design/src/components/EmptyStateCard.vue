@@ -3,11 +3,15 @@
     <div class="empty-state-card">
       <div class="empty-state-card__background-image" />
       <div class="empty-state-card__text">
-        <h1 class="empty-state-card__letters">{{header}}</h1>
-        <p class="empty-state-card__letters">{{description}}</p>
+        <h1 class="empty-state-card__letters">
+          {{ header }}
+        </h1>
+        <p class="empty-state-card__letters">
+          {{ description }}
+        </p>
         <router-link :to="link">
           <m-button color="primary" miter icon="pi-add-line">
-            {{buttonText}}
+            {{ buttonText }}
           </m-button>
         </router-link>
       </div>
@@ -17,38 +21,38 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+  import { defineComponent } from 'vue'
 
-export default defineComponent({
+  export default defineComponent({
     name: 'EmptyStateCard',
+    expose: [],
     props: {
       buttonText: {
         type: String,
         required: true,
       },
+
       header: {
         type: String,
         required: true,
       },
+
       description: {
         type: String,
         required: true,
       },
+
       link: {
         type:String,
-        required: true
+        required: true,
       },
+
       imagePath: {
         type: String,
         required: true,
       },
-      imageAltText: {
-        type: String,
-        required: true,
-      }
-    }
-    })
-
+    },
+  })
 </script>
 
 <style lang="scss">
@@ -86,7 +90,7 @@ export default defineComponent({
       align-items: flex-start;
     }
   }
-  
+
   &__letters {
       gap: 8px 0;
       letter-spacing: 0;

@@ -1,31 +1,31 @@
-import { IState } from "./State"
-import { StateType } from "./StateType"
+import { IState } from '@/models/State'
+import { StateType } from '@/models/StateType'
 
 export interface IFlowRun {
-  id: string
-  deploymentId: string
-  flowId: string
-  flowVersion: string
-  idempotencyKey: string | null
-  nextScheduledStartTime: string | null
-  parameters: unknown
-  autoScheduled: boolean
-  context: unknown
-  empericalConfig: unknown
-  empericalPolicy: unknown
-  estimatedRunTime: number
-  estimatedStartTimeDelta: number
-  totalRunTime: number
-  startTime: Date
-  endTime: Date
-  name: string
-  parentTaskRunId: string
-  stateId: string
-  stateType: StateType
-  state: IState
-  tags: string[]
-  taskRunCount: number
-  updated: Date
+  id: string,
+  deploymentId: string,
+  flowId: string,
+  flowVersion: string,
+  idempotencyKey: string | null,
+  nextScheduledStartTime: string | null,
+  parameters: unknown,
+  autoScheduled: boolean,
+  context: unknown,
+  empericalConfig: unknown,
+  empericalPolicy: unknown,
+  estimatedRunTime: number,
+  estimatedStartTimeDelta: number,
+  totalRunTime: number,
+  startTime: Date,
+  endTime: Date,
+  name: string,
+  parentTaskRunId: string,
+  stateId: string,
+  stateType: StateType,
+  state: IState,
+  tags: string[],
+  taskRunCount: number,
+  updated: Date,
 }
 
 export class FlowRun implements IFlowRun {
@@ -54,7 +54,7 @@ export class FlowRun implements IFlowRun {
   public taskRunCount: number
   public updated: Date
 
-  constructor(flow: IFlowRun) {
+  public constructor(flow: IFlowRun) {
     this.id = flow.id
     this.deploymentId = flow.deploymentId
     this.flowId = flow.flowId

@@ -1,10 +1,10 @@
-import { State, States } from '@/types/states'
+import { State, States } from '@prefecthq/orion-design'
 import faker from 'faker'
 
 type NumberOptions = {
-  min?: number | undefined
-  max?: number | undefined
-  precision?: number | undefined
+  min?: number | undefined,
+  max?: number | undefined,
+  precision?: number | undefined,
 }
 type FakerCallback = () => any
 
@@ -22,7 +22,7 @@ export function fakerRandomArray<T extends FakerCallback>(
 ): ReturnType<T>[]
 export function fakerRandomArray<T extends FakerCallback>(
   maxOrOptions: number | NumberOptions,
-  callback: T
+  callback: T,
 ): ReturnType<T>[] {
   const length = faker.datatype.number(maxOrOptions)
 
@@ -30,7 +30,7 @@ export function fakerRandomArray<T extends FakerCallback>(
 }
 
 export function fakerRandomState(
-  states: State[] = Object.values(States)
+  states: State[] = Object.values(States),
 ): State {
   return states[faker.datatype.number(states.length - 1)]
 }
