@@ -26,7 +26,6 @@ from prefect.task_runners import (
     SequentialTaskRunner,
 )
 
-
 PYTHON_MINOR_VERSION = sys.version_info[1]
 
 
