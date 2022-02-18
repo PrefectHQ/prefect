@@ -13,6 +13,9 @@ import ray
 import ray.cluster_utils
 
 import prefect
+
+# Import the local 'tests' module to pickle to ray workers
+import tests
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.futures import PrefectFuture
@@ -68,12 +71,11 @@ def ray_task_runner_with_existing_cluster(
     """
     yield RayTaskRunner(
         address=machine_ray_instance,
-        # The working directory must be passed through to the worker or the test
-        # module will not be importable
         init_kwargs={
             "runtime_env": {
-                "working_dir": str(prefect.__root_path__),
-                "excludes": ["**/.git"],
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
             }
         },
     )
@@ -107,8 +109,9 @@ def ray_task_runner_with_inprocess_cluster(
         address=inprocess_ray_cluster.address,
         init_kwargs={
             "runtime_env": {
-                "working_dir": str(prefect.__root_path__),
-                "excludes": ["**/.git"],
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
             }
         },
     )
@@ -202,12 +205,14 @@ def parameterize_with_task_runners(*values):
 
 
 parameterize_with_all_task_runners = parameterize_with_task_runners(
-    default_dask_task_runner,
     default_sequential_task_runner,
     default_concurrent_task_runner,
+    # ray
     default_ray_task_runner,
     ray_task_runner_with_existing_cluster,
     ray_task_runner_with_inprocess_cluster,
+    # dask
+    default_dask_task_runner,
     dask_task_runner_with_existing_cluster,
     dask_task_runner_with_process_pool,
     dask_task_runner_with_thread_pool,
@@ -215,11 +220,13 @@ parameterize_with_all_task_runners = parameterize_with_task_runners(
 
 
 parameterize_with_parallel_task_runners = parameterize_with_task_runners(
-    default_dask_task_runner,
     default_concurrent_task_runner,
+    # ray
     default_ray_task_runner,
-    dask_task_runner_with_existing_cluster,
     ray_task_runner_with_existing_cluster,
+    # dask
+    dask_task_runner_with_existing_cluster,
+    default_dask_task_runner,
 )
 
 

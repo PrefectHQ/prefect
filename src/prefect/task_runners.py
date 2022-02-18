@@ -701,6 +701,7 @@ class RayTaskRunner(BaseTaskRunner):
             )
 
     async def _shutdown_ray(self):
+        self.logger.debug("Shutting down Ray cluster...")
         self._ray.shutdown()
 
     def _get_ray_ref(self, prefect_future: PrefectFuture) -> "ray.ObjectRef":
