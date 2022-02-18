@@ -4,7 +4,6 @@ tags:
     - Orion
     - UI
     - dashboard
-    - configuration
     - Cloud
 ---
 
@@ -41,32 +40,6 @@ Prefect Cloud provides a hosted server and UI instance for running and monitorin
 - The option to create multiple workspaces to organize flows by team, project, or business function.
 
 See the [Prefect Cloud](/ui/cloud.md) documentation for details about setting up accounts, workspaces, and teams. -->
-
-## Accessing a remote Orion UI
-
-If you are running a Prefect Orion server in a remote environment, such as a Docker container or Kubernetes cluster, you can access the UI in the remote environment via a forwarded public port.
-
-### Forwarding Orion ports to Docker
-
-### Forwarding Orion ports to Kubernetes
-
-To access the Orion UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
-
-```bash
-kubectl port-forward deployment/orion 4200:4200
-```
-
-This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment. You’ll see output like this:
-
-To tell the local `prefect` command how to communicate with the Orion API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
-
-```bash
-export PREFECT_API_URL=http://localhost:4200/api
-```
-
-Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
-
-For a demonstration, see the [Running flows in Kubernetes](/tutorials/kubernetes-flow-runner/) tutorial.
 
 <!-- This section to be removed for moved to dev docs closer to release -->
 ## Using the dev UI
