@@ -64,7 +64,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .date-time-input__picker {
   background-color: $white;
   box-shadow: $box-shadow-sm;
