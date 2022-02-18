@@ -12,6 +12,7 @@ class AWSParametersManager(SecretBase):
     can [configure your flow's runtime
     environment](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#guide-configuration)
     for `boto3`.
+
     Args:
         - parameter_name (str, optional): The name of the parameter to retrieve via SSM.
         - boto_kwargs (dict, optional): Additional keyword arguments to forward to the boto client.
@@ -29,8 +30,13 @@ class AWSParametersManager(SecretBase):
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("parameter_name")
-    def run(self, parameter_name: str = None, credentials: str = None) -> str:
+    @defaults_from_attrs("parameter_name", "boto_kwargs")
+    def run(
+        self,
+        parameter_name: str = None,
+        credentials: str = None,
+        boto_kwargs: dict = None,
+    ) -> str:
         """
         Task run method.
 
@@ -41,6 +47,7 @@ class AWSParametersManager(SecretBase):
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`. If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
+            - boto_kwargs (dict, optional): Additional keyword arguments to forward to the boto client.
 
         Returns:
             - str: The parameter value, as a string.
@@ -49,7 +56,7 @@ class AWSParametersManager(SecretBase):
         if parameter_name is None:
             raise ValueError("A parameter name must be provided.")
 
-        ssm_client = get_boto_client("ssm", credentials=credentials, **self.boto_kwargs)
+        ssm_client = get_boto_client("ssm", credentials=credentials, **boto_kwargs)
 
         parameter_response = ssm_client.get_parameter(Name=parameter_name)
 
