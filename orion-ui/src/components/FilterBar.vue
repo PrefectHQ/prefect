@@ -45,7 +45,6 @@
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
-  const activeElement = computed(() => document.activeElement as HTMLElement)
   const route = useRoute()
 
   const dashboardRoute = 'Dashboard'
@@ -82,7 +81,8 @@
 
   function close(): void {
     menu.value = 'none'
-    activeElement.value.blur()
+    const activeElement = document.activeElement as HTMLElement
+    activeElement.blur()
   }
 
   /**
