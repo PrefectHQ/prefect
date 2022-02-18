@@ -1,4 +1,3 @@
-import asyncio
 import io
 from abc import abstractmethod
 from functools import partial
@@ -7,11 +6,12 @@ from tempfile import gettempdir
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
+import anyio
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
+import prefect
 from prefect.blocks.core import Block, register_block
-from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
@@ -56,18 +56,19 @@ class S3StorageBlock(StorageBlock):
         )
 
     async def write(self, data: bytes):
-        import boto3
-
-        # TODO: make storage nonblocking
-        s3_client = self.aws_session.client("s3")
-        with io.BytesIO(data) as stream:
-            data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
-            s3_client.upload_fileobj(Fileobj=stream, **data_location)
+        data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
+        await run_sync_in_worker_thread(self._write_sync, data_location, data)
         return data_location
 
     async def read(self, data_location):
-        import boto3
+        return await run_sync_in_worker_thread(self._read_sync, data_location)
 
+    def _write_sync(self, data_location: str, data: bytes):
+        s3_client = self.aws_session.client("s3")
+        with io.BytesIO(data) as stream:
+            s3_client.upload_fileobj(Fileobj=stream, **data_location)
+
+    def _read_sync(self, data_location: str) -> bytes:
         s3_client = self.aws_session.client("s3")
         with io.BytesIO() as stream:
             s3_client.download_fileobj(**data_location, Fileobj=stream)
@@ -85,19 +86,20 @@ class TempStorageBlock(StorageBlock):
         return Path(gettempdir())
 
     async def write(self, data):
-        import fsspec
+        # Ensure the basepath exists
+        storage_dir = self.basepath()
+        storage_dir.mkdir(parents=True, exist_ok=True)
 
-        # TODO: make storage nonblocking
-        storage_path = str(self.basepath() / str(uuid4()))
-        with fsspec.open(storage_path, mode="wb") as fp:
-            fp.write(data)
+        # Write data
+        storage_path = str(storage_dir / str(uuid4()))
+        async with await anyio.open_file(storage_path, mode="wb") as fp:
+            await fp.write(data)
+
         return storage_path
 
     async def read(self, storage_path):
-        import fsspec
-
-        with fsspec.open(storage_path, mode="rb") as fp:
-            return fp.read()
+        async with await anyio.open_file(storage_path, mode="rb") as fp:
+            return await fp.read()
 
 
 @register_block("localstorage-block")
@@ -112,23 +114,23 @@ class LocalStorageBlock(StorageBlock):
         )
 
     def basepath(self):
-
         return Path(self._storage_path).absolute()
 
     async def write(self, data):
-        import fsspec
+        # Ensure the basepath exists
+        storage_dir = self.basepath()
+        storage_dir.mkdir(parents=True, exist_ok=True)
 
-        # TODO: make storage nonblocking
-        storage_path = str(self.basepath() / str(uuid4()))
-        with fsspec.open(storage_path, mode="wb") as fp:
-            fp.write(data)
+        # Write data
+        storage_path = str(storage_dir / str(uuid4()))
+        async with await anyio.open_file(storage_path, mode="wb") as fp:
+            await fp.write(data)
+
         return storage_path
 
     async def read(self, storage_path):
-        import fsspec
-
-        with fsspec.open(storage_path, mode="rb") as fp:
-            return fp.read()
+        async with await anyio.open_file(storage_path, mode="rb") as fp:
+            return await fp.read()
 
 
 @register_block("orionstorage-block")
@@ -137,16 +139,12 @@ class OrionStorageBlock(StorageBlock):
         pass
 
     async def write(self, data):
-        from prefect.client import get_client
-
-        async with get_client() as client:
+        async with prefect.get_client() as client:
             response = await client.post("/data/persist", content=data)
             return response.json()
 
     async def read(self, path_payload):
-        from prefect.client import get_client
-
-        async with get_client() as client:
+        async with prefect.get_client() as client:
             response = await client.post("/data/retrieve", json=path_payload)
             return response.content
 
