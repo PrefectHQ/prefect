@@ -1,19 +1,19 @@
+import os
 import time
 from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
+from cryptography.fernet import Fernet, InvalidToken
 
 from prefect.orion import models, schemas
 from prefect.orion.models.block_data import pack_blockdata, unpack_blockdata
 from tests.fixtures.database import session
 
 
-class TestBlockDatas:
-    async def test_creating_block_datii_then_reading_as_blocks(self, session):
-        # the plural of data is datii right?
-
+class TestBlockData:
+    async def test_creating_block_data_then_reading_by_name_as_blocks(self, session):
         blockdata = await models.block_data.create_block_data(
             session=session,
             block_data=schemas.core.BlockData(
@@ -24,7 +24,7 @@ class TestBlockDatas:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data == dict()
+        assert blockdata.data != dict(), "block data is encrypted"
 
         block = await models.block_data.read_block_data_by_name_as_block(
             session=session, name="hi-im-some-blockdata"
@@ -33,19 +33,23 @@ class TestBlockDatas:
         assert isinstance(block, dict)
         assert block["blockname"] == blockdata.name
         assert block["blockref"] == blockdata.blockref
+        assert (
+            len(block) == 3
+        ), "because the data field is empty, the unpacked block will have only 3 fields"
 
-    async def test_creating_block_datees_then_reading_as_blocks(self, session):
+    async def test_creating_block_data_then_reading_as_blocks(self, session):
 
         blockdata = await models.block_data.create_block_data(
             session=session,
             block_data=schemas.core.BlockData(
                 name="hi-im-some-blockdata",
                 blockref="a-definitely-implemented-stateful-api",
-                data=dict(),
+                data=dict(realdata=42),
             ),
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
+        assert blockdata.data != dict(realdata=42), "block data is encrypted"
 
         block = await models.block_data.read_block_data_as_block(
             session=session, block_data_id=blockdata.id
@@ -54,8 +58,35 @@ class TestBlockDatas:
         assert isinstance(block, dict)
         assert block["blockname"] == blockdata.name
         assert block["blockref"] == blockdata.blockref
+        assert block["blockref"] == blockdata.blockref
+        assert block["realdata"] == 42
 
-    async def test_deleting_block_datums(self, session):
+    async def test_environment_variable_encryption_key_override(self, session):
+
+        blockdata = await models.block_data.create_block_data(
+            session=session,
+            block_data=schemas.core.BlockData(
+                name="encrypt-me-please",
+                blockref="my-deepest-darkest-secret",
+                data=dict(favorite_band="nsync"),
+            ),
+        )
+        assert blockdata.name == "encrypt-me-please"
+        assert blockdata.blockref == "my-deepest-darkest-secret"
+        assert "favorite_band" not in blockdata.data, "block data is encrypted"
+
+        old_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
+        os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
+
+        with pytest.raises(InvalidToken):
+            bad_block = await models.block_data.read_block_data_as_block(
+                session=session, block_data_id=blockdata.id
+            )
+
+        if old_key:
+            os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = old_key
+
+    async def test_deleting_block_data(self, session):
 
         blockdata = await models.block_data.create_block_data(
             session=session,
@@ -93,7 +124,7 @@ class TestBlockDatas:
             block_data=schemas.core.BlockData(
                 name="2d-lattice",
                 blockref="transfer-matrix-methods",
-                data=dict(),
+                data=dict(interactions="ising model"),
             ),
         )
 
@@ -142,9 +173,7 @@ class TestBlockDatas:
             "also_needs": "smith",
         }
 
-        packed_blockdata = schemas.core.BlockData(
-            **pack_blockdata(starting_blockdata.copy())
-        )
+        packed_blockdata = pack_blockdata(starting_blockdata.copy())
         roundtrip_blockdata = unpack_blockdata(packed_blockdata)
-        roundtrip_blockdata.pop("blockid")
+        roundtrip_blockdata.pop("blockid", None)
         assert starting_blockdata == roundtrip_blockdata

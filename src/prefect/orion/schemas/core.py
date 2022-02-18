@@ -334,6 +334,13 @@ class BlockData(ORMBaseModel):
     data: dict = Field(default_factory=dict, description="Data used by a BlockAPI")
 
 
+class Configuration(ORMBaseModel):
+    """An ORM representation of account info."""
+
+    key: str = Field(..., description="Account info key")
+    value: dict = Field(..., description="Account info")
+
+
 class SavedSearchFilter(PrefectBaseModel):
     """A filter for a saved search model"""
 
