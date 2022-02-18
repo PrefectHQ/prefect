@@ -35,6 +35,18 @@ Click on a flow run name to display details for a specific flow run.
 
 ![Display details for a specific flow run.](/img/ui/orion-flow-run-details.png)
 
+You can see details about the flow run including:
+
+- State
+- Tags
+- Start and end times and elapsed time
+- Version
+- Timeline of task and subflow runs
+- Task runs
+- Subflow runs
+- Logs
+- [Radar](#radar-view) view of the flow run
+
 Click **Logs** to see log messages for the flow run. See [Logging](/concepts/logs/) for more information about configuring and customizing log messages.
 
 ![Display logs for a specific flow run.](/img/ui/orion-flow-run-logs.png)
@@ -48,5 +60,7 @@ You can use [Filters](/ui/filters/) to display only the task runs that meet your
 ![Display all task runs.](/img/ui/orion-task-runs.png)
 
 ## Radar view
+
+When viewing flow run details, the Radar block shows a simple visualization of the task runs executed within the flow run. Click on the **Radar** block to see a detailed, hierarchical visualization of the task execution paths for the flow run.
 
 ![Radar view of flow and task relationships.](/img/ui/orion-flow-radar.png)
