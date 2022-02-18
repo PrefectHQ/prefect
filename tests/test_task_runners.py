@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -26,7 +27,11 @@ from prefect.task_runners import (
     SequentialTaskRunner,
 )
 
-PYTHON_MINOR_VERSION = sys.version_info[1]
+breakpoint()
+if sys.version_info[1] >= 10:
+    RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
+else:
+    RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
 
 
 @pytest.fixture
@@ -47,6 +52,8 @@ def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
     subprocess.check_call(
         ["ray", "start", "--head", "--include-dashboard", "False"],
         cwd=str(prefect.__root_path__),
@@ -68,6 +75,8 @@ def ray_task_runner_with_existing_cluster(
 
     This tests connection via `ray://` which is a client-based connection.
     """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
     yield RayTaskRunner(
         address=machine_ray_instance,
         init_kwargs={
@@ -81,20 +90,15 @@ def ray_task_runner_with_existing_cluster(
 
 
 @pytest.fixture(scope="module")
-def ray():
-    import ray
-    import ray.cluster_utils
-
-    yield ray
-
-
-@pytest.fixture(scope="module")
 @pytest.mark.service("ray")
-def inprocess_ray_cluster(ray):
+def inprocess_ray_cluster():
     """
     Starts a ray cluster in-process
     """
-    cluster = ray.cluster_utils.Cluster(initialize_head=True)
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+    cluster_utils = pytest.importorskip("ray.cluster_utils")
+
+    cluster = cluster_utils.Cluster(initialize_head=True)
     try:
         cluster.add_node()  # We need to add a second node for parallelism
         yield cluster
@@ -112,6 +116,8 @@ def ray_task_runner_with_inprocess_cluster(
 
     This tests connection via 'localhost' which is not a client-based connection.
     """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
     yield RayTaskRunner(
         address=inprocess_ray_cluster.address,
         init_kwargs={
@@ -172,6 +178,8 @@ def default_concurrent_task_runner():
 @pytest.fixture
 @pytest.mark.service("ray")
 def default_ray_task_runner():
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
     yield RayTaskRunner()
 
 
@@ -211,58 +219,35 @@ def parameterize_with_task_runners(*values):
     )
 
 
-all_task_runners = [
+parameterize_with_all_task_runners = parameterize_with_task_runners(
     default_sequential_task_runner,
     default_concurrent_task_runner,
+    # ray
+    default_ray_task_runner,
+    ray_task_runner_with_existing_cluster,
+    ray_task_runner_with_inprocess_cluster,
     # dask
     default_dask_task_runner,
     dask_task_runner_with_existing_cluster,
     dask_task_runner_with_process_pool,
     dask_task_runner_with_thread_pool,
-]
+)
 
-parallel_task_runners = [
+
+parameterize_with_parallel_task_runners = parameterize_with_task_runners(
     default_concurrent_task_runner,
+    # ray
+    default_ray_task_runner,
+    ray_task_runner_with_existing_cluster,
     # dask
     dask_task_runner_with_existing_cluster,
     default_dask_task_runner,
-]
-
-
-# Add ray tests if running on supported Python versions
-if PYTHON_MINOR_VERSION < 10:
-    all_task_runners.extend(
-        [
-            default_ray_task_runner,
-            ray_task_runner_with_existing_cluster,
-            ray_task_runner_with_inprocess_cluster,
-        ]
-    )
-
-    parallel_task_runners.append(
-        [
-            default_ray_task_runner,
-            ray_task_runner_with_existing_cluster,
-        ]
-    )
-
-parameterize_with_all_task_runners = parameterize_with_task_runners(*all_task_runners)
-
-parameterize_with_parallel_task_runners = parameterize_with_task_runners(
-    *parallel_task_runners
 )
+
 
 parameterize_with_sequential_task_runners = parameterize_with_task_runners(
     default_sequential_task_runner
 )
-
-
-@pytest.mark.skipif(
-    PYTHON_MINOR_VERSION > 9,
-    reason=f"Skipping ray tests because ray does not support Python 3.{PYTHON_MINOR_VERSION}.",
-)
-def test_ray_compatible_python_version():
-    """A test that informs users that we skipped ray tests"""
 
 
 async def test_task_runner_cannot_be_started_while_running():
