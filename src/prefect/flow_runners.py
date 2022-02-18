@@ -641,7 +641,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Update local connections to use the docker host
 
-        if PREFECT_API_URL.value():
+        if PREFECT_API_URL:
             api_url = (
                 PREFECT_API_URL.value()
                 .replace("localhost", "host.docker.internal")
