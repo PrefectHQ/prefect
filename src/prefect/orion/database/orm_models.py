@@ -728,6 +728,16 @@ class ORMBlockData:
 
 
 @declarative_mixin
+class ORMConfiguration:
+    key = sa.Column(sa.String, nullable=False, index=True)
+    value = sa.Column(JSON, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -816,6 +826,7 @@ class BaseORMConfiguration(ABC):
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_data_mixin: block data orm mixin, combined with Base orm class
+        configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
 
@@ -836,6 +847,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         block_data_mixin=ORMBlockData,
+        configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -878,6 +890,7 @@ class BaseORMConfiguration(ABC):
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
             block_data_mixin=block_data_mixin,
+            configuration_mixin=configuration_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -914,6 +927,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         block_data_mixin=ORMBlockData,
+        configuration_mixin=ORMConfiguration,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -959,6 +973,9 @@ class BaseORMConfiguration(ABC):
         class BlockData(block_data_mixin, self.Base):
             pass
 
+        class Configuration(configuration_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -972,6 +989,7 @@ class BaseORMConfiguration(ABC):
         self.WorkQueue = WorkQueue
         self.Agent = Agent
         self.BlockData = BlockData
+        self.Configuration = Configuration
 
     @property
     @abstractmethod
