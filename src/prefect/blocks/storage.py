@@ -1,13 +1,19 @@
+import asyncio
 import io
 from abc import abstractmethod
+from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
+
+from google.cloud import storage as gcs
+from google.oauth2 import service_account
 
 from prefect.blocks.core import BlockAPI, register_blockapi
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import Settings
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 class OrionStorageAPI(BlockAPI):
@@ -143,3 +149,34 @@ class OrionStorageBlock(OrionStorageAPI):
         async with get_client() as client:
             response = await client.post("/data/retrieve", json=path_payload)
             return response.content
+
+
+@register_blockapi("googlecloudstorage-block")
+class GoogleCloudStorageBlock(OrionStorageAPI):
+    bucket: str
+    project: Optional[str]
+    service_account_info: Optional[Dict[str, str]]
+
+    def block_initialization(self) -> None:
+        if self.service_account_info:
+            credentials = service_account.Credentials.from_service_account_info(
+                self.service_account_info
+            )
+            self.storage_client = gcs.Client(
+                project=self.project or credentials.project_id, credentials=credentials
+            )
+        else:
+            self.storage_client = gcs.Client(project=self.project)
+
+    async def read(self, key: str):
+        bucket = self.storage_client.bucket(self.bucket)
+        blob = bucket.blob(key)
+        return await run_sync_in_worker_thread(blob.download_as_bytes)
+
+    async def write(self, data: bytes):
+        bucket = self.storage_client.bucket(self.bucket)
+        key = str(uuid4())
+        blob = bucket.blob(key)
+        upload = partial(blob.upload_from_string, data)
+        await run_sync_in_worker_thread(upload)
+        return key
