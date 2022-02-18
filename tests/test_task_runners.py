@@ -624,7 +624,7 @@ async def test_submit_and_wait(task_runner):
         assert fut.task_run == task_run, "the future should have the same task run"
         assert fut.asynchronous == True
 
-        state = await task_runner.wait(fut, 2)
+        state = await task_runner.wait(fut, 5)
         assert state is not None, "wait timed out"
         assert isinstance(state, State), "wait should return a state"
         assert state.result() == 1
