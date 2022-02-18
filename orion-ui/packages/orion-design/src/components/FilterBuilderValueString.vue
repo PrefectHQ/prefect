@@ -41,7 +41,7 @@
   // ]
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-value-string {
   display: grid;
   gap: var(--m-1);
