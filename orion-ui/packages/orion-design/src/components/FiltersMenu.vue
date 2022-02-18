@@ -101,7 +101,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use 'sass:map';
 
 .filters-menu {

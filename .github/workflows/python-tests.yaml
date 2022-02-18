@@ -12,7 +12,8 @@ on:
       - main
 
 env:
-  MINIMUM_PYTHON_VERSION: 3.7
+  MINIMUM_PYTHON_VERSION: "3.7"
+
 
 jobs:
   build-test-images:
@@ -21,9 +22,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
 
     steps:
       - name: Set up Docker Buildx
@@ -62,9 +64,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
         os:
           - ubuntu-latest
           # - windows-latest
@@ -112,9 +115,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
         os:
           - ubuntu-latest
           # windows backend doesn't support containers

@@ -273,9 +273,7 @@ async def begin_flow_run(
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = (
-        repr(terminal_state) if PREFECT_DEBUG_MODE.value() else str(terminal_state)
-    )
+    display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
 
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
@@ -366,9 +364,7 @@ async def create_and_begin_subflow_run(
         )
 
     # Display the full state (including the result) if debugging
-    display_state = (
-        repr(terminal_state) if PREFECT_DEBUG_MODE.value() else str(terminal_state)
-    )
+    display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
@@ -434,7 +430,7 @@ async def orchestrate_flow_run(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
 
-                if PREFECT_DEBUG_MODE.value():
+                if PREFECT_DEBUG_MODE:
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -747,7 +743,7 @@ async def orchestrate_task_run(
             terminal_state, task_run_id=task_run.id
         )
 
-        if state.type != terminal_state.type and PREFECT_DEBUG_MODE.value():
+        if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
                 extra={"send_to_orion": False},
@@ -764,7 +760,7 @@ async def orchestrate_task_run(
             )
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = repr(state) if PREFECT_DEBUG_MODE.value() else str(state)
+    display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
