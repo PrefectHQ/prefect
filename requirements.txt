@@ -15,6 +15,7 @@ fsspec >= 2021.7.0
 httpx >= 0.18
 kubernetes >= 17.17.0
 pendulum >= 2.1.2
+pickle5 >= 0.0.11; python_version < '3.8'
 pydantic >= 1.8.2
 pyyaml >= 5.1b1
 pytz >= 2021.1
