@@ -1,6 +1,8 @@
 import asyncio
 from itertools import product
 from tempfile import TemporaryDirectory
+from unittest import mock
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
@@ -47,3 +49,34 @@ def test_s3_block_write_and_read_roundtrips(user_data):
 
     storage_token = asyncio.run(storage_block.write(user_data))
     assert asyncio.run(storage_block.read(storage_token)) == user_data
+
+
+@pytest.mark.parametrize("user_data", TEST_DATA)
+async def test_gcs_block_write_and_read_roundtrips(user_data, monkeypatch):
+    mock_bucket = {}
+    gcs_mock = MagicMock(
+        Client=MagicMock(
+            return_value=MagicMock(
+                bucket=MagicMock(
+                    return_value=MagicMock(
+                        blob=MagicMock(
+                            side_effect=lambda key: MagicMock(
+                                upload_from_string=lambda data: mock_bucket.update(
+                                    {key: data}
+                                ),
+                                download_as_bytes=lambda: mock_bucket.get(key),
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+    monkeypatch.setattr("prefect.blocks.storage.gcs", gcs_mock)
+
+    storage_block = storage.GoogleCloudStorageBlock.parse_obj(
+        {"blockref": "googlecloudstorage-block", "bucket": "leaky"}
+    )
+
+    key = await storage_block.write(user_data)
+    assert await storage_block.read(key) == user_data
