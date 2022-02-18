@@ -26,7 +26,7 @@
   const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run']
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-object {
   display: flex;
   gap: var(--m-1);

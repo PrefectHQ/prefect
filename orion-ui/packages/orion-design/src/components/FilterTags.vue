@@ -22,7 +22,7 @@
   defineProps<Props>()
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-tags {
   display: flex;
   gap: var(--m-1)
