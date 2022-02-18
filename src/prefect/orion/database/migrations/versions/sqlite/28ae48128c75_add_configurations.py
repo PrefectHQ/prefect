@@ -1,18 +1,18 @@
-"""Add the configuration table.
+"""Add the configurations table.
 
-Revision ID: 448f174ce8de
-Revises: 5f376def75c3
-Create Date: 2022-02-17 18:20:28.540389
+Revision ID: 28ae48128c75
+Revises: 7c91cb86dc4e
+Create Date: 2022-02-17 21:17:37.538086
 
 """
-import sqlalchemy as sa
 from alembic import op
-
+import sqlalchemy as sa
 import prefect
 
+
 # revision identifiers, used by Alembic.
-revision = "448f174ce8de"
-down_revision = "5f376def75c3"
+revision = "28ae48128c75"
+down_revision = "7c91cb86dc4e"
 branch_labels = None
 depends_on = None
 
@@ -24,25 +24,27 @@ def upgrade():
         sa.Column(
             "id",
             prefect.orion.utilities.database.UUID(),
-            server_default=sa.text("(GEN_RANDOM_UUID())"),
+            server_default=sa.text(
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+            ),
             nullable=False,
         ),
         sa.Column(
             "created",
             prefect.orion.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
+            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
             nullable=False,
         ),
         sa.Column(
             "updated",
             prefect.orion.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("CURRENT_TIMESTAMP"),
+            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
             nullable=False,
         ),
         sa.Column("key", sa.String(), nullable=False),
         sa.Column(
             "value",
-            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.orion.utilities.database.JSON(astext_type=Text()),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_configuration")),
