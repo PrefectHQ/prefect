@@ -63,7 +63,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .copy-button {
   display: inline-flex;
   align-items: center;
