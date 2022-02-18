@@ -86,7 +86,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .tab-set {
     margin: 40px auto;
 }
