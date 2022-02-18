@@ -99,11 +99,10 @@ class VaultSecret(SecretBase):
             and "VAULT_KUBE_AUTH_PATH" in vault_creds.keys()
         ):
 
-            token_file = ""
-            if "VAULT_KUBE_TOKEN_FILE" in vault_creds.keys():
-                token_file = vault_creds["VAULT_KUBE_TOKEN_FILE"]
-            else:
-                token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+            token_file = vault_creds.get(
+                "VAULT_KUBE_TOKEN_FILE",
+                "/var/run/secrets/kubernetes.io/serviceaccount/token",
+            )
 
             with open(token_file, "r") as f:
                 jwt = f.read()
