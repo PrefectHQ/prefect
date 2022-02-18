@@ -140,7 +140,7 @@ class OrionClient:
     @property
     def api_url(self) -> str:
         """
-        Get the base url for the API
+        Get the base url for the API.
         """
         return self._client.base_url
 
