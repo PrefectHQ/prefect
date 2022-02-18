@@ -141,7 +141,7 @@ async def create_then_begin_flow_run(
     """
     Async entrypoint for flow calls
 
-    Creates the flow run in the backend then enters the main flow rum engine
+    Creates the flow run in the backend, then enters the main flow run engine.
     """
     can_connect = await client.api_healthcheck()
     if not can_connect:

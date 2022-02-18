@@ -562,11 +562,10 @@ class RayTaskRunner(BaseTaskRunner):
     """
     A parallel task_runner that submits tasks to `ray`.
 
-    By default a temporaryray instance is created (and subsequently torn down) within
-    the `start()` contextmanager.
+    By default, a temporary Ray cluster is created for the duration of the flow run.
 
     Alternatively, if you already have a ray instance running, you can provide
-    the connection url via the `address` kwarg.
+    the connection URL via the `address` kwarg.
 
     Args:
         address (string, optional): address of a currently running ray instance; if
@@ -575,12 +574,12 @@ class RayTaskRunner(BaseTaskRunner):
 
     Examples:
 
-        Using a temporary local ray cluster
+        Using a temporary local ray cluster:
         >>> from prefect import flow
         >>> from prefect.task_runners import RayTaskRunner
         >>> @flow(task_runner=RayTaskRunner)
 
-        Connecting to an existing ray instance
+        Connecting to an existing ray instance:
         >>> RayTaskRunner(address="ray://192.0.2.255:8786")
     """
 
@@ -658,11 +657,11 @@ class RayTaskRunner(BaseTaskRunner):
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
-        Start the task runner and prep for context exit
+        Start the task runner and prep for context exit.
 
-        - Creates a cluster if an external address is not set
-        - Creates a client to connect to the cluster
-        - Pushes a call to wait for all running futures to complete on exit
+        - Creates a cluster if an external address is not set.
+        - Creates a client to connect to the cluster.
+        - Pushes a call to wait for all running futures to complete on exit.
         """
         if self.address:
             self.logger.info(
@@ -710,7 +709,7 @@ class RayTaskRunner(BaseTaskRunner):
 
     def _get_ray_ref(self, prefect_future: PrefectFuture) -> "ray.ObjectRef":
         """
-        Retrieve the ray object reference corresponding to a prefect future
+        Retrieve the ray object reference corresponding to a prefect future.
         """
         return self._ray_refs[prefect_future.run_id]
 
