@@ -381,7 +381,7 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runners: Optional[List[str]] = Field(
+    flow_runner_types: Optional[List[str]] = Field(
         None,
         description="Only include flow runs with these flow runner types in the work queue.",
     )

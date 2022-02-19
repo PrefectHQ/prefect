@@ -13,6 +13,7 @@ from . import (
     logs,
     concurrency_limits,
     blocks,
+    work_queues,
     # Server relies on all of the above routes
     server,
 )
