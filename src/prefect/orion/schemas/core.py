@@ -326,7 +326,7 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockData(ORMBaseModel):
+class Block(PrefectBaseModel):
     """An ORM representation of block data."""
 
     name: str = Field(..., description="The block data identifier")

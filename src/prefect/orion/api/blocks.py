@@ -15,7 +15,7 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/blocks", tags=["Block data"])
+router = OrionRouter(prefix="/blocks", tags=["Blocks"])
 
 
 @router.post("/")
