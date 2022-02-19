@@ -6,6 +6,7 @@ Intended for internal use by the Orion API.
 import datetime
 from uuid import UUID
 
+from pydantic import parse_obj_as
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
@@ -170,14 +171,19 @@ async def get_runs_in_work_queue(
     if work_queue.is_paused:
         return []
 
+    # ensure the filter object is fully hydrated
+    # SQLAlchemy caching logic can result in a dict type instead
+    # of the full pydantic model
+    work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
+
     work_queue_flow_run_filter = schemas.filters.FlowRunFilter(
-        tags=schemas.filters.FlowRunFilterTags(all_=work_queue.filter.get("tags")),
+        tags=schemas.filters.FlowRunFilterTags(all_=work_queue_filter.tags),
         deployment_id=schemas.filters.FlowRunFilterDeploymentId(
-            any_=work_queue.filter.get("deployment_ids"),
+            any_=work_queue_filter.deployment_ids,
             is_null_=False,
         ),
         flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
-            any_=work_queue.filter.get("flow_runner_types"),
+            any_=work_queue_filter.flow_runner_types,
         ),
     )
 
