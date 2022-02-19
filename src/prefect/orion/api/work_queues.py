@@ -2,7 +2,8 @@
 Routes for interacting with work queue objects.
 """
 
-from typing import List
+import datetime
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
@@ -54,27 +55,38 @@ async def read_work_queue(
     return work_queue
 
 
-@router.get("/{id}/runs")
+@router.post("/{id}/get_runs")
 async def read_work_queue_runs(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    limit: int = dependencies.LimitBody(),
+    scheduled_before: datetime.datetime = Body(
+        None,
+        description="Only flow runs scheduled to start before this time will be returned. If not provided, defaults to now.",
+    ),
+    agent_id: Optional[UUID] = Body(
+        None,
+        description="An optional unique identifier for the agent making this query. If provided, the Orion API will track the last time this agent polled the work queue.",
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRun]:
     """
     Get flow runs from the work queue.
     """
-    # TODO - implement params
-    from uuid import uuid4
+    scheduled_before = scheduled_before or pendulum.now("UTC")
 
-    limit = None
-    scheduled_before = pendulum.now("UTC")
-    agent_id = uuid4()
-
-    # TODO - update agent last polled
-    # TODO - get runs from the queue
     flow_runs = await models.work_queues.get_runs_in_work_queue(
-        session=session, work_queue_id=work_queue_id, limit=limit
+        session=session,
+        work_queue_id=work_queue_id,
+        scheduled_before=scheduled_before,
+        limit=limit,
     )
 
+    if agent_id:
+        await models.agents.record_agent_poll(
+            session=session, agent_id=agent_id, work_queue_id=work_queue_id
+        )
+
+    # TODO - handle work queue not found error
     return flow_runs
 
 
