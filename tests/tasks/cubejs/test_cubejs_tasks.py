@@ -16,6 +16,7 @@ class TestCubeJSQueryTask:
         assert cubejs_task.api_secret is None
         assert cubejs_task.api_secret_env_var == "CUBEJS_API_SECRET"
         assert cubejs_task.query is None
+        assert not cubejs_task.include_sql
         assert cubejs_task.security_context is None
 
     def test_construction_with_values(self):
@@ -25,6 +26,7 @@ class TestCubeJSQueryTask:
             api_secret="secret",
             api_secret_env_var="secret_env_var",
             query="query",
+            include_sql=True,
             security_context={"foo": "bar"},
         )
 
@@ -33,6 +35,7 @@ class TestCubeJSQueryTask:
         assert cubejs_task.api_secret == "secret"
         assert cubejs_task.api_secret_env_var == "secret_env_var"
         assert cubejs_task.query == "query"
+        assert cubejs_task.include_sql
         assert cubejs_task.security_context == {"foo": "bar"}
 
     def test_run_with_no_values_raises(self):
@@ -111,7 +114,6 @@ class TestCubeJSQueryTask:
             payload={"foo": "bar", "expiresIn": "7d"}, key="foo", algorithm="HS256"
         )
 
-        # assert "JWT token generated with security context." in caplog.text
         assert responses.calls[0].request.headers["Authorization"] == expected_jwt
 
     @responses.activate
@@ -134,3 +136,28 @@ class TestCubeJSQueryTask:
                 wait_time_between_api_calls=1,
                 max_wait_time=3,
             )
+
+    @responses.activate
+    def test_run_with_include_sql(self):
+        cubejs_task = CubeJSQueryTask()
+
+        responses.add(
+            responses.GET,
+            "https://test.cubecloud.dev/cubejs-api/v1/load",
+            status=200,
+            json={"data": "result"},
+        )
+
+        responses.add(
+            responses.GET,
+            "https://test.cubecloud.dev/cubejs-api/v1/sql",
+            status=200,
+            json={"sql": "sql"},
+        )
+
+        data = cubejs_task.run(
+            subdomain="test", api_secret="foo", query="query", include_sql=True
+        )
+
+        assert "data" in data.keys()
+        assert "sql" in data.keys()

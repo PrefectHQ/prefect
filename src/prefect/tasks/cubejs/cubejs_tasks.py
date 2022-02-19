@@ -35,6 +35,9 @@ class CubeJSQueryTask(Task):
             More info at https://cube.dev/docs/rest-api#api-reference-v-1-load
             and at https://cube.dev/docs/schema/advanced/data-blending.
             Query format can be found at: https://cube.dev/docs/query-format.
+        - include_sql: (bool, optional): Whether the return object should
+            include SQL info or not.
+            Default to `False`.
         - security_context (str, dict, optional): The security context to use
             during authentication.
             If the security context does not contain an expiration period,
@@ -59,6 +62,7 @@ class CubeJSQueryTask(Task):
         api_secret: str = None,
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
+        include_sql: bool = False,
         security_context: Union[str, Dict] = None,
         wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
@@ -69,6 +73,7 @@ class CubeJSQueryTask(Task):
         self.api_secret = api_secret
         self.api_secret_env_var = api_secret_env_var
         self.query = query
+        self.include_sql = include_sql
         self.security_context = security_context
         self.wait_time_between_api_calls = wait_time_between_api_calls
         self.max_wait_time = max_wait_time
@@ -80,6 +85,7 @@ class CubeJSQueryTask(Task):
         "api_secret",
         "api_secret_env_var",
         "query",
+        "include_sql",
         "security_context",
         "wait_time_between_api_calls",
         "max_wait_time",
@@ -91,6 +97,7 @@ class CubeJSQueryTask(Task):
         api_secret: str = None,
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
+        include_sql: bool = False,
         security_context: Union[str, Dict] = None,
         wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
@@ -116,6 +123,9 @@ class CubeJSQueryTask(Task):
                 More info at https://cube.dev/docs/rest-api#api-reference-v-1-load
                 and at https://cube.dev/docs/schema/advanced/data-blending.
                 Query format can be found at: https://cube.dev/docs/query-format.
+            - include_sql: (bool, optional): Whether the return object should
+                include SQL info or not.
+                Default to `False`.
             - security_context (str, dict, optional): The security context to use
                 during authentication.
                 If the security context does not contain an expiration period,
@@ -174,21 +184,51 @@ class CubeJSQueryTask(Task):
         else:
             api_token = jwt.encode(payload={}, key=secret)
 
-        session = Session()
-        session.headers = {
-            "Content-type": "application/json",
-            "Authorization": api_token,
-        }
-
         params = {"query": json.dumps(query)}
 
         wait_api_call_secs = (
             wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
         )
+
+        data = self._get_data(
+            api_token=api_token,
+            url=query_api_url,
+            params=params,
+            max_wait_time=max_wait_time,
+            wait_api_call_secs=wait_api_call_secs,
+        )
+
+        if include_sql:
+
+            sql_api_url = f"{cube_base_url}/v1/sql"
+            data["sql"] = self._get_data(
+                api_token=api_token,
+                url=sql_api_url,
+                params=params,
+                max_wait_time=max_wait_time,
+                wait_api_call_secs=wait_api_call_secs,
+            )
+
+        return data
+
+    def _get_data(
+        self,
+        api_token: str,
+        url: str,
+        params: dict,
+        max_wait_time: int,
+        wait_api_call_secs: int,
+    ) -> dict:
+
+        session = Session()
+        session.headers = {
+            "Content-type": "application/json",
+            "Authorization": api_token,
+        }
         elapsed_wait_time = 0
         while not max_wait_time or elapsed_wait_time <= max_wait_time:
 
-            with session.get(url=query_api_url, params=params) as response:
+            with session.get(url=url, params=params) as response:
                 self.logger.debug(f"URL is: {response.url}")
 
                 if response.status_code == 200:
