@@ -3,12 +3,14 @@ Functions for interacting with work queue ORM objects.
 Intended for internal use by the Orion API.
 """
 
+import datetime
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 import prefect.orion.schemas as schemas
+import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -140,3 +142,97 @@ async def delete_work_queue(
         delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
     )
     return result.rowcount > 0
+
+
+async def get_runs_in_work_queue(
+    session: sa.orm.Session,
+    work_queue_id: UUID,
+    scheduled_before: datetime.datetime,
+    limit: int = None,
+):
+    """
+    Get runs from a work queue
+
+    Args:
+        session: A database session.
+        work_queue_id: The work queue id.
+        scheduled_before: Only return runs scheduled to start before this time.
+        limit: An optional limit for the number of runs to return from the queue.
+            This limit applies to the request only. It does not affect the
+            work queue's concurrency limit. If `limit` exceeds the work queue's
+            concurrency limit, it will be ignored.
+
+    """
+    work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
+    if not work_queue:
+        raise Exception("Work queue not found.")
+
+    if work_queue.is_paused:
+        return []
+
+    work_queue_flow_run_filter = schemas.filters.FlowRunFilter(
+        tags=schemas.filters.FlowRunFilterTags(all_=work_queue.filter.get("tags")),
+        deployment_id=schemas.filters.FlowRunFilterDeploymentId(
+            any_=work_queue.filter.get("deployment_ids"),
+            is_null_=False,
+        ),
+        flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
+            any_=work_queue.filter.get("flow_runner_types"),
+        ),
+    )
+
+    # if the work queue has a concurrency limit, check how many runs are currently
+    # executing and compare that count to the concurrency limit
+    if work_queue.concurrency_limit:
+        # Note this does not guarantee race conditions wont be hit
+        currently_executing_work_queue_filter = work_queue_flow_run_filter.copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.PENDING,
+                            schemas.states.StateType.RUNNING,
+                        ]
+                    )
+                )
+            }
+        )
+
+        concurrent_count = await models.flow_runs.count_flow_runs(
+            session=session,
+            flow_run_filter=currently_executing_work_queue_filter,
+        )
+
+        # compute the available concurrency slots
+        open_concurrency_slots = max(0, work_queue.concurrency_limit - concurrent_count)
+
+        # if a limit override was given, ensure we return no more
+        # than that limit
+        if limit is not None:
+            open_concurrency_slots = min(open_concurrency_slots, limit)
+    else:
+        # otherwise, the amount of flow runs to return is only controlled
+        # by the limit given
+        open_concurrency_slots = limit
+
+    queued_runs_filter = work_queue_flow_run_filter.copy(
+        update={
+            "state": schemas.filters.FlowRunFilterState(
+                type=schemas.filters.FlowRunFilterStateType(
+                    any_=[
+                        schemas.states.StateType.SCHEDULED,
+                    ]
+                )
+            ),
+            "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
+                before_=scheduled_before
+            ),
+        }
+    )
+
+    return await models.flow_runs.read_flow_runs(
+        session=session,
+        flow_run_filter=queued_runs_filter,
+        limit=open_concurrency_slots,
+        sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
+    )

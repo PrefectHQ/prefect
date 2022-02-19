@@ -353,7 +353,7 @@ class ORMFlowRun(ORMRun):
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String)
+    flow_runner_type = sa.Column(sa.String, index=True)
     flow_runner_config = sa.Column(JSON)
 
     @declared_attr
