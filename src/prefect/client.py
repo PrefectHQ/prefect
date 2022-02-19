@@ -27,7 +27,7 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
-from prefect.blocks.core import BlockAPI, get_blockapi
+from prefect.blocks.core import Block, get_block
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -605,7 +605,7 @@ class OrionClient:
     ) -> Optional[UUID]:
         """
         Create block data in Orion. This data is used to configure a corresponding
-        BlockAPI.
+        Block.
         """
         raw_block = {
             "blockname": name,
@@ -681,7 +681,7 @@ class OrionClient:
     async def read_block(
         self,
         id: str,
-    ) -> Optional[BlockAPI]:
+    ) -> Optional[Block]:
         """
         Read the block data by id.
 
@@ -700,8 +700,8 @@ class OrionClient:
         if not block_data_id:
             return None
 
-        blockapi = get_blockapi(raw_block["blockref"])
-        block = pydantic.parse_obj_as(blockapi, raw_block)
+        block_data = get_block(raw_block["blockref"])
+        block = pydantic.parse_obj_as(block_data, raw_block)
         return block
 
     async def read_block_by_name(
@@ -729,8 +729,8 @@ class OrionClient:
         if not block_data_id:
             return None
 
-        blockapi = get_blockapi(raw_block["blockref"])
-        block = pydantic.parse_obj_as(blockapi, raw_block)
+        block_data = get_block(raw_block["blockref"])
+        block = pydantic.parse_obj_as(block_data, raw_block)
         return block
 
     async def create_deployment(

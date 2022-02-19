@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
 from prefect import flow
-from prefect.blocks.core import BlockAPI, register_blockapi
+from prefect.blocks.core import Block, register_block
 from prefect.client import OrionClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
@@ -116,8 +116,8 @@ async def test_deleting_concurrency_limits(orion_client):
 
 
 class TestBlockClient:
-    @register_blockapi("a fun friendship")
-    class AFriendshipBasedOnLies(BlockAPI):
+    @register_block("a fun friendship")
+    class AFriendshipBasedOnLies(Block):
         a_secret: str
         another_secret: str
 
