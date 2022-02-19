@@ -207,7 +207,7 @@ class CubeJSQueryTask(Task):
                 params=params,
                 max_wait_time=max_wait_time,
                 wait_api_call_secs=wait_api_call_secs,
-            )
+            )["sql"]
 
         return data
 
