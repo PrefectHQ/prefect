@@ -1,5 +1,5 @@
 """
-Functions for interacting with block data ORM objects.
+Functions for interacting with block ORM objects.
 Intended for internal use by the Orion API.
 """
 import json

@@ -604,7 +604,7 @@ class OrionClient:
         **fields,
     ) -> Optional[UUID]:
         """
-        Create block data in Orion. This data is used to configure a corresponding
+        Create a block in Orion. This data is used to configure a corresponding
         Block.
         """
         block_create = schemas.actions.BlockCreate(
@@ -679,10 +679,10 @@ class OrionClient:
         id: str,
     ) -> Optional[Block]:
         """
-        Read the block data by id.
+        Read a block by id.
 
         Args:
-            id: The block data id.
+            id: The block id.
 
         Returns:
             a hydrated block or None if no Block could be found
@@ -705,13 +705,13 @@ class OrionClient:
         name: str,
     ):
         """
-        Read the block data with the specified name.
+        Read the block with the specified name.
 
         Args:
-            name: The block data name.
+            name: The block name.
 
         Raises:
-            httpx.RequestError: if the block data was not found for any reason
+            httpx.RequestError: if the block was not found for any reason
 
         Returns:
             A hydrated block or None.

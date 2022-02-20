@@ -157,7 +157,7 @@ class BlockCreate(
         include_fields=["name", "blockref", "data"],
     )
 ):
-    """Data used by the Orion API to create a block data container."""
+    """Data used by the Orion API to create a block."""
 
     @classmethod
     def from_serialized_block(cls, block: dict):
@@ -167,7 +167,7 @@ class BlockCreate(
 
 
 class BlockUpdate(PrefectBaseModel):
-    """Data used by the Orion API to update a block data container."""
+    """Data used by the Orion API to update a block."""
 
     name: Optional[str]
     data: Optional[dict]

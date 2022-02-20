@@ -1,5 +1,5 @@
 """
-Routes for interacting with block data objects.
+Routes for interacting with block objects.
 """
 from typing import List
 from uuid import UUID
@@ -36,7 +36,7 @@ async def create_block(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            detail="Block data already exists",
+            detail="Block already exists",
         )
 
     if model.created >= pendulum.now():
@@ -47,7 +47,7 @@ async def create_block(
 
 @router.get("/{id}")
 async def read_block(
-    block_id: UUID = Path(..., description="The block data id", alias="id"),
+    block_id: UUID = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
