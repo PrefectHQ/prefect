@@ -24,7 +24,7 @@ class TestBlock:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data != dict(), "block data is encrypted"
+        assert blockdata.data != dict(), "block is encrypted"
 
         block = await models.blocks.read_block_by_name(
             session=session, name="hi-im-some-blockdata"
@@ -49,7 +49,7 @@ class TestBlock:
         )
         assert blockdata.name == "hi-im-some-blockdata"
         assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data != dict(realdata=42), "block data is encrypted"
+        assert blockdata.data != dict(realdata=42), "block is encrypted"
 
         block = await models.blocks.read_block_by_id(
             session=session, block_id=blockdata.id
@@ -73,7 +73,7 @@ class TestBlock:
         )
         assert blockdata.name == "encrypt-me-please"
         assert blockdata.blockref == "my-deepest-darkest-secret"
-        assert "favorite_band" not in blockdata.data, "block data is encrypted"
+        assert "favorite_band" not in blockdata.data, "block is encrypted"
 
         old_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
         os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
