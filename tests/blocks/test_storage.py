@@ -1,4 +1,3 @@
-import asyncio
 from itertools import product
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
