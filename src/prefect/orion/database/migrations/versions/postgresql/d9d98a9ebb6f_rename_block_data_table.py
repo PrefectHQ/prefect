@@ -1,4 +1,4 @@
-"""empty message
+"""Rename block data table
 
 Revision ID: d9d98a9ebb6f
 Revises: 
