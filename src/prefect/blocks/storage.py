@@ -22,14 +22,14 @@ class StorageBlock(Block):
     """
 
     @abstractmethod
-    async def write(self, data: bytes):
+    async def write(self, data: bytes) -> Any:
         """
         Persists bytes and returns a JSON-serializable Python object used to
         retrieve the persisted data.
         """
 
     @abstractmethod
-    async def read(self, obj: Any):
+    async def read(self, obj: Any) -> bytes:
         """
         Accepts a JSON-serializable Python object to retrieve persisted bytes.
         """
@@ -55,20 +55,20 @@ class S3StorageBlock(StorageBlock):
             region_name=self.region_name,
         )
 
-    async def write(self, data: bytes):
+    async def write(self, data: bytes) -> dict:
         data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
         await run_sync_in_worker_thread(self._write_sync, data_location, data)
         return data_location
 
-    async def read(self, data_location):
+    async def read(self, data_location: dict) -> bytes:
         return await run_sync_in_worker_thread(self._read_sync, data_location)
 
-    def _write_sync(self, data_location: str, data: bytes):
+    def _write_sync(self, data_location: dict, data: bytes) -> None:
         s3_client = self.aws_session.client("s3")
         with io.BytesIO(data) as stream:
             s3_client.upload_fileobj(Fileobj=stream, **data_location)
 
-    def _read_sync(self, data_location: str) -> bytes:
+    def _read_sync(self, data_location: dict) -> bytes:
         s3_client = self.aws_session.client("s3")
         with io.BytesIO() as stream:
             s3_client.download_fileobj(**data_location, Fileobj=stream)
@@ -116,7 +116,7 @@ class LocalStorageBlock(StorageBlock):
     def basepath(self):
         return Path(self._storage_path).absolute()
 
-    async def write(self, data):
+    async def write(self, data: bytes) -> str:
         # Ensure the basepath exists
         storage_dir = self.basepath()
         storage_dir.mkdir(parents=True, exist_ok=True)
@@ -128,7 +128,7 @@ class LocalStorageBlock(StorageBlock):
 
         return storage_path
 
-    async def read(self, storage_path):
+    async def read(self, storage_path: str) -> bytes:
         async with await anyio.open_file(storage_path, mode="rb") as fp:
             return await fp.read()
 
@@ -138,12 +138,12 @@ class OrionStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
 
-    async def write(self, data):
+    async def write(self, data: bytes) -> dict:
         async with prefect.get_client() as client:
             response = await client.post("/data/persist", content=data)
             return response.json()
 
-    async def read(self, path_payload):
+    async def read(self, path_payload: dict) -> bytes:
         async with prefect.get_client() as client:
             response = await client.post("/data/retrieve", json=path_payload)
             return response.content
@@ -166,12 +166,12 @@ class GoogleCloudStorageBlock(StorageBlock):
         else:
             self.storage_client = gcs.Client(project=self.project)
 
-    async def read(self, key: str):
+    async def read(self, key: str) -> bytes:
         bucket = self.storage_client.bucket(self.bucket)
         blob = bucket.blob(key)
         return await run_sync_in_worker_thread(blob.download_as_bytes)
 
-    async def write(self, data: bytes):
+    async def write(self, data: bytes) -> str:
         bucket = self.storage_client.bucket(self.bucket)
         key = str(uuid4())
         blob = bucket.blob(key)
