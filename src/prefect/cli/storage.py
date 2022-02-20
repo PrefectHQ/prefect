@@ -63,34 +63,32 @@ async def configure(storage_type: str):
                 "AWS access_key_id", default="None", show_default=True
             )
             s3_data["aws_access_key_id"] = (
-                aws_access_key_id if aws_access_key_id is not "None" else None
+                aws_access_key_id if aws_access_key_id != "None" else None
             )
 
             aws_secret_access_key = typer.prompt(
                 "AWS secret_access_key", default="None", show_default=True
             )
             s3_data["aws_secret_access_key"] = (
-                aws_secret_access_key if aws_secret_access_key is not "None" else None
+                aws_secret_access_key if aws_secret_access_key != "None" else None
             )
 
             aws_session_token = typer.prompt(
                 "AWS session_token", default="None", show_default=True
             )
             s3_data["aws_session_token"] = (
-                aws_session_token if aws_session_token is not "None" else None
+                aws_session_token if aws_session_token != "None" else None
             )
 
             profile_name = typer.prompt(
                 "AWS profile_name", default="None", show_default=True
             )
-            s3_data["profile_name"] = (
-                profile_name if profile_name is not "None" else None
-            )
+            s3_data["profile_name"] = profile_name if profile_name != "None" else None
 
             region_name = typer.prompt(
                 "AWS region_name", default="None", show_default=True
             )
-            s3_data["region_name"] = region_name if region_name is not "None" else None
+            s3_data["region_name"] = region_name if region_name != "None" else None
 
             s3_data["bucket"] = typer.prompt(
                 "To which S3 bucket would you like to persist data?"
