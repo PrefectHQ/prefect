@@ -4,7 +4,6 @@ import time
 from typing import Dict, Union
 
 from prefect.engine.signals import FAIL
-import prefect
 
 # Cube Cloud base URL
 __CUBEJS_CLOUD_BASE_URL = "https://{subdomain}.cubecloud.dev"
@@ -105,7 +104,6 @@ def get_data_from_url(
     while not max_wait_time or elapsed_wait_time <= max_wait_time:
 
         with session.get(url=url, params=params) as response:
-            prefect.context.logger.info(f"Session URL is: {response.url}")
             if response.status_code == 200:
                 data = response.json()
 
