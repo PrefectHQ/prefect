@@ -742,6 +742,7 @@ class ORMBlockSpec:
 @declarative_mixin
 class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
+    blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
     @declared_attr
