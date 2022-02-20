@@ -718,9 +718,9 @@ class ORMConcurrencyLimit:
 
 @declarative_mixin
 class ORMBlockSpec:
-    name = sa.Column(sa.String, nullable=False, index=True)
-    version = sa.Column(sa.String, nullable=False, index=True)
-    type = sa.Column(sa.String)
+    name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String, nullable=True, index=True)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
     @declared_attr

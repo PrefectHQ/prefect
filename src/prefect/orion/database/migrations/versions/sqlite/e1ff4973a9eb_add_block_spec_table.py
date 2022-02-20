@@ -5,10 +5,10 @@ Revises: 4c4a6a138053
 Create Date: 2022-02-20 10:36:10.457956
 
 """
-from alembic import op
 import sqlalchemy as sa
-import prefect
+from alembic import op
 
+import prefect
 
 # revision identifiers, used by Alembic.
 revision = "e1ff4973a9eb"
@@ -53,12 +53,8 @@ def upgrade():
         sa.PrimaryKeyConstraint("id", name=op.f("pk_block_spec")),
     )
     with op.batch_alter_table("block_spec", schema=None) as batch_op:
-        batch_op.create_index(batch_op.f("ix_block_spec__name"), ["name"], unique=False)
         batch_op.create_index(
             batch_op.f("ix_block_spec__updated"), ["updated"], unique=False
-        )
-        batch_op.create_index(
-            batch_op.f("ix_block_spec__version"), ["version"], unique=False
         )
         batch_op.create_index(
             "uq_block_spec_name_version", ["name", "version"], unique=True
@@ -107,9 +103,7 @@ def downgrade():
 
     with op.batch_alter_table("block_spec", schema=None) as batch_op:
         batch_op.drop_index("uq_block_spec_name_version")
-        batch_op.drop_index(batch_op.f("ix_block_spec__version"))
         batch_op.drop_index(batch_op.f("ix_block_spec__updated"))
-        batch_op.drop_index(batch_op.f("ix_block_spec__name"))
 
     op.drop_table("block_spec")
     # ### end Alembic commands ###

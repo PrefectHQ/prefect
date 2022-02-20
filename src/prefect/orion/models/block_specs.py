@@ -5,12 +5,11 @@ Intended for internal use by the Orion API.
 from uuid import UUID
 
 import sqlalchemy as sa
+from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-
-from sqlalchemy import delete, select
 
 
 @inject_db
@@ -19,9 +18,10 @@ async def create_block_spec(
     block_spec: schemas.core.BlockSpec,
     db: OrionDBInterface,
 ):
-    insert_values = block_spec.dict(shallow=True, exclude_unset=False)
+    insert_values = block_spec.dict(
+        shallow=True, exclude_unset=False, exclude={"created", "updated"}
+    )
     insert_stmt = (await db.insert(db.BlockSpec)).values(**insert_values)
-
     await session.execute(insert_stmt)
 
     query = (
@@ -102,7 +102,9 @@ async def read_block_specs(
         query = query.filter_by(type=block_spec_type)
     if name is not None:
         query = query.filter_by(name=name)
-    result = await session.execute(query)
+    result = await session.execute(
+        query.order_by(db.BlockSpec.name, db.BlockSpec.created)
+    )
     return result.scalars().unique().all()
 
 
