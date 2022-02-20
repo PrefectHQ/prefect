@@ -3,7 +3,7 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
@@ -15,6 +15,8 @@ from prefect.blocks.core import Block, register_block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
+T = TypeVar("T")
+
 
 class StorageBlock(Block):
     """
@@ -22,16 +24,17 @@ class StorageBlock(Block):
     """
 
     @abstractmethod
-    async def write(self, data: bytes) -> Any:
+    async def write(self, data: bytes) -> T:
         """
-        Persists bytes and returns a JSON-serializable Python object used to
+        Persists bytes and returns a JSON-serializable Python object that may be used to
         retrieve the persisted data.
         """
 
     @abstractmethod
-    async def read(self, obj: Any) -> bytes:
+    async def read(self, obj: T) -> bytes:
         """
-        Accepts a JSON-serializable Python object to retrieve persisted bytes.
+        Retrieve persisted bytes given the a JSON-serializable Python object generated
+        by a prior call to `write`.
         """
 
 
