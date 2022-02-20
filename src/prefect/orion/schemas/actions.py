@@ -151,21 +151,22 @@ class ConcurrencyLimitCreate(
     """Data used by the Orion API to create a concurrency limit."""
 
 
-class BlockDataCreate(
-    schemas.core.BlockData.subclass(
-        name="BlockDataCreate",
+class BlockCreate(
+    schemas.core.Block.subclass(
+        name="BlockCreate",
         include_fields=["name", "blockref", "data"],
     )
 ):
     """Data used by the Orion API to create a block data container."""
 
+    @classmethod
+    def from_serialized_block(cls, block: dict):
+        return cls(
+            name=block.pop("blockname"), blockref=block.pop("blockref"), data=block
+        )
 
-class BlockCreate(PrefectBaseModel):
-    block: dict
-    """Data used by the Orion API to create a block data container."""
 
-
-class BlockDataUpdate(PrefectBaseModel):
+class BlockUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block data container."""
 
     name: Optional[str]

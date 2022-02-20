@@ -9,7 +9,7 @@ from rich.pretty import Pretty
 
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.client import get_client
-from prefect.settings import Settings
+from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import sync_compatible
 
 storage_config_app = typer.Typer(
@@ -44,7 +44,7 @@ async def configure(storage_type: str):
             local_data = dict()
             local_data["storage_path"] = typer.prompt(
                 "What directory would you like to persist data to?",
-                default=Settings().home / "storage",
+                default=PREFECT_HOME.value() / "storage",
                 show_default=True,
             )
             console.print("Follow the prompts to configure local filesystem storage")
