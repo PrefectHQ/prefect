@@ -9,14 +9,15 @@
         <p class="empty-state-card__letters">
           {{ description }}
         </p>
-        <router-link v-if="link" :to="link">
-          <m-button color="primary" miter icon="pi-add-line">
+        <slot>
+          <router-link :to="link">
+            <m-button color="primary" miter icon="pi-add-line">
             {{ buttonText }}
-          </m-button>
-        </router-link>
-        <m-button v-else color="primary" miter icon="pi-add-line" @click="handleClick">
-            {{ buttonText }}
-          </m-button>
+            </m-button>
+          </router-link>
+        </slot>
+        
+       
       </div>
       <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
     </div>
@@ -29,7 +30,6 @@
   export default defineComponent({
     name: 'EmptyStateCard',
     expose: [],
-    emits: ['create'],
     props: {
       buttonText: {
         type: String,
@@ -55,11 +55,6 @@
         type: String,
         required: true,
       },
-    },
-    methods: {
-      handleClick() {
-        this.$emit('create')
-      }
     }
   })
 </script>
