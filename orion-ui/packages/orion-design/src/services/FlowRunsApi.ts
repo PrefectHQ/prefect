@@ -33,7 +33,7 @@ export class FlowRunsApi extends Api {
     return this.get<IFlowRunResponse>(`/${id}`).then(response => response.data)
   }
 
-  public filter(filter: UnionFilters): Promise<IFlowRunResponse[]> {
+  public getFlowRuns(filter: UnionFilters): Promise<IFlowRunResponse[]> {
     return this.post<IFlowRunResponse[]>('/filter', filter).then(response => response.data)
   }
 
