@@ -68,7 +68,7 @@ export abstract class Api {
   }
 
   protected post<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
-    return this.request({ ...config, method: 'OPTIONS', url, data })
+    return this.request({ ...config, method: 'POST', url, data })
   }
 
   protected put<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
