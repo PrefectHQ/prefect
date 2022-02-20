@@ -19,6 +19,10 @@ export class FlowRunsApi extends Api {
     return this.post<IFlowRunResponse[]>('/filter', filter).then(response => response.data)
   }
 
+  public getFlowRunsCount(filter: UnionFilters): Promise<number> {
+    return this.post<number>('/count', filter).then(({ data }) => data)
+  }
+
 }
 
 export const flowRunsApi = new FlowRunsApi()
