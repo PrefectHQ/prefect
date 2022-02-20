@@ -1,11 +1,6 @@
 import pytest
 
-from prefect.blocks.core import (
-    BLOCK_REGISTRY,
-    Block,
-    get_block_spec,
-    register_block,
-)
+from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_spec, register_block
 
 
 @pytest.fixture(autouse=True)
