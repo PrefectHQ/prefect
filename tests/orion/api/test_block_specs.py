@@ -109,7 +109,7 @@ class TestReadBlockSpec:
         assert [s.id for s in api_specs] == [block_specs[0].id, block_specs[1].id]
 
     async def test_read_block_specs_by_name(self, session, client, block_specs):
-        result = await client.get(f"/block_specs/x")
+        result = await client.get(f"/block_specs/x/versions")
         api_specs = pydantic.parse_obj_as(List[schemas.core.BlockSpec], result.json())
         assert [s.id for s in api_specs] == [block_specs[0].id, block_specs[2].id]
 

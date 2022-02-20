@@ -343,9 +343,6 @@ class Block(ORMBaseModel):
     name: str = Field(..., description="The block's name'")
     blockref: str = Field(..., description="A reference to a registered blockspec")
     data: dict = Field(default_factory=dict, description="The block's data")
-    block_spec_id: str = Field(
-        None, description="The block spec id corresponding to this block"
-    )
 
 
 class Configuration(ORMBaseModel):

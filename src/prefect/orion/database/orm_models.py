@@ -724,10 +724,6 @@ class ORMBlockSpec:
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
     @declared_attr
-    def blocks(cls):
-        return sa.orm.relationship("Block", back_populates="block_spec", lazy="raise")
-
-    @declared_attr
     def __table_args__(cls):
         return (
             sa.Index(
@@ -744,19 +740,6 @@ class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
     blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-
-    @declared_attr
-    def block_spec_id(cls):
-        return sa.Column(
-            UUID(),
-            sa.ForeignKey("block_spec.id", ondelete="cascade"),
-            nullable=False,
-            index=True,
-        )
-
-    @declared_attr
-    def block_spec(cls):
-        return sa.orm.relationship("BlockSpec", back_populates="blocks", lazy="raise")
 
     @declared_attr
     def __table_args__(cls):
