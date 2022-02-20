@@ -72,7 +72,7 @@ async def read_block_specs(
     return result
 
 
-@router.get("/{name}")
+@router.get("/{name}/versions")
 async def read_block_specs_by_name(
     name: str = Path(..., description="The block spec name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
