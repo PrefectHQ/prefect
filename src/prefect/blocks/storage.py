@@ -12,7 +12,7 @@ from google.oauth2 import service_account
 
 from prefect.blocks.core import Block, register_block
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import Settings
+from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
@@ -108,7 +108,7 @@ class LocalStorageBlock(StorageBlock):
         self._storage_path = (
             self.storage_path
             if self.storage_path is not None
-            else Settings().home / "storage"
+            else PREFECT_HOME.value() / "storage"
         )
 
     def basepath(self):

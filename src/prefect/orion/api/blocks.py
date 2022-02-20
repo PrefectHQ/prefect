@@ -24,16 +24,14 @@ async def create_block(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.BlockData:
+) -> schemas.core.Block:
 
     # hydrate the input model into a full model
-    raw_blockdata = models.block_data.pack_blockdata(block.block)
-    block_data = schemas.actions.BlockDataCreate(**raw_blockdata)
-    block_data_model = schemas.core.BlockData(**block_data.dict())
+    block_data_model = schemas.core.Block(**block.dict())
 
     try:
-        model = await models.block_data.create_block_data(
-            session=session, block_data=block_data_model
+        model = await models.blocks.create_block(
+            session=session, block=block_data_model
         )
     except sa.exc.IntegrityError:
         raise HTTPException(
@@ -53,9 +51,7 @@ async def read_block(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
-    block = await models.block_data.read_block_data_as_block(
-        session=session, block_data_id=block_id
-    )
+    block = await models.blocks.read_block_by_id(session=session, block_id=block_id)
 
     if not block:
         return responses.JSONResponse(
@@ -71,9 +67,7 @@ async def read_block_by_name(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
 
-    block = await models.block_data.read_block_data_by_name_as_block(
-        session=session, name=name
-    )
+    block = await models.blocks.read_block_by_name(session=session, name=name)
 
     if not block:
         return responses.JSONResponse(
@@ -88,9 +82,7 @@ async def delete_block_by_name(
     name: str = Path(..., description="The block name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    result = await models.block_data.delete_block_data_by_name(
-        session=session, name=name
-    )
+    result = await models.blocks.delete_block_by_name(session=session, name=name)
     if not result:
         return responses.JSONResponse(
             status_code=404, content={"message": "Block not found"}
@@ -100,13 +92,13 @@ async def delete_block_by_name(
 @router.patch("/name/{name}")
 async def update_block_data(
     name: str,
-    block: schemas.actions.BlockDataUpdate,
+    block: schemas.actions.BlockUpdate,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    result = await models.block_data.update_block_data(
+    result = await models.blocks.update_block(
         session=session,
         name=name,
-        block_data=block,
+        block=block,
     )
 
     if not result:
