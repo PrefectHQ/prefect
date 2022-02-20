@@ -69,26 +69,26 @@ class TestCubeJSQueryTask:
 
     @responses.activate
     def test_run_with_continue_waiting(self, caplog):
-        caplog.set_level(logging.DEBUG)
+        api_url = "https://test.cubecloud.dev/cubejs-api/v1/load"
         cubejs_task = CubeJSQueryTask()
 
         responses.add(
             responses.GET,
-            "https://test.cubecloud.dev/cubejs-api/v1/load",
+            api_url,
             status=200,
             json={"error": "Continue wait"},
         )
 
         responses.add(
             responses.GET,
-            "https://test.cubecloud.dev/cubejs-api/v1/load",
+            api_url,
             status=200,
             json={"data": "result"},
         )
 
         data = cubejs_task.run(subdomain="test", api_secret="foo", query="query")
 
-        assert "Cube.js load API still running." in caplog.text
+        assert len(responses.calls) == 2
         assert isinstance(data, dict)
 
     @responses.activate

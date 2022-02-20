@@ -1,12 +1,15 @@
 import os
-from requests import Session
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.engine.signals import FAIL
 import json
-import jwt
-import time
 from typing import Dict, List, Union
+
+from .cubejs_utils import (
+    get_api_token,
+    get_data_from_url,
+    get_query_api_url,
+    get_sql_api_url,
+)
 
 
 class CubeJSQueryTask(Task):
@@ -110,7 +113,10 @@ class CubeJSQueryTask(Task):
                 If provided, `subdomain` takes precedence over `url`.
                 This is likely to be useful to Cube Cloud users.
             - url (str, optional): The URL to use to get the data.
-                This is likely to be useful to users of self-hosted Cube.js.
+                This is likely the preferred method for self-hosted Cube
+                deployments.
+                For Cube Cloud deployments, the URL should be in the form
+                `https://<cubejs-generated-host>/cubejs-api`.
             - api_secret (str, optional): The API secret used to generate an
                 API token for authentication.
                 If provided, it takes precedence over `api_secret_env_var`.
@@ -146,7 +152,8 @@ class CubeJSQueryTask(Task):
                 `max_wait_time` seconds to respond.
 
         Returns:
-            - The Cube.js JSON response.
+            - The Cube.js JSON response, eventually augmented with SQL
+                information.
 
         """
 
@@ -159,30 +166,10 @@ class CubeJSQueryTask(Task):
         if not query:
             raise ValueError("Missing `query`.")
 
-        cube_base_url = self.__CUBEJS_CLOUD_BASE_URL
-        if subdomain:
-            cube_base_url = f"{cube_base_url.format(subdomain=subdomain)}/cubejs-api"
-        else:
-            cube_base_url = url
-        query_api_url = f"{cube_base_url}/v1/load"
-
-        self.logger.debug(f"Query URL: {query_api_url}")
-
         secret = api_secret if api_secret else os.environ[api_secret_env_var]
 
-        if security_context:
-
-            extended_context = security_context
-            if "exp" not in security_context and "expiresIn" not in security_context:
-                extended_context["expiresIn"] = "7d"
-            api_token = jwt.encode(
-                payload=extended_context, key=secret, algorithm="HS256"
-            )
-
-            self.logger.debug("JWT token generated with security context.")
-
-        else:
-            api_token = jwt.encode(payload={}, key=secret)
+        # Build API token using the security context (if available) and the secret
+        api_token = get_api_token(security_context=security_context, secret=secret)
 
         params = {"query": json.dumps(query)}
 
@@ -190,7 +177,10 @@ class CubeJSQueryTask(Task):
             wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
         )
 
-        data = self._get_data(
+        query_api_url = get_query_api_url(subdomain=subdomain, url=url)
+
+        # Retrieve data from Cube.js
+        data = get_data_from_url(
             api_token=api_token,
             url=query_api_url,
             params=params,
@@ -198,10 +188,12 @@ class CubeJSQueryTask(Task):
             wait_api_call_secs=wait_api_call_secs,
         )
 
+        # Augment result with SQL information
         if include_sql:
 
-            sql_api_url = f"{cube_base_url}/v1/sql"
-            data["sql"] = self._get_data(
+            sql_api_url = get_sql_api_url(subdomain=subdomain, url=url)
+
+            data["sql"] = get_data_from_url(
                 api_token=api_token,
                 url=sql_api_url,
                 params=params,
@@ -210,48 +202,3 @@ class CubeJSQueryTask(Task):
             )["sql"]
 
         return data
-
-    def _get_data(
-        self,
-        api_token: str,
-        url: str,
-        params: dict,
-        max_wait_time: int,
-        wait_api_call_secs: int,
-    ) -> dict:
-
-        session = Session()
-        session.headers = {
-            "Content-type": "application/json",
-            "Authorization": api_token,
-        }
-        elapsed_wait_time = 0
-        while not max_wait_time or elapsed_wait_time <= max_wait_time:
-
-            with session.get(url=url, params=params) as response:
-                self.logger.debug(f"URL is: {response.url}")
-
-                if response.status_code == 200:
-                    data = response.json()
-
-                    if "error" in data.keys() and "Continue wait" in data["error"]:
-                        msg = (
-                            "Cube.js load API still running."
-                            "Waiting {wait_api_call_secs} seconds before retrying"
-                        )
-                        self.logger.info(msg)
-                        time.sleep(wait_api_call_secs)
-                        elapsed_wait_time += wait_api_call_secs
-                        continue
-
-                    else:
-                        return data
-
-                else:
-                    raise FAIL(
-                        message=f"Cube.js load API failed! Error is: {response.reason}"
-                    )
-
-        raise FAIL(
-            message=f"Cube.js load API took longer than {max_wait_time} seconds to provide a response."
-        )
