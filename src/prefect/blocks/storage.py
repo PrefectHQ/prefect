@@ -10,13 +10,13 @@ from uuid import uuid4
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
-from prefect.blocks.core import BlockAPI, register_blockapi
+from prefect.blocks.core import Block, register_block
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import Settings
+from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
-class OrionStorageAPI(BlockAPI):
+class StorageBlock(Block):
     """
     A block API that is used to persist bytes. Can be be used by Orion to persist data.
     """
@@ -35,8 +35,8 @@ class OrionStorageAPI(BlockAPI):
         """
 
 
-@register_blockapi("s3storage-block")
-class S3StorageBlock(OrionStorageAPI):
+@register_block("s3storage-block")
+class S3StorageBlock(StorageBlock):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_session_token: Optional[str] = None
@@ -76,8 +76,8 @@ class S3StorageBlock(OrionStorageAPI):
         return output
 
 
-@register_blockapi("tempstorage-block")
-class TempStorageBlock(OrionStorageAPI):
+@register_block("tempstorage-block")
+class TempStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
 
@@ -100,15 +100,15 @@ class TempStorageBlock(OrionStorageAPI):
             return fp.read()
 
 
-@register_blockapi("localstorage-block")
-class LocalStorageBlock(OrionStorageAPI):
+@register_block("localstorage-block")
+class LocalStorageBlock(StorageBlock):
     storage_path: Optional[str]
 
     def block_initialization(self) -> None:
         self._storage_path = (
             self.storage_path
             if self.storage_path is not None
-            else Settings().home / "storage"
+            else PREFECT_HOME.value() / "storage"
         )
 
     def basepath(self):
@@ -131,8 +131,8 @@ class LocalStorageBlock(OrionStorageAPI):
             return fp.read()
 
 
-@register_blockapi("orionstorage-block")
-class OrionStorageBlock(OrionStorageAPI):
+@register_block("orionstorage-block")
+class OrionStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
 
@@ -151,8 +151,8 @@ class OrionStorageBlock(OrionStorageAPI):
             return response.content
 
 
-@register_blockapi("googlecloudstorage-block")
-class GoogleCloudStorageBlock(OrionStorageAPI):
+@register_block("googlecloudstorage-block")
+class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
     project: Optional[str]
     service_account_info: Optional[Dict[str, str]]

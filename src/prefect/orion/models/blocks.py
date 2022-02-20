@@ -1,5 +1,5 @@
 """
-Functions for interacting with block data ORM objects.
+Functions for interacting with block ORM objects.
 Intended for internal use by the Orion API.
 """
 import json
@@ -17,24 +17,24 @@ from prefect.orion.models import configurations
 
 
 @inject_db
-async def create_block_data(
+async def create_block(
     session: sa.orm.Session,
-    block_data: schemas.core.BlockData,
+    block: schemas.core.Block,
     db: OrionDBInterface,
 ):
-    insert_values = block_data.dict(shallow=True, exclude_unset=False)
+    insert_values = block.dict(shallow=True, exclude_unset=False)
     insert_values.pop("created")
     insert_values.pop("updated")
     blockname = insert_values["name"]
 
     insert_values["data"] = await encrypt_blockdata(session, insert_values["data"])
 
-    insert_stmt = (await db.insert(db.BlockData)).values(**insert_values)
+    insert_stmt = (await db.insert(db.Block)).values(**insert_values)
 
     await session.execute(insert_stmt)
     query = (
-        sa.select(db.BlockData)
-        .where(db.BlockData.name == blockname)
+        sa.select(db.Block)
+        .where(db.Block.name == blockname)
         .execution_options(populate_existing=True)
     )
 
@@ -43,87 +43,81 @@ async def create_block_data(
 
 
 @inject_db
-async def read_block_data_as_block(
+async def read_block_by_id(
     session: sa.orm.Session,
-    block_data_id: UUID,
+    block_id: UUID,
     db: OrionDBInterface,
 ):
-    query = (
-        sa.select(db.BlockData)
-        .where(db.BlockData.id == block_data_id)
-        .with_for_update()
-    )
+    query = sa.select(db.Block).where(db.Block.id == block_id).with_for_update()
 
     result = await session.execute(query)
-    blockdata = result.scalar()
+    block = result.scalar()
 
-    if not blockdata:
+    if not block:
         return None
 
-    blockdata_dict = {
-        "name": blockdata.name,
-        "blockref": blockdata.blockref,
-        "blockid": blockdata.id,
-        "data": blockdata.data,
+    block_dict = {
+        "name": block.name,
+        "blockref": block.blockref,
+        "blockid": block.id,
+        "data": block.data,
     }
 
-    blockdata_dict["data"] = await decrypt_blockdata(session, blockdata_dict["data"])
-    return unpack_blockdata(blockdata_dict)
+    block_dict["data"] = await decrypt_blockdata(session, block_dict["data"])
+    return unpack_blockdata(block_dict)
 
 
 @inject_db
-async def read_block_data_by_name_as_block(
+async def read_block_by_name(
     session: sa.orm.Session,
     name: str,
     db: OrionDBInterface,
 ):
-    query = sa.select(db.BlockData).where(db.BlockData.name == name)
+    query = sa.select(db.Block).where(db.Block.name == name)
     result = await session.execute(query)
-    blockdata = result.scalar()
+    block = result.scalar()
 
-    if not blockdata:
+    if not block:
         return None
 
-    blockdata_dict = {
-        "name": blockdata.name,
-        "blockref": blockdata.blockref,
-        "blockid": blockdata.id,
-        "data": blockdata.data,
+    block_dict = {
+        "name": block.name,
+        "blockref": block.blockref,
+        "blockid": block.id,
+        "data": block.data,
     }
 
-    blockdata_dict["data"] = await decrypt_blockdata(session, blockdata_dict["data"])
-    return unpack_blockdata(blockdata_dict)
+    block_dict["data"] = await decrypt_blockdata(session, block_dict["data"])
+    return unpack_blockdata(block_dict)
 
 
 @inject_db
-async def delete_block_data_by_name(
+async def delete_block_by_name(
     session: sa.orm.Session,
     name: str,
     db: OrionDBInterface,
 ) -> bool:
 
-    query = sa.delete(db.BlockData).where(db.BlockData.name == name)
+    query = sa.delete(db.Block).where(db.Block.name == name)
 
     result = await session.execute(query)
     return result.rowcount > 0
 
 
 @inject_db
-async def update_block_data(
+async def update_block(
     session: sa.orm.Session,
     name: str,
-    block_data: schemas.actions.BlockDataUpdate,
+    block: schemas.actions.BlockUpdate,
     db: OrionDBInterface,
 ) -> bool:
 
-    update_values = block_data.dict(shallow=True, exclude_unset=True)
+    update_values = block.dict(shallow=True, exclude_unset=True)
     update_values = {k: v for k, v in update_values.items() if v is not None}
     if "data" in update_values:
         update_values["data"] = await encrypt_blockdata(session, update_values["data"])
 
-    update_stmt = (
-        sa.update(db.BlockData).where(db.BlockData.name == name).values(update_values)
-    )
+    update_stmt = sa.update(db.Block).where(db.Block.name == name).values(update_values)
 
     result = await session.execute(update_stmt)
     return result.rowcount > 0
@@ -134,7 +128,7 @@ def pack_blockdata(raw_block):
     blockdata["name"] = raw_block.pop("blockname")
     blockdata["blockref"] = raw_block.pop("blockref")
 
-    # we remove blockid here in the event that a BlockAPI schema was used to template
+    # we remove blockid here in the event that a Block schema was used to template
     # a block, the id will be generated by the ORM model on write
     raw_block.pop("blockid", None)
 

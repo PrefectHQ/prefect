@@ -5,22 +5,22 @@ from typing import Dict, Optional
 
 from pydantic import BaseModel, parse_obj_as
 
-BLOCK_API_REGISTRY: Dict[str, "BlockAPI"] = dict()
+BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 
-def register_blockapi(blockref):
-    def wrapper(blockapi):
-        BLOCK_API_REGISTRY[blockref] = blockapi
-        return blockapi
+def register_block(name: str, version: str = None):
+    def wrapper(block):
+        BLOCK_REGISTRY[(name, version)] = block
+        return block
 
     return wrapper
 
 
-def get_blockapi(blockref):
-    return BLOCK_API_REGISTRY.get(blockref)
+def get_block_spec(name: str, version: str = None) -> "Block":
+    return BLOCK_REGISTRY.get((name, version))
 
 
-class BlockAPI(BaseModel, ABC):
+class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
 
@@ -29,10 +29,10 @@ class BlockAPI(BaseModel, ABC):
 
     This class can be defined with an arbitrary set of fields and methods, and couples
     business logic with data contained in an Orion Block. `blockname`, `blockref` and
-    `blockid` are reserved by Orion as Block metadata fields, but otherwise a BlockAPI
+    `blockid` are reserved by Orion as Block metadata fields, but otherwise a Block
     can implement arbitrary logic.
 
-    Instead of the __init__ method, a BlockAPI implementation requires the definition of
+    Instead of the __init__ method, a Block implementation requires the definition of
     a `block_initialization` method that is called after initialization.
     """
 
