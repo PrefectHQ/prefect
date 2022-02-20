@@ -11,10 +11,10 @@ from fastapi import (
     Depends,
     HTTPException,
     Path,
+    Query,
     Response,
     responses,
     status,
-    Query,
 )
 
 from prefect import settings
@@ -27,7 +27,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/block_specs", tags=["Block Specs"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_spec(
     block_spec: schemas.actions.BlockSpecCreate,
     response: Response,
@@ -96,4 +96,8 @@ async def read_block_spec_by_name_and_version(
     result = await models.block_specs.read_block_spec_by_name_and_version(
         session=session, name=name, version=version
     )
+
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block spec not found")
+
     return result

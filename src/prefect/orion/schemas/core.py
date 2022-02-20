@@ -331,7 +331,7 @@ class BlockSpec(ORMBaseModel):
 
     name: str = Field(..., description="The block spec's name")
     version: str = Field(..., description="The block spec's version")
-    type: str = Field(..., description="The block spec's type")
+    type: str = Field(None, description="The block spec's type")
     fields: dict = Field(
         default_factory=dict, description="The block spec's field schema"
     )
@@ -345,10 +345,6 @@ class Block(ORMBaseModel):
     data: dict = Field(default_factory=dict, description="The block's data")
     block_spec_id: str = Field(
         None, description="The block spec id corresponding to this block"
-    )
-    # this field can be used to expand API responses but is expected to often be None
-    block_spec: Optional[BlockSpec] = Field(
-        None, description="The block spec corresponding to this block"
     )
 
 
