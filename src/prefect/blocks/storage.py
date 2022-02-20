@@ -3,7 +3,7 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
@@ -15,26 +15,31 @@ from prefect.blocks.core import Block, register_block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
+# Storage block "key" type which should match for read/write in each implementation
 T = TypeVar("T")
 
 
-class StorageBlock(Block):
+class StorageBlock(Block, Generic[T]):
     """
-    A block API that is used to persist bytes. Can be be used by Orion to persist data.
+    A `Block` base class for persisting data.
+
+    Implementers must provide methods to read and write bytes. When data is persisted,
+    an object of type `T` is returned that may be later be used to retrieve the data.
+
+    The type `T` should be JSON serializable.
     """
 
     @abstractmethod
     async def write(self, data: bytes) -> T:
         """
-        Persists bytes and returns a JSON-serializable Python object that may be used to
-        retrieve the persisted data.
+        Persist bytes and returns an object that may be passed to `read` to retrieve the
+        data.
         """
 
     @abstractmethod
     async def read(self, obj: T) -> bytes:
         """
-        Retrieve persisted bytes given the a JSON-serializable Python object generated
-        by a prior call to `write`.
+        Retrieve persisted bytes given the return value of a prior call to `write`.
         """
 
 
