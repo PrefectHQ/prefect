@@ -8,7 +8,7 @@ from .cubejs_utils import (
     get_api_token,
     get_data_from_url,
     get_query_api_url,
-    get_sql_api_url,
+    get_generated_sql_api_url,
 )
 
 
@@ -38,7 +38,7 @@ class CubeJSQueryTask(Task):
             More info at https://cube.dev/docs/rest-api#api-reference-v-1-load
             and at https://cube.dev/docs/schema/advanced/data-blending.
             Query format can be found at: https://cube.dev/docs/query-format.
-        - include_sql: (bool, optional): Whether the return object should
+        - include_generated_sql: (bool, optional): Whether the return object should
             include SQL info or not.
             Default to `False`.
         - security_context (str, dict, optional): The security context to use
@@ -65,7 +65,7 @@ class CubeJSQueryTask(Task):
         api_secret: str = None,
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
-        include_sql: bool = False,
+        include_generated_sql: bool = False,
         security_context: Union[str, Dict] = None,
         wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
@@ -76,7 +76,7 @@ class CubeJSQueryTask(Task):
         self.api_secret = api_secret
         self.api_secret_env_var = api_secret_env_var
         self.query = query
-        self.include_sql = include_sql
+        self.include_generated_sql = include_generated_sql
         self.security_context = security_context
         self.wait_time_between_api_calls = wait_time_between_api_calls
         self.max_wait_time = max_wait_time
@@ -88,7 +88,7 @@ class CubeJSQueryTask(Task):
         "api_secret",
         "api_secret_env_var",
         "query",
-        "include_sql",
+        "include_generated_sql",
         "security_context",
         "wait_time_between_api_calls",
         "max_wait_time",
@@ -100,7 +100,7 @@ class CubeJSQueryTask(Task):
         api_secret: str = None,
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
-        include_sql: bool = False,
+        include_generated_sql: bool = False,
         security_context: Union[str, Dict] = None,
         wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
@@ -129,7 +129,7 @@ class CubeJSQueryTask(Task):
                 More info at https://cube.dev/docs/rest-api#api-reference-v-1-load
                 and at https://cube.dev/docs/schema/advanced/data-blending.
                 Query format can be found at: https://cube.dev/docs/query-format.
-            - include_sql: (bool, optional): Whether the return object should
+            - include_generated_sql: (bool, optional): Whether the return object should
                 include SQL info or not.
                 Default to `False`.
             - security_context (str, dict, optional): The security context to use
@@ -189,9 +189,9 @@ class CubeJSQueryTask(Task):
         )
 
         # Augment result with SQL information
-        if include_sql:
+        if include_generated_sql:
 
-            sql_api_url = get_sql_api_url(subdomain=subdomain, url=url)
+            sql_api_url = get_generated_sql_api_url(subdomain=subdomain, url=url)
 
             data["sql"] = get_data_from_url(
                 api_token=api_token,
