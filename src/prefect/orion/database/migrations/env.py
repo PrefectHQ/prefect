@@ -28,6 +28,7 @@ def dry_run_migrations() -> None:
         literal_binds=True,
         include_schemas=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -46,6 +47,7 @@ def do_run_migrations(connection: AsyncEngine) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
