@@ -34,10 +34,16 @@ async def create_block_spec(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSpec:
-    model = await models.block_specs.create_block_spec(
-        session=session,
-        block_spec=block_spec,
-    )
+    try:
+        model = await models.block_specs.create_block_spec(
+            session=session,
+            block_spec=block_spec,
+        )
+    except sa.exc.IntegrityError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f'Block spec "{block_spec.name}/{block_spec.version}" already exists.',
+        )
 
     return model
 
