@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 
 import prefect.orion.schemas as schemas
 import prefect.orion.models as models
+from prefect.orion.exceptions import PrefectObjectNotFoundError
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -166,7 +167,7 @@ async def get_runs_in_work_queue(
     """
     work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
     if not work_queue:
-        raise Exception("Work queue not found.")
+        raise PrefectObjectNotFoundError("Work queue not found.")
 
     if work_queue.is_paused:
         return []
