@@ -32,12 +32,18 @@ jobs:
           - ""
           - "--only-services"
 
-        # Docker image builds are required for service tests but not regular tests
         include:
+          # Docker image builds are required for service tests but not regular tests
           - test-options: ""
             docker-images: false
           - test-options: "--only-services"
             docker-images: true
+
+          # Include lower bound package pins if using the minimum python version
+          - python-version: env.MINIMUM_PYTHON_VERSION
+            lower-bounds-requirements:
+              - true
+              - false
 
       fail-fast: false
 
@@ -81,14 +87,24 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
+      - name: Generate lower bound python requirements
+        if: ${{ matrix.lower-bound-requirements }}
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
+
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
+          # If using not using lower bounds, upgrade eagerly to get the latest versions despite cachcing
+          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Run tests
         env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db" 
         run: |
           pytest tests -vv  ${{ matrix.test-options }}
 
@@ -161,13 +177,6 @@ jobs:
   #       with:
   #         python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
 
-  #     - name: Generate lower bound python requirements
-  #       # Creates lower bound files then replaces the input files so we can do a normal install
-  #       run: |
-  #         ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-  #         ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-  #         mv requirements-lower.txt requirements.txt
-  #         mv requirements-dev-lower.txt requirements-dev.txt
 
   #     - name: Install packages
   #       run: |
