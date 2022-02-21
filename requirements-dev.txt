@@ -10,6 +10,7 @@ pre-commit
 pytest
 pytest-asyncio >= 0.17
 pytest-env
+pytest-timeout
 pytkdocs >= 0.13.0
 requests
 setuptools != 60.9.0; python_version < '3.8'
