@@ -244,7 +244,6 @@ class TestReadWorkQueueRuns:
     async def test_read_work_queue_runs_handles_non_existent_work_queue(self, client):
         response = await client.post(f"/work_queues/{uuid4()}/get_runs")
         assert response.status_code == 404
-        # TODO
 
 
 class TestDeleteWorkQueue:

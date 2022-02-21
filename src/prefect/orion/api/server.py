@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 import prefect
 import prefect.orion.api as api
+from prefect.orion.exceptions import PrefectObjectNotFoundError
 import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
@@ -65,6 +66,15 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
+async def prefect_object_not_found_exception_handler(
+    request: Request, exc: PrefectObjectNotFoundError
+):
+    """Return 404 status code on object not found exceptions."""
+    return JSONResponse(
+        content={"exception_message": str(exc)}, status_code=status.HTTP_404_NOT_FOUND
     )
 
 
@@ -164,6 +174,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
             "exception_handlers": {
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
+                PrefectObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         }
     )
