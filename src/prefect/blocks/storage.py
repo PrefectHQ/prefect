@@ -63,23 +63,23 @@ class S3StorageBlock(StorageBlock):
             region_name=self.region_name,
         )
 
-    async def write(self, data: bytes) -> dict:
-        data_location = {"Bucket": self.bucket, "Key": str(uuid4())}
-        await run_sync_in_worker_thread(self._write_sync, data_location, data)
-        return data_location
+    async def write(self, data: bytes) -> str:
+        key = str(uuid4())
+        await run_sync_in_worker_thread(self._write_sync, key, data)
+        return key
 
-    async def read(self, data_location: dict) -> bytes:
-        return await run_sync_in_worker_thread(self._read_sync, data_location)
+    async def read(self, key: str) -> bytes:
+        return await run_sync_in_worker_thread(self._read_sync, key)
 
-    def _write_sync(self, data_location: dict, data: bytes) -> None:
+    def _write_sync(self, key: str, data: bytes) -> None:
         s3_client = self.aws_session.client("s3")
         with io.BytesIO(data) as stream:
-            s3_client.upload_fileobj(Fileobj=stream, **data_location)
+            s3_client.upload_fileobj(Fileobj=stream, Bucket=self.bucket, Key=key)
 
-    def _read_sync(self, data_location: dict) -> bytes:
+    def _read_sync(self, key: str) -> bytes:
         s3_client = self.aws_session.client("s3")
         with io.BytesIO() as stream:
-            s3_client.download_fileobj(**data_location, Fileobj=stream)
+            s3_client.download_fileobj(Bucket=self.bucket, Key=key, Fileobj=stream)
             stream.seek(0)
             output = stream.read()
         return output
