@@ -71,7 +71,8 @@ def venv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
     subprocess.check_output(
         [sys.executable, "-m", "venv", str(environment_path), "--system-site-packages"]
     )
@@ -126,14 +127,11 @@ def virtualenv_environment_path(tmp_path):
 
 
 @pytest.fixture
-@pytest.mark.timeout(300)
 def conda_environment_path(tmp_path):
     """
     Generates a temporary anaconda environment with development dependencies installed
 
     Will not be usable by `--name`, only `--prefix`.
-
-    TODO: This fixture is slow because it cannot reuse
     """
     if not shutil.which("conda"):
         pytest.skip("`conda` is not installed.")
