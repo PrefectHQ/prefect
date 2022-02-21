@@ -3,11 +3,11 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
-from azure.storage.blob import BlobServiceClient
 import anyio
+from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
