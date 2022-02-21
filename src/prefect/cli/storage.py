@@ -114,7 +114,9 @@ async def configure_azure_blob_storage():
     abs_data["container"] = typer.prompt(
         "To which Azure Blob container would you like to persist data?"
     )
-    abs_data["connection_string"] = typer.prompt("What is your Azure connection string?")
+    abs_data["connection_string"] = typer.prompt(
+        "What is your Azure connection string?"
+    )
 
     return ("azureblobstorage-block", abs_data)
 
@@ -127,7 +129,7 @@ storage_configuration_procedures: Dict[
     orion=configure_orion_storage,
     s3=configure_s3_storage,
     gcs=configure_google_cloud_storage,
-    azure_blob=configure_azure_blob_storage
+    azure_blob=configure_azure_blob_storage,
 )
 
 
