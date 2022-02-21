@@ -16,8 +16,8 @@ env:
 
 
 jobs:
-  build-test-images:
-    name: Build test images
+  run-service-tests:
+    name: Run service tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build image
+      - name: Build test images
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -50,12 +50,32 @@ jobs:
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v2
+      - name: Generate lower bound requirements
+        if: ${{ matrix.python-version }} == ${{ env.MINIMUM_PYTHON_VERSION }}
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
+
+      - name: Set up Python ${{ matrix.python-version}}
+        uses: actions/setup-python@v2
         with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp/image.tar
-          retention-days: 1
+          python-version: ${{ matrix.python-version}}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run service tests
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        run: |
+          pytest tests -vv --only-services
 
   run-tests-sqlite:
     name: Test with SQLite
@@ -93,20 +113,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
-
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests --all-services --not-service ray -vv
+          pytest tests -vv
 
   run-tests-postgres:
     name: Test with Postgres
@@ -156,15 +167,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
-
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
@@ -201,17 +203,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ env.MINIMUM_PYTHON_VERSION }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
-
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests --all-services --not-service ray -vv
+          pytest tests -vv
