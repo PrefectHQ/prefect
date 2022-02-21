@@ -66,12 +66,12 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         content={
             "detail": (
-                "Data integrity error. This usually means a "
+                "Data integrity conflict. This usually means a "
                 "unique or foreign key constraint was violated. "
                 "See server logs for details."
             )
         },
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_409_CONFLICT,
     )
 
 

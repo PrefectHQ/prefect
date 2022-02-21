@@ -24,8 +24,8 @@ async def test_validation_error_handler(client):
         "flow_data": {"encoding": "x", "blob": "y"},
     }
     response = await client.post("/deployments/", json=bad_deployment_data)
-    assert response.status_code == 422
-    assert "Data integrity error" in response.json()["detail"]
+    assert response.status_code == 409
+    assert "Data integrity conflict" in response.json()["detail"]
 
 
 async def test_health_check_route(client):
