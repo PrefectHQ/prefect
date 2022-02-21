@@ -717,7 +717,27 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
-class ORMBlockData:
+class ORMBlockSpec:
+    name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String, nullable=True, index=True)
+    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_block_spec__type", "type"),
+            sa.Index(
+                "uq_block_spec__name_version",
+                "name",
+                "version",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
+class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
     blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -825,7 +845,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
-        block_data_mixin: block data orm mixin, combined with Base orm class
+        block_mixin: block orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
@@ -846,7 +866,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_data_mixin=ORMBlockData,
+        block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -889,7 +909,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
-            block_data_mixin=block_data_mixin,
+            block_mixin=block_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -926,7 +946,8 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_data_mixin=ORMBlockData,
+        block_spec_mixin=ORMBlockSpec,
+        block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -970,7 +991,10 @@ class BaseORMConfiguration(ABC):
         class Agent(agent_mixin, self.Base):
             pass
 
-        class BlockData(block_data_mixin, self.Base):
+        class BlockSpec(block_spec_mixin, self.Base):
+            pass
+
+        class Block(block_mixin, self.Base):
             pass
 
         class Configuration(configuration_mixin, self.Base):
@@ -988,7 +1012,8 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
-        self.BlockData = BlockData
+        self.BlockSpec = BlockSpec
+        self.Block = Block
         self.Configuration = Configuration
 
     @property

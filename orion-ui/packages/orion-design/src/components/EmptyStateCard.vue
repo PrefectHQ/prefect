@@ -9,11 +9,15 @@
         <p class="empty-state-card__letters">
           {{ description }}
         </p>
-        <router-link :to="link">
-          <m-button color="primary" miter icon="pi-add-line">
+        <slot>
+          <router-link :to="link">
+            <m-button color="primary" miter icon="pi-add-line">
             {{ buttonText }}
-          </m-button>
-        </router-link>
+            </m-button>
+          </router-link>
+        </slot>
+        
+       
       </div>
       <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
     </div>
@@ -51,7 +55,7 @@
         type: String,
         required: true,
       },
-    },
+    }
   })
 </script>
 

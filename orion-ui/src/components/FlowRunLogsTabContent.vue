@@ -123,7 +123,7 @@
   const options: SubscriptionOptions = {
     interval: props.running ? 5000 : undefined,
   }
-  const subscription = subscribe(logsApi.filter.bind(logsApi), [filter], options)
+  const subscription = subscribe(logsApi.getLogs.bind(logsApi), [filter], options)
   const logs = computed<Log[]>(() => subscription.response.value ?? [])
   const loading = computed<boolean>(() => subscription.loading.value ?? true)
 

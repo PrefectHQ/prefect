@@ -326,12 +326,23 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockData(ORMBaseModel):
-    """An ORM representation of block data."""
+class BlockSpec(ORMBaseModel):
+    """An ORM representation of a block spec."""
 
-    name: str = Field(..., description="The block data identifier")
-    blockref: str = Field(..., description="A reference to a registered BlockAPI")
-    data: dict = Field(default_factory=dict, description="Data used by a BlockAPI")
+    name: str = Field(..., description="The block spec's name")
+    version: str = Field(..., description="The block spec's version")
+    type: str = Field(None, description="The block spec's type")
+    fields: dict = Field(
+        default_factory=dict, description="The block spec's field schema"
+    )
+
+
+class Block(ORMBaseModel):
+    """An ORM representation of a block."""
+
+    name: str = Field(..., description="The block's name'")
+    blockref: str = Field(..., description="A reference to a registered blockspec")
+    data: dict = Field(default_factory=dict, description="The block's data")
 
 
 class Configuration(ORMBaseModel):
