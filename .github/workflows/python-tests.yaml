@@ -55,10 +55,6 @@ jobs:
         if: ${{ matrix.docker-images }}
         uses: docker/setup-buildx-action@v1
 
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
       - name: Build test images
         if: ${{ matrix.docker-images }}
         uses: docker/build-push-action@v2
