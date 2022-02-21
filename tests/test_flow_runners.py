@@ -174,10 +174,10 @@ def conda_environment_path(tmp_path):
             Path(sys.prefix) / "lib" / f"python{python_version}" / "site-packages"
         )
         print(f"Linking packages from {local_site_packages} -> {conda_site_packages}")
-        for child in local_site_packages.iterdir():
-            link_path = conda_site_packages / child.name
-            if not link_path.exists():
-                link_path.symlink_to(child, target_is_directory=child.is_dir())
+        for local_pkg in local_site_packages.iterdir():
+            conda_pkg = conda_site_packages / local_pkg.name
+            if not conda_pkg.exists():
+                conda_pkg.symlink_to(local_pkg, target_is_directory=local_pkg.is_dir())
 
         # Linking is takes ~10s while faster than reinstalling in the environment takes
         # ~60s. This blurb is retained for the future as we may encounter issues with
