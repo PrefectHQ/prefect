@@ -14,7 +14,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.exceptions import PrefectObjectNotFoundError
+from prefect.orion.exceptions import ObjectNotFoundError
 
 
 @inject_db
@@ -167,7 +167,7 @@ async def get_runs_in_work_queue(
     """
     work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
     if not work_queue:
-        raise PrefectObjectNotFoundError("Work queue not found.")
+        raise ObjectNotFoundError("Work queue not found.")
 
     if work_queue.is_paused:
         return []

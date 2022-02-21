@@ -1,7 +1,7 @@
 from prefect.exceptions import PrefectException
 
 
-class PrefectObjectNotFoundError(PrefectException):
+class ObjectNotFoundError(PrefectException):
     """
     Error raised by the Orion API when a requested object is not found.
 
