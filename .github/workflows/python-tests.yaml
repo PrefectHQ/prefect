@@ -16,70 +16,8 @@ env:
 
 
 jobs:
-  run-service-tests:
-    name: Run service tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version:
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Build test images
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Test docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
-
-      - name: Generate lower bound requirements
-        if: ${{ matrix.python-version }} == ${{ env.MINIMUM_PYTHON_VERSION }}
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
-
-      - name: Set up Python ${{ matrix.python-version}}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version}}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Run service tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        run: |
-          pytest tests -vv --only-services
-
   run-tests-sqlite:
     name: Test with SQLite
-    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -90,7 +28,16 @@ jobs:
           - "3.10"
         os:
           - ubuntu-latest
-          # - windows-latest
+        service-tests:
+          - true
+          - false
+        # Docker image builds are required for service tests but not regular tests
+        include:
+          - service-tests: true
+            docker-images: true
+          - service-tests: false
+            docker-images: false
+
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -100,6 +47,31 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        if: ${{ matrix.docker-images }}
+        uses: docker/setup-buildx-action@v1
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build test images
+        if: ${{ matrix.docker-images }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test docker image
+        if: ${{ matrix.docker-images }}
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -119,9 +91,15 @@ jobs:
         run: |
           pytest tests -vv
 
+      - name: Run service tests
+        if: ${{ matrix.service-tests }}
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        run: |
+          pytest tests -vv --only-services
+
   run-tests-postgres:
     name: Test with Postgres
-    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -175,7 +153,6 @@ jobs:
 
   run-tests-lower-bounds:
     name: Test with lower requirements
-    needs: [build-test-images]
     # We cannot test on Ubuntu LTS because the sqlite version is not new enough
     runs-on: ubuntu-latest
 
