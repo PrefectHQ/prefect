@@ -33,7 +33,7 @@ export class SearchApi extends Api {
     return this.delete(`/${id}`)
   }
 
-  public filter(request?: { limit?: number, number?: number }): Promise<SavedSearchResponse[]> {
+  public getSearches(request?: { limit?: number, number?: number }): Promise<SavedSearchResponse[]> {
     return this.post<SavedSearchResponse[]>('/filter', request).then(response => response.data)
   }
 }
