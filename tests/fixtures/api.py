@@ -60,9 +60,10 @@ async def hosted_orion_api():
     env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = "False"
 
     # Will connect to the same database as normal test clients
-    async with await anyio.open_process(
+    process = await anyio.open_process(
         command=[
             "uvicorn",
+            "--factory",
             "prefect.orion.api.server:create_app",
             "--host",
             "0.0.0.0",  # required for access across networked docker containers in CI
@@ -74,10 +75,11 @@ async def hosted_orion_api():
         env=env,
         stdout=sys.stdout,
         stderr=subprocess.STDOUT,
-    ) as process:
+    )
 
-        api_url = "http://localhost:2222/api"
+    api_url = "http://localhost:2222/api"
 
+    try:
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
             response = None
@@ -97,14 +99,16 @@ async def hosted_orion_api():
                 raise RuntimeError(
                     "Timed out while attempting to connect to hosted test Orion."
                 )
+
+        # Yield to the consuming tests
+        yield api_url
+
+    finally:
+        # Cleanup the process
         try:
-            yield api_url
-        finally:
-            if not process.returncode:
-                try:
-                    process.terminate()
-                except Exception:
-                    pass  # May already be terminated
+            process.terminate()
+        except Exception:
+            pass  # May already be terminated
 
 
 @pytest.fixture
