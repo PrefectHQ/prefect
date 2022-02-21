@@ -8,6 +8,11 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situtations where a branch needs to be updated before merging.
 
+## Add block spec table
+
+SQLite: `e1ff4973a9eb`
+Postgres: `4799f657a6a1`
+
 ## Rename block data table
 
 SQLite: `4c4a6a138053`
