@@ -28,15 +28,15 @@ jobs:
           # - "3.10"
         os:
           - ubuntu-latest
-        service-options:
+        test-options:
           - ""
           - "--only-services"
 
         # Docker image builds are required for service tests but not regular tests
         include:
-          - service-options: ""
+          - test-options: ""
             docker-images: false
-          - service-options: "--only-services"
+          - test-options: "--only-services"
             docker-images: true
 
       fail-fast: false
@@ -48,9 +48,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-
-      - name: Dump matrix context
-        run: echo '${{ toJSON(matrix) }}'
 
       - name: Set up Docker Buildx
         if: ${{ matrix.docker-images }}
@@ -77,23 +74,23 @@ jobs:
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
-      # - name: Set up Python ${{ matrix.python-version }}
-      #   uses: actions/setup-python@v2
-      #   with:
-      #     python-version: ${{ matrix.python-version }}
-      #     cache: "pip"
-      #     cache-dependency-path: "requirements*.txt"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
 
-      # - name: Install packages
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install --upgrade --upgrade-strategy eager -e .[dev]
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      # - name: Run tests
-      #   env:
-      #     PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-      #   run: |
-      #     pytest tests -vv  ${{ matrix.service-options }}
+      - name: Run tests
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        run: |
+          pytest tests -vv  ${{ matrix.test-options }}
 
   # run-tests-postgres:
   #   name: Test with Postgres
