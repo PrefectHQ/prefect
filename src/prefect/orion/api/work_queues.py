@@ -86,7 +86,6 @@ async def read_work_queue_runs(
             session=session, agent_id=agent_id, work_queue_id=work_queue_id
         )
 
-    # TODO - handle work queue not found error
     return flow_runs
 
 
