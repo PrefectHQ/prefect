@@ -61,6 +61,12 @@ class Setting(Generic[T]):
     def __repr__(self) -> str:
         return f"Setting({self.type.__name__}, {self.field!r})"
 
+    def __bool__(self) -> bool:
+        """
+        Returns a truthy check of the current value.
+        """
+        return bool(self.value())
+
 
 # Callbacks and validators
 
@@ -616,3 +622,38 @@ def load_profile(name: str) -> Dict[str, str]:
         raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
 
     return variables
+
+
+def update_profile(name: str = None, **values) -> Dict[str, str]:
+    """
+    Update a profile, adding or updating key value pairs.
+
+    If the profile does not exist, it will be created.
+
+    This function is not thread safe.
+
+    Args:
+        name: The profile to update. If not set, the current profile name will be used.
+        **values: Key and value pairs to update. To unset keys, set them to `None`.
+
+    Returns:
+        The new settings for the profile
+    """
+    if name is None:
+        import prefect.context
+
+        name = prefect.context.get_profile_context().name
+
+    profiles = load_profiles()
+    settings = profiles.get(name, {})
+    settings.update(values)
+
+    for key, value in tuple(settings.items()):
+        if value is None:
+            settings.pop(key)
+
+    profiles[name] = settings
+
+    write_profiles(profiles)
+
+    return settings

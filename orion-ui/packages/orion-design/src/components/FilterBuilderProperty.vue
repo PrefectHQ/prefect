@@ -71,7 +71,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-property-flow {
   display: flex;
   flex-wrap: wrap;

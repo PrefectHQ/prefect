@@ -9,7 +9,8 @@
 [build]
 base = ""
 command = """
-pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
+pip install --upgrade pip \
+&& pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
 && prefect dev build-docs  \
 && mkdocs build
 """

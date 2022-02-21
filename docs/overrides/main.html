@@ -1,2 +1,12 @@
 {% extends "base.html" %}
-
+{% block announce %}
+  <div style="color: white;">
+    For questions and migration guidance check out our new
+  <a href="https://discourse.prefect.io" style="color: #07e798;">
+    <span class="twemoji twitter">
+      {% include ".icons/fontawesome/brands/discourse.svg" %}
+    </span>
+    <strong>Prefect Discourse</strong>
+  </a>
+  </div>
+{% endblock %}
