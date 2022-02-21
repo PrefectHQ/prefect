@@ -41,9 +41,7 @@ jobs:
 
           # Include lower bound package pins if using the minimum python version
           - python-version: "3.7"
-            lower-bound-requirements: true
-          - python-version: "3.7"
-            lower-bound-requirements: false
+            lower-bound-requirements: [true, false]
 
       fail-fast: false
 
@@ -54,7 +52,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-          
+
       - name: Dump matrix context
         run: echo '${{ toJSON(matrix) }}'
 
@@ -99,17 +97,17 @@ jobs:
           mv requirements-lower.txt requirements.txt
           mv requirements-dev-lower.txt requirements-dev.txt
 
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          # If using not using lower bounds, upgrade eagerly to get the latest versions despite cachcing
-          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
+      # - name: Install packages
+      #   run: |
+      #     python -m pip install --upgrade pip
+      #     # If using not using lower bounds, upgrade eagerly to get the latest versions despite cachcing
+      #     pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
-      - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db" 
-        run: |
-          pytest tests -vv  ${{ matrix.test-options }}
+      # - name: Run tests
+      #   env:
+      #     PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db" 
+      #   run: |
+      #     pytest tests -vv  ${{ matrix.test-options }}
 
   # run-tests-postgres:
   #   name: Test with Postgres
