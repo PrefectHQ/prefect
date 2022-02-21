@@ -30,9 +30,15 @@ async def create_work_queue(
     will be raised.
     """
 
-    model = await models.work_queues.create_work_queue(
-        session=session, work_queue=work_queue
-    )
+    try:
+        model = await models.work_queues.create_work_queue(
+            session=session, work_queue=work_queue
+        )
+    except sa.exc.IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A work queue with this name already exists.",
+        )
 
     return model
 
