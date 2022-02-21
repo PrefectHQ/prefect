@@ -28,15 +28,16 @@ jobs:
           - "3.10"
         os:
           - ubuntu-latest
-        service-tests:
-          - true
-          - false
+        service-options:
+          - ""
+          - "--only-services"
+
         # Docker image builds are required for service tests but not regular tests
         include:
-          - service-tests: true
-            docker-images: true
-          - service-tests: false
+          - service-tests: ""
             docker-images: false
+          - service-tests: "--only-services"
+            docker-images: true
 
       fail-fast: false
 
@@ -89,14 +90,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv
-
-      - name: Run service tests
-        if: ${{ matrix.service-tests }}
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        run: |
-          pytest tests -vv --only-services
+          pytest tests -vv  ${{ matrix.service-options }}
 
   run-tests-postgres:
     name: Test with Postgres
