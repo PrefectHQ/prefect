@@ -154,4 +154,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests --all-services --not-service ray -vv
+          pytest tests -vv
