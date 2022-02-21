@@ -10,7 +10,7 @@ import typer
 import prefect.context
 import prefect.settings
 from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_URL, update_profile
 
 cloud_app = PrefectTyper(
     name="cloud", help="Commands for interacting with Prefect Cloud"
@@ -31,18 +31,27 @@ def build_url_from_workspace(workspace: Dict) -> str:
 
 
 def confirm_logged_in():
-    if PREFECT_API_KEY.value() is None:
+    if not PREFECT_API_KEY:
+        profile = prefect.context.get_profile_context()
         exit_with_error(
-            "Currently not logged in. "
+            f"Currently not authenticated in profile {profile.name!r}. "
             "Please login with `prefect cloud login --key <API_KEY>`."
         )
+
+
+def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
+    profile = prefect.context.get_profile_context()
+    return CloudClient(
+        host=host or PREFECT_CLOUD_URL.value_from(profile.settings),
+        api_key=api_key or PREFECT_API_KEY.value_from(profile.settings),
+    )
 
 
 class CloudClient:
     def __init__(
         self,
-        host: str = PREFECT_CLOUD_URL.value(),
-        api_key: str = PREFECT_API_KEY.value(),
+        host: str,
+        api_key: str,
         httpx_settings: dict = None,
     ) -> None:
 
@@ -52,6 +61,25 @@ class CloudClient:
 
         httpx_settings.setdefault("base_url", host)
         self._client = httpx.AsyncClient(**httpx_settings)
+
+    async def read_workspaces(self) -> List[Dict]:
+        return await self.get("/me/workspaces")
+
+    async def __aenter__(self):
+        await self._client.__aenter__()
+        return self
+
+    async def __aexit__(self, *exc_info):
+        return await self._client.__aexit__(*exc_info)
+
+    def __enter__(self):
+        raise RuntimeError(
+            "The `CloudClient` must be entered with an async context. Use 'async "
+            "with CloudClient(...)' not 'with CloudClient(...)'"
+        )
+
+    def __exit__(self, *_):
+        assert False, "This should never be called but must be defined for __enter__"
 
     async def get(self, route, **kwargs):
         try:
@@ -66,9 +94,6 @@ class CloudClient:
                 raise exc
 
         return res.json()
-
-    async def read_workspaces(self) -> List[Dict]:
-        return await self.get("/me/workspaces")
 
 
 def prompt_select_workspace(workspaces: Iterable[str]) -> str:
@@ -110,9 +135,9 @@ async def login(
     If those values are already set they will be overwritten.
     """
 
-    client = CloudClient(api_key=key)
+    async with get_cloud_client(api_key=key) as client:
+        workspaces = await client.read_workspaces()
 
-    workspaces = await client.read_workspaces()
     workspaces = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
@@ -124,20 +149,18 @@ async def login(
     if workspace_handle not in workspaces:
         exit_with_error(
             f"Workspace {workspace_handle!r} not found. "
-            f"Leave `--workspace` blank to select a workspace."
+            "Leave `--workspace` blank to select a workspace."
         )
 
-    profiles = prefect.settings.load_profiles()
+    update_profile(
+        PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle]),
+        PREFECT_API_KEY=key,
+    )
+
     profile = prefect.context.get_profile_context()
-    env = profiles[profile.name]
-
-    env["PREFECT_API_URL"] = build_url_from_workspace(workspaces[workspace_handle])
-    env["PREFECT_API_KEY"] = key
-    prefect.settings.write_profiles(profiles)
-
     exit_with_success(
-        f"Successfully logged in and set workspace to "
-        f"{workspace_handle!r} with profile {profile.name!r}."
+        "Successfully logged in and set workspace to "
+        f"{workspace_handle!r} in profile: {profile.name!r}."
     )
 
 
@@ -149,17 +172,10 @@ async def logout():
     """
     confirm_logged_in()
 
-    profiles = prefect.settings.load_profiles()
+    update_profile(PREFECT_API_URL=None, PREFECT_API_KEY=None)
+
     profile = prefect.context.get_profile_context()
-    env = profiles[profile.name]
-
-    if "PREFECT_API_URL" in env:
-        env.pop("PREFECT_API_URL")
-    if "PREFECT_API_KEY" in env:
-        env.pop("PREFECT_API_KEY")
-    prefect.settings.write_profiles(profiles)
-
-    exit_with_success(f"Successfully logged out with profile {profile.name!r}")
+    exit_with_success(f"Successfully logged out in profile {profile.name!r}")
 
 
 @workspace_app.command()
@@ -172,11 +188,11 @@ async def set(
     ),
 ):
     """Set current workspace."""
-
     confirm_logged_in()
 
-    client = CloudClient()
-    workspaces = await client.read_workspaces()
+    async with get_cloud_client() as client:
+        workspaces = await client.read_workspaces()
+
     workspaces = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
@@ -188,15 +204,14 @@ async def set(
     if workspace_handle not in workspaces:
         exit_with_error(
             f"Workspace {workspace_handle!r} not found. "
-            f"Leave `--workspace` blank to select a workspace."
+            "Leave `--workspace` blank to select a workspace."
         )
 
-    profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_profile_context()
-    env = profiles[profile.name]
+    update_profile(
+        PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle])
+    )
 
-    env["PREFECT_API_URL"] = build_url_from_workspace(workspaces[workspace_handle])
-    prefect.settings.write_profiles(profiles)
+    profile = prefect.context.get_profile_context()
     exit_with_success(
-        f"Successfully set workspace to {workspace_handle!r} with profile {profile.name!r}."
+        f"Successfully set workspace to {workspace_handle!r} in profile: {profile.name!r}."
     )
