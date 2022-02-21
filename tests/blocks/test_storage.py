@@ -52,6 +52,7 @@ async def test_gcs_block_write_and_read_roundtrips(user_data, monkeypatch):
     assert await storage_block.read(key) == user_data
 
 
+@pytest.mark.parametrize("user_data", TEST_DATA)
 async def test_azure_blob_storage_block_write_and_read_roundtrips(
     user_data, monkeypatch
 ):
