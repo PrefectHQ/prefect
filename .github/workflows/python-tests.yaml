@@ -60,6 +60,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
