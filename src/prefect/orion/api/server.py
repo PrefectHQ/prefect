@@ -21,7 +21,7 @@ import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
-from prefect.orion.exceptions import PrefectObjectNotFoundError
+from prefect.orion.exceptions import ObjectNotFoundError
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -70,7 +70,7 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
 
 
 async def prefect_object_not_found_exception_handler(
-    request: Request, exc: PrefectObjectNotFoundError
+    request: Request, exc: ObjectNotFoundError
 ):
     """Return 404 status code on object not found exceptions."""
     return JSONResponse(
@@ -174,7 +174,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
             "exception_handlers": {
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
-                PrefectObjectNotFoundError: prefect_object_not_found_exception_handler,
+                ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         }
     )
