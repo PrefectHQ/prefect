@@ -18,6 +18,16 @@ async def create_block_spec(
     block_spec: schemas.core.BlockSpec,
     db: OrionDBInterface,
 ):
+    """
+    Create a new block spec.
+
+    Args:
+        session: A database session
+        block_spec: a block spec object
+
+    Returns:
+        block_spec: an ORM block spec model
+    """
     insert_values = block_spec.dict(
         shallow=True, exclude_unset=False, exclude={"created", "updated"}
     )
