@@ -20,7 +20,7 @@ export class LogsApi extends Api {
 
   protected route: Route = '/logs'
 
-  public filter(filter?: LogsRequestFilter): Promise<Log[]> {
+  public getLogs(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post('/filter', filter).then(response => this.logsResponseMapper(response))
   }
 
