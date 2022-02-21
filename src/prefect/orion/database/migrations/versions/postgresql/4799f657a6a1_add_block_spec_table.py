@@ -1,7 +1,7 @@
 """Add block_spec table
 
 Revision ID: 4799f657a6a1
-Revises: 4799f657a6a1
+Revises: d9d98a9ebb6f
 Create Date: 2022-02-20 10:38:44.972308
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "4799f657a6a1"
-down_revision = "4799f657a6a1"
+down_revision = "d9d98a9ebb6f"
 branch_labels = None
 depends_on = None
 
