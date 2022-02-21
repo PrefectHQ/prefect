@@ -1,4 +1,3 @@
-import asyncio
 from itertools import product
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
@@ -35,21 +34,6 @@ async def test_write_and_read_rountdrips(
     assert await storage_block.read(storage_token) == user_data
 
 
-@mock_s3
-@pytest.mark.parametrize("user_data", TEST_DATA)
-def test_s3_block_write_and_read_roundtrips(user_data):
-    # initialize mock-aws with an S3 bucket to write to
-    s3_client = boto3.client("s3")
-    s3_client.create_bucket(Bucket="with-holes")
-
-    storage_block = storage.S3StorageBlock.parse_obj(
-        {"blockref": "s3storage-block", "bucket": "with-holes"}
-    )
-
-    storage_token = asyncio.run(storage_block.write(user_data))
-    assert asyncio.run(storage_block.read(storage_token)) == user_data
-
-
 @pytest.mark.parametrize("user_data", TEST_DATA)
 async def test_gcs_block_write_and_read_roundtrips(user_data, monkeypatch):
     mock_bucket = {}
@@ -68,7 +52,6 @@ async def test_gcs_block_write_and_read_roundtrips(user_data, monkeypatch):
     assert await storage_block.read(key) == user_data
 
 
-@pytest.mark.parametrize("user_data", TEST_DATA)
 async def test_azure_blob_storage_block_write_and_read_roundtrips(
     user_data, monkeypatch
 ):
@@ -94,3 +77,18 @@ async def test_azure_blob_storage_block_write_and_read_roundtrips(
 
     key = await storage_block.write(user_data)
     assert await storage_block.read(key) == user_data
+
+
+@pytest.mark.parametrize("user_data", TEST_DATA)
+async def test_s3_block_write_and_read_roundtrips(user_data):
+    with mock_s3():
+        # initialize mock-aws with an S3 bucket to write to
+        s3_client = boto3.client("s3")
+        s3_client.create_bucket(Bucket="with-holes")
+
+        storage_block = storage.S3StorageBlock.parse_obj(
+            {"blockref": "s3storage-block", "bucket": "with-holes"}
+        )
+
+        storage_token = await storage_block.write(user_data)
+        assert await storage_block.read(storage_token) == user_data
