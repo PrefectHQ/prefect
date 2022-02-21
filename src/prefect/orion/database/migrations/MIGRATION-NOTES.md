@@ -8,6 +8,13 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situtations where a branch needs to be updated before merging.
 
+## Index FlowRun.flow_runner_type
+
+SQLite: `f327e877e423`
+Postgres: `d115556a8ab6`
+
+Indexes FlowRun.flow_runner_type for more efficient querying.
+
 ## Rename block data table
 
 SQLite: `4c4a6a138053`
