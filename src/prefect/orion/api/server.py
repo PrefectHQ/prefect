@@ -17,11 +17,11 @@ from fastapi.staticfiles import StaticFiles
 
 import prefect
 import prefect.orion.api as api
-from prefect.orion.exceptions import PrefectObjectNotFoundError
 import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
+from prefect.orion.exceptions import PrefectObjectNotFoundError
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"

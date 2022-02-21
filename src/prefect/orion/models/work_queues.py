@@ -6,15 +6,15 @@ Intended for internal use by the Orion API.
 import datetime
 from uuid import UUID
 
-from pydantic import parse_obj_as
 import sqlalchemy as sa
+from pydantic import parse_obj_as
 from sqlalchemy import delete, select
 
-import prefect.orion.schemas as schemas
 import prefect.orion.models as models
-from prefect.orion.exceptions import PrefectObjectNotFoundError
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import PrefectObjectNotFoundError
 
 
 @inject_db
