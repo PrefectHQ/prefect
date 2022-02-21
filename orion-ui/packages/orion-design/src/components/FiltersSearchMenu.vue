@@ -34,7 +34,7 @@
   import { searchApi } from '@/services/SearchApi'
   import { Filter } from '@/types/filters'
 
-  const subscription = subscribe(searchApi.filter.bind(searchApi), [])
+  const subscription = subscribe(searchApi.getSearches.bind(searchApi), [])
   const filters = computed(() => subscription.response.value ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading.value)
