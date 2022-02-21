@@ -14,7 +14,6 @@ on:
 env:
   MINIMUM_PYTHON_VERSION: "3.7"
 
-
 jobs:
   run-tests-sqlite:
     name: Test with SQLite
@@ -24,8 +23,8 @@ jobs:
         python-version:
           - "3.7"
           - "3.8"
-          # - "3.9"
-          # - "3.10"
+          - "3.9"
+          - "3.10"
         os:
           - ubuntu-latest
         test-options:
@@ -103,7 +102,7 @@ jobs:
 
       - name: Run tests
         env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db" 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           pytest tests -vv  ${{ matrix.test-options }}
 
@@ -159,31 +158,3 @@ jobs:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
           pytest tests --all-services --not-service ray -vv
-
-  # run-tests-lower-bounds:
-  #   name: Test with lower requirements
-  #   # We cannot test on Ubuntu LTS because the sqlite version is not new enough
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #       with:
-  #         persist-credentials: false
-  #         fetch-depth: 0
-
-  #     - name: Set up Python ${{ env.MINIMUM_PYTHON_VERSION }}
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
-
-
-  #     - name: Install packages
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         pip install -e .[dev]
-
-  #     - name: Run tests
-  #       env:
-  #         PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-  #       run: |
-  #         pytest tests -vv
