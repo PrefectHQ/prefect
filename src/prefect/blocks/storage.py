@@ -191,7 +191,7 @@ class AzureBlobStorageBlock(StorageBlock):
             conn_str=self.connection_string
         )
 
-    async def read(self, key: str):
+    async def read(self, key: str) -> bytes:
         blob = self.blob_service_client.get_blob_client(
             container=self.container,
             blob=key,
@@ -199,12 +199,11 @@ class AzureBlobStorageBlock(StorageBlock):
         stream = blob.download_blob()
         return await run_sync_in_worker_thread(stream.readall)
 
-    async def write(self, data: bytes):
+    async def write(self, data: bytes) -> str:
         key = str(uuid4())
         blob = self.blob_service_client.get_blob_client(
             container=self.container,
             blob=key,
         )
-        upload = partial(blob.upload_blob, data)
-        await run_sync_in_worker_thread(upload)
+        await run_sync_in_worker_thread(blob.upload_blob, data)
         return key
