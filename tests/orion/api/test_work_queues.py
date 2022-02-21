@@ -45,17 +45,14 @@ class TestCreateWorkQueue:
         assert str(work_queue.id) == work_queue_id
         assert work_queue.name == "My WorkQueue"
 
-    async def test_create_work_queue_raises_error_on_existing_name(self, client):
+    async def test_create_work_queue_raises_error_on_existing_name(
+        self, client, work_queue
+    ):
         data = WorkQueueCreate(
-            name="My WorkQueue",
+            name=work_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
-        assert response.status_code == 201
-        assert response.json()["name"] == "My WorkQueue"
-        work_queue_id = response.json()["id"]
-        raise Exception("Zach you need to implement this test")
-
-        # TODO - this should raise an error
+        assert response.status_code == 409
 
 
 class TestReadWorkQueue:
