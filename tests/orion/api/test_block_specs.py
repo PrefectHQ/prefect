@@ -73,6 +73,7 @@ class TestCreateBlockSpec:
             json=BlockSpecCreate(name="x", version="1.0", type="abc", fields={}).dict(),
         )
         assert response.status_code == 422
+        assert 'Block spec "x/1.0" already exists.' in response.json()["detail"]
 
 
 class TestDeleteBlockSpec:

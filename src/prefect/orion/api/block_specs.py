@@ -34,7 +34,6 @@ async def create_block_spec(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSpec:
-
     try:
         model = await models.block_specs.create_block_spec(
             session=session,
@@ -43,7 +42,7 @@ async def create_block_spec(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="A block spec with that name and version already exists.",
+            detail=f'Block spec "{block_spec.name}/{block_spec.version}" already exists.',
         )
 
     return model
