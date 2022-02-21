@@ -6,7 +6,7 @@ from tempfile import gettempdir
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from azure.storage.blob import BlobServiceClient, BlobClient
+from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
@@ -191,17 +191,13 @@ class AzureBlobStorageBlock(StorageBlock):
             conn_str=self.connection_string
         )
 
-    def _read_sync(self, blob: BlobClient):
-        stream = blob.download_blob()
-        return stream.readall()
-
     async def read(self, key: str):
         blob = self.blob_service_client.get_blob_client(
             container=self.container,
             blob=key,
         )
-        download = partial(self._read_sync, blob)
-        return await run_sync_in_worker_thread(download)
+        stream = blob.download_blob()
+        return await run_sync_in_worker_thread(stream.readall)
 
     async def write(self, data: bytes):
         key = str(uuid4())
