@@ -33,9 +33,7 @@ jobs:
           - "--only-services"
 
         include:
-          # Docker image builds are required for service tests but not regular tests
-          - test-options: ""
-            docker-images: false
+          # Docker image builds are required for service tests
           - test-options: "--only-services"
             docker-images: true
 
@@ -88,7 +86,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
-      - name: Generate lower bound python requirements
+      - name: Pin requirements to lower bounds
         if: ${{ matrix.lower-bound-requirements }}
         # Creates lower bound files then replaces the input files so we can do a normal install
         run: |
