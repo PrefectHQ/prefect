@@ -31,14 +31,6 @@ jobs:
         test-options:
           - ""
           - "--only-services"
-        lower-bound-requirements:
-          - true
-          - false
-
-        # Only run the lower bound tests for 3.7
-        exclude:
-          - python-version: ["3.8", "3.9", "3.10"]
-            lower-bound-requirements: true
 
         include:
           # Docker image builds are required for service tests but not regular tests
@@ -47,7 +39,9 @@ jobs:
           - test-options: "--only-services"
             docker-images: true
 
-
+          # Run 3.7 tests with lower bound pins
+          - python-version: "3.7"
+            lower-bound-requirements: true
 
       fail-fast: false
 
