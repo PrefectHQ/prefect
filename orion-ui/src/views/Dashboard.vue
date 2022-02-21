@@ -115,7 +115,7 @@
 
 <script lang="ts" setup>
   import type { UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter } from '@prefecthq/orion-design'
-  import { Filter, useFiltersStore, hasFilter } from '@prefecthq/orion-design'
+  import { Filter, useFiltersStore, hasFilter, flowsApi } from '@prefecthq/orion-design'
   import { RouterTabSet } from '@prefecthq/orion-design/components'
   import { StateType } from '@prefecthq/orion-design/models'
   import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
@@ -132,7 +132,7 @@
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [
+  const firstFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
@@ -141,7 +141,7 @@
 
   const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expected_start_time)
 
-  const lastFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [
+  const lastFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
@@ -159,6 +159,8 @@
   const onFilterOff = () => {
     deploymentFilterOff.value = true
   }
+
+  flowsApi.getFlows(filter.value)
 
   const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
     if (deploymentFilterOff.value) {
