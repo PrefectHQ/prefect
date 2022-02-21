@@ -68,7 +68,7 @@ class TestCreateBlockSpec:
         )
         assert response.status_code == 201
 
-        response2 = await client_without_exceptions.post(
+        response = await client_without_exceptions.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type="abc", fields={}).dict(),
         )
