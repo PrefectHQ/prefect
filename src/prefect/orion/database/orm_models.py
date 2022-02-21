@@ -726,8 +726,9 @@ class ORMBlockSpec:
     @declared_attr
     def __table_args__(cls):
         return (
+            sa.Index("ix_block_spec__type", "type"),
             sa.Index(
-                "uq_block_spec_name_version",
+                "uq_block_spec__name_version",
                 "name",
                 "version",
                 unique=True,
