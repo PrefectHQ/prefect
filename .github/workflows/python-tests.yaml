@@ -40,7 +40,7 @@ jobs:
             docker-images: true
 
           # Include lower bound package pins if using the minimum python version
-          - python-version: env.MINIMUM_PYTHON_VERSION
+          - python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
             lower-bounds-requirements:
               - true
               - false
