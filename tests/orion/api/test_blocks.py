@@ -1,17 +1,17 @@
 from prefect.orion import schemas
-from prefect.orion.schemas.actions import BlockDataCreate, BlockDataUpdate
+from prefect.orion.schemas.actions import BlockCreate, BlockUpdate
 
 
-class TestBlockData:
+class TestBlock:
     async def test_creating_blocks(self, session, client):
         raw_block = {
             "blockname": "really-useful-data",
             "blockref": "really-nice-api",
         }
 
-        block_create = schemas.actions.BlockCreate(block=raw_block).dict(
-            json_compatible=True
-        )
+        block_create = schemas.actions.BlockCreate.from_serialized_block(
+            raw_block
+        ).dict(json_compatible=True)
 
         response = await client.post("/blocks/", json=block_create)
         assert response.status_code == 200
@@ -28,9 +28,9 @@ class TestBlockData:
             "ma-ti and suchi": "heart",
         }
 
-        block_create = schemas.actions.BlockCreate(block=raw_block).dict(
-            json_compatible=True
-        )
+        block_create = schemas.actions.BlockCreate.from_serialized_block(
+            raw_block
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=block_create)
         assert create_response.status_code == 200
@@ -54,9 +54,9 @@ class TestBlockData:
             "black": "zack",
         }
 
-        block_create = schemas.actions.BlockCreate(block=raw_block).dict(
-            json_compatible=True
-        )
+        block_create = schemas.actions.BlockCreate.from_serialized_block(
+            raw_block
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=block_create)
         assert create_response.status_code == 200
@@ -77,9 +77,9 @@ class TestBlockData:
             "secret-identity": "evil-crime-lord",
         }
 
-        block_create = schemas.actions.BlockCreate(block=raw_block).dict(
-            json_compatible=True
-        )
+        block_create = schemas.actions.BlockCreate.from_serialized_block(
+            raw_block
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=block_create)
         assert create_response.status_code == 200
@@ -101,9 +101,9 @@ class TestBlockData:
             "hobbies": "sports",
         }
 
-        first_twin_create = schemas.actions.BlockCreate(block=first_twin).dict(
-            json_compatible=True
-        )
+        first_twin_create = schemas.actions.BlockCreate.from_serialized_block(
+            first_twin
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=first_twin_create)
         assert create_response.status_code == 200
@@ -114,9 +114,9 @@ class TestBlockData:
             "hobbies": "watching sports",
         }
 
-        second_twin_create = schemas.actions.BlockCreate(block=second_twin).dict(
-            json_compatible=True
-        )
+        second_twin_create = schemas.actions.BlockCreate.from_serialized_block(
+            second_twin
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=second_twin_create)
         assert create_response.status_code == 400
@@ -128,14 +128,14 @@ class TestBlockData:
             "palantir": "we do not know who else may be watching",
         }
 
-        sad_block_create = schemas.actions.BlockCreate(block=a_sad_block).dict(
-            json_compatible=True
-        )
+        sad_block_create = schemas.actions.BlockCreate.from_serialized_block(
+            a_sad_block
+        ).dict(json_compatible=True)
 
         create_response = await client.post("/blocks/", json=sad_block_create)
         assert create_response.status_code == 200
 
-        a_better_wizard = BlockDataUpdate(
+        a_better_wizard = BlockUpdate(
             name="mithrandir",
         ).dict(json_compatible=True)
 

@@ -315,13 +315,13 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo(1)
-            calls = repeat(foo(1), 5)
+            foo(1).wait()  # populate the cache
+            calls = [foo(i) for i in range(5)]
             return [call.wait() for call in calls]
 
         flow_state = bar()
         states = flow_state.result()
-        assert all(state.name == "Cached" for state in states)
+        assert all(state.name == "Cached" for state in states), states
 
     def test_cache_hits_between_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")

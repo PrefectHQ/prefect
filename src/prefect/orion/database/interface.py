@@ -147,9 +147,14 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.Agent
 
     @property
-    def BlockData(self):
+    def BlockSpec(self):
+        """A block spec model"""
+        return self.orm.BlockSpec
+
+    @property
+    def Block(self):
         """A block model"""
-        return self.orm.BlockData
+        return self.orm.Block
 
     @property
     def Configuration(self):

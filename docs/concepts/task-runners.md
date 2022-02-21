@@ -2,7 +2,7 @@
 
 Task runners are responsible for running Prefect tasks. Each flow has a task runner associated with it. The task runner is started at the beginning of a flow run and shutdown at the end.
 
-Depending on the task runner you use, the tasks within your flow can run in parallel or sequentially. The default task runner is the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner), which does not run your tasks in parallel. To run tasks in parallel, you can use a task runner such as the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner), which enables Dask-based parallel execution.
+Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner), which will run your tasks concurrently. To run tasks seqentially, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). To run tasks in parallel, you can use a multiprocess task runner, such as the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner).
 
 ## Using a task runner
 
