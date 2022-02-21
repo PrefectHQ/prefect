@@ -115,7 +115,7 @@
 
 <script lang="ts" setup>
   import type { UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter } from '@prefecthq/orion-design'
-  import { Filter, useFiltersStore, hasFilter, flowsApi } from '@prefecthq/orion-design'
+  import { Filter, useFiltersStore, hasFilter } from '@prefecthq/orion-design'
   import { RouterTabSet } from '@prefecthq/orion-design/components'
   import { StateType } from '@prefecthq/orion-design/models'
   import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
@@ -159,8 +159,6 @@
   const onFilterOff = () => {
     deploymentFilterOff.value = true
   }
-
-  flowsApi.getFlows(filter.value)
 
   const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
     if (deploymentFilterOff.value) {
