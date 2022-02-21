@@ -23,6 +23,7 @@ jobs:
           - "3.9"
           - "3.10"
         os:
+          # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
         test-options:
           - ""
@@ -47,7 +48,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Dump matrix context
+      - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
       - name: Set up Docker Buildx
@@ -69,7 +70,7 @@ jobs:
           tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
           outputs: type=docker,dest=/tmp/image.tar
 
-      - name: Test docker image
+      - name: Test Docker image
         if: ${{ matrix.docker-images }}
         run: |
           docker load --input /tmp/image.tar
@@ -101,7 +102,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv  ${{ matrix.test-options }}
+          pytest tests -vv ${{ matrix.test-options }}
 
   run-tests-postgres:
     name: Test with Postgres
@@ -113,14 +114,16 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
-        os:
-          - ubuntu-latest
-          # windows backend doesn't support containers
-          # - windows-latest
+
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
+    # The windows test runner cannot run a postgres service so we can only
+    # test on ubuntu
+    runs-on: ubuntu-latest
 
+    # TODO: Consider moving this from a service into a normal docker command
+    #       so we can include it in the sqlite python test matrix instead of
+    #       maintaining a separate workflow
     services:
       postgres:
         image: postgres:13
@@ -136,7 +139,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
