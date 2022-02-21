@@ -55,8 +55,9 @@ def upgrade():
             batch_op.f("ix_block_spec__updated"), ["updated"], unique=False
         )
         batch_op.create_index(
-            "uq_block_spec_name_version", ["name", "version"], unique=True
+            "uq_block_spec__name_version", ["name", "version"], unique=True
         )
+        batch_op.create_index(batch_op.f("ix_block_spec__type"), ["type"], unique=False)
 
     with op.batch_alter_table("block", schema=None) as batch_op:
         batch_op.drop_index("ix_block_data__name")
@@ -79,8 +80,9 @@ def downgrade():
         batch_op.create_index("ix_block_data__name", ["name"], unique=False)
 
     with op.batch_alter_table("block_spec", schema=None) as batch_op:
-        batch_op.drop_index("uq_block_spec_name_version")
+        batch_op.drop_index("uq_block_spec__name_version")
         batch_op.drop_index(batch_op.f("ix_block_spec__updated"))
+        batch_op.drop_index(batch_op.f("ix_block_spec__type"))
 
     op.drop_table("block_spec")
     # ### end Alembic commands ###
