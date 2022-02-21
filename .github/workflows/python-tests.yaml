@@ -34,9 +34,9 @@ jobs:
 
         # Docker image builds are required for service tests but not regular tests
         include:
-          - service-tests: ""
+          - service-options: ""
             docker-images: false
-          - service-tests: "--only-services"
+          - service-options: "--only-services"
             docker-images: true
 
       fail-fast: false
