@@ -138,7 +138,7 @@ def conda_environment_path(tmp_path):
 
     # Generate base creation command with the temporary path as the prefix for
     # automatic cleanup
-    environment_path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    environment_path: Path = tmp_path / f"test-{coolname.generate_slug(2)}"
     create_env_command = [
         "conda",
         "create",
@@ -159,26 +159,41 @@ def conda_environment_path(tmp_path):
         python_version = f"{v.major}.{v.minor}"
         create_env_command.append(f"python={python_version}")
 
+    print(f"Creating conda environment at {environment_path}")
     subprocess.check_output(create_env_command)
 
     # Install prefect within the virtual environment
     # Developers using conda should have a matching environment from `--clone`.
-    # In CI, the conda environment will inherit the installation from the global Python.
-    # This blurb is more than 2x slower than using clone so it's disabled. However, we
-    # may need to use it in the future for other development setups or to test a clean
-    # environment.
-    # subprocess.check_output(
-    #     [
-    #         "conda",
-    #         "run",
-    #         "--prefix",
-    #         str(environment_path),
-    #         "pip",
-    #         "install",
-    #         "-e",
-    #         f"{prefect.__root_path__}[dev]",
-    #     ]
-    # )
+    if not current_conda_env:
+
+        # Link packages from the current installation instead of reinstalling
+        conda_site_packages = (
+            environment_path / "lib" / f"python{python_version}" / "site-packages"
+        )
+        local_site_packages = (
+            Path(sys.prefix) / "lib" / f"python{python_version}" / "site-packages"
+        )
+        print(f"Linking packages from {local_site_packages} -> {conda_site_packages}")
+        for child in local_site_packages.iterdir():
+            link_path = conda_site_packages / child.name
+            if not link_path.exists():
+                link_path.symlink_to(child, target_is_directory=child.is_dir())
+
+        # Linking is takes ~10s while faster than reinstalling in the environment takes
+        # ~60s. This blurb is retained for the future as we may encounter issues with
+        # linking and prefer to do the slow but correct installation.
+        # subprocess.check_output(
+        #     [
+        #         "conda",
+        #         "run",
+        #         "--prefix",
+        #         str(environment_path),
+        #         "pip",
+        #         "install",
+        #         "-e",
+        #         f"{prefect.__root_path__}[dev]",
+        #     ]
+        # )
 
     return environment_path
 
