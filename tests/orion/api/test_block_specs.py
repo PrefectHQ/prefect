@@ -60,20 +60,19 @@ class TestCreateBlockSpec:
         assert str(block_spec.id) == block_spec_id
 
     async def test_create_block_spec_with_existing_name_and_version_fails(
-        self, session, client_without_exceptions
+        self, session, client
     ):
-        response = await client_without_exceptions.post(
+        response = await client.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type=None, fields={}).dict(),
         )
         assert response.status_code == 201
 
-        response = await client_without_exceptions.post(
+        response = await client.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type="abc", fields={}).dict(),
         )
         assert response.status_code == 422
-        assert 'Block spec "x/1.0" already exists.' in response.json()["detail"]
 
 
 class TestDeleteBlockSpec:
