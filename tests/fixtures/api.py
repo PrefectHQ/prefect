@@ -83,7 +83,7 @@ async def hosted_orion_api():
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
             response = None
-            with anyio.move_on_after(2):
+            with anyio.move_on_after(10):
                 while True:
                     try:
                         response = await client.get(api_url + "/admin/hello")
