@@ -53,6 +53,34 @@ async def test_gcs_block_write_and_read_roundtrips(user_data, monkeypatch):
 
 
 @pytest.mark.parametrize("user_data", TEST_DATA)
+async def test_azure_blob_storage_block_write_and_read_roundtrips(
+    user_data, monkeypatch
+):
+    mock_container = {}
+    BlobServiceClientMock = MagicMock()
+    BlobServiceClientMock.from_connection_string().get_blob_client.side_effect = (
+        lambda container, blob: MagicMock(
+            download_blob=lambda: MagicMock(readall=lambda: mock_container.get(blob)),
+            upload_blob=lambda data: mock_container.update({blob: data}),
+        )
+    )
+
+    monkeypatch.setattr(
+        "prefect.blocks.storage.BlobServiceClient", BlobServiceClientMock
+    )
+    storage_block = storage.AzureBlobStorageBlock.parse_obj(
+        {
+            "blockref": "azureblobstorage-block",
+            "container": "cracked",
+            "connection_string": "trust_me",
+        }
+    )
+
+    key = await storage_block.write(user_data)
+    assert await storage_block.read(key) == user_data
+
+
+@pytest.mark.parametrize("user_data", TEST_DATA)
 async def test_s3_block_write_and_read_roundtrips(user_data):
     with mock_s3():
         # initialize mock-aws with an S3 bucket to write to

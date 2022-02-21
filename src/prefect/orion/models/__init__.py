@@ -1,4 +1,5 @@
 from . import (
+    block_specs,
     blocks,
     deployments,
     concurrency_limits,

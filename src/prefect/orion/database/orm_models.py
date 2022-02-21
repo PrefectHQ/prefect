@@ -717,6 +717,26 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
+class ORMBlockSpec:
+    name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String, nullable=True, index=True)
+    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_block_spec__type", "type"),
+            sa.Index(
+                "uq_block_spec__name_version",
+                "name",
+                "version",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
 class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
     blockref = sa.Column(sa.String, nullable=False)
@@ -926,6 +946,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
         block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
@@ -970,6 +991,9 @@ class BaseORMConfiguration(ABC):
         class Agent(agent_mixin, self.Base):
             pass
 
+        class BlockSpec(block_spec_mixin, self.Base):
+            pass
+
         class Block(block_mixin, self.Base):
             pass
 
@@ -988,6 +1012,7 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
+        self.BlockSpec = BlockSpec
         self.Block = Block
         self.Configuration = Configuration
 
