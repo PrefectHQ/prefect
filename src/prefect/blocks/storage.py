@@ -3,10 +3,11 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Dict, Generic, Optional, TypeVar
+from typing import Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
+from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
@@ -185,4 +186,32 @@ class GoogleCloudStorageBlock(StorageBlock):
         blob = bucket.blob(key)
         upload = partial(blob.upload_from_string, data)
         await run_sync_in_worker_thread(upload)
+        return key
+
+
+@register_block("azureblobstorage-block")
+class AzureBlobStorageBlock(StorageBlock):
+    container: str
+    connection_string: str
+
+    def block_initialization(self) -> None:
+        self.blob_service_client = BlobServiceClient.from_connection_string(
+            conn_str=self.connection_string
+        )
+
+    async def read(self, key: str) -> bytes:
+        blob = self.blob_service_client.get_blob_client(
+            container=self.container,
+            blob=key,
+        )
+        stream = blob.download_blob()
+        return await run_sync_in_worker_thread(stream.readall)
+
+    async def write(self, data: bytes) -> str:
+        key = str(uuid4())
+        blob = self.blob_service_client.get_blob_client(
+            container=self.container,
+            blob=key,
+        )
+        await run_sync_in_worker_thread(blob.upload_blob, data)
         return key

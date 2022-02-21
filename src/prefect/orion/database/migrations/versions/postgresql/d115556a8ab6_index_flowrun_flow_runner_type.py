@@ -1,7 +1,7 @@
 """Index FlowRun.flow_runner_type
 
 Revision ID: d115556a8ab6
-Revises: d9d98a9ebb6f
+Revises: 4799f657a6a1
 Create Date: 2022-02-21 11:10:50.989062
 
 """
@@ -9,7 +9,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "d115556a8ab6"
-down_revision = "d9d98a9ebb6f"
+down_revision = "4799f657a6a1"
 branch_labels = None
 depends_on = None
 

@@ -22,19 +22,16 @@ async def create_block(
     block: schemas.core.Block,
     db: OrionDBInterface,
 ):
-    insert_values = block.dict(shallow=True, exclude_unset=False)
-    insert_values.pop("created")
-    insert_values.pop("updated")
-    blockname = insert_values["name"]
-
+    insert_values = block.dict(
+        shallow=True, exclude_unset=False, exclude={"block_spec", "created", "updated"}
+    )
     insert_values["data"] = await encrypt_blockdata(session, insert_values["data"])
-
     insert_stmt = (await db.insert(db.Block)).values(**insert_values)
 
     await session.execute(insert_stmt)
     query = (
         sa.select(db.Block)
-        .where(db.Block.name == blockname)
+        .where(db.Block.name == insert_values["name"])
         .execution_options(populate_existing=True)
     )
 

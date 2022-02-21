@@ -14,6 +14,10 @@ SQLite: `f327e877e423`
 Postgres: `d115556a8ab6`
 
 Indexes FlowRun.flow_runner_type for more efficient querying.
+## Add block spec table
+
+SQLite: `e1ff4973a9eb`
+Postgres: `4799f657a6a1`
 
 ## Rename block data table
 
