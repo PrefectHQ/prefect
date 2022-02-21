@@ -24,6 +24,7 @@ markdown_extensions:
     - pymdownx.tabbed
 theme:
     name: material
+    custom_dir: overrides
     favicon: img/favicon.ico
     features:
         - toc.integrate
