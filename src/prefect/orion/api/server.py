@@ -65,9 +65,11 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     logger.error(f"Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={
-            "detail": "Data integrity error. This usually means a "
-            "unique or foreign key constraint was violated. "
-            "See server logs for details."
+            "detail": (
+                "Data integrity error. This usually means a "
+                "unique or foreign key constraint was violated. "
+                "See server logs for details."
+            )
         },
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
