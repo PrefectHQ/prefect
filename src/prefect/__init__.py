@@ -21,6 +21,7 @@ from .logging import get_run_logger
 from .flows import flow
 from .tasks import task
 from .context import tags
+from .client import get_client
 
 # Import the serializers so they are registered
 import prefect.serializers

@@ -15,7 +15,7 @@
   "dependencies": {
     "@prefecthq/miter-design": "0.1.20",
     "@prefecthq/orion-design": "0.1.17",
-    "@prefecthq/vue-compositions": "0.1.9",
+    "@prefecthq/vue-compositions": "0.1.11",
     "core-js": "^3.6.5",
     "d3": "^7.0.0",
     "esbuild": "^0.13.4",
@@ -25,7 +25,7 @@
     "vue-router": "^4.0.0-0"
   },
   "devDependencies": {
-    "@babel/helper-compilation-targets": "^7.16.3",
+    "@babel/helper-compilation-targets": "^7.16.7",
     "@babel/runtime": "^7.16.3",
     "@prefecthq/eslint-config": "1.0.14",
     "@types/d3": "^7.0.0",
@@ -39,7 +39,7 @@
     "@vitejs/plugin-vue": "^1.2.5",
     "@vue/test-utils": "^2.0.0-rc.16",
     "cross-env": "^7.0.3",
-    "date-fns": "^2.25.0",
+    "date-fns": "^2.28.0",
     "eslint": "^8.2.0",
     "faker": "^5.5.3",
     "jest": "^27.3.1",
