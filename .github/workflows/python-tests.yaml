@@ -41,9 +41,9 @@ jobs:
 
           # Include lower bound package pins if using the minimum python version
           - python-version: "3.7"
-            lower-bounds-requirements: true
-          - python-version: "3.7"
-            lower-bounds-requirements: false
+            lower-bound-requirements:
+              - true
+              - false
 
       fail-fast: false
 
