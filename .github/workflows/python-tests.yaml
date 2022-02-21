@@ -41,9 +41,9 @@ jobs:
 
           # Include lower bound package pins if using the minimum python version
           - python-version: "3.7"
-            lower-bound-requirements:
-              - true
-              - false
+            lower-bound-requirements: true
+          - python-version: "3.7"
+            lower-bound-requirements: false
 
       fail-fast: false
 
@@ -54,6 +54,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          
+      - name: Dump matrix context
+        run: echo '${{ toJSON(matrix) }}'
 
       - name: Set up Docker Buildx
         if: ${{ matrix.docker-images }}
