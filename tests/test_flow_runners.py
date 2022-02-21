@@ -72,19 +72,23 @@ def venv_environment_path(tmp_path):
     environment_path = tmp_path / "test"
 
     # Create the virtual environment
-    subprocess.check_output([sys.executable, "-m", "venv", str(environment_path)])
+    subprocess.check_output(
+        [sys.executable, "-m", "venv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
@@ -98,64 +102,85 @@ def virtualenv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
-    subprocess.check_output(["virtualenv", str(environment_path)])
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
+    subprocess.check_output(
+        ["virtualenv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
 
 @pytest.fixture
+@pytest.mark.timeout(300)
 def conda_environment_path(tmp_path):
     """
     Generates a temporary anaconda environment with development dependencies installed
 
     Will not be usable by `--name`, only `--prefix`.
+
+    TODO: This fixture is slow because it cannot reuse
     """
     if not shutil.which("conda"):
         pytest.skip("`conda` is not installed.")
 
+    # Generate base creation command with the temporary path as the prefix for
+    # automatic cleanup
     environment_path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    create_env_command = [
+        "conda",
+        "create",
+        "-y",
+        "--prefix",
+        str(environment_path),
+    ]
 
-    # Create the conda environment with a matching python version up to `minor`
-    # We cannot match up to `micro` because it is not always available in conda
-    v = sys.version_info
-    python_version = f"{v.major}.{v.minor}"
-    subprocess.check_output(
-        [
-            "conda",
-            "create",
-            "-y",
-            "--prefix",
-            str(environment_path),
-            f"python={python_version}",
-        ]
-    )
+    # Get the current conda environment so we can clone it for speedup
+    current_conda_env = os.environ.get("CONDA_PREFIX")
+    if current_conda_env:
+        create_env_command.extend(["--clone", current_conda_env])
+
+    else:
+        # Otherwise, specify a matching python version up to `minor`
+        # We cannot match up to `micro` because it is not always available in conda
+        v = sys.version_info
+        python_version = f"{v.major}.{v.minor}"
+        create_env_command.append(f"python={python_version}")
+
+    subprocess.check_output(create_env_command)
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            "conda",
-            "run",
-            "--prefix",
-            str(environment_path),
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # Developers using conda should have a matching environment from `--clone`.
+    # In CI, the conda environment will inherit the installation from the global Python.
+    # This blurb is more than 2x slower than using clone so it's disabled. However, we
+    # may need to use it in the future for other development setups or to test a clean
+    # environment.
+    # subprocess.check_output(
+    #     [
+    #         "conda",
+    #         "run",
+    #         "--prefix",
+    #         str(environment_path),
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
