@@ -13,8 +13,8 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/miter-design": "0.1.20",
-    "@prefecthq/orion-design": "0.1.17",
+    "@prefecthq/miter-design": "0.1.22",
+    "@prefecthq/orion-design": "0.1.23",
     "@prefecthq/vue-compositions": "0.1.11",
     "core-js": "^3.6.5",
     "d3": "^7.0.0",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@babel/helper-compilation-targets": "^7.16.7",
-    "@babel/runtime": "^7.16.3",
+    "@babel/runtime": "^7.17.2",
     "@prefecthq/eslint-config": "1.0.14",
     "@types/d3": "^7.0.0",
     "@types/expect-puppeteer": "^4.4.7",
@@ -48,10 +48,10 @@
     "miragejs": "^0.1.43",
     "prettier": "^2.4.1",
     "puppeteer": "^13.3.2",
-    "sass": "^1.35.2",
+    "sass": "^1.49.8",
     "ts-jest": "^27.0.7",
     "ts-node": "10.1.0",
-    "typescript": "^4.1.6",
+    "typescript": "^4.5.5",
     "vite": "^2.4.2",
     "vue-class-component": "^8.0.0-0",
     "vue3-jest": "^27.0.0-alpha.2"

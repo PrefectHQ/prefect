@@ -5,6 +5,7 @@ Intended for internal use by the Orion API.
 
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
@@ -113,6 +114,48 @@ async def update_agent(
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
+
+
+@inject_db
+async def record_agent_poll(
+    session: sa.orm.Session,
+    agent_id: UUID,
+    work_queue_id: UUID,
+    db: OrionDBInterface,
+) -> None:
+    """
+    Record that an agent has polled a work queue.
+
+    If the agent_id already exists, work_queue and last_activity_time
+    will be updated.
+
+    This is a convenience method for designed for speed when agents
+    are polling work queues. For other operations, the
+    `create_agent` and `update_agent` methods should be used.
+
+    Args:
+        session (sa.orm.Session): A database session
+        agent_id: An agent id
+        work_queue_id: A work queue id
+    """
+    agent_data = schemas.core.Agent(
+        id=agent_id, work_queue_id=work_queue_id, last_activity_time=pendulum.now("UTC")
+    )
+    insert_stmt = (
+        (await db.insert(db.Agent))
+        .values(
+            **agent_data.dict(
+                include={"id", "name", "work_queue_id", "last_activity_time"}
+            )
+        )
+        .on_conflict_do_update(
+            index_elements=[db.Agent.id],
+            set_=agent_data.dict(
+                shallow=True, include={"work_queue_id", "last_activity_time"}
+            ),
+        )
+    )
+    await session.execute(insert_stmt)
 
 
 @inject_db
