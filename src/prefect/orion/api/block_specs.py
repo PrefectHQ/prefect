@@ -65,16 +65,21 @@ async def delete_block_spec(
         )
 
 
-@router.get("/")
+@router.post("/filter")
 async def read_block_specs(
-    block_spec_type: str = Query(None, description="The block spec type", alias="type"),
+    block_spec_type: str = Body(None, description="The block spec type", alias="type"),
+    limit: int = dependencies.LimitBody(),
+    offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.BlockSpec]:
     """
     Read all block specs, optionally filtered by type
     """
     result = await models.block_specs.read_block_specs(
-        session=session, block_spec_type=block_spec_type
+        session=session,
+        block_spec_type=block_spec_type,
+        limit=limit,
+        offset=offset,
     )
     return result
 
