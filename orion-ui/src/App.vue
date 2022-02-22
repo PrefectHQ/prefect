@@ -1,18 +1,18 @@
 <template>
   <div class="application">
-    <NavBar class="nav" />
-    <FilterBar v-if="validFilterRoute" class="filter-bar" />
+    <NavBar class="application__nav" />
+    <FilterBar v-if="validFilterRoute" class="application__filter-bar" />
     <suspense>
-      <router-view class="router-view" />
+      <router-view class="application__router-view" />
     </suspense>
   </div>
 </template>
 
 <script lang="ts" setup>
-import NavBar from '@/components/NavBar.vue'
-import FilterBar from '@/components/FilterBar.vue'
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+  import { computed } from 'vue'
+  import { useRoute } from 'vue-router'
+  import FilterBar from '@/components/FilterBar.vue'
+  import NavBar from '@/components/NavBar.vue'
 
   const route = useRoute()
 
@@ -24,8 +24,6 @@ import { useRoute } from 'vue-router'
 </script>
 
 <style lang="scss">
-@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-
 .application {
   background-color: $grey-10;
   display: grid;
@@ -46,23 +44,23 @@ import { useRoute } from 'vue-router'
     grid-template-rows: 62px 62px 1fr;
     row-gap: 0;
   }
+}
 
-  .nav {
-    grid-area: nav;
+.application__router-view {
+  grid-area: main;
+  padding: 0 32px;
+  overflow: auto;
+
+  @media (max-width: 640px) {
+    padding: 0px 16px 32px 16px;
   }
+}
 
-  .filter-bar {
-    grid-area: filter-bar;
-  }
+.application__filter-bar {
+  grid-area: filter-bar;
+}
 
-  .router-view {
-    grid-area: main;
-    padding: 0 32px;
-    overflow: auto;
-
-    @media (max-width: 640px) {
-      padding: 0px 16px 32px 16px;
-    }
-  }
+.application__nav {
+  grid-area: nav;
 }
 </style>
