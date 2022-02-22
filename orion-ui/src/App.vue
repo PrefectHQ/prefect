@@ -25,7 +25,7 @@
 
 <style lang="scss">
 .application {
-  background-color: $grey-10;
+  background-color: var(--grey-10);
   display: grid;
   grid-template-areas:
     'nav filter-bar'
