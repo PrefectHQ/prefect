@@ -137,6 +137,13 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
         self.logger = get_logger("client")
 
+    @property
+    def api_url(self) -> str:
+        """
+        Get the base URL for the API.
+        """
+        return self._client.base_url
+
     async def post(
         self, route: str, raise_for_status: bool = True, **kwargs
     ) -> httpx.Response:
@@ -233,6 +240,14 @@ class OrionClient:
         return response
 
     # API methods ----------------------------------------------------------------------
+
+    async def api_healthcheck(self) -> bool:
+        try:
+            with anyio.fail_after(10):
+                await self.hello()
+                return True
+        except:
+            return False
 
     async def hello(self) -> httpx.Response:
         """

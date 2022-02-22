@@ -131,6 +131,42 @@ class TestUpdateAgent:
         assert result is False
 
 
+class TestRecordAgentPolled:
+    async def test_record_agent_poll_for_existing_agent(
+        self, session, agent, work_queue
+    ):
+        now = pendulum.now("UTC")
+        await models.agents.record_agent_poll(
+            session=session, agent_id=agent.id, work_queue_id=work_queue.id
+        )
+        await session.refresh(agent)
+
+        updated_agent = await models.agents.read_agent(
+            session=session, agent_id=agent.id
+        )
+        assert updated_agent.id == agent.id
+        # relevant attributes should be updated
+        assert updated_agent.last_activity_time >= now
+        assert updated_agent.work_queue_id == agent.work_queue_id
+        # unset attributes should be ignored
+        assert updated_agent.name == agent.name
+
+    async def test_record_agent_poll_for_new_agent(self, session, work_queue):
+        now = pendulum.now("UTC")
+        agent_id = uuid4()
+        await models.agents.record_agent_poll(
+            session=session, agent_id=agent_id, work_queue_id=work_queue.id
+        )
+
+        updated_agent = await models.agents.read_agent(
+            session=session, agent_id=agent_id
+        )
+        assert updated_agent.id == agent_id
+        assert updated_agent.last_activity_time >= now
+        assert updated_agent.work_queue_id == work_queue.id
+        assert updated_agent.name
+
+
 class TestDeleteAgent:
     async def test_delete_agent(self, session, agent):
         assert await models.agents.delete_agent(session=session, agent_id=agent.id)

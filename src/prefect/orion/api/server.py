@@ -21,12 +21,13 @@ import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
+from prefect.orion.exceptions import ObjectNotFoundError
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.2.0"
+ORION_API_VERSION = "0.3.0"
 
 logger = get_logger("orion")
 
@@ -65,6 +66,15 @@ async def custom_internal_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
+async def prefect_object_not_found_exception_handler(
+    request: Request, exc: ObjectNotFoundError
+):
+    """Return 404 status code on object not found exceptions."""
+    return JSONResponse(
+        content={"exception_message": str(exc)}, status_code=status.HTTP_404_NOT_FOUND
     )
 
 
@@ -137,6 +147,9 @@ def create_orion_api(
         api.blocks.router, prefix=router_prefix, dependencies=dependencies
     )
     api_app.include_router(
+        api.work_queues.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
         api.block_specs.router, prefix=router_prefix, dependencies=dependencies
     )
 
@@ -164,6 +177,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
             "exception_handlers": {
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
+                ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         }
     )
