@@ -141,8 +141,14 @@ async def create_then_begin_flow_run(
     """
     Async entrypoint for flow calls
 
-    Creates the flow run in the backend then enters the main flow rum engine
+    Creates the flow run in the backend, then enters the main flow run engine.
     """
+    can_connect = await client.api_healthcheck()
+    if not can_connect:
+        raise RuntimeError(
+            f"Cannot create flow run. Failed to reach API at {client.api_url}."
+        )
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -614,13 +620,24 @@ async def enter_task_run_engine_from_worker(
     ) as profile:
         profile.initialize(create_home=False)
         async with get_client() as client:
-            return await orchestrate_task_run(
-                task=task,
+            can_connect = await client.api_healthcheck()
+            if not can_connect:
+                raise RuntimeError(
+                    f"Cannot orchestrate task run '{task_run.id}'. "
+                    f"Failed to connect to API at {client.api_url}."
+                )
+
+            with TaskRunContext(
                 task_run=task_run,
-                parameters=parameters,
-                wait_for=wait_for,
+                task=task,
                 client=client,
-            )
+            ):
+                return await orchestrate_task_run(
+                    task=task,
+                    task_run=task_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                )
 
 
 async def orchestrate_task_run(
@@ -628,7 +645,6 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    client: OrionClient,
 ) -> State:
     """
     Execute a task run
@@ -655,13 +671,9 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-
-    context = TaskRunContext(
-        task_run=task_run,
-        task=task,
-        client=client,
-    )
-    logger = get_run_logger(context)
+    context = prefect.context.get_run_context()
+    assert isinstance(context, TaskRunContext), "Task run context missing."
+    logger = get_run_logger()
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
@@ -671,13 +683,13 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await client.propose_state(
+        state = await context.client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
     else:
         # Transition from `PENDING` -> `RUNNING`
-        state = await client.propose_state(
+        state = await context.client.propose_state(
             Running(state_details=StateDetails(cache_key=cache_key)),
             task_run_id=task_run.id,
         )
@@ -686,20 +698,17 @@ async def orchestrate_task_run(
     while state.is_running():
 
         try:
-            with context:
-                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+            args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                if PREFECT_DEBUG_MODE:
-                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                else:
-                    logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
-                    )
+            if PREFECT_DEBUG_MODE.value():
+                logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
+            else:
+                logger.debug(f"Beginning execution...", extra={"state_message": True})
 
-                if task.isasync:
-                    result = await task.fn(*args, **kwargs)
-                else:
-                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+            if task.isasync:
+                result = await task.fn(*args, **kwargs)
+            else:
+                result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
@@ -724,7 +733,9 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await client.propose_state(terminal_state, task_run_id=task_run.id)
+        state = await context.client.propose_state(
+            terminal_state, task_run_id=task_run.id
+        )
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
@@ -738,7 +749,9 @@ async def orchestrate_task_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), task_run_id=task_run.id)
+            state = await context.client.propose_state(
+                Running(), task_run_id=task_run.id
+            )
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
