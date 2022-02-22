@@ -223,6 +223,13 @@ def my_flow():
 
 If you don't provide the `address` of a Ray instance, a temporary instance will be created automatically.
 
+!!! warning "Ray environment limitations"
+    While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
+    
+    Ray currently does not support Python 3.10.
+    
+    Ray currently does not support non-x86/64 architectures such as ARM/M1 processors.
+
 ## Using multiple task runners
 
 Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](/concepts/flows/#subflows) for tasks that need to use a different task runner.
