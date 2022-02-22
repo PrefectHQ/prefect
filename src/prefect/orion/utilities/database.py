@@ -221,7 +221,7 @@ class now(FunctionElement):
 
     type = Timestamp()
     name = "now"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = True
 
 
@@ -311,7 +311,7 @@ class interval_add(FunctionElement):
 
     type = sa.Interval()
     name = "interval_add"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
     def __init__(self, i1, i2):
@@ -363,7 +363,7 @@ class date_diff(FunctionElement):
 
     type = sa.Interval()
     name = "date_diff"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
     def __init__(self, d1, d2):
@@ -411,7 +411,7 @@ class json_contains(FunctionElement):
 
     type = BOOLEAN
     name = "json_contains"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
     def __init__(self, json_expr, values: List):
@@ -464,7 +464,7 @@ class json_has_any_key(FunctionElement):
 
     type = BOOLEAN
     name = "json_has_any_key"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
     def __init__(self, json_expr, values: List):
@@ -508,7 +508,7 @@ class json_has_all_keys(FunctionElement):
 
     type = BOOLEAN
     name = "json_has_all_keys"
-     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
     def __init__(self, json_expr, values: List):
