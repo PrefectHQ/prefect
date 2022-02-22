@@ -38,7 +38,7 @@ export class FlowsApi extends Api {
   }
 
   protected mapFlowsResponse({ data }: AxiosResponse<IFlowResponse[]>): Flow[] {
-    return data.map(this.mapFlow)
+    return data.map(x => this.mapFlow(x))
   }
 
 }

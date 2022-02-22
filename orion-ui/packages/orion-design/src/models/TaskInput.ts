@@ -1,45 +1,48 @@
-export interface ITaskInput {
-  inputType: 'constant' | 'parameter' | 'task_run',
-  type?: string,
-  name?: string,
-  id?: string,
+/* eslint-disable max-classes-per-file */
+export type ITaskInput = IConstantTaskInput | IParameterTaskInput | ITaskRunTaskInput
+export type TaskInput = ConstantTaskInput | ParameterTaskInput | TaskRunTaskInput
+
+export type IConstantTaskInput = {
+  inputType: 'constant',
+  type: string,
 }
 
-export type IConstantTaskInput = Pick<ITaskInput, 'type'> & { inputType: 'constant' }
-export type IParameterTaskInput = Pick<ITaskInput, 'name'> & { inputType: 'parameter' }
-export type ITaskRunTaskInput = Pick<ITaskInput, 'id'> & { inputType: 'task_run' }
-
-export function isConstantTaskInput(taskInput: ITaskInput): taskInput is IConstantTaskInput {
-  return taskInput.inputType === 'constant'
+export type IParameterTaskInput = {
+  inputType: 'parameter',
+  name: string,
 }
 
-export function isParameterTaskInput(taskInput: ITaskInput): taskInput is IParameterTaskInput {
-  return taskInput.inputType === 'parameter'
+export type ITaskRunTaskInput = {
+  inputType: 'task_run',
+  id: string,
 }
 
-export function isTaskRunTaskInput(taskInput: ITaskInput): taskInput is ITaskRunTaskInput {
-  return taskInput.inputType === 'task_run'
-}
+export class ConstantTaskInput implements IConstantTaskInput {
+  public readonly inputType: 'constant'
+  public type: string
 
-export class TaskInput implements ITaskInput {
-  public inputType: 'constant' | 'parameter' | 'task_run'
-  public type?: string
-  public name?: string
-  public id?: string
-
-  public constructor(taskInput: ITaskInput) {
+  public constructor(taskInput: IConstantTaskInput) {
     this.inputType = taskInput.inputType
+    this.type = taskInput.type
+  }
+}
 
-    if (isConstantTaskInput(taskInput)) {
-      this.type = taskInput.type
-    }
+export class ParameterTaskInput implements IParameterTaskInput {
+  public readonly inputType: 'parameter'
+  public name: string
 
-    if (isParameterTaskInput(taskInput)) {
-      this.name = taskInput.name
-    }
+  public constructor(taskInput: IParameterTaskInput) {
+    this.inputType = taskInput.inputType
+    this.name = taskInput.name
+  }
+}
 
-    if (isTaskRunTaskInput(taskInput)) {
-      this.id = taskInput.id
-    }
+export class TaskRunTaskInput implements ITaskRunTaskInput {
+  public readonly inputType: 'task_run'
+  public id: string
+
+  public constructor(taskInput: ITaskRunTaskInput) {
+    this.inputType = taskInput.inputType
+    this.id = taskInput.id
   }
 }

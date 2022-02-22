@@ -104,7 +104,7 @@ export class FlowRunsApi extends Api {
     return new RunHistory({
       intervalStart: new Date(data.interval_start),
       intervalEnd: new Date(data.interval_end),
-      states: data.states.map(this.mapStateHistory),
+      states: data.states.map(x => this.mapStateHistory(x)),
     })
   }
 
@@ -119,7 +119,7 @@ export class FlowRunsApi extends Api {
   }
 
   protected mapFlowRunsHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse[]>): RunHistory[] {
-    return data.map(this.mapFlowRunsHistory)
+    return data.map(x => this.mapFlowRunsHistory(x))
   }
 
   protected mapFlowRunHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse>): RunHistory {
@@ -127,7 +127,7 @@ export class FlowRunsApi extends Api {
   }
 
   protected mapFlowRunsResponse({ data }: AxiosResponse<IFlowRunResponse[]>): FlowRun[] {
-    return data.map(this.mapFlowRun)
+    return data.map(x => this.mapFlowRun(x))
   }
 
   protected mapFlowRunResponse({ data }: AxiosResponse<IFlowRunResponse>): FlowRun {
