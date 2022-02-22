@@ -78,7 +78,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder {
   background-color: #fff;
   padding: var(--p-1) var(--p-2);

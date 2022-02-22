@@ -326,12 +326,30 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockData(ORMBaseModel):
-    """An ORM representation of block data."""
+class BlockSpec(ORMBaseModel):
+    """An ORM representation of a block spec."""
 
-    name: str = Field(..., description="The block data identifier")
-    blockref: str = Field(..., description="A reference to a registered BlockAPI")
-    data: dict = Field(default_factory=dict, description="Data used by a BlockAPI")
+    name: str = Field(..., description="The block spec's name")
+    version: str = Field(..., description="The block spec's version")
+    type: str = Field(None, description="The block spec's type")
+    fields: dict = Field(
+        default_factory=dict, description="The block spec's field schema"
+    )
+
+
+class Block(ORMBaseModel):
+    """An ORM representation of a block."""
+
+    name: str = Field(..., description="The block's name'")
+    blockref: str = Field(..., description="A reference to a registered blockspec")
+    data: dict = Field(default_factory=dict, description="The block's data")
+
+
+class Configuration(ORMBaseModel):
+    """An ORM representation of account info."""
+
+    key: str = Field(..., description="Account info key")
+    value: dict = Field(..., description="Account info")
 
 
 class SavedSearchFilter(PrefectBaseModel):
@@ -367,6 +385,56 @@ class Log(ORMBaseModel):
     )
     task_run_id: Optional[UUID] = Field(
         None, description="The task run ID associated with the log."
+    )
+
+
+class QueueFilter(PrefectBaseModel):
+    """Filter criteria definition for a work queue."""
+
+    tags: Optional[List[str]] = Field(
+        None,
+        description="Only include flow runs with these tags in the work queue.",
+    )
+    deployment_ids: Optional[List[UUID]] = Field(
+        None,
+        description="Only include flow runs from these deployments in the work queue.",
+    )
+    flow_runners: Optional[List[str]] = Field(
+        None,
+        description="Only include flow runs with these flow runner types in the work queue.",
+    )
+
+
+class WorkQueue(ORMBaseModel):
+    """An ORM representaiton of a work queue"""
+
+    filter: QueueFilter = Field(
+        default_factory=QueueFilter, description="Filter criteria for the work queue."
+    )
+    name: str = Field(..., description="The name of the work queue.")
+    description: Optional[str] = Field(
+        "", description="An optional description for the work queue."
+    )
+    is_paused: bool = Field(
+        False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[int] = Field(
+        None, description="An optional concurrency limit for the work queue."
+    )
+
+
+class Agent(ORMBaseModel):
+    """An ORM representation of an agent"""
+
+    name: str = Field(
+        default_factory=lambda: coolname.generate_slug(2),
+        description="The name of the agent. If a name is not provided, it will be auto-generated.",
+    )
+    work_queue_id: UUID = Field(
+        ..., description="The work queue with which the agent is associated."
+    )
+    last_activity_time: Optional[datetime.datetime] = Field(
+        None, description="The last time this agent polled for work."
     )
 
 

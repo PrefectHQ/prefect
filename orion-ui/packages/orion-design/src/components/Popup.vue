@@ -69,7 +69,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
   .popup-wrapper {
     max-width: 600px;
     width: 100%;
