@@ -1,12 +1,20 @@
 import { AxiosResponse } from 'axios'
-import { Route, UnionFilters } from '.'
-import { EmpiricalPolicy } from '@/models/EmpiricalPolicy'
-import { IEmpiricalPolicyResponse } from '@/models/IEmpiricalPolicyResponse'
-import { ITaskInputResponse } from '@/models/ITaskInputResponse'
-import { StateType } from '@/models/StateType'
-import { TaskInput } from '@/models/TaskInput'
-import { TaskRun } from '@/models/TaskRun'
-import { Api } from '@/services/Api'
+import {
+  ITaskInputResponse,
+  EmpiricalPolicy,
+  IEmpiricalPolicyResponse,
+  StateType,
+  TaskInput,
+  TaskRun,
+  ConstantTaskInput,
+  ParameterTaskInput,
+  TaskRunTaskInput,
+  isConstantTaskInputResponse,
+  isParameterTaskInputResponse,
+  isTaskRunTaskInputResponse
+} from '@/models'
+import { Api, Route } from '@/services/Api'
+import { UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
 import { DateString } from '@/types/dates'
 
@@ -64,17 +72,35 @@ export class TaskRunsApi extends Api {
     const response = {} as Record<string, TaskInput[]>
 
     return Object.entries(data).reduce<Record<string, TaskInput[]>>((mapped, [key, value]) => {
-      mapped[key] = value.map(this.mapTaskInput)
+      mapped[key] = value.map(x => this.mapTaskInput(x))
 
       return mapped
     }, response)
   }
 
   protected mapTaskInput(data: ITaskInputResponse): TaskInput {
-    return new TaskInput({
-      inputType: data.input_type,
-      name: data.name,
-    })
+    if (isConstantTaskInputResponse(data)) {
+      return new ConstantTaskInput({
+        inputType: data.input_type,
+        type: data.type,
+      })
+    }
+
+    if (isParameterTaskInputResponse(data)) {
+      return new ParameterTaskInput({
+        inputType: data.input_type,
+        name: data.name,
+      })
+    }
+
+    if (isTaskRunTaskInputResponse(data)) {
+      return new TaskRunTaskInput({
+        inputType: data.input_type,
+        id: data.id,
+      })
+    }
+
+    throw 'Invalid ITaskInputResponse'
   }
 
   protected mapTaskRun(data: ITaskRunResponse): TaskRun {
@@ -111,7 +137,7 @@ export class TaskRunsApi extends Api {
   }
 
   protected mapTaskRunsResponse({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
-    return data.map(this.mapTaskRun)
+    return data.map(x => this.mapTaskRun(x))
   }
 
 }

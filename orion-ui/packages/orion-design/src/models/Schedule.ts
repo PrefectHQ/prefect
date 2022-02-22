@@ -1,51 +1,54 @@
-export interface ISchedule {
-  rrule?: string,
-  cron?: string,
-  dayOr?: boolean | null,
-  interval?: number,
-  anchorDate?: string | null,
+/* eslint-disable max-classes-per-file */
+export type ISchedule = IRRuleSchedule | ICronSchedule | IIntervalSchedule
+export type Schedule = RRuleSchedule | CronSchedule | IntervalSchedule
+
+export type IRRuleSchedule = {
   timezone: string | null,
+  rrule: string,
 }
 
-export type IRRuleSchedule = Pick<ISchedule, 'rrule' | 'timezone'>
-export type ICronSchedule = Pick<ISchedule, 'cron' | 'timezone' | 'dayOr'>
-export type IIntervalSchedule = Pick<ISchedule, 'interval' | 'timezone' | 'anchorDate'>
-
-export function isRRuleSchedule(schedule: ISchedule): schedule is IRRuleSchedule {
-  return !!schedule.rrule
+export type ICronSchedule = {
+  timezone: string | null,
+  cron: string,
+  dayOr: boolean | null,
 }
 
-export function isCronSchedule(schedule: ISchedule): schedule is ICronSchedule {
-  return !!schedule.cron
+export type IIntervalSchedule = {
+  timezone: string | null,
+  interval: number,
+  anchorDate: string | null,
 }
 
-export function isIntervalSchedule(schedule: ISchedule): schedule is IIntervalSchedule {
-  return !!schedule.interval
-}
-
-export class Schedule implements ISchedule {
+export class RRuleSchedule implements IRRuleSchedule {
   public timezone: string | null
-  public rrule?: string
-  public cron?: string
-  public dayOr?: boolean | null
-  public interval?: number
-  public anchorDate?: string | null
+  public rrule: string
 
-  public constructor(schedule: ISchedule) {
+  public constructor(schedule: IRRuleSchedule) {
     this.timezone = schedule.timezone
+    this.rrule = schedule.rrule
+  }
+}
 
-    if (isRRuleSchedule(schedule)) {
-      this.rrule = schedule.rrule
-    }
+export class CronSchedule implements ICronSchedule {
+  public timezone: string | null
+  public cron: string
+  public dayOr: boolean | null
 
-    if (isCronSchedule(schedule)) {
-      this.cron = schedule.cron
-      this.dayOr = schedule.dayOr
-    }
+  public constructor(schedule: ICronSchedule) {
+    this.timezone = schedule.timezone
+    this.cron = schedule.cron
+    this.dayOr = schedule.dayOr
+  }
+}
 
-    if (isIntervalSchedule(schedule)) {
-      this.interval = schedule.interval
-      this.anchorDate = schedule.anchorDate
-    }
+export class IntervalSchedule implements IIntervalSchedule {
+  public timezone: string | null
+  public interval: number
+  public anchorDate: string | null
+
+  public constructor(schedule: IIntervalSchedule) {
+    this.timezone = schedule.timezone
+    this.interval = schedule.interval
+    this.anchorDate = schedule.anchorDate
   }
 }

@@ -1,5 +1,19 @@
 import { AxiosResponse } from 'axios'
-import { Deployment, IFlowDataResponse, FlowData, FlowRunner, IFlowRunnerResponse, IScheduleResponse, Schedule } from '@/models'
+import {
+  Deployment,
+  IFlowDataResponse,
+  FlowData,
+  FlowRunner,
+  IFlowRunnerResponse,
+  IScheduleResponse,
+  Schedule,
+  isRRuleScheduleResponse,
+  isCronScheduleResponse,
+  isIntervalScheduleResponse,
+  RRuleSchedule,
+  CronSchedule,
+  IntervalSchedule
+} from '@/models'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { DateString } from '@/types/dates'
@@ -61,18 +75,34 @@ export class DeploymentsApi extends Api {
   }
 
   protected mapSchedule(data: IScheduleResponse): Schedule {
-    return new Schedule({
-      timezone: data.timezone,
-      rrule: data.rrule,
-      cron: data.cron,
-      dayOr: data.day_or,
-      interval: data.interval,
-      anchorDate: data.anchor_date,
-    })
+    if (isRRuleScheduleResponse(data)) {
+      return new RRuleSchedule({
+        timezone: data.timezone,
+        rrule: data.rrule,
+      })
+    }
+
+    if (isCronScheduleResponse(data)) {
+      return new CronSchedule({
+        timezone: data.timezone,
+        cron: data.cron,
+        dayOr: data.day_or,
+      })
+    }
+
+    if (isIntervalScheduleResponse(data)) {
+      return new IntervalSchedule({
+        timezone: data.timezone,
+        interval: data.interval,
+        anchorDate: data.anchor_date,
+      })
+    }
+
+    throw 'Invalid IScheduleResponse'
   }
 
   protected mapDeploymentsResponse({ data }: AxiosResponse<IDeploymentResponse[]>): Deployment[] {
-    return data.map(this.mapDeployments)
+    return data.map(x => this.mapDeployments(x))
   }
 
   protected mapDeploymentResponse({ data }: AxiosResponse<IDeploymentResponse>): Deployment {
