@@ -78,7 +78,7 @@ class DatabricksGetJobIDTestOverride(DatabricksGetJobID):
         self.mocked_response = mocked_response
         super().__init__(**kwargs)
 
-    def get_hook(self):
+    def _get_hook(self):
         return DatabricksHookTestOverride(self.mocked_response)
 
 
