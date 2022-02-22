@@ -1,7 +1,7 @@
 export type IFlow = {
   id: string,
   created: Date,
-  updated: Date | null,
+  updated: Date,
   name: string,
   tags: string[],
 }
@@ -9,7 +9,7 @@ export type IFlow = {
 export class Flow {
   public readonly id: string
   public readonly created: Date
-  public readonly updated: Date | null
+  public readonly updated: Date
   public name: string
   public tags: string[]
 
