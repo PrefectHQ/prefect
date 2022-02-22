@@ -16,29 +16,29 @@ export class FlowsApi extends Api {
   protected route: Route = '/flows'
 
   public getFlows(filter: UnionFilters): Promise<Flow[]> {
-    return this.post<IFlowResponse[]>('/filter', filter).then(this.mapFlowsResponse)
+    return this.post<IFlowResponse[]>('/filter', filter).then(mapFlowsResponse)
   }
 
   public getFlowsCount(filter: UnionFilters): Promise<number> {
     return this.post<number>('/count', filter).then(({ data }) => data)
   }
 
-  protected mapFlow(data: IFlowResponse): Flow {
-    return new Flow({
-      ...data,
-      updated: data.updated ? new Date(data.updated) : null,
-      created: new Date(data.created),
-    })
-  }
+}
 
-  protected mapFlowResponse({ data }: AxiosResponse<IFlowResponse>): Flow {
-    return this.mapFlow(data)
-  }
+function mapFlow(data: IFlowResponse): Flow {
+  return new Flow({
+    ...data,
+    updated: data.updated ? new Date(data.updated) : null,
+    created: new Date(data.created),
+  })
+}
 
-  protected mapFlowsResponse({ data }: AxiosResponse<IFlowResponse[]>): Flow[] {
-    return data.map(this.mapFlow)
-  }
+function mapFlowResponse({ data }: AxiosResponse<IFlowResponse>): Flow {
+  return mapFlow(data)
+}
 
+function mapFlowsResponse({ data }: AxiosResponse<IFlowResponse[]>): Flow[] {
+  return data.map(mapFlow)
 }
 
 export const flowsApi = new FlowsApi()
