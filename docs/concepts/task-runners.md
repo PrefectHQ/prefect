@@ -2,11 +2,20 @@
 
 Task runners are responsible for running Prefect tasks. Each flow has a task runner associated with it. The task runner is started at the beginning of a flow run and shutdown at the end.
 
-Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner), which will run your tasks concurrently. To run tasks seqentially, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). To run tasks in parallel, you can use a multiprocess task runner, such as the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner).
+Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner), which will run your tasks concurrently. 
+
+Prefect currently provides the following task runners: 
+
+- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently.
+- [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) runs tasks sequentially. 
+- [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
+- [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
 ## Using a task runner
 
-Import task runners from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign them when the flow is defined.
+While all flows require a task runner to execute tasks, you do not need to specify a task runner unless your tasks require specific execution. If you do not specify a task runner, Prefect uses the default `ConcurrentTaskRunner`.
+
+To configure your flow to use a specific task runner, import task runners from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign them when the flow is defined.
 
 ```python hl_lines="4"
 from prefect import flow
@@ -19,7 +28,6 @@ def my_flow():
 
 If a task runner type is passed, a task runner instance will be created with the default settings. Task runner instances can be passed for additional configuration:
 
-
 ```python hl_lines="4"
 from prefect import flow
 from prefect.task_runner import DaskTaskRunner
@@ -31,9 +39,9 @@ def my_flow():
 
 ## Using multiple task runners
 
-Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run elsewhere. In this case, you can create [subflows](/concepts/flows/#subflows) to temporarily use a different task runner.
+Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](/concepts/flows/#subflows) for tasks that need to use a different task runner.
 
-For example, you can have a flow (`my_flow`) that runs its tasks locally, but uses a subflow (`my_subflow`) to run some tasks in a Dask cluster.
+For example, you can have a flow (`sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a subflow (`dask_subflow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
@@ -48,13 +56,13 @@ def hello_dask():
     print("Hello from Dask!")
 
 @flow(task_runner=SequentialTaskRunner())
-def my_flow():
+def sequential_flow():
     hello_local()
-    my_subflow()
+    dask_subflow()
     hello_local()
 
 @flow(task_runner=DaskTaskRunner())
-def my_subflow():
+def dask_subflow():
     hello_dask()
 
 my_flow()
@@ -63,12 +71,12 @@ my_flow()
 This script outputs the following logs demonstrating the temporary Dask task runner:
 
 ```text hl_lines="7"
-13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'my-flow'...
+13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'sequential-flow'...
 13:46:58.866 | Starting task runner `SequentialTaskRunner`...
 13:46:58.934 | Submitting task run 'hello_local-a087a829-0' to task runner...
 Hello!
 13:46:58.955 | Task run 'hello_local-a087a829-0' finished in state Completed(message=None, type=COMPLETED)
-13:46:58.981 | Beginning subflow run 'discreet-peacock' for flow 'my-subflow'...
+13:46:58.981 | Beginning subflow run 'discreet-peacock' for flow 'dask-subflow'...
 13:46:58.981 | Starting task runner `DaskTaskRunner`...
 13:46:58.981 | Creating a new Dask cluster with `distributed.deploy.local.LocalCluster`
 13:46:59.339 | The Dask dashboard is available at http://127.0.0.1:8787/status
@@ -83,10 +91,6 @@ Hello!
 13:47:00.326 | Shutting down task runner `SequentialTaskRunner`...
 13:47:00.334 | Flow run 'olivine-swan' finished in state Completed(message='All states completed.', type=COMPLETED)
 ```
-
-## Task runner types
-
-See the [`prefect.task_runners` API reference](/api-ref/prefect/task-runners/) for descriptions of each task runner.
 
 Check out the [Dask task runner tutorial](/tutorials/dask-task-runner/) for some common Dask use cases.
 
