@@ -130,7 +130,7 @@ async def login(
     ),
 ):
     """
-    Login into Prefect Cloud.
+    Log in to Prefect Cloud.
     Sets PREFECT_API_URL and PREFECT_API_KEY for profile.
     If those values are already set they will be overwritten.
     """
@@ -167,7 +167,7 @@ async def login(
 @cloud_app.command()
 async def logout():
     """
-    Logout of Prefect Cloud.
+    Log out of Prefect Cloud.
     Removes PREFECT_API_URL and PREFECT_API_KEY from profile.
     """
     confirm_logged_in()
