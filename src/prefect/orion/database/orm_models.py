@@ -866,6 +866,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
         block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
@@ -909,6 +910,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
+            block_spec_mixin=block_spec_mixin,
             block_mixin=block_mixin,
             configuration_mixin=configuration_mixin,
         )
