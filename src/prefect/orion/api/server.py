@@ -284,6 +284,14 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
         else:
             logger.info(f"{service.name} service stopped!")
 
-    APP_CACHE[settings] = app
+    @app.on_event("startup")
+    async def run_migrations():
+        """Ensure the database is created and up to date with the current migrations"""
+        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
+            from prefect.orion.database.dependencies import provide_database_interface
 
+            db = provide_database_interface()
+            await db.create_db()
+
+    APP_CACHE[settings] = app
     return app
