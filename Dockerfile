@@ -1,51 +1,57 @@
 ARG PYTHON_VERSION=${PYTHON_VERSION:-3.8}
-# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
-ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
+
+ARG BUILD_PYTHON_VERSION=3.8
+ARG NODE_VERSION=14
+
+
+# Build the UI.
+FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+        # Required for arm64 builds
+        chromium \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install a newer npm to avoid esbuild errors
+RUN npm install -g npm@8
+
+COPY ./orion-ui .
+
+ENV ORION_UI_SERVE_BASE="/"
+RUN npm ci install && npm run build
+
 
 # Build the distributable which generates a static version file.
 # Without this build step, versioneer cannot infer the version without git
 # see https://github.com/python-versioneer/python-versioneer/issues/215
-FROM python:3.8-slim-bullseye AS builder
+FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         gpg \
-        git=1:2.*
+        git=1:2.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
-# Manual install of Node 14
-# Derived from https://deb.nodesource.com/setup_14.x
-ENV VERSION=node_14.x
-ENV KEY=/tmp/nodesource.gpg.key
-ENV KEYRING=/usr/share/keyrings/nodesource.gpg
-# This should match the base image of the builder
-ENV OS_VERSION=bullseye
-ADD https://deb.nodesource.com/gpgkey/nodesource.gpg.key "$KEY"
-RUN cat $KEY | gpg --dearmor | tee "$KEYRING" >/dev/null
-RUN gpg --no-default-keyring --keyring "$KEYRING" --list-keys
-RUN echo "deb [signed-by=$KEYRING] https://deb.nodesource.com/$VERSION $OS_VERSION main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src [signed-by=$KEYRING] https://deb.nodesource.com/$VERSION $OS_VERSION main" >> /etc/apt/sources.list.d/nodesource.list
-
-RUN apt-get update && apt-get install -y nodejs && apt-get clean && rm -rf /var/lib/apt/lists/*
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
 WORKDIR /opt/prefect
 
 # Copy the repository in; requires deep history for versions to generate correctly
 COPY . ./
 
-# Install the base requirements separately so they cache
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
-RUN pip install -e ".[dev]"
+# Package the UI into the distributable.
+COPY --from=ui-builder /dist ./src/prefect/orion/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN prefect dev build-ui
 RUN rm -rf dist && python setup.py sdist
 RUN mv dist/$(python setup.py --fullname).tar.gz dist/prefect.tar.gz
 
-# Install into the requested Python version image
+
+# Build the requested Python version image.
+# Install the built distributible in it.
 FROM python:${PYTHON_VERSION}-slim
+
+# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
+ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
@@ -75,7 +81,7 @@ COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 # Install prefect from the sdist
-COPY --from=builder /opt/prefect/dist ./dist
+COPY --from=python-builder /opt/prefect/dist ./dist
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Setup entrypoint
