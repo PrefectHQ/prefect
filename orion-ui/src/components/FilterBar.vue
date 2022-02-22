@@ -140,6 +140,7 @@
 
 <style lang="scss">
 .filter-bar {
+  margin: var(--m-2) var(--m-4);
   position: sticky;
   top: 0;
   transition: all 150ms;
