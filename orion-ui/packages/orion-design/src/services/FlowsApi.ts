@@ -8,7 +8,7 @@ export type IFlowResponse = {
   id: string,
   name: string,
   tags: string[],
-  updated?: string,
+  updated: string,
 }
 
 export class FlowsApi extends Api {
@@ -25,9 +25,11 @@ export class FlowsApi extends Api {
 
   protected mapFlow(data: IFlowResponse): Flow {
     return new Flow({
-      ...data,
-      updated: data.updated ? new Date(data.updated) : null,
+      id: data.id,
+      name: data.name,
+      tags: data.tags,
       created: new Date(data.created),
+      updated: new Date(data.updated),
     })
   }
 
@@ -36,7 +38,7 @@ export class FlowsApi extends Api {
   }
 
   protected mapFlowsResponse({ data }: AxiosResponse<IFlowResponse[]>): Flow[] {
-    return data.map(this.mapFlow)
+    return data.map(x => this.mapFlow(x))
   }
 
 }
