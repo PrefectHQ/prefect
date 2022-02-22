@@ -142,6 +142,64 @@ class PrefectFuture(Generic[R, A]):
         return self._final_state
 
     @overload
+    def result(
+        self: "PrefectFuture[R, Sync]",
+        timeout: float = None,
+        raise_on_failure: bool = True,
+    ) -> R:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Sync]",
+        timeout: float = None,
+        raise_on_failure: bool = False,
+    ) -> Union[R, Exception]:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Async]",
+        timeout: float = None,
+        raise_on_failure: bool = True,
+    ) -> Awaitable[R]:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Async]",
+        timeout: float = None,
+        raise_on_failure: bool = False,
+    ) -> Awaitable[Union[R, Exception]]:
+        ...
+
+    def result(self, timeout: float = None, raise_on_failure: bool = True):
+        """
+        Wait for the run to finish and return the final state.
+
+        If the timeout is reached before the run reaches a final state, a `TimeoutError`
+        will be raised.
+
+        If `raise_on_failure` is `True` and the task run failed, the task run's
+        exception will be raised.
+        """
+        if self.asynchronous:
+            return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
+        else:
+            return sync(
+                self._result, timeout=timeout, raise_on_failure=raise_on_failure
+            )
+
+    async def _result(self, timeout: float = None, raise_on_failure: bool = True):
+        """
+        Async implementation of `result`
+        """
+        final_state = await self._wait(timeout=timeout)
+        if not final_state:
+            raise TimeoutError("Call timed out before task finished.")
+        return final_state.result(raise_on_failure=raise_on_failure)
+
+    @overload
     def get_state(
         self: "PrefectFuture[R, Async]", client: OrionClient = None
     ) -> Awaitable[State[R]]:
