@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :dismissable="isDashboard" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :dismissable="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -43,22 +43,21 @@
 
 <script lang="ts" setup>
   import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu, media } from '@prefecthq/orion-design'
-  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
+
+  const props = defineProps<{
+    disabled?: boolean,
+  }>()
 
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
-  const route = useRoute()
-
-  const dashboardRoute = 'Dashboard'
-  const isDashboard = computed(() => route.name === dashboardRoute)
 
   const classes = computed(() => ({
     root: {
-      'filter-bar--disabled': !isDashboard.value,
+      'filter-bar--disabled': props.disabled,
       'filter-bar--detached': detached.value,
     },
     saveButton: {
@@ -137,20 +136,10 @@
       observer?.unobserve(observe.value)
     }
   })
-
-  watch(() => route.name, () => {
-    if (isDashboard.value) {
-      tryObserve()
-    } else {
-      tryUnobserve()
-      detached.value = true
-    }
-  })
 </script>
 
 <style lang="scss">
 .filter-bar {
-  margin: var(--m-2) var(--m-4);
   position: sticky;
   top: 0;
   transition: all 150ms;
