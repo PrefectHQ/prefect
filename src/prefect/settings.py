@@ -290,6 +290,14 @@ PREFECT_ORION_DATABASE_ECHO = Setting(
     description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
 
+
+PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
+    bool,
+    default=True,
+    description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
+)
+
+
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
     default=1,
