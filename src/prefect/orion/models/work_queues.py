@@ -177,37 +177,13 @@ async def get_runs_in_work_queue(
     # of the full pydantic model
     work_queue_filter = parse_obj_as(schemas.core.QueueFilter, work_queue.filter)
 
-    work_queue_flow_run_filter = schemas.filters.FlowRunFilter(
-        tags=schemas.filters.FlowRunFilterTags(all_=work_queue_filter.tags),
-        deployment_id=schemas.filters.FlowRunFilterDeploymentId(
-            any_=work_queue_filter.deployment_ids,
-            is_null_=False,
-        ),
-        flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
-            any_=work_queue_filter.flow_runner_types,
-        ),
-    )
-
     # if the work queue has a concurrency limit, check how many runs are currently
     # executing and compare that count to the concurrency limit
     if work_queue.concurrency_limit:
         # Note this does not guarantee race conditions wont be hit
-        currently_executing_work_queue_filter = work_queue_flow_run_filter.copy(
-            update={
-                "state": schemas.filters.FlowRunFilterState(
-                    type=schemas.filters.FlowRunFilterStateType(
-                        any_=[
-                            schemas.states.StateType.PENDING,
-                            schemas.states.StateType.RUNNING,
-                        ]
-                    )
-                )
-            }
-        )
-
         concurrent_count = await models.flow_runs.count_flow_runs(
             session=session,
-            flow_run_filter=currently_executing_work_queue_filter,
+            flow_run_filter=work_queue_filter.get_executing_flow_run_filter(),
         )
 
         # compute the available concurrency slots
@@ -222,24 +198,11 @@ async def get_runs_in_work_queue(
         # by the limit given
         open_concurrency_slots = limit
 
-    queued_runs_filter = work_queue_flow_run_filter.copy(
-        update={
-            "state": schemas.filters.FlowRunFilterState(
-                type=schemas.filters.FlowRunFilterStateType(
-                    any_=[
-                        schemas.states.StateType.SCHEDULED,
-                    ]
-                )
-            ),
-            "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
-                before_=scheduled_before
-            ),
-        }
-    )
-
     return await models.flow_runs.read_flow_runs(
         session=session,
-        flow_run_filter=queued_runs_filter,
+        flow_run_filter=work_queue_filter.get_scheduled_flow_run_filter(
+            scheduled_before=scheduled_before
+        ),
         limit=open_concurrency_slots,
         sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
     )
