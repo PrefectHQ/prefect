@@ -84,6 +84,7 @@ export class TaskRunsApi extends Api {
   protected taskRunsResponseMapper({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
     return data.map(task => this.taskRunMapper(task))
   }
+
 }
 
 export const taskRunsApi = new TaskRunsApi()
