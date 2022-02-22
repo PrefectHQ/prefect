@@ -700,7 +700,7 @@ class RayTaskRunner(BaseTaskRunner):
 
         if metadata and metadata.get("webui_url"):
             self.logger.info(
-                f"The Ray UI is available at {context_or_metadata['webui_url']}",
+                f"The Ray UI is available at {metadata['webui_url']}",
             )
 
     async def _shutdown_ray(self):
