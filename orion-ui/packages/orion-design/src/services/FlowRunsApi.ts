@@ -42,31 +42,31 @@ export class FlowRunsApi extends Api {
   }
 
   public getFlowRunsHistory(filter: FlowRunsHistoryFilter): Promise<RunHistory[]> {
-    return this.post<IFlowRunHistoryResponse[]>('/history', filter).then(mapFlowRunsHistoryResponse)
+    return this.post<IFlowRunHistoryResponse[]>('/history', filter).then(response => this.mapFlowRunsHistoryResponse(response))
   }
 
-}
+  protected mapFlowRunsHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse[]>): RunHistory[] {
+    return data.map(this.mapFlowRunsHistory)
+  }
 
-function mapFlowRunsHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse[]>): RunHistory[] {
-  return data.map(mapFlowRunsHistory)
-}
+  protected mapFlowRunsHistory(flowRun: IFlowRunHistoryResponse): RunHistory {
+    return new RunHistory({
+      intervalStart: new Date(flowRun.interval_start),
+      intervalEnd: new Date(flowRun.interval_end),
+      states: flowRun.states.map(this.mapStateHistory),
+    })
+  }
 
-function mapFlowRunsHistory(flowRun: IFlowRunHistoryResponse): RunHistory {
-  return new RunHistory({
-    intervalStart: new Date(flowRun.interval_start),
-    intervalEnd: new Date(flowRun.interval_end),
-    states: flowRun.states.map(mapStateHistory),
-  })
-}
+  protected mapStateHistory(state: IStateHistoryResponse): StateHistory {
+    return new StateHistory({
+      stateType: state.state_type,
+      stateName: state.state_name,
+      countRuns: state.count_runs,
+      sumEstimatedRunTime: state.sum_estimated_run_time,
+      sumEstimatedLateness: state.sum_estimated_lateness,
+    })
+  }
 
-function mapStateHistory(state: IStateHistoryResponse): StateHistory {
-  return new StateHistory({
-    stateType: state.state_type,
-    stateName: state.state_name,
-    countRuns: state.count_runs,
-    sumEstimatedRunTime: state.sum_estimated_run_time,
-    sumEstimatedLateness: state.sum_estimated_lateness,
-  })
 }
 
 export const flowRunsApi = new FlowRunsApi()
