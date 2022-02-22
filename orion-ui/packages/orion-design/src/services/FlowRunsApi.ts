@@ -42,7 +42,7 @@ export class FlowRunsApi extends Api {
   }
 
   public getFlowRunsHistory(filter: FlowRunsHistoryFilter): Promise<RunHistory[]> {
-    return this.post<IFlowRunHistoryResponse[]>('/history', filter).then(this.mapFlowRunsHistoryResponse)
+    return this.post<IFlowRunHistoryResponse[]>('/history', filter).then(response => this.mapFlowRunsHistoryResponse(response))
   }
 
   protected mapFlowRunsHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse[]>): RunHistory[] {
