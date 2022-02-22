@@ -18,7 +18,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/blocks", tags=["Blocks"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block(
     block: schemas.actions.BlockCreate,
     response: Response,
@@ -35,13 +35,9 @@ async def create_block(
         )
     except sa.exc.IntegrityError:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
             detail="Block already exists",
         )
-
-    if model.created >= pendulum.now():
-        response.status_code = status.HTTP_201_CREATED
-
     return model
 
 
@@ -61,43 +57,27 @@ async def read_block(
     return block
 
 
-@router.get("/name/{name}")
-async def read_block_by_name(
-    name: str = Path(..., description="The block name", alias="name"),
+@router.delete("/{id}")
+async def delete_block(
+    block_id: str = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-
-    block = await models.blocks.read_block_by_name(session=session, name=name)
-
-    if not block:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
-        )
-
-    return block
-
-
-@router.delete("/name/{name}")
-async def delete_block_by_name(
-    name: str = Path(..., description="The block name"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-):
-    result = await models.blocks.delete_block_by_name(session=session, name=name)
+    result = await models.blocks.delete_block(session=session, block_id=block_id)
     if not result:
         return responses.JSONResponse(
             status_code=404, content={"message": "Block not found"}
         )
 
 
-@router.patch("/name/{name}")
+@router.patch("/{id}")
 async def update_block_data(
-    name: str,
     block: schemas.actions.BlockUpdate,
+    block_id: str = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     result = await models.blocks.update_block(
         session=session,
-        name=name,
+        block_id=id,
         block=block,
     )
 

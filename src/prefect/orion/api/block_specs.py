@@ -108,3 +108,50 @@ async def read_block_spec_by_name_and_version(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block spec not found")
 
     return result
+
+
+@router.get("/{name}/block/{block_name}")
+async def read_latest_block_by_name(
+    block_spec_name: str = Path(..., description="The block spec name", alias="name"),
+    block_name: str = Path(..., description="The block name"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Block:
+    """
+    Read the latest block version that matches the provided block name and name
+    """
+    result = await models.blocks.read_block_by_name(
+        session=session,
+        name=block_name,
+        block_spec_name=block_spec_name,
+        version=None,
+    )
+
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
+
+    return result
+
+
+@router.get("/{name}/versions/{version}/block/{block_name}")
+async def read_block_by_name(
+    block_spec_name: str = Path(..., description="The block spec name", alias="name"),
+    block_spec_version: str = Path(
+        ..., description="The block spec version", alias="version"
+    ),
+    block_name: str = Path(..., description="The block name"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Block:
+    """
+    Reads a block corresponding to a specific block spec and version
+    """
+    result = await models.blocks.read_block_by_name(
+        session=session,
+        name=block_name,
+        block_spec_name=block_spec_name,
+        version=block_spec_version,
+    )
+
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
+
+    return result
