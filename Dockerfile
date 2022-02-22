@@ -1,10 +1,12 @@
-ARG PYTHON_VERSION=${PYTHON_VERSION:-3.8}
-
+# The version of the final Python container.
+ARG PYTHON_VERSION=3.8
+# The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
+# THe version used to build the UI distributable.
 ARG NODE_VERSION=14
 
 
-# Build the UI.
+# Build the UI distributable.
 FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
 
 RUN apt-get update && \
@@ -22,7 +24,7 @@ ENV ORION_UI_SERVE_BASE="/"
 RUN npm ci install && npm run build
 
 
-# Build the distributable which generates a static version file.
+# Build the Python distributable.
 # Without this build step, versioneer cannot infer the version without git
 # see https://github.com/python-versioneer/python-versioneer/issues/215
 FROM python:${BUILD_PYTHON_VERSION}-slim AS python-builder
@@ -62,6 +64,8 @@ LABEL org.label-schema.schema-version = "1.0"
 LABEL org.label-schema.name="prefect"
 LABEL org.label-schema.url="https://www.prefect.io/"
 
+WORKDIR /opt/prefect
+
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         tini=0.19.* \
@@ -73,8 +77,6 @@ RUN apt-get update && \
 
 # Pin the pip version
 RUN python -m pip install --no-cache-dir pip==21.3.1
-
-WORKDIR /opt/prefect
 
 # Install the base requirements separately so they cache
 COPY requirements.txt ./
