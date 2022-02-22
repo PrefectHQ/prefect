@@ -631,16 +631,12 @@ async def enter_task_run_engine_from_worker(
                 task_run=task_run,
                 task=task,
                 client=client,
-            ) as context:
-                logger = get_run_logger()
-                logger.debug(f"Orchestrating task run with API at: {client.api_url}")
+            ):
                 return await orchestrate_task_run(
                     task=task,
                     task_run=task_run,
                     parameters=parameters,
                     wait_for=wait_for,
-                    context=context,
-                    logger=logger,
                 )
 
 
@@ -649,8 +645,6 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    context: TaskRunContext = None,
-    logger: logging.Logger = None,
 ) -> State:
     """
     Execute a task run
@@ -677,9 +671,9 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-    context = context or prefect.context.get_run_context()
+    context = prefect.context.get_run_context()
     assert isinstance(context, TaskRunContext), "Task run context missing."
-    logger = logger or get_run_logger()
+    logger = get_run_logger()
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
