@@ -15,6 +15,7 @@ $ python -m asyncio
 ```
 </div>
 """
+from contextlib import AsyncExitStack
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
@@ -22,11 +23,13 @@ from uuid import UUID
 import anyio
 import httpx
 import pydantic
+from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
+import prefect.settings
 from prefect.blocks.core import Block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -72,12 +75,19 @@ def inject_client(fn):
     return with_injected_client
 
 
+CLIENTS: Dict[prefect.settings.Settings, "OrionClient"] = {}
+
+
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
-    return OrionClient(
-        PREFECT_API_URL.value_from(profile.settings) or create_app(profile.settings),
-        api_key=PREFECT_API_KEY.value_from(profile.settings),
-    )
+
+    if profile.settings not in CLIENTS or CLIENTS[profile.settings].is_closed:
+        CLIENTS[profile.settings] = OrionClient(
+            PREFECT_API_URL.value() or create_app(profile.settings),
+            api_key=PREFECT_API_KEY.value(),
+        )
+
+    return CLIENTS[profile.settings]
 
 
 class OrionClient:
@@ -114,6 +124,13 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
+        self._exit_stack = AsyncExitStack()
+        self._ephemeral_app: Optional[FastAPI] = None
+        self._ephemeral_lifespan: Optional[LifespanManager] = None
+        self._started = 0
+        self._closed = False
+        self._started_lock = anyio.Lock()
+
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
@@ -126,7 +143,9 @@ class OrionClient:
 
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
-            httpx_settings.setdefault("app", api)
+            self._ephemeral_app = api
+            self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
+            httpx_settings.setdefault("app", self._ephemeral_app)
             httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
 
         else:
@@ -146,7 +165,11 @@ class OrionClient:
 
     @property
     def is_ephemeral(self) -> bool:
-        return isinstance(self._client._transport, httpx.ASGITransport)
+        return self._ephemeral_app is not None
+
+    @property
+    def is_closed(self) -> bool:
+        return self._closed
 
     async def post(
         self, route: str, raise_for_status: bool = True, **kwargs
@@ -1419,11 +1442,25 @@ class OrionClient:
         return await resolve_inner(datadoc)
 
     async def __aenter__(self):
-        await self._client.__aenter__()
+        async with self._started_lock:
+            self._started += 1
+            if self._started > 1:
+                return self
+
+        await self._exit_stack.__aenter__()
+
+        if self.is_ephemeral:
+            await self._exit_stack.enter_async_context(self._ephemeral_lifespan)
+
+        await self._exit_stack.enter_async_context(self._client)
         return self
 
     async def __aexit__(self, *exc_info):
-        return await self._client.__aexit__(*exc_info)
+        async with self._started_lock:
+            self._started -= 1
+            if self._started <= 0:
+                self._closed = True
+                return await self._exit_stack.aclose()
 
     def __enter__(self):
         raise RuntimeError(
