@@ -27,12 +27,12 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
-from prefect.blocks.core import BlockAPI, get_blockapi
+from prefect.blocks.core import Block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import BlockData, TaskRun
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -604,16 +604,12 @@ class OrionClient:
         **fields,
     ) -> Optional[UUID]:
         """
-        Create block data in Orion. This data is used to configure a corresponding
-        BlockAPI.
+        Create a block in Orion. This data is used to configure a corresponding
+        Block.
         """
-        raw_block = {
-            "blockname": name,
-            "blockref": blockref,
-            **fields,
-        }
-
-        block_create = schemas.actions.BlockCreate(block=raw_block)
+        block_create = schemas.actions.BlockCreate(
+            name=name, blockref=blockref, data=fields
+        )
         try:
             response = await self.post(
                 "/blocks/",
@@ -634,12 +630,12 @@ class OrionClient:
         raise_for_status: bool = True,
     ):
 
-        block_data_update = schemas.actions.BlockDataUpdate(name=new_name)
+        block_update = schemas.actions.BlockUpdate(name=new_name)
 
         try:
             response = await self.patch(
                 f"/blocks/name/{name}",
-                json=block_data_update.dict(json_compatible=True),
+                json=block_update.dict(json_compatible=True),
                 raise_for_status=raise_for_status,
             )
         except httpx.HTTPStatusError as e:
@@ -681,12 +677,12 @@ class OrionClient:
     async def read_block(
         self,
         id: str,
-    ) -> Optional[BlockAPI]:
+    ) -> Optional[Block]:
         """
-        Read the block data by id.
+        Read a block by id.
 
         Args:
-            id: The block data id.
+            id: The block id.
 
         Returns:
             a hydrated block or None if no Block could be found
@@ -695,13 +691,13 @@ class OrionClient:
             f"/blocks/{id}",
         )
         raw_block = response.json()
-        block_data_id = raw_block.get("blockid")
+        block_id = raw_block.get("blockid")
 
-        if not block_data_id:
+        if not block_id:
             return None
 
-        blockapi = get_blockapi(raw_block["blockref"])
-        block = pydantic.parse_obj_as(blockapi, raw_block)
+        block_spec = get_block_spec(raw_block["blockref"])
+        block = pydantic.parse_obj_as(block_spec, raw_block)
         return block
 
     async def read_block_by_name(
@@ -709,13 +705,13 @@ class OrionClient:
         name: str,
     ):
         """
-        Read the block data with the specified name.
+        Read the block with the specified name.
 
         Args:
-            name: The block data name.
+            name: The block name.
 
         Raises:
-            httpx.RequestError: if the block data was not found for any reason
+            httpx.RequestError: if the block was not found for any reason
 
         Returns:
             A hydrated block or None.
@@ -724,13 +720,13 @@ class OrionClient:
             f"/blocks/name/{name}",
         )
         raw_block = response.json()
-        block_data_id = raw_block.get("blockid")
+        block_id = raw_block.get("blockid")
 
-        if not block_data_id:
+        if not block_id:
             return None
 
-        blockapi = get_blockapi(raw_block["blockref"])
-        block = pydantic.parse_obj_as(blockapi, raw_block)
+        block_spec = get_block_spec(raw_block["blockref"])
+        block = pydantic.parse_obj_as(block_spec, raw_block)
         return block
 
     async def create_deployment(

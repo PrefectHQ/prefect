@@ -5,7 +5,6 @@ import App from './App.vue'
 import './registerServiceWorker'
 import api from './plugins/api'
 import router from './router'
-import store, { key } from './store'
 
 if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
   const { startServer } = await import('./server')
@@ -44,7 +43,7 @@ const defaultClass = 'default-color-mode'
 const colorMode = storedMode ? `${storedMode }-color-mode` : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(store, key).use(router).use(api).use(createPinia())
+const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
 
 app.component('ButtonCard', ButtonCard)
 app.component('BreadCrumb', BreadCrumb)

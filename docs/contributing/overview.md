@@ -76,4 +76,21 @@ Generate a manifest to deploy a development API to a local kubernetes cluster:
 prefect dev kubernetes-manifest
 ```
 
+To access the Orion UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
+
+```bash
+kubectl port-forward deployment/orion 4200:4200
+```
+
+This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment. 
+
+To tell the local `prefect` command how to communicate with the Orion API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
+
+```bash
+export PREFECT_API_URL=http://localhost:4200/api
+```
+
+Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
+
+For a demonstration, see the [Running flows in Kubernetes](/tutorials/kubernetes-flow-runner/) tutorial.
 
