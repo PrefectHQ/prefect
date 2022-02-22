@@ -341,8 +341,8 @@ class Block(ORMBaseModel):
     """An ORM representation of a block."""
 
     name: str = Field(..., description="The block's name'")
-    blockref: str = Field(..., description="A reference to a registered blockspec")
     data: dict = Field(default_factory=dict, description="The block's data")
+    block_spec_id: UUID = Field(..., description="A block spec ID")
 
 
 class Configuration(ORMBaseModel):

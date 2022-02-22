@@ -703,12 +703,18 @@ class OrionClient:
     async def read_block_by_name(
         self,
         name: str,
+        block_spec_name: str,
+        block_spec_version: str = None,
     ):
         """
-        Read the block with the specified name.
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
 
         Args:
-            name: The block name.
+            name (str): The block name.
+            block_spec_name (str): the block spec name
+            block_spec_version (str): the block spec version. If not provided,
+                the most recent matching version will be returned.
 
         Raises:
             httpx.RequestError: if the block was not found for any reason
