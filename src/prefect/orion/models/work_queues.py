@@ -153,7 +153,7 @@ async def get_runs_in_work_queue(
     limit: int = None,
 ):
     """
-    Get runs from a work queue
+    Get runs from a work queue.
 
     Args:
         session: A database session.
