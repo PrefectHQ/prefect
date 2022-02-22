@@ -21,15 +21,21 @@
 
     <transition-group name="filter-bar-transition" mode="out-in">
       <template v-if="isOpen('search')">
-        <FiltersSearchMenu key="search" class="filter-bar__menu filter-bar__menu-search" />
+        <div key="search" class="filter-bar__menu filter-bar__menu-search">
+          <FiltersSearchMenu />
+        </div>
       </template>
 
       <template v-if="isOpen('save')">
-        <FiltersSaveMenu key="save" class="filter-bar__menu filter-bar__menu--save" @close="close" />
+        <div key="save" class="filter-bar__menu filter-bar__menu--save">
+          <FiltersSaveMenu class="filter-bar_menu-content" @close="close" />
+        </div>
       </template>
 
       <template v-if="isOpen('filters')">
-        <FiltersMenu key="filters" class="filter-bar__menu" @close="close" />
+        <div key="filters" class="filter-bar__menu">
+          <FiltersMenu class="filter-bar_menu-content" @close="close" />
+        </div>
       </template>
     </transition-group>
   </div>
@@ -145,12 +151,12 @@
 <style lang="scss">
 .filter-bar {
   margin: var(--m-2) var(--m-4);
-  height: 100%;
   position: sticky;
   top: 0;
   transition: all 150ms;
   left: 0;
   filter: $drop-shadow-sm;
+  height: 62px;
   background: #fff;
   display: flex;
   align-items: stretch;
@@ -256,6 +262,7 @@
   z-index: 1;
   border-top: 1px solid var(--secondary-hover);
   overflow: hidden;
+  display: grid;
 
   @media (max-width: 1024px) {
     left: 0;
@@ -290,6 +297,10 @@
   > div > header {
     border-radius: 0 !important; // m-card...
   }
+}
+
+.filter-bar_menu-content {
+  height: 100%;
 }
 
 .filter-bar-transition-leave-active {
