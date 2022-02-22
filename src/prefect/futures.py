@@ -59,13 +59,31 @@ class PrefectFuture(Generic[R, A]):
         >>>     future = my_task()
         >>>     final_state = future.wait()
 
+        Wait N sconds for the task to complete
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     final_state = future.wait(0.1)
+        >>>     if final_state:
+        >>>         ... # Task done
+        >>>     else:
+        >>>         ... # Task not done yet
+
         Wait for a task to complete and retrieve its result
 
         >>> @flow
         >>> def my_flow():
         >>>     future = my_task()
-        >>>     state = future.wait()
-        >>>     result = state.result()
+        >>>     result = future.result()
+        >>>     assert result == "hello"
+
+        Wait N seconds for a task to complete and retrieve its result
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     result = future.result(timeout=5)
         >>>     assert result == "hello"
 
         Retrieve the state of a task without waiting for completion
