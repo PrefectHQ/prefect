@@ -144,6 +144,10 @@ class OrionClient:
         """
         return self._client.base_url
 
+    @property
+    def is_ephemeral(self) -> bool:
+        return isinstance(self._client._transport, httpx.ASGITransport)
+
     async def post(
         self, route: str, raise_for_status: bool = True, **kwargs
     ) -> httpx.Response:
