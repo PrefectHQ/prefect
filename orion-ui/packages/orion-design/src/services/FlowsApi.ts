@@ -16,7 +16,7 @@ export class FlowsApi extends Api {
   protected route: Route = '/flows'
 
   public getFlows(filter: UnionFilters): Promise<Flow[]> {
-    return this.post<IFlowResponse[]>('/filter', filter).then(this.mapFlowsResponse)
+    return this.post<IFlowResponse[]>('/filter', filter).then(response => this.mapFlowsResponse(response))
   }
 
   public getFlowsCount(filter: UnionFilters): Promise<number> {
