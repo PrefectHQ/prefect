@@ -845,6 +845,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_spec_mixin: block_spec orm mixin, combined with Base orm class
         block_mixin: block orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
@@ -866,6 +867,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
         block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
@@ -909,6 +911,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
+            block_spec_mixin=block_spec_mixin,
             block_mixin=block_mixin,
             configuration_mixin=configuration_mixin,
         )
