@@ -160,6 +160,14 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
+PREFECT_CLOUD_URL = Setting(
+    str,
+    # TODO - this needs to be w/e the final cloud URL is.
+    #  Defaulting to localhost now for development
+    default="http://localhost:8000/api",
+    description="",
+)
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
