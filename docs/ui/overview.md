@@ -7,9 +7,14 @@ tags:
     - Cloud
 ---
 
-# Orion UI Overview
+# Orion UI & Cloud Overview
 
-The Prefect Orion UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
+The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
+
+There are two ways to access the UI:
+
+- The Prefect [Orion UI](#using-the-orion-ui) gives you insight into the flows running with any local Orion server instance.
+- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Orion UI, plus workspaces, user roles, and more.
 
 The UI displays many useful insights about your flow runs, including:
 
@@ -25,7 +30,7 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 ## Using the Orion UI
 
-The UI is available in any environment where the Prefect Orion server is running with `prefect orion start`.
+The Orion UI is available in any environment where the Prefect Orion server is running with `prefect orion start`.
 
 When Prefect Server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
