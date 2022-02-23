@@ -1,6 +1,6 @@
 <template>
   <component :is="props.tag" class="bread-crumbs">
-    <i v-if="props.icon" class="pi text--grey-40 mr-2" :class="props.icon" />
+    <i v-if="props.icon" class="pi bread-crumbs__icon" :class="props.icon" />
     <div class="bread-crumbs__crumbs">
       <span
         v-for="(crumb, index) in crumbs"
@@ -35,6 +35,18 @@
 </script>
 
 <style lang="scss" scoped>
+.bread-crumbs {
+  display: flex;
+  align-items: center;
+}
+
+.bread-crumbs__icon {
+  color: var(--grey-40);
+  margin-right: var(--m-2);
+  position: relative;
+  top: 2px;
+}
+
 .bread-crumbs__crumb {
   font-size: 14px;
 
