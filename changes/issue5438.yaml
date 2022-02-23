@@ -1,0 +1,5 @@
+task:
+  - "Adds a new task: Retrieve Databricks job_id given a job name - (#5438)[https://github.com/PrefectHQ/prefect/issues/5438]"
+
+contributor:
+  - "[Raymond Yu](https://github.com/raymonds-backyard)"
