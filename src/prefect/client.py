@@ -95,9 +95,15 @@ class OrionClient:
     An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
 
     Args:
-        host: the Orion API URL
-        httpx_settings: an optional dictionary of settings to pass to the underlying
+        api: the Orion API URL or FastAPI application to connect to
+        api_key: An optional API key for authentication.
+        api_version: The API version this client is compatible with.
+        httpx_settings: An optional dictionary of settings to pass to the underlying
             `httpx.AsyncClient`
+        manage_ephemeral_lifespan: If set, when using a FastAPI application in-process,
+            the application startup and shutdown lifespan hooks are called by the
+            client context. If not set, lifespan hooks will not be called.
+
 
     Examples:
 
