@@ -11,55 +11,9 @@ on:
     branches:
       - main
 
-env:
-  MINIMUM_PYTHON_VERSION: "3.7"
-
-
 jobs:
-  build-test-images:
-    name: Build test images
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version:
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Build image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Test docker image
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp/image.tar
-          retention-days: 1
-
   run-tests-sqlite:
     name: Test with SQLite
-    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -69,17 +23,56 @@ jobs:
           - "3.9"
           - "3.10"
         os:
+          # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
-          # - windows-latest
+        test-options:
+          - ""
+          - "--only-services"
+
+        include:
+          # Docker image builds are required for service tests
+          - test-options: "--only-services"
+            docker-images: true
+
+          # Run 3.7 tests with lower bound pins
+          - python-version: "3.7"
+            lower-bound-requirements: true
+
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        if: ${{ matrix.docker-images }}
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build test images
+        if: ${{ matrix.docker-images }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test Docker image
+        if: ${{ matrix.docker-images }}
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -88,29 +81,29 @@ jobs:
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
+      - name: Pin requirements to lower bounds
+        if: ${{ matrix.lower-bound-requirements }}
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
+
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
-
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
+          # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
+          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests --all-services --not-service ray -vv
+          pytest tests -vv ${{ matrix.test-options }}
 
   run-tests-postgres:
     name: Test with Postgres
-    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -119,14 +112,16 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
-        os:
-          - ubuntu-latest
-          # windows backend doesn't support containers
-          # - windows-latest
+
       fail-fast: false
 
-    runs-on: ${{ matrix.os }}
+    # The windows test runner cannot run a postgres service so we can only
+    # test on ubuntu
+    runs-on: ubuntu-latest
 
+    # TODO: Consider moving this from a service into a normal docker command
+    #       so we can include it in the sqlite python test matrix instead of
+    #       maintaining a separate workflow
     services:
       postgres:
         image: postgres:13
@@ -142,7 +137,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -156,62 +150,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
-
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests --all-services --not-service ray -vv
-
-  run-tests-lower-bounds:
-    name: Test with lower requirements
-    needs: [build-test-images]
-    # We cannot test on Ubuntu LTS because the sqlite version is not new enough
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Set up Python ${{ env.MINIMUM_PYTHON_VERSION }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
-
-      - name: Generate lower bound python requirements
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: image-${{ github.sha }}-${{ env.MINIMUM_PYTHON_VERSION }}
-          path: /tmp
-
-      - name: Load Docker image
-        run: docker load --input /tmp/image.tar
-
-      - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        run: |
-          pytest tests --all-services --not-service ray -vv
+          pytest tests -vv
