@@ -698,7 +698,7 @@ def prepare_upstream_states_for_mapping(
 
 
 def _can_flatten(state: "State") -> bool:
-    return hasattr(state.result, '__len__') and hasattr(state.result, '__getitem__')
+    return hasattr(state.result, "__len__") and hasattr(state.result, "__getitem__")
 
 
 def _build_flattened_state(state: "State", index: int) -> "State":

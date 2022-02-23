@@ -1166,6 +1166,7 @@ class TestFlatMap:
             def run(self, x):
                 if x == 2:
                     from prefect.engine.signals import SKIP
+
                     raise SKIP("Skip this task execution")
                 return [x]
 

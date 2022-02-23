@@ -27,7 +27,7 @@ class SpacyNLP(Task):
 
     def __init__(
         self,
-        text: str = u"",
+        text: str = "",
         nlp=None,
         spacy_model_name: str = "en_core_web_sm",
         disable: list = None,
@@ -56,7 +56,7 @@ class SpacyNLP(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("text")
-    def run(self, text: str = u""):
+    def run(self, text: str = ""):
         """
         Task run method. Creates a spaCy document.
 
