@@ -61,7 +61,7 @@ def my_flow():
 | Parameter | Description |
 | --- | --- |
 | address | Address of a currently running Dask scheduler. |
-| cluster_class | The cluster class to use when creating a temporary Dask cluster. Can be either the full class name (for example, `"distributed.LocalCluster"`), or the class itself. |
+| cluster_class | The cluster class to use when creating a temporary Dask cluster. It can be either the full class name (for example, `"distributed.LocalCluster"`), or the class itself. |
 | cluster_kwargs | Additional kwargs to pass to the `cluster_class` when creating a temporary Dask cluster. |
 | adapt_kwargs | Additional kwargs to pass to `cluster.adapt` when creating a temporary Dask cluster. Note that adaptive scaling is only enabled if `adapt_kwargs` are provided. |
 | client_kwargs | Additional kwargs to use when creating a [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client). |
