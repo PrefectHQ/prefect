@@ -57,7 +57,8 @@ class Block(BaseModel, ABC):
     block_name: Optional[str]
 
     @staticmethod
-    def from_api_block(api_block: prefect.orion.schemas.core.Block):
+    def from_api_block(api_block_dict: dict):
+        api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
         block_spec_cls = get_block_spec(
             name=api_block.block_spec.name, version=api_block.block_spec.version
         )
