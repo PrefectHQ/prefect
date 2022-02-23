@@ -271,12 +271,13 @@ def sequential_flow():
 def dask_subflow():
     hello_dask()
 
-my_flow()
+sequential_flow()
 ```
 
 This script outputs the following logs demonstrating the temporary Dask task runner:
 
-```text hl_lines="7"
+<div class="termy">
+```
 13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'sequential-flow'...
 13:46:58.866 | Starting task runner `SequentialTaskRunner`...
 13:46:58.934 | Submitting task run 'hello_local-a087a829-0' to task runner...
@@ -297,5 +298,5 @@ Hello!
 13:47:00.326 | Shutting down task runner `SequentialTaskRunner`...
 13:47:00.334 | Flow run 'olivine-swan' finished in state Completed(message='All states completed.', type=COMPLETED)
 ```
-
+</div>
 
