@@ -45,7 +45,7 @@ async def block_specs(session):
 class TestCreateBlock:
     async def test_create_block(self, session, client, block_specs):
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
@@ -67,7 +67,7 @@ class TestCreateBlock:
 
     async def test_create_block_already_exists(self, session, client, block_specs):
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
@@ -75,7 +75,7 @@ class TestCreateBlock:
         assert response.status_code == 201
 
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
@@ -86,7 +86,7 @@ class TestCreateBlock:
         self, session, client, block_specs
     ):
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
@@ -94,7 +94,7 @@ class TestCreateBlock:
         assert response.status_code == 201
 
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[1].id
             ).dict(json_compatible=True),
@@ -111,7 +111,7 @@ class TestReadBlock:
 class TestDeleteBlock:
     async def test_delete_block(self, session, client, block_specs):
         response = await client.post(
-            "/blocks",
+            "/blocks/",
             json=BlockCreate(
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
