@@ -1,5 +1,5 @@
 <template>
-  <div class="application">
+  <div class="application" :class="classes.root">
     <NavBar class="application__nav" />
     <template v-if="filtersVisible">
       <FilterBar class="application__filter-bar" :disabled="filtersDisabled" />
@@ -20,17 +20,21 @@
 
   const filtersVisible = computed(() => route.meta.filters?.visible ?? false)
   const filtersDisabled = computed(() => route.meta.filters?.disabled ?? false)
+  const classes = computed(() => {
+    return {
+      root: {
+        'application--with-filters': filtersVisible.value,
+      },
+    }
+  })
 </script>
 
 <style lang="scss">
 .application {
   background-color: var(--grey-10);
   display: grid;
-  grid-template-areas:
-    'nav filter-bar'
-    'nav main';
+  grid-template-areas: 'nav main';
   grid-template-columns: 62px 1fr;
-  grid-template-rows: 62px 1fr;
   row-gap: 16px;
   min-height: 100vh;
 
@@ -43,6 +47,13 @@
     grid-template-rows: 62px 62px 1fr;
     row-gap: 0;
   }
+}
+
+.application--with-filters {
+  grid-template-areas:
+    'nav filter-bar'
+    'nav main';
+  grid-template-rows: 62px 1fr;
 }
 
 .application__router-view {
