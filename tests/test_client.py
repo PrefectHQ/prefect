@@ -1,5 +1,8 @@
+import asyncio
+import random
 from dataclasses import dataclass
 from datetime import timedelta
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import httpx
@@ -14,13 +17,163 @@ from prefect.blocks.core import Block, register_block
 from prefect.client import OrionClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
-from prefect.orion.api.server import ORION_API_VERSION
+from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
-from prefect.utilities.testing import temporary_settings
+from prefect.utilities.testing import AsyncMock, temporary_settings
+
+
+class TestGetClient:
+    def test_get_client_returns_client(self):
+        assert isinstance(get_client(), OrionClient)
+
+    def test_get_client_caches_client(self):
+        assert get_client() is get_client()
+
+    def test_get_client_cache_uses_profile_settings(self):
+        client = get_client()
+        with temporary_settings(PREFECT_LOGGING_LEVEL="FOO"):
+            new_client = get_client()
+            assert isinstance(new_client, OrionClient)
+            assert new_client is not client
+
+    async def test_get_client_can_occur_in_client_context(self):
+        async with get_client() as client:
+            assert get_client() is client
+
+    async def test_get_client_returns_fresh_client_after_close(self):
+        async with get_client() as client:
+            pass
+
+        new_client = get_client()
+        assert isinstance(new_client, OrionClient)
+        assert new_client is not client
+
+
+class TestClientContextManager:
+    async def test_client_context_can_be_nested_with_external_api(self):
+        client = OrionClient("http://foo.test")
+        async with client:
+            async with client:
+                pass
+
+    async def test_client_context_can_be_nested_with_app(self, app):
+        app = FastAPI()
+
+        @app.get("/api/admin/hello")
+        def hello() -> bool:
+            return True
+
+        client = OrionClient(app)
+        async with client:
+            async with client:
+                (await client.hello()).raise_for_status()
+
+    async def test_client_context_manages_app_lifespan(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        client = OrionClient(app)
+        startup.assert_not_called()
+        shutdown.assert_not_called()
+
+        async with client:
+            startup.assert_called_once()
+            shutdown.assert_not_called()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_calls_app_lifespan_once_despite_nesting(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        client = OrionClient(app)
+        startup.assert_not_called()
+        shutdown.assert_not_called()
+
+        async with client:
+            async with client:
+                async with client:
+                    startup.assert_called_once()
+            shutdown.assert_not_called()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_exception(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        client = OrionClient(app)
+
+        with pytest.raises(ValueError):
+            async with client:
+                raise ValueError()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_started_closed_counts(self):
+        client = OrionClient("http://foo.test")
+        assert client._started == 0
+        assert not client.is_closed
+
+        async with client:
+            assert client._started == 1
+            async with client:
+                assert client._started == 2
+            assert not client.is_closed
+            assert client._started == 1
+
+        assert client._started == 0
+        assert client.is_closed
+
+    async def test_client_context_counts_are_robust_to_concurrent_access(self):
+        client = OrionClient("http://foo.test")
+
+        async def enter_context():
+            async with client:
+                await asyncio.sleep(random.random())
+                return client._started
+
+        coroutines = [enter_context() for _ in range(20)]
+        results = await asyncio.gather(*coroutines)
+        assert all(result > 0 for result in results), "Never dipped below zero"
+        assert client.is_closed, "Client closes in the end"
+
+    async def test_with_without_async_raises_helpful_error(self):
+        with pytest.raises(RuntimeError, match="must be entered with an async context"):
+            with OrionClient("http://foo.test"):
+                pass
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
+    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=enabled):
+        app = create_app()
+        mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.orion.database.interface.OrionDBInterface.create_db", mock
+        )
+        async with OrionClient(app):
+            if enabled:
+                mock.assert_awaited_once_with()
+            else:
+                mock.assert_not_awaited()
+
+
+async def test_client_is_ephemeral():
+    assert not OrionClient("http://foo.test").is_ephemeral
+    assert OrionClient(FastAPI()).is_ephemeral
+
+
+async def test_client_api_url():
+    assert OrionClient("http://foo.test/bar").api_url == "http://foo.test/bar"
+    assert OrionClient(FastAPI()).api_url is not None
 
 
 async def test_hello(orion_client):
@@ -472,12 +625,6 @@ async def test_put_then_retrieve_object(put_obj, orion_client):
     assert isinstance(data_document, DataDocument)
     retrieved_obj = await orion_client.retrieve_object(data_document)
     assert retrieved_obj == put_obj
-
-
-async def test_client_non_async_with_is_helpful():
-    with pytest.raises(RuntimeError, match="must be entered with an async context"):
-        with get_client():
-            pass
 
 
 class TestResolveDataDoc:

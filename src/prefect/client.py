@@ -124,6 +124,7 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
+        # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
         self._ephemeral_lifespan: Optional[LifespanManager] = None
@@ -144,7 +145,6 @@ class OrionClient:
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
-            self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
             httpx_settings.setdefault("app", self._ephemeral_app)
             httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
 
@@ -1450,6 +1450,8 @@ class OrionClient:
         await self._exit_stack.__aenter__()
 
         if self.is_ephemeral:
+            # The `LifespanManager` must be instantiated in an async context
+            self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
             await self._exit_stack.enter_async_context(self._ephemeral_lifespan)
 
         await self._exit_stack.enter_async_context(self._client)
