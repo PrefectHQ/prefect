@@ -33,7 +33,8 @@ async def create_block(
     session.add(orm_block)
     await session.flush()
 
-    return orm_block
+    # reload the block in order to load the associated block spec relationship
+    return await read_block_by_id(session=session, block_id=orm_block.id)
 
 
 @inject_db
@@ -136,20 +137,20 @@ async def get_default_storage_block(session: sa.orm.Session, db: OrionDBInterfac
 async def set_default_storage_block(
     session: sa.orm.Session, block_id: UUID, db: OrionDBInterface
 ):
-    block = await read_block_by_id(block_id=block_id)
+    block = await read_block_by_id(session=session, block_id=block_id)
     if not block:
         raise ValueError("Block not found")
     elif block.block_spec.type != "STORAGE":
         raise ValueError("Block spec type must be STORAGE")
 
-    await clear_default_storage_block()
+    await clear_default_storage_block(session=session)
     block.is_default_storage_block = True
     await session.flush()
 
 
 @inject_db
 async def clear_default_storage_block(session: sa.orm.Session, db: OrionDBInterface):
-    session.execute(
+    await session.execute(
         sa.update(db.Block)
         .where(db.Block.is_default_storage_block.is_(True))
         .values(is_default_storage_block=False)

@@ -1,8 +1,9 @@
-from uuid import UUID
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
+from uuid import UUID
 
 from pydantic import BaseModel
+
 import prefect
 
 BLOCK_REGISTRY: Dict[str, "Block"] = dict()

@@ -10,9 +10,9 @@ import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
 
+import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-import prefect.orion.database
 
 
 class Flow(ORMBaseModel):
@@ -355,8 +355,9 @@ class Block(ORMBaseModel):
         orm_block: "prefect.orion.database.orm_models.ORMBlock",
     ):
         return cls(
+            id=orm_block.id,
             name=orm_block.name,
-            data=orm_block.decrypt_data(session=session),
+            data=await orm_block.decrypt_data(session=session),
             block_spec_id=orm_block.block_spec_id,
             block_spec=orm_block.block_spec,
         )

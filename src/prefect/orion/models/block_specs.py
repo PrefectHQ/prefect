@@ -2,8 +2,9 @@
 Functions for interacting with block spec ORM objects.
 Intended for internal use by the Orion API.
 """
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
+
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 

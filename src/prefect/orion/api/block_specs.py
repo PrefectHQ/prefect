@@ -134,7 +134,7 @@ async def read_latest_block_by_name(
     if not model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
-    return schemas.core.Block.from_orm_model(model)
+    return await schemas.core.Block.from_orm_model(model)
 
 
 @router.get("/{name}/versions/{version}/block/{block_name}")
@@ -159,4 +159,4 @@ async def read_block_by_name(
     if not model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
-    return schemas.core.Block.from_orm_model(model)
+    return await schemas.core.Block.from_orm_model(model)
