@@ -7,6 +7,7 @@ import os
 from functools import partial
 from typing import Dict, List, Optional
 
+import sqlalchemy as sa
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -57,6 +58,21 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 "request_body": exc.body,
             }
         ),
+    )
+
+
+async def integrity_exception_handler(request: Request, exc: Exception):
+    """Capture database integrity errors."""
+    logger.error(f"Encountered exception in request:", exc_info=True)
+    return JSONResponse(
+        content={
+            "detail": (
+                "Data integrity conflict. This usually means a "
+                "unique or foreign key constraint was violated. "
+                "See server logs for details."
+            )
+        },
+        status_code=status.HTTP_409_CONFLICT,
     )
 
 
@@ -177,6 +193,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
             "exception_handlers": {
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
+                sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         }
