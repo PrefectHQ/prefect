@@ -1,7 +1,7 @@
 """
 Routes for interacting with block objects.
 """
-from typing import List
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -25,51 +25,40 @@ async def create_block(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Block:
-
-    # hydrate the input model into a full model
-    block_data_model = schemas.core.Block(**block.dict())
-
     try:
-        model = await models.blocks.create_block(
-            session=session, block=block_data_model
-        )
+        model = await models.blocks.create_block(session=session, block=block)
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             detail="Block already exists",
         )
-    return model
+    return schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
 
 @router.get("/{id}")
-async def read_block(
+async def read_block_by_id(
     block_id: UUID = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
-
-    block = await models.blocks.read_block_by_id(session=session, block_id=block_id)
-
-    if not block:
+) -> schemas.core.Block:
+    model = await models.blocks.read_block_by_id(session=session, block_id=block_id)
+    if not model:
         return responses.JSONResponse(
             status_code=404, content={"message": "Block not found"}
         )
+    return schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
-    return block
 
-
-@router.delete("/{id}")
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block(
     block_id: str = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     result = await models.blocks.delete_block(session=session, block_id=block_id)
     if not result:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
 
-@router.patch("/{id}")
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_block_data(
     block: schemas.actions.BlockUpdate,
     block_id: str = Path(..., description="The block id", alias="id"),
@@ -82,6 +71,41 @@ async def update_block_data(
     )
 
     if not result:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
+
+
+@router.post("/{id}/set_default_storage_block", status_code=status.HTTP_204_NO_CONTENT)
+async def set_default_storage_block(
+    block_id: str = Path(..., description="The block id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    try:
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=block_id
         )
+    except ValueError as exc:
+        if "Block not found" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Block not found"
+            )
+        elif "Specified block is not a storage block" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Specified block is not a storage block",
+            )
+
+
+@router.post("/get_default_storage_block")
+async def get_default_storage_block(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> Optional[schemas.core.Block]:
+    model = await models.blocks.get_default_storage_block(session=session)
+    if model:
+        return schemas.core.Block.from_orm_model(session=session, orm_block=model)
+
+
+@router.post("/clear_default_storage_block")
+async def clear_default_storage_block(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> Optional[schemas.core.Block]:
+    await models.blocks.clear_default_storage_block(session=session)
