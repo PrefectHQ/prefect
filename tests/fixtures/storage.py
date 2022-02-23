@@ -1,25 +1,22 @@
-from multiprocessing import Process
-from typing import Any
-from uuid import uuid4
+import subprocess
+import sys
 
-import httpx
 import pytest
-import uvicorn
 from fastapi import Body, FastAPI
+from fastapi.exceptions import RequestValidationError
 
-from prefect.blocks.core import register_block
-from prefect.blocks.storage import StorageBlock
 from prefect.orion import models
+from prefect.orion.api.server import validation_exception_handler
 from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
 
-app = FastAPI()
+app = FastAPI(exception_handlers={RequestValidationError: validation_exception_handler})
 
 
 STORAGE = {}
 
 
 @app.get("/{key}")
-async def read_key(key) -> str:
+async def read_key(key: str) -> str:
     return STORAGE[key]
 
 
@@ -28,33 +25,25 @@ async def write_key(key, value: str = Body(...)):
     STORAGE[key] = value
 
 
-def run_storage_server():
-    uvicorn.run(app, host="0.0.0.0", port=1234)
-
-
 @pytest.fixture(autouse=True, scope="session")
 def run_storage_server():
-    proc = Process(target=run_storage_server, args=(), daemon=True)
-    proc.start()
-    yield
-    proc.kill()
-
-
-@register_block("inmemory-storage-block")
-class InMemoryStorageBlock(StorageBlock):
-
-    api_address: str
-
-    async def write(self, data):
-        key = str(uuid4())
-        async with httpx.AsyncClient() as client:
-            await client.post(f"{self.api_address}/{key}", json=data)
-        return key
-
-    async def read(self, key):
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{self.api_address}/{key}")
-        return response.json()
+    process = subprocess.Popen(
+        [
+            "uvicorn",
+            "tests.fixtures.storage:app",
+            "--host",
+            "0.0.0.0",  # required for access across networked docker containers in CI
+            "--port",
+            "1234",
+        ],
+        stdout=sys.stdout,
+        stderr=subprocess.STDOUT,
+    )
+    try:
+        yield
+    finally:
+        process.terminate()
+        process.kill()
 
 
 @pytest.fixture(autouse=True)
@@ -62,15 +51,15 @@ async def set_up_in_memory_storage_block(session):
     block_spec = await models.block_specs.create_block_spec(
         session=session,
         block_spec=BlockSpecCreate(
-            name="InMemoryStorageBlock", version="1", type="STORAGE", fields=dict()
+            name="kv-storage-block", version="1", type="STORAGE", fields=dict()
         ),
     )
 
     block = await models.blocks.create_block(
         session=session,
         block=BlockCreate(
-            name="InMemoryStorageBlock",
-            data=dict(api_address="http://0.0.0.0:1234"),
+            name="kv-storage-block",
+            data=dict(api_address="http://127.0.0.1:1234"),
             block_spec_id=block_spec.id,
         ),
     )
