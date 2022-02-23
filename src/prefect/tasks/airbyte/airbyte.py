@@ -365,7 +365,7 @@ class AirbyteConnectionTask(Task):
 
 class AirbyteConfigurationExport(Task):
     """
-    Task for triggering an export of the Airbyte configuration
+    Task for triggering an export of the Airbyte configuration.
 
     This task assumes that you are using Airbyte Open-Source, since "For
     Airbyte Open-Source you don't need the API Token for
