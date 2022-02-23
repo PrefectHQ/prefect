@@ -96,6 +96,18 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_can_opt_out_of_lifespan_management(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        client = OrionClient(app, manage_ephemeral_lifespan=False)
+
+        async with client:
+            pass
+
+        startup.assert_not_called()
+        shutdown.assert_not_called()
+
     async def test_client_context_calls_app_lifespan_once_despite_nesting(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
@@ -171,8 +183,23 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
         async with OrionClient(app):
             if enabled:
                 mock.assert_awaited_once_with()
-            else:
-                mock.assert_not_awaited()
+
+        if not enabled:
+            mock.assert_not_awaited()
+
+
+async def test_client_does_not_run_migrations_for_hosted_app(
+    hosted_orion_api, monkeypatch
+):
+    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=True):
+        mock = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.orion.database.interface.OrionDBInterface.create_db", mock
+        )
+        async with OrionClient(hosted_orion_api):
+            pass
+
+    mock.assert_not_awaited()
 
 
 async def test_client_is_ephemeral():
@@ -181,9 +208,9 @@ async def test_client_is_ephemeral():
 
 
 async def test_client_api_url():
-    assert OrionClient("http://foo.test/bar").api_url == httpx.URL(
-        "http://foo.test/bar"
-    )
+    url = OrionClient("http://foo.test/bar").api_url
+    assert isinstance(url, httpx.URL)
+    assert str(url) == "http://foo.test/bar/"
     assert OrionClient(FastAPI()).api_url is not None
 
 

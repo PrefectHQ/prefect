@@ -13,15 +13,17 @@ import anyio
 import pendulum
 
 import prefect.context
-from prefect.client import get_client
+from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
+from prefect.orion.api.server import create_app
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_SERVER_LEVEL,
 )
 
 
@@ -128,7 +130,16 @@ class OrionLogWorker:
             if not self._pending_logs:
                 continue
 
-            async with get_client() as client:
+            # TODO: We do not use `get_client` here because we want a client that does
+            #       not run ephemeral application startup and shutdown hooks. Ideally,
+            #       we would access the client in the main event loop and send
+            #       requests there instead of creating a new event loop and client
+            #       each time `send_logs` is called.
+            async with OrionClient(
+                PREFECT_API_URL.value() or create_app(),
+                api_key=PREFECT_API_KEY.value(),
+                manage_ephemeral_lifespan=False,
+            ) as client:
                 try:
                     await client.create_logs(self._pending_logs)
                     self._pending_logs = []
