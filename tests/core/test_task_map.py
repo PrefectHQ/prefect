@@ -14,6 +14,7 @@ from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped, flatten, mapped
 from prefect.tasks.core.constants import Constant
+from prefect.engine.signals import SKIP, TRIGGERFAIL
 
 
 class AddTask(Task):
@@ -1161,12 +1162,10 @@ class TestFlatMap:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
-    def test_flatmap_one_unflattenable_input(self, executor):
+    def test_flatmap_nested_signal_input(self, executor):
         class NestTaskWithSignal(Task):
             def run(self, x):
                 if x == 2:
-                    from prefect.engine.signals import SKIP
-
                     raise SKIP("Skip this task execution")
                 return [x]
 
@@ -1179,6 +1178,29 @@ class TestFlatMap:
 
         state = flow.run()
         assert state.result[z].result == [2, None, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_nested_exception_input(self, executor):
+        class NestTaskWithSignal(Task):
+            def run(self, x):
+                if x == 2:
+                    raise ValueError("This task failed!")
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithSignal()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run()
+        result = state.result[z].result
+        assert len(result) == 3
+        assert (result[0], result[2]) == (2, 4)
+        assert isinstance(result[1], TRIGGERFAIL)
 
 
 def test_mapped_retries_regenerate_child_pipelines():
