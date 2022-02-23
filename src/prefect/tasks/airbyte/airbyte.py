@@ -371,7 +371,7 @@ class AirbyteConfigurationExport(Task):
     Airbyte Open-Source you don't need the API Token for
     Authentication! All endpoints are possible to access using the
     API without it."
-    For more information refer to the [Airbyte docs](https://docs.airbyte.io/api-documentation)
+    For more information refer to the [Airbyte docs](https://docs.airbyte.io/api-documentation).
 
     Args:
         - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured.
