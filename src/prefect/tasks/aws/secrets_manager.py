@@ -1,4 +1,6 @@
 import json
+from json import JSONDecodeError
+from typing import Union
 
 from prefect.tasks.secrets.base import SecretBase
 from prefect.utilities.aws import get_boto_client
@@ -17,10 +19,10 @@ class AWSSecretsManager(SecretBase):
     for `boto3`.
 
     Args:
-        - secret (str, optional): the name of the secret to retrieve
-        - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+        - secret (str, optional): The name of the secret to retrieve.
+        - boto_kwargs (dict, optional): Additional keyword arguments to forward to the boto client.
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(self, secret: str = None, boto_kwargs: dict = None, **kwargs):
@@ -34,20 +36,21 @@ class AWSSecretsManager(SecretBase):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("secret")
-    def run(self, secret: str = None, credentials: str = None) -> dict:
+    def run(self, secret: str = None, credentials: str = None) -> Union[dict, str]:
         """
         Task run method.
 
         Args:
-            - secret (str): the name of the secret to retrieve
-            - credentials (dict, optional): your AWS credentials passed from an upstream
+            - secret (str): The name of the secret to retrieve.
+            - credentials (dict, optional): Your AWS credentials passed from an upstream
                 Secret task; this Secret must be a JSON string
                 with two keys: `ACCESS_KEY` and `SECRET_ACCESS_KEY` which will be
                 passed directly to `boto3`.  If not provided here or in context, `boto3`
                 will fall back on standard AWS rules for authentication.
 
         Returns:
-            - dict: the contents of this secret, as a dictionary
+            - Union[dict, str]: The contents of this secret. Either as a dictionary or
+            as a string.
         """
 
         if secret is None:
@@ -59,6 +62,9 @@ class AWSSecretsManager(SecretBase):
 
         secret_string = secrets_client.get_secret_value(SecretId=secret)["SecretString"]
 
-        secret_dict = json.loads(secret_string)
+        try:
+            secret_dict = json.loads(secret_string)
+        except JSONDecodeError:
+            return secret_string
 
         return secret_dict

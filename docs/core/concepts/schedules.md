@@ -19,7 +19,7 @@ def say_hello():
 
 schedule = IntervalSchedule(interval=timedelta(minutes=2))
 
-with Flow("Hello", schedule) as flow:
+with Flow("Hello", schedule=schedule) as flow:
     say_hello()
 
 flow.run()

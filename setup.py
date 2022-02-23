@@ -48,6 +48,7 @@ extras = {
     "airtable": ["airtable-python-wrapper >= 0.11"],
     "aws": orchestration_extras["aws"],
     "azure": [
+        "azure-core >= 1.10.0",
         "azure-storage-blob >= 12.1.0",
         "azureml-sdk >= 1.0.6",
         "azure-cosmos >= 3.1.1",
@@ -55,6 +56,7 @@ extras = {
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
+    "databricks": ["pydantic >= 1.9.0"],
     "dropbox": ["dropbox ~= 9.0"],
     "firebolt": ["firebolt-sdk >= 0.2.1"],
     "ge": ["great_expectations >= 0.13.8", "mistune < 2.0"],
@@ -95,6 +97,7 @@ extras = {
     "sodaspark": ["soda-spark >= 0.2.1"],
     "sendgrid": ["sendgrid >= 6.7.0"],
     "cubejs": ["PyJWT >= 2.3.0"],
+    "neo4j": ["py2neo >= 2021.2.3"],
 }
 
 

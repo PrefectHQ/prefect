@@ -1,0 +1,5 @@
+enhancement:
+  - "Added Neo4j first task - [#5418](https://github.com/PrefectHQ/prefect/pull/5418)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"

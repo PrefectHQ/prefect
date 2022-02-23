@@ -1,0 +1,5 @@
+fix:
+  - "While building docker images for storage, rm=True is used as default, which deletes intermediate containers - (#5384)[https://github.com/PrefectHQ/prefect/issues/5384]"
+
+contributor:
+  - "[Aneesh Makala](https://github.com/makalaaneesh)"
