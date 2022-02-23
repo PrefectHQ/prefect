@@ -1,2 +1,0 @@
-enhancement:
-  - "Allow the cancellation event check to be disabled in the `DaskExecutor` - [#5443](https://github.com/PrefectHQ/prefect/issues/5443)"

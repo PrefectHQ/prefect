@@ -1,5 +1,0 @@
-enhancement:
-  - "Allows overwriting existing blobs when using BlobStorageUpload task - [#5437](https://github.com/PrefectHQ/prefect/pull/5437)"
-
-contributor:
-  - "[Kevin Mullins](https://github.com/zyzil)"
