@@ -9,7 +9,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Dashboard',
-    component: Dashboard, // We don't implement route level code splitting for the Dashboard route because we don't want this to load asyncronously
+    // We don't implement route level code splitting for the Dashboard route because we don't want this to load asynchronously
+    component: Dashboard,
     meta: {
       guards: [new DashboardDefaultFilters()],
       filters: {
