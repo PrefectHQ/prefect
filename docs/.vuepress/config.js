@@ -1,5 +1,6 @@
 const sidebar1319 = require('../api/0.13.19/sidebar')
 const sidebar1422 = require('../api/0.14.22/sidebar')
+const sidebar1513 = require('../api/0.15.13/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
@@ -98,6 +99,7 @@ module.exports = {
     sidebar: {
       '/api/0.13.19/': sidebar1319.sidebar,
       '/api/0.14.22/': sidebar1422.sidebar,
+      '/api/0.15.13/': sidebar1513.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
