@@ -31,7 +31,7 @@ To show you how it works, let's start small.
 
 ## Configuring a task runner
 
-You've seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
+You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.
 
 Let's start with this simple flow. We import the `SequentialTaskRunner` and specify a `task_runner` on the flow.
 
