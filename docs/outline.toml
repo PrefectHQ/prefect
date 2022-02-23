@@ -777,3 +777,8 @@ verified_task = true
 title = "Zendesk Tasks"
 module = "prefect.tasks.zendesk"
 classes = ["ZendeskTicketsIncrementalExportTask"]
+
+[pages.tasks.Neo4j]
+title = "Neo4j Tasks"
+module = "prefect.tasks.neo4j"
+classes = ["Neo4jRunCypherQueryTask"]
