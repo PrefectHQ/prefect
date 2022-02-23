@@ -20,7 +20,7 @@ The `prefect auth login` and `prefect auth logout` commands now use API keys. Pr
 
 Agents will use an available API key as detected by the Client, but will no longer detect tokens. If you have logged in locally, you may start any kind of agent and the agent will use your API key to query for flow runs, then pass the API key to the flow run for execution as well.
 
-When using the non-default tenant associated with an API key, set the tenant on the flow run job or the flow run will instantiate a client with the wrong tenant ID to report to Cloud. If the default tenant or a token is being used, this environment variable is just left blank.
+Unlike tokens, API keys can be associated with multiple tenants. When using an API key with its non-default tenant, you must use the CLI to switch tenants, provide the tenant ID with the `--tenant-id` option, or set the `PREFECT__CLOUD__TENANT_ID` environment variable.
 
 ```bash
 # install agent, specifying API key and tenant
