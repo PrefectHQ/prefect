@@ -6,8 +6,9 @@ __pycache__/
 # doc build artifacts
 docs/api-ref/schema.json
 
-# ui build artifacts
+# UI build artifacts
 src/prefect/orion/ui/*
+orion-ui/node_modules
 
 # C extensions
 *.so
