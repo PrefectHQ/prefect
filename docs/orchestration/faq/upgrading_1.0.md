@@ -144,7 +144,7 @@ This feature was contributed by a Prefect community member. To learn more, see t
 
 ## Drop support for Python 3.6
 
-With Prefect 1.0, we no longer explicitly test against Python 3.6. The minimum version for test and build is Python 3.7. 
+With Prefect 1.0, we no longer support Python 3.6. Some features will not work as expected if you are using Python 3.6. The minimum recommended version is Python 3.7. 
 
 ## Prefect server services local by default
 
