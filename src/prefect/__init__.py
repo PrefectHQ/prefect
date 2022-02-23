@@ -35,6 +35,7 @@ prefect.context.enter_global_profile()
 
 if sys.version_info < (3, 8):
     import asyncio
+    from prefect.utilities.compat import ThreadedChildWatcher
 
     # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
     # lead to errors in on unix as the previous default `SafeChildWatcher`

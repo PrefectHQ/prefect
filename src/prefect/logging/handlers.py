@@ -26,7 +26,6 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
 )
-from prefect.utilities.compat import ThreadedChildWatcher
 
 
 class OrionLogWorker:
