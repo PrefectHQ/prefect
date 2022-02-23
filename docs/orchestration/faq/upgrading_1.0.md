@@ -134,6 +134,8 @@ Imports for some Prefect modules have moved:
 - Exceptions now imported from `prefect.exceptions` instead of `prefect.utilities.exceptions`.
 - Executors now imported from `prefect.executors` instead of `prefect.engine.executors`. 
 
+These imports were available at both paths previously, but will only be available at the new path now.
+
 ## iCal recurrence rules schedules
 
 Prefect now supports rich recurrence rule scheduling following the iCal RRules standard and `dateutil` `rrule` module. This feature does not impact existing schedules using interval clocks, cron clocks, and so on, but provides convenient, new syntax for creating repetitive schedules. See [Recurrence Rule Clocks](/core/concepts/schedules.html#recurrence-rule-clocks) for details.
