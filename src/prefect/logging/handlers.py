@@ -39,12 +39,6 @@ class OrionLogWorker:
 
         self._queue: queue.Queue[dict] = queue.Queue()
 
-        if sys.version_info < (3, 8):
-            # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
-            # lead to errors in tests on unix as the previous default `SafeChildWatcher`
-            # is not compatible with threaded event loops.
-            asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
-
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
             name="orion-log-worker",
