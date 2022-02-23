@@ -27,6 +27,7 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
+from prefect.blocks import storage
 from prefect.blocks.core import Block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -38,7 +39,6 @@ from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.asyncio import asyncnullcontext
-from prefect.blocks import storage
 
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner

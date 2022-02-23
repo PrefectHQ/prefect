@@ -1,10 +1,12 @@
 """
 Encryption utilities
 """
-from cryptography.fernet import Fernet
-import os
-from prefect.orion import schemas
 import json
+import os
+
+from cryptography.fernet import Fernet
+
+from prefect.orion import schemas
 
 
 async def get_fernet_encryption(session):
@@ -30,10 +32,10 @@ async def get_fernet_encryption(session):
 async def encrypt_fernet(session, data: dict):
     fernet = await get_fernet_encryption(session)
     byte_blob = json.dumps(data).encode()
-    return {"encrypted_blob": fernet.encrypt(byte_blob).decode()}
+    return fernet.encrypt(byte_blob).decode()
 
 
 async def decrypt_fernet(session, data: dict):
     fernet = await get_fernet_encryption(session)
-    byte_blob = data["encrypted_blob"].encode()
+    byte_blob = data.encode()
     return json.loads(fernet.decrypt(byte_blob).decode())

@@ -1,4 +1,5 @@
 import pytest
+
 from prefect import flow, task
 from prefect.blocks import storage
 
@@ -14,13 +15,6 @@ def simple_flow():
         add(1)
 
     return my_flow
-
-
-@pytest.fixture
-async def clear_default_storage(self, client):
-    await client.post("/blocks/clear_default_storage_block")
-    yield
-    await client.post("/blocks/clear_default_storage_block")
 
 
 async def test_local_storage_default(simple_flow):

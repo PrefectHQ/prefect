@@ -1,146 +1,205 @@
-from prefect.orion import schemas
+from uuid import uuid4
+
+import pytest
+
+from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockCreate, BlockUpdate
+from prefect.orion.schemas.core import Block
 
 
-class TestBlock:
-    async def test_creating_blocks(self, session, client):
-        raw_block = {
-            "blockname": "really-useful-data",
-            "blockref": "really-nice-api",
-        }
+@pytest.fixture
+async def block_specs(session):
+    block_spec_0 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="x",
+            version="1.0",
+            type="abc",
+        ),
+    )
+    await session.commit()
 
-        block_create = schemas.actions.BlockCreate.from_serialized_block(
-            raw_block
-        ).dict(json_compatible=True)
+    block_spec_1 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="y",
+            version="1.0",
+            type="abc",
+        ),
+    )
+    await session.commit()
 
-        response = await client.post("/blocks/", json=block_create)
-        assert response.status_code == 200
-        assert response.json()["id"]
+    block_spec_2 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="x",
+            version="2.0",
+            type=None,
+        ),
+    )
+    await session.commit()
 
-    async def test_creating_and_reading_blocks_by_name(self, session, client):
-        raw_block = {
-            "blockname": "the-planeteers",
-            "blockref": "captain-planet",
-            "kwame": "earth",
-            "wheeler": "fire",
-            "linka": "wind",
-            "gi": "water",
-            "ma-ti and suchi": "heart",
-        }
+    return block_spec_0, block_spec_1, block_spec_2
 
-        block_create = schemas.actions.BlockCreate.from_serialized_block(
-            raw_block
-        ).dict(json_compatible=True)
 
-        create_response = await client.post("/blocks/", json=block_create)
-        assert create_response.status_code == 200
-        block_id = create_response.json()["id"]
-
-        read_response = await client.get("/blocks/name/the-planeteers")
-        block = read_response.json()
-
-        assert block["block_id"] == block_id
-        assert block["blockref"] == "captain-planet"
-        assert block["ma-ti and suchi"] == "heart"
-
-    async def test_creating_and_reading_block_data_by_id(self, session, client):
-        raw_block = {
-            "blockname": "power-rangers",
-            "blockref": "megazord",
-            "red": "jason",
-            "pink": "kimberly",
-            "yellow": "trini",
-            "blue": "billy",
-            "black": "zack",
-        }
-
-        block_create = schemas.actions.BlockCreate.from_serialized_block(
-            raw_block
-        ).dict(json_compatible=True)
-
-        create_response = await client.post("/blocks/", json=block_create)
-        assert create_response.status_code == 200
-        block_id = create_response.json()["id"]
-
-        read_response = await client.get(f"/blocks/{block_id}")
-        block = read_response.json()
-
-        assert block["blockname"] == "power-rangers"
-        assert block["blockref"] == "megazord"
-        assert block["red"] == "jason"
-        assert block.get("green") is None, "the green ranger isn't needed for megazord"
-
-    async def test_deleting_blocks_that_exist(self, session, client):
-        raw_block = {
-            "blockname": "dont-mind-me",
-            "blockref": "sneaky-crime-syndicate",
-            "secret-identity": "evil-crime-lord",
-        }
-
-        block_create = schemas.actions.BlockCreate.from_serialized_block(
-            raw_block
-        ).dict(json_compatible=True)
-
-        create_response = await client.post("/blocks/", json=block_create)
-        assert create_response.status_code == 200
-        block_id = create_response.json()["id"]
-
-        is_there_crime = await client.get(f"/blocks/name/dont-mind-me")
-        assert is_there_crime.status_code == 200
-
-        delete_response = await client.delete(f"/blocks/name/dont-mind-me")
-        assert delete_response
-
-        is_there_crime_now = await client.get(f"/blocks/name/dont-mind-me")
-        assert is_there_crime_now.status_code == 404
-
-    async def test_creating_a_block_with_duplicate_name(self, session, client):
-        first_twin = {
-            "blockname": "an-identical-twin",
-            "blockref": "im-an-independent-person",
-            "hobbies": "sports",
-        }
-
-        first_twin_create = schemas.actions.BlockCreate.from_serialized_block(
-            first_twin
-        ).dict(json_compatible=True)
-
-        create_response = await client.post("/blocks/", json=first_twin_create)
-        assert create_response.status_code == 200
-
-        second_twin = {
-            "blockname": "an-identical-twin",
-            "blockref": "im-just-like-my-sibling",
-            "hobbies": "watching sports",
-        }
-
-        second_twin_create = schemas.actions.BlockCreate.from_serialized_block(
-            second_twin
-        ).dict(json_compatible=True)
-
-        create_response = await client.post("/blocks/", json=second_twin_create)
-        assert create_response.status_code == 400
-
-    async def test_updating_a_block(self, session, client):
-        a_sad_block = {
-            "blockname": "the-white-wizard",
-            "blockref": "disappointment",
-            "palantir": "we do not know who else may be watching",
-        }
-
-        sad_block_create = schemas.actions.BlockCreate.from_serialized_block(
-            a_sad_block
-        ).dict(json_compatible=True)
-
-        create_response = await client.post("/blocks/", json=sad_block_create)
-        assert create_response.status_code == 200
-
-        a_better_wizard = BlockUpdate(
-            name="mithrandir",
-        ).dict(json_compatible=True)
-
-        patch_response = await client.patch(
-            "/blocks/name/the-white-wizard",
-            json=a_better_wizard,
+class TestCreateBlock:
+    async def test_create_block(self, session, client, block_specs):
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
+            ).dict(json_compatible=True),
         )
-        assert patch_response.status_code == 200
+        assert response.status_code == 201
+        result = Block.parse_obj(response.json())
+
+        assert result.name == "x"
+        assert result.data == dict(y=1)
+        assert result.block_spec_id == block_specs[0].id
+        assert result.block_spec.name == block_specs[0].name
+
+        response = await client.get(f"/blocks/{result.id}")
+        api_block = Block.parse_obj(response.json())
+        assert api_block.name == "x"
+        assert api_block.data == dict(y=1)
+        assert result.block_spec_id == block_specs[0].id
+        assert result.block_spec.name == block_specs[0].name
+
+    async def test_create_block_already_exists(self, session, client, block_specs):
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 409
+
+    async def test_create_block_with_same_name_but_different_block_spec(
+        self, session, client, block_specs
+    ):
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[1].id
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+
+class TestReadBlock:
+    async def test_read_missing_block(self, client):
+        response = await client.get(f"/blocks/{uuid4()}")
+        assert response.status_code == 404
+
+
+class TestDeleteBlock:
+    async def test_delete_block(self, session, client, block_specs):
+        response = await client.post(
+            "/blocks",
+            json=BlockCreate(
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
+            ).dict(json_compatible=True),
+        )
+        result = Block.parse_obj(response.json())
+
+        response = await client.get(f"/blocks/{result.id}")
+        assert response.status_code == 200
+
+        response = await client.delete(f"/blocks/{result.id}")
+        assert response.status_code == 204
+
+        response = await client.get(f"/blocks/{result.id}")
+        assert response.status_code == 404
+
+    async def test_delete_missing_block(self, session, client, block_specs):
+        response = await client.delete(f"/blocks/{uuid4()}")
+        assert response.status_code == 404
+
+
+class TestDefaultStorageBlock:
+    @pytest.fixture
+    async def storage_block_spec(self, session):
+        storage_block_spec = await models.block_specs.create_block_spec(
+            session=session,
+            block_spec=schemas.core.BlockSpec(
+                name="storage-type",
+                version="1.0",
+                type="STORAGE",
+            ),
+        )
+        await session.commit()
+        return storage_block_spec
+
+    @pytest.fixture
+    async def storage_block(self, session, storage_block_spec):
+        block = await models.blocks.create_block(
+            session=session,
+            block=Block(
+                name="storage", data=dict(), block_spec_id=storage_block_spec.id
+            ),
+        )
+        await session.commit()
+        return block
+
+    async def test_set_default_storage_block(self, client, storage_block):
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.json() is None
+
+        await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.json()["id"] == str(storage_block.id)
+
+    async def test_set_default_fails_if_not_storage_block(
+        self, session, client, block_specs
+    ):
+        non_storage_block = await models.blocks.create_block(
+            session=session,
+            block=Block(
+                name="non-storage", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/blocks/{non_storage_block.id}/set_default_storage_block"
+        )
+        assert response.status_code == 422
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.json() is None
+
+    async def test_get_default_storage_block(self, client, storage_block):
+        await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        result = schemas.core.Block.parse_obj(response.json())
+        assert result.id == storage_block.id
+
+    async def test_clear_default_storage_block(self, client, storage_block):
+        await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.json()["id"] == str(storage_block.id)
+
+        await client.post(f"/blocks/clear_default_storage_block")
+
+        response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.json() is None

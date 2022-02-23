@@ -8,6 +8,7 @@ import sqlalchemy as sa
 from cryptography.fernet import Fernet, InvalidToken
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.core import Block
 
 
 @pytest.fixture
@@ -195,3 +196,99 @@ class TestDeleteBlock:
 
     async def test_delete_nonexistant_block(self, session, block_specs):
         assert not await models.blocks.delete_block(session=session, block_id=uuid4())
+
+
+class TestDefaultStorage:
+    @pytest.fixture
+    async def storage_block_spec(self, session):
+        storage_block_spec = await models.block_specs.create_block_spec(
+            session=session,
+            block_spec=schemas.core.BlockSpec(
+                name="storage-type",
+                version="1.0",
+                type="STORAGE",
+            ),
+        )
+        await session.commit()
+        return storage_block_spec
+
+    @pytest.fixture
+    async def storage_block(self, session, storage_block_spec):
+        block = await models.blocks.create_block(
+            session=session,
+            block=Block(
+                name="storage", data=dict(), block_spec_id=storage_block_spec.id
+            ),
+        )
+        await session.commit()
+        return block
+
+    async def test_set_default_storage_block(self, session, storage_block):
+        assert not await models.blocks.get_default_storage_block(session=session)
+
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=storage_block.id
+        )
+
+        result = await models.blocks.get_default_storage_block(session=session)
+        assert result.id == storage_block.id
+
+    async def test_set_default_fails_if_not_storage_block(self, session, block_specs):
+        non_storage_block = await models.blocks.create_block(
+            session=session,
+            block=Block(
+                name="non-storage", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+        await session.commit()
+
+        with pytest.raises(ValueError, match="(Block spec type must be STORAGE)"):
+            await models.blocks.set_default_storage_block(
+                session=session, block_id=non_storage_block.id
+            )
+        assert not await models.blocks.get_default_storage_block(session=session)
+
+    async def test_clear_default_storage_block(self, session, storage_block):
+
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=storage_block.id
+        )
+        result = await models.blocks.get_default_storage_block(session=session)
+        assert result.id == storage_block.id
+
+        await models.blocks.clear_default_storage_block(session=session)
+
+        assert not await models.blocks.get_default_storage_block(session=session)
+
+    async def test_set_default_storage_block_clears_old_block(
+        self, session, storage_block, storage_block_spec, db
+    ):
+        storage_block_2 = await models.blocks.create_block(
+            session=session,
+            block=Block(
+                name="storage-2", data=dict(), block_spec_id=storage_block_spec.id
+            ),
+        )
+        await session.commit()
+
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=storage_block.id
+        )
+
+        result = await session.execute(
+            sa.select(db.Block).where(db.Block.is_default_storage_block.is_(True))
+        )
+        default_blocks = result.scalars().unique().all()
+        assert len(default_blocks) == 1
+        assert default_blocks[0].id == storage_block.id
+
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=storage_block_2.id
+        )
+
+        result = await session.execute(
+            sa.select(db.Block).where(db.Block.is_default_storage_block.is_(True))
+        )
+        default_blocks = result.scalars().unique().all()
+        assert len(default_blocks) == 1
+        assert default_blocks[0].id == storage_block_2.id

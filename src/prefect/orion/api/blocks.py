@@ -32,7 +32,8 @@ async def create_block(
             status.HTTP_409_CONFLICT,
             detail="Block already exists",
         )
-    return schemas.core.Block.from_orm_model(session=session, orm_block=model)
+
+    return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
 
 @router.get("/{id}")
@@ -45,7 +46,7 @@ async def read_block_by_id(
         return responses.JSONResponse(
             status_code=404, content={"message": "Block not found"}
         )
-    return schemas.core.Block.from_orm_model(session=session, orm_block=model)
+    return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -88,11 +89,13 @@ async def set_default_storage_block(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block not found"
             )
-        elif "Specified block is not a storage block" in str(exc):
+        elif "Block spec type must be STORAGE" in str(exc):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Specified block is not a storage block",
             )
+        else:
+            raise
 
 
 @router.post("/get_default_storage_block")
@@ -101,7 +104,7 @@ async def get_default_storage_block(
 ) -> Optional[schemas.core.Block]:
     model = await models.blocks.get_default_storage_block(session=session)
     if model:
-        return schemas.core.Block.from_orm_model(session=session, orm_block=model)
+        return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
 
 @router.post("/clear_default_storage_block")
