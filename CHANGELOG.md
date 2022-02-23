@@ -41,16 +41,16 @@ Released on February 23, 2022.
 
 ### Task Library
 
-- Add task to retrieve Databricks job ids given a name - [#5438](https://github.com/PrefectHQ/prefect/issues/5438)
-- Add task for the AWS parameter store manager - [#5439](https://github.com/PrefectHQ/prefect/issues/5439)
-- Update SpacyNLP task to support spacy version >= 3.0 - [#5358](https://github.com/PrefectHQ/prefect/issues/5358)
-- Add `exclude` parameter to SpacyNLP task - [#5402](https://github.com/PrefectHQ/prefect/pull/5402)
-- Update the AWS secret manager task to parse non key-value type secrets - [#5451](https://github.com/PrefectHQ/prefect/issues/5451)
+- Add `DatabricksGetJobID` to retreive Databricks job IDs with a given name - [#5438](https://github.com/PrefectHQ/prefect/issues/5438)
+- Add `AWSParametersManager` task to retrieve value from AWS Systems Manager Parameter Store - [#5439](https://github.com/PrefectHQ/prefect/issues/5439)
+- Update `SpacyNLP` task to support `spacy` version >= 3.0 - [#5358](https://github.com/PrefectHQ/prefect/issues/5358)
+- Add `exclude` parameter to `SpacyNLP` task - [#5402](https://github.com/PrefectHQ/prefect/pull/5402)
+- Update the `AWSSecretsManager` task to parse non key-value type secrets - [#5451](https://github.com/PrefectHQ/prefect/issues/5451)
 - Update the `DatabricksRunNow` task to use the Databricks 2.1 jobs API - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
-- Add `ge_checkpoint` and `checkpoint_kwargs` parameters to `RunGreatExpectationsValidation` - [#5404](https://github.com/PrefectHQ/prefect/pull/5404)
+- Add `ge_checkpoint` and `checkpoint_kwargs` parameters to `RunGreatExpectationsValidation` to allow runtime configuration of checkpoint runs - [#5404](https://github.com/PrefectHQ/prefect/pull/5404)
 - Add support for overwriting existing blobs when using Azure `BlobStorageUpload` task - [#5437](https://github.com/PrefectHQ/prefect/pull/5437)
-- Add Neo4j task - [#5418](https://github.com/PrefectHQ/prefect/pull/5418)
-- Add `DatabricksSubmitMultitaskRun` task - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+- Add `Neo4jRunCypherQueryTask` task for running Cypher queries against Neo4j databases - [#5418](https://github.com/PrefectHQ/prefect/pull/5418)
+- Add `DatabricksSubmitMultitaskRun` task to run Databricks jobs with multiple Databricks tasks  - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
 
 ### Fixes
 
