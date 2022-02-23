@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import logging
 import logging.handlers
@@ -11,6 +12,7 @@ from typing import Dict, List
 
 import anyio
 import pendulum
+import sniffio
 
 import prefect.context
 from prefect.client import OrionClient
@@ -25,6 +27,7 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
 )
+from prefect.utilities.compat import ThreadedChildWatcher
 
 
 class OrionLogWorker:
@@ -36,6 +39,12 @@ class OrionLogWorker:
         self.profile_context = profile_context.copy()
 
         self._queue: queue.Queue[dict] = queue.Queue()
+
+        if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
+            # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
+            # lead to errors in tests on unix as the previous default `SafeChildWatcher`
+            # is not compatible with threaded event loops.
+            asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
 
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
