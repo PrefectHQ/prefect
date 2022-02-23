@@ -96,7 +96,8 @@ class OrionClient:
 
     Args:
         host: the Orion API URL
-        httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
+        httpx_settings: an optional dictionary of settings to pass to the underlying
+            `httpx.AsyncClient`
 
     Examples:
 
@@ -116,6 +117,7 @@ class OrionClient:
         api_key: str = None,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
+        manage_ephemeral_lifespan: bool = True,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -128,6 +130,7 @@ class OrionClient:
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
         self._ephemeral_lifespan: Optional[LifespanManager] = None
+        self._manage_ephemeral_lifespan = manage_ephemeral_lifespan
         self._started = 0
         self._closed = False
         self._started_lock = anyio.Lock()
@@ -1468,7 +1471,7 @@ class OrionClient:
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self.is_ephemeral:
+        if self.is_ephemeral and self._manage_ephemeral_lifespan:
             # The `LifespanManager` must be instantiated in an async function
             self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
             await self._exit_stack.enter_async_context(self._ephemeral_lifespan)
