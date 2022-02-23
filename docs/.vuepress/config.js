@@ -80,7 +80,7 @@ module.exports = {
         text: 'API Reference',
         items: [
           { text: 'Latest (1.0.0)', link: '/api/latest/' },
-          { text: '0.15.12', link: '/api/0.15.12/' },
+          { text: '0.15.13', link: '/api/0.15.13/' },
           { text: '0.14.22', link: '/api/0.14.22/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
