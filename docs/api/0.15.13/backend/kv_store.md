@@ -1,0 +1,20 @@
+---
+sidebarDepth: 2
+editLink: false
+---
+# KV Store
+---
+
+## Functions
+|top-level functions: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-backend-kv-store-set-key-value'><p class="prefect-class">prefect.backend.kv_store.set_key_value</p>(key, value)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/backend/kv_store.py#L16">[source]</a></span></div>
+<p class="methods">Set key value pair, overwriting values for existing key<br><br>**Args**:     <ul class="args"><li class="args">`key (str)`: the name of the key     </li><li class="args">`value (Any)`: A json compatible value</li></ul> **Returns**:     <ul class="args"><li class="args">`id (str)`: the id of the key value pair</li></ul> **Raises**:     <ul class="args"><li class="args">`ClientError`: if using Prefect Server instead of Cloud     </li><li class="args">`ValueError`: if `value` exceeds 10 KB limit</li></ul></p>|
+ | <div class='method-sig' id='prefect-backend-kv-store-get-key-value'><p class="prefect-class">prefect.backend.kv_store.get_key_value</p>(key)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/backend/kv_store.py#L54">[source]</a></span></div>
+<p class="methods">Get the value for a key<br><br>**Args**:     <ul class="args"><li class="args">`key (str)`: the name of the key</li></ul> **Returns**:     <ul class="args"><li class="args">`value (Any)`: A json compatible value</li></ul> **Raises**:     <ul class="args"><li class="args">`ValueError`: if the specified key does not exist     </li><li class="args">`ClientError`: if using Prefect Server instead of Cloud</li></ul></p>|
+ | <div class='method-sig' id='prefect-backend-kv-store-delete-key'><p class="prefect-class">prefect.backend.kv_store.delete_key</p>(key)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/backend/kv_store.py#L81">[source]</a></span></div>
+<p class="methods">Delete a key value pair<br><br>**Args**:     <ul class="args"><li class="args">`key (str)`: the name of the key</li></ul> **Returns**:     <ul class="args"><li class="args">`success (bool)`: Whether or not deleting the key succeeded</li></ul> **Raises**:     <ul class="args"><li class="args">`ValueError`: if the specified key does not exist     </li><li class="args">`ClientError`: if using Prefect Server instead of Cloud</li></ul></p>|
+ | <div class='method-sig' id='prefect-backend-kv-store-list-keys'><p class="prefect-class">prefect.backend.kv_store.list_keys</p>()<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/backend/kv_store.py#L121">[source]</a></span></div>
+<p class="methods">List all keys<br><br>**Returns**:     <ul class="args"><li class="args">`keys (list)`: A list of keys</li></ul> **Raises**:     <ul class="args"><li class="args">`ClientError`: if using Prefect Server instead of Cloud</li></ul></p>|
+
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on February 23, 2022 at 19:26 UTC</p>
