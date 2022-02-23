@@ -84,11 +84,12 @@ nav:
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
-    - 'Orion UI':
+    - Orion UI & Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
         - ui/flows-and-tasks.md
         - ui/filters.md
+        - ui/cloud.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
