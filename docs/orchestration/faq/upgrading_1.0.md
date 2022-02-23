@@ -146,7 +146,7 @@ With Prefect 1.0, we no longer explicitly test against Python 3.6. The minimum v
 
 ## Prefect server services local by default
 
-Services run by the Prefect CLI are now local by default (they listen to localhost instead of 0.0.0.0). 
+Services run by the Prefect CLI only accept local connections by default (they listen to localhost instead of 0.0.0.0). 
 
 When configuring Prefect server, you can use the `--expose` option if you want to connect from a remote location. This exposes the server to external hosts by listening to 0.0.0.0 instead of localhost.
 
