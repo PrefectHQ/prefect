@@ -630,6 +630,23 @@ class OrionClient:
 
         return UUID(response.json().get("id"))
 
+    async def read_block(self, block_id: UUID):
+        """
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
+
+        Args:
+            block_id (UUID): the block id
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.get(f"/blocks/{block_id}")
+        return Block.from_api_block(response.json())
+
     async def read_block_by_name(
         self,
         name: str,
@@ -886,7 +903,10 @@ class OrionClient:
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
         block_id = block_document["block_id"]
-        storage_block = await self.read_block(block_id)
+        if block_id is not None:
+            storage_block = await self.read_block(block_id)
+        else:
+            storage_block = storage.TempStorageBlock()
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
