@@ -65,7 +65,7 @@ The changes in flow registration require Prefect Server 2021.09.02 or later. Pre
 
 ### Running flows
 
-The `prefect run` replaces the `prefect run flow` command to run a flow from the CLI.
+The `prefect run` command replaces the `prefect run flow` command to run a flow from the CLI.
 
 `prefect run` can run flows locally without the backend (Prefect Server or Prefect Cloud), or with the backend by submitting to an agent. It takes many options for lookup including a Python import name, a file path, the flow ID, the flow group ID, flow name, or project name. The flow run state change and log display has been entirely rewritten to be nice looking. 
 
