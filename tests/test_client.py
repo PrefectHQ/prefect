@@ -60,6 +60,15 @@ class TestClientContextManager:
             async with client:
                 pass
 
+    async def test_client_context_cannot_be_used_after_closing(self):
+        client = OrionClient("http://foo.test")
+        async with client:
+            pass
+
+        with pytest.raises(RuntimeError, match="cannot be started again after closing"):
+            async with client:
+                pass
+
     async def test_client_context_can_be_nested_with_app(self, app):
         app = FastAPI()
 
