@@ -157,7 +157,7 @@ class OrionClient:
         self.logger = get_logger("client")
 
     @property
-    def api_url(self) -> str:
+    def api_url(self) -> httpx.URL:
         """
         Get the base URL for the API.
         """
