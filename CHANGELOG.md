@@ -4,7 +4,6 @@
 
 Released on February 23, 2022.
 
-
 ### Highlights
 
 - Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
@@ -30,7 +29,7 @@ Released on February 23, 2022.
 - `prefect auth login` no longer accepts authentication tokens. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 - `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 <!-- config changes -->
-- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
 
 ### Enhancements
 
@@ -56,7 +55,7 @@ Released on February 23, 2022.
 ### Fixes
 
 - Add support to `prefect.flatten` for non-iterable upstreams, including exceptions and signals - [#4084](https://github.com/PrefectHQ/prefect/issues/4084)
-- While building docker images for storage, rm=True is used as default, which deletes intermediate containers - (#5384)[https://github.com/PrefectHQ/prefect/issues/5384]
+- While building docker images for storage, rm=True is used as default, which deletes intermediate containers - [#5384](https://github.com/PrefectHQ/prefect/issues/5384)
 - Use `__all__` to declare Prefect's public API for Pyright - [#5293](https://github.com/PrefectHQ/prefect/pull/5293)
 - Fix usage of `sys.getsizeof` to restore support for PyPy - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
 - Fix issues with log size estimates from [#5316](https://github.com/PrefectHQ/prefect/pull/5316) - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
