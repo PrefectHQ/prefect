@@ -15,6 +15,7 @@ $ python -m asyncio
 ```
 </div>
 """
+import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
@@ -601,7 +602,7 @@ class OrionClient:
     async def create_block(
         self,
         block: Block,
-        block_spec_id: UUID,
+        block_spec_id: UUID = None,
         name: str = None,
     ) -> Optional[UUID]:
         """
@@ -610,6 +611,15 @@ class OrionClient:
         """
 
         block_fields = block.dict(exclude=["block_name", "block_id", "block_spec_id"])
+
+        if not block_spec_id or block.block_spec_id:
+            raise ValueError(
+                "No block spec ID provided either on the block or as an argument."
+            )
+        elif not name or block.name:
+            raise ValueError(
+                "No block name provided either on the block or as an argument."
+            )
 
         block_create = schemas.actions.BlockCreate(
             name=name or block.name,
@@ -876,6 +886,10 @@ class OrionClient:
         # get default storage block
         default_block = await self.post("/blocks/get_default_storage_block")
         if not default_block.json():
+            warnings.warn(
+                "No default storage has been set on the server. "
+                "Using temporary local storage for results."
+            )
             block = storage.TempStorageBlock()
         else:
             block = Block.from_api_block(default_block.json())
