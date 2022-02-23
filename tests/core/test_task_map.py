@@ -1183,14 +1183,14 @@ class TestFlatMap:
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
     def test_flatmap_nested_exception_input(self, executor):
-        class NestTaskWithSignal(Task):
+        class NestTaskWithException(Task):
             def run(self, x):
                 if x == 2:
                     raise ValueError("This task failed!")
                 return [x]
 
         ll = ListTask()
-        nest = NestTaskWithSignal()
+        nest = NestTaskWithException()
         a = AddTask()
         with Flow("test") as flow:
             nested = nest.map(ll())
@@ -1201,6 +1201,26 @@ class TestFlatMap:
         assert len(result) == 3
         assert (result[0], result[2]) == (2, 4)
         assert isinstance(result[1], TRIGGERFAIL)
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_nested_noniterable_input(self, executor):
+        class NestTaskWithNonIterable(Task):
+            def run(self, x):
+                if x == 2:
+                    return x
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithNonIterable()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run()
+        assert state.result[z].result == [2, 3, 4]
 
 
 def test_mapped_retries_regenerate_child_pipelines():
