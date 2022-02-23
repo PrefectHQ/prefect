@@ -1,62 +1,58 @@
-import { IState } from '@/models/State'
-import { StateType } from '@/models/StateType'
+import { IState, StateType, TaskInput } from '@/models'
+import { IEmpiricalPolicy } from '@/models/EmpiricalPolicy'
 
 export interface ITaskRun {
   id: string,
   flowRunId: string,
-  cacheExpiration: string,
-  cacheKey: string,
+  cacheExpiration: string | null,
+  cacheKey: string | null,
   created: Date,
   dynamicKey: string,
-  empiricalPolicy: Record<string, unknown>,
-  estimatedRunTime: number,
-  estimatedStartTimeDelta: number,
-  totalRunTime: number,
-  expectedStartTime: Date,
+  empiricalPolicy: IEmpiricalPolicy | null,
+  estimatedRunTime: number | null,
+  estimatedStartTimeDelta: number | null,
+  totalRunTime: number | null,
+  expectedStartTime: Date | null,
   nextScheduledStartTime: string | null,
-  runCount: number,
-  name: string,
-  taskInputs: Record<string, unknown>,
+  runCount: number | null,
+  name: string | null,
+  taskInputs: Record<string, TaskInput[]> | null,
   taskKey: string,
-  taskVersion: string,
+  taskVersion: string | null,
   updated: Date,
-  startTime: Date,
-  endTime: Date,
-  stateId: string,
-  stateType: StateType,
-  state: IState,
-  duration: number,
-  subflowRuns: boolean,
-  tags: string[],
+  startTime: Date | null,
+  endTime: Date | null,
+  stateId: string | null,
+  stateType: StateType | null,
+  state: IState | null,
+  tags: string[] | null,
 }
 
 export class TaskRun implements ITaskRun {
-  public id: string
-  public flowRunId: string
-  public cacheExpiration: string
-  public cacheKey: string
+  public readonly id: string
+  public readonly flowRunId: string
+  public cacheExpiration: string | null
+  public cacheKey: string | null
   public created: Date
   public dynamicKey: string
-  public empiricalPolicy: Record<string, unknown>
-  public estimatedRunTime: number
-  public estimatedStartTimeDelta: number
-  public totalRunTime: number
-  public expectedStartTime: Date
+  public empiricalPolicy: IEmpiricalPolicy | null
+  public estimatedRunTime: number | null
+  public estimatedStartTimeDelta: number | null
+  public totalRunTime: number | null
+  public expectedStartTime: Date | null
   public nextScheduledStartTime: string | null
-  public runCount: number
-  public name: string
-  public taskInputs: Record<string, unknown>
+  public runCount: number | null
+  public name: string | null
+  public taskInputs: Record<string, TaskInput[]> | null
   public taskKey: string
-  public taskVersion: string
+  public taskVersion: string | null
   public updated: Date
-  public startTime: Date
-  public endTime: Date
-  public stateId: string
-  public stateType: StateType
-  public state: IState
-  public duration: number
-  public subflowRuns: boolean
-  public tags: string[]
+  public startTime: Date | null
+  public endTime: Date | null
+  public stateId: string | null
+  public stateType: StateType | null
+  public state: IState | null
+  public tags: string[] | null
 
   public constructor(taskRun: ITaskRun) {
     this.id = taskRun.id
@@ -82,8 +78,10 @@ export class TaskRun implements ITaskRun {
     this.stateId = taskRun.stateId
     this.stateType = taskRun.stateType
     this.state = taskRun.state
-    this.duration = taskRun.duration
-    this.subflowRuns = taskRun.subflowRuns
     this.tags = taskRun.tags
+  }
+
+  public get duration(): number {
+    return this.totalRunTime ?? this.estimatedRunTime ?? 0
   }
 }
