@@ -7,6 +7,7 @@ export interface IFlowRun {
   deploymentId: string | null,
   flowVersion: string | null,
   idempotencyKey: string | null,
+  expectedStartTime: string | null,
   nextScheduledStartTime: string | null,
   parameters: unknown,
   autoScheduled: boolean | null,
@@ -35,6 +36,7 @@ export class FlowRun implements IFlowRun {
   public readonly deploymentId: string | null
   public flowVersion: string | null
   public idempotencyKey: string | null
+  public expectedStartTime: string | null
   public nextScheduledStartTime: string | null
   public parameters: unknown
   public autoScheduled: boolean | null
@@ -62,6 +64,7 @@ export class FlowRun implements IFlowRun {
     this.flowId = flow.flowId
     this.flowVersion = flow.flowVersion
     this.idempotencyKey = flow.idempotencyKey
+    this.expectedStartTime = flow.expectedStartTime
     this.nextScheduledStartTime = flow.nextScheduledStartTime
     this.parameters = flow.parameters
     this.autoScheduled = flow.autoScheduled
