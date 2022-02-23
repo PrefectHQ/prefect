@@ -7,7 +7,7 @@ Released on February 23, 2022.
 ### Highlights
 
 - Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
-- Python 3.6 is no longer supported. Use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
+- Python 3.6 is no longer supported; use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
 - Flow `Environment`s have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)
 - We have a new [Discourse community](https://discourse.prefect.io/) to encourage lasting discussions.
 
@@ -55,7 +55,7 @@ Released on February 23, 2022.
 ### Fixes
 
 - Add support to `prefect.flatten` for non-iterable upstreams, including exceptions and signals - [#4084](https://github.com/PrefectHQ/prefect/issues/4084)
-- While building docker images for storage, rm=True is used as default, which deletes intermediate containers - [#5384](https://github.com/PrefectHQ/prefect/issues/5384)
+- While building Docker images for storage, `rm=True` is used as default, which deletes intermediate containers - [#5384](https://github.com/PrefectHQ/prefect/issues/5384)
 - Use `__all__` to declare Prefect's public API for Pyright - [#5293](https://github.com/PrefectHQ/prefect/pull/5293)
 - Fix usage of `sys.getsizeof` to restore support for PyPy - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
 - Fix issues with log size estimates from [#5316](https://github.com/PrefectHQ/prefect/pull/5316) - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
