@@ -181,7 +181,9 @@ async def test_client_is_ephemeral():
 
 
 async def test_client_api_url():
-    assert OrionClient("http://foo.test/bar").api_url == "http://foo.test/bar"
+    assert OrionClient("http://foo.test/bar").api_url == httpx.URL(
+        "http://foo.test/bar"
+    )
     assert OrionClient(FastAPI()).api_url is not None
 
 
