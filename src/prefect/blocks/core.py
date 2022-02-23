@@ -31,10 +31,11 @@ class Block(BaseModel, ABC):
 
     This class can be defined with an arbitrary set of fields and methods, and
     couples business logic with data contained in an Orion Block. `block_name`,
-    `block_id` and `block_spec_id` are reserved by Orion as Block metadata
-    fields, but otherwise a Block can implement arbitrary logic. Blocks can be
-    instantiated without populating these metadata fields, but can only be used
-    interactively, not with the Orion API.
+    `block_id`, `block_spec_id`, `block_spec_name`, and `block_spec_version` are
+    reserved by Orion as Block metadata fields, but otherwise a Block can
+    implement arbitrary logic. Blocks can be instantiated without populating
+    these metadata fields, but can only be used interactively, not with the
+    Orion API.
 
     Instead of the __init__ method, a Block implementation requires the
     definition of a `block_initialization` method that is called after
@@ -50,6 +51,8 @@ class Block(BaseModel, ABC):
         pass
 
     block_spec_id: Optional[UUID]
+    block_spec_name: Optional[str]
+    block_spec_version: Optional[str]
     block_id: Optional[UUID]
     block_name: Optional[str]
 
@@ -62,13 +65,20 @@ class Block(BaseModel, ABC):
             block_id=api_block.id,
             block_spec_id=api_block.block_spec_id,
             block_name=api_block.name,
-            **api_block.data
+            block_spec_name=api_block.block_spec.name,
+            block_spec_version=api_block.block_spec.version**api_block.data,
         )
 
     def to_api_block(self) -> prefect.orion.schemas.core.Block:
         data = self.dict()
 
-        for field in ["block_spec_id", "block_id", "block_name"]:
+        for field in [
+            "block_spec_id",
+            "block_id",
+            "block_name",
+            "block_spec_name",
+            "block_spec_version",
+        ]:
             data.pop(field)
 
         return prefect.orion.schemas.core.Block(
