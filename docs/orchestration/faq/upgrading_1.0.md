@@ -16,9 +16,9 @@ See [Removing API tokens](/orchestration/concepts/api_keys.html#removing-api-tok
 
 The Prefect CLI commands `create-token`, `revoke-token`, and `list-tokens` have been removed.
 
-The `prefect auth login` and `prefect auth logout` commands now use API keys. Previously, logging out with an API token would just reset your tenant and access token, but leave the API token on disk. Now, we retain that behavior the first time the command is called, but if you call it a second time, we delete the API token. This allows users to easily remove their API token in favor of an API key.
+The `prefect auth login` and `prefect auth logout` commands now use API keys. Previously, logging out with an authentication token would just reset your tenant and access token, but leave the token on disk. Now, we retain that behavior the first time the command is called, but if you call it a second time, we delete the token. This allows users to easily remove their token in favor of an API key.
 
-Agents will use an available API key as detected by the Client, but will no longer detect tokens. If you have logged in locally, you may start any kind of agent and the agent will use your API key to query for flow runs, then pass the API key to the flow run for execution as well.
+Agents will use the same API key as the client unless a different key is provided with `--key`. Previously, there was a dedicated environment variable for providing authentication tokens to agents, but this will now be ignored. If you have logged in to Prefect Cloud on your machine, you may start any kind of agent and the agent will use your API key to query for flow runs and pass it to the flow run for execution.
 
 Unlike tokens, API keys can be associated with multiple tenants. When using an API key with its non-default tenant, you must use the CLI to switch tenants, provide the tenant ID with the `--tenant-id` option, or set the `PREFECT__CLOUD__TENANT_ID` environment variable.
 
@@ -67,7 +67,7 @@ The changes in flow registration require Prefect Server 2021.09.02 or later. Pre
 
 The `prefect run` command replaces the `prefect run flow` command to run a flow from the CLI.
 
-`prefect run` can run flows locally without the backend (Prefect Server or Prefect Cloud), or with the backend by submitting to an agent. It takes many options for lookup including a Python import name, a file path, the flow ID, the flow group ID, flow name, or project name. The flow run state change and log display has been entirely rewritten to be nice looking. 
+`prefect run` can run flows locally without the backend (Prefect Server or Prefect Cloud), with the backend by submitting to an agent, or with the backend but without an agent. It takes many options for lookup including a Python import name, a file path, the flow ID, the flow group ID, flow name, or project name. The flow run state change and log display has been entirely rewritten to be nice looking. 
 
 `prefect run` supports the following options:
 
@@ -80,7 +80,7 @@ The `prefect run` command replaces the `prefect run flow` command to run a flow 
 | -n, --name         | The name of a flow to run from the specified file/module/project. If the source contains multiple flows, this must be provided. |
 | --label            | A label to add to the flow run. May be passed multiple times to specify multiple labels. If not passed, the labels from the flow group will be used. |
 | --run-name         | A name to assign to the flow run. |
-| --con              | A key, value pair (key=value) specifying a flow con variable. The value will be interpreted as JSON. May be passed multiple times to specify multiple con values. Nested values may be set by passing a dict. |
+| --context          | A key, value pair (key=value) specifying a flow context variable. The value will be interpreted as JSON. May be passed multiple times to specify multiple context values. Nested values may be set by passing a dict. |
 | --param            | A key, value pair (key=value) specifying a flow parameter. The value will be interpreted as JSON. May be passed multiple times to specify multiple parameter values. |
 | --log-level        | The log level to set for the flow run. If passed, the level must be a valid Python logging level name. If this option is not passed, the default level for the flow will be used. Valid values include DEBUG, INFO, WARNING, ERROR, or CRITICAL. |
 | --param-file       | The path to a JSON file containing parameter keys and values. Any parameters passed with `--param` will take precedence over these values. |
