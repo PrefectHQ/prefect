@@ -1442,22 +1442,49 @@ class OrionClient:
         return await resolve_inner(datadoc)
 
     async def __aenter__(self):
+        """
+        Start the client.
+
+        If the client is already started, entering and exiting this context will have
+        no effect.
+
+        If the client is already closed,
+        """
         async with self._started_lock:
+            if self._closed:
+                # httpx.AsyncClient does not allow reuse so we will not either.
+                raise RuntimeError(
+                    "The `OrionClient` cannot be started again after closing. "
+                    "Retrieve a new client with `get_client()` instead."
+                )
+
             self._started += 1
+
+            # Check if we've already entered the context before
             if self._started > 1:
                 return self
 
         await self._exit_stack.__aenter__()
 
+        # Enter a lifespan context if using an ephemeral application.
+        # See https://github.com/encode/httpx/issues/350
         if self.is_ephemeral:
-            # The `LifespanManager` must be instantiated in an async context
+            # The `LifespanManager` must be instantiated in an async function
             self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
             await self._exit_stack.enter_async_context(self._ephemeral_lifespan)
 
+        # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
+
         return self
 
     async def __aexit__(self, *exc_info):
+        """
+        Shutdown the client.
+
+        If the client has been started multiple times, this will have no effect until
+        all of the contexts have been exited.
+        """
         async with self._started_lock:
             self._started -= 1
             if self._started <= 0:
