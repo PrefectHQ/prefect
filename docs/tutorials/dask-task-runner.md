@@ -18,7 +18,7 @@ The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-ru
 
 If you need to dictate strict sequential task execution, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This may be useful as a debugging tool for async code.
 
-Many real-world data workflows benefit from true parallel, distributed task execution, and for this reason Prefect includes the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) and [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner).
+Many real-world data workflows benefit from true parallel, distributed task execution. For this reason, Prefect includes the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) and [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner).
 
 - `DaskTaskRunner` runs tasks on a [`dask.distributed`](http://distributed.dask.org/) cluster. 
 - `RayTaskRunner` runs tasks using [Ray](https://www.ray.io/).
