@@ -19,6 +19,10 @@ export class FlowsApi extends Api {
     return this.post<IFlowResponse[]>('/filter', filter).then(response => this.mapFlowsResponse(response))
   }
 
+  public getFlow(id: string): Promise<Flow> {
+    return this.get<IFlowResponse>(`/${id}`).then(response => this.mapFlowResponse(response))
+  }
+
   public getFlowsCount(filter: UnionFilters): Promise<number> {
     return this.post<number>('/count', filter).then(({ data }) => data)
   }
