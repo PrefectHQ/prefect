@@ -1,7 +1,9 @@
 <template>
   <div class="application">
     <NavBar class="application__nav" />
-    <FilterBar v-if="validFilterRoute" class="application__filter-bar" />
+    <template v-if="filtersVisible">
+      <FilterBar class="application__filter-bar" :disabled="filtersDisabled" />
+    </template>
     <suspense>
       <router-view class="application__router-view" />
     </suspense>
@@ -9,18 +11,15 @@
 </template>
 
 <script lang="ts" setup>
+  import { FilterBar } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRoute } from 'vue-router'
-  import FilterBar from '@/components/FilterBar.vue'
   import NavBar from '@/components/NavBar.vue'
 
   const route = useRoute()
 
-  const invalidRoutes = ['/settings']
-
-  const validFilterRoute = computed(() => {
-    return !invalidRoutes.includes(route.path)
-  })
+  const filtersVisible = computed(() => route.meta.filters?.visible ?? false)
+  const filtersDisabled = computed(() => route.meta.filters?.disabled ?? false)
 </script>
 
 <style lang="scss">
