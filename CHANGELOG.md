@@ -1,12 +1,16 @@
 # Changelog
 
-## 1.0.0
+## 1.0.0 <Badge text="beta" type="success" />
+
+Released on February 23, 2022.
+
 
 ### Highlights
 
 - Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
 - Python 3.6 is no longer supported. Use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
 - Flow `Environment`s have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)
+- We have a new [Discourse community](https://discourse.prefect.io/) to encourage lasting discussions.
 
 ### Breaking Changes
 
@@ -27,6 +31,49 @@
 - `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 <!-- config changes -->
 - The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+
+### Enhancements
+
+- Update `LocalDaskExecutor` to use new Python futures feature - [#5046](https://github.com/PrefectHQ/prefect/issues/5046)
+- Add a `State.__sizeof__` implementation to include the size of its result for better scheduling - [#5304](https://github.com/PrefectHQ/prefect/pull/5304)
+- Allow the cancellation event check to be disabled in the `DaskExecutor` - [#5443](https://github.com/PrefectHQ/prefect/issues/5443)
+- Update `Flow.visualize()` to allow change in orientation - [#5472](https://github.com/PrefectHQ/prefect/pull/5472)
+- Allow ECS task definition role ARNs to override ECS agent defaults - [#5366](https://github.com/PrefectHQ/prefect/pull/5366)
+
+### Task Library
+
+- Add task to retrieve Databricks job ids given a name - [#5438](https://github.com/PrefectHQ/prefect/issues/5438)
+- Add task for the AWS parameter store manager - [#5439](https://github.com/PrefectHQ/prefect/issues/5439)
+- Update SpacyNLP task to support spacy version >= 3.0 - [#5358](https://github.com/PrefectHQ/prefect/issues/5358)
+- Add `exclude` parameter to SpacyNLP task - [#5402](https://github.com/PrefectHQ/prefect/pull/5402)
+- Update the AWS secret manager task to parse non key-value type secrets - [#5451](https://github.com/PrefectHQ/prefect/issues/5451)
+- Update the `DatabricksRunNow` task to use the Databricks 2.1 jobs API - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+- Add `ge_checkpoint` and `checkpoint_kwargs` parameters to `RunGreatExpectationsValidation` - [#5404](https://github.com/PrefectHQ/prefect/pull/5404)
+- Add support for overwriting existing blobs when using Azure `BlobStorageUpload` task - [#5437](https://github.com/PrefectHQ/prefect/pull/5437)
+- Add Neo4j task - [#5418](https://github.com/PrefectHQ/prefect/pull/5418)
+- Add `DatabricksSubmitMultitaskRun` task - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+
+### Fixes
+
+- Add support to `prefect.flatten` for non-iterable upstreams, including exceptions and signals - [#4084](https://github.com/PrefectHQ/prefect/issues/4084)
+- While building docker images for storage, rm=True is used as default, which deletes intermediate containers - (#5384)[https://github.com/PrefectHQ/prefect/issues/5384]
+- Use `__all__` to declare Prefect's public API for Pyright - [#5293](https://github.com/PrefectHQ/prefect/pull/5293)
+- Fix usage of `sys.getsizeof` to restore support for PyPy - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
+- Fix issues with log size estimates from [#5316](https://github.com/PrefectHQ/prefect/pull/5316) - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
+
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Aneesh Makala](https://github.com/makalaaneesh)
+- [Connor Martin](https://github.com/cjmartian)
+- [Gebing](https://github.com/gebing)
+- [Julio Faracco](https://github.com/jcfaracco)
+- [Kevin Mullins](https://github.com/zyzil)
+- [Mathijs Miermans](https://github.com/mmiermans)
+- [Oliver Mannion](https://github.com/tekumara)
+- [Raymond Yu](https://github.com/raymonds-backyard)
+
 
 ## 0.15.13 <Badge text="beta" type="success" />
 

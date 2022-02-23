@@ -1,5 +1,0 @@
-enhancement:
-  - "Add a new parameter into visualize() function to change orientation - [#5472](https://github.com/PrefectHQ/prefect/pull/5472)"
-
-contributor:
-  - "[Julio Faracco](https://github.com/jcfaracco)"
