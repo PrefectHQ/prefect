@@ -18,7 +18,13 @@ def register_block(name: str, version: str = None):
 
 
 def get_block_spec(name: str, version: str = None) -> "Block":
-    return BLOCK_REGISTRY.get((name, version))
+    block = BLOCK_REGISTRY.get((name, version))
+    if not block:
+        raise ValueError(
+            f"No block spec exists for {name=}, {version=}. Available blocks include: "
+            f"{list(BLOCK_REGISTRY.keys())}"
+        )
+    return block
 
 
 class Block(BaseModel, ABC):
