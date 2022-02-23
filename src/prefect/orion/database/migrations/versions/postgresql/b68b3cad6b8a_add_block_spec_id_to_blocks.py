@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "b68b3cad6b8a"
-down_revision = "4799f657a6a1"
+down_revision = "d115556a8ab6"
 branch_labels = None
 depends_on = None
 
