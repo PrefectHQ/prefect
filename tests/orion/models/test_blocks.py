@@ -8,172 +8,190 @@ import sqlalchemy as sa
 from cryptography.fernet import Fernet, InvalidToken
 
 from prefect.orion import models, schemas
-from prefect.orion.models.blocks import pack_blockdata, unpack_blockdata
-from tests.fixtures.database import session
 
 
-class TestBlock:
-    async def test_creating_block_then_reading_by_name(self, session):
-        blockdata = await models.blocks.create_block(
+@pytest.fixture
+async def block_specs(session):
+    block_spec_0 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="x",
+            version="1.0",
+            type="abc",
+        ),
+    )
+    await session.commit()
+
+    block_spec_1 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="y",
+            version="1.0",
+            type="abc",
+        ),
+    )
+    await session.commit()
+
+    block_spec_2 = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="x",
+            version="2.0",
+            type=None,
+        ),
+    )
+    await session.commit()
+
+    return block_spec_0, block_spec_1, block_spec_2
+
+
+class TestCreateBlock:
+    async def test_create_block(self, session, block_specs):
+        result = await models.blocks.create_block(
             session=session,
             block=schemas.core.Block(
-                name="hi-im-some-blockdata",
-                blockref="a-definitely-implemented-stateful-api",
-                data=dict(),
+                name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ),
         )
-        assert blockdata.name == "hi-im-some-blockdata"
-        assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data != dict(), "block data is encrypted"
+        await session.commit()
 
-        block = await models.blocks.read_block_by_name(
-            session=session, name="hi-im-some-blockdata"
+        assert result.name == "x"
+        assert result.data != dict(y=1)
+        assert await result.decrypt_data(session) == dict(y=1)
+        assert result.block_spec_id == block_specs[0].id
+        assert result.block_spec.name == block_specs[0].name
+
+        db_block = await models.blocks.read_block_by_id(
+            session=session, block_id=result.id
         )
+        assert db_block.id == result.id
 
-        assert isinstance(block, dict)
-        assert block["blockname"] == blockdata.name
-        assert block["blockref"] == blockdata.blockref
-        assert (
-            len(block) == 3
-        ), "because the data field is empty, the unpacked block will have only 3 fields"
-
-    async def test_creating_block_then_reading_as_blocks(self, session):
-
-        blockdata = await models.blocks.create_block(
+    async def test_create_block_with_same_name_as_existing_block(
+        self, session, block_specs
+    ):
+        assert await models.blocks.create_block(
             session=session,
             block=schemas.core.Block(
-                name="hi-im-some-blockdata",
-                blockref="a-definitely-implemented-stateful-api",
-                data=dict(realdata=42),
+                name="x", data=dict(), block_spec_id=block_specs[0].id
             ),
         )
-        assert blockdata.name == "hi-im-some-blockdata"
-        assert blockdata.blockref == "a-definitely-implemented-stateful-api"
-        assert blockdata.data != dict(realdata=42), "block data is encrypted"
 
-        block = await models.blocks.read_block_by_id(
-            session=session, block_id=blockdata.id
-        )
-
-        assert isinstance(block, dict)
-        assert block["blockname"] == blockdata.name
-        assert block["blockref"] == blockdata.blockref
-        assert block["blockref"] == blockdata.blockref
-        assert block["realdata"] == 42
-
-    async def test_environment_variable_encryption_key_override(self, session):
-
-        blockdata = await models.blocks.create_block(
-            session=session,
-            block=schemas.core.Block(
-                name="encrypt-me-please",
-                blockref="my-deepest-darkest-secret",
-                data=dict(favorite_band="nsync"),
-            ),
-        )
-        assert blockdata.name == "encrypt-me-please"
-        assert blockdata.blockref == "my-deepest-darkest-secret"
-        assert "favorite_band" not in blockdata.data, "block data is encrypted"
-
-        old_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
-        os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
-
-        with pytest.raises(InvalidToken):
-            bad_block = await models.blocks.read_block_by_id(
-                session=session, block_id=blockdata.id
+        with pytest.raises(sa.exc.IntegrityError):
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    name="x", data=dict(), block_spec_id=block_specs[0].id
+                ),
             )
 
-        if old_key:
-            os.environ["ORION_BLOCK_ENCRYPTION_KEY"] = old_key
-
-    async def test_deleting_block(self, session):
-
-        blockdata = await models.blocks.create_block(
+    async def test_create_block_with_same_name_as_existing_block_but_different_block_spec(
+        self, session, block_specs
+    ):
+        assert await models.blocks.create_block(
             session=session,
             block=schemas.core.Block(
-                name="i-want-to-live-forever",
-                blockref="a-trendy-api",
-                data=dict(),
-            ),
-        )
-        assert blockdata.name == "i-want-to-live-forever"
-        assert blockdata.blockref == "a-trendy-api"
-
-        delete_result = await models.blocks.delete_block_by_name(
-            session=session, name="i-want-to-live-forever"
-        )
-
-        assert delete_result is True
-
-        fetched_blockdata = await models.blocks.read_block_by_name(
-            session=session, name="i-want-to-live-forever"
-        )
-
-        assert fetched_blockdata is None
-
-    async def test_deleting_gracefully(self, session):
-
-        delete_result = await models.blocks.delete_block_by_name(
-            session=session, name="hello-is-anybody-home"
-        )
-        assert delete_result is False
-
-    async def test_updating_block_name(self, session):
-        blockdata = await models.blocks.create_block(
-            session=session,
-            block=schemas.core.Block(
-                name="2d-lattice",
-                blockref="transfer-matrix-methods",
-                data=dict(interactions="ising model"),
+                name="x", data=dict(), block_spec_id=block_specs[0].id
             ),
         )
 
-        fancier_blockdata = schemas.actions.BlockCreate(
-            name="nd-lattice",
-            blockref="hartree-fock",
-            data=dict(interactions="nearest-neighbor-spin"),
-        )
-
-        update_result = await models.blocks.update_block(
+        assert await models.blocks.create_block(
             session=session,
-            name="2d-lattice",
-            block=fancier_blockdata,
-        )
-        assert update_result is True
-
-        less_fancy = await models.blocks.read_block_by_name(
-            session=session, name="2d-lattice"
-        )
-        assert less_fancy is None
-
-        too_fancy = await models.blocks.read_block_by_name(
-            session=session, name="nd-lattice"
-        )
-        assert too_fancy["blockref"] == "hartree-fock"
-        assert too_fancy["interactions"] == "nearest-neighbor-spin"
-
-    async def test_updating_nonexistent_blocks(self, session):
-        imaginary = schemas.actions.BlockUpdate(
-            name="willed-into-existence",
-            data=dict(),
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[1].id
+            ),
         )
 
-        update_result = await models.blocks.update_block(
+
+class TestReadBlock:
+    async def test_read_block_by_id(self, session, block_specs):
+        block = await models.blocks.create_block(
             session=session,
-            name="a-block-that-never-was",
-            block=imaginary,
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[0].id
+            ),
         )
-        assert update_result is False
 
-    async def test_packing_and_unpacking_data_are_invertable(self, session):
-        starting_blockdata = {
-            "blockname": "neo",
-            "blockref": "the matrix",
-            "needs": "trinity",
-            "also_needs": "smith",
-        }
+        result = await models.blocks.read_block_by_id(
+            session=session, block_id=block.id
+        )
+        assert result.id == block.id
+        assert result.name == block.name
+        assert result.block_spec_id == block_specs[0].id
 
-        packed_blockdata = pack_blockdata(starting_blockdata.copy())
-        roundtrip_blockdata = unpack_blockdata(packed_blockdata)
-        roundtrip_blockdata.pop("blockid", None)
-        assert starting_blockdata == roundtrip_blockdata
+    async def test_read_block_by_id_doesnt_exist(self, session):
+        assert not await models.blocks.read_block_by_id(
+            session=session, block_id=uuid4()
+        )
+
+    async def test_read_block_by_name_with_no_version(self, session, block_specs):
+        block = await models.blocks.create_block(
+            session=session,
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+
+        result = await models.blocks.read_block_by_name(
+            session=session, name=block.name, block_spec_name=block_specs[0].name
+        )
+        assert result.id == block.id
+        assert result.name == block.name
+        assert result.block_spec_id == block_specs[0].id
+
+    async def test_read_block_by_name_with_version(self, session, block_specs):
+        block = await models.blocks.create_block(
+            session=session,
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+
+        result = await models.blocks.read_block_by_name(
+            session=session,
+            name=block.name,
+            block_spec_name=block_specs[0].name,
+            block_spec_version=block_specs[0].version,
+        )
+        assert result.id == block.id
+        assert result.name == block.name
+        assert result.block_spec_id == block_specs[0].id
+
+    async def test_read_block_by_name_doesnt_exist(self, session):
+        assert not await models.blocks.read_block_by_name(
+            session=session, name="x", block_spec_name="not-here"
+        )
+
+    async def test_read_block_by_name_with_wrong_version(self, session, block_specs):
+        block = await models.blocks.create_block(
+            session=session,
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+
+        assert not await models.blocks.read_block_by_name(
+            session=session,
+            name=block.name,
+            block_spec_name=block_specs[0].name,
+            block_spec_version="17.1",
+        )
+
+
+class TestDeleteBlock:
+    async def test_delete_block(self, session, block_specs):
+        block = await models.blocks.create_block(
+            session=session,
+            block=schemas.core.Block(
+                name="x", data=dict(), block_spec_id=block_specs[0].id
+            ),
+        )
+
+        block_id = block.id
+
+        await models.blocks.delete_block(session=session, block_id=block_id)
+        assert not await models.blocks.read_block_by_id(
+            session=session, block_id=block_id
+        )
+
+    async def test_delete_nonexistant_block(self, session, block_specs):
+        assert not await models.blocks.delete_block(session=session, block_id=uuid4())

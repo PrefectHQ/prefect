@@ -96,7 +96,7 @@ class TempStorageBlock(StorageBlock):
 
     async def write(self, data):
         # Ensure the basepath exists
-        storage_dir = self.basepath()
+        storage_dir = self.basepath() / "prefect"
         storage_dir.mkdir(parents=True, exist_ok=True)
 
         # Write data

@@ -39,7 +39,7 @@ class TestBlock:
         read_response = await client.get("/blocks/name/the-planeteers")
         block = read_response.json()
 
-        assert block["blockid"] == block_id
+        assert block["block_id"] == block_id
         assert block["blockref"] == "captain-planet"
         assert block["ma-ti and suchi"] == "heart"
 

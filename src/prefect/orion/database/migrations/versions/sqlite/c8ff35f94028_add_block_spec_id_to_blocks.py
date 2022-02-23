@@ -37,7 +37,19 @@ def upgrade():
             ondelete="cascade",
         )
         batch_op.drop_column("blockref")
-
+        batch_op.add_column(
+            sa.Column(
+                "is_default_storage_block",
+                sa.Boolean(),
+                server_default="0",
+                nullable=True,
+            )
+        )
+        batch_op.create_index(
+            batch_op.f("ix_block__is_default_storage_block"),
+            ["is_default_storage_block"],
+            unique=False,
+        )
     # ### end Alembic commands ###
 
 
@@ -51,5 +63,7 @@ def downgrade():
         batch_op.drop_index("uq_block__spec_id_name")
         batch_op.create_unique_constraint("uq_block__name", ["name"])
         batch_op.drop_column("block_spec_id")
+        batch_op.drop_index(batch_op.f("ix_block__is_default_storage_block"))
+        batch_op.drop_column("is_default_storage_block")
 
     # ### end Alembic commands ###

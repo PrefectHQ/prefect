@@ -10,6 +10,7 @@ from coolname import generate_slug
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+from prefect.orion.utilities.encryption import encrypt_fernet, decrypt_fernet
 
 import prefect
 import prefect.orion.schemas as schemas
@@ -740,7 +741,7 @@ class ORMBlockSpec:
 class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    block_spec_id = sa.Column
+    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
 
     @declared_attr
     def block_spec_id(cls):
@@ -752,7 +753,7 @@ class ORMBlock:
 
     @declared_attr
     def block_spec(cls):
-        return sa.orm.relationship("BlockSpec", lazy="raise")
+        return sa.orm.relationship("BlockSpec", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
@@ -764,6 +765,22 @@ class ORMBlock:
                 unique=True,
             ),
         )
+
+    async def encrypt_data(self, session, data):
+        """
+        Store encrypted data on the ORM model
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        self.data = await encrypt_fernet(session, data)
+
+    async def decrypt_data(self, session):
+        """
+        Retrieve decrypted data from the ORM model.
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        return await decrypt_fernet(session, self.data)
 
 
 @declarative_mixin

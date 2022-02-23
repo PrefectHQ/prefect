@@ -163,16 +163,10 @@ class BlockSpecCreate(
 class BlockCreate(
     schemas.core.Block.subclass(
         name="BlockCreate",
-        include_fields=["name", "blockref", "data"],
+        include_fields=["name", "data", "block_spec_id"],
     )
 ):
     """Data used by the Orion API to create a block."""
-
-    @classmethod
-    def from_serialized_block(cls, block: dict):
-        return cls(
-            name=block.pop("blockname"), blockref=block.pop("blockref"), data=block
-        )
 
 
 class BlockUpdate(PrefectBaseModel):

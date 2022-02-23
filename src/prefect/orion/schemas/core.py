@@ -12,6 +12,7 @@ from typing_extensions import Literal
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+import prefect.orion.database
 
 
 class Flow(ORMBaseModel):
@@ -343,6 +344,22 @@ class Block(ORMBaseModel):
     name: str = Field(..., description="The block's name'")
     data: dict = Field(default_factory=dict, description="The block's data")
     block_spec_id: UUID = Field(..., description="A block spec ID")
+    block_spec: Optional[BlockSpec] = Field(
+        None, description="The associated block spec"
+    )
+
+    @classmethod
+    async def from_orm_model(
+        cls,
+        session,
+        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+    ):
+        return cls(
+            name=orm_block.name,
+            data=orm_block.decrypt_data(session=session),
+            block_spec_id=orm_block.block_spec_id,
+            block_spec=orm_block.block_spec,
+        )
 
 
 class Configuration(ORMBaseModel):

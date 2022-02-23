@@ -124,17 +124,17 @@ async def read_latest_block_by_name(
     """
     Read the latest block version that matches the provided block name and name
     """
-    result = await models.blocks.read_block_by_name(
+    model = await models.blocks.read_block_by_name(
         session=session,
         name=block_name,
         block_spec_name=block_spec_name,
         version=None,
     )
 
-    if not result:
+    if not model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
-    return result
+    return schemas.core.Block.from_orm_model(model)
 
 
 @router.get("/{name}/versions/{version}/block/{block_name}")
@@ -149,14 +149,14 @@ async def read_block_by_name(
     """
     Reads a block corresponding to a specific block spec and version
     """
-    result = await models.blocks.read_block_by_name(
+    model = await models.blocks.read_block_by_name(
         session=session,
         name=block_name,
         block_spec_name=block_spec_name,
         version=block_spec_version,
     )
 
-    if not result:
+    if not model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
-    return result
+    return schemas.core.Block.from_orm_model(model)
