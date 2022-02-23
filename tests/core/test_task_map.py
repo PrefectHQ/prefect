@@ -1205,7 +1205,7 @@ class TestFlatMap:
     @pytest.mark.parametrize(
         "executor", ["local", "sync", "mproc", "mthread"], indirect=True
     )
-    def test_flatmap_nested_noniterable_input(self, executor):
+    def test_flatmap_nested_noniterable_input(self, executor, caplog):
         class NestTaskWithNonIterable(Task):
             def run(self, x):
                 if x == 2:
@@ -1219,11 +1219,14 @@ class TestFlatMap:
             nested = nest.map(ll())
             z = a.map(flatten(nested))
 
-        with pytest.warns(
-            UserWarning,
-            match="`flatten` was used on upstream task that did not return an iterable",
-        ):
-            state = flow.run()
+        state = flow.run()
+        assert any(
+            [
+                "`flatten` was used on upstream task that did not return an iterable"
+                in record.message
+                for record in caplog.records
+            ]
+        )
         assert state.result[z].result == [2, 3, 4]
 
 

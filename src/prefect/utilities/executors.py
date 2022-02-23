@@ -45,6 +45,8 @@ if TYPE_CHECKING:
 
 StateList = Union["State", List["State"]]
 
+FLOWRUNNER_LOGGER = get_logger("FlowRunner")
+
 
 def run_with_heartbeat(
     runner_method: Callable[..., "prefect.engine.state.State"]
@@ -712,10 +714,11 @@ def _build_flattened_state(state: "State", index: int) -> "State":
 
     new_state = copy.copy(state)
     if not _can_flatten(state):
-        warnings.warn(
+        message = (
             "`flatten` was used on upstream task that did not return an iterable. "
-            "The value will be passed downstream unmodified.",
+            "The value will be passed downstream unmodified."
         )
+        FLOWRUNNER_LOGGER.warning(message)
         new_state.result = state._result.from_value(state.result)  # type: ignore
     else:
         new_state.result = state._result.from_value(state.result[index])  # type: ignore
