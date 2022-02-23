@@ -77,6 +77,7 @@ export class FlowRunsApi extends Api {
       flowId: data.flow_id,
       flowVersion: data.flow_version,
       idempotencyKey: data.idempotency_key,
+      expectedStartTime: data.expected_start_time,
       nextScheduledStartTime: data.next_scheduled_start_time,
       parameters: data.parameters,
       autoScheduled: data.auto_scheduled,

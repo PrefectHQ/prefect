@@ -8,6 +8,7 @@ export const randomFlowRun: MockFunction<FlowRun> = function() {
     deploymentId: this.create('string'),
     flowVersion: this.create('string'),
     idempotencyKey: this.create('string'),
+    expectedStartTime: this.create('string'),
     nextScheduledStartTime: this.create('string'),
     parameters: {},
     autoScheduled: this.create('boolean'),
