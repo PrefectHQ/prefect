@@ -67,7 +67,8 @@ class Block(BaseModel, ABC):
             block_spec_id=api_block.block_spec_id,
             block_name=api_block.name,
             block_spec_name=api_block.block_spec.name,
-            block_spec_version=api_block.block_spec.version**api_block.data,
+            block_spec_version=api_block.block_spec.version,
+            **api_block.data,
         )
 
     def to_api_block(self) -> prefect.orion.schemas.core.Block:
