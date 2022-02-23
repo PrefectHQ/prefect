@@ -4,7 +4,7 @@ Prefect 1.0 includes some important changes that may require updates to your flo
 
 Most significant: support has been removed for some features previously marked as deprecated. This means flows using deprecated features may encounter errors rather than warnings.
 
-The following sections describe changes you should be aware of for making sure your flows work as expected with Prefect 1.0.
+The following sections describe changes you should be aware of to ensure that your flows work as expected with Prefect 1.0.
 
 [[toc]]
 
