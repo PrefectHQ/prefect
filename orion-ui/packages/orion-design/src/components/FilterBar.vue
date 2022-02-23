@@ -175,7 +175,6 @@
 .filter-bar--disabled {
   pointer-events: none;
   cursor: default;
-  position: relative;
 
   &::after {
     position: absolute;
