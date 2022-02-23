@@ -1,0 +1,5 @@
+task:
+  - "Adds a new task: AWS parameter store manager - (#5439)[https://github.com/PrefectHQ/prefect/issues/5439]"
+
+contributor:
+  - "[Raymond Yu](https://github.com/raymonds-backyard)"
