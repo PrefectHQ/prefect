@@ -1545,6 +1545,7 @@ class TestFlowVisualize:
                 graph = f.visualize(filename=tmp.name, format="png", horizontal=True)
                 assert os.path.exists(os.path.join(tmpdir, f"{tmp.name}.png"))
 
+
 class TestCache:
     def test_cache_created(self):
         f = Flow(name="test")
