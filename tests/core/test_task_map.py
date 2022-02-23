@@ -5,6 +5,7 @@ import time
 import pytest
 
 import prefect
+import prefect.executors.dask
 from prefect.exceptions import PrefectSignal
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
@@ -1128,7 +1129,7 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten([1]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_mapped()
         assert state.result[z].result == [2]
 
@@ -1140,7 +1141,7 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten([1]), y=flatten([[5]]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_mapped()
         assert state.result[z].result == [6]
 
@@ -1152,7 +1153,7 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten(1), y=flatten([[1]]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_failed()
         assert (
             state.result[z].message
@@ -1176,7 +1177,7 @@ class TestFlatMap:
             nested = nest.map(ll())
             z = a.map(flatten(nested))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].result == [2, None, 4]
 
     @pytest.mark.parametrize(
@@ -1196,7 +1197,7 @@ class TestFlatMap:
             nested = nest.map(ll())
             z = a.map(flatten(nested))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         result = state.result[z].result
         assert len(result) == 3
         assert (result[0], result[2]) == (2, 4)
@@ -1219,14 +1220,16 @@ class TestFlatMap:
             nested = nest.map(ll())
             z = a.map(flatten(nested))
 
-        state = flow.run()
-        assert any(
-            [
-                "`flatten` was used on upstream task that did not return an iterable"
-                in record.message
-                for record in caplog.records
-            ]
-        )
+        state = flow.run(executor=executor)
+        if not isinstance(executor, prefect.executors.dask.DaskExecutor):
+            # When multiprocessing with Dask, caplog fails
+            assert any(
+                [
+                    "`flatten` was used on upstream task that did not return an iterable"
+                    in record.message
+                    for record in caplog.records
+                ]
+            ), "Warning is logged"
         assert state.result[z].result == [2, 3, 4]
 
 
