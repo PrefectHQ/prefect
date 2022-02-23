@@ -35,8 +35,24 @@
   display: grid;
   grid-template-areas: 'nav main';
   grid-template-columns: 62px 1fr;
-  row-gap: 16px;
   min-height: 100vh;
+
+  @media (max-width: 640px) {
+    grid-template-areas:
+      'nav'
+      'main';
+    grid-template-columns: unset;
+    grid-template-rows: 62px 1fr;
+    row-gap: 0;
+  }
+}
+
+.application--with-filters {
+  grid-template-areas:
+    'nav filter-bar'
+    'nav main';
+  grid-template-rows: 62px 1fr;
+  row-gap: 16px;
 
   @media (max-width: 640px) {
     grid-template-areas:
@@ -47,13 +63,6 @@
     grid-template-rows: 62px 62px 1fr;
     row-gap: 0;
   }
-}
-
-.application--with-filters {
-  grid-template-areas:
-    'nav filter-bar'
-    'nav main';
-  grid-template-rows: 62px 1fr;
 }
 
 .application__router-view {
