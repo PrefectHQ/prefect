@@ -12,7 +12,6 @@ from typing import Dict, List
 
 import anyio
 import pendulum
-import sniffio
 
 import prefect.context
 from prefect.client import OrionClient
@@ -40,7 +39,7 @@ class OrionLogWorker:
 
         self._queue: queue.Queue[dict] = queue.Queue()
 
-        if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
+        if sys.version_info < (3, 8):
             # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
             # lead to errors in tests on unix as the previous default `SafeChildWatcher`
             # is not compatible with threaded event loops.
