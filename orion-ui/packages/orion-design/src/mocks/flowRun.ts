@@ -2,14 +2,19 @@ import { FlowRun } from '@/models/FlowRun'
 import { MockFunction } from '@/services/Mocker'
 
 export const randomFlowRun: MockFunction<FlowRun> = function() {
-  return {
+  return new FlowRun({
     id: this.create('string'),
-    deploymentId: this.create('string'),
     flowId: this.create('string'),
+    deploymentId: this.create('string'),
     flowVersion: this.create('string'),
-    idempotencyKey: this.create('boolean') ? this.create('string') : null,
-    nextScheduledStartTime: this.create('boolean') ? this.create('string') : null,
+    idempotencyKey: this.create('string'),
+    expectedStartTime: this.create('string'),
+    nextScheduledStartTime: this.create('string'),
+    parameters: {},
     autoScheduled: this.create('boolean'),
+    context: {},
+    empiricalConfig: {},
+    empiricalPolicy: {},
     estimatedRunTime: this.create('number'),
     estimatedStartTimeDelta: this.create('number'),
     totalRunTime: this.create('number'),
@@ -21,11 +26,8 @@ export const randomFlowRun: MockFunction<FlowRun> = function() {
     stateType: this.create('stateType'),
     state: this.create('state'),
     tags: this.createMany('string', 3),
-    taskRunCount: this.create('number'),
+    runCount: this.create('number'),
+    created: this.create('date'),
     updated: this.create('date'),
-    parameters: null,
-    context: null,
-    empericalConfig: null,
-    empericalPolicy: null,
-  }
+  })
 }

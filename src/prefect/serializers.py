@@ -51,17 +51,12 @@ class PickleSerializer:
     """
     Serializes arbitrary objects using the pickle protocol.
 
-    Wraps `cloudpickle` to encode bytes in base64 for safe transmission and handle
-    objects that cannot be serialized without throwing an exception.
+    Wraps `cloudpickle` to encode bytes in base64 for safe transmission.
     """
 
     @staticmethod
     def dumps(data: Any) -> bytes:
-        try:
-            data_bytes = cloudpickle.dumps(data)
-        except Exception:
-            warnings.warn(f"Failed to pickle data of type {type(data)}", stacklevel=3)
-            data_bytes = cloudpickle.dumps(repr(data))
+        data_bytes = cloudpickle.dumps(data)
 
         return base64.encodebytes(data_bytes)
 

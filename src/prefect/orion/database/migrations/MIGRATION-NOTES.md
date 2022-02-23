@@ -12,6 +12,12 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `c8ff35f94028`
 Postgres: `b68b3cad6b8a`
 
+## Index FlowRun.flow_runner_type
+
+SQLite: `f327e877e423`
+Postgres: `d115556a8ab6`
+
+Indexes FlowRun.flow_runner_type for more efficient querying.
 ## Add block spec table
 
 SQLite: `e1ff4973a9eb`
