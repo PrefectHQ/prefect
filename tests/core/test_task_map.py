@@ -1219,7 +1219,11 @@ class TestFlatMap:
             nested = nest.map(ll())
             z = a.map(flatten(nested))
 
-        state = flow.run()
+        with pytest.warns(
+            UserWarning,
+            match="`flatten` was used on upstream task that did not return an iterable",
+        ):
+            state = flow.run()
         assert state.result[z].result == [2, 3, 4]
 
 

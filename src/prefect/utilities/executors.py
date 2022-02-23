@@ -697,16 +697,29 @@ def prepare_upstream_states_for_mapping(
     return map_upstream_states
 
 
+def _should_flatten(state: "State") -> bool:
+    return state.is_successful() and not state.is_skipped()
+
+
 def _can_flatten(state: "State") -> bool:
     return hasattr(state.result, "__len__") and hasattr(state.result, "__getitem__")
 
 
 def _build_flattened_state(state: "State", index: int) -> "State":
     """Helper function for `flatten_upstream_state`"""
-    if not _can_flatten(state):
+    if not _should_flatten(state):
         return state
+
     new_state = copy.copy(state)
-    new_state.result = state._result.from_value(state.result[index])  # type: ignore
+    if not _can_flatten(state):
+        warnings.warn(
+            "`flatten` was used on upstream task that did not return an iterable. "
+            "The value will be passed downstream unmodified.",
+        )
+        new_state.result = state._result.from_value(state.result)  # type: ignore
+    else:
+        new_state.result = state._result.from_value(state.result[index])  # type: ignore
+
     return new_state
 
 
