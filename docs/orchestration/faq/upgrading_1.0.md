@@ -10,7 +10,7 @@ The following sections describe changes you should be aware of to ensure that yo
 
 ## API keys replace authentication tokens
 
-[API keys](/orchestration/concepts/api_keys.html) replace authentication tokens to authenticate users and service accounts with the Prefect Cloud API. Existing authentication tokens will be ignored.
+[API keys](/orchestration/concepts/api_keys.html) replace authentication tokens to authenticate users and service accounts with the Prefect Cloud API. Existing authentication tokens will be ignored by the client.
 
 See [Removing API tokens](/orchestration/concepts/api_keys.html#removing-api-tokens) to learn how to remove old tokens from your environment. See [Using API keys with older versions of Prefect](/orchestration/concepts/api_keys.html#using-api-keys-with-older-versions-of-prefect) for details about how you can use API keys in place of tokens in certain situations (such as a VM or container built with an older version of Prefect).
 
