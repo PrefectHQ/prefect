@@ -899,15 +899,15 @@ class OrionClient:
         """
 
         # get default storage block
-        default_block = await self.post("/blocks/get_default_storage_block")
-        if not default_block.json():
+        default_block_response = await self.post("/blocks/get_default_storage_block")
+        if not default_block_response.json():
             warnings.warn(
                 "No default storage has been set on the server. "
                 "Using temporary local storage for results."
             )
             block = storage.TempStorageBlock()
         else:
-            block = Block.from_api_block(default_block.json())
+            block = Block.from_api_block(default_block_response.json())
 
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
