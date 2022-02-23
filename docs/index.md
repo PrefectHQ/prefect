@@ -22,7 +22,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     </div>
 </div>
 
-We’re excited to announce that Prefect Core is now officially Prefect 1.0! 
+We’re excited to announce that Prefect Core is officially Prefect 1.0! 
 
 For a smooth transition of your flows to this release, check out our [Upgrading to Prefect 1.0](/orchestration/faq/upgrading_1.0) guide and [Changelog](/api/latest/changelog/).
 
