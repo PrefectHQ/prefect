@@ -417,10 +417,69 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runners: Optional[List[str]] = Field(
+    flow_runner_types: Optional[List[str]] = Field(
         None,
         description="Only include flow runs with these flow runner types in the work queue.",
     )
+
+    def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's flow runs.
+        """
+        return schemas.filters.FlowRunFilter(
+            tags=schemas.filters.FlowRunFilterTags(all_=self.tags),
+            deployment_id=schemas.filters.FlowRunFilterDeploymentId(
+                any_=self.deployment_ids,
+                is_null_=False,
+            ),
+            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
+                any_=self.flow_runner_types,
+            ),
+        )
+
+    def get_scheduled_flow_run_filter(
+        self, scheduled_before: datetime.datetime
+    ) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's SCHEDULED flow runs.
+
+        Args:
+            scheduled_before: Create a FlowRunFilter that excludes runs scheduled before this date.
+
+        Returns:
+            Flow run filter that can be used to query the work queue for scheduled runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.SCHEDULED,
+                        ]
+                    )
+                ),
+                "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+            }
+        )
+
+    def get_executing_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's PENDING or RUNNING flow runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.PENDING,
+                            schemas.states.StateType.RUNNING,
+                        ]
+                    )
+                )
+            }
+        )
 
 
 class WorkQueue(ORMBaseModel):

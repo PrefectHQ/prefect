@@ -132,23 +132,23 @@
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [
+  const firstFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
     },
   ])
 
-  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expected_start_time)
+  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expectedStartTime)
 
-  const lastFlowRunSubscription = subscribe(flowRunsApi.filter.bind(flowRunsApi), [
+  const lastFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
     },
   ])
 
-  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expected_start_time)
+  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expectedStartTime)
 
   const filter = computed<UnionFilters>(() => {
     return FiltersQueryService.query(filtersStore.all)
