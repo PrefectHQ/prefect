@@ -16,7 +16,7 @@ Task runners provide the execution environment for tasks, and each flow specifie
 
 The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently, whether they are synchronous or asynchronous functions. Concurrent means that, if any tasks block on IO, they can yield to other tasks and mixed sync and async tasks can run concurrently. This is context switching rather than parallel processing &mdash; it increases the amount of work finished at a time on a given CPU.
 
-If for some reason you need to dictate strict sequential task execution, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This may be useful as a debugging tool for async code.
+If you need to dictate strict sequential task execution, you can use the [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner). This may be useful as a debugging tool for async code.
 
 Many real-world data workflows benefit from true parallel, distributed task execution, and for this reason Prefect includes the [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) and [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner).
 
