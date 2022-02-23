@@ -7,6 +7,7 @@ import base64
 import json
 import warnings
 from typing import Any
+from uuid import UUID
 
 import cloudpickle
 import pydantic
@@ -75,7 +76,7 @@ class BlockStorageSerializer:
     def dumps(block_document: dict) -> bytes:
         block_document = {
             "data": json.dumps(block_document["data"]),
-            "block_id": block_document["block_id"],
+            "block_id": str(block_document["block_id"]),
         }
         return json.dumps(block_document).encode()
 
@@ -86,5 +87,5 @@ class BlockStorageSerializer:
         block_document = json.loads(blob.decode())
         return {
             "data": json.loads(block_document["data"]),
-            "block_id": block_document["block_id"],
+            "block_id": UUID(block_document["block_id"]),
         }

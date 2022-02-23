@@ -1,4 +1,5 @@
 import io
+import os
 from abc import abstractmethod
 from functools import partial
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
+import httpx
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
@@ -215,3 +217,28 @@ class AzureBlobStorageBlock(StorageBlock):
         )
         await run_sync_in_worker_thread(blob.upload_blob, data)
         return key
+
+
+@register_block("kv-storage-block", version="1")
+class KVStorageBlock(StorageBlock):
+    api_address: str
+
+    def block_initialization(self) -> None:
+        if os.path.exists("/.dockerenv"):
+            self.api_address = self.api_address.replace(
+                "127.0.0.1", "host.docker.internal"
+            )
+
+    async def write(self, data: bytes) -> str:
+        key = str(uuid4())
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{self.api_address}/{key}", json={"value": data.decode()}
+            )
+        return key
+
+    async def read(self, key: str) -> bytes:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{self.api_address}/{key}")
+        response.raise_for_status()
+        return str(response.json()).encode()
