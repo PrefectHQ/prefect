@@ -1457,7 +1457,8 @@ class OrionClient:
         If the client is already started, entering and exiting this context will have
         no effect.
 
-        If the client is already closed,
+        If the client is already closed, this will raise an exception. Use a new client
+        instance instead.
         """
         async with self._started_lock:
             if self._closed:
