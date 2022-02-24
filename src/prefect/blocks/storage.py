@@ -219,8 +219,8 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("simple-kv-storage-block", version="1")
-class SimpleKVStorageBlock(StorageBlock):
+@register_block("kv-server-storage-block", version="1.0")
+class KVServerStorageBlock(StorageBlock):
     """
     A storage block that works with generic KV APIs.
     """

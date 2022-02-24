@@ -9,7 +9,7 @@ import prefect
 BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 
-def register_block(name: str, version: str = None):
+def register_block(name: str, version: str):
     def wrapper(block):
         BLOCK_REGISTRY[(name, version)] = block
         return block
@@ -17,7 +17,7 @@ def register_block(name: str, version: str = None):
     return wrapper
 
 
-def get_block_spec(name: str, version: str = None) -> "Block":
+def get_block_spec(name: str, version: str) -> "Block":
     block = BLOCK_REGISTRY.get((name, version))
     if not block:
         raise ValueError(f"No block spec exists for {name}/{version}.")
