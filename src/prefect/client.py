@@ -15,7 +15,8 @@ $ python -m asyncio
 ```
 </div>
 """
-from contextlib import AsyncExitStack
+import threading
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import (
     TYPE_CHECKING,
@@ -93,22 +94,35 @@ def get_client() -> "OrionClient":
     )
 
 
-APPLICATION_LIFESPANS: Dict[FastAPI, LifespanManager] = {}
+APPLICATION_LIFESPANS: Dict[int, LifespanManager] = {}
+LIFESPAN_LOCK = anyio.Lock()
 
 
-def get_app_lifespan_context(app: FastAPI) -> AsyncContextManager:
+@asynccontextmanager
+async def app_lifespan_context(app: FastAPI):
     """
-    Get a context manager that calls startup/shutdown hooks for the given application.
+    A context manager that calls startup/shutdown hooks for the given application.
 
-    LifespanManager contexts are cached per application to avoid entering the lifespan
-    context more than once per process. A no-op context will be returned if the context
-    for the given application is already being managed.
+    Lifespan contexts are cached per application to avoid calling the lifespan hooks
+    more than once if the context is entered in nested code. A no-op context will be
+    returned if the context for the given application is already being managed.
     """
-    if app in APPLICATION_LIFESPANS:
-        return asyncnullcontext()
-    else:
-        context = APPLICATION_LIFESPANS[app] = LifespanManager(app)
-        return context
+    key = hash(app)
+
+    async with LIFESPAN_LOCK:
+        if key in APPLICATION_LIFESPANS:
+            context = asyncnullcontext()
+            yield_value = None
+        else:
+            yield_value = context = APPLICATION_LIFESPANS[key] = LifespanManager(app)
+
+    async with context:
+        yield yield_value
+
+    if yield_value is not None:
+        # Only drop the lifespan from the cache if we are the one that put it in
+        async with LIFESPAN_LOCK:
+            APPLICATION_LIFESPANS.pop(key)
 
 
 class OrionClient:
@@ -1482,7 +1496,7 @@ class OrionClient:
         # See https://github.com/encode/httpx/issues/350
         if self._ephemeral_app:
             await self._exit_stack.enter_async_context(
-                get_app_lifespan_context(self._ephemeral_app)
+                app_lifespan_context(self._ephemeral_app)
             )
 
         # Enter the httpx client's context

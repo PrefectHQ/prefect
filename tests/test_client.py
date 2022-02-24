@@ -42,6 +42,12 @@ class TestGetClient:
 
 
 class TestClientContextManager:
+    @pytest.fixture(autouse=True)
+    def reset_lifespan_cache(self):
+        from prefect.client import APPLICATION_LIFESPANS
+
+        APPLICATION_LIFESPANS.clear()
+
     async def test_client_context_cannot_be_reentered(self):
         client = OrionClient("http://foo.test")
         async with client:
@@ -88,6 +94,23 @@ class TestClientContextManager:
 
         startup.assert_called_once()
         shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_sequential_usage(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async with OrionClient(app):
+            pass
+
+        assert startup.call_count == 1
+        assert shutdown.call_count == 1
+
+        async with OrionClient(app):
+            assert startup.call_count == 2
+            assert shutdown.call_count == 1
+
+        assert startup.call_count == 2
+        assert shutdown.call_count == 2
 
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
