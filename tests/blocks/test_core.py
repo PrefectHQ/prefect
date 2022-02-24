@@ -11,7 +11,8 @@ def reset_registered_blocks(monkeypatch):
 
 
 async def test_registering_and_getting_blocks():
-    assert get_block_spec("is anyone home") is None
+    with pytest.raises(ValueError, match="(No block spec exists)"):
+        get_block_spec("is anyone home")
 
     @register_block("yes i am home")
     class ARealLiveBlock(Block):
