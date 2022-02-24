@@ -105,7 +105,7 @@ class TestClientContextManager:
         assert startup.call_count == 2
         assert shutdown.call_count == 2
 
-    async def test_client_context_lifespan_is_robust_to_concurrent_access(self):
+    async def test_client_context_lifespan_is_robust_to_concurrent_usage(self):
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
@@ -117,26 +117,36 @@ class TestClientContextManager:
 
         async def one():
             async with OrionClient(app):
+                print("Started one")
                 one_started.set()
                 startup.assert_called_once()
                 shutdown.assert_not_called()
+                print("Waiting for two to start...")
                 await two_started.wait()
                 # Exit after two has started
+                print("Exiting one...")
             one_exited.set()
 
         async def two():
             await one_started.wait()
             # Enter after one has started but before one has exited
             async with OrionClient(app):
+                print("Started two")
                 two_started.set()
-                await one_exited.wait()
+                # Give time for one to try to exit
+                # If were to wait on the `one_exited` event, this test would timeout
+                # as we'd create a deadlock where one refuses to exit until the clients
+                # depending on its lifespan are done
+                await anyio.sleep(1)
                 startup.assert_called_once()
                 shutdown.assert_not_called()
+                print("Exiting two...")
 
         # Run concurrently
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(one)
-            tg.start_soon(two)
+        with anyio.fail_after(5):  # Kill if a deadlock occurs
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(one)
+                tg.start_soon(two)
 
         startup.assert_called_once()
         shutdown.assert_called_once()
