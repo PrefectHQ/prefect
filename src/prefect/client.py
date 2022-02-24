@@ -16,6 +16,7 @@ $ python -m asyncio
 </div>
 """
 import threading
+from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import (
@@ -94,8 +95,9 @@ def get_client() -> "OrionClient":
     )
 
 
-APPLICATION_LIFESPANS: Dict[int, LifespanManager] = {}
-LIFESPAN_LOCK = anyio.Lock()
+APP_LIFESPANS: Dict[int, LifespanManager] = {}
+APP_LIFESPANS_EXIT_EVENTS: Dict[int, List[anyio.Event]] = defaultdict(list)
+APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above lists
 
 
 @asynccontextmanager
@@ -106,25 +108,57 @@ async def app_lifespan_context(app: FastAPI):
     Lifespan contexts are cached per application to avoid calling the lifespan hooks
     more than once if the context is entered in nested code. A no-op context will be
     returned if the context for the given application is already being managed.
+
+    This manager is robust to concurrent access within the event loop. For example,
+    if you have concurrent contexts for the same application, it is guaranteed that
+    startup hooks will be called before their context starts and shutdown hooks will
+    only be called after their context exits.
+
+    If you have two concurrrent contexts which are used as follows:
+
+    --> Context A is entered (manages a new lifespan)
+    -----> Context B is entered (uses the lifespan from A)
+    -----> Context A exits
+    -----> Context B exits
+
+    Context A will *block* until Context B exits to avoid calling shutdown hooks before
+    the context from B is complete. This means that if B depends on work that occurs
+    after the exit of A, a deadlock will occur.
     """
+    # The id is used instead of the hash so each application instance is managed independently
     key = id(app)
 
-    async with LIFESPAN_LOCK:
-        if key in APPLICATION_LIFESPANS:
+    async with APP_LIFESPANS_LOCK:
+        if key in APP_LIFESPANS:
             context = asyncnullcontext()
             yield_value = None
+            # Create an event to indicate when this dependent exits its context
+            exit_event = anyio.Event()
+            APP_LIFESPANS_EXIT_EVENTS[key].append(exit_event)
         else:
-            yield_value = context = APPLICATION_LIFESPANS[key] = LifespanManager(app)
+            yield_value = APP_LIFESPANS[key] = context = LifespanManager(app)
+            exit_event = None
 
     async with context:
         yield yield_value
 
-        # Before exiting the context, drop the lifespan so the next request does not
-        # get a lifespan that is shutting down. We only drop the lifespan from the cache
-        # if we are the one that put it in
+        # If this the root context that is managing the lifespan, remove the lifespan
+        # from the cache before exiting the context so the next request does not
+        # get a lifespan that is shutting down.
         if yield_value is not None:
-            async with LIFESPAN_LOCK:
-                APPLICATION_LIFESPANS.pop(key)
+            async with APP_LIFESPANS_LOCK:
+                APP_LIFESPANS.pop(key)
+
+                # Do not exit the lifespan context until other all other contexts
+                # depending on this lifespan have exited
+                for exit_event in APP_LIFESPANS_EXIT_EVENTS[key]:
+                    await exit_event.wait()
+
+                APP_LIFESPANS_EXIT_EVENTS[key].clear()
+
+    # After exiting the context, set the exit event
+    if exit_event:
+        exit_event.set()
 
 
 class OrionClient:
