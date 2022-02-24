@@ -58,22 +58,6 @@ class Block(BaseModel, ABC):
     block_id: Optional[UUID]
     block_name: Optional[str]
 
-    @staticmethod
-    def from_api_block(api_block_dict: dict):
-        api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
-        block_spec_cls = get_block_spec(
-            name=api_block.block_spec.name,
-            version=api_block.block_spec.version,
-        )
-        return block_spec_cls(
-            block_id=api_block.id,
-            block_spec_id=api_block.block_spec_id,
-            block_name=api_block.name,
-            block_spec_name=api_block.block_spec.name,
-            block_spec_version=api_block.block_spec.version,
-            **api_block.data,
-        )
-
     def to_api_block(self) -> prefect.orion.schemas.core.Block:
         data = self.dict()
 
@@ -92,3 +76,19 @@ class Block(BaseModel, ABC):
             block_spec_id=self.block_spec_id,
             data=data,
         )
+
+
+def create_block_from_api_block(api_block_dict: dict):
+    api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
+    block_spec_cls = get_block_spec(
+        name=api_block.block_spec.name,
+        version=api_block.block_spec.version,
+    )
+    return block_spec_cls(
+        block_id=api_block.id,
+        block_spec_id=api_block.block_spec_id,
+        block_name=api_block.name,
+        block_spec_name=api_block.block_spec.name,
+        block_spec_version=api_block.block_spec.version,
+        **api_block.data,
+    )
