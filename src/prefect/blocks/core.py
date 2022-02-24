@@ -40,7 +40,7 @@ class Block(BaseModel, ABC):
     these metadata fields, but can only be used interactively, not with the
     Orion API.
 
-    Instead of the __init__ method, a Block implementation requires the
+    Instead of the __init__ method, a Block implementation allows the
     definition of a `block_initialization` method that is called after
     initialization.
     """
