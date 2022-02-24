@@ -39,8 +39,6 @@ from prefect.flow_runners import (
     python_version_minor,
     register_flow_runner,
 )
-from prefect.orion import models
-from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_URL
@@ -198,28 +196,6 @@ def conda_environment_path(tmp_path):
         # )
 
     return environment_path
-
-
-@pytest.fixture
-async def set_up_kv_storage_block(session, run_storage_server):
-    block_spec = await models.block_specs.create_block_spec(
-        session=session,
-        block_spec=BlockSpecCreate(
-            name="simple-kv-storage-block", version="1", type="STORAGE", fields=dict()
-        ),
-    )
-
-    block = await models.blocks.create_block(
-        session=session,
-        block=BlockCreate(
-            name="test-storage-block",
-            data=dict(api_address="http://127.0.0.1:1234/storage"),
-            block_spec_id=block_spec.id,
-        ),
-    )
-
-    await models.blocks.set_default_storage_block(session=session, block_id=block.id)
-    await session.commit()
 
 
 @pytest.fixture
@@ -599,7 +575,7 @@ class TestDockerFlowRunner:
         return mock
 
     @pytest.fixture(autouse=True)
-    async def configure_remote_storage(self, set_up_kv_storage_block):
+    async def configure_remote_storage(self, set_up_kv_storage):
         pass
 
     def test_runner_type(self):
@@ -1231,7 +1207,7 @@ class TestKubernetesFlowRunner:
         pytest.importorskip("kubernetes")
 
     @pytest.fixture(autouse=True)
-    async def configure_remote_storage(self, set_up_kv_storage_block):
+    async def configure_remote_storage(self, set_up_kv_storage):
         pass
 
     @pytest.fixture
