@@ -46,7 +46,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("s3storage-block")
+@register_block("s3-storage-block", version="1")
 class S3StorageBlock(StorageBlock):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
@@ -88,7 +88,7 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("tempstorage-block")
+@register_block("temp-storage-block", version="1")
 class TempStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -113,7 +113,7 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("localstorage-block")
+@register_block("local-storage-block", version="1")
 class LocalStorageBlock(StorageBlock):
     storage_path: Optional[str]
 
@@ -144,7 +144,7 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("orionstorage-block")
+@register_block("orion-storage-block", version="1")
 class OrionStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -160,7 +160,7 @@ class OrionStorageBlock(StorageBlock):
             return response.content
 
 
-@register_block("googlecloudstorage-block")
+@register_block("googlecloud-storage-block", version="1")
 class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
     project: Optional[str]
@@ -191,7 +191,7 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("azureblobstorage-block")
+@register_block("azureblob-storage-block", version="1")
 class AzureBlobStorageBlock(StorageBlock):
     container: str
     connection_string: str
@@ -219,8 +219,12 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("kv-storage-block", version="1")
-class KVStorageBlock(StorageBlock):
+@register_block("simple-kv-storage-block", version="1")
+class SimpleKVStorageBlock(StorageBlock):
+    """
+    A storage block that works with generic KV APIs.
+    """
+
     api_address: str
 
     def block_initialization(self) -> None:
@@ -231,9 +235,10 @@ class KVStorageBlock(StorageBlock):
 
     async def write(self, data: bytes) -> str:
         key = str(uuid4())
+
         async with httpx.AsyncClient() as client:
             await client.post(
-                f"{self.api_address}/{key}", json={"value": data.decode()}
+                f"{self.api_address}/{key}", json=data.decode() if data else None
             )
         return key
 
@@ -241,4 +246,5 @@ class KVStorageBlock(StorageBlock):
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{self.api_address}/{key}")
         response.raise_for_status()
-        return str(response.json()).encode()
+        if response.content:
+            return str(response.json()).encode()
