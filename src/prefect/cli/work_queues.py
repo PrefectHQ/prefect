@@ -1,15 +1,14 @@
 """
 Command line interface for working with work queues.
 """
+from typing import List
+
 import anyio
 import pendulum
 import typer
-
 from rich.pretty import Pretty
 from rich.table import Table
-from typing import List
 
-from prefect.client import get_client
 from prefect.cli.base import (
     PrefectTyper,
     app,
@@ -17,6 +16,7 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
+from prefect.client import get_client
 
 work_app = PrefectTyper(name="work-queue", help="Commands for work queue CRUD.")
 app.add_typer(work_app)
