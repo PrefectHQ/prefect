@@ -97,7 +97,7 @@ async def set_up_kv_storage(session, run_storage_server):
     block_spec = await models.block_specs.create_block_spec(
         session=session,
         block_spec=BlockSpecCreate(
-            name="simple-kv-storage-block", version="1", type="STORAGE", fields=dict()
+            name="kv-server-storage-block", version="1.0", type="STORAGE", fields=dict()
         ),
     )
 
