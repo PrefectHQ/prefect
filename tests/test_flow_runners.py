@@ -204,6 +204,9 @@ def conda_environment_path(tmp_path):
 async def set_up_kv_storage_block(session, run_storage_server):
     block_spec = await models.block_specs.create_block_spec(
         session=session,
+        block_spec=BlockSpecCreate(
+            name="simple-kv-storage-block", version="1", type="STORAGE", fields=dict()
+        ),
     )
 
     block = await models.blocks.create_block(
