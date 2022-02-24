@@ -2,8 +2,11 @@
 Command line interface for working with work queues.
 """
 import anyio
+import pendulum
 import typer
+
 from rich.pretty import Pretty
+from rich.table import Table
 from typing import List
 
 from prefect.client import get_client
@@ -55,6 +58,29 @@ async def read(id: str):
         result = await client.read_work_queue(id=id)
 
     console.print(Pretty(result))
+
+
+@work_app.command()
+async def ls():
+    """
+    View all work queues.
+    """
+    table = Table(title="Work Queues")
+    table.add_column("Created", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Name", style="red", no_wrap=True)
+    table.add_column("Filter", style="magenta", no_wrap=True)
+
+    async with get_client() as client:
+        queues = await client.read_work_queues()
+
+    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+
+    for queue in sorted(queues, key=sort_by_created_key):
+        table.add_row(
+            queue.created.strftime("%b %d, %Y"), queue.name, queue.filter.json()
+        )
+
+    console.print(table)
 
 
 @work_app.command()
