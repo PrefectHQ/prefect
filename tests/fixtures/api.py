@@ -107,6 +107,7 @@ async def hosted_orion_api():
         # Cleanup the process
         try:
             process.terminate()
+            await process.aclose()
         except Exception:
             pass  # May already be terminated
 
