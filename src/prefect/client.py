@@ -107,7 +107,7 @@ async def app_lifespan_context(app: FastAPI):
     more than once if the context is entered in nested code. A no-op context will be
     returned if the context for the given application is already being managed.
     """
-    key = hash(app)
+    key = id(app)
 
     async with LIFESPAN_LOCK:
         if key in APPLICATION_LIFESPANS:
