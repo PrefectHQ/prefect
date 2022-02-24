@@ -47,11 +47,34 @@ class TestAPICompatibility:
         x: str
         y: int = 1
 
+    @register_block()
+    class MyThirdRegisteredBlock(Block):
+        _block_spec_name: str = "my-third-registered-block"
+        _block_spec_version: str = "4.0"
+        x: str
+
     def test_registration_fills_private_attributes(self):
         assert self.MyBlock._block_spec_name is None
         assert self.MyBlock._block_spec_version is None
         assert self.MyRegisteredBlock._block_spec_name == "MyRegisteredBlock"
         assert self.MyRegisteredBlock._block_spec_version == "2.0"
+        assert self.MyOtherRegisteredBlock._block_spec_name == "another-block-spec-name"
+        assert self.MyOtherRegisteredBlock._block_spec_version == "3.0"
+        assert (
+            self.MyThirdRegisteredBlock._block_spec_name == "my-third-registered-block"
+        )
+        assert self.MyThirdRegisteredBlock._block_spec_version == "4.0"
+
+    def test_registration_names_and_versions(self):
+        assert get_block_spec("MyRegisteredBlock", "2.0") is self.MyRegisteredBlock
+        assert (
+            get_block_spec("another-block-spec-name", "3.0")
+            is self.MyOtherRegisteredBlock
+        )
+        assert (
+            get_block_spec("my-third-registered-block", "4.0")
+            is self.MyThirdRegisteredBlock
+        )
 
     def test_create_api_block_spec(self):
         block_spec = self.MyRegisteredBlock.to_api_block_spec()
