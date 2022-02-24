@@ -118,8 +118,6 @@ async def update_work_queue(
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = work_queue.dict(shallow=True, exclude_unset=True)
-    if not update_data.get("name"):
-        update_data.pop("name", None)
 
     update_stmt = (
         sa.update(db.WorkQueue)
