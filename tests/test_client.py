@@ -111,7 +111,7 @@ class TestClientContextManager:
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
     with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=enabled):
-        app = create_app()
+        app = create_app(ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.orion.database.interface.OrionDBInterface.create_db", mock

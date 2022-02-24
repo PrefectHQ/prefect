@@ -180,11 +180,13 @@ def create_orion_api(
 APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
 
 
-def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
+def create_app(
+    settings: prefect.settings.Settings = None, ignore_cache: bool = False
+) -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
     settings = settings or prefect.settings.get_current_settings()
 
-    if settings in APP_CACHE:
+    if settings in APP_CACHE and not ignore_cache:
         return APP_CACHE[settings]
 
     app = FastAPI(title=TITLE, version=API_VERSION)
