@@ -50,6 +50,60 @@ async def create(
 
 
 @work_app.command()
+async def pause(
+    name: str = typer.Option(
+        None, "-n", "--name", help="The name of the work queue to pause."
+    ),
+    id: str = typer.Option(
+        None, "-i", "--id", help="The ID of the work queue to pause."
+    ),
+):
+    """
+    Pause a work queue; only one of name or id should be provided.
+    """
+    if name and id:
+        raise ValueError("Only one of name or ID should be provided.")
+
+    async with get_client() as client:
+        result = await client.update_work_queue(
+            id=id,
+            is_paused=True,
+        )
+
+    if result:
+        exit_with_success(f"Paused work queue {id}")
+    else:
+        exit_with_error(f"No work queue found with id {id}")
+
+
+@work_app.command()
+async def unpause(
+    name: str = typer.Option(
+        None, "-n", "--name", help="The name of the work queue to unpause."
+    ),
+    id: str = typer.Option(
+        None, "-i", "--id", help="The ID of the work queue to unpause."
+    ),
+):
+    """
+    Unpause a work queue; only one of name or id should be provided.
+    """
+    if name and id:
+        raise ValueError("Only one of name or ID should be provided.")
+
+    async with get_client() as client:
+        result = await client.update_work_queue(
+            id=id,
+            is_paused=False,
+        )
+
+    if result:
+        exit_with_success(f"Unpaused work queue {id}")
+    else:
+        exit_with_error(f"No work queue found with id {id}")
+
+
+@work_app.command()
 async def read(id: str):
     """
     Read a work queue by ID.
@@ -66,7 +120,7 @@ async def ls():
     View all work queues.
     """
     table = Table(title="Work Queues")
-    table.add_column("Created", justify="right", style="cyan", no_wrap=True)
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Name", style="yellow", no_wrap=True)
     table.add_column("Paused", style="blue", no_wrap=True)
     table.add_column("Concurrency Limit", style="green", no_wrap=True)
@@ -79,7 +133,7 @@ async def ls():
 
     for queue in sorted(queues, key=sort_by_created_key):
         table.add_row(
-            queue.created.strftime("%b %d, %Y"),
+            str(queue.id),
             queue.name,
             "[red]True" if queue.is_paused else "[blue]False",
             queue.concurrency_limit or "None",

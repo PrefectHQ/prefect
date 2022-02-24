@@ -31,7 +31,7 @@ from prefect.blocks.core import Block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate
+from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
 from prefect.orion.schemas.core import TaskRun, QueueFilter
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
@@ -650,6 +650,30 @@ class OrionClient:
         if not work_queue_id:
             raise httpx.RequestError(str(response))
         return UUID(work_queue_id)
+
+    async def update_work_queue(self, id: str, **kwargs) -> bool:
+        """
+        Update properties of a work queue.
+
+        Args:
+            id: the ID of the work queue to update
+            **kwargs: the fields to update
+
+        Raises:
+            ValueError: if no kwargs are provided
+            httpx.RequestError: if the request fails
+
+        Returns:
+            bool: a boolean specifying whether the operation was successful
+        """
+        if not kwargs:
+            raise ValueError("No fields provided to update.")
+
+        data = WorkQueueUpdate(**kwargs).dict(json_compatible=True)
+        response = await self.patch(f"/work_queues/{id}", json=data)
+        if response.status_code == 204:
+            return True
+        return False
 
     async def read_work_queue(
         self,
