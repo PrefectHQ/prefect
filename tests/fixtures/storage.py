@@ -7,7 +7,7 @@ import time
 from typing import Any, Optional
 
 import pytest
-from fastapi import Body, FastAPI, Response
+from fastapi import Body, FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from prefect.orion.api.server import validation_exception_handler
