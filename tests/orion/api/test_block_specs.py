@@ -96,7 +96,7 @@ class TestDeleteBlockSpec:
 
 class TestReadBlockSpec:
     async def test_read_all_block_specs(self, session, client, block_specs):
-        result = await client.get(f"/block_specs/")
+        result = await client.post(f"/block_specs/filter")
         api_specs = pydantic.parse_obj_as(List[schemas.core.BlockSpec], result.json())
         assert [s.id for s in api_specs] == [
             block_specs[0].id,
@@ -105,7 +105,7 @@ class TestReadBlockSpec:
         ]
 
     async def test_read_block_specs_by_type(self, session, client, block_specs):
-        result = await client.get(f"/block_specs/", params=dict(type="abc"))
+        result = await client.post(f"/block_specs/filter", json=dict(type="abc"))
         api_specs = pydantic.parse_obj_as(List[schemas.core.BlockSpec], result.json())
         assert [s.id for s in api_specs] == [block_specs[0].id, block_specs[1].id]
 

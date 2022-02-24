@@ -10,6 +10,7 @@ import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
 
+import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
@@ -341,8 +342,25 @@ class Block(ORMBaseModel):
     """An ORM representation of a block."""
 
     name: str = Field(..., description="The block's name'")
-    blockref: str = Field(..., description="A reference to a registered blockspec")
     data: dict = Field(default_factory=dict, description="The block's data")
+    block_spec_id: UUID = Field(..., description="A block spec ID")
+    block_spec: Optional[BlockSpec] = Field(
+        None, description="The associated block spec"
+    )
+
+    @classmethod
+    async def from_orm_model(
+        cls,
+        session,
+        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+    ):
+        return cls(
+            id=orm_block.id,
+            name=orm_block.name,
+            data=await orm_block.decrypt_data(session=session),
+            block_spec_id=orm_block.block_spec_id,
+            block_spec=orm_block.block_spec,
+        )
 
 
 class Configuration(ORMBaseModel):
