@@ -1,5 +1,0 @@
-fix:
-  - "Assertions testing Lambda task call arguments would always pass - [#5459](https://github.com/PrefectHQ/prefect/pull/5459)"
-
-contributor:
-  - "[Mathijs Miermans](https://github.com/mmiermans)"

@@ -1534,6 +1534,17 @@ class TestFlowVisualize:
                     graph = f.visualize(filename=tmp.name, format=_format)
                     assert os.path.exists(os.path.join(tmpdir, f"{tmp.name}.{_format}"))
 
+    def test_viz_saves_graph_object_with_different_orientation(self):
+        import graphviz
+
+        f = Flow(name="test")
+        f.add_task(Task(name="a_nice_task"))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "viz"), "wb") as tmp:
+                graph = f.visualize(filename=tmp.name, format="png", horizontal=True)
+                assert os.path.exists(os.path.join(tmpdir, f"{tmp.name}.png"))
+
 
 class TestCache:
     def test_cache_created(self):

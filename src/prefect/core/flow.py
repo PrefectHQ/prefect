@@ -1299,6 +1299,7 @@ class Flow:
         flow_state: "prefect.engine.state.State" = None,
         filename: str = None,
         format: str = None,
+        horizontal: bool = False,
     ) -> Any:
         """
         Creates graphviz object for representing the current flow; this graphviz
@@ -1313,6 +1314,7 @@ class Flow:
                 automatically
             - format (str, optional): a format specifying the output file type; defaults to 'pdf'.
               Refer to http://www.graphviz.org/doc/info/output.html for valid formats
+            - horizontal (bool, optional): plot the task graph horizontally
 
         Raises:
             - ImportError: if `graphviz` is not installed
@@ -1341,6 +1343,9 @@ class Flow:
             return "#00000080"
 
         graph = graphviz.Digraph()
+
+        if horizontal:
+            graph.graph_attr["rankdir"] = "LR"
 
         for t in self.tasks:
             is_mapped = any(edge.mapped for edge in self.edges_to(t))
