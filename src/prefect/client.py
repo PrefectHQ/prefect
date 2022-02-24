@@ -121,10 +121,6 @@ class OrionClient:
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
             `httpx.AsyncClient`
-        manage_ephemeral_lifespan: If set, when using a FastAPI application in-process,
-            the application startup and shutdown lifespan hooks are called by the
-            client context. If not set, lifespan hooks will not be called.
-
 
     Examples:
 
