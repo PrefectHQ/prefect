@@ -15,9 +15,19 @@ $ python -m asyncio
 ```
 </div>
 """
-from contextlib import AsyncExitStack
+import threading
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncContextManager,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import anyio
@@ -75,19 +85,44 @@ def inject_client(fn):
     return with_injected_client
 
 
-CLIENTS: Dict[prefect.settings.Settings, "OrionClient"] = {}
-
-
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
 
-    if profile.settings not in CLIENTS or CLIENTS[profile.settings].is_closed:
-        CLIENTS[profile.settings] = OrionClient(
-            PREFECT_API_URL.value() or create_app(profile.settings),
-            api_key=PREFECT_API_KEY.value(),
-        )
+    return OrionClient(
+        PREFECT_API_URL.value() or create_app(profile.settings),
+        api_key=PREFECT_API_KEY.value(),
+    )
 
-    return CLIENTS[profile.settings]
+
+APPLICATION_LIFESPANS: Dict[int, LifespanManager] = {}
+LIFESPAN_LOCK = anyio.Lock()
+
+
+@asynccontextmanager
+async def app_lifespan_context(app: FastAPI):
+    """
+    A context manager that calls startup/shutdown hooks for the given application.
+
+    Lifespan contexts are cached per application to avoid calling the lifespan hooks
+    more than once if the context is entered in nested code. A no-op context will be
+    returned if the context for the given application is already being managed.
+    """
+    key = id(app)
+
+    async with LIFESPAN_LOCK:
+        if key in APPLICATION_LIFESPANS:
+            context = asyncnullcontext()
+            yield_value = None
+        else:
+            yield_value = context = APPLICATION_LIFESPANS[key] = LifespanManager(app)
+
+    async with context:
+        yield yield_value
+
+    if yield_value is not None:
+        # Only drop the lifespan from the cache if we are the one that put it in
+        async with LIFESPAN_LOCK:
+            APPLICATION_LIFESPANS.pop(key)
 
 
 class OrionClient:
@@ -100,10 +135,6 @@ class OrionClient:
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
             `httpx.AsyncClient`
-        manage_ephemeral_lifespan: If set, when using a FastAPI application in-process,
-            the application startup and shutdown lifespan hooks are called by the
-            client context. If not set, lifespan hooks will not be called.
-
 
     Examples:
 
@@ -123,7 +154,6 @@ class OrionClient:
         api_key: str = None,
         api_version: str = ORION_API_VERSION,
         httpx_settings: dict = None,
-        manage_ephemeral_lifespan: bool = True,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
@@ -135,19 +165,16 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
-        self._ephemeral_lifespan: Optional[LifespanManager] = None
-        self._manage_ephemeral_lifespan = manage_ephemeral_lifespan
-        self._started = 0
         self._closed = False
-        self._started_lock = anyio.Lock()
+        self._started = False
 
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
                 raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set with `api`, "
-                    "`app` is only for use with ephemeral instances. Provide it as the "
-                    "`api` parameter instead."
+                    "Invalid httpx settings: `app` cannot be set when providing an "
+                    "api url. `app` is only for use with ephemeral instances. Provide "
+                    "it as the `api` parameter instead."
                 )
             httpx_settings.setdefault("base_url", api)
 
@@ -171,14 +198,6 @@ class OrionClient:
         Get the base URL for the API.
         """
         return self._client.base_url
-
-    @property
-    def is_ephemeral(self) -> bool:
-        return self._ephemeral_app is not None
-
-    @property
-    def is_closed(self) -> bool:
-        return self._closed
 
     async def post(
         self, route: str, raise_for_status: bool = True, **kwargs
@@ -1460,31 +1479,30 @@ class OrionClient:
         If the client is already closed, this will raise an exception. Use a new client
         instance instead.
         """
-        async with self._started_lock:
-            if self._closed:
-                # httpx.AsyncClient does not allow reuse so we will not either.
-                raise RuntimeError(
-                    "The `OrionClient` cannot be started again after closing. "
-                    "Retrieve a new client with `get_client()` instead."
-                )
+        if self._closed:
+            # httpx.AsyncClient does not allow reuse so we will not either.
+            raise RuntimeError(
+                "The client cannot be started again after closing. "
+                "Retrieve a new client with `get_client()` instead."
+            )
 
-            self._started += 1
-
-            # Check if we've already entered the context before
-            if self._started > 1:
-                return self
+        if self._started:
+            # httpx.AsyncClient does not allow reentrancy so we will not either.
+            raise RuntimeError("The client cannot be started more than once.")
 
         await self._exit_stack.__aenter__()
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self.is_ephemeral and self._manage_ephemeral_lifespan:
-            # The `LifespanManager` must be instantiated in an async function
-            self._ephemeral_lifespan = LifespanManager(self._ephemeral_app)
-            await self._exit_stack.enter_async_context(self._ephemeral_lifespan)
+        if self._ephemeral_app:
+            await self._exit_stack.enter_async_context(
+                app_lifespan_context(self._ephemeral_app)
+            )
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
+
+        self._started = True
 
         return self
 
@@ -1495,11 +1513,8 @@ class OrionClient:
         If the client has been started multiple times, this will have no effect until
         all of the contexts have been exited.
         """
-        async with self._started_lock:
-            self._started -= 1
-            if self._started <= 0:
-                self._closed = True
-                return await self._exit_stack.aclose()
+        self._closed = True
+        return await self._exit_stack.aclose()
 
     def __enter__(self):
         raise RuntimeError(
