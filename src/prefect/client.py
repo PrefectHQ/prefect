@@ -280,7 +280,7 @@ class OrionClient:
     async def api_healthcheck(self) -> bool:
         try:
             with anyio.fail_after(10):
-                await self.hello()
+                await self.get("/health")
                 return True
         except:
             return False

@@ -329,22 +329,19 @@
     }),
   }
 
-  const hasCount = (key: string): boolean => {
+  function hasCount(key: Tab): boolean {
     return typeof countMap.value[key as Tab] === 'number'
   }
 
-  const getCount = (key: string): number => {
-    if (hasCount(key)) {
-      return 0
-    }
-
-    return countMap.value[key as Tab]!
+  const getCount = (key: Tab): number => {
+    return countMap.value[key as Tab] ?? 0
   }
 
   const countMap = computed<Record<Tab, number | undefined>>(() => ({
-    task_runs: queries.task_runs_count.response?.value ?? 0,
-    sub_flow_runs: queries.sub_flow_runs_count.response?.value ?? 0,
-    logs: undefined, // dummy because there is no count query for logs. And not taking the time to refactor results count right now
+    task_runs: queries.task_runs_count.response?.value,
+    sub_flow_runs: queries.sub_flow_runs_count.response?.value,
+    // dummy because there is no count query for logs. And not taking the time to refactor results count right now
+    logs: undefined,
   }))
 
   const deployment = computed<Deployment>(() => {
