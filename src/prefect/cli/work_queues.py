@@ -25,12 +25,34 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
+    deployment_ids: List[str] = typer.Option(
+        None, "-d", "--deployment", help="One or more optional deployment IDs"
+    ),
+    flow_runner_types: List[str] = typer.Option(
+        None, "-fr", "--flow-runner", help="One or more optional flow runner types"
+    ),
 ):
     """
     Create a work queue.
     """
     async with get_client() as client:
-        result = await client.create_work_queue(name=name, tags=tags or [])
+        result = await client.create_work_queue(
+            name=name,
+            tags=tags or None,
+            deployment_ids=deployment_ids or None,
+            flow_runner_types=flow_runner_types or None,
+        )
+
+    console.print(Pretty(result))
+
+
+@work_app.command()
+async def read(id: str):
+    """
+    Read a work queue by ID.
+    """
+    async with get_client() as client:
+        result = await client.read_work_queue(id=id)
 
     console.print(Pretty(result))
 
