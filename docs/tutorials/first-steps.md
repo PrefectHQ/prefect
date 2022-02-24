@@ -1,3 +1,15 @@
+---
+description: Learn the basics of creating and running flows and tasks.
+tags:
+    - tutorial
+    - getting started
+    - basics
+    - tasks
+    - flows
+    - subflows
+    - async
+---
+
 # First steps
 
 If you've never used Prefect before, let's start by exploring the building blocks of a Prefect workflow flows and tasks via an interactive Python session. For these first steps, you can copy and paste the code below into your favorite async-compatible Python REPL.
