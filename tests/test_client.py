@@ -1,10 +1,9 @@
-import asyncio
-import random
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock
 from uuid import UUID
 
+import anyio
 import httpx
 import pendulum
 import pytest
@@ -42,12 +41,6 @@ class TestGetClient:
 
 
 class TestClientContextManager:
-    @pytest.fixture(autouse=True)
-    def reset_lifespan_cache(self):
-        from prefect.client import APPLICATION_LIFESPANS
-
-        APPLICATION_LIFESPANS.clear()
-
     async def test_client_context_cannot_be_reentered(self):
         client = OrionClient("http://foo.test")
         async with client:
@@ -111,6 +104,42 @@ class TestClientContextManager:
 
         assert startup.call_count == 2
         assert shutdown.call_count == 2
+
+    async def test_client_context_lifespan_is_robust_to_concurrent_access(self):
+        startup = MagicMock(side_effect=lambda: print("Startup called!"))
+        shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
+
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        one_started = anyio.Event()
+        one_exited = anyio.Event()
+        two_started = anyio.Event()
+
+        async def one():
+            async with OrionClient(app):
+                one_started.set()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                await two_started.wait()
+                # Exit after two has started
+            one_exited.set()
+
+        async def two():
+            await one_started.wait()
+            # Enter after one has started but before one has exited
+            async with OrionClient(app):
+                two_started.set()
+                await one_exited.wait()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+
+        # Run concurrently
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(one)
+            tg.start_soon(two)
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
 
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
