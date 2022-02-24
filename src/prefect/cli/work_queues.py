@@ -67,7 +67,9 @@ async def ls():
     """
     table = Table(title="Work Queues")
     table.add_column("Created", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Name", style="red", no_wrap=True)
+    table.add_column("Name", style="yellow", no_wrap=True)
+    table.add_column("Paused", style="blue", no_wrap=True)
+    table.add_column("Concurrency Limit", style="green", no_wrap=True)
     table.add_column("Filter", style="magenta", no_wrap=True)
 
     async with get_client() as client:
@@ -77,7 +79,11 @@ async def ls():
 
     for queue in sorted(queues, key=sort_by_created_key):
         table.add_row(
-            queue.created.strftime("%b %d, %Y"), queue.name, queue.filter.json()
+            queue.created.strftime("%b %d, %Y"),
+            queue.name,
+            "[red]True" if queue.is_paused else "[blue]False",
+            queue.concurrency_limit or "None",
+            queue.filter.json(),
         )
 
     console.print(table)
