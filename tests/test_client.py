@@ -639,3 +639,13 @@ class TestClientAPIKey:
             client = get_client()
 
         assert client._client.headers["Authorization"] == "Bearer test"
+
+
+class TestClientWorkQueues:
+    async def test_create_then_read_work_queue(self, orion_client):
+        queue_id = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue_id, UUID)
+
+        lookup = await orion_client.read_work_queue(queue_id)
+        assert isinstance(lookup, schemas.core.WorkQueue)
+        assert lookup.name == "foo"

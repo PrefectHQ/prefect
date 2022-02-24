@@ -31,8 +31,8 @@ from prefect.blocks.core import Block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate
+from prefect.orion.schemas.core import TaskRun, QueueFilter
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -603,6 +603,81 @@ class OrionClient:
         try:
             response = await self.delete(
                 f"/concurrency_limits/tag/{tag}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
+
+    async def create_work_queue(
+        self,
+        name: str,
+        tags: List[str] = None,
+    ) -> UUID:
+        """
+        Create a work queue.
+
+        Args:
+            name: a unique name for the work queue
+            tags: an optional list of tags to filter on; only work scheduled with these tags
+                will be included in the queue
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            UUID: The UUID of the newly created workflow
+        """
+        data = WorkQueueCreate(name=name, filter=QueueFilter(tags=tags or [])).dict(
+            json_compatible=True
+        )
+        response = await self.post("/work_queues/", json=data)
+        work_queue_id = response.json().get("id")
+        if not work_queue_id:
+            raise httpx.RequestError(str(response))
+        return UUID(work_queue_id)
+
+    async def read_work_queue(
+        self,
+        id: str,
+    ) -> schemas.core.WorkQueue:
+        """
+        Read a work queue.
+
+        Args:
+            id: the id of the work queue to load
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            WorkQueue: an instantiated WorkQueue object
+        """
+        response = await self.get(f"/work_queues/{id}")
+        return schemas.core.WorkQueue.parse_obj(response.json())
+
+    async def delete_work_queue_by_id(
+        self,
+        id: str,
+    ):
+        """
+        Delete a work queue by its ID.
+
+        Args:
+            id: the id of the work queue to delete
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            True if the work queue was deleted, False otherwise
+        """
+        try:
+            response = await self.delete(
+                f"/work_queues/{id}",
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
