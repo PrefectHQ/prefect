@@ -900,7 +900,10 @@ class OrionClient:
 
         # get default storage block
         default_block_response = await self.post("/blocks/get_default_storage_block")
-        if not default_block_response.json():
+        if (
+            default_block_response.status_code != 200
+            or not default_block_response.json()
+        ):
             warnings.warn(
                 "No default storage has been set on the server. "
                 "Using temporary local storage for results."
