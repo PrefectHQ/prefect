@@ -119,10 +119,12 @@ async def app_lifespan_context(app: FastAPI):
     async with context:
         yield yield_value
 
-    if yield_value is not None:
-        # Only drop the lifespan from the cache if we are the one that put it in
-        async with LIFESPAN_LOCK:
-            APPLICATION_LIFESPANS.pop(key)
+        # Before exiting the context, drop the lifespan so the next request does not
+        # get a lifespan that is shutting down. We only drop the lifespan from the cache
+        # if we are the one that put it in
+        if yield_value is not None:
+            async with LIFESPAN_LOCK:
+                APPLICATION_LIFESPANS.pop(key)
 
 
 class OrionClient:
@@ -165,6 +167,8 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
+        # Only set if this client is responsible for the lifespan of the application
+        self._ephemeral_lifespan: Optional[LifespanManager] = None
         self._closed = False
         self._started = False
 
@@ -1495,7 +1499,7 @@ class OrionClient:
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
         if self._ephemeral_app:
-            await self._exit_stack.enter_async_context(
+            self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
                 app_lifespan_context(self._ephemeral_app)
             )
 
