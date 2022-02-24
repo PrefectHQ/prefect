@@ -84,9 +84,6 @@ def inject_client(fn):
     return with_injected_client
 
 
-APPLICATION_LIFESPANS: Dict[FastAPI, LifespanManager] = {}
-
-
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
 
@@ -96,7 +93,17 @@ def get_client() -> "OrionClient":
     )
 
 
+APPLICATION_LIFESPANS: Dict[FastAPI, LifespanManager] = {}
+
+
 def get_app_lifespan_context(app: FastAPI) -> AsyncContextManager:
+    """
+    Get a context manager that calls startup/shutdown hooks for the given application.
+
+    LifespanManager contexts are cached per application to avoid entering the lifespan
+    context more than once per process. A no-op context will be returned if the context
+    for the given application is already being managed.
+    """
     if app in APPLICATION_LIFESPANS:
         return asyncnullcontext()
     else:
