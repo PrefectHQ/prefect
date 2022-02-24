@@ -29,7 +29,7 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 from prefect.blocks import storage
-from prefect.blocks.core import Block, get_block_spec
+from prefect.blocks.core import Block, create_block_from_api_block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -670,7 +670,7 @@ class OrionClient:
             A hydrated block or None.
         """
         response = await self.get(f"/blocks/{block_id}")
-        return Block.from_api_block(response.json())
+        return create_block_from_api_block(response.json())
 
     async def read_block_by_name(
         self,
@@ -697,7 +697,7 @@ class OrionClient:
         response = await self.get(
             f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
         )
-        return Block.from_api_block(response.json())
+        return create_block_from_api_block(response.json())
 
     async def create_deployment(
         self,
@@ -907,7 +907,7 @@ class OrionClient:
             )
             block = storage.TempStorageBlock()
         else:
-            block = Block.from_api_block(default_block_response.json())
+            block = create_block_from_api_block(default_block_response.json())
 
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
