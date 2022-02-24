@@ -36,6 +36,10 @@ export class DeploymentsApi extends Api {
 
   protected route: Route = '/deployments'
 
+  public getDeployment(id: string): Promise<Deployment> {
+    return this.get<IDeploymentResponse>(`/${id}`).then(response => this.mapDeploymentResponse(response))
+  }
+
   public getDeployments(filter: UnionFilters): Promise<Deployment[]> {
     return this.post<IDeploymentResponse[]>('/filter', filter).then(response => this.mapDeploymentsResponse(response))
   }
