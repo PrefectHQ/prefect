@@ -156,6 +156,7 @@ class OrionClient:
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
         self._closed = False
+        self._started = False
 
         # Connect to an external application
         if isinstance(api, str):
@@ -187,14 +188,6 @@ class OrionClient:
         Get the base URL for the API.
         """
         return self._client.base_url
-
-    @property
-    def is_ephemeral(self) -> bool:
-        return self._ephemeral_app is not None
-
-    @property
-    def is_closed(self) -> bool:
-        return self._closed
 
     async def post(
         self, route: str, raise_for_status: bool = True, **kwargs
@@ -1479,21 +1472,27 @@ class OrionClient:
         if self._closed:
             # httpx.AsyncClient does not allow reuse so we will not either.
             raise RuntimeError(
-                "The `OrionClient` cannot be started again after closing. "
+                "The client cannot be started again after closing. "
                 "Retrieve a new client with `get_client()` instead."
             )
+
+        if self._started:
+            # httpx.AsyncClient does not allow reentrancy so we will not either.
+            raise RuntimeError("The client cannot be started more than once.")
 
         await self._exit_stack.__aenter__()
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self.is_ephemeral:
+        if self._ephemeral_app:
             await self._exit_stack.enter_async_context(
                 get_app_lifespan_context(self._ephemeral_app)
             )
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
+
+        self._started = True
 
         return self
 
