@@ -11,18 +11,27 @@ BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 
 def register_block(name: str = None, version: str = None):
+    """
+    Register a block spec with an optional name and version.
 
-    # version is required but should be the second argument
-    # so we raise here
-    if version is None:
-        raise ValueError("Version must be provided to register a block spec.")
+    Args:
+        name (str): if provided, the block spec name. If not provided, the
+            `_block_spec_name` private field will be checked, and if that is
+            `None`, the block spec class name will be used.
+        version (str): if provided, the block spec version. If not provided,
+            the `_block_spec_version` private field will be checked. If not
+            found, an error will be raised.
+    """
 
     def wrapper(block):
-        registered_name = name or block.__name__
+        registered_name = name or block._block_spec_name or block.__name__
+        registered_version = version or block._block_spec_version
+        if not registered_version:
+            raise ValueError("No _block_spec_version set and no version provided.")
 
-        BLOCK_REGISTRY[(registered_name, version)] = block
+        BLOCK_REGISTRY[(registered_name, registered_version)] = block
         block._block_spec_name = registered_name
-        block._block_spec_version = version
+        block._block_spec_version = registered_version
         return block
 
     return wrapper
