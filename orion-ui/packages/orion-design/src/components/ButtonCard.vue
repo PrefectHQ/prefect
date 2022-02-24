@@ -23,7 +23,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .button-card {
   cursor: pointer;
 }
