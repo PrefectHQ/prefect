@@ -12,10 +12,10 @@ import pytest
 from fastapi import Body, FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from prefect.blocks.storage import KVServerStorageBlock
 from prefect.orion import models
 from prefect.orion.api.server import validation_exception_handler
 from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
-from prefect.blocks.storage import KVServerStorageBlock
 
 app = FastAPI(exception_handlers={RequestValidationError: validation_exception_handler})
 
