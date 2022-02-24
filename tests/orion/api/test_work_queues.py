@@ -4,7 +4,7 @@ import pendulum
 import pytest
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import WorkQueueCreate
+from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.orion.schemas.data import DataDocument
 
 
@@ -53,6 +53,41 @@ class TestCreateWorkQueue:
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == 409
+
+
+class TestUpdateWorkQueue:
+    async def test_update_work_queue(
+        self,
+        session,
+        client,
+    ):
+        now = pendulum.now(tz="UTC")
+        data = WorkQueueCreate(
+            name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
+        ).dict(json_compatible=True)
+        response = await client.post("/work_queues/", json=data)
+        work_queue_id = response.json()["id"]
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+
+        assert work_queue.is_paused is False
+        assert work_queue.concurrency_limit is None
+
+        new_data = WorkQueueUpdate(is_paused=True, concurrency_limit=3).dict(
+            json_compatible=True
+        )
+        response = await client.patch(f"/work_queues/{work_queue_id}", json=new_data)
+
+        assert response.status_code == 204
+
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+
+        assert work_queue.is_paused is True
+        assert work_queue.concurrency_limit == 3
 
 
 class TestReadWorkQueue:
