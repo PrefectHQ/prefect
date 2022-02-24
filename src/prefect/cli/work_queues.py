@@ -20,7 +20,12 @@ app.add_typer(work_app)
 
 
 @work_app.command()
-async def create(name: str, tags: List[str] = None):
+async def create(
+    name: str = typer.Argument(..., help="The unique name to assign this work queue"),
+    tags: List[str] = typer.Option(
+        None, "-t", "--tag", help="One or more optional tags"
+    ),
+):
     """
     Create a work queue.
     """
