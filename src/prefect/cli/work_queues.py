@@ -127,9 +127,9 @@ async def unpause(
 
 
 @work_app.command()
-async def read(id: str):
+async def inspect(id: str):
     """
-    Read a work queue by ID.
+    Inspect a work queue by ID.
     """
     async with get_client() as client:
         result = await client.read_work_queue(id=id)

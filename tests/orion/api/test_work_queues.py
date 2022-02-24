@@ -82,12 +82,10 @@ class TestUpdateWorkQueue:
 
         assert response.status_code == 204
 
-        work_queue = await models.work_queues.read_work_queue(
-            session=session, work_queue_id=work_queue_id
-        )
+        response = await client.get(f"/work_queues/{work_queue_id}")
 
-        assert work_queue.is_paused is True
-        assert work_queue.concurrency_limit == 3
+        assert response.json()["is_paused"] is True
+        assert response.json()["concurrency_limit"] == 3
 
 
 class TestReadWorkQueue:
