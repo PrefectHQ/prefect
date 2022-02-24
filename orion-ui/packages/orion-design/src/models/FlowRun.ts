@@ -1,57 +1,61 @@
+import { StateType } from '@/models'
 import { IState } from '@/models/State'
-import { StateType } from '@/models/StateType'
 
 export interface IFlowRun {
   id: string,
-  deploymentId: string,
   flowId: string,
-  flowVersion: string,
+  deploymentId: string | null,
+  flowVersion: string | null,
   idempotencyKey: string | null,
+  expectedStartTime: string | null,
   nextScheduledStartTime: string | null,
   parameters: unknown,
-  autoScheduled: boolean,
+  autoScheduled: boolean | null,
   context: unknown,
-  empericalConfig: unknown,
-  empericalPolicy: unknown,
-  estimatedRunTime: number,
-  estimatedStartTimeDelta: number,
-  totalRunTime: number,
-  startTime: Date,
-  endTime: Date,
-  name: string,
-  parentTaskRunId: string,
-  stateId: string,
-  stateType: StateType,
-  state: IState,
-  tags: string[],
-  taskRunCount: number,
+  empiricalConfig: unknown,
+  empiricalPolicy: unknown,
+  estimatedRunTime: number | null,
+  estimatedStartTimeDelta: number | null,
+  totalRunTime: number | null,
+  startTime: Date | null,
+  endTime: Date | null,
+  name: string | null,
+  parentTaskRunId: string | null,
+  stateId: string | null,
+  stateType: StateType | null,
+  state: IState | null,
+  tags: string[] | null,
+  runCount: number | null,
+  created: Date,
   updated: Date,
 }
 
 export class FlowRun implements IFlowRun {
   public readonly id: string
-  public readonly deploymentId: string
   public readonly flowId: string
-  public flowVersion: string
+  public readonly deploymentId: string | null
+  public flowVersion: string | null
   public idempotencyKey: string | null
+  public expectedStartTime: string | null
   public nextScheduledStartTime: string | null
   public parameters: unknown
-  public autoScheduled: boolean
+  public autoScheduled: boolean | null
   public context: unknown
-  public empericalConfig: unknown
-  public empericalPolicy: unknown
-  public estimatedRunTime: number
-  public estimatedStartTimeDelta: number
-  public totalRunTime: number
-  public startTime: Date
-  public endTime: Date
-  public name: string
-  public parentTaskRunId: string
-  public stateId: string
-  public stateType: StateType
-  public state: IState
-  public tags: string[]
-  public taskRunCount: number
+  public empiricalConfig: unknown
+  public empiricalPolicy: unknown
+  public estimatedRunTime: number | null
+  public estimatedStartTimeDelta: number | null
+  public totalRunTime: number | null
+  public startTime: Date | null
+  public endTime: Date | null
+  public name: string | null
+  public parentTaskRunId: string | null
+  public stateId: string | null
+  public stateType: StateType | null
+  public state: IState | null
+  public tags: string[] | null
+  public runCount: number | null
+  public created: Date
   public updated: Date
 
   public constructor(flow: IFlowRun) {
@@ -60,12 +64,13 @@ export class FlowRun implements IFlowRun {
     this.flowId = flow.flowId
     this.flowVersion = flow.flowVersion
     this.idempotencyKey = flow.idempotencyKey
+    this.expectedStartTime = flow.expectedStartTime
     this.nextScheduledStartTime = flow.nextScheduledStartTime
     this.parameters = flow.parameters
     this.autoScheduled = flow.autoScheduled
     this.context = flow.context
-    this.empericalConfig = flow.empericalConfig
-    this.empericalPolicy = flow.empericalPolicy
+    this.empiricalConfig = flow.empiricalConfig
+    this.empiricalPolicy = flow.empiricalPolicy
     this.estimatedRunTime = flow.estimatedRunTime
     this.estimatedStartTimeDelta = flow.estimatedStartTimeDelta
     this.totalRunTime = flow.totalRunTime
@@ -77,7 +82,12 @@ export class FlowRun implements IFlowRun {
     this.stateType = flow.stateType
     this.state = flow.state
     this.tags = flow.tags
-    this.taskRunCount = flow.taskRunCount
+    this.runCount = flow.runCount
+    this.created = flow.created
     this.updated = flow.updated
+  }
+
+  public get duration(): number {
+    return this.totalRunTime ?? this.estimatedRunTime ?? 0
   }
 }

@@ -139,7 +139,7 @@
     },
   ])
 
-  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expected_start_time)
+  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expectedStartTime)
 
   const lastFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
@@ -148,7 +148,7 @@
     },
   ])
 
-  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expected_start_time)
+  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expectedStartTime)
 
   const filter = computed<UnionFilters>(() => {
     return FiltersQueryService.query(filtersStore.all)

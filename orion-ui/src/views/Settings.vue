@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header class="d-flex align-center justify-space-between">
+    <header class="d-flex align-center justify-space-between mt-2">
       <span class="d-flex align-center">
         <i class="pi pi-settings-3-line pi-2x text--grey-40" />
         <h1 class="ml-1">Settings</h1>
