@@ -64,7 +64,7 @@ class TestUpdateWorkQueue:
         now = pendulum.now(tz="UTC")
         data = WorkQueueCreate(
             name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
-        ).dict(json_compatible=True)
+        ).dict(json_compatible=True, exclude_unset=True)
         response = await client.post("/work_queues/", json=data)
         work_queue_id = response.json()["id"]
 
@@ -76,7 +76,7 @@ class TestUpdateWorkQueue:
         assert work_queue.concurrency_limit is None
 
         new_data = WorkQueueUpdate(is_paused=True, concurrency_limit=3).dict(
-            json_compatible=True
+            json_compatible=True, exclude_unset=True
         )
         response = await client.patch(f"/work_queues/{work_queue_id}", json=new_data)
 

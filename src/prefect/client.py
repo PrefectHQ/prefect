@@ -669,7 +669,7 @@ class OrionClient:
         if not kwargs:
             raise ValueError("No fields provided to update.")
 
-        data = WorkQueueUpdate(**kwargs).dict(json_compatible=True)
+        data = WorkQueueUpdate(**kwargs).dict(json_compatible=True, exclude_unset=True)
         response = await self.patch(f"/work_queues/{id}", json=data)
         if response.status_code == 204:
             return True
