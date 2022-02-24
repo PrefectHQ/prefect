@@ -189,7 +189,67 @@ def create_app(
     if settings in APP_CACHE and not ignore_cache:
         return APP_CACHE[settings]
 
-    app = FastAPI(title=TITLE, version=API_VERSION)
+    async def run_migrations():
+        """Ensure the database is created and up to date with the current migrations"""
+        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
+            from prefect.orion.database.dependencies import provide_database_interface
+
+            db = provide_database_interface()
+            await db.create_db()
+
+    async def start_services():
+        """Start additional services when the Orion API starts up."""
+        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
+
+            loop = asyncio.get_running_loop()
+            service_instances = [
+                services.scheduler.Scheduler(),
+                services.late_runs.MarkLateRuns(),
+            ]
+            app.state.services = {
+                service: loop.create_task(service.start())
+                for service in service_instances
+            }
+
+            for service, task in app.state.services.items():
+                logger.info(f"{service.name} service scheduled to start in-app")
+                task.add_done_callback(partial(on_service_exit, service))
+        else:
+            logger.info(
+                "In-app services have been disabled and will need to be run separately."
+            )
+            app.state.services = None
+
+    async def stop_services():
+        """Ensure services are stopped before the Orion API shuts down."""
+        if app.state.services:
+            await asyncio.gather(*[service.stop() for service in app.state.services])
+            try:
+                await asyncio.gather(
+                    *[task.stop() for task in app.state.services.values()]
+                )
+            except Exception as exc:
+                # `on_service_exit` should handle logging exceptions on exit
+                pass
+
+    def on_service_exit(service, task):
+        """
+        Added as a callback for completion of services to log exit
+        """
+        try:
+            # Retrieving the result will raise the exception
+            task.result()
+        except Exception:
+            logger.error(f"{service.name} service failed!", exc_info=True)
+        else:
+            logger.info(f"{service.name} service stopped!")
+
+    app = FastAPI(
+        title=TITLE,
+        version=API_VERSION,
+        on_startup=[run_migrations, start_services],
+        on_shutdown=[stop_services],
+    )
     api_app = create_orion_api(
         fast_api_app_kwargs={
             "exception_handlers": {
@@ -254,63 +314,6 @@ def create_app(
         return new_schema
 
     app.openapi = openapi
-
-    @app.on_event("startup")
-    async def start_services():
-        """Start additional services when the Orion API starts up."""
-        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
-            loop = asyncio.get_running_loop()
-            service_instances = [
-                services.scheduler.Scheduler(),
-                services.late_runs.MarkLateRuns(),
-            ]
-            app.state.services = {
-                service: loop.create_task(service.start())
-                for service in service_instances
-            }
-
-            for service, task in app.state.services.items():
-                logger.info(f"{service.name} service scheduled to start in-app")
-                task.add_done_callback(partial(on_service_exit, service))
-        else:
-            logger.info(
-                "In-app services have been disabled and will need to be run separately."
-            )
-            app.state.services = None
-
-    @app.on_event("shutdown")
-    async def wait_for_service_shutdown():
-        """Ensure services are stopped before the Orion API shuts down."""
-        if app.state.services:
-            await asyncio.gather(*[service.stop() for service in app.state.services])
-            try:
-                await asyncio.gather(
-                    *[task.stop() for task in app.state.services.values()]
-                )
-            except Exception as exc:
-                # `on_service_exit` should handle logging exceptions on exit
-                pass
-
-    def on_service_exit(service, task):
-        """
-        Added as a callback for completion of services to log exit
-        """
-        try:
-            # Retrieving the result will raise the exception
-            task.result()
-        except Exception:
-            logger.error(f"{service.name} service failed!", exc_info=True)
-        else:
-            logger.info(f"{service.name} service stopped!")
-
-    @app.on_event("startup")
-    async def run_migrations():
-        """Ensure the database is created and up to date with the current migrations"""
-        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
-            from prefect.orion.database.dependencies import provide_database_interface
-
-            db = provide_database_interface()
-            await db.create_db()
 
     APP_CACHE[settings] = app
     return app
