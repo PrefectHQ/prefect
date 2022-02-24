@@ -2,6 +2,7 @@
 Functions for interacting with block spec ORM objects.
 Intended for internal use by the Orion API.
 """
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -95,6 +96,8 @@ async def read_block_specs(
     db: OrionDBInterface,
     block_spec_type: str = None,
     name: str = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ):
     """
     Reads block specs, optionally filtered by type or name.
@@ -103,18 +106,23 @@ async def read_block_specs(
         session: A database session
         block_spec_type: the block spec type
         name: the block spec name
+        limit (int): query limit
+        offset (int): query offset
 
     Returns:
         List[db.BlockSpec]: the block_specs
     """
-    query = select(db.BlockSpec)
+    query = select(db.BlockSpec).order_by(db.BlockSpec.name, db.BlockSpec.created)
     if block_spec_type is not None:
         query = query.filter_by(type=block_spec_type)
     if name is not None:
         query = query.filter_by(name=name)
-    result = await session.execute(
-        query.order_by(db.BlockSpec.name, db.BlockSpec.created)
-    )
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
     return result.scalars().unique().all()
 
 
