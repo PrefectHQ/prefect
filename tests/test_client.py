@@ -28,6 +28,10 @@ async def test_hello(orion_client):
     assert response.json() == "👋"
 
 
+async def test_healthcheck(orion_client):
+    assert await orion_client.api_healthcheck()
+
+
 async def test_create_then_read_flow(orion_client):
     @flow
     def foo():
