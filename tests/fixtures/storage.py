@@ -1,13 +1,13 @@
 """
 Fixtures that create a small distributed storage API, including a storage block
 """
-import httpx
-import anyio
 import subprocess
 import sys
 import time
 from typing import Any, Optional
 
+import anyio
+import httpx
 import pytest
 from fastapi import Body, FastAPI
 from fastapi.exceptions import RequestValidationError
