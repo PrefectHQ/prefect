@@ -48,7 +48,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("s3-storage-block", version="1")
+@register_block(version="1.0")
 class S3StorageBlock(StorageBlock):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
@@ -90,7 +90,7 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("temp-storage-block", version="1")
+@register_block(version="1.0")
 class TempStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -115,7 +115,7 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("local-storage-block", version="1")
+@register_block(version="1.0")
 class LocalStorageBlock(StorageBlock):
     storage_path: Optional[str]
 
@@ -146,7 +146,7 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("orion-storage-block", version="1")
+@register_block(version="1.0")
 class OrionStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -162,7 +162,7 @@ class OrionStorageBlock(StorageBlock):
             return response.content
 
 
-@register_block("googlecloud-storage-block", version="1")
+@register_block(version="1.0")
 class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
     project: Optional[str]
@@ -193,7 +193,7 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("azureblob-storage-block", version="1")
+@register_block(version="1.0")
 class AzureBlobStorageBlock(StorageBlock):
     container: str
     connection_string: str
@@ -221,7 +221,7 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("kv-server-storage-block", version="1.0")
+@register_block(version="1.0")
 class KVServerStorageBlock(StorageBlock):
     """
     A storage block that works with generic KV APIs.

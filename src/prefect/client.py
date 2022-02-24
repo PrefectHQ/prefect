@@ -29,7 +29,7 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 from prefect.blocks import storage
-from prefect.blocks.core import Block, create_block_from_api_block, get_block_spec
+from prefect.blocks.core import create_block_from_api_block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -616,7 +616,7 @@ class OrionClient:
 
     async def create_block(
         self,
-        block: Block,
+        block: prefect.blocks.core.Block,
         block_spec_id: UUID = None,
         name: str = None,
     ) -> Optional[UUID]:
@@ -625,27 +625,12 @@ class OrionClient:
         Block.
         """
 
-        block_fields = block.dict(exclude=["block_name", "block_id", "block_spec_id"])
-
-        if not block_spec_id or block.block_spec_id:
-            raise ValueError(
-                "No block spec ID provided either on the block or as an argument."
-            )
-        elif not name or block.name:
-            raise ValueError(
-                "No block name provided either on the block or as an argument."
-            )
-
-        block_create = schemas.actions.BlockCreate(
-            name=name or block.name,
-            block_spec_id=block_spec_id or block.block_spec_id,
-            data=block_fields,
-        )
+        api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
 
         try:
             response = await self.post(
                 "/blocks/",
-                json=block_create.dict(json_compatible=True),
+                json=api_block.dict(json_compatible=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
@@ -915,7 +900,7 @@ class OrionClient:
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": block.block_id},
+            data={"data": storage_token, "block_id": block._block_id},
         )
         return storage_datadoc
 

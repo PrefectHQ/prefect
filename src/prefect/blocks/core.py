@@ -1,6 +1,6 @@
-from abc import ABC, abstractmethod
-from typing import ClassVar, Dict, Optional
-from uuid import UUID
+from abc import ABC
+from typing import Dict, Optional
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, root_validator
 
@@ -10,10 +10,18 @@ from prefect.orion.utilities.functions import parameter_schema
 BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 
-def register_block(name: str, version: str):
+def register_block(name: str = None, version: str = None):
+
+    # version is required but should be the second argument
+    # so we raise here
+    if version is None:
+        raise ValueError("Version must be provided to register a block spec.")
+
     def wrapper(block):
-        BLOCK_REGISTRY[(name, version)] = block
-        block._block_spec_name = name
+        registered_name = name or block.__name__
+
+        BLOCK_REGISTRY[(registered_name, version)] = block
+        block._block_spec_name = registered_name
         block._block_spec_version = version
         return block
 
@@ -72,19 +80,27 @@ class Block(BaseModel, ABC):
     def set_private_variables(cls, values):
         return values
 
-    def to_api_block(self, name: str = None) -> prefect.orion.schemas.core.Block:
+    def to_api_block(
+        self, name: str = None, block_spec_id: UUID = None
+    ) -> prefect.orion.schemas.core.Block:
         if not name or self._block_name:
-            raise ValueError("No name provided.")
+            raise ValueError("No name provided, either as an argument or on the block.")
+        if not block_spec_id or self._block_spec_id:
+            raise ValueError(
+                "No block spec ID provided, either as an argument or on the block."
+            )
         return prefect.orion.schemas.core.Block(
-            id=self._block_id,
+            id=self._block_id or uuid4(),
             name=name or self._block_name,
-            block_spec_id=self._block_spec_id,
+            block_spec_id=block_spec_id or self._block_spec_id,
             data=self.dict(),
+            block_spec=self.to_api_block_spec(),
         )
 
     @classmethod
     def to_api_block_spec(cls) -> prefect.orion.schemas.core.BlockSpec:
         fields = cls.schema()
+        fields["title"] = cls._block_spec_name
         return prefect.orion.schemas.core.BlockSpec(
             name=cls._block_spec_name,
             version=cls._block_spec_version,
