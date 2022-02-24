@@ -50,20 +50,51 @@ async def create(
 
 
 @work_app.command()
-async def pause(
-    name: str = typer.Option(
-        None, "-n", "--name", help="The name of the work queue to pause."
-    ),
-    id: str = typer.Option(
-        None, "-i", "--id", help="The ID of the work queue to pause."
-    ),
+async def set_concurrency_limit(
+    id: str = typer.Argument(..., help="The id of the work queue"),
+    limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
 ):
     """
-    Pause a work queue; only one of name or id should be provided.
+    Set a concurrency limit on a work queue.
     """
-    if name and id:
-        raise ValueError("Only one of name or ID should be provided.")
+    async with get_client() as client:
+        result = await client.update_work_queue(
+            id=id,
+            concurrency_limit=limit,
+        )
 
+    if result:
+        exit_with_success(f"Concurrency limit of {limit} set on work queue {id}")
+    else:
+        exit_with_error(f"No work queue found with id {id}")
+
+
+@work_app.command()
+async def clear_concurrency_limit(
+    id: str = typer.Argument(..., help="The id of the work queue to clear"),
+):
+    """
+    Clear any concurrency limits from a work queue.
+    """
+    async with get_client() as client:
+        result = await client.update_work_queue(
+            id=id,
+            concurrency_limit=None,
+        )
+
+    if result:
+        exit_with_success(f"Concurrency limits removed on work queue {id}")
+    else:
+        exit_with_error(f"No work queue found with id {id}")
+
+
+@work_app.command()
+async def pause(
+    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
+):
+    """
+    Pause a work queue.
+    """
     async with get_client() as client:
         result = await client.update_work_queue(
             id=id,
@@ -78,19 +109,11 @@ async def pause(
 
 @work_app.command()
 async def unpause(
-    name: str = typer.Option(
-        None, "-n", "--name", help="The name of the work queue to unpause."
-    ),
-    id: str = typer.Option(
-        None, "-i", "--id", help="The ID of the work queue to unpause."
-    ),
+    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
 ):
     """
-    Unpause a work queue; only one of name or id should be provided.
+    Unpause a work queue.
     """
-    if name and id:
-        raise ValueError("Only one of name or ID should be provided.")
-
     async with get_client() as client:
         result = await client.update_work_queue(
             id=id,
@@ -119,11 +142,12 @@ async def ls():
     """
     View all work queues.
     """
-    table = Table(title="Work Queues")
+    table = Table(
+        title="Work Queues", caption="(**) denotes a paused queue", caption_style="red"
+    )
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Name", style="yellow", no_wrap=True)
-    table.add_column("Paused", style="blue", no_wrap=True)
-    table.add_column("Concurrency Limit", style="green", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
     table.add_column("Filter", style="magenta", no_wrap=True)
 
     async with get_client() as client:
@@ -134,9 +158,10 @@ async def ls():
     for queue in sorted(queues, key=sort_by_created_key):
         table.add_row(
             str(queue.id),
-            queue.name,
-            "[red]True" if queue.is_paused else "[blue]False",
-            queue.concurrency_limit or "None",
+            f"{queue.name} [red](**)" if queue.is_paused else queue.name,
+            f"[red]{queue.concurrency_limit}"
+            if queue.concurrency_limit
+            else "[blue]None",
             queue.filter.json(),
         )
 
