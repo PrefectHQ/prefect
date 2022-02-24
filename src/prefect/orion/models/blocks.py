@@ -45,7 +45,7 @@ async def read_block_by_id(
     block_id: UUID,
     db: OrionDBInterface,
 ):
-    query = sa.select(db.Block).where(db.Block.id == block_id).with_for_update()
+    query = sa.select(db.Block).where(db.Block.id == block_id)
 
     result = await session.execute(query)
     block = result.scalar()
