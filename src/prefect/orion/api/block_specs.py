@@ -41,7 +41,7 @@ async def create_block_spec(
         )
     except sa.exc.IntegrityError:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_409_CONFLICT,
             detail=f'Block spec "{block_spec.name}/{block_spec.version}" already exists.',
         )
 

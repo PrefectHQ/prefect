@@ -42,7 +42,7 @@
 
   const props = defineProps({
     tabs: {
-      type: Array as PropType<Tab[]>,
+      type: Array as PropType<Readonly<Tab[]>>,
       required: true,
       validator:(value: Tab[]) => value.length > 0,
     },
