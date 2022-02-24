@@ -160,11 +160,13 @@ class TestDefaultStorageBlock:
     async def test_set_default_storage_block(self, client, storage_block):
 
         response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.status_code == 204
         assert response.json() is None
 
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
 
         response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.status_code == 200
         assert response.json()["id"] == str(storage_block.id)
 
     async def test_set_default_fails_if_not_storage_block(
