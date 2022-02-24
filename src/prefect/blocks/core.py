@@ -52,7 +52,6 @@ class Block(BaseModel, ABC):
         super().__init__(*args, **kwargs)
         self.block_initialization()
 
-    @abstractmethod
     def block_initialization(self) -> None:
         pass
 
