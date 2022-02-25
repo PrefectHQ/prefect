@@ -862,6 +862,24 @@ class OrionClient:
 
         return UUID(response.json().get("id"))
 
+    async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
+        """
+        Read all block specs with the given type
+
+        Args:
+            type: The name of the type of block spec
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.post(
+            f"/block_specs/filter", json={"block_spec_type": type}
+        )
+        return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
+
     async def read_block(self, block_id: UUID):
         """
         Read the block with the specified name that corresponds to a
