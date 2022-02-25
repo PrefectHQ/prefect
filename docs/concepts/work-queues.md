@@ -29,7 +29,7 @@ To configure a work queue and agent for orchestrated deployments:
 2. [Start an agent](#agent-configuration)
 
 !!! note "Agent role has changed from Prefect 1.0"
-    Worker queues are a new concept and the role of agents has changed from the implementation in Prefect 1.0. If you're already familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how flows are executed.
+    Work queues are a new concept and the role of agents has changed from the implementation in Prefect 1.0. If you're already familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how flows are executed.
 
     Key changes: 
     
