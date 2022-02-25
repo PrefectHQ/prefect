@@ -1,73 +1,73 @@
+---
+description: Configuration for flows and tasks.
+tags:
+    - tutorial
+    - configuration
+    - tasks
+    - flows
+    - parameters
+    - caching
+---
+
 # Flow and task configuration
 
-Now that we've written our first flow, let's explore some of the configuration options that Prefect exposes.
+Now that you've written some basic flows and tasks, let's explore some of the configuration options that Prefect exposes.
 
-In addition to the orchestration capabilities enabled by making functions flows and tasks, they also enable you to provide metadata used by Orion to track and execute your workflows.
+In addition to the orchestration capabilities enabled by decorating functions as flows and tasks, you can also provide metadata used by Orion to execute and track your workflows.
 
 ## Basic flow configuration
 
 Basic flow configuration includes the ability to provide a name, description, and version for the flow.
 
-### Flow name
+You specify flow configuration as parameters on the `@flow` decorator.
 
 A flow `name` is a distinguished piece of metadata within Prefect. The name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
 
 ```python
-from prefect import flow
-
 @flow(name="My Example Flow")
 def my_flow():
-    ...
+    # run tasks and subflows
 ```
 
-### Flow description
-
-A flow `description` allows you to provide documentation right alongside your flow object. By default, Prefect will use the flow function's docstring as a description.
+A flow `description` enables you to provide documentation right alongside your flow object. You can also provide a specific `description` string as a flow parameter.
 
 ```python
-@flow(name="My Example Flow"))
-    """This flow doesn't do much honestly."""
+@flow(name="My Example Flow", 
+      description="An example flow for a tutorial.")
 def my_flow():
-    ...
+    # run tasks and subflows
 ```
 
-You can also provide a specific `description` string as a flow parameter.
+Prefect can also use the flow function's docstring as a description.
 
 ```python
-@flow(name="My Example Flow", description="This flow doesn't do much honestly."))
+@flow(name="My Example Flow")
+    """An example flow for a tutorial."""
 def my_flow():
-    ...
+    # run tasks and subflows
 ```
-
-### Flow version
 
 A flow `version` allows you to associate a given run of your workflow with the version of code or configuration that was used. 
 
-For example, if we were using `git` to version control our code, we might use the commit hash as the version as the following example shows. 
-
 ```python
-from prefect import flow
-import os
-
-@flow(name="My Example Flow", version=os.getenv("GIT_COMMIT_SHA"))
-    """This flow doesn't do much honestly."""
-def my_flow(*args, **kwargs):
-    ...
+@flow(name="My Example Flow", 
+      description="An example flow for a tutorial.",
+      version="tutorial_02")
+def my_flow():
+    # run tasks and subflows
 ```
 
-In other situations we may be doing fast iterative testing and so we might have a little more fun:
+If you are using `git` to version control your code, you might use the commit hash as the version, as the following example shows. 
 
 ```python
-from prefect import flow
-
-@flow(name="My Example Flow", version="IGNORE ME")
+@flow(name="My Example Flow", 
+      description="An example flow for a tutorial.",
+      version=os.getenv("GIT_COMMIT_SHA"))
 def my_flow(*args, **kwargs):
-    """This flow still doesn't do much honestly."""
-    ...
+    # run tasks and subflows
 ```
 
 You don't have to supply a version for your flow. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined to automatically detect when your code changes.  However, this computation is not always possible and so, depending on your setup, you may see that your flow has a version of `None`.
-
 
 ### Parameter type conversion
 
@@ -99,7 +99,7 @@ Received a &#60;class 'str'&#62; with value 100
 
 You can see that Prefect coerced the provided inputs into the types specified on your flow function!  
 
-While the above example is basic, this can be extended in incredibly powerful ways. In particular, _any_ [pydantic](https://pydantic-docs.helpmanual.io/) model type hint will be automatically coerced into the correct form:
+While the above example is basic, this can be extended in powerful ways. In particular, _any_ [pydantic](https://pydantic-docs.helpmanual.io/) model type hint will be coerced into the correct form automatically:
 
 ```python
 from prefect import flow
@@ -127,13 +127,47 @@ Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
 
     For more information, please refer to the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
+### Configuring task runners
+
+A more advanced configuration parameter for flows is `task_runner`, which enables you to specify the execution environment used for task runs within a flow. We'll cover the use cases for task runners in a future tutorial. 
+
+For now, we'll just demonstrate that you can specify the task runner _almost_ like any other parameter: the difference is that you need to import the task runner, then specify you're using it with the `task_runner` parameter:
+
+```python
+from prefect.task_runners import DaskTaskRunner
+
+@flow(name="My Example Flow", 
+      task_runner=DaskTaskRunner())
+def my_flow(*args, **kwargs):
+    # run parallel tasks and subflows with Dask
+```
+
+Some task runners, such as the `DaskTaskRunner` and `DaskTaskRunner`, can take additional, optional parameters of their own. See the [task runners tutorials](/tutorials/dask-task-runner/) and [Task Runners](/concepts/task-runners/) documentation for details.
+
 ## Basic task configuration
 
-By design, tasks follow a very similar metadata model to flows: we can independently assign tasks their own name, description, and even version!  Ultimately tasks are the genesis for much of the granular control and observability that Prefect provides.
+By design, tasks follow a very similar metadata model to flows: you can independently assign tasks their own name and description.
 
-### Retries
+```python
+@task(name="My Example Task", 
+      description="An example task for a tutorial.")
+def my_task():
+    # do some work
+```
 
-Prefect allows for off-the-shelf configuration of task level retries.  The only two decisions we need to make are how many retries we want to attempt and what delay we need between run attempts:
+Tasks also accept [tags](/concepts/tasks/#tags) as a parameter. When you begin using Prefect Orion's orchestration features and UI, tags become a powerful tool for filtering and managing not just tasks, but flows and deployments as well.
+
+```python
+@task(name="My Example Task", 
+      description="An example task for a tutorial.",
+      tags=["tutorial","tag-test"])
+def my_task():
+    # do some work
+```
+
+### Task retries
+
+Prefect allows for off-the-shelf configuration of task-level retries.  The only two decisions you need to make are how many retries you want to attempt and what delay you need between run attempts:
 
 ```python
 from prefect import task, flow
@@ -148,7 +182,7 @@ def test_retries():
     return failure()
 ```
 
-If we run `test_retries()`, the `failure()` task always raises an error, but will run a total of three times.
+If you run `test_retries()`, the `failure()` task always raises an error, but will run a total of three times.
 
 <div class="termy">
 ```
@@ -177,17 +211,18 @@ Failed(message='1/1 states failed.', type=FAILED)
 ```
 </div>
 
-Once we dive deeper into state transitions and orchestration policies, we will see that this task run actually went through the following state transitions some number of times: 
+Once we dive deeper into state transitions and orchestration policies, you will see that this task run actually went through the following state transitions some number of times: 
 
 `Pending` -> `Running` -> `AwaitingRetry` -> `Retrying` 
 
 Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
 
-### Caching
+### Task caching
 
 Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flows and flow runs using the concept of a "cache key".  
 
-To illustrate:
+To illustrate, run the following flow in a REPL:
+
 ```python
 from prefect import task, flow
 
@@ -217,25 +252,31 @@ def another_flow():
 <div class="termy">
 ```
 >>> test_caching()
+21:22:36.487 | INFO    | prefect.engine - Created flow run 'dainty-jaguarundi' for flow 'test-caching'
+21:22:36.488 | INFO    | Flow run 'dainty-jaguarundi' - Using task runner 'ConcurrentTaskRunner'
+21:22:36.546 | INFO    | Flow run 'dainty-jaguarundi' - Created task run 'cached_task-64beb460-0' for task 'cached_task'
+21:22:36.603 | INFO    | Flow run 'dainty-jaguarundi' - Created task run 'cached_task-64beb460-1' for task 'cached_task'
 running an expensive operation
+running an expensive operation
+21:22:36.715 | INFO    | Task run 'cached_task-64beb460-0' - Finished in state Completed(None)
+21:22:36.730 | INFO    | Task run 'cached_task-64beb460-1' - Finished in state Completed(None)
+21:22:37.175 | INFO    | Flow run 'dainty-jaguarundi' - Finished in state Completed('All states completed.')
 >>> another_flow()
+21:22:50.635 | INFO    | prefect.engine - Created flow run 'macho-coucal' for flow 'another-flow'
+21:22:50.635 | INFO    | Flow run 'macho-coucal' - Using task runner 'ConcurrentTaskRunner'
+21:22:50.693 | INFO    | Flow run 'macho-coucal' - Created task run 'cached_task-64beb460-2' for task 'cached_task'
+21:22:50.742 | INFO    | Flow run 'macho-coucal' - Created task run 'printer-da44fb11-0' for task 'printer'
+21:22:50.786 | INFO    | Task run 'cached_task-64beb460-2' - Finished in state Cached(None, type=COMPLETED)
 42
+21:22:51.048 | INFO    | Task run 'printer-da44fb11-0' - Finished in state Completed(None)
+21:22:51.435 | INFO    | Flow run 'macho-coucal' - Finished in state Completed('All states completed.')
 ```
 </div>
 
-Notice that the `cached_task` only ran one time across both flow runs!  Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same state, including the same return values.  
-
-Caching can be configured further in the following ways:
-
-A generic `cache_key_fn` is a function that accepts two positional arguments: 
-
-- The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
-- The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
-
-The cache can be configured to expire after a specified amount of time from its creation by providing a `cache_expiration` represented as a `datetime.timedelta`.
+Notice that the `cached_task` only ran one time across both flow runs!  Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
 
 !!! warning "The persistence of state"
-    Note that up until now we have run all of our workflows interactively. This means that our metadata store is a SQLite database located at the default database location: `~/.prefect/orion.db`.  As we will see, this can be configured in various ways.  But please note that any cache keys you experiment with will be persisted in this SQLite database until you clear it manually!
+    Note that up until now we have run all of our workflows interactively. This means that our metadata store is a SQLite database located at the default database location: `~/.prefect/orion.db`.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until you clear it manually!
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
