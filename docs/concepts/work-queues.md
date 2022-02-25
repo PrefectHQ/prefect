@@ -33,7 +33,7 @@ To configure a work queue and agent for orchestrated deployments:
 
     Key changes: 
     
-    - Worker queues contain all the logic about what flows run where. Agents just pick up work from queues and execute the flows.
+    - Work queues contain all the logic about what flows run and how. Agents just pick up work from queues and execute the flows.
     - There is no global agent that picks up orchestrated work by default. You must configure a work queue and agent.
 
 ## Work queue overview
