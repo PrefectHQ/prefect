@@ -43,6 +43,25 @@ async def create_work_queue(
     return model
 
 
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_work_queue(
+    work_queue: schemas.actions.WorkQueueUpdate,
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    """
+    Updates an existing work queue.
+    """
+
+    result = await models.work_queues.update_work_queue(
+        session=session, work_queue_id=work_queue_id, work_queue=work_queue
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Work Queue {id} not found"
+        )
+
+
 @router.get("/{id}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
