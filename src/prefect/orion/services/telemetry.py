@@ -3,6 +3,7 @@ The Telemetry service.
 """
 
 import asyncio
+import os
 from uuid import uuid4
 
 import httpx
@@ -21,6 +22,9 @@ class Telemetry(LoopService):
         super().__init__(loop_seconds=600)
         self.session_id = str(uuid4())
         self.session_start_timestamp = pendulum.now().to_iso8601_string()
+        self.telemetry_environment = os.environ.get(
+            "PREFECT_ORION_TELEMETRY_ENVIRONMENT", "production"
+        )
 
     async def run_once(self):
         """
@@ -35,11 +39,11 @@ class Telemetry(LoopService):
                     "source": "prefect_server",
                     "type": "orion_heartbeat",
                     "payload": {
-                        "environment": "production",
+                        "environment": self.telemetry_environment,
                         "api_version": ORION_API_VERSION,
                         "prefect_version": prefect.__version__,
-                        "session_id": self.telemetry_session_id,
-                        "session_start_timestamp": self.telemetry_session_start_timestamp,
+                        "session_id": self.session_id,
+                        "session_start_timestamp": self.session_start_timestamp,
                     },
                 },
                 headers={
