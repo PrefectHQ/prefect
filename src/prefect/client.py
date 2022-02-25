@@ -848,12 +848,16 @@ class OrionClient:
         """
 
         api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
-        print(repr(api_block))
+
+        # Drop fields that are not compliant with `CreateBlock`
+        payload = api_block.dict(
+            json_compatible=True, exclude={"block_spec", "id"}, exclude_unset=True
+        )
 
         try:
             response = await self.post(
                 "/blocks/",
-                json=api_block.dict(json_compatible=True),
+                json=payload,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
