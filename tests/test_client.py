@@ -642,6 +642,24 @@ class TestClientAPIKey:
 
 
 class TestClientWorkQueues:
+    @pytest.fixture
+    async def deployment(self, orion_client):
+        foo = flow(lambda: None)
+        flow_id = await orion_client.create_flow(foo)
+        schedule = IntervalSchedule(interval=timedelta(days=1))
+        flow_data = DataDocument.encode("cloudpickle", foo)
+
+        deployment_id = await orion_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+            flow_data=flow_data,
+            schedule=schedule,
+            parameters={"foo": "bar"},
+            tags=["bing", "bang"],
+            flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+        )
+        return deployment_id
+
     async def test_create_then_read_work_queue(self, orion_client):
         queue_id = await orion_client.create_work_queue(name="foo")
         assert isinstance(queue_id, UUID)
@@ -649,3 +667,77 @@ class TestClientWorkQueues:
         lookup = await orion_client.read_work_queue(queue_id)
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
+
+    async def test_get_runs_from_queue_includes(self, orion_client, deployment):
+        blank_queue_id = await orion_client.create_work_queue(name="blank")
+        assert isinstance(blank_queue_id, UUID)
+
+        tagged_queue_id = await orion_client.create_work_queue(
+            name="tagged", tags=["bing", "bang"]
+        )
+        assert isinstance(tagged_queue_id, UUID)
+
+        deploy_queue_id = await orion_client.create_work_queue(
+            name="deploy", deployment_ids=[deployment]
+        )
+        assert isinstance(deploy_queue_id, UUID)
+
+        run = await orion_client.create_flow_run_from_deployment(deployment)
+        assert run.id
+
+        blank_output = await orion_client.get_runs_in_work_queue(blank_queue_id)
+        assert blank_output == [run]
+
+        tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
+        assert tagged_output == [run]
+
+        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
+        assert deploy_output == [run]
+
+    async def test_get_runs_from_queue_excludes(self, orion_client, deployment):
+        blank_queue_id = await orion_client.create_work_queue(name="blank")
+        assert isinstance(blank_queue_id, UUID)
+
+        tagged_queue_id = await orion_client.create_work_queue(
+            name="tagged", tags=["bing", "bazz"]
+        )
+        assert isinstance(tagged_queue_id, UUID)
+
+        deploy_queue_id = await orion_client.create_work_queue(
+            name="deploy", deployment_ids=[tagged_queue_id]  # nonsensical
+        )
+        assert isinstance(deploy_queue_id, UUID)
+
+        run = await orion_client.create_flow_run_from_deployment(deployment)
+        assert run.id
+
+        blank_output = await orion_client.get_runs_in_work_queue(blank_queue_id)
+        assert blank_output == [run]
+
+        tagged_output = await orion_client.get_runs_in_work_queue(tagged_queue_id)
+        assert tagged_output == []
+
+        deploy_output = await orion_client.get_runs_in_work_queue(deploy_queue_id)
+        assert deploy_output == []
+
+    async def test_get_runs_from_queue_respects_limit(self, orion_client, deployment):
+        queue_id = await orion_client.create_work_queue(
+            name="deploy", deployment_ids=[deployment]
+        )
+
+        runs = []
+        for _ in range(10):
+            run = await orion_client.create_flow_run_from_deployment(deployment)
+            runs.append(run)
+
+        output = await orion_client.get_runs_in_work_queue(queue_id, limit=1)
+        assert len(output) == 1
+        assert output[0].id in [r.id for r in runs]
+
+        output = await orion_client.get_runs_in_work_queue(queue_id, limit=8)
+        assert len(output) == 8
+        assert {o.id for o in output} < {r.id for r in runs}
+
+        output = await orion_client.get_runs_in_work_queue(queue_id, limit=20)
+        assert len(output) == 10
+        assert {o.id for o in output} == {r.id for r in runs}
