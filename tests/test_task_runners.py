@@ -45,6 +45,13 @@ def dask_task_runner_with_existing_cluster():
             yield DaskTaskRunner(address=address)
 
 
+@pytest.fixture(autouse=True)
+@pytest.mark.service("ray")
+def use_kv_storage_with_ray(set_up_kv_storage):
+    """Ensure KV storage is used with ray"""
+    pass
+
+
 @pytest.fixture(scope="module")
 @pytest.mark.service("ray")
 def machine_ray_instance():
@@ -66,7 +73,7 @@ def machine_ray_instance():
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_existing_cluster(
-    machine_ray_instance, use_hosted_orion, hosted_orion_api, set_up_kv_storage
+    machine_ray_instance, use_hosted_orion, hosted_orion_api, 
 ):
     """
     Generate a ray task runner that's connected to a ray instance running in a separate
@@ -90,7 +97,7 @@ def ray_task_runner_with_existing_cluster(
 
 @pytest.fixture(scope="module")
 @pytest.mark.service("ray")
-def inprocess_ray_cluster(set_up_kv_storage):
+def inprocess_ray_cluster():
     """
     Starts a ray cluster in-process
     """
@@ -108,7 +115,7 @@ def inprocess_ray_cluster(set_up_kv_storage):
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_inprocess_cluster(
-    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api, set_up_kv_storage
+    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api, 
 ):
     """
     Generate a ray task runner that's connected to an in-process cluster.
@@ -176,7 +183,7 @@ def default_concurrent_task_runner():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def default_ray_task_runner(set_up_kv_storage):
+def default_ray_task_runner():
     pytest.importorskip("ray", reason=RAY_MISSING_REASON)
 
     yield RayTaskRunner()
@@ -493,9 +500,7 @@ class TestTaskRunnerParallelism:
     async def test_async_tasks_run_concurrently_with_parallel_task_runners(
         self,
         task_runner,
-        tmp_file,
-        # this test appears to require global storage for ray
-        set_up_kv_storage,
+        tmp_file
     ):
         @task
         async def foo():
