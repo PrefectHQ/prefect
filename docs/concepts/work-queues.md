@@ -23,7 +23,7 @@ More specifically:
 
 To run orchestrated deployments, you must configure at least one work queue and agent.
 
-To configure a work queue and agent for orchestrated flows and deployments:
+To configure a work queue and agent for orchestrated deployments:
 
 1. [Create a work queue](#work-queue-configuration)
 2. [Start an agent](#agent-configuration)
