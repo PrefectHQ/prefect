@@ -135,10 +135,6 @@ async def start(
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
-    # TODO - this logic should be abstracted in the interface
-    # Run migrations - if configured for sqlite will create the db
-    db = provide_database_interface()
-    await db.create_db()
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
@@ -167,6 +163,7 @@ async def start(
         )
 
         console.print(generate_welcome_blub(base_url, ui_enabled=ui))
+        console.print("\n")
 
     console.print("Orion stopped!")
 

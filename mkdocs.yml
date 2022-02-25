@@ -122,7 +122,6 @@ nav:
         - Orion Python API:
             - 'API':
                 - 'orion.api.admin': api-ref/orion/api/admin.md
-                - 'orion.api.data': api-ref/orion/api/data.md
                 - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
                 - 'orion.api.deployments': api-ref/orion/api/deployments.md
                 - 'orion.api.flows': api-ref/orion/api/flows.md
