@@ -173,15 +173,14 @@ class CubeJSQueryTask(Task):
             security_context=security_context,
             secret=secret,
             wait_api_call_secs=wait_api_call_secs,
-            max_wait_time=max_wait_time
+            max_wait_time=max_wait_time,
         )
 
         params = {"query": json.dumps(query)}
 
         # Retrieve data from Cube.js
         data = cubejs_client.get_data(
-            params=params,
-            include_generated_sql=include_generated_sql
+            params=params, include_generated_sql=include_generated_sql
         )
 
         return data
