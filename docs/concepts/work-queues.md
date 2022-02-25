@@ -86,7 +86,7 @@ $ prefect work-queue create -d '156edead-fe6a-4783-a618-21d3a63e95c4' test_queue
 UUID('acffbcc8-ae65-4c83-a38a-96e2e5e5b441')
 ```
 
-On success, the command returns the ID of a the work queue, which is used to [start agents]() that poll this queue for work.
+On success, the command returns the ID of the newly created work queue, which can then be used to start agents that poll this queue for work or perform additional configuration of the queue
 
 Tags and IDs can be found in the UI or through the CLI. For example, if you wanted to find the ID and tags on a specific deployment, you could do the following:
 
