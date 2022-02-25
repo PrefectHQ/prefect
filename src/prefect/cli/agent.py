@@ -1,9 +1,10 @@
 """
 Command line interface for working with agent services
 """
+from uuid import UUID
+
 import anyio
 import typer
-from uuid import UUID
 
 from prefect.agent import OrionAgent
 from prefect.cli.base import PrefectTyper, SettingsOption, app, console
