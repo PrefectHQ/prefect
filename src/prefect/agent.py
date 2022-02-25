@@ -22,7 +22,8 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
-    def __init__(self, prefetch_seconds: int = None) -> None:
+    def __init__(self, queue_id: str = None, prefetch_seconds: int = None) -> None:
+        self.queue_id = queue_id
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
@@ -45,20 +46,33 @@ class OrionAgent:
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
-        Queries for scheduled flow runs and submits them for execution in parallel
+        The principle method on agents. Queries for scheduled flow runs and submits them for execution in parallel.
         """
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
         self.logger.debug("Checking for flow runs...")
 
-        submittable_runs = await self.client.read_flow_runs(
-            sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
-            flow_run_filter=self.flow_run_query_filter(),
-        )
+        if self.queue_id:
+            before = pendulum.now("utc").add(
+                seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
+            )
+            submittable_runs = await self.client.get_runs_in_work_queue(
+                id=self.queue_id, limit=10, scheduled_before=before
+            )
+        else:
+            submittable_runs = await self.client.read_flow_runs(
+                sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
+                flow_run_filter=self.flow_run_query_filter(),
+            )
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
+
+            # don't resubmit a run
+            if flow_run.id in self.submitting_flow_run_ids:
+                continue
+
             self.submitting_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(
                 self.submit_run,
