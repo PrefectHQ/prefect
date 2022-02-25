@@ -142,7 +142,7 @@ def my_flow(*args, **kwargs):
     # run parallel tasks and subflows with Dask
 ```
 
-Some task runners, such as the `DaskTaskRunner` and `DaskTaskRunner`, can take additional, optional parameters of their own. See the [task runners tutorials](/tutorials/dask-task-runner/) and [Task Runners](/concepts/task-runners/) documentation for details.
+Some task runners, such as the `DaskTaskRunner` and `RayTaskRunner`, can take additional, optional parameters of their own. See the [task runners tutorials](/tutorials/dask-task-runner/) and [Task Runners](/concepts/task-runners/) documentation for details.
 
 ## Basic task configuration
 
