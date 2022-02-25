@@ -18,7 +18,7 @@ Work queues and agents bridge the Prefect Orion server’s _orchestration enviro
 
 More specifically:
 
-- You create a work queue on the server. Work queues collect scheduled runs that match their filter criteria. 
+- You create a work queue on the server. Work queues collect scheduled runs for deployments that match their filter criteria. 
 - You run an agent in the execution environment. Agents poll a specific work queue for new work, take scheduled work from the server, and deploy it for execution.
 
 To run orchestrated deployments, you must configure at least one work queue and agent.
@@ -29,7 +29,7 @@ To configure a work queue and agent for orchestrated deployments:
 2. [Start an agent](#agent-configuration)
 
 !!! note "Agent role has changed from Prefect 1.0"
-    Work queues are a new concept and the role of agents has changed from the implementation in Prefect 1.0. If you're already familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how flows are executed.
+    Work queues are a new concept. The role of agents has changed from their implementation in Prefect 1.0. If you're familiar with that model, please take some time to understand the new work queue/agent model. It requires a little more setup, but offers much greater control and flexibility with how deployments are executed.
 
     Key changes: 
     
@@ -52,7 +52,7 @@ These criteria can be modified at any time, and agent processes requesting work 
 
 You can configure work queues by using:
 
-- Prefect Orion server or Prefect Cloud UI (planned)
+- Prefect Orion API or UI (planned)
 - Prefect CLI commands
 
 To configure a work queue to handle specific work, you can specify:
@@ -106,7 +106,7 @@ Deployment(
 
 ### Viewing work queues
 
-At any time, users can see a runs dashboard filtered to show a work queue.
+At any time, users can see a UI dashboard filtered to show a work queue.
 
 To view work queues with the Prefect CLI, you can:
 
@@ -172,7 +172,7 @@ $ prefect work-queue pause 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 Paused work queue acffbcc8-ae65-4c83-a38a-96e2e5e5b441
 ```
 
-To resume a work queue through the Prefect CLI, use the `prefect work-queue unpause` command with the work queue ID.
+To resume a work queue through the Prefect CLI, use the `prefect work-queue resume` command with the work queue ID.
 
 To delete a work queue through the Prefect CLI, use the `prefect work-queue delete` command with the work queue ID.
 
@@ -195,13 +195,12 @@ It is possible for multiple agent processes to be started for a single work queu
 
 ### Agent configuration
 
-When work queues are configured, the Prefect Orion server or Prefect Cloud UI generates the CLI command you can use to start an agent that corresponds to a specific work queue. 
+When work queues are configured, you can start an agent that corresponds to a specific work queue. 
 
 You must start an agent within the environment in which it will execute flow runs. 
 
 1. Install Prefect in the environment.
-2. If you are using [Prefect Cloud](/ui/cloud/), authenticate the local Prefect Orion API with your Prefect Cloud account.
-3. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent:
+2. Using the [work queue ID](#work-queue-configuration) for the work queue the agent should poll for work, run the following CLI command to start an agent:
 
 ```bash
 $ prefect agent start [OPTIONS] WORK_QUEUE_ID
