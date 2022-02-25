@@ -130,9 +130,6 @@ def create_orion_api(
 
     # api routers
     api_app.include_router(
-        api.data.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
         api.flows.router, prefix=router_prefix, dependencies=dependencies
     )
     api_app.include_router(
