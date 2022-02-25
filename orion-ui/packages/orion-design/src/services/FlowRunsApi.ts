@@ -71,7 +71,7 @@ export class FlowRunsApi extends Api {
   }
 
   public getFlowRunsGraph(id: string): Promise<FlowRunGraph[]> {
-    return this.post<IFlowRunGraphResponse[]>(`/${id}/graph`).then(response => this.mapFlowRunGraphResponse(response))
+    return this.get<IFlowRunGraphResponse[]>(`/${id}/graph`).then(response => this.mapFlowRunGraphResponse(response))
   }
 
   protected mapFlowRun(data: IFlowRunResponse): FlowRun {
