@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_UI_ENABLED,
+    PREFECT_ORION_TELEMETRY_ENABLED,
 )
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
@@ -131,14 +132,17 @@ async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
-    telemetry: bool = True,
+    scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED`
+    telemetry: bool = SettingsOption(PREFECT_ORION_TELEMETRY_ENABLED),
+    late_runs: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED`
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
 
     server_env = os.environ.copy()
-    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_ORION_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
+    server_env["PREFECT_ORION_TELEMETRY_ENABLED"] = str(telemetry)
+    server_env["PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
 
     base_url = f"http://{host}:{port}"
