@@ -257,7 +257,11 @@ async def test_task_runner_cannot_be_started_while_running():
 
 
 @parameterize_with_all_task_runners
-async def test_flow_run_by_task_runner(task_runner):
+async def test_flow_run_by_task_runner(
+    task_runner,
+    # this test appears to require global storage for ray
+    set_up_kv_storage,
+):
     @task
     def task_a():
         return "a"
@@ -287,7 +291,11 @@ async def test_flow_run_by_task_runner(task_runner):
 
 
 @parameterize_with_all_task_runners
-def test_failing_flow_run_by_task_runner(task_runner):
+def test_failing_flow_run_by_task_runner(
+    task_runner,
+    # this test appears to require global storage for ray
+    set_up_kv_storage,
+):
     @task
     def task_a():
         raise RuntimeError("This task fails!")
@@ -491,7 +499,11 @@ class TestTaskRunnerParallelism:
 
     @parameterize_with_parallel_task_runners
     async def test_async_tasks_run_concurrently_with_parallel_task_runners(
-        self, task_runner, tmp_file
+        self,
+        task_runner,
+        tmp_file,
+        # this test appears to require global storage for ray
+        set_up_kv_storage,
     ):
         @task
         async def foo():
