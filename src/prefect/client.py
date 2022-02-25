@@ -848,6 +848,7 @@ class OrionClient:
         """
 
         api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
+        print(repr(api_block))
 
         try:
             response = await self.post(
