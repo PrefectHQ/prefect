@@ -18,7 +18,7 @@ Work queues and agents bridge the Prefect Orion server’s _orchestration enviro
 
 More specifically:
 
-- You create a work queue on the server. Work queues collect scheduled runs that match their configuration or filter criteria. 
+- You create a work queue on the server. Work queues collect scheduled runs that match their filter criteria. 
 - You run an agent in the execution environment. Agents poll a specific work queue for new work, take scheduled work from the server, and deploy it for execution.
 
 To run orchestrated deployments, you must configure at least one work queue and agent.
