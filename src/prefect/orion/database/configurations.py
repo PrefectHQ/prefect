@@ -8,7 +8,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from typing_extensions import Literal
 
-from prefect.settings import PREFECT_ORION_DATABASE_ECHO, PREFECT_ORION_DATABASE_TIMEOUT
+from prefect.settings import (
+    PREFECT_ORION_DATABASE_ECHO,
+    PREFECT_ORION_DATABASE_TIMEOUT,
+    PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT,
+)
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
 
 
@@ -25,10 +29,14 @@ class BaseDatabaseConfiguration(ABC):
         connection_url: str,
         echo: bool = None,
         timeout: float = None,
+        connection_timeout: float = None,
     ):
         self.connection_url = connection_url
         self.echo = echo or PREFECT_ORION_DATABASE_ECHO.value()
         self.timeout = timeout or PREFECT_ORION_DATABASE_TIMEOUT.value()
+        self.connection_timeout = (
+            connection_timeout or PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT.value()
+        )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -90,8 +98,16 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
             # apply database timeout
             kwargs = dict()
+            connect_args = dict()
+
             if self.timeout is not None:
-                kwargs["connect_args"] = dict(command_timeout=self.timeout)
+                connect_args["command_timeout"] = self.timeout
+
+            if self.connection_timeout is not None:
+                connect_args["timeout"] = self.connection_timeout
+
+            if connect_args:
+                kwargs["connect_args"] = connect_args
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
 
