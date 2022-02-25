@@ -146,22 +146,6 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("Orion Storage", version="1.0")
-class OrionStorageBlock(StorageBlock):
-    def block_initialization(self) -> None:
-        pass
-
-    async def write(self, data: bytes) -> dict:
-        async with prefect.get_client() as client:
-            response = await client.post("/data/persist", content=data)
-            return response.json()
-
-    async def read(self, path_payload: dict) -> bytes:
-        async with prefect.get_client() as client:
-            response = await client.post("/data/retrieve", json=path_payload)
-            return response.content
-
-
 @register_block("Google Cloud Storage", version="1.0")
 class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
