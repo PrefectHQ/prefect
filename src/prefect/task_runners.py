@@ -402,24 +402,10 @@ class DaskTaskRunner(BaseTaskRunner):
             )
         )
 
-        # Wait for all futures before tearing down the client / cluster on exit
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
         if self._client.dashboard_link:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for future in self._dask_futures.values():
-            try:
-                await future.result()
-            except Exception:
-                pass
 
     def __getstate__(self):
         """
@@ -529,18 +515,6 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
         )
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for task_run_id in self._task_run_ids:
-            try:
-                await self._get_run_result(task_run_id)
-            except Exception:
-                pass
 
     def __getstate__(self):
         """
@@ -682,9 +656,6 @@ class RayTaskRunner(BaseTaskRunner):
             metadata = None  # TODO: Some of this may be retrievable from the client ctx
             context = context_or_metadata
 
-        # Wait for all futures on exit
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
         # Shutdown differs depending on the connection type
         if context:
             # Just disconnect the client
@@ -712,14 +683,3 @@ class RayTaskRunner(BaseTaskRunner):
         Retrieve the ray object reference corresponding to a prefect future.
         """
         return self._ray_refs[prefect_future.run_id]
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for ref in self._ray_refs.values():
-            try:
-                await ref
-            except Exception:
-                pass
