@@ -108,9 +108,24 @@ async def configure():
     except Exception as exc:
         exit_with_error(f"Validation failed! {str(exc)}")
 
+    console.print("Registering storage with server...")
     async with get_client() as client:
-        await client.create_block(block=block, block_spec_id=spec.id, name=name)
+        block_id = await client.create_block(
+            block=block, block_spec_id=spec.id, name=name
+        )
 
+    console.print(f"Registered {name!r}! Got identifier '{block_id}'.")
+
+    set_default = typer.confirm("Would you like to set this as your default storage?")
+
+    if not set_default:
+        console.print(
+            f"Default left unchanged. Use `prefect storage set-default {block_id}` to change it later."
+        )
+
+    # else:
+    #     async with get_client() as client:
+    #         await client.
     #     await client.read_block(
     #         name="ORION-CONFIG-STORAGE",
     #         new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
