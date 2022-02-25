@@ -4,12 +4,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 import json
 from typing import Dict, List, Union
 
-from .cubejs_utils import (
-    get_api_token,
-    get_data_from_url,
-    get_query_api_url,
-    get_generated_sql_api_url,
-)
+from .cubejs_utils import CubeJSClient
 
 
 class CubeJSQueryTask(Task):
@@ -152,8 +147,8 @@ class CubeJSQueryTask(Task):
                 `max_wait_time` seconds to respond.
 
         Returns:
-            - The Cube.js JSON response, eventually augmented with SQL
-                information.
+            - The Cube.js JSON response, augmented with SQL
+                information if `include_generated_sql` is `True`.
 
         """
 
@@ -168,37 +163,25 @@ class CubeJSQueryTask(Task):
 
         secret = api_secret if api_secret else os.environ[api_secret_env_var]
 
-        # Build API token using the security context (if available) and the secret
-        api_token = get_api_token(security_context=security_context, secret=secret)
-
-        params = {"query": json.dumps(query)}
-
         wait_api_call_secs = (
             wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
         )
 
-        query_api_url = get_query_api_url(subdomain=subdomain, url=url)
-
-        # Retrieve data from Cube.js
-        data = get_data_from_url(
-            api_token=api_token,
-            url=query_api_url,
-            params=params,
-            max_wait_time=max_wait_time,
+        cubejs_client = CubeJSClient(
+            subdomain=subdomain,
+            url=url,
+            security_context=security_context,
+            secret=secret,
             wait_api_call_secs=wait_api_call_secs,
+            max_wait_time=max_wait_time
         )
 
-        # Augment result with SQL information
-        if include_generated_sql:
+        params = {"query": json.dumps(query)}
 
-            sql_api_url = get_generated_sql_api_url(subdomain=subdomain, url=url)
-
-            data["sql"] = get_data_from_url(
-                api_token=api_token,
-                url=sql_api_url,
-                params=params,
-                max_wait_time=max_wait_time,
-                wait_api_call_secs=wait_api_call_secs,
-            )["sql"]
+        # Retrieve data from Cube.js
+        data = cubejs_client.get_data(
+            params=params,
+            include_generated_sql=include_generated_sql
+        )
 
         return data

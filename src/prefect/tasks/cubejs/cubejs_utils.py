@@ -5,121 +5,177 @@ from typing import Dict, Union
 
 from prefect.engine.signals import FAIL
 
-# Cube Cloud base URL
-__CUBEJS_CLOUD_BASE_URL = "https://{subdomain}.cubecloud.dev"
 
+class CubeJSClient:
 
-def get_cube_base_url(subdomain: str, url: str) -> str:
-    """
-    Get Cube.js base URL.
+    # Cube Cloud base URL
+    __CUBEJS_CLOUD_BASE_URL = "https://{subdomain}.cubecloud.dev"
 
-    Args:
-        - subdomain (str): Cube Cloud subdomain.
-        - url (str): Cube API url.
+    def __init__(
+        self,
+        subdomain: str,
+        url: str,
+        security_context: Union[str, Dict],
+        secret: str,
+        wait_api_call_secs: int,
+        max_wait_time: int,
+    ):
+        """
+        Initialize a `CubeJSClient`.
+        The client can be used to interact with Cube.js APIs.
 
-    Returns:
-        - Cube.js API base url.
-    """
-    cube_base_url = __CUBEJS_CLOUD_BASE_URL
-    if subdomain:
-        cube_base_url = f"{cube_base_url.format(subdomain=subdomain)}/cubejs-api"
-    else:
-        cube_base_url = url
-    return cube_base_url
+        Args:
+            - subdomain (str): Cube Cloud subdomain.
+            - url (str): Cube.js URL (likely to be used in self-hosted Cube.js
+                deployments).
+            - security_context (str, dict): The security context to be used
+                when interacting with Cube.js APIs.
+            - secret (str): The secret string to be used, together with the
+                `security_context`, to generate the API token to pass in the
+                authorization header.
+            - wait_api_call_secs (int): Number of seconds to wait
+                between API calls.
+            - max_wait_time (int): The maximum amount of seconds to wait for
+                an API call to respond.
+        """
+        self.cube_base_url = self.get_cube_base_url(subdomain=subdomain, url=url)
+        self.api_token = self.get_api_token(
+            security_context=security_context, secret=secret
+        )
+        self.wait_api_call_secs = wait_api_call_secs
+        self.max_wait_time = max_wait_time
 
+    def get_cube_base_url(self, subdomain: str, url: str) -> str:
+        """
+        Get Cube.js base URL.
 
-def get_query_api_url(subdomain: str, url: str) -> str:
-    """
-    Get Cube.js Query API URL.
+        Args:
+            - subdomain (str): Cube Cloud subdomain.
+            - url (str): Cube custom URL
+                (likely to be used in Cube.js self-hosted deployments).
 
-    Args:
-        - subdomain (str): Cube Cloud subdomain.
-        - url (str): Cube API url.
+        Returns:
+            - Cube.js API base url.
+        """
+        cube_base_url = self.__CUBEJS_CLOUD_BASE_URL
+        if subdomain:
+            cube_base_url = f"{cube_base_url.format(subdomain=subdomain)}/cubejs-api"
+        else:
+            cube_base_url = url
+        return cube_base_url
 
-    Returns:
-        - Cube.js Query API URL.
-    """
-    return f"{get_cube_base_url(subdomain=subdomain, url=url)}/v1/load"
+    def get_query_api_url(self) -> str:
+        """
+        Get Cube.js Query API URL.
 
+        Returns:
+            - Cube.js Query API URL.
+        """
+        return f"{self.cube_base_url}/v1/load"
 
-def get_generated_sql_api_url(subdomain: str, url: str) -> str:
-    """
-    Get Cube.js Query SQL API URL.
+    def get_generated_sql_api_url(self) -> str:
+        """
+        Get Cube.js Query SQL API URL.
 
-    Args:
-        - subdomain (str): Cube Cloud subdomain.
-        - url (str): Cube API url.
+        Returns:
+            - Cube.js Query SQL API URL.
+        """
 
-    Returns:
-        - Cube.js Query SQL API URL.
-    """
-    return f"{get_cube_base_url(subdomain=subdomain, url=url)}/v1/sql"
+        return f"{self.cube_base_url}/v1/sql"
 
+    def get_api_token(self, security_context: Union[str, Dict], secret: str) -> str:
+        """
+        Build API Token given the security context and the secret.
 
-def get_api_token(security_context: Union[str, Dict], secret: str) -> str:
-    """
-    Build API Token given the security context and the secret.
+        Args:
+            - security_context (str, dict, optional): The security context to use
+                during authentication.
+            - secret: The API secret used to generate an
+                API token for authentication.
 
-    Args:
-        - security_context (str, dict): The security context to use
-            to retrieve data from Cube.js.
-        - secret (str): The secret key to use to interact with Cube.js APIs.
+        Returns:
+            - The API Token to include in the authorization headers
+                when calling Cube.js APIs.
+        """
+        api_token = jwt.encode(payload={}, key=secret)
+        if security_context:
 
-    Returns:
-        - The API Token to include in the authorization headers
-            when calling Cube.js APIs.
-    """
-    api_token = jwt.encode(payload={}, key=secret)
-    if security_context:
+            extended_context = security_context
+            if "exp" not in security_context and "expiresIn" not in security_context:
+                extended_context["expiresIn"] = "7d"
+            api_token = jwt.encode(
+                payload=extended_context, key=secret, algorithm="HS256"
+            )
 
-        extended_context = security_context
-        if "exp" not in security_context and "expiresIn" not in security_context:
-            extended_context["expiresIn"] = "7d"
-        api_token = jwt.encode(payload=extended_context, key=secret, algorithm="HS256")
+        return api_token
 
-    return api_token
+    def get_data_from_url(self, url: str, params: Dict) -> Dict:
+        """
+        Retrieve data from a Cube.js API.
 
+        Args:
+            - url (str): The URL of the Cube API to call.
+            - params (dict): Parameters to be passed to the API call.
 
-def get_data_from_url(
-    api_token: str, url: str, params: Dict, max_wait_time: int, wait_api_call_secs: int
-) -> Dict:
-    """
-    Retrieve data from a Cube.js API.
+        Raises:
+            - `prefect.engine.signals.FAIL` if the response has `status_code != 200`.
+            - `prefect.engine.signals.FAIL` if the REST APIs takes too long to respond,
+                with regards to `max_wait_time`.
 
-    Args:
-        - api_token (str): The API Token to include in the authorization headers
-            when calling Cube API.
-        - url (str): The URL of the Cube API to call.
-        - max_wait_time (int): The number of seconds to wait for the
-            Cube.js load API to return a response.
-        - wait_api_call_secs (int): The number of seconds to
-            wait between API calls.
-    """
-    session = Session()
-    session.headers = {
-        "Content-type": "application/json",
-        "Authorization": api_token,
-    }
-    elapsed_wait_time = 0
-    while not max_wait_time or elapsed_wait_time <= max_wait_time:
+        Returns:
+            - Cube.js REST API JSON response
+        """
+        session = Session()
+        session.headers = {
+            "Content-type": "application/json",
+            "Authorization": self.api_token,
+        }
+        elapsed_wait_time = 0
+        while not self.max_wait_time or elapsed_wait_time <= self.max_wait_time:
 
-        with session.get(url=url, params=params) as response:
-            if response.status_code == 200:
-                data = response.json()
+            with session.get(url=url, params=params) as response:
+                if response.status_code == 200:
+                    data = response.json()
 
-                if "error" in data.keys() and "Continue wait" in data["error"]:
-                    time.sleep(wait_api_call_secs)
-                    elapsed_wait_time += wait_api_call_secs
-                    continue
+                    if "error" in data.keys() and "Continue wait" in data["error"]:
+                        time.sleep(self.wait_api_call_secs)
+                        elapsed_wait_time += self.wait_api_call_secs
+                        continue
+
+                    else:
+                        return data
 
                 else:
-                    return data
+                    raise FAIL(
+                        message=f"Cube.js load API failed! Error is: {response.reason}"
+                    )
 
-            else:
-                raise FAIL(
-                    message=f"Cube.js load API failed! Error is: {response.reason}"
-                )
+        raise FAIL(
+            message=f"Cube.js load API took longer than {self.max_wait_time} seconds to provide a response."
+        )
 
-    raise FAIL(
-        message=f"Cube.js load API took longer than {max_wait_time} seconds to provide a response."
-    )
+    def get_data(
+        self,
+        params: Dict,
+        include_generated_sql: bool,
+    ) -> Dict:
+        """
+        Retrieve data from Cube.js `/load` REST API.
+
+        Args:
+            - params (dict): Parameters to pass to the `/load` REST API.
+            - include_generated_sql (bool): Whether to include the
+                corresponding generated SQL or not.
+
+        Returns:
+            - Cube.js `/load` API JSON response, augmented with SQL
+                information if `include_generated_sql` is `True`.
+        """
+        data = self.get_data_from_url(url=self.get_query_api_url(), params=params)
+
+        if include_generated_sql:
+            data["sql"] = self.get_data_from_url(
+                url=self.get_generated_sql_api_url(), params=params
+            )["sql"]
+
+        return data
