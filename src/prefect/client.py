@@ -16,6 +16,7 @@ $ python -m asyncio
 </div>
 """
 import datetime
+import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
@@ -28,7 +29,8 @@ from fastapi import FastAPI
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
-from prefect.blocks.core import Block, get_block_spec
+from prefect.blocks import storage
+from prefect.blocks.core import Block, create_block_from_api_block, get_block_spec
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -779,17 +781,32 @@ class OrionClient:
 
     async def create_block(
         self,
-        name: str,
-        blockref: str,
-        **fields,
+        block: Block,
+        block_spec_id: UUID = None,
+        name: str = None,
     ) -> Optional[UUID]:
         """
         Create a block in Orion. This data is used to configure a corresponding
         Block.
         """
+
+        block_fields = block.dict(exclude=["block_name", "block_id", "block_spec_id"])
+
+        if not block_spec_id or block.block_spec_id:
+            raise ValueError(
+                "No block spec ID provided either on the block or as an argument."
+            )
+        elif not name or block.name:
+            raise ValueError(
+                "No block name provided either on the block or as an argument."
+            )
+
         block_create = schemas.actions.BlockCreate(
-            name=name, blockref=blockref, data=fields
+            name=name or block.name,
+            block_spec_id=block_spec_id or block.block_spec_id,
+            data=block_fields,
         )
+
         try:
             response = await self.post(
                 "/blocks/",
@@ -803,92 +820,38 @@ class OrionClient:
 
         return UUID(response.json().get("id"))
 
-    async def update_block_name(
-        self,
-        name: str,
-        new_name: str,
-        raise_for_status: bool = True,
-    ):
-
-        block_update = schemas.actions.BlockUpdate(name=new_name)
-
-        try:
-            response = await self.patch(
-                f"/blocks/name/{name}",
-                json=block_update.dict(json_compatible=True),
-                raise_for_status=raise_for_status,
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return False
-            else:
-                raise e
-
-        return True
-
-    async def delete_block_by_name(
-        self,
-        name: str,
-    ):
+    async def read_block(self, block_id: UUID):
         """
-        Delete block with the specified name.
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
 
         Args:
-            name: The block name
+            block_id (UUID): the block id
 
         Raises:
-            httpx.RequestError
+            httpx.RequestError: if the block was not found for any reason
 
         Returns:
-            True if the block was deleted, False otherwise.
+            A hydrated block or None.
         """
-        try:
-            response = await self.delete(
-                f"/blocks/name/{name}",
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return False
-            else:
-                raise e
-
-        return True
-
-    async def read_block(
-        self,
-        id: str,
-    ) -> Optional[Block]:
-        """
-        Read a block by id.
-
-        Args:
-            id: The block id.
-
-        Returns:
-            a hydrated block or None if no Block could be found
-        """
-        response = await self.get(
-            f"/blocks/{id}",
-        )
-        raw_block = response.json()
-        block_id = raw_block.get("blockid")
-
-        if not block_id:
-            return None
-
-        block_spec = get_block_spec(raw_block["blockref"])
-        block = pydantic.parse_obj_as(block_spec, raw_block)
-        return block
+        response = await self.get(f"/blocks/{block_id}")
+        return create_block_from_api_block(response.json())
 
     async def read_block_by_name(
         self,
         name: str,
+        block_spec_name: str,
+        block_spec_version: str,
     ):
         """
-        Read the block with the specified name.
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
 
         Args:
-            name: The block name.
+            name (str): The block name.
+            block_spec_name (str): the block spec name
+            block_spec_version (str): the block spec version. If not provided,
+                the most recent matching version will be returned.
 
         Raises:
             httpx.RequestError: if the block was not found for any reason
@@ -897,17 +860,9 @@ class OrionClient:
             A hydrated block or None.
         """
         response = await self.get(
-            f"/blocks/name/{name}",
+            f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
         )
-        raw_block = response.json()
-        block_id = raw_block.get("blockid")
-
-        if not block_id:
-            return None
-
-        block_spec = get_block_spec(raw_block["blockref"])
-        block = pydantic.parse_obj_as(block_spec, raw_block)
-        return block
+        return create_block_from_api_block(response.json())
 
     async def create_deployment(
         self,
@@ -1108,19 +1063,21 @@ class OrionClient:
             Orion data document pointing to persisted data.
         """
 
-        try:
-            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
-        except httpx.HTTPStatusError:
-            await self.create_block(
-                name="ORION-CONFIG-STORAGE",
-                blockref="orionstorage-block",
+        # get default storage block
+        default_block_response = await self.post("/blocks/get_default_storage_block")
+        if not default_block_response.json():
+            warnings.warn(
+                "No default storage has been set on the server. "
+                "Using temporary local storage for results."
             )
-            storage_block = await self.read_block_by_name("ORION-CONFIG-STORAGE")
+            block = storage.TempStorageBlock()
+        else:
+            block = create_block_from_api_block(default_block_response.json())
 
-        storage_token = await storage_block.write(data)
+        storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "blockid": storage_block.blockid},
+            data={"data": storage_token, "block_id": block.block_id},
         )
         return storage_datadoc
 
@@ -1139,8 +1096,11 @@ class OrionClient:
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
-        blockid = block_document["blockid"]
-        storage_block = await self.read_block(blockid)
+        block_id = block_document["block_id"]
+        if block_id is not None:
+            storage_block = await self.read_block(block_id)
+        else:
+            storage_block = storage.TempStorageBlock()
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
