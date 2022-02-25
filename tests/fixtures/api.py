@@ -111,6 +111,8 @@ async def hosted_orion_api():
         except Exception:
             pass  # May already be terminated
 
+        await process.aclose()
+
 
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
