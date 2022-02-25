@@ -1,4 +1,3 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import {
@@ -144,6 +143,6 @@ export class TaskRunsApi extends Api {
 
 }
 
-export const taskRunsApi = createActions(new TaskRunsApi())
+export const taskRunsApi = new TaskRunsApi()
 
 export const getTaskRunKey: InjectionKey<TaskRunsApi['getTaskRun']> = Symbol()
