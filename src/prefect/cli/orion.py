@@ -36,8 +36,8 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
-    PREFECT_ORION_UI_ENABLED,
     PREFECT_ORION_TELEMETRY_ENABLED,
+    PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
