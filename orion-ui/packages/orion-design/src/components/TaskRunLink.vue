@@ -8,10 +8,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { subscribe } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, inject } from 'vue'
   import StateTypeIcon from '@/components/StateTypeIcon.vue'
-  import { taskRunsApi } from '@/services/TaskRunsApi'
+  import { taskRunsApi, getTaskRunKey } from '@/services/TaskRunsApi'
+
+  const getTaskRun = inject(getTaskRunKey) ?? taskRunsApi.getTaskRun
 
   const props = defineProps({
     taskId: {
@@ -20,7 +22,7 @@
     },
   })
 
-  const subscription = subscribe(taskRunsApi.getTaskRun.bind(taskRunsApi), [props.taskId])
+  const subscription = useSubscription(getTaskRun, [props.taskId])
   const loaded = computed(() => subscription.response.value)
   const taskRunName = computed(() => subscription.response.value?.name)
   const taskRunStateType = computed(() => subscription.response.value?.stateType)
