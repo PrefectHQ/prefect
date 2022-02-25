@@ -1,3 +1,4 @@
+import asyncio
 import atexit
 import logging
 import logging.handlers
@@ -21,7 +22,6 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_SERVER_LEVEL,
 )
 
 
