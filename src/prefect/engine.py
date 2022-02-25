@@ -363,11 +363,6 @@ async def create_and_begin_subflow_run(
                 sync_portal=parent_flow_run_context.sync_portal,
             )
 
-        terminal_state = await client.propose_state(
-            state=terminal_state,
-            flow_run_id=flow_run.id,
-        )
-
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
     logger.log(
@@ -498,6 +493,11 @@ async def orchestrate_flow_run(
             ) or None
 
         state = await user_return_value_to_state(result, serializer="cloudpickle")
+
+    state = await client.propose_state(
+        state=state,
+        flow_run_id=flow_run.id,
+    )
 
     return state
 
