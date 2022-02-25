@@ -22,27 +22,14 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
-    def __init__(self, queue_id: str = None, prefetch_seconds: int = None) -> None:
-        self.queue_id = queue_id
+    def __init__(self, work_queue_id: str, prefetch_seconds: int = None) -> None:
+        self.work_queue_id = work_queue_id
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
-
-    def flow_run_query_filter(self) -> FlowRunFilter:
-        return FlowRunFilter(
-            id=dict(not_any_=self.submitting_flow_run_ids),
-            state=dict(type=dict(any_=[StateType.SCHEDULED])),
-            next_scheduled_start_time=dict(
-                before_=pendulum.now("utc").add(
-                    seconds=self.prefetch_seconds
-                    or PREFECT_AGENT_PREFETCH_SECONDS.value()
-                )
-            ),
-            deployment_id=dict(is_null_=False),
-        )
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -53,19 +40,12 @@ class OrionAgent:
 
         self.logger.debug("Checking for flow runs...")
 
-        if self.queue_id:
-            before = pendulum.now("utc").add(
-                seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
-            )
-            submittable_runs = await self.client.get_runs_in_work_queue(
-                id=self.queue_id, limit=10, scheduled_before=before
-            )
-        else:
-            submittable_runs = await self.client.read_flow_runs(
-                sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
-                flow_run_filter=self.flow_run_query_filter(),
-            )
-
+        before = pendulum.now("utc").add(
+            seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
+        )
+        submittable_runs = await self.client.get_runs_in_work_queue(
+            id=self.work_queue_id, limit=10, scheduled_before=before
+        )
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
 
