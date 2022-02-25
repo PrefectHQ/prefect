@@ -163,7 +163,7 @@ $ prefect work-queue preview --hours 12 'acffbcc8-ae65-4c83-a38a-96e2e5e5b441'
 
 ### Pausing and deleting work queues
 
-A work queue can be paused at any time to stop the deliver of work to agents. Paused agents will not receive any work when polling.
+A work queue can be paused at any time to stop the delivery of work to agents. Paused agents will not receive any work when polling.
 
 To pause a work queue through the Prefect CLI, use the `prefect work-queue pause` command with the work queue ID:
 
