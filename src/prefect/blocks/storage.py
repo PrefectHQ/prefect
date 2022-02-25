@@ -50,12 +50,14 @@ class StorageBlock(Block, Generic[T]):
 
 @register_block("S3 Storage", version="1.0")
 class S3StorageBlock(StorageBlock):
+    """Store data in an AWS S3 bucket"""
+
+    bucket: str
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
-    bucket: str
 
     def block_initialization(self):
         import boto3
