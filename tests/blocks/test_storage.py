@@ -15,7 +15,6 @@ TEST_DATA = [
 ]
 
 FS_STORAGE_BLOCKS = [
-    storage.OrionStorageBlock.parse_obj({"blockref": "orionstorage-block"}),
     storage.TempStorageBlock.parse_obj({"blockref": "tempstorage-block"}),
     storage.LocalStorageBlock.parse_obj(
         {"blockref": "localstorage-block", "storage_path": TemporaryDirectory().name}
