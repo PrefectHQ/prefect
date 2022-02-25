@@ -117,6 +117,12 @@ async def app_lifespan_context(app: FastAPI):
     the context from B is complete. This means that if B depends on work that occurs
     after the exit of A, a deadlock will occur.
     """
+    # TODO: We could push contexts onto a stack so the last context that exits is
+    #       responsible for closing the lifespan regardless of whether or not it was the
+    #       one that entered the lifespan. This would make a deadlock impossible, but
+    #       consumers of the context would no longer know if they are the one that is
+    #       responsible for closing the lifespan or not.
+
     # The id is used instead of the hash so each application instance is managed independently
     key = id(app)
 
