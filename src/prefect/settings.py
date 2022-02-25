@@ -160,6 +160,10 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
+PREFECT_CLIENT_REQUEST_TIMEOUT = Setting(
+    float, default=30.0, description="""The default timeout for requests to the API"""
+)
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
