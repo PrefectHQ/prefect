@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
-  import { formatDateTimeNumeric } from '../utilities/dates'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
   const props = defineProps<{
     label: string,
@@ -64,7 +64,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .date-time-input__picker {
   background-color: $white;
   box-shadow: $box-shadow-sm;

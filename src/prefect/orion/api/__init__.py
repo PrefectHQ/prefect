@@ -1,7 +1,6 @@
 from . import (
     admin,
     flows,
-    data,
     run_history,
     flow_runs,
     task_runs,
@@ -12,6 +11,9 @@ from . import (
     dependencies,
     logs,
     concurrency_limits,
+    blocks,
+    work_queues,
+    block_specs,
     # Server relies on all of the above routes
     server,
 )

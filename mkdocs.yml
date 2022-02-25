@@ -24,6 +24,7 @@ markdown_extensions:
     - pymdownx.tabbed
 theme:
     name: material
+    custom_dir: overrides
     favicon: img/favicon.ico
     features:
         - toc.integrate
@@ -77,7 +78,6 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Orchestration Rules: concepts/orchestration.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Flow Runners: concepts/flow-runners.md
@@ -122,7 +122,6 @@ nav:
         - Orion Python API:
             - 'API':
                 - 'orion.api.admin': api-ref/orion/api/admin.md
-                - 'orion.api.data': api-ref/orion/api/data.md
                 - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
                 - 'orion.api.deployments': api-ref/orion/api/deployments.md
                 - 'orion.api.flows': api-ref/orion/api/flows.md
@@ -161,7 +160,6 @@ nav:
                 - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
             - 'Utilities':
                 - 'orion.utilities.database': api-ref/orion/utilities/database.md
-                - 'orion.utilities.filesystem': api-ref/orion/utilities/filesystem.md
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md

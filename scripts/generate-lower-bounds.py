@@ -34,7 +34,7 @@ import sys
 def generate_lower_bounds(input_path):
     with open(input_path, "r") as f:
         for line in f:
-            pkg_data = re.split(">=|,|==", line.replace("~", ">"))
+            pkg_data = re.split(">=|,|==", line.replace("~", ">"), maxsplit=1)
 
             if len(pkg_data) == 1:
                 # There is no versioning for this requirement

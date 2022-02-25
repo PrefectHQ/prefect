@@ -27,9 +27,9 @@
 <script lang="ts" setup>
   import { isSameDay } from 'date-fns'
   import { computed, PropType } from 'vue'
-  import { Log } from '../models'
-  import { formatDate } from '../utilities'
-  import FlowRunLog from './FlowRunLog.vue'
+  import FlowRunLog from '@/components/FlowRunLog.vue'
+  import { Log } from '@/models'
+  import { formatDate } from '@/utilities'
 
   const props = defineProps({
     logs: {

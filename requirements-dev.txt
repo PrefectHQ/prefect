@@ -1,16 +1,18 @@
+flake8
 ipython
 mkdocs
 mkdocs-material
 mkdocstrings
-mypy 
+mock; python_version < '3.8'
+moto
+mypy
 pre-commit
 pytest
 pytest-asyncio >= 0.17
-pytkdocs >= 0.13.0
-flake8
 pytest-env
+pytest-timeout
+pytkdocs >= 0.13.0
 requests
+setuptools != 60.9.0; python_version < '3.8'
 virtualenv
 watchgod
-setuptools != 60.9.0; python_version < '3.8'
-mock; python_version < '3.8'

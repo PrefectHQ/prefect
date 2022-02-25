@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import time
 from contextlib import contextmanager
@@ -9,6 +10,10 @@ import cloudpickle
 import distributed
 import pytest
 
+import prefect
+
+# Import the local 'tests' module to pickle to ray workers
+import tests
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.futures import PrefectFuture
@@ -16,14 +21,20 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.task_runners import (
-    BaseTaskRunner,
     ConcurrentTaskRunner,
     DaskTaskRunner,
+    RayTaskRunner,
     SequentialTaskRunner,
 )
 
+if sys.version_info[1] >= 10:
+    RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
+else:
+    RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
 
-@contextmanager
+
+@pytest.fixture
+@pytest.mark.service("dask")
 def dask_task_runner_with_existing_cluster():
     """
     Generate a dask task runner that's connected to a local cluster
@@ -34,12 +45,109 @@ def dask_task_runner_with_existing_cluster():
             yield DaskTaskRunner(address=address)
 
 
-@contextmanager
+@pytest.fixture(autouse=True)
+@pytest.mark.service("ray")
+def use_kv_storage_with_ray(set_up_kv_storage):
+    """Ensure KV storage is used with ray"""
+    pass
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.service("ray")
+def machine_ray_instance():
+    """
+    Starts a ray instance for the current machine
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    subprocess.check_call(
+        ["ray", "start", "--head", "--include-dashboard", "False"],
+        cwd=str(prefect.__root_path__),
+    )
+    try:
+        yield "ray://127.0.0.1:10001"
+    finally:
+        subprocess.run(["ray", "stop"])
+
+
+@pytest.fixture
+@pytest.mark.service("ray")
+def ray_task_runner_with_existing_cluster(
+    machine_ray_instance,
+    use_hosted_orion,
+    hosted_orion_api,
+):
+    """
+    Generate a ray task runner that's connected to a ray instance running in a separate
+    process.
+
+    This tests connection via `ray://` which is a client-based connection.
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    yield RayTaskRunner(
+        address=machine_ray_instance,
+        init_kwargs={
+            "runtime_env": {
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
+            }
+        },
+    )
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.service("ray")
+def inprocess_ray_cluster():
+    """
+    Starts a ray cluster in-process
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+    cluster_utils = pytest.importorskip("ray.cluster_utils")
+
+    cluster = cluster_utils.Cluster(initialize_head=True)
+    try:
+        cluster.add_node()  # We need to add a second node for parallelism
+        yield cluster
+    finally:
+        cluster.shutdown()
+
+
+@pytest.fixture
+@pytest.mark.service("ray")
+def ray_task_runner_with_inprocess_cluster(
+    inprocess_ray_cluster,
+    use_hosted_orion,
+    hosted_orion_api,
+):
+    """
+    Generate a ray task runner that's connected to an in-process cluster.
+
+    This tests connection via 'localhost' which is not a client-based connection.
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    yield RayTaskRunner(
+        address=inprocess_ray_cluster.address,
+        init_kwargs={
+            "runtime_env": {
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
+            }
+        },
+    )
+
+
+@pytest.fixture
+@pytest.mark.service("dask")
 def dask_task_runner_with_process_pool():
     yield DaskTaskRunner(cluster_kwargs={"processes": True})
 
 
-@contextmanager
+@pytest.fixture
+@pytest.mark.service("dask")
 def dask_task_runner_with_thread_pool():
     yield DaskTaskRunner(cluster_kwargs={"processes": False})
 
@@ -62,61 +170,93 @@ def distributed_client_init(monkeypatch):
 
 
 @pytest.fixture
+@pytest.mark.service("dask")
+def default_dask_task_runner():
+    yield DaskTaskRunner()
+
+
+@pytest.fixture
+def default_sequential_task_runner():
+    yield SequentialTaskRunner()
+
+
+@pytest.fixture
+def default_concurrent_task_runner():
+    yield ConcurrentTaskRunner()
+
+
+@pytest.fixture
+@pytest.mark.service("ray")
+def default_ray_task_runner():
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    yield RayTaskRunner()
+
+
+@pytest.fixture
 def task_runner(request):
     """
-    An indirect fixture that expects to receive one of the following
-    - task_runner instance
-    - task_runner type
-    - callable generator that yields an task_runner instance
-
-    Returns an task_runner instance that can be used in the test
+    An indirect fixture that expects to receive a pytest fixture that yields a task
+    runner.
     """
-    if isinstance(request.param, BaseTaskRunner):
-        yield request.param
 
-    elif isinstance(request.param, type) and issubclass(request.param, BaseTaskRunner):
-        yield request.param()
+    if not hasattr(request.param, "_pytestfixturefunction"):
+        raise TypeError("Received invalid `task_runner` parameter. Expected fixture.")
 
-    elif callable(request.param):
-        with request.param() as task_runner:
-            yield task_runner
+    yield request.getfixturevalue(request.param.__name__)
 
-    else:
-        raise TypeError(
-            "Received invalid task_runner parameter. Expected task runner type, "
-            f"instance, or callable generator. Received {type(request.param).__name__}"
+
+def parameterize_with_task_runners(*values):
+    """
+    Generates a `pytest.mark.parametrize` instance for the `task_runner` indirect
+    fixture.
+
+    Passes marks from the fixtures to the parameter so we can indicate required services
+    on each task runner fixture.
+    """
+
+    def add_marks(item):
+        return pytest.param(
+            item, marks=[mark for mark in getattr(item, "pytestmark", [])]
         )
 
+    values = [add_marks(value) for value in values]
 
-parameterize_with_all_task_runners = pytest.mark.parametrize(
-    "task_runner",
-    [
-        DaskTaskRunner,
-        SequentialTaskRunner,
-        ConcurrentTaskRunner,
-        dask_task_runner_with_existing_cluster,
-        dask_task_runner_with_process_pool,
-        dask_task_runner_with_thread_pool,
-    ],
-    indirect=True,
+    return pytest.mark.parametrize(
+        "task_runner",
+        values,
+        indirect=True,
+    )
+
+
+parameterize_with_all_task_runners = parameterize_with_task_runners(
+    default_sequential_task_runner,
+    default_concurrent_task_runner,
+    # ray
+    default_ray_task_runner,
+    ray_task_runner_with_existing_cluster,
+    ray_task_runner_with_inprocess_cluster,
+    # dask
+    default_dask_task_runner,
+    dask_task_runner_with_existing_cluster,
+    dask_task_runner_with_process_pool,
+    dask_task_runner_with_thread_pool,
 )
 
 
-parameterize_with_parallel_task_runners = pytest.mark.parametrize(
-    "task_runner",
-    [
-        DaskTaskRunner,
-        ConcurrentTaskRunner,
-        dask_task_runner_with_existing_cluster,
-    ],
-    indirect=True,
+parameterize_with_parallel_task_runners = parameterize_with_task_runners(
+    default_concurrent_task_runner,
+    # ray
+    default_ray_task_runner,
+    ray_task_runner_with_existing_cluster,
+    # dask
+    dask_task_runner_with_existing_cluster,
+    default_dask_task_runner,
 )
 
 
-parameterize_with_sequential_task_runners = pytest.mark.parametrize(
-    "task_runner",
-    [SequentialTaskRunner],
-    indirect=True,
+parameterize_with_sequential_task_runners = parameterize_with_task_runners(
+    default_sequential_task_runner
 )
 
 
@@ -128,7 +268,7 @@ async def test_task_runner_cannot_be_started_while_running():
 
 
 @parameterize_with_all_task_runners
-def test_flow_run_by_task_runner(task_runner):
+async def test_flow_run_by_task_runner(task_runner):
     @task
     def task_a():
         return "a"
@@ -205,6 +345,7 @@ def test_failing_flow_run_by_task_runner(task_runner):
     )
 
 
+@pytest.mark.service("dask")  # Right now, all these parameter combinations use Dask
 @pytest.mark.parametrize(
     "parent_task_runner,child_task_runner",
     [
@@ -273,9 +414,19 @@ class TestTaskRunnerParallelism:
     If they run sequentially, 'bar' will be the final content of the file
     """
 
-    # Amount of time to sleep before writing 'foo'
-    # A larger value will decrease brittleness but increase test times
-    SLEEP_TIME = 0.25 if sys.platform == "darwin" else 1.5
+    def get_sleep_time(self, runner):
+        """
+        Amount of time to sleep before writing 'foo'
+        A larger value will decrease brittleness but increase test times
+        """
+        # CI machines are slow so we add time
+        sleep_time = 0.25 if sys.platform == "darwin" else 1.5
+
+        # Ray is slow
+        if isinstance(runner, RayTaskRunner):
+            sleep_time += 1.5
+
+        return sleep_time
 
     @pytest.fixture
     def tmp_file(self, tmp_path):
@@ -289,7 +440,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -311,7 +462,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -333,7 +484,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -355,7 +506,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -377,7 +528,7 @@ class TestTaskRunnerParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @task
@@ -400,7 +551,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         def foo():
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
@@ -422,7 +573,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
@@ -444,7 +595,7 @@ class TestTaskRunnerParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.SLEEP_TIME)
+            await anyio.sleep(self.get_sleep_time(task_runner))
             tmp_file.write_text("foo")
 
         @flow
@@ -498,12 +649,14 @@ async def test_submit_and_wait(task_runner):
         assert fut.task_run == task_run, "the future should have the same task run"
         assert fut.asynchronous == True
 
-        state = await task_runner.wait(fut)
+        state = await task_runner.wait(fut, 5)
+        assert state is not None, "wait timed out"
         assert isinstance(state, State), "wait should return a state"
         assert state.result() == 1
 
 
 class TestDaskTaskRunner:
+    @pytest.mark.service("dask")
     async def test_connect_to_running_cluster(self, distributed_client_init):
         with distributed.Client(processes=False, set_as_default=False) as client:
             address = client.scheduler.address
@@ -517,6 +670,7 @@ class TestDaskTaskRunner:
                 address, asynchronous=True, **task_runner.client_kwargs
             )
 
+    @pytest.mark.service("dask")
     async def test_start_local_cluster(self, distributed_client_init):
         task_runner = DaskTaskRunner(cluster_kwargs={"processes": False})
         assert task_runner.cluster_class == None, "Default is delayed for import"
@@ -531,6 +685,7 @@ class TestDaskTaskRunner:
             task_runner._cluster, asynchronous=True, **task_runner.client_kwargs
         )
 
+    @pytest.mark.service("dask")
     async def test_adapt_kwargs(self, monkeypatch):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
         monkeypatch.setattr("distributed.LocalCluster.adapt", MagicMock())
@@ -546,6 +701,7 @@ class TestDaskTaskRunner:
 
         distributed.LocalCluster.adapt.assert_called_once_with(**adapt_kwargs)
 
+    @pytest.mark.service("dask")
     async def test_client_kwargs(self, distributed_client_init):
         task_runner = DaskTaskRunner(
             client_kwargs={"set_as_default": True, "connection_limit": 100},
@@ -568,6 +724,7 @@ class TestDaskTaskRunner:
         )
         assert task_runner.cluster_class == distributed.deploy.spec.SpecCluster
 
+    @pytest.mark.service("dask")
     async def test_cluster_class_and_kwargs(self):
 
         init_method = MagicMock()
@@ -606,6 +763,7 @@ class TestDaskTaskRunner:
         with pytest.raises(ValueError, match="`cluster_kwargs`"):
             DaskTaskRunner(cluster_kwargs={"asynchronous": True})
 
+    @pytest.mark.service("dask")
     def test_nested_dask_task_runners_warn_on_port_collision_but_succeeds(self):
         @task
         def idenitity(x):

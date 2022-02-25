@@ -9,9 +9,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { FilterDescriptionService } from '../services/FilterDescriptionService'
-  import { FilterService } from '../services/FilterService'
-  import { FilterObject } from '../types/filters'
+  import { FilterDescriptionService } from '@/services/FilterDescriptionService'
+  import { FilterService } from '@/services/FilterService'
+  import { FilterObject } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:object', value: FilterObject): void,
@@ -26,7 +26,7 @@
   const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run']
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-object {
   display: flex;
   gap: var(--m-1);

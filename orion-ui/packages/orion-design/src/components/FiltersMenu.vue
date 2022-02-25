@@ -51,12 +51,12 @@
 <script lang="ts" setup>
   import { reactive, watch } from 'vue'
   import { useRouter } from 'vue-router'
-  import { FilterUrlService } from '../services/FilterUrlService'
-  import { useFiltersStore } from '../stores/filters'
-  import { Filter } from '../types/filters'
-  import { isCompleteFilter, isFilter } from '../utilities/filters'
-  import { clone } from '../utilities/object'
-  import FilterBuilder from './FilterBuilder.vue'
+  import FilterBuilder from '@/components/FilterBuilder.vue'
+  import { FilterUrlService } from '@/services/FilterUrlService'
+  import { useFiltersStore } from '@/stores/filters'
+  import { Filter } from '@/types/filters'
+  import { isCompleteFilter, isFilter } from '@/utilities/filters'
+  import { clone } from '@/utilities/object'
 
   const emit = defineEmits<{
     (event: 'close'): void,
@@ -101,7 +101,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use 'sass:map';
 
 .filters-menu {
