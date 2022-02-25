@@ -169,11 +169,19 @@ async def ls():
 
 
 @work_app.command()
-async def preview(id: str = typer.Argument(..., help="The id of the work queue")):
+async def preview(
+    id: str = typer.Argument(..., help="The id of the work queue"),
+    hours: int = typer.Option(
+        None,
+        "-h",
+        "--hours",
+        help="The number of hours to look ahead; defaults to 1 hour",
+    ),
+):
     """
     Preview a work queue.
     """
-    table = Table()
+    table = Table(caption="(**) denotes a late run", caption_style="red")
     table.add_column(
         "Scheduled Start Time", justify="left", style="yellow", no_wrap=True
     )
@@ -181,7 +189,7 @@ async def preview(id: str = typer.Argument(..., help="The id of the work queue")
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
-    window = pendulum.now("utc").add(days=1)
+    window = pendulum.now("utc").add(hours=hours or 1)
     async with get_client() as client:
         runs = await client.get_runs_in_work_queue(
             id, limit=10, scheduled_before=window
@@ -192,9 +200,9 @@ async def preview(id: str = typer.Argument(..., help="The id of the work queue")
 
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
-            f"[red]{run.expected_start_time}"
+            f"{run.expected_start_time} [red](**)"
             if run.expected_start_time < now
-            else f"[yellow]{run.expected_start_time}",
+            else f"{run.expected_start_time}",
             str(run.id),
             run.name,
             str(run.deployment_id),
