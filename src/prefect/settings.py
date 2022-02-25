@@ -392,7 +392,7 @@ PREFECT_ORION_UI_ENABLED = Setting(
 PREFECT_ORION_TELEMETRY_ENABLED = Setting(
     bool,
     default=True,
-    description="""Wherether or not to send anonymous telemetry stats to Prefect.""",
+    description="""Whether or not to send anonymous telemetry stats to Prefect.""",
 )
 
 # Collect all defined settings

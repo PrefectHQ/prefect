@@ -224,7 +224,7 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
             service_instances = [
                 services.scheduler.Scheduler(),
                 services.late_runs.MarkLateRuns(),
-                services.telemetry.Telemetry(),
+                services.light_loop.LightLoopService(),
             ]
             app.state.services = {
                 service: loop.create_task(service.start())
