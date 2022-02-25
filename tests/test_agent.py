@@ -94,6 +94,50 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
     assert submitted_flow_run_ids == {flow_run_ids[1], flow_run_ids[2]}
 
 
+async def test_agent_with_work_queue(orion_client, deployment):
+    @flow
+    def foo():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
+    )
+
+    queue_id = await orion_client.create_work_queue(
+        name="testing", deployment_ids=[str(deployment.id)]
+    )
+    flow_runs = [
+        await create_run_with_deployment(Pending()),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment(Running()),
+        await create_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    async with OrionAgent(queue_id=queue_id, prefetch_seconds=10) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+
+    submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+    # Only include scheduled runs in the past or next prefetch seconds
+    # Does not include runs without deployments
+    assert submitted_flow_run_ids == set(flow_run_ids[1:4])
+
+
 async def test_agent_internal_submit_run_called(orion_client, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,

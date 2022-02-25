@@ -208,7 +208,13 @@ async def preview(
             str(run.deployment_id),
         )
 
-    console.print(table)
+    if runs:
+        console.print(table)
+    else:
+        console.print(
+            "No runs found - try increasing how far into the future you preview with the --hours flag",
+            style="yellow",
+        )
 
 
 @work_app.command()
