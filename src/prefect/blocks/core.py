@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Dict, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel
 
 import prefect
 from prefect.orion.utilities.functions import parameter_schema
@@ -86,10 +86,6 @@ class Block(BaseModel, ABC):
     _block_id: Optional[UUID] = None
     _block_spec_id: Optional[UUID] = None
     _block_name: Optional[str] = None
-
-    @root_validator(pre=True)
-    def set_private_variables(cls, values):
-        return values
 
     def to_api_block(
         self, name: str = None, block_spec_id: UUID = None
