@@ -107,7 +107,7 @@ Completed(None)
 ```
 </div>
 
-As you did previously, print the `result()` to see what the JSON returned by the API call:
+As you did previously, print the `result()` to see the JSON returned by the API call:
 
 <div class="termy">
 ```
