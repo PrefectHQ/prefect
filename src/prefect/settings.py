@@ -242,26 +242,6 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-PREFECT_ORION_DATA_NAME = Setting(
-    str,
-    default="default",
-    description="""The name for the default data directory. Defaults to
-    `default`.""",
-)
-
-PREFECT_ORION_DATA_SCHEME = Setting(
-    str,
-    default="file",
-    description="""The scheme for the default data directory. Defaults to
-    `file`.""",
-)
-PREFECT_ORION_DATA_BASE_PATH = Setting(
-    str,
-    default="/tmp",
-    description="""The base path for the default data directory. Defaults to
-    `/tmp`.""",
-)
-
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
