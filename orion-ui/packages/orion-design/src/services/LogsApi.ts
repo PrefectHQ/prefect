@@ -41,6 +41,7 @@ export class LogsApi extends Api {
   protected logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
     return data.map(log => this.logMapper(log))
   }
+
 }
 
 export const logsApi = new LogsApi()

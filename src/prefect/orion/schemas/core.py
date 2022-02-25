@@ -10,6 +10,7 @@ import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
 
+import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
@@ -341,8 +342,25 @@ class Block(ORMBaseModel):
     """An ORM representation of a block."""
 
     name: str = Field(..., description="The block's name'")
-    blockref: str = Field(..., description="A reference to a registered blockspec")
     data: dict = Field(default_factory=dict, description="The block's data")
+    block_spec_id: UUID = Field(..., description="A block spec ID")
+    block_spec: Optional[BlockSpec] = Field(
+        None, description="The associated block spec"
+    )
+
+    @classmethod
+    async def from_orm_model(
+        cls,
+        session,
+        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+    ):
+        return cls(
+            id=orm_block.id,
+            name=orm_block.name,
+            data=await orm_block.decrypt_data(session=session),
+            block_spec_id=orm_block.block_spec_id,
+            block_spec=orm_block.block_spec,
+        )
 
 
 class Configuration(ORMBaseModel):
@@ -399,10 +417,69 @@ class QueueFilter(PrefectBaseModel):
         None,
         description="Only include flow runs from these deployments in the work queue.",
     )
-    flow_runners: Optional[List[str]] = Field(
+    flow_runner_types: Optional[List[str]] = Field(
         None,
         description="Only include flow runs with these flow runner types in the work queue.",
     )
+
+    def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's flow runs.
+        """
+        return schemas.filters.FlowRunFilter(
+            tags=schemas.filters.FlowRunFilterTags(all_=self.tags),
+            deployment_id=schemas.filters.FlowRunFilterDeploymentId(
+                any_=self.deployment_ids,
+                is_null_=False,
+            ),
+            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
+                any_=self.flow_runner_types,
+            ),
+        )
+
+    def get_scheduled_flow_run_filter(
+        self, scheduled_before: datetime.datetime
+    ) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's SCHEDULED flow runs.
+
+        Args:
+            scheduled_before: Create a FlowRunFilter that excludes runs scheduled before this date.
+
+        Returns:
+            Flow run filter that can be used to query the work queue for scheduled runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.SCHEDULED,
+                        ]
+                    )
+                ),
+                "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+            }
+        )
+
+    def get_executing_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's PENDING or RUNNING flow runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.PENDING,
+                            schemas.states.StateType.RUNNING,
+                        ]
+                    )
+                )
+            }
+        )
 
 
 class WorkQueue(ORMBaseModel):

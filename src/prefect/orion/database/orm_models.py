@@ -24,6 +24,7 @@ from prefect.orion.utilities.database import (
     interval_add,
     now,
 )
+from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
 
 
 class ORMBase:
@@ -353,7 +354,7 @@ class ORMFlowRun(ORMRun):
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String)
+    flow_runner_type = sa.Column(sa.String, index=True)
     flow_runner_config = sa.Column(JSON)
 
     @declared_attr
@@ -739,12 +740,47 @@ class ORMBlockSpec:
 @declarative_mixin
 class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
-    blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+
+    @declared_attr
+    def block_spec_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_spec(cls):
+        return sa.orm.relationship("BlockSpec", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (
+            sa.Index(
+                "uq_block__spec_id_name",
+                "block_spec_id",
+                "name",
+                unique=True,
+            ),
+        )
+
+    async def encrypt_data(self, session, data):
+        """
+        Store encrypted data on the ORM model
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        self.data = await encrypt_fernet(session, data)
+
+    async def decrypt_data(self, session):
+        """
+        Retrieve decrypted data from the ORM model.
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        return await decrypt_fernet(session, self.data)
 
 
 @declarative_mixin
@@ -845,6 +881,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_spec_mixin: block_spec orm mixin, combined with Base orm class
         block_mixin: block orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
@@ -866,6 +903,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
         block_mixin=ORMBlock,
         configuration_mixin=ORMConfiguration,
     ):
@@ -909,6 +947,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
+            block_spec_mixin=block_spec_mixin,
             block_mixin=block_mixin,
             configuration_mixin=configuration_mixin,
         )

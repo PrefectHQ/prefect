@@ -9,8 +9,8 @@
 
   const emit = defineEmits(['intersection'])
 
-  const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
-    if (entry && entry.isIntersecting) {
+  const handleEmit = ([entry]: IntersectionObserverEntry[]): void => {
+    if (entry?.isIntersecting) {
       emit('intersection')
     }
   }
