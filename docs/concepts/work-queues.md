@@ -21,7 +21,7 @@ More specifically:
 - You create a work queue on the server. Work queues collect scheduled runs that match their configuration or filter criteria. 
 - You run an agent in the execution environment. Agents poll a specific work queue for new work, take scheduled work from the server, and deploy it for execution.
 
-To run orchestrated flows and deployments, you must configure at least one work queue and agent.
+To run orchestrated deployments, you must configure at least one work queue and agent.
 
 To configure a work queue and agent for orchestrated flows and deployments:
 
