@@ -25,8 +25,8 @@ ascii_name = r"""
 
 @agent_app.command()
 async def start(
-    queue_id: str = typer.Option(
-        None, help="A work queue ID for the agent to pull from."
+    work_queue_id: str = typer.Argument(
+        ..., help="A work queue ID for the agent to pull from."
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -41,7 +41,7 @@ async def start(
             console.print("Starting agent with ephemeral API...")
 
     running = True
-    async with OrionAgent(queue_id=queue_id) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id) as agent:
         if not hide_welcome:
             console.print(ascii_name)
             console.print("Agent started!")
