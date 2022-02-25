@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from typing_extensions import Literal
 
 from prefect.settings import (
+    PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_ORION_DATABASE_ECHO,
     PREFECT_ORION_DATABASE_TIMEOUT,
-    PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT,
 )
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
 
