@@ -82,7 +82,7 @@ Optional configuration parameters you can specify to filter work on the queue in
 For example, to create a work queue called `test_queue` for a specific deployment with ID `'156edead-fe6a-4783-a618-21d3a63e95c4'`, you would run this command: 
 
 ```bash
-$ prefect work-queue create -d '156edead-fe6a-4783-a618-21d3a63e95c4' danny_queue
+$ prefect work-queue create -d '156edead-fe6a-4783-a618-21d3a63e95c4' test_queue
 UUID('acffbcc8-ae65-4c83-a38a-96e2e5e5b441')
 ```
 
