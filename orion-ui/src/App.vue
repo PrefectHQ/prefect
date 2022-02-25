@@ -1,41 +1,58 @@
 <template>
-  <div class="application">
-    <NavBar class="nav" />
-    <FilterBar v-if="validFilterRoute" class="filter-bar" />
+  <div class="application" :class="classes.root">
+    <NavBar class="application__nav" />
+    <template v-if="filtersVisible">
+      <FilterBar class="application__filter-bar" :disabled="filtersDisabled" />
+    </template>
     <suspense>
-      <router-view class="router-view" />
+      <router-view class="application__router-view" />
     </suspense>
   </div>
 </template>
 
 <script lang="ts" setup>
-import NavBar from '@/components/ApplicationNav/NavBar.vue'
-import FilterBar from '@/components/FilterBar/FilterBar.vue'
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+  import { FilterBar } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
+  import { useRoute } from 'vue-router'
+  import NavBar from '@/components/NavBar.vue'
 
-const route = useRoute()
+  const route = useRoute()
 
-const invalidRoutes = ['/settings']
-
-const validFilterRoute = computed(() => {
-  return !invalidRoutes.includes(route.path)
-})
+  const filtersVisible = computed(() => route.meta.filters?.visible ?? false)
+  const filtersDisabled = computed(() => route.meta.filters?.disabled ?? false)
+  const classes = computed(() => {
+    return {
+      root: {
+        'application--with-filters': filtersVisible.value,
+      },
+    }
+  })
 </script>
 
 <style lang="scss">
-@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-
 .application {
-  background-color: $grey-10;
+  background-color: var(--grey-10);
   display: grid;
+  grid-template-areas: 'nav main';
+  grid-template-columns: 62px 1fr;
+  min-height: 100vh;
+
+  @media (max-width: 640px) {
+    grid-template-areas:
+      'nav'
+      'main';
+    grid-template-columns: unset;
+    grid-template-rows: 62px 1fr;
+    row-gap: 0;
+  }
+}
+
+.application--with-filters {
   grid-template-areas:
     'nav filter-bar'
     'nav main';
-  grid-template-columns: 62px 1fr;
   grid-template-rows: 62px 1fr;
   row-gap: 16px;
-  min-height: 100vh;
 
   @media (max-width: 640px) {
     grid-template-areas:
@@ -46,23 +63,23 @@ const validFilterRoute = computed(() => {
     grid-template-rows: 62px 62px 1fr;
     row-gap: 0;
   }
+}
 
-  .nav {
-    grid-area: nav;
+.application__router-view {
+  grid-area: main;
+  padding: 0 32px;
+  overflow: auto;
+
+  @media (max-width: 640px) {
+    padding: 0px 16px 32px 16px;
   }
+}
 
-  .filter-bar {
-    grid-area: filter-bar;
-  }
+.application__filter-bar {
+  grid-area: filter-bar;
+}
 
-  .router-view {
-    grid-area: main;
-    padding: 0 32px;
-    overflow: auto;
-
-    @media (max-width: 640px) {
-      padding: 0px 16px 32px 16px;
-    }
-  }
+.application__nav {
+  grid-area: nav;
 }
 </style>

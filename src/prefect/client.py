@@ -15,23 +15,31 @@ $ python -m asyncio
 ```
 </div>
 """
+import datetime
+import warnings
+from collections import defaultdict
+from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
 import httpx
 import pydantic
+from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
+import prefect.settings
+from prefect.blocks import storage
+from prefect.blocks.core import create_block_from_api_block
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
+from prefect.orion.schemas.core import QueueFilter, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -73,10 +81,83 @@ def inject_client(fn):
 
 def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
+
     return OrionClient(
-        PREFECT_API_URL.value_from(profile.settings) or create_app(profile.settings),
-        api_key=PREFECT_API_KEY.value_from(profile.settings),
+        PREFECT_API_URL.value() or create_app(profile.settings),
+        api_key=PREFECT_API_KEY.value(),
     )
+
+
+APP_LIFESPANS: Dict[int, LifespanManager] = {}
+APP_LIFESPANS_EXIT_EVENTS: Dict[int, List[anyio.Event]] = defaultdict(list)
+APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above lists
+
+
+@asynccontextmanager
+async def app_lifespan_context(app: FastAPI):
+    """
+    A context manager that calls startup/shutdown hooks for the given application.
+
+    Lifespan contexts are cached per application to avoid calling the lifespan hooks
+    more than once if the context is entered in nested code. A no-op context will be
+    returned if the context for the given application is already being managed.
+
+    This manager is robust to concurrent access within the event loop. For example,
+    if you have concurrent contexts for the same application, it is guaranteed that
+    startup hooks will be called before their context starts and shutdown hooks will
+    only be called after their context exits.
+
+    If you have two concurrrent contexts which are used as follows:
+
+    --> Context A is entered (manages a new lifespan)
+    -----> Context B is entered (uses the lifespan from A)
+    -----> Context A exits
+    -----> Context B exits
+
+    Context A will *block* until Context B exits to avoid calling shutdown hooks before
+    the context from B is complete. This means that if B depends on work that occurs
+    after the exit of A, a deadlock will occur.
+    """
+    # TODO: We could push contexts onto a stack so the last context that exits is
+    #       responsible for closing the lifespan regardless of whether or not it was the
+    #       one that entered the lifespan. This would make a deadlock impossible, but
+    #       consumers of the context would no longer know if they are the one that is
+    #       responsible for closing the lifespan or not.
+
+    # The id is used instead of the hash so each application instance is managed independently
+    key = id(app)
+
+    async with APP_LIFESPANS_LOCK:
+        if key in APP_LIFESPANS:
+            context = asyncnullcontext()
+            yield_value = None
+            # Create an event to indicate when this dependent exits its context
+            exit_event = anyio.Event()
+            APP_LIFESPANS_EXIT_EVENTS[key].append(exit_event)
+        else:
+            yield_value = APP_LIFESPANS[key] = context = LifespanManager(app)
+            exit_event = None
+
+    async with context:
+        yield yield_value
+
+        # If this the root context that is managing the lifespan, remove the lifespan
+        # from the cache before exiting the context so the next request does not
+        # get a lifespan that is shutting down.
+        if yield_value is not None:
+            async with APP_LIFESPANS_LOCK:
+                APP_LIFESPANS.pop(key)
+
+                # Do not exit the lifespan context until other all other contexts
+                # depending on this lifespan have exited
+                for exit_event in APP_LIFESPANS_EXIT_EVENTS[key]:
+                    await exit_event.wait()
+
+                APP_LIFESPANS_EXIT_EVENTS[key].clear()
+
+    # After exiting the context, set the exit event
+    if exit_event:
+        exit_event.set()
 
 
 class OrionClient:
@@ -84,8 +165,11 @@ class OrionClient:
     An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
 
     Args:
-        host: the Orion API URL
-        httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
+        api: the Orion API URL or FastAPI application to connect to
+        api_key: An optional API key for authentication.
+        api_version: The API version this client is compatible with.
+        httpx_settings: An optional dictionary of settings to pass to the underlying
+            `httpx.AsyncClient`
 
     Examples:
 
@@ -113,19 +197,28 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
+        # Context management
+        self._exit_stack = AsyncExitStack()
+        self._ephemeral_app: Optional[FastAPI] = None
+        # Only set if this client is responsible for the lifespan of the application
+        self._ephemeral_lifespan: Optional[LifespanManager] = None
+        self._closed = False
+        self._started = False
+
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
                 raise ValueError(
-                    "Invalid httpx settings: `app` cannot be set with `api`, "
-                    "`app` is only for use with ephemeral instances. Provide it as the "
-                    "`api` parameter instead."
+                    "Invalid httpx settings: `app` cannot be set when providing an "
+                    "api url. `app` is only for use with ephemeral instances. Provide "
+                    "it as the `api` parameter instead."
                 )
             httpx_settings.setdefault("base_url", api)
 
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
-            httpx_settings.setdefault("app", api)
+            self._ephemeral_app = api
+            httpx_settings.setdefault("app", self._ephemeral_app)
             httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
 
         else:
@@ -136,7 +229,16 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
         self.logger = get_logger("client")
 
-    async def post(self, route: str, **kwargs) -> httpx.Response:
+    @property
+    def api_url(self) -> httpx.URL:
+        """
+        Get the base URL for the API.
+        """
+        return self._client.base_url
+
+    async def post(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a POST request to the provided route.
 
@@ -151,13 +253,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.post(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def patch(self, route: str, **kwargs) -> httpx.Response:
+    async def patch(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a PATCH request to the provided route.
 
@@ -172,10 +276,15 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.patch(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
-    async def delete(self, route: str, **kwargs) -> httpx.Response:
+    async def delete(
+        self, route: str, raise_for_status: bool = True, **kwargs
+    ) -> httpx.Response:
         """
         Send a DELETE request to the provided route.
 
@@ -190,12 +299,16 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.delete(route, **kwargs)
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     async def get(
         self,
         route: str,
+        raise_for_status: bool = True,
         **kwargs,
     ) -> httpx.Response:
         """
@@ -212,13 +325,21 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.get(route, **kwargs)
-        # TODO: We may not _always_ want to raise bad status codes but for now we will
-        #       because response.json() will throw misleading errors and this will ease
-        #       development
-        response.raise_for_status()
+
+        if raise_for_status:
+            response.raise_for_status()
+
         return response
 
     # API methods ----------------------------------------------------------------------
+
+    async def api_healthcheck(self) -> bool:
+        try:
+            with anyio.fail_after(10):
+                await self.get("/health")
+                return True
+        except:
+            return False
 
     async def hello(self) -> httpx.Response:
         """
@@ -510,7 +631,6 @@ class OrionClient:
 
         Args:
             tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
             httpx.RequestError: if the concurrency limit was not created for any reason
@@ -583,6 +703,240 @@ class OrionClient:
                 raise e
 
         return True
+
+    async def create_work_queue(
+        self,
+        name: str,
+        tags: List[str] = None,
+        deployment_ids: List[UUID] = None,
+        flow_runner_types: List[str] = None,
+    ) -> UUID:
+        """
+        Create a work queue.
+
+        Args:
+            name: a unique name for the work queue
+            tags: an optional list of tags to filter on; only work scheduled with these tags
+                will be included in the queue
+            deployment_ids: an optional list of deployment IDs to filter on; only work scheduled from these deployments
+                will be included in the queue
+            flow_runner_types: an optional list of FlowRunner types to filter on; only work scheduled with these FlowRunners
+                will be included in the queue
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            UUID: The UUID of the newly created workflow
+        """
+        data = WorkQueueCreate(
+            name=name,
+            filter=QueueFilter(
+                tags=tags or None,
+                deployment_ids=deployment_ids or None,
+                flow_runner_types=flow_runner_types or None,
+            ),
+        ).dict(json_compatible=True)
+        response = await self.post("/work_queues/", json=data)
+        work_queue_id = response.json().get("id")
+        if not work_queue_id:
+            raise httpx.RequestError(str(response))
+        return UUID(work_queue_id)
+
+    async def update_work_queue(self, id: UUID, **kwargs) -> bool:
+        """
+        Update properties of a work queue.
+
+        Args:
+            id: the ID of the work queue to update
+            **kwargs: the fields to update
+
+        Raises:
+            ValueError: if no kwargs are provided
+            httpx.RequestError: if the request fails
+
+        Returns:
+            bool: a boolean specifying whether the operation was successful
+        """
+        if not kwargs:
+            raise ValueError("No fields provided to update.")
+
+        data = WorkQueueUpdate(**kwargs).dict(json_compatible=True, exclude_unset=True)
+        response = await self.patch(f"/work_queues/{id}", json=data)
+        if response.status_code == 204:
+            return True
+        return False
+
+    async def get_runs_in_work_queue(
+        self,
+        id: UUID,
+        limit: int = 10,
+        scheduled_before: datetime.datetime = None,
+    ) -> List[schemas.core.FlowRun]:
+        """
+        Read flow runs off a work queue.
+
+        Args:
+            id: the id of the work queue to read from
+            limit: a limit on the number of runs to return
+            scheduled_before: a timestamp; only runs scheduled before this time will be returned.
+                Defaults to now.
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
+        """
+        json_data = {"limit": limit}
+        if scheduled_before:
+            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+
+        response = await self.post(
+            f"/work_queues/{id}/get_runs",
+            json=json_data,
+        )
+        return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
+
+    async def read_work_queue(
+        self,
+        id: UUID,
+    ) -> schemas.core.WorkQueue:
+        """
+        Read a work queue.
+
+        Args:
+            id: the id of the work queue to load
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            WorkQueue: an instantiated WorkQueue object
+        """
+        response = await self.get(f"/work_queues/{id}")
+        return schemas.core.WorkQueue.parse_obj(response.json())
+
+    async def read_work_queues(
+        self,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[schemas.core.WorkQueue]:
+        """
+        Query Orion for work queues.
+
+        Args:
+            limit: a limit for the query
+            offset: an offset for the query
+
+        Returns:
+            a list of [WorkQueue model][prefect.orion.schemas.core.WorkQueue] representations
+                of the work queues
+        """
+        body = {
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self.post(f"/work_queues/filter", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
+
+    async def delete_work_queue_by_id(
+        self,
+        id: UUID,
+    ):
+        """
+        Delete a work queue by its ID.
+
+        Args:
+            id: the id of the work queue to delete
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            True if the work queue was deleted, False otherwise
+        """
+        try:
+            response = await self.delete(
+                f"/work_queues/{id}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
+
+        return True
+
+    async def create_block(
+        self,
+        block: prefect.blocks.core.Block,
+        block_spec_id: UUID = None,
+        name: str = None,
+    ) -> Optional[UUID]:
+        """
+        Create a block in Orion. This data is used to configure a corresponding
+        Block.
+        """
+
+        api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
+
+        try:
+            response = await self.post(
+                "/blocks/",
+                json=api_block.dict(json_compatible=True),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                return False
+            else:
+                raise e
+
+        return UUID(response.json().get("id"))
+
+    async def read_block(self, block_id: UUID):
+        """
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
+
+        Args:
+            block_id (UUID): the block id
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.get(f"/blocks/{block_id}")
+        return create_block_from_api_block(response.json())
+
+    async def read_block_by_name(
+        self,
+        name: str,
+        block_spec_name: str,
+        block_spec_version: str,
+    ):
+        """
+        Read the block with the specified name that corresponds to a
+        specific block spec name and version.
+
+        Args:
+            name (str): The block name.
+            block_spec_name (str): the block spec name
+            block_spec_version (str): the block spec version. If not provided,
+                the most recent matching version will be returned.
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.get(
+            f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
+        )
+        return create_block_from_api_block(response.json())
 
     async def create_deployment(
         self,
@@ -780,32 +1134,51 @@ class OrionClient:
             data: the data to persist
 
         Returns:
-            orion data document pointing to persisted data
+            Orion data document pointing to persisted data.
         """
-        response = await self.post("/data/persist", content=data)
-        orion_doc = DataDocument.parse_obj(response.json())
-        return orion_doc
+
+        # get default storage block
+        default_block_response = await self.post("/blocks/get_default_storage_block")
+        if (
+            default_block_response.status_code != 200
+            or not default_block_response.json()
+        ):
+            warnings.warn(
+                "No default storage has been set on the server. "
+                "Using temporary local storage for results."
+            )
+            block = storage.TempStorageBlock()
+        else:
+            block = create_block_from_api_block(default_block_response.json())
+
+        storage_token = await block.write(data)
+        storage_datadoc = DataDocument.encode(
+            encoding="blockstorage",
+            data={"data": storage_token, "block_id": block._block_id},
+        )
+        return storage_datadoc
 
     async def retrieve_data(
         self,
-        orion_datadoc: DataDocument,
+        data_document: DataDocument,
     ) -> bytes:
         """
-        Exchange an orion data document for the data previously persisted.
+        Exchange a storage data document for the data previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            data_document: The data document used to store data.
 
         Returns:
-            the persisted data in bytes
+            The persisted data in bytes.
         """
-        if orion_datadoc.has_cached_data():
-            return orion_datadoc.decode()
-
-        response = await self.post(
-            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
-        )
-        return response.content
+        block_document = data_document.decode()
+        embedded_datadoc = block_document["data"]
+        block_id = block_document["block_id"]
+        if block_id is not None:
+            storage_block = await self.read_block(block_id)
+        else:
+            storage_block = storage.TempStorageBlock()
+        return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
         self, obj: Any, encoder: str = "cloudpickle"
@@ -815,25 +1188,25 @@ class OrionClient:
 
         Args:
             obj: the object to persist
-            encoder: an optional encoder for data document
+            encoder: An optional encoder for the data document.
 
         Returns:
-            orion data document pointing to persisted data
+            Data document pointing to persisted data.
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return await self.persist_data(datadoc.json().encode())
 
-    async def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
+    async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
         """
-        Exchange an orion data document for the object previously persisted.
+        Exchange a data document for the object previously persisted.
 
         Args:
-            orion_datadoc: the orion data document to retrieve
+            storage_datadoc: The storage data document to retrieve.
 
         Returns:
             the persisted object
         """
-        datadoc = DataDocument.parse_raw(await self.retrieve_data(orion_datadoc))
+        datadoc = DataDocument.parse_raw(await self.retrieve_data(storage_datadoc))
         return datadoc.decode()
 
     async def set_flow_run_state(
@@ -1105,7 +1478,7 @@ class OrionClient:
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
             if server_state.data:
-                if server_state.data.encoding == "orion":
+                if server_state.data.encoding == "blockstorage":
                     datadoc = DataDocument.parse_raw(
                         await self.retrieve_data(server_state.data)
                     )
@@ -1233,7 +1606,7 @@ class OrionClient:
                     return data
 
             if isinstance(data, DataDocument):
-                if data.encoding == "orion":
+                if data.encoding == "blockstorage":
                     data = await self.retrieve_data(data)
                 else:
                     data = data.decode()
@@ -1244,11 +1617,51 @@ class OrionClient:
         return await resolve_inner(datadoc)
 
     async def __aenter__(self):
-        await self._client.__aenter__()
+        """
+        Start the client.
+
+        If the client is already started, entering and exiting this context will have
+        no effect.
+
+        If the client is already closed, this will raise an exception. Use a new client
+        instance instead.
+        """
+        if self._closed:
+            # httpx.AsyncClient does not allow reuse so we will not either.
+            raise RuntimeError(
+                "The client cannot be started again after closing. "
+                "Retrieve a new client with `get_client()` instead."
+            )
+
+        if self._started:
+            # httpx.AsyncClient does not allow reentrancy so we will not either.
+            raise RuntimeError("The client cannot be started more than once.")
+
+        await self._exit_stack.__aenter__()
+
+        # Enter a lifespan context if using an ephemeral application.
+        # See https://github.com/encode/httpx/issues/350
+        if self._ephemeral_app:
+            self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
+                app_lifespan_context(self._ephemeral_app)
+            )
+
+        # Enter the httpx client's context
+        await self._exit_stack.enter_async_context(self._client)
+
+        self._started = True
+
         return self
 
     async def __aexit__(self, *exc_info):
-        return await self._client.__aexit__(*exc_info)
+        """
+        Shutdown the client.
+
+        If the client has been started multiple times, this will have no effect until
+        all of the contexts have been exited.
+        """
+        self._closed = True
+        return await self._exit_stack.aclose()
 
     def __enter__(self):
         raise RuntimeError(

@@ -9,7 +9,7 @@
 <script lang="ts" setup>
   import { computed, PropType } from 'vue'
   import { useRouter } from 'vue-router'
-  import TabSet from './TabSet.vue'
+  import TabSet from '@/components/TabSet.vue'
 
   type Route = {
     name: string,
@@ -25,7 +25,7 @@
 
   const props = defineProps({
     tabs: {
-      type: Array as PropType<Tab[]>,
+      type: Array as PropType<Readonly<Tab[]>>,
       required: true,
       validator:(value: Tab[]) => value.length > 0,
     },

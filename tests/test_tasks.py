@@ -3,10 +3,12 @@ import inspect
 from itertools import repeat
 from unittest.mock import MagicMock
 
+import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
 from prefect.exceptions import ReservedArgumentError
+from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -189,6 +191,134 @@ class TestTaskCall:
         assert task_state.result() == (1, 2, dict(x=3, y=4, z=5))
 
 
+class TestTaskFutures:
+    def test_tasks_return_futures(self):
+        @task
+        def foo():
+            return 1
+
+        @flow
+        def my_flow():
+            future = foo()
+            assert isinstance(future, PrefectFuture)
+
+        my_flow().result()
+
+    async def test_wait_gets_final_state(self, orion_client):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait()
+
+            assert state.is_completed()
+
+            # TODO: The ids are not equal here, why?
+            # task_run = await orion_client.read_task_run(state.state_details.task_run_id)
+            # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
+
+        (await my_flow()).result()
+
+    async def test_wait_returns_none_with_timeout_exceeded(self):
+        @task
+        async def foo():
+            await anyio.sleep(0.1)
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait(0.01)
+            assert state is None
+
+        (await my_flow()).result()
+
+    async def test_wait_returns_final_state_with_timeout_not_exceeded(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait(1)
+            assert state is not None
+            assert state.is_completed()
+
+        (await my_flow()).result()
+
+    async def test_result_raises_with_timeout_exceeded(self):
+        @task
+        async def foo():
+            await anyio.sleep(0.1)
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            with pytest.raises(TimeoutError):
+                await future.result(timeout=0.01)
+
+        (await my_flow()).result()
+
+    async def test_result_returns_data_with_timeout_not_exceeded(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result(timeout=1)
+            assert result == 1
+
+        (await my_flow()).result()
+
+    async def test_result_returns_data_without_timeout(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result()
+            assert result == 1
+
+        (await my_flow()).result()
+
+    async def test_result_raises_exception_from_task(self):
+        @task
+        async def foo():
+            raise ValueError("Test")
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            with pytest.raises(ValueError, match="Test"):
+                await future.result()
+            return True  # Ignore failed tasks
+
+        (await my_flow()).result()
+
+    async def test_result_returns_exception_from_task_if_asked(self):
+        @task
+        async def foo():
+            raise ValueError("Test")
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result(raise_on_failure=False)
+            assert exceptions_equal(result, ValueError("Test"))
+            return True  # Ignore failed tasks
+
+        (await my_flow()).result()
+
+
 class TestTaskRetries:
     """
     Note, task retry delays are tested in `test_engine` because we need to mock the
@@ -315,13 +445,13 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo(1)
-            calls = repeat(foo(1), 5)
+            foo(1).wait()  # populate the cache
+            calls = [foo(i) for i in range(5)]
             return [call.wait() for call in calls]
 
         flow_state = bar()
         states = flow_state.result()
-        assert all(state.name == "Cached" for state in states)
+        assert all(state.name == "Cached" for state in states), states
 
     def test_cache_hits_between_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")

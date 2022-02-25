@@ -39,7 +39,7 @@
 
 <script lang="ts" setup>
   import { computed, ObjectEmitsOptions } from 'vue'
-  import PopupTitle from './PopupTitle.vue'
+  import PopupTitle from '@/components/PopupTitle.vue'
 
   const props = defineProps<{
     icon?: string,
@@ -69,7 +69,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
   .popup-wrapper {
     max-width: 600px;
     width: 100%;

@@ -2,11 +2,11 @@ import { TimeFrame } from '@/typings/global'
 import { addTimeUnitValue, subtractTimeUnitValue } from '@/utilities/dates'
 
 function isValidTimeFrame(
-  timeFrame: TimeFrame | undefined
+  timeFrame: TimeFrame | undefined,
 ): timeFrame is TimeFrame {
   return (
     timeFrame?.timestamp != undefined ||
-    (timeFrame?.value != undefined && timeFrame.unit != undefined)
+    timeFrame?.value != undefined && timeFrame.unit != undefined
   )
 }
 
