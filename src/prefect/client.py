@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
+import datetime
 import httpx
 import pydantic
 from fastapi import FastAPI
@@ -674,6 +675,37 @@ class OrionClient:
         if response.status_code == 204:
             return True
         return False
+
+    async def get_runs_in_work_queue(
+        self,
+        id: str,
+        limit: int = 10,
+        scheduled_before: datetime.datetime = None,
+    ) -> List[schemas.core.FlowRun]:
+        """
+        Read flow runs off a work queue.
+
+        Args:
+            id: the id of the work queue to read from
+            limit: a limit on the number of runs to return
+            scheduled_before: a timestamp; only runs scheduled before this time will be returned.
+                Defaults to now.
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
+        """
+        json_data = {"limit": limit}
+        if scheduled_before:
+            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+
+        response = await self.post(
+            f"/work_queues/{id}/get_runs",
+            json=json_data,
+        )
+        return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def read_work_queue(
         self,

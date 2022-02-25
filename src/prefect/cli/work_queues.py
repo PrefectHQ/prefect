@@ -169,6 +169,41 @@ async def ls():
 
 
 @work_app.command()
+async def preview(id: str = typer.Argument(..., help="The id of the work queue")):
+    """
+    Preview a work queue.
+    """
+    table = Table()
+    table.add_column(
+        "Scheduled Start Time", justify="left", style="yellow", no_wrap=True
+    )
+    table.add_column("Run ID", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("Deployment ID", style="blue", no_wrap=True)
+
+    window = pendulum.now("utc").add(days=1)
+    async with get_client() as client:
+        runs = await client.get_runs_in_work_queue(
+            id, limit=10, scheduled_before=window
+        )
+
+    now = pendulum.now("utc")
+    sort_by_created_key = lambda r: now - r.created
+
+    for run in sorted(runs, key=sort_by_created_key):
+        table.add_row(
+            f"[red]{run.expected_start_time}"
+            if run.expected_start_time < now
+            else f"[yellow]{run.expected_start_time}",
+            str(run.id),
+            run.name,
+            str(run.deployment_id),
+        )
+
+    console.print(table)
+
+
+@work_app.command()
 async def delete(id: str):
     """
     Delete a work queue by ID.
