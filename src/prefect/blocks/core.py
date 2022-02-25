@@ -24,7 +24,9 @@ def register_block(name: str = None, version: str = None):
     """
 
     def wrapper(block):
-        registered_name = name or block._block_spec_name or block.__name__
+        registered_name = name or block._block_spec_name
+        if not registered_name:
+            raise ValueError("No _block_spec_name set and no name provided.")
         registered_version = version or block._block_spec_version
         if not registered_version:
             raise ValueError("No _block_spec_version set and no version provided.")
