@@ -40,7 +40,12 @@ from prefect.futures import (
     resolve_futures_to_states,
 )
 from prefect.logging.handlers import OrionHandler
-from prefect.logging.loggers import flow_run_logger, get_logger, get_run_logger
+from prefect.logging.loggers import (
+    flow_run_logger,
+    get_logger,
+    get_run_logger,
+    task_run_logger,
+)
 from prefect.orion.schemas import core
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
@@ -377,6 +382,28 @@ async def create_and_begin_subflow_run(
     return terminal_state
 
 
+async def wait_for_task_runs_and_detect_crashes(
+    task_run_futures: Iterable[PrefectFuture], client: OrionClient
+) -> None:
+    for future in task_run_futures:
+        logger = task_run_logger(future.task_run)
+        result = await future._wait()
+        if isinstance(result, BaseException):
+            logger.error(
+                f"Task run {future.task_run.name!r} crashed with unexpected exception.",
+                exc_info=result,
+            )
+            state = Failed(
+                name="Crashed",
+                message="Task run encountered an exception.",
+                data=DataDocument.encode("cloudpickle", result),
+            )
+            # Task run encountered unexpected exception
+            await client.set_task_run_state(
+                task_run_id=future.task_run.id, state=state, force=True
+            )
+
+
 @inject_client
 async def orchestrate_flow_run(
     flow: Flow,
@@ -443,6 +470,10 @@ async def orchestrate_flow_run(
                     result = await flow_call()
                 else:
                     result = await run_sync_in_worker_thread(flow_call)
+
+            await wait_for_task_runs_and_detect_crashes(
+                flow_run_context.task_run_futures, client=client
+            )
 
     except TimeoutError as exc:
         state = Failed(
@@ -624,12 +655,15 @@ async def enter_task_run_engine_from_worker(
                 task=task,
                 client=client,
             ):
-                return await orchestrate_task_run(
-                    task=task,
-                    task_run=task_run,
-                    parameters=parameters,
-                    wait_for=wait_for,
-                )
+                try:
+                    return await orchestrate_task_run(
+                        task=task,
+                        task_run=task_run,
+                        parameters=parameters,
+                        wait_for=wait_for,
+                    )
+                except Exception as exc:
+                    return exc
 
 
 async def orchestrate_task_run(
