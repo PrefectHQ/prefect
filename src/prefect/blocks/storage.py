@@ -32,6 +32,8 @@ class StorageBlock(Block, Generic[T]):
     The type `T` should be JSON serializable.
     """
 
+    _block_spec_type: Optional[str] = "STORAGE"
+
     @abstractmethod
     async def write(self, data: bytes) -> T:
         """
@@ -46,7 +48,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("s3-storage-block", version="1")
+@register_block("S3 Storage", version="1.0")
 class S3StorageBlock(StorageBlock):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
@@ -88,7 +90,7 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("temp-storage-block", version="1")
+@register_block("Temporary Local Storage", version="1.0")
 class TempStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -113,7 +115,7 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("local-storage-block", version="1")
+@register_block("Local Storage", version="1.0")
 class LocalStorageBlock(StorageBlock):
     storage_path: Optional[str]
 
@@ -144,7 +146,7 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("googlecloud-storage-block", version="1")
+@register_block("Google Cloud Storage", version="1.0")
 class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
     project: Optional[str]
@@ -175,7 +177,7 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("azureblob-storage-block", version="1")
+@register_block("Azure Blob Storage", version="1.0")
 class AzureBlobStorageBlock(StorageBlock):
     container: str
     connection_string: str
@@ -203,7 +205,7 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("kv-server-storage-block", version="1.0")
+@register_block("KV Server Storage", version="1.0")
 class KVServerStorageBlock(StorageBlock):
     """
     A storage block that works with generic KV APIs.
