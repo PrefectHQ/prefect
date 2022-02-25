@@ -15,12 +15,12 @@ $ python -m asyncio
 ```
 </div>
 """
+import datetime
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
-import datetime
 import httpx
 import pydantic
 from fastapi import FastAPI
