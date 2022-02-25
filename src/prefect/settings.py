@@ -285,13 +285,6 @@ PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     interactions made by the API. Defaults to `1`.""",
 )
 
-PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(
-    bool,
-    default=False,
-    description="""If `True`, Orion services are started as part of the
-    webserver and run in the same event loop. Defaults to `False`.""",
-)
-
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
@@ -387,6 +380,14 @@ PREFECT_ORION_TELEMETRY_ENABLED = Setting(
     bool,
     default=True,
     description="""Whether or not to send anonymous telemetry stats to Prefect.""",
+)
+
+PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
+    bool, default=False, description="Whether or not to start the schedule service"
+)
+
+PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
+    bool, default=False, description="Whether or not to start the late runs service"
 )
 
 # Collect all defined settings
