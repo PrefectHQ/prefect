@@ -149,9 +149,9 @@ class CubeJSClient:
                     raise FAIL(
                         message=f"Cube.js load API failed! Error is: {response.reason}"
                     )
-
+        msg = f"Cube.js load API took longer than {self.max_wait_time} seconds to provide a response."
         raise FAIL(
-            message=f"Cube.js load API took longer than {self.max_wait_time} seconds to provide a response."
+            message=msg
         )
 
     def get_data(
