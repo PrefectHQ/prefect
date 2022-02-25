@@ -19,6 +19,7 @@ dmypy.json
 # IPython
 profile_default/
 ipython_config.py
+*.ipynb_checkpoints/*
 
 # Environments
 .python-version
