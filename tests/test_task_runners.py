@@ -66,7 +66,7 @@ def machine_ray_instance():
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_existing_cluster(
-    machine_ray_instance, use_hosted_orion, hosted_orion_api
+    machine_ray_instance, use_hosted_orion, hosted_orion_api, set_up_kv_storage
 ):
     """
     Generate a ray task runner that's connected to a ray instance running in a separate
@@ -90,7 +90,7 @@ def ray_task_runner_with_existing_cluster(
 
 @pytest.fixture(scope="module")
 @pytest.mark.service("ray")
-def inprocess_ray_cluster():
+def inprocess_ray_cluster(set_up_kv_storage):
     """
     Starts a ray cluster in-process
     """
@@ -108,7 +108,7 @@ def inprocess_ray_cluster():
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_inprocess_cluster(
-    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api
+    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api, set_up_kv_storage
 ):
     """
     Generate a ray task runner that's connected to an in-process cluster.
@@ -176,7 +176,7 @@ def default_concurrent_task_runner():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def default_ray_task_runner():
+def default_ray_task_runner(set_up_kv_storage):
     pytest.importorskip("ray", reason=RAY_MISSING_REASON)
 
     yield RayTaskRunner()
@@ -257,11 +257,7 @@ async def test_task_runner_cannot_be_started_while_running():
 
 
 @parameterize_with_all_task_runners
-async def test_flow_run_by_task_runner(
-    task_runner,
-    # this test appears to require global storage for ray
-    set_up_kv_storage,
-):
+async def test_flow_run_by_task_runner(task_runner):
     @task
     def task_a():
         return "a"
@@ -291,11 +287,7 @@ async def test_flow_run_by_task_runner(
 
 
 @parameterize_with_all_task_runners
-def test_failing_flow_run_by_task_runner(
-    task_runner,
-    # this test appears to require global storage for ray
-    set_up_kv_storage,
-):
+def test_failing_flow_run_by_task_runner(task_runner):
     @task
     def task_a():
         raise RuntimeError("This task fails!")
