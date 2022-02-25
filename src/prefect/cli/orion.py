@@ -131,7 +131,8 @@ async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
+    scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
+    telemetry: bool = True,
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
