@@ -73,7 +73,9 @@ def machine_ray_instance():
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_existing_cluster(
-    machine_ray_instance, use_hosted_orion, hosted_orion_api, 
+    machine_ray_instance,
+    use_hosted_orion,
+    hosted_orion_api,
 ):
     """
     Generate a ray task runner that's connected to a ray instance running in a separate
@@ -115,7 +117,9 @@ def inprocess_ray_cluster():
 @pytest.fixture
 @pytest.mark.service("ray")
 def ray_task_runner_with_inprocess_cluster(
-    inprocess_ray_cluster, use_hosted_orion, hosted_orion_api, 
+    inprocess_ray_cluster,
+    use_hosted_orion,
+    hosted_orion_api,
 ):
     """
     Generate a ray task runner that's connected to an in-process cluster.
@@ -498,9 +502,7 @@ class TestTaskRunnerParallelism:
 
     @parameterize_with_parallel_task_runners
     async def test_async_tasks_run_concurrently_with_parallel_task_runners(
-        self,
-        task_runner,
-        tmp_file
+        self, task_runner, tmp_file
     ):
         @task
         async def foo():
