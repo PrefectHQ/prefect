@@ -3,6 +3,7 @@ Command line interface for working with agent services
 """
 import anyio
 import typer
+from uuid import UUID
 
 from prefect.agent import OrionAgent
 from prefect.cli.base import PrefectTyper, SettingsOption, app, console
@@ -25,7 +26,7 @@ ascii_name = r"""
 
 @agent_app.command()
 async def start(
-    work_queue_id: str = typer.Argument(
+    work_queue_id: UUID = typer.Argument(
         ..., help="A work queue ID for the agent to pull from."
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),

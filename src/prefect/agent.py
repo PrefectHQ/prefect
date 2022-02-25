@@ -3,6 +3,7 @@ The agent is responsible for checking for flow runs that are ready to run and st
 their execution.
 """
 from typing import List, Optional
+from uuid import UUID
 
 import anyio
 import anyio.to_process
@@ -22,7 +23,7 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
-    def __init__(self, work_queue_id: str, prefetch_seconds: int = None) -> None:
+    def __init__(self, work_queue_id: UUID, prefetch_seconds: int = None) -> None:
         self.work_queue_id = work_queue_id
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()

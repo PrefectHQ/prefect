@@ -708,7 +708,7 @@ class OrionClient:
         self,
         name: str,
         tags: List[str] = None,
-        deployment_ids: List[str] = None,
+        deployment_ids: List[UUID] = None,
         flow_runner_types: List[str] = None,
     ) -> UUID:
         """
@@ -743,7 +743,7 @@ class OrionClient:
             raise httpx.RequestError(str(response))
         return UUID(work_queue_id)
 
-    async def update_work_queue(self, id: str, **kwargs) -> bool:
+    async def update_work_queue(self, id: UUID, **kwargs) -> bool:
         """
         Update properties of a work queue.
 
@@ -769,7 +769,7 @@ class OrionClient:
 
     async def get_runs_in_work_queue(
         self,
-        id: str,
+        id: UUID,
         limit: int = 10,
         scheduled_before: datetime.datetime = None,
     ) -> List[schemas.core.FlowRun]:
@@ -800,7 +800,7 @@ class OrionClient:
 
     async def read_work_queue(
         self,
-        id: str,
+        id: UUID,
     ) -> schemas.core.WorkQueue:
         """
         Read a work queue.
@@ -842,7 +842,7 @@ class OrionClient:
 
     async def delete_work_queue_by_id(
         self,
-        id: str,
+        id: UUID,
     ):
         """
         Delete a work queue by its ID.
