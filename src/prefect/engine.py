@@ -382,16 +382,20 @@ async def wait_for_task_runs_and_detect_crashes(
 ) -> None:
     for future in task_run_futures:
         logger = task_run_logger(future.task_run)
-        result = await future._wait()
-        if isinstance(result, BaseException):
-            logger.error(
-                f"Task run {future.task_run.name!r} crashed with unexpected exception.",
-                exc_info=result,
-            )
+        state = await future._wait()
+
+        # Something went really wrong and its not even a state type
+        if isinstance(state, BaseException):
             state = Failed(
                 name="Crashed",
-                message="Task run encountered an exception.",
-                data=DataDocument.encode("cloudpickle", result),
+                message="Task run crashed with an unexpected exception.",
+                data=DataDocument.encode("cloudpickle", state),
+            )
+
+        if state.name == "Crashed":  # TODO: Real crashed state should be added
+            logger.error(
+                f"Task run {future.task_run.name!r} crashed with unexpected exception.",
+                exc_info=state,
             )
             # Task run encountered unexpected exception
             await client.set_task_run_state(
@@ -663,7 +667,11 @@ async def enter_task_run_engine_from_worker(
                         wait_for=wait_for,
                     )
                 except Exception as exc:
-                    return exc
+                    return Failed(
+                        name="Crashed",
+                        message="Task run crashed with an unexpected exception.",
+                        data=DataDocument.encode("cloudpickle", exc),
+                    )
 
 
 async def orchestrate_task_run(
