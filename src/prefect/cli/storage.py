@@ -4,9 +4,12 @@ Command line interface for managing storage settings
 import json
 import textwrap
 from typing import Any, Callable, Coroutine, Dict, Tuple
+from uuid import UUID
 
 import pendulum
 import typer
+from fastapi import status
+from httpx import HTTPStatusError
 from rich.pretty import Pretty
 
 from prefect.blocks.core import get_block_class
@@ -33,13 +36,6 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 
 @storage_config_app.command()
 async def configure():
-
-    # valid_storageblocks = storage_configuration_procedures.keys()
-    # if storage_type not in valid_storageblocks:
-    #     exit_with_error(
-    #         f"Invalid storage type: pick one of {list(valid_storageblocks)}"
-    #     )
-
     async with get_client() as client:
         specs = await client.read_block_specs("STORAGE")
 
@@ -69,12 +65,14 @@ async def configure():
     except:
         exit_with_error(f"Invalid selection {selection!r}")
 
-    console.print(f"You've selected {spec.name}. Let's configure it...")
+    property_specs = spec.fields["properties"]
+    console.print(
+        f"You've selected {spec.name}. It has {len(property_specs)} option(s). "
+    )
 
     properties = {}
-    required_properties = spec.fields.get("required", spec.fields["properties"].keys())
-    for property, property_spec in spec.fields["properties"].items():
-        print(spec.fields)
+    required_properties = spec.fields.get("required", property_specs.keys())
+    for property, property_spec in property_specs.items():
         required = property in required_properties
         optional = " (optional)" if not required else ""
 
@@ -83,12 +81,12 @@ async def configure():
             #       types in storage blocks
             continue
 
-        # TODO: Some fields may have a default we can display
+        # TODO: Some fields may have a default we can use instead
         not_provided_value = JSON_TO_PY_EMPTY[property_spec["type"]]
         default = not_provided_value if not required else None
 
         value = typer.prompt(
-            f"{property_spec['title']}{optional}",
+            f"{property_spec['title'].upper()}{optional}",
             type=JSON_TO_PY_TYPES[property_spec["type"]],
             default=default,
             show_default=default
@@ -109,34 +107,47 @@ async def configure():
         exit_with_error(f"Validation failed! {str(exc)}")
 
     console.print("Registering storage with server...")
+    block_id = None
+    while not block_id:
+        async with get_client() as client:
+            try:
+                block_id = await client.create_block(
+                    block=block, block_spec_id=spec.id, name=name
+                )
+            except HTTPStatusError as exc:
+                if exc.response.status_code == status.HTTP_409_CONFLICT:
+                    console.print(f"[red]The name {name!r} is already taken.[/]")
+                    name = typer.prompt(
+                        "Choose a new name for this storage configuration"
+                    )
+                else:
+                    raise
+
+    console.print(
+        f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
+    )
+
     async with get_client() as client:
-        block_id = await client.create_block(
-            block=block, block_spec_id=spec.id, name=name
-        )
+        if not await client.get_default_storage_block():
+            set_default = typer.confirm(
+                "You do not have a default storage you like to set this as your default storage?",
+                default=True,
+            )
 
-    console.print(f"Registered {name!r}! Got identifier '{block_id}'.")
+            if set_default:
+                await client.set_default_storage_block(block_id)
+                exit_with_success(f"Set default storage to {name!r}.")
 
-    set_default = typer.confirm("Would you like to set this as your default storage?")
+            else:
+                console.print(
+                    "Default left unchanged. Use `prefect storage set-default "
+                    f"{block_id}` to set this as the default storage at a later time."
+                )
 
-    if not set_default:
-        console.print(
-            f"Default left unchanged. Use `prefect storage set-default {block_id}` to change it later."
-        )
 
-    # else:
-    #     async with get_client() as client:
-    #         await client.
-    #     await client.read_block(
-    #         name="ORION-CONFIG-STORAGE",
-    #         new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
-    #         raise_for_status=False,
-    #     )
-
-    #     block_ref, data = await storage_configuration_procedures[storage_type]()
-
-    # async with get_client() as client:
-    #     await client.create_block(
-    #         block=
-    #     )
-
-    #     exit_with_success("Successfully configured Orion storage location!")
+@storage_config_app.command()
+async def set_default(storage_block_id: UUID):
+    """Update the default storage"""
+    async with get_client() as client:
+        await client.set_default_storage_block(storage_block_id)
+    exit_with_success("Updated default storage!")
