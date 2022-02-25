@@ -195,7 +195,7 @@ def api_flow(url):
 ```
 
 As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  We can then
-call our flow function &mdash; now called `api_flow()` &mdash; just as before and see the printed output. Prefect manages all the relevant intermediate state.
+call our flow function &mdash; now called `api_flow()` &mdash; just as before and see the printed output. Prefect manages all the relevant intermediate states.
 
 <div class="termy">
 ```
