@@ -33,57 +33,87 @@ async def test_registering_and_getting_blocks():
         get_block_spec("is anyone home", "2.0")
 
 
+class TestInvalidRegistration:
+    async def test_everything_missing(self):
+        class MyBlock(Block):
+            pass
+
+        with pytest.raises(
+            ValueError, match="(No _block_spec_name set and no name provided)"
+        ):
+            register_block()(MyBlock)
+
+    async def test_missing_name(self):
+        class MyBlock(Block):
+            pass
+
+        with pytest.raises(
+            ValueError, match="(No _block_spec_name set and no name provided)"
+        ):
+            register_block(version="1.0")(MyBlock)
+
+    async def test_missing_version(self):
+        class MyBlock(Block):
+            pass
+
+        with pytest.raises(
+            ValueError, match="(No _block_spec_version set and no version provided)"
+        ):
+            register_block(name="my-block")(MyBlock)
+
+    async def test_missing_version(self):
+        class MyBlock(Block):
+            _block_spec_name = "my-block"
+            pass
+
+        with pytest.raises(
+            ValueError, match="(No _block_spec_version set and no version provided)"
+        ):
+            register_block()(MyBlock)
+
+
 class TestAPICompatibility:
     class MyBlock(Block):
         x: str
         y: int = 1
 
-    @register_block(version="2.0")
+    @register_block("My Registered Block", version="2.0")
     class MyRegisteredBlock(Block):
         x: str
         y: int = 1
 
-    @register_block("another-block-spec-name", version="3.0")
+    @register_block()
     class MyOtherRegisteredBlock(Block):
+        _block_spec_name: str = "my-other-registered-block"
+        _block_spec_version: str = "3.0"
         x: str
         y: int = 1
-
-    @register_block()
-    class MyThirdRegisteredBlock(Block):
-        _block_spec_name: str = "my-third-registered-block"
-        _block_spec_version: str = "4.0"
-        x: str
 
     def test_registration_fills_private_attributes(self):
         assert self.MyBlock._block_spec_name is None
         assert self.MyBlock._block_spec_version is None
-        assert self.MyRegisteredBlock._block_spec_name == "MyRegisteredBlock"
+        assert self.MyRegisteredBlock._block_spec_name == "My Registered Block"
         assert self.MyRegisteredBlock._block_spec_version == "2.0"
-        assert self.MyOtherRegisteredBlock._block_spec_name == "another-block-spec-name"
-        assert self.MyOtherRegisteredBlock._block_spec_version == "3.0"
         assert (
-            self.MyThirdRegisteredBlock._block_spec_name == "my-third-registered-block"
+            self.MyOtherRegisteredBlock._block_spec_name == "my-other-registered-block"
         )
-        assert self.MyThirdRegisteredBlock._block_spec_version == "4.0"
+        assert self.MyOtherRegisteredBlock._block_spec_version == "3.0"
 
     def test_registration_names_and_versions(self):
-        assert get_block_spec("MyRegisteredBlock", "2.0") is self.MyRegisteredBlock
+        assert get_block_spec("My Registered Block", "2.0") is self.MyRegisteredBlock
+
         assert (
-            get_block_spec("another-block-spec-name", "3.0")
+            get_block_spec("my-other-registered-block", "3.0")
             is self.MyOtherRegisteredBlock
-        )
-        assert (
-            get_block_spec("my-third-registered-block", "4.0")
-            is self.MyThirdRegisteredBlock
         )
 
     def test_create_api_block_spec(self):
         block_spec = self.MyRegisteredBlock.to_api_block_spec()
-        assert block_spec.name == "MyRegisteredBlock"
+        assert block_spec.name == "My Registered Block"
         assert block_spec.version == "2.0"
         assert block_spec.type is None
         assert block_spec.fields == {
-            "title": "MyRegisteredBlock",
+            "title": "My Registered Block",
             "type": "object",
             "properties": {
                 "x": {"title": "X", "type": "string"},
@@ -94,11 +124,11 @@ class TestAPICompatibility:
 
     def test_create_api_block_spec_with_different_registered_name(self):
         block_spec = self.MyOtherRegisteredBlock.to_api_block_spec()
-        assert block_spec.name == "another-block-spec-name"
+        assert block_spec.name == "my-other-registered-block"
         assert block_spec.version == "3.0"
         assert block_spec.type is None
         assert block_spec.fields == {
-            "title": "another-block-spec-name",
+            "title": "my-other-registered-block",
             "type": "object",
             "properties": {
                 "x": {"title": "X", "type": "string"},
