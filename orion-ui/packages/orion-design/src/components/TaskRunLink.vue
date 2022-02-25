@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { subscribe } from '@prefecthq/vue-compositions'
   import { computed, inject } from 'vue'
   import StateTypeIcon from '@/components/StateTypeIcon.vue'
   import { taskRunsApi, getTaskRunKey } from '@/services/TaskRunsApi'
@@ -22,7 +22,7 @@
     },
   })
 
-  const subscription = useSubscription(getTaskRun, [props.taskId])
+  const subscription = subscribe(getTaskRun, [props.taskId])
   const loaded = computed(() => subscription.response.value)
   const taskRunName = computed(() => subscription.response.value?.name)
   const taskRunStateType = computed(() => subscription.response.value?.stateType)
