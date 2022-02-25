@@ -255,7 +255,7 @@ async def begin_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    async with detect_crashes(flow_run=flow_run, client=client):
+    async with detect_flow_run_crashes(flow_run=flow_run, client=client):
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -352,7 +352,7 @@ async def create_and_begin_subflow_run(
             logger.error("Received invalid parameters", exc_info=True)
             return state
 
-    async with detect_crashes(flow_run=flow_run, client=client):
+    async with detect_flow_run_crashes(flow_run=flow_run, client=client):
         async with flow.task_runner.start() as task_runner:
             terminal_state = await orchestrate_flow_run(
                 flow,
@@ -792,7 +792,7 @@ async def orchestrate_task_run(
 
 
 @asynccontextmanager
-async def detect_crashes(flow_run: FlowRun, client: OrionClient):
+async def detect_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
