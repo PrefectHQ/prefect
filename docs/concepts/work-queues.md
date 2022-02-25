@@ -191,7 +191,7 @@ When using the `prefect work-queue` Prefect CLI command to configure a work queu
 
 Agent processes are lightweight polling services that get scheduled work from a [work queue](#work-queue-overview) and deploy the corresponding flow runs. 
 
-It is possible for multiple agent processes to be started for each work queue, each process sends a unique agent ID
+It is possible for multiple agent processes to be started for a single work queue, and each process sends a unique agent ID.
 
 ### Agent configuration
 
