@@ -108,18 +108,21 @@ async def update_work_queue(
         work_queue_id (str): a WorkQueue id
 
     Returns:
-        bool: whether or not the WorkQueue was deleted
+        bool: whether or not the WorkQueue was updated
     """
     if not isinstance(work_queue, schemas.actions.WorkQueueUpdate):
         raise ValueError(
             f"Expected parameter flow to have type schemas.actions.WorkQueueUpdate, got {type(work_queue)!r} instead"
         )
 
+    # exclude_unset=True allows us to only update values provided by
+    # the user, ignoring any defaults on the model
+    update_data = work_queue.dict(shallow=True, exclude_unset=True)
+
     update_stmt = (
-        sa.update(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
-        # exclude_unset=True allows us to only update values provided by
-        # the user, ignoring any defaults on the model
-        .values(**work_queue.dict(shallow=True, exclude_unset=True))
+        sa.update(db.WorkQueue)
+        .where(db.WorkQueue.id == work_queue_id)
+        .values(**update_data)
     )
     result = await session.execute(update_stmt)
     return result.rowcount > 0
