@@ -114,7 +114,7 @@ To view work queues with the Prefect CLI, you can:
 - Inspect (`inspect`) the details of a queue by ID
 - Preview (`preview`) scheduled work for a queue by ID
 
-`prefect work-queue ls` lists all configured work queues for the server or Prefect Cloud referenced by `PREFECT_API_HOST`.
+`prefect work-queue ls` lists all configured work queues for the server.
 
 ```bash
 $ prefect work-queue ls
