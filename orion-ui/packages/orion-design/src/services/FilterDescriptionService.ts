@@ -1,5 +1,4 @@
-/* eslint-disable default-case */
-import { Filter, FilterObject, FilterProperty } from '../types/filters'
+import { Filter, FilterObject, FilterProperty } from '@/types/filters'
 
 export class FilterDescriptionService {
   public static describe(filter: Filter): string {

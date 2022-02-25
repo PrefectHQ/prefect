@@ -71,15 +71,19 @@
   </ListItem>
 
   <Drawer v-model="parametersDrawerActive" show-overlay>
-    <template #title>{{ item.name }}</template>
-    <h3 class="font-weight-bold">Parameters</h3>
+    <template #title>
+      {{ item.name }}
+    </template>
+    <h3 class="font-weight-bold">
+      Parameters
+    </h3>
     <div>These are the inputs that are passed to runs of this Deployment.</div>
 
-    <hr class="mt-2 parameters-hr align-self-stretch" />
+    <hr class="mt-2 parameters-hr align-self-stretch">
 
     <m-input v-model="search" placeholder="Search...">
       <template #prepend>
-        <i class="pi pi-search-line"></i>
+        <i class="pi pi-search-line" />
       </template>
     </m-input>
 
@@ -89,7 +93,7 @@
       }}
     </div>
 
-    <hr class="mt-2 parameters-hr" />
+    <hr class="mt-2 parameters-hr">
 
     <div class="parameters-container pr-2 align-self-stretch">
       <div v-for="(parameter, i) in filteredParameters" :key="i">
@@ -117,105 +121,108 @@
         <hr
           v-if="i !== filteredParameters.length - 1"
           class="mb-2 parameters-hr"
-        />
+        >
       </div>
     </div>
   </Drawer>
 </template>
 
 <script lang="ts">
-import { Options, Vue, prop } from 'vue-class-component'
-import { secondsToString } from '@/util/util'
-import { Deployment } from '@/typings/objects'
-import { Api, Endpoints } from '@/plugins/api'
-import media from '@/utilities/media'
-import Drawer from '@/components/Global/Drawer/Drawer.vue'
-import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+  import { media } from '@prefecthq/orion-design/utilities'
+  import { Options, Vue, prop } from 'vue-class-component'
+  import Drawer from '@/components/Global/Drawer/Drawer.vue'
+  import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+  import { Api, Endpoints } from '@/plugins/api'
+  import { Deployment } from '@/typings/objects'
+  import { secondsToString } from '@/util/util'
 
-class Props {
-  item = prop<Deployment>({ required: true })
-}
+  class Props {
+    item = prop<Deployment>({ required: true })
+  }
 
-@Options({
-  components: { ListItem, Drawer },
-  watch: {
-    parametersDrawerActive() {
-      this.search = ''
+  @Options({
+    components: { ListItem, Drawer },
+    watch: {
+      parametersDrawerActive() {
+        this.search = ''
+      },
+      async scheduleActive(val) {
+        const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
+
+        Api.query({
+          endpoint: Endpoints[endpoint],
+          body: { id: this.item.id },
+        })
+      },
     },
-    async scheduleActive(val) {
-      const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
+  })
+  export default class ListItemDeployment extends Vue.with(Props) {
+    parametersDrawerActive: boolean = false
+    search: string = ''
+    scheduleActive: boolean = this.item.is_schedule_active
+    creatingRun: boolean = false
+    media = media
 
-      Api.query({
-        endpoint: Endpoints[endpoint],
-        body: { id: this.item.id }
+    async createRun(): Promise<void> {
+      this.creatingRun = true
+      const res = await Api.query({
+        endpoint: Endpoints.create_flow_run_from_deployment,
+        body: {
+          id: this.item.id,
+          state: {
+            type: 'SCHEDULED',
+            message: 'Quick run through the Orion UI.',
+          },
+        },
       })
+      this.$toast({
+        type: res.error ? 'error' : 'success',
+        message: res.error
+          ? `Error: ${res.error}`
+          : res.response.value?.name
+            ? `Run created: ${res.response.value?.name}`
+            : 'Run created',
+        timeout: 10000,
+      })
+      this.creatingRun = false
+    }
+
+    get location(): string {
+      return this.item.flow_data.blob || '--'
+    }
+
+    get parameters(): Record<string, any>[] {
+      return Object.entries(this.item.parameters).reduce(
+        (arr: Record<string, any>[], [key, value]) => [
+          ...arr,
+          { name: key, value: value, type: typeof value },
+        ],
+        [],
+      )
+    }
+
+    get schedule(): string {
+      if (!this.item.schedule) {
+        return '--'
+      }
+      if ('interval' in this.item.schedule) {
+        return secondsToString(this.item.schedule.interval, false)
+      }
+
+      // TODO: add parsing for cron and RR schedules
+      return '--'
+    }
+
+    get tags(): string[] {
+      return this.item.tags
+    }
+
+    get filteredParameters(): Record<string, any>[] {
+      return this.parameters.filter(
+        (p) => p.name.includes(this.search) || p.type.includes(this.search),
+      )
     }
   }
-})
-export default class ListItemDeployment extends Vue.with(Props) {
-  parametersDrawerActive: boolean = false
-  search: string = ''
-  scheduleActive: boolean = this.item.is_schedule_active
-  creatingRun: boolean = false
-  media = media
-
-  async createRun(): Promise<void> {
-    this.creatingRun = true
-    const res = await Api.query({
-      endpoint: Endpoints.create_flow_run_from_deployment,
-      body: {
-        id: this.item.id,
-        state: {
-          type: 'SCHEDULED',
-          message: 'Quick run through the Orion UI.'
-        }
-      }
-    })
-    this.$toast({
-      type: res.error ? 'error' : 'success',
-      message: res.error
-        ? `Error: ${res.error}`
-        : res.response.value?.name
-        ? `Run created: ${res.response.value?.name}`
-        : 'Run created',
-      timeout: 10000
-    })
-    this.creatingRun = false
-  }
-
-  get location(): string {
-    return this.item.flow_data.blob || '--'
-  }
-
-  get parameters(): { [key: string]: any }[] {
-    return Object.entries(this.item.parameters).reduce(
-      (arr: { [key: string]: any }[], [key, value]) => [
-        ...arr,
-        { name: key, value: value, type: typeof value }
-      ],
-      []
-    )
-  }
-
-  get schedule(): string {
-    if (!this.item.schedule) return '--'
-    if ('interval' in this.item.schedule)
-      return secondsToString(this.item.schedule.interval, false)
-
-    // TODO: add parsing for cron and RR schedules
-    return '--'
-  }
-
-  get tags(): string[] {
-    return this.item.tags
-  }
-
-  get filteredParameters(): { [key: string]: any }[] {
-    return this.parameters.filter(
-      (p) => p.name.includes(this.search) || p.type.includes(this.search)
-    )
-  }
-}
 </script>
 
 <style lang="scss" scoped>

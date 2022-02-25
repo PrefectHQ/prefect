@@ -1,20 +1,20 @@
 /* eslint-disable import/no-duplicates */
-import {
-  FlowFilter as FlowFilterQuery,
-  DeploymentFilter as DeploymentFilterQuery,
-  FlowRunFilter as FlowRunFilterQuery,
-  TaskRunFilter as TaskRunFilterQuery
-} from '@/typings/filters'
 import addDays from 'date-fns/addDays'
 import addHours from 'date-fns/addHours'
 import addMonths from 'date-fns/addMonths'
 import addWeeks from 'date-fns/addWeeks'
 import startOfToday from 'date-fns/startOfToday'
 import subDays from 'date-fns/subDays'
-import { FilterRelativeDateUnitError } from '../models/FilterRelativeDateUnitError'
-import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '../types/filters'
-import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '../utilities/filters'
-import { FlowRunsHistoryFilter, UnionFilters } from './Filter'
+import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
+import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
+import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '@/types/filters'
+import {
+  FlowFilter as FlowFilterQuery,
+  DeploymentFilter as DeploymentFilterQuery,
+  FlowRunFilter as FlowRunFilterQuery,
+  TaskRunFilter as TaskRunFilterQuery
+} from '@/types/filters/server-types'
+import { isCompleteDeploymentFilter, isCompleteFlowFilter, isCompleteFlowRunFilter, isCompleteTaskRunFilter } from '@/utilities/filters'
 
 export class FiltersQueryService {
 

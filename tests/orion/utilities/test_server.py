@@ -1,5 +1,7 @@
 import anyio
+import fastapi
 import httpx
+import packaging.version
 import pytest
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, status
 from fastapi.testclient import TestClient
@@ -202,9 +204,18 @@ def test_request_scoped_dependency_cannot_raise_after_yield():
     app.include_router(router)
 
     client = TestClient(app)
-    with pytest.raises(HTTPException):
+    if packaging.version.parse(fastapi.__version__) < packaging.version.parse("0.74.0"):
         # The exception is raised in the app (and consequently here) instead of in
         # the response
+        expected_type = HTTPException
+        match = ".*"
+    else:
+        # In newer FastAPI versions, FastAPI raises a runtime error complaining about
+        # an exception during the response
+        expected_type = RuntimeError
+        match = "Caught handled exception, but response already started"
+
+    with pytest.raises(expected_type, match=match):
         client.get("/")
 
 

@@ -31,6 +31,7 @@ export function clone<T>(source: T): T {
     return new Date(source)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const copy = new (source as any).constructor()
 
   for (const key in source) {

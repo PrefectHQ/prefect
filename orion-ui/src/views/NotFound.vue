@@ -263,70 +263,70 @@
 </template>
 
 <script lang="ts">
-import { Vue } from 'vue-class-component'
+  import { Vue } from 'vue-class-component'
 
-export default class NotFound extends Vue {
-  private circles: HTMLElement[] = []
-  private interval = 0
+  export default class NotFound extends Vue {
+    private circles: HTMLElement[] = []
+    private interval = 0
 
-  public mounted() {
-    this.circles = this.$el.querySelectorAll('.not-found__circle')
+    public mounted() {
+      this.circles = this.$el.querySelectorAll('.not-found__circle')
 
-    this.startAnimation()
-  }
-
-  public beforeUnmount() {
-    window.clearInterval(this.interval)
-  }
-
-  private startAnimation() {
-    const delay = this.randomNumber(3, 4) * 1000
-
-    this.interval = window.setTimeout(() => {
-      this.animateRandomCircles()
       this.startAnimation()
-    }, delay)
-  }
-
-  private animateRandomCircles() {
-    const circles = []
-
-    while (circles.length < 3) {
-      const index = this.randomNumber(0, this.circles.length - 1)
-      const circle = this.circles[index]
-
-      circles.push(circle)
     }
 
-    circles.filter(this.uniqueElementFilter).forEach(this.animateCircle)
+    public beforeUnmount() {
+      window.clearInterval(this.interval)
+    }
+
+    private startAnimation() {
+      const delay = this.randomNumber(3, 4) * 1000
+
+      this.interval = window.setTimeout(() => {
+        this.animateRandomCircles()
+        this.startAnimation()
+      }, delay)
+    }
+
+    private animateRandomCircles() {
+      const circles = []
+
+      while (circles.length < 3) {
+        const index = this.randomNumber(0, this.circles.length - 1)
+        const circle = this.circles[index]
+
+        circles.push(circle)
+      }
+
+      circles.filter(this.uniqueElementFilter).forEach(this.animateCircle)
+    }
+
+    private animateCircle(circle: HTMLElement) {
+      const animationClass = 'not-found__circle--animate'
+
+      circle.addEventListener(
+        'animationend',
+        () => {
+          circle.classList.remove(animationClass)
+        },
+        { once: true },
+      )
+
+      circle.classList.add(animationClass)
+    }
+
+    private randomNumber(min: number, max: number) {
+      return Math.floor(Math.random() * (max - min + 1) + min)
+    }
+
+    private uniqueElementFilter(
+      value: HTMLElement,
+      index: number,
+      array: HTMLElement[],
+    ) {
+      return array.indexOf(value) === index
+    }
   }
-
-  private animateCircle(circle: HTMLElement) {
-    const animationClass = 'not-found__circle--animate'
-
-    circle.addEventListener(
-      'animationend',
-      () => {
-        circle.classList.remove(animationClass)
-      },
-      { once: true }
-    )
-
-    circle.classList.add(animationClass)
-  }
-
-  private randomNumber(min: number, max: number) {
-    return Math.floor(Math.random() * (max - min + 1) + min)
-  }
-
-  private uniqueElementFilter(
-    value: HTMLElement,
-    index: number,
-    array: HTMLElement[]
-  ) {
-    return array.indexOf(value) === index
-  }
-}
 </script>
 
 <style lang="scss">

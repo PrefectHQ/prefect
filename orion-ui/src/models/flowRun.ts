@@ -1,31 +1,31 @@
-import { State } from '@/types/states'
+import { State } from '@prefecthq/orion-design'
 import { State as StateObj } from '@/typings/objects'
 
 export interface IFlowRun {
-  id: string
-  deployment_id: string
-  flow_id: string
-  flow_version: string
-  idempotency_key: string | null
-  next_scheduled_start_time: string | null
-  parameters: unknown
-  auto_scheduled: boolean
-  context: unknown
-  emperical_config: unknown
-  emperical_policy: unknown
-  estimated_run_time: number
-  estimated_start_time_delta: number
-  total_run_time: number
-  start_time: Date
-  end_time: Date
-  name: string
-  parent_task_run_id: string
-  state_id: string
-  state_type: State
-  state: StateObj
-  tags: string[]
-  task_run_count: number
-  updated: Date
+  id: string,
+  deployment_id: string,
+  flow_id: string,
+  flow_version: string,
+  idempotency_key: string | null,
+  next_scheduled_start_time: string | null,
+  parameters: unknown,
+  auto_scheduled: boolean,
+  context: unknown,
+  emperical_config: unknown,
+  emperical_policy: unknown,
+  estimated_run_time: number,
+  estimated_start_time_delta: number,
+  total_run_time: number,
+  start_time: Date,
+  end_time: Date,
+  name: string,
+  parent_task_run_id: string,
+  state_id: string,
+  state_type: State,
+  state: StateObj,
+  tags: string[],
+  task_run_count: number,
+  updated: Date,
 }
 
 export default class FlowRun implements IFlowRun {

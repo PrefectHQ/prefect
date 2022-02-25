@@ -6,7 +6,7 @@ export type IFlow = {
   tags: string[],
 }
 
-export class Flow {
+export class Flow implements IFlow {
   public readonly id: string
   public readonly created: Date
   public readonly updated: Date

@@ -10,8 +10,8 @@
 
 <script lang="ts" setup>
   import { computed, onMounted } from 'vue'
-  import { StateType } from '../models/StateType'
-  import { FilterOperation, FilterValue } from '../types/filters'
+  import { StateType } from '@/models/StateType'
+  import { FilterOperation, FilterValue } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:operation', value: FilterOperation): void,
@@ -65,7 +65,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-value-state {
   display: grid;
   gap: var(--m-1);

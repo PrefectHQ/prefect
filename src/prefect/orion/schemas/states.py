@@ -128,7 +128,7 @@ class State(IDBaseModel, Generic[R]):
         data = None
 
         if self.data:
-            if self.data.encoding == "orion":
+            if self.data.encoding == "blockstorage":
                 return self.data
             data = self.data.decode()
 

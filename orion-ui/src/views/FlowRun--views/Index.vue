@@ -87,9 +87,11 @@
     </m-card>
 
     <m-card class="timeline d-flex flex-column" width="auto" shadow="sm">
-      <template v-slot:header>
+      <template #header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
-          <div class="subheader">Timeline</div>
+          <div class="subheader">
+            Timeline
+          </div>
 
           <router-link :to="`/flow-run/${id}/timeline`">
             <m-icon-button icon="pi-full-screen" />
@@ -110,9 +112,11 @@
     </m-card>
 
     <m-card class="radar" shadow="sm">
-      <template v-slot:header>
+      <template #header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
-          <div class="subheader">Radar</div>
+          <div class="subheader">
+            Radar
+          </div>
 
           <router-link :to="`/flow-run/${id}/radar`">
             <m-icon-button icon="pi-full-screen" />
@@ -126,321 +130,363 @@
     </m-card>
   </div>
 
-  <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />
-
-  <template v-if="resultsCount.value > 0">
-    <div class="font--secondary caption my-2" style="min-height: 17px">
-      <span>
-        {{ resultsCount.value.toLocaleString() }}
-        {{ toPluralString('Result', resultsCount) }}
+  <TabSet v-model:value="resultsTab" :tabs="tabs" class="mt-3">
+    <template #after-tab="{ tab }">
+      <span v-if="hasCount(tab.key)" class="flow-run__tab-badge caption">
+        {{ getCount(tab.key).toLocaleString() }}
       </span>
-    </div>
-  </template>
+    </template>
 
-  <section
-    class="results-section d-flex flex-column align-stretch justify-stretch"
-  >
-    <transition name="tab-fade" mode="out-in" css>
-      <div
-        v-if="resultsCount.value === 0"
-        class="text-center my-8"
-        key="no-results"
-      >
-        <h2> No Results Found </h2>
+    <template #before-tab-content="{ selectedTab }">
+      <div class="font--secondary caption my-2" style="min-height: 17px">
+        <span v-if="hasCount(selectedTab.key) && getCount(selectedTab.key) > 0">
+          {{ getCount(selectedTab.key).toLocaleString() }} {{ toPluralString('Result', getCount(selectedTab.key)) }}
+        </span>
       </div>
+    </template>
 
-      <ResultsList
-        v-else-if="resultsTab == 'task_runs'"
-        key="task_runs"
-        :filter="taskRunsFilter"
-        component="ListItemTaskRun"
-        endpoint="task_runs"
-        :poll-interval="5000"
-      />
+    <template #task_runs="{ tab }">
+      <section class="results-section">
+        <ResultsList
+          v-if="getCount(tab.key) > 0"
+          key="task_runs"
+          :filter="taskRunsFilter"
+          component="ListItemTaskRun"
+          endpoint="task_runs"
+          :poll-interval="5000"
+        />
+        <div v-else class="text-center my-8">
+          <h2>No results found</h2>
+        </div>
+      </section>
+    </template>
 
-      <ResultsList
-        v-else-if="resultsTab == 'sub_flow_runs'"
-        key="sub_flow_runs"
-        :filter="subFlowRunsFilter"
-        component="ListItemSubFlowRun"
-        endpoint="task_runs"
-        :poll-interval="5000"
-      />
+    <template #sub_flow_runs="{ tab }">
+      <section class="results-section">
+        <ResultsList
+          v-if="getCount(tab.key) > 0"
+          key="sub_flow_runs"
+          :filter="subFlowRunsFilter"
+          component="ListItemSubFlowRun"
+          endpoint="task_runs"
+          :poll-interval="5000"
+        />
+        <div v-else class="text-center my-8">
+          <h2>No results found</h2>
+        </div>
+      </section>
+    </template>
 
-      <template v-else-if="resultsTab == 'logs'">
+    <template #logs>
+      <section class="flow-run__tab-content">
         <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
-      </template>
-    </transition>
-  </section>
+      </section>
+    </template>
+  </TabSet>
 
-  <hr class="results-hr mt-3" />
+  <hr class="results-hr mt-3">
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints } from '@/plugins/api'
-import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
-import { useRoute, onBeforeRouteLeave } from 'vue-router'
-import { secondsToApproximateString } from '@/util/util'
-import { formatDateTimeNumeric } from '@/utilities/dates'
-import Timeline from '@/components/Timeline/Timeline.vue'
-import MiniRadarView from './MiniRadar.vue'
-import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
-import type { UnionFilters } from '@prefecthq/orion-design'
-import { ResultsListTab } from '@/components/ResultsListTab'
-import ResultsListTabs from '@/components/ResultsListTabs.vue'
-import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
-import { toPluralString } from '@/utilities/strings'
+  import type { UnionFilters } from '@prefecthq/orion-design'
+  import { TabSet } from '@prefecthq/orion-design/components'
+  import { toPluralString } from '@prefecthq/orion-design/utilities'
+  import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
+  import { useRoute, onBeforeRouteLeave } from 'vue-router'
+  import MiniRadarView from './MiniRadar.vue'
+  import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
+  import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+  import Timeline from '@/components/Timeline/Timeline.vue'
+  import { Api, Query, Endpoints } from '@/plugins/api'
+  import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
+  import { secondsToApproximateString } from '@/util/util'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
-const route = useRoute()
+  const route = useRoute()
 
-const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('logs')
+  type Tab = 'task_runs' | 'sub_flow_runs' | 'logs'
+  const resultsTab: Ref<Tab> = ref('logs')
 
-const id = ref(route?.params.id as string)
+  const id = ref(route?.params.id as string)
 
-const flowRunBaseFilter = computed(() => {
-  return { id: id.value }
-})
+  const flowRunBaseFilter = computed(() => {
+    return { id: id.value }
+  })
 
-const flowRunBase: Query = await Api.query({
-  endpoint: Endpoints.flow_run,
-  body: flowRunBaseFilter,
-  options: {
-    pollInterval: 5000
-  }
-}).fetch()
-
-const flowId = computed<string>(() => {
-  return flowRunBase.response.value.flow_id
-})
-
-const parentTaskRunId = computed<string>(() => {
-  return flowRunBase.response.value.parent_task_run_id
-})
-
-const deploymentId = computed<string>(() => {
-  return flowRunBase.response.value.deployment_id
-})
-
-const flowFilter = computed(() => {
-  return {
-    id: flowId.value
-  }
-})
-
-const deploymentFilter = computed(() => {
-  return {
-    id: deploymentId.value
-  }
-})
-
-const parentFlowFilter = computed(() => {
-  return {
-    task_runs: {
-      id: {
-        any_: [parentTaskRunId.value]
-      }
-    }
-  }
-})
-
-const taskRunsFilter = computed<UnionFilters>(() => {
-  return {
-    flow_runs: {
-      id: {
-        any_: [id.value]
-      }
-    }
-  }
-})
-
-const subFlowRunsFilter = computed<UnionFilters>(() => {
-  return {
-    flow_runs: {
-      id: {
-        any_: [id.value]
-      }
+  const flowRunBase: Query = await Api.query({
+    endpoint: Endpoints.flow_run,
+    body: flowRunBaseFilter,
+    options: {
+      pollInterval: 5000,
     },
-    task_runs: {
-      subflow_runs: {
-        exists_: true
-      }
-    }
-  }
-})
+  }).fetch()
 
-const queries: { [key: string]: Query } = {
-  flow: Api.query({
-    endpoint: Endpoints.flow,
-    body: flowFilter
-  }),
-  deployment: Api.query({
-    endpoint: Endpoints.deployment,
-    body: deploymentFilter,
-    options: {
-      paused: !deploymentId.value
-    }
-  }),
-  parent_flow: Api.query({
-    endpoint: Endpoints.flows,
-    body: parentFlowFilter,
-    options: {
-      paused: !parentTaskRunId.value
-    }
-  }),
-  parent_flow_run: Api.query({
-    endpoint: Endpoints.flow_runs,
-    body: parentFlowFilter,
-    options: {
-      paused: !parentTaskRunId.value
-    }
-  }),
-  task_runs_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: taskRunsFilter,
-    options: {
-      pollInterval: 10000
-    }
-  }),
-  task_runs: Api.query({
-    endpoint: Endpoints.task_runs,
-    body: taskRunsFilter,
-    options: {
-      pollInterval: 10000
-    }
-  }),
-  sub_flow_runs_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: subFlowRunsFilter,
-    options: {
-      pollInterval: 10000
+  const flowId = computed<string>(() => {
+    return flowRunBase.response.value.flow_id
+  })
+
+  const parentTaskRunId = computed<string>(() => {
+    return flowRunBase.response.value.parent_task_run_id
+  })
+
+  const deploymentId = computed<string>(() => {
+    return flowRunBase.response.value.deployment_id
+  })
+
+  const flowFilter = computed(() => {
+    return {
+      id: flowId.value,
     }
   })
-}
 
-const countMap = {
-  task_runs: 'task_runs_count',
-  sub_flow_runs: 'sub_flow_runs_count',
-  logs: '' // dummy because there is no count query for logs. And not taking the time to refactor results count right now
-}
+  const deploymentFilter = computed(() => {
+    return {
+      id: deploymentId.value,
+    }
+  })
 
-const resultsCount = computed(() => {
-  if (!resultsTab.value) return 0
-  return queries[countMap[resultsTab.value]]?.response || 0
-})
+  const parentFlowFilter = computed(() => {
+    return {
+      task_runs: {
+        id: {
+          any_: [parentTaskRunId.value],
+        },
+      },
+    }
+  })
 
-const deployment = computed<Deployment>(() => {
-  return queries.deployment.response?.value || {}
-})
+  const taskRunsFilter = computed<UnionFilters>(() => {
+    return {
+      flow_runs: {
+        id: {
+          any_: [id.value],
+        },
+      },
+    }
+  })
 
-const parentFlow = computed<Flow>(() => {
-  return queries.parent_flow.response?.value?.[0] || {}
-})
+  const subFlowRunsFilter = computed<UnionFilters>(() => {
+    return {
+      flow_runs: {
+        id: {
+          any_: [id.value],
+        },
+      },
+      task_runs: {
+        subflow_runs: {
+          exists_: true,
+        },
+      },
+    }
+  })
 
-const parentFlowRun = computed<FlowRun>(() => {
-  return queries.parent_flow_run.response?.value?.[0] || {}
-})
-
-const location = computed(() => {
-  return deployment.value?.flow_data?.blob
-})
-
-const flowRun = computed<FlowRun>(() => {
-  return flowRunBase.response?.value || {}
-})
-
-const end = computed<string>(() => {
-  return flowRun.value.end_time
-})
-
-const state = computed<State>(() => {
-  return flowRun.value?.state
-})
-
-const running = computed<boolean>(() => {
-  return state.value.type == 'RUNNING'
-})
-
-const tags = computed(() => {
-  return flowRun.value?.tags || []
-})
-
-const taskRunsCount = computed(() => {
-  return queries.task_runs_count.response?.value || 0
-})
-
-const subFlowRunsCount = computed(() => {
-  return queries.sub_flow_runs_count.response?.value || 0
-})
-
-const taskRuns = computed<TaskRun[]>(() => {
-  return queries.task_runs.response?.value || []
-})
-
-const tabs = computed<ResultsListTab[]>(() => [
-  {
-    label: 'Task Runs',
-    href: 'task_runs',
-    count: taskRunsCount.value,
-    icon: 'pi-task'
-  },
-  {
-    label: 'Subflow Runs',
-    href: 'sub_flow_runs',
-    count: subFlowRunsCount.value,
-    icon: 'pi-flow-run'
-  },
-  {
-    label: 'Logs',
-    href: 'logs',
-    icon: 'pi-logs-fill'
+  const queries: Record<string, Query> = {
+    flow: Api.query({
+      endpoint: Endpoints.flow,
+      body: flowFilter,
+    }),
+    deployment: Api.query({
+      endpoint: Endpoints.deployment,
+      body: deploymentFilter,
+      options: {
+        paused: !deploymentId.value,
+      },
+    }),
+    parent_flow: Api.query({
+      endpoint: Endpoints.flows,
+      body: parentFlowFilter,
+      options: {
+        paused: !parentTaskRunId.value,
+      },
+    }),
+    parent_flow_run: Api.query({
+      endpoint: Endpoints.flow_runs,
+      body: parentFlowFilter,
+      options: {
+        paused: !parentTaskRunId.value,
+      },
+    }),
+    task_runs_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: taskRunsFilter,
+      options: {
+        pollInterval: 10000,
+      },
+    }),
+    task_runs: Api.query({
+      endpoint: Endpoints.task_runs,
+      body: taskRunsFilter,
+      options: {
+        pollInterval: 10000,
+      },
+    }),
+    sub_flow_runs_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: subFlowRunsFilter,
+      options: {
+        pollInterval: 10000,
+      },
+    }),
   }
-])
 
-const duration = computed(() => {
-  return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
-    ? '--'
-    : flowRun.value.total_run_time
-    ? secondsToApproximateString(flowRun.value.total_run_time)
-    : secondsToApproximateString(flowRun.value.estimated_run_time)
-})
+  function hasCount(key: Tab): boolean {
+    return typeof countMap.value[key as Tab] === 'number'
+  }
 
-// This cleanup is necessary since the initial flow run query isn't
-// wrapped in the queries object
-onBeforeUnmount(() => {
-  flowRunBase.stopPolling()
-  Api.queries.delete(flowRunBase.id)
-})
+  const getCount = (key: Tab): number => {
+    return countMap.value[key as Tab] ?? 0
+  }
 
-const idWatcher = watch(route, () => {
-  id.value = route?.params.id as string
-})
+  const countMap = computed<Record<Tab, number | undefined>>(() => ({
+    task_runs: queries.task_runs_count.response?.value,
+    sub_flow_runs: queries.sub_flow_runs_count.response?.value,
+    // dummy because there is no count query for logs. And not taking the time to refactor results count right now
+    logs: undefined,
+  }))
 
-onBeforeRouteLeave(() => {
-  idWatcher()
-})
+  const deployment = computed<Deployment>(() => {
+    return queries.deployment.response?.value || {}
+  })
 
-watch(id, async () => {
-  if (!id.value) return
+  const parentFlow = computed<Flow>(() => {
+    return queries.parent_flow.response?.value?.[0] || {}
+  })
 
-  await flowRunBase.fetch()
-  queries.flow.fetch()
+  const parentFlowRun = computed<FlowRun>(() => {
+    return queries.parent_flow_run.response?.value?.[0] || {}
+  })
 
-  queries.task_runs_count.fetch()
-  queries.task_runs.fetch()
-  queries.sub_flow_runs_count.fetch()
+  const location = computed(() => {
+    return deployment.value?.flow_data?.blob
+  })
 
-  if (deploymentId.value) queries.deployment.fetch()
-  else queries.deployment.clearResult()
-  if (parentTaskRunId.value) queries.parent_flow.fetch()
-  else queries.parent_flow.clearResult()
-  if (parentTaskRunId.value) queries.parent_flow_run.fetch()
-  else queries.parent_flow_run.clearResult()
+  const flowRun = computed<FlowRun>(() => {
+    return flowRunBase.response?.value || {}
+  })
 
-  resultsTab.value = 'task_runs'
-})
+  const end = computed<string>(() => {
+    return flowRun.value.end_time
+  })
+
+  const state = computed<State>(() => {
+    return flowRun.value?.state
+  })
+
+  const running = computed<boolean>(() => {
+    return state.value.type == 'RUNNING'
+  })
+
+  const tags = computed(() => {
+    return flowRun.value?.tags || []
+  })
+
+  const taskRunsCount = computed(() => {
+    return queries.task_runs_count.response?.value || 0
+  })
+
+  const subFlowRunsCount = computed(() => {
+    return queries.sub_flow_runs_count.response?.value || 0
+  })
+
+  const taskRuns = computed<TaskRun[]>(() => {
+    return queries.task_runs.response?.value || []
+  })
+
+  const tabs = [
+    {
+      title: 'Task Runs',
+      key: 'task_runs',
+      icon: 'pi-task',
+    },
+    {
+      title: 'Subflow Runs',
+      key: 'sub_flow_runs',
+      icon: 'pi-flow-run',
+    },
+    {
+      title: 'Logs',
+      key: 'logs',
+      icon: 'pi-logs-fill',
+    },
+  ]
+
+  const duration = computed(() => {
+    return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
+      ? '--'
+      : flowRun.value.total_run_time
+        ? secondsToApproximateString(flowRun.value.total_run_time)
+        : secondsToApproximateString(flowRun.value.estimated_run_time)
+  })
+
+  // This cleanup is necessary since the initial flow run query isn't
+  // wrapped in the queries object
+  onBeforeUnmount(() => {
+    flowRunBase.stopPolling()
+    Api.queries.delete(flowRunBase.id)
+  })
+
+  const idWatcher = watch(route, () => {
+    id.value = route?.params.id as string
+  })
+
+  onBeforeRouteLeave(() => {
+    idWatcher()
+  })
+
+  watch(id, async () => {
+    if (!id.value) {
+      return
+    }
+
+    await flowRunBase.fetch()
+    queries.flow.fetch()
+
+    queries.task_runs_count.fetch()
+    queries.task_runs.fetch()
+    queries.sub_flow_runs_count.fetch()
+
+    if (deploymentId.value) {
+      queries.deployment.fetch()
+    } else {
+      queries.deployment.clearResult()
+    }
+    if (parentTaskRunId.value) {
+      queries.parent_flow.fetch()
+    } else {
+      queries.parent_flow.clearResult()
+    }
+    if (parentTaskRunId.value) {
+      queries.parent_flow_run.fetch()
+    } else {
+      queries.parent_flow_run.clearResult()
+    }
+
+    resultsTab.value = 'task_runs'
+  })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use '@/styles/views/flow-run/index.scss';
+.flow-run__tab-badge {
+    background-color: #fff;
+    border-radius: 16px;
+    font-weight: 400;
+    padding: 0 8px;
+    min-width: 24px;
+    transition: 150ms all;
+}
+.tab-set__tab--active {
+    background-color: var(--primary);
+    color: #fff;
+    .flow-run__tab-badge {
+        background-color: var(--primary);
+        color: #fff;
+    }
+}
+.results-section {
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  flex-direction: column;
+}
 </style>

@@ -34,7 +34,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .dismissible-tag {
   --background: var(--blue-20);
   --color: var(--grey-80);

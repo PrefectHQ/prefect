@@ -1,13 +1,13 @@
 <template>
   <component
-    v-skeleton="!crumb.text"
     :is="crumb.to ? 'router-link' : 'span'"
+    v-skeleton="!crumb.text"
     :to="crumb.to"
     class="text-truncate bread-crumb"
     :style="{
       minWidth: !crumb.text ? '40px' : undefined,
       maxWidth: '50%',
-      minHeight: '30px'
+      minHeight: '30px',
     }"
   >
     {{ crumb.text }}
@@ -15,9 +15,9 @@
 </template>
 
 <script lang="ts" setup>
-import { Crumb } from '../utils'
+  import { Crumb } from '../utils'
 
-defineProps<{ crumb: Crumb }>()
+  defineProps<{ crumb: Crumb }>()
 </script>
 
 <style lang="scss" scoped>

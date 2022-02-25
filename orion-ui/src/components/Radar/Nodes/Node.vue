@@ -4,9 +4,9 @@
     class="node d-flex position-relative"
     :class="{
       observed: observed,
-      [state.type.toLowerCase() + '-border']: true,
-      [state.type.toLowerCase() + '-bg']: true,
-      selected: props.selected
+      [`${state.type.toLowerCase() }-border`]: true,
+      [`${state.type.toLowerCase() }-bg`]: true,
+      selected: props.selected,
     }"
     @click="handleClick"
   >
@@ -15,7 +15,7 @@
     >
       <i
         class="pi text--white pi-lg"
-        :class="'pi-' + state.type.toLowerCase()"
+        :class="`pi-${ state.type.toLowerCase()}`"
       />
     </div>
 
@@ -69,116 +69,124 @@
     </transition>
   </div>
   <!-- DNR: This is used for testing placement -->
-  <!-- <div
+  <!--
+    <div
     v-else
     class="circle-node cursor-pointer"
     :class="state.type.toLowerCase() + '-bg'"
-  /> -->
+    />
+  -->
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
-import { Api, Endpoints, Query } from '@/plugins/api'
-import { RadarNode } from '@/typings/radar'
-import { State, TaskRun } from '@/typings/objects'
-import { secondsToApproximateString } from '@/util/util'
+  import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
+  import { Api, Endpoints, Query } from '@/plugins/api'
+  import { State, TaskRun } from '@/typings/objects'
+  import { RadarNode } from '@/typings/radar'
+  import { secondsToApproximateString } from '@/util/util'
 
-const emit = defineEmits(['toggle-tree'])
+  const emit = defineEmits(['toggle-tree'])
 
-const props = defineProps<{
-  node: RadarNode
-  collapsed?: undefined | Map<string, RadarNode>
-  selected?: boolean
-}>()
+  const props = defineProps<{
+    node: RadarNode,
+    collapsed?: undefined | Map<string, RadarNode>,
+    selected?: boolean,
+  }>()
 
-const queries: { [key: string]: Query } = {
-  task_run: Api.query({
-    endpoint: Endpoints.task_run,
-    body: {
-      id: props.node.id
-    },
-    options: {
-      pollInterval: 5000
+  const queries: Record<string, Query> = {
+    task_run: Api.query({
+      endpoint: Endpoints.task_run,
+      body: {
+        id: props.node.id,
+      },
+      options: {
+        pollInterval: 5000,
+      },
+    }),
+  }
+
+  const toggle = () => {
+    emit('toggle-tree', props.node)
+  }
+
+  const node = computed<RadarNode>(() => {
+    return props.node
+  })
+
+  const collapsed = computed(() => {
+    return props.collapsed
+  })
+
+  const state = computed<State>(() => {
+    return taskRun.value?.state || props.node.data.state
+  })
+
+  const duration = computed<string>(() => {
+    return taskRun.value?.estimated_run_time
+      ? secondsToApproximateString(taskRun.value.estimated_run_time)
+      : '--'
+  })
+
+  const taskRun = computed<TaskRun>(() => {
+    return queries.task_run.response.value || {}
+  })
+
+  const handleClick = () => {
+    console.log(taskRun.value)
+  }
+
+  /**
+   * Intersection Observer
+   */
+
+  const observed: Ref<boolean> = ref(false)
+
+  const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
+    if (entry.isIntersecting) {
+      observed.value = entry.isIntersecting
+      queries.task_run.resume()
+    } else {
+      queries.task_run.pause()
+    }
+  }
+
+  const observe = ref<Element>()
+
+  let observer: IntersectionObserver
+
+  const createIntersectionObserver = (margin: string) => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+
+    const options = {
+      rootMargin: margin,
+      threshold: [0.5, 1],
+    }
+
+    observer = new IntersectionObserver(handleEmit, options)
+    if (observe.value) {
+      observer.observe(observe.value)
+    }
+  }
+
+  const terminalStates = ['COMPLETED', 'FAILED', 'CANCELLED']
+
+  watch(taskRun, () => {
+    if (terminalStates.includes(taskRun.value?.state_type)) {
+      queries.task_run.pollInterval = 0
     }
   })
-}
 
-const toggle = () => {
-  emit('toggle-tree', props.node)
-}
+  onMounted(() => {
+    createIntersectionObserver('12px')
+  })
 
-const node = computed<RadarNode>(() => {
-  return props.node
-})
-
-const collapsed = computed(() => {
-  return props.collapsed
-})
-
-const state = computed<State>(() => {
-  return taskRun.value?.state || props.node.data.state
-})
-
-const duration = computed<string>(() => {
-  return taskRun.value?.estimated_run_time
-    ? secondsToApproximateString(taskRun.value.estimated_run_time)
-    : '--'
-})
-
-const taskRun = computed<TaskRun>(() => {
-  return queries.task_run.response.value || {}
-})
-
-const handleClick = () => {
-  console.log(taskRun.value)
-}
-
-/**
- * Intersection Observer
- */
-
-const observed: Ref<boolean> = ref(false)
-
-const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
-  if (entry.isIntersecting) {
-    observed.value = entry.isIntersecting
-    queries.task_run.resume()
-  } else {
-    queries.task_run.pause()
-  }
-}
-
-const observe = ref<Element>()
-
-let observer: IntersectionObserver
-
-const createIntersectionObserver = (margin: string) => {
-  if (observe.value) observer?.unobserve(observe.value)
-
-  const options = {
-    rootMargin: margin,
-    threshold: [0.5, 1]
-  }
-
-  observer = new IntersectionObserver(handleEmit, options)
-  if (observe.value) observer.observe(observe.value)
-}
-
-const terminalStates = ['COMPLETED', 'FAILED', 'CANCELLED']
-
-watch(taskRun, () => {
-  if (terminalStates.includes(taskRun.value?.state_type)) {
-    queries.task_run.pollInterval = 0
-  }
-})
-
-onMounted(() => {
-  createIntersectionObserver('12px')
-})
-
-onBeforeUnmount(() => {
-  if (observe.value) observer?.unobserve(observe.value)
-})
+  onBeforeUnmount(() => {
+    if (observe.value) {
+      observer?.unobserve(observe.value)
+    }
+  })
 </script>
 
 <style lang="scss" scoped>

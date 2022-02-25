@@ -1,8 +1,10 @@
-import { mocks } from '../mocks'
+import { mocks } from '@/mocks'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Mock = (...args: any[]) => any
 type MockParams<T extends Mock> = Parameters<T>
 type MockReturns<T extends Mock> = ReturnType<T>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OnlyRequired<T extends any[], U extends any[] = []> = Partial<T> extends T ? U : T extends [infer F, ...infer R] ? OnlyRequired<R, [...U, F]> : U
 type MockParamsRequired<T extends Mock> = OnlyRequired<MockParams<T>>
 
@@ -37,4 +39,5 @@ export class Mocker<T extends Record<string, Mock>> {
 }
 
 export const mocker = new Mocker(mocks)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MockFunction<T> = (this: typeof mocker, ...args: any[]) => T

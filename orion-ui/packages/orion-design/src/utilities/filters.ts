@@ -23,7 +23,7 @@ import {
   ObjectStateFilter,
   ObjectTagFilter,
   FilterOperation
-} from '../types/filters'
+} from '@/types/filters'
 
 export function isFilter(filter: Partial<Filter>): filter is Filter {
   return filter.object !== undefined

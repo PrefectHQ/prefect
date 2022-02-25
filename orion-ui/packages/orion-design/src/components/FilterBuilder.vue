@@ -32,13 +32,13 @@
 
 <script lang="ts" setup>
   import { computed, ref, watch } from 'vue'
-  import { Filter } from '../types/filters'
-  import { isCompleteFilter } from '../utilities/filters'
-  import FilterBuilderHeading from './FilterBuilderHeading.vue'
-  import FilterBuilderObject from './FilterBuilderObject.vue'
-  import FilterBuilderProperty from './FilterBuilderProperty.vue'
-  import FilterBuilderValue from './FilterBuilderValue.vue'
-  import FilterTag from './FilterTag.vue'
+  import FilterBuilderHeading from '@/components/FilterBuilderHeading.vue'
+  import FilterBuilderObject from '@/components/FilterBuilderObject.vue'
+  import FilterBuilderProperty from '@/components/FilterBuilderProperty.vue'
+  import FilterBuilderValue from '@/components/FilterBuilderValue.vue'
+  import FilterTag from '@/components/FilterTag.vue'
+  import { Filter } from '@/types/filters'
+  import { isCompleteFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'update:filter', value: Partial<Filter>): void,
@@ -78,7 +78,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder {
   background-color: #fff;
   padding: var(--p-1) var(--p-2);

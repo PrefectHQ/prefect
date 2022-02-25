@@ -1,5 +1,5 @@
-import { Log } from '../models'
-import { MockFunction } from '../services'
+import { Log } from '@/models/Log'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomLog: MockFunction<Log> = function() {
   return new Log({

@@ -7,13 +7,15 @@
           <div class="d-flex justify-start align-center">
             <m-icon-button
               class="mr-1"
-              :icon="'pi-arrow-left-s-line'"
+              icon="pi-arrow-left-s-line"
               @click="close"
             />
 
-            <slot v-if="$slots.title" name="title">Title</slot>
+            <slot v-if="$slots.title" name="title">
+              Title
+            </slot>
           </div>
-          <hr class="title-hr" />
+          <hr class="title-hr">
         </h2>
 
         <article class="content d-flex justify-start flex-column">
@@ -25,26 +27,26 @@
 </template>
 
 <script lang="ts">
-import { Vue, Options, prop } from 'vue-class-component'
+  import { Vue, Options, prop } from 'vue-class-component'
 
-class Props {
-  modelValue = prop<boolean>({ default: false, required: false })
-  showOverlay = prop<boolean>({
-    default: false,
-    required: false,
-    type: Boolean
-  })
-  target = prop<string>({ default: '#app', required: false })
-}
-
-@Options({
-  emits: ['update:modelValue']
-})
-export default class Drawer extends Vue.with(Props) {
-  close() {
-    this.$emit('update:modelValue', false)
+  class Props {
+    modelValue = prop<boolean>({ default: false, required: false })
+    showOverlay = prop<boolean>({
+      default: false,
+      required: false,
+      type: Boolean,
+    })
+    target = prop<string>({ default: '#app', required: false })
   }
-}
+
+  @Options({
+    emits: ['update:modelValue'],
+  })
+  export default class Drawer extends Vue.with(Props) {
+    close() {
+      this.$emit('update:modelValue', false)
+    }
+  }
 </script>
 
 <style lang="scss" scoped>

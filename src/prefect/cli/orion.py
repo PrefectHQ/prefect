@@ -75,7 +75,7 @@ def generate_welcome_blub(base_url, ui_enabled: bool):
 
     dashboard_not_built = textwrap.dedent(
         """
-        The dashboard is not built. It looks like you're on a development version. 
+        The dashboard is not built. It looks like you're on a development version.
         See `prefect dev` for development commands.
         """
     )
@@ -132,23 +132,15 @@ async def start(
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
-    agent: bool = True,
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
-    # TODO - this logic should be abstracted in the interface
-    # Run migrations - if configured for sqlite will create the db
-    db = provide_database_interface()
-    await db.create_db()
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
 
     base_url = f"http://{host}:{port}"
-
-    agent_env = os.environ.copy()
-    agent_env["PREFECT_API_URL"] = base_url + "/api"
 
     async with anyio.create_task_group() as tg:
         console.print("Starting...")
@@ -171,26 +163,6 @@ async def start(
         )
 
         console.print(generate_welcome_blub(base_url, ui_enabled=ui))
-
-        if agent:
-            # The server may not be ready yet despite waiting for the process to begin
-            await anyio.sleep(1)
-            tg.start_soon(
-                partial(
-                    open_process_and_stream_output,
-                    ["prefect", "agent", "start", "--hide-welcome"],
-                    env=agent_env,
-                )
-            )
-            console.print(
-                "An agent has been started alongside the server. It will watch for "
-                "scheduled flow runs."
-            )
-        else:
-            console.print(
-                "The agent has been disabled. Start an agent with `prefect agent start`."
-            )
-
         console.print("\n")
 
     console.print("Orion stopped!")

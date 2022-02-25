@@ -12,13 +12,13 @@
     </template>
 
     <transition-group name="filters-search-menu-transition">
-      <template v-if="loading" key="loader">
-        <m-loader :loading="true" class="filters-search-menu__loader" />
+      <template v-if="loading">
+        <m-loader key="loader" :loading="true" class="filters-search-menu__loader" />
       </template>
 
-      <template v-else-if="empty" key="empty">
-        <p class="filters-search-menu__empty">
-          Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
+      <template v-else-if="empty">
+        <p key="empty" class="filters-search-menu__empty">
+          Click the <i class="pi pi-star-Fiine" /> icon to save a search and it will show here.
         </p>
       </template>
     </transition-group>
@@ -28,13 +28,13 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { subscribe } from '@prefecthq/vue-compositions'
-  import { FilterUrlService } from '../services'
   import { computed } from 'vue'
-  import { searchApi } from '../services/SearchApi'
-  import { Filter } from '../types/filters'
   import { useRouter } from 'vue-router'
+  import { FilterUrlService } from '@/services/FilterUrlService'
+  import { searchApi } from '@/services/SearchApi'
+  import { Filter } from '@/types/filters'
 
-  const subscription = subscribe(searchApi.filter.bind(searchApi), [])
+  const subscription = subscribe(searchApi.getSearches.bind(searchApi), [])
   const filters = computed(() => subscription.response.value ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading.value)

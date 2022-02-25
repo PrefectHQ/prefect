@@ -6,7 +6,7 @@
 
 <script lang="ts" setup>
   import { ref, computed, onMounted } from 'vue'
-  import { FilterOperation, FilterValue } from '../types/filters'
+  import { FilterOperation, FilterValue } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:operation', value: FilterOperation): void,

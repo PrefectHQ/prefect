@@ -242,34 +242,6 @@ class TestLoadFlowFromDeployment:
     async def flow_id(self, flow_object, orion_client):
         return await orion_client.create_flow(flow_object)
 
-    async def test_load_file_flow_from_deployment(
-        self, flow_id, orion_client, tmp_path
-    ):
-        (tmp_path / "flow-script.py").write_text(
-            textwrap.dedent(
-                """
-                from prefect import flow
-
-                @flow
-                def foo():
-                    pass
-                """
-            )
-        )
-        deployment = Deployment(
-            name="test",
-            flow_id=flow_id,
-            flow_data=DataDocument(
-                encoding="file",
-                blob=str((tmp_path / "flow-script.py").absolute()).encode(),
-            ),
-        )
-        loaded_flow_object = await load_flow_from_deployment(
-            deployment, client=orion_client
-        )
-        assert isinstance(loaded_flow_object, Flow)
-        assert loaded_flow_object.name == "foo"
-
     async def test_load_pickled_flow_from_deployment(
         self, flow_object, flow_id, orion_client
     ):

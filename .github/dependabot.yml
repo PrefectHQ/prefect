@@ -5,7 +5,13 @@
 
 version: 2
 updates:
+
   - package-ecosystem: "pip" # See documentation for possible values
     directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: '/orion-ui/'
     schedule:
       interval: "daily"

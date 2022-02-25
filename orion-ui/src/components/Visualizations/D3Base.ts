@@ -1,8 +1,8 @@
-import { Vue, Options } from 'vue-class-component'
 import { ref } from 'vue'
+import { Vue, Options } from 'vue-class-component'
 
 // Generates a semi-random id, useful for chart selectors
-const suid = () => '_' + Math.random().toString(36).substr(2, 9)
+const suid = () => `_${ Math.random().toString(36).substr(2, 9)}`
 
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
@@ -15,25 +15,25 @@ export class D3Base extends Vue {
 
   public container = ref<HTMLElement>() as unknown as HTMLElement
   public svg: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
+  SVGGElement,
+  unknown,
+  HTMLElement,
+  null
   >
 
   public padding: {
-    top: number
-    bottom: number
-    middle: number
-    left: number
-    right: number
+    top: number,
+    bottom: number,
+    middle: number,
+    left: number,
+    right: number,
   } = {
-    top: 0,
-    bottom: 0,
-    middle: 0,
-    left: 0,
-    right: 0
-  }
+      top: 0,
+      bottom: 0,
+      middle: 0,
+      left: 0,
+      right: 0,
+    }
 
   public get paddingY(): number {
     return this.padding.top + this.padding.middle + this.padding.bottom
@@ -44,12 +44,13 @@ export class D3Base extends Vue {
   }
 
   resize(): void {
-    return
+
   }
 
   private handleWindowResize(): void {
-    if (!this.container)
+    if (!this.container) {
       return window.removeEventListener('resize', this.handleWindowResize)
+    }
 
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
@@ -57,7 +58,7 @@ export class D3Base extends Vue {
     if (this.svg) {
       this.svg.attr(
         'viewbox',
-        `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
+        `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`,
       )
     }
 
@@ -65,8 +66,9 @@ export class D3Base extends Vue {
   }
 
   private initializeChartDimensions(): void {
-    if (!this.container)
+    if (!this.container) {
       return window.removeEventListener('resize', this.handleWindowResize)
+    }
 
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
@@ -74,7 +76,7 @@ export class D3Base extends Vue {
     if (this.svg) {
       this.svg.attr(
         'viewbox',
-        `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
+        `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`,
       )
     }
   }

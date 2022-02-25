@@ -24,6 +24,7 @@ from prefect.orion.utilities.database import (
     interval_add,
     now,
 )
+from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
 
 
 class ORMBase:
@@ -353,7 +354,7 @@ class ORMFlowRun(ORMRun):
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String)
+    flow_runner_type = sa.Column(sa.String, index=True)
     flow_runner_config = sa.Column(JSON)
 
     @declared_attr
@@ -707,9 +708,89 @@ class ORMLog:
 
 @declarative_mixin
 class ORMConcurrencyLimit:
-    tag = sa.Column(sa.String, nullable=False, index=True, unique=True)
+    tag = sa.Column(sa.String, nullable=False, index=True)
     concurrency_limit = sa.Column(sa.Integer, nullable=False)
     active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("tag"),)
+
+
+@declarative_mixin
+class ORMBlockSpec:
+    name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String, nullable=True, index=True)
+    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_block_spec__type", "type"),
+            sa.Index(
+                "uq_block_spec__name_version",
+                "name",
+                "version",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
+class ORMBlock:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+
+    @declared_attr
+    def block_spec_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_spec(cls):
+        return sa.orm.relationship("BlockSpec", lazy="joined")
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block__spec_id_name",
+                "block_spec_id",
+                "name",
+                unique=True,
+            ),
+        )
+
+    async def encrypt_data(self, session, data):
+        """
+        Store encrypted data on the ORM model
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        self.data = await encrypt_fernet(session, data)
+
+    async def decrypt_data(self, session):
+        """
+        Retrieve decrypted data from the ORM model.
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        return await decrypt_fernet(session, self.data)
+
+
+@declarative_mixin
+class ORMConfiguration:
+    key = sa.Column(sa.String, nullable=False, index=True)
+    value = sa.Column(JSON, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
 
 
 @declarative_mixin
@@ -722,6 +803,57 @@ class ORMSavedSearch:
         server_default="[]",
         default=list,
         nullable=False,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMWorkQueue:
+    """SQLAlchemy model of a work queue"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    filter = sa.Column(
+        Pydantic(schemas.core.QueueFilter),
+        server_default="{}",
+        default=dict,
+        nullable=False,
+    )
+    description = sa.Column(sa.String, nullable=False, default="", server_default="")
+    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
+    concurrency_limit = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMAgent:
+    """SQLAlchemy model of an agent"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id"),
+            nullable=False,
+            index=True,
+        )
+
+    last_activity_time = sa.Column(
+        Timestamp(),
+        nullable=False,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
     )
 
     @declared_attr
@@ -749,8 +881,10 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_spec_mixin: block_spec orm mixin, combined with Base orm class
+        block_mixin: block orm mixin, combined with Base orm class
+        configuration_mixin: configuration orm mixin, combined with Base orm class
 
-    TODO - example
     """
 
     def __init__(
@@ -767,6 +901,11 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
+        block_mixin=ORMBlock,
+        configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -806,6 +945,11 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            work_queue_mixin=work_queue_mixin,
+            agent_mixin=agent_mixin,
+            block_spec_mixin=block_spec_mixin,
+            block_mixin=block_mixin,
+            configuration_mixin=configuration_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -839,6 +983,11 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
+        block_mixin=ORMBlock,
+        configuration_mixin=ORMConfiguration,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -875,6 +1024,21 @@ class BaseORMConfiguration(ABC):
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
             pass
 
+        class WorkQueue(work_queue_mixin, self.Base):
+            pass
+
+        class Agent(agent_mixin, self.Base):
+            pass
+
+        class BlockSpec(block_spec_mixin, self.Base):
+            pass
+
+        class Block(block_mixin, self.Base):
+            pass
+
+        class Configuration(configuration_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -885,6 +1049,11 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.WorkQueue = WorkQueue
+        self.Agent = Agent
+        self.BlockSpec = BlockSpec
+        self.Block = Block
+        self.Configuration = Configuration
 
     @property
     @abstractmethod

@@ -175,11 +175,6 @@ async def start(
     Each service has an individual command if you wish to start them separately.
     Each service can be excluded here as well.
     """
-    # TODO - this logic should be abstracted in the interface
-    # Run migrations - if configured for sqlite will create the db
-    db = provide_database_interface()
-    await db.create_db()
-
     async with anyio.create_task_group() as tg:
         if not exclude_api:
             tg.start_soon(

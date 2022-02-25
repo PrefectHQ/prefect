@@ -19,73 +19,73 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import type { FlowRunsFilter } from '@prefecthq/orion-design'
-import { Api, Query, Endpoints } from '@/plugins/api'
-import { TaskRun } from '@/typings/objects'
-import { secondsToApproximateString } from '@/util/util'
-import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
-import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
-import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
+  import type { FlowRunsFilter } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
+  import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
+  import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+  import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+  import { Api, Query, Endpoints } from '@/plugins/api'
+  import { TaskRun } from '@/typings/objects'
+  import { secondsToApproximateString } from '@/util/util'
 
-const props = defineProps<{ item: TaskRun }>()
+  const props = defineProps<{ item: TaskRun }>()
 
-const taskRunFilterBody = computed<FlowRunsFilter>(() => {
-  return {
-    flow_runs: {
-      id: {
-        any_: [props.item.flow_run_id]
-      }
+  const taskRunFilterBody = computed<FlowRunsFilter>(() => {
+    return {
+      flow_runs: {
+        id: {
+          any_: [props.item.flow_run_id],
+        },
+      },
     }
-  }
-})
-
-const queries: { [key: string]: Query } = {
-  flow_run: Api.query({
-    endpoint: Endpoints.flow_runs,
-    body: taskRunFilterBody.value
-  }),
-  flow: Api.query({
-    endpoint: Endpoints.flows,
-    body: taskRunFilterBody.value
   })
-}
 
-const state = computed(() => {
-  return props.item.state
-})
+  const queries: Record<string, Query> = {
+    flow_run: Api.query({
+      endpoint: Endpoints.flow_runs,
+      body: taskRunFilterBody.value,
+    }),
+    flow: Api.query({
+      endpoint: Endpoints.flows,
+      body: taskRunFilterBody.value,
+    }),
+  }
 
-const stateType = computed(() => {
-  return props.item.state.type.toLowerCase()
-})
+  const state = computed(() => {
+    return props.item.state
+  })
 
-const tags = computed(() => {
-  return props.item.tags
-})
+  const stateType = computed(() => {
+    return props.item.state.type.toLowerCase()
+  })
 
-const flowRun = computed(() => {
-  return queries.flow_run?.response?.value?.[0] || {}
-})
+  const tags = computed(() => {
+    return props.item.tags
+  })
 
-const flow = computed(() => {
-  return queries.flow?.response?.value?.[0] || {}
-})
+  const flowRun = computed(() => {
+    return queries.flow_run?.response?.value?.[0] || {}
+  })
 
-const duration = computed(() => {
-  return stateType.value == 'pending' || stateType.value == 'scheduled'
-    ? '--'
-    : props.item.total_run_time
-    ? secondsToApproximateString(props.item.total_run_time)
-    : secondsToApproximateString(props.item.estimated_run_time)
-})
+  const flow = computed(() => {
+    return queries.flow?.response?.value?.[0] || {}
+  })
 
-const crumbs = computed(() => {
-  return [
-    { text: flow.value?.name },
-    { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
-    { text: props.item.name }
-  ]
-})
+  const duration = computed(() => {
+    return stateType.value == 'pending' || stateType.value == 'scheduled'
+      ? '--'
+      : props.item.total_run_time
+        ? secondsToApproximateString(props.item.total_run_time)
+        : secondsToApproximateString(props.item.estimated_run_time)
+  })
+
+  const crumbs = computed(() => {
+    return [
+      { text: flow.value?.name },
+      { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
+      { text: props.item.name },
+    ]
+  })
 </script>
 
 <style lang="scss" scoped>

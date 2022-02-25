@@ -1,5 +1,5 @@
-import { TimeUnit } from '@/typings/global'
 import { format } from 'date-fns'
+import { TimeUnit } from '@/typings/global'
 
 export function formatDateTimeNumeric(date: Date | string): string {
   const parsed = new Date(date)
@@ -10,7 +10,7 @@ export function formatDateTimeNumeric(date: Date | string): string {
 export function subtractTimeUnitValue(
   unit: TimeUnit,
   value: number,
-  date: Date = new Date()
+  date: Date = new Date(),
 ): Date {
   switch (unit) {
     case 'minutes':
@@ -32,7 +32,7 @@ export function subtractTimeUnitValue(
 export function addTimeUnitValue(
   unit: TimeUnit,
   value: number,
-  date: Date = new Date()
+  date: Date = new Date(),
 ): Date {
   switch (unit) {
     case 'minutes':

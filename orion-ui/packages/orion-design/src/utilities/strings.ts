@@ -11,6 +11,14 @@ export function toPluralString(word: string, count: number): string {
   return `${word}${ending}`
 }
 
+export function snakeCase(string: string): string {
+  return string
+    .replace(/\W+/g, ' ')
+    .split(/ |\B(?=[A-Z])/)
+    .map((word) => word.toLowerCase())
+    .join('_')
+}
+
 export function isString(value: unknown): value is string {
   return typeof value === 'string'
 }

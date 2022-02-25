@@ -1,5 +1,5 @@
-import { IState } from '../models'
-import { MockFunction } from '../services'
+import { IState } from '@/models/State'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomState: MockFunction<IState> = function() {
   return {

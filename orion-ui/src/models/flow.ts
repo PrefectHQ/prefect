@@ -1,9 +1,9 @@
 export type IFlow = {
-  id: string
-  created: Date
-  updated: Date
-  name: string
-  tags: string[]
+  id: string,
+  created: Date,
+  updated: Date,
+  name: string,
+  tags: string[],
 }
 
 export default class Flow {

@@ -7,8 +7,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { FilterState } from '../stores/filters'
-  import FilterTag from './FilterTag.vue'
+  import FilterTag from '@/components/FilterTag.vue'
+  import { FilterState } from '@/stores/filters'
 
   const emit = defineEmits<{
     (event: 'dismiss', filter: FilterState): void,
@@ -22,7 +22,7 @@
   defineProps<Props>()
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-tags {
   display: flex;
   gap: var(--m-1)

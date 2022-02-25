@@ -1,4 +1,7 @@
 from . import (
+    block_specs,
+    blocks,
+    configuration,
     deployments,
     concurrency_limits,
     flow_run_states,
@@ -8,4 +11,6 @@ from . import (
     task_runs,
     saved_searches,
     logs,
+    work_queues,
+    agents,
 )

@@ -4,9 +4,9 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterService } from '../services/FilterService'
-  import { Filter } from '../types/filters'
-  import DismissibleTag from './DismissibleTag.vue'
+  import DismissibleTag from '@/components/DismissibleTag.vue'
+  import { FilterService } from '@/services/FilterService'
+  import { Filter } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'dismiss', filter: Required<Filter>): void,

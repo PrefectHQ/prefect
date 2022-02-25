@@ -30,7 +30,7 @@ from prefect import State
 from prefect.exceptions import ParameterTypeError
 from prefect.logging import get_logger
 from prefect.orion.utilities.functions import parameter_schema
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
+from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
 from prefect.utilities.hashing import file_hash
@@ -61,7 +61,7 @@ class Flow(Generic[P, R]):
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         task_runner: An optional task runner to use for task execution within the flow;
-            if not provided, a `SequentialTaskRunner` will be instantiated.
+            if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -82,7 +82,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = SequentialTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -91,7 +91,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        task_runner = task_runner or SequentialTaskRunner()
+        task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
@@ -259,7 +259,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    task_runner: BaseTaskRunner = SequentialTaskRunner,
+    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -272,7 +272,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    task_runner: BaseTaskRunner = SequentialTaskRunner,
+    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -291,7 +291,7 @@ def flow(
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         task_runner: An optional task runner to use for task execution within the flow; if
-            not provided, a `SequentialTaskRunner` will be instantiated.
+            not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for

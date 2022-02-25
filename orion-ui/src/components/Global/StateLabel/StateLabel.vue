@@ -5,16 +5,16 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
+  import { computed } from 'vue'
 
-const props = defineProps({
-  name: String,
-  type: String
-})
+  const props = defineProps({
+    name: String,
+    type: String,
+  })
 
-const backgroundClass = computed(() => {
-  return `${props.type?.toLowerCase()}-bg`
-})
+  const backgroundClass = computed(() => {
+    return `${props.type?.toLowerCase()}-bg`
+  })
 </script>
 
 <style lang="scss" scoped>

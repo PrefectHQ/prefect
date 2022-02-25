@@ -1,10 +1,10 @@
+import MiterDesign from '@prefecthq/miter-design'
+import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
-import router from './router'
-import store, { key } from './store'
 import api from './plugins/api'
-import { createPinia } from 'pinia'
+import router from './router'
 
 if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
   const { startServer } = await import('./server')
@@ -13,10 +13,10 @@ if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
 }
 
 // Global components
-import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
-import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
+import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -27,25 +27,23 @@ import ListItemSubFlowRun from '@/components/Global/List/ListItemSubFlowRun/List
 import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue'
 import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
-import RadarNode from '@/components/Radar/Nodes/Node.vue'
-import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
-import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
+import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
+import RadarNode from '@/components/Radar/Nodes/Node.vue'
+import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 
+// styles
 import '@prefecthq/miter-design/dist/style.css'
-import MiterDesign from '@prefecthq/miter-design'
-
 import '@prefecthq/orion-design/dist/style.css'
-
 import '@/styles/main.scss'
 
 const storageKey = 'orion-color-mode'
 const storedMode = localStorage.getItem(storageKey)?.toLowerCase()
 const defaultClass = 'default-color-mode'
-const colorMode = storedMode ? storedMode + '-color-mode' : defaultClass
+const colorMode = storedMode ? `${storedMode }-color-mode` : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(store, key).use(router).use(api).use(createPinia())
+const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
 
 app.component('ButtonCard', ButtonCard)
 app.component('BreadCrumb', BreadCrumb)

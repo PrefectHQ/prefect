@@ -7,8 +7,8 @@ import anyio
 import pendulum
 import pytest
 
-import prefect.settings
 from prefect import flow, task
+from prefect.context import TaskRunContext
 from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
@@ -195,13 +195,17 @@ class TestOrchestrateTaskRun:
         sleep = AsyncMock(side_effect=reset_scheduled_time)
         monkeypatch.setattr("anyio.sleep", sleep)
 
-        state = await orchestrate_task_run(
-            task=foo,
+        with TaskRunContext(
             task_run=task_run,
-            parameters={},
-            wait_for=None,
+            task=foo,
             client=orion_client,
-        )
+        ):
+            state = await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+            )
 
         sleep.assert_awaited_once()
         assert state.is_completed()
@@ -229,13 +233,17 @@ class TestOrchestrateTaskRun:
         sleep = AsyncMock()
         monkeypatch.setattr("anyio.sleep", sleep)
 
-        state = await orchestrate_task_run(
-            task=foo,
+        with TaskRunContext(
             task_run=task_run,
-            parameters={},
-            wait_for=None,
+            task=foo,
             client=orion_client,
-        )
+        ):
+            state = await orchestrate_task_run(
+                task=foo,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+            )
 
         sleep.assert_not_called()
         assert state.is_completed()
@@ -280,13 +288,17 @@ class TestOrchestrateTaskRun:
         monkeypatch.setattr("anyio.sleep", sleep)
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=flaky_function,
+        with TaskRunContext(
             task_run=task_run,
-            parameters={},
-            wait_for=None,
+            task=flaky_function,
             client=orion_client,
-        )
+        ):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+            )
 
         # Check for a proper final result
         assert state.result() == 1
@@ -348,14 +360,18 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=my_task,
+        with TaskRunContext(
             task_run=task_run,
-            # Nest the future in a collection to ensure that it is found
-            parameters={"x": {"nested": [future]}},
-            wait_for=None,
+            task=my_task,
             client=orion_client,
-        )
+        ):
+            state = await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                # Nest the future in a collection to ensure that it is found
+                parameters={"x": {"nested": [future]}},
+                wait_for=None,
+            )
 
         # The task did not run
         mock.assert_not_called()
@@ -390,14 +406,18 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        state = await orchestrate_task_run(
-            task=my_task,
+        with TaskRunContext(
             task_run=task_run,
-            # Nest the future in a collection to ensure that it is found
-            parameters={"x": upstream_task_state},
-            wait_for=None,
+            task=my_task,
             client=orion_client,
-        )
+        ):
+            state = await orchestrate_task_run(
+                task=my_task,
+                task_run=task_run,
+                # Nest the future in a collection to ensure that it is found
+                parameters={"x": upstream_task_state},
+                wait_for=None,
+            )
 
         # The task ran with the state as its input
         mock.assert_called_once_with(upstream_task_state)

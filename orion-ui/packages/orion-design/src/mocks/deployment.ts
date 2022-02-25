@@ -1,5 +1,5 @@
-import { Deployment } from '../models'
-import { MockFunction } from '../services'
+import { Deployment } from '@/models/Deployment'
+import { MockFunction } from '@/services/Mocker'
 
 export const randomDeployment: MockFunction<Deployment> = function() {
   return {
@@ -8,10 +8,14 @@ export const randomDeployment: MockFunction<Deployment> = function() {
     updated: this.create('date'),
     name: this.create('string'),
     flowId: this.create('string'),
-    isScheduleActive: this.create('boolean'),
-    tags: this.createMany('string', 3),
-    flowData: null,
+    flowData: {
+      encoding: this.create('string'),
+      blob: this.create('string'),
+    },
     schedule: null,
-    parameters: null,
+    isScheduleActive: this.create('boolean'),
+    parameters: {},
+    tags: this.createMany('string', 3),
+    flowRunner: null,
   }
 }

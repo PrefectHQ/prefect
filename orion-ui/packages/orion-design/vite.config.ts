@@ -20,7 +20,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
       alias: [
         {
           find: '@',
-          replacement: resolve(__dirname, '../../src'),
+          replacement: resolve(__dirname, './src'),
         },
       ],
     },
@@ -33,7 +33,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
         fileName,
       },
       rollupOptions: {
-        external: ['vue'],
+        external: ['vue', 'vue-router', 'pinia'],
         output: {
           exports: 'named',
           globals: {

@@ -5,18 +5,18 @@
 </template>
 
 <script lang="ts">
-import { Vue, prop, Options } from 'vue-class-component'
+  import { Vue, prop, Options } from 'vue-class-component'
 
-class Props {
-  hideScrollbars = prop<boolean>({
-    required: false,
-    default: false,
-    type: Boolean
-  })
-}
+  class Props {
+    hideScrollbars = prop<boolean>({
+      required: false,
+      default: false,
+      type: Boolean,
+    })
+  }
 
-@Options({})
-export default class Row extends Vue.with(Props) {}
+  @Options({})
+  export default class Row extends Vue.with(Props) {}
 </script>
 
 <style lang="scss" scoped>

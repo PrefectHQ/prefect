@@ -1,7 +1,8 @@
 import { AxiosResponse } from 'axios'
 import { LogsRequestFilter } from '..'
-import { Log } from '../models/Log'
-import { Api } from './Api'
+import { Route } from '.'
+import { Log } from '@/models/Log'
+import { Api } from '@/services/Api'
 
 export type ILogResponse = {
   id: string,
@@ -17,9 +18,9 @@ export type ILogResponse = {
 
 export class LogsApi extends Api {
 
-  protected route: string = '/api/logs'
+  protected route: Route = '/logs'
 
-  public filter(filter?: LogsRequestFilter): Promise<Log[]> {
+  public getLogs(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post('/filter', filter).then(response => this.logsResponseMapper(response))
   }
 
@@ -40,6 +41,7 @@ export class LogsApi extends Api {
   protected logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
     return data.map(log => this.logMapper(log))
   }
+
 }
 
-export const Logs = new LogsApi()
+export const logsApi = new LogsApi()

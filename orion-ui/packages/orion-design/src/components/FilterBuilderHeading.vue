@@ -7,9 +7,9 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterService } from '../services/FilterService'
-  import { Filter } from '../types/filters'
-  import { isFilter } from '../utilities/filters'
+  import { FilterService } from '@/services/FilterService'
+  import { Filter } from '@/types/filters'
+  import { isFilter } from '@/utilities/filters'
 
   type Props = {
     filter: Partial<Filter>,
@@ -34,7 +34,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-heading {
   color: var(--black);
   font-family: var(--primary);

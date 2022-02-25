@@ -1,4 +1,4 @@
 export type Crumb = {
-  text: string
-  to?: string
+  text: string,
+  to?: string,
 }

@@ -1,14 +1,14 @@
-export const abs = Math.abs
-export const atan2 = Math.atan2
-export const cos = Math.cos
-export const max = Math.max
-export const min = Math.min
-export const sin = Math.sin
-export const tan = Math.tan
-export const sqrt = Math.sqrt
-export const pow = Math.pow
-export const floor = Math.floor
-export const ceil = Math.ceil
+export const { abs } = Math
+export const { atan2 } = Math
+export const { cos } = Math
+export const { max } = Math
+export const { min } = Math
+export const { sin } = Math
+export const { tan } = Math
+export const { sqrt } = Math
+export const { pow } = Math
+export const { floor } = Math
+export const { ceil } = Math
 
 export const epsilon = 1e-12
 export const pi = Math.PI
@@ -24,5 +24,5 @@ export const asin = (x: number): number => {
 }
 
 export const pow2 = (n: number): number => {
-  return pow(n, 2)
+  return n**2
 }

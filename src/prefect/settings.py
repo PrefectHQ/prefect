@@ -61,6 +61,12 @@ class Setting(Generic[T]):
     def __repr__(self) -> str:
         return f"Setting({self.type.__name__}, {self.field!r})"
 
+    def __bool__(self) -> bool:
+        """
+        Returns a truthy check of the current value.
+        """
+        return bool(self.value())
+
 
 # Callbacks and validators
 
@@ -236,26 +242,6 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-PREFECT_ORION_DATA_NAME = Setting(
-    str,
-    default="default",
-    description="""The name for the default data directory. Defaults to
-    `default`.""",
-)
-
-PREFECT_ORION_DATA_SCHEME = Setting(
-    str,
-    default="file",
-    description="""The scheme for the default data directory. Defaults to
-    `file`.""",
-)
-PREFECT_ORION_DATA_BASE_PATH = Setting(
-    str,
-    default="/tmp",
-    description="""The base path for the default data directory. Defaults to
-    `/tmp`.""",
-)
-
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
@@ -283,6 +269,14 @@ PREFECT_ORION_DATABASE_ECHO = Setting(
     default=False,
     description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
+
+
+PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
+    bool,
+    default=True,
+    description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
+)
+
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
@@ -621,3 +615,38 @@ def load_profile(name: str) -> Dict[str, str]:
         raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
 
     return variables
+
+
+def update_profile(name: str = None, **values) -> Dict[str, str]:
+    """
+    Update a profile, adding or updating key value pairs.
+
+    If the profile does not exist, it will be created.
+
+    This function is not thread safe.
+
+    Args:
+        name: The profile to update. If not set, the current profile name will be used.
+        **values: Key and value pairs to update. To unset keys, set them to `None`.
+
+    Returns:
+        The new settings for the profile
+    """
+    if name is None:
+        import prefect.context
+
+        name = prefect.context.get_profile_context().name
+
+    profiles = load_profiles()
+    settings = profiles.get(name, {})
+    settings.update(values)
+
+    for key, value in tuple(settings.items()):
+        if value is None:
+            settings.pop(key)
+
+    profiles[name] = settings
+
+    write_profiles(profiles)
+
+    return settings
