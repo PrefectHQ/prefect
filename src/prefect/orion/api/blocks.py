@@ -1,7 +1,7 @@
 """
 Routes for interacting with block objects.
 """
-from typing import List
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -18,90 +18,97 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/blocks", tags=["Blocks"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block(
     block: schemas.actions.BlockCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Block:
-
-    # hydrate the input model into a full model
-    block_data_model = schemas.core.Block(**block.dict())
-
     try:
-        model = await models.blocks.create_block(
-            session=session, block=block_data_model
-        )
+        model = await models.blocks.create_block(session=session, block=block)
     except sa.exc.IntegrityError:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_409_CONFLICT,
             detail="Block already exists",
         )
 
-    if model.created >= pendulum.now():
-        response.status_code = status.HTTP_201_CREATED
-
-    return model
+    return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
 
 @router.get("/{id}")
-async def read_block(
+async def read_block_by_id(
     block_id: UUID = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
-
-    block = await models.blocks.read_block_by_id(session=session, block_id=block_id)
-
-    if not block:
+) -> schemas.core.Block:
+    model = await models.blocks.read_block_by_id(session=session, block_id=block_id)
+    if not model:
         return responses.JSONResponse(
             status_code=404, content={"message": "Block not found"}
         )
+    return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
-    return block
 
-
-@router.get("/name/{name}")
-async def read_block_by_name(
-    name: str = Path(..., description="The block name", alias="name"),
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_block(
+    block_id: str = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-
-    block = await models.blocks.read_block_by_name(session=session, name=name)
-
-    if not block:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
-        )
-
-    return block
-
-
-@router.delete("/name/{name}")
-async def delete_block_by_name(
-    name: str = Path(..., description="The block name"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-):
-    result = await models.blocks.delete_block_by_name(session=session, name=name)
+    result = await models.blocks.delete_block(session=session, block_id=block_id)
     if not result:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
 
 
-@router.patch("/name/{name}")
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_block_data(
-    name: str,
     block: schemas.actions.BlockUpdate,
+    block_id: str = Path(..., description="The block id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     result = await models.blocks.update_block(
         session=session,
-        name=name,
+        block_id=id,
         block=block,
     )
 
     if not result:
-        return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block not found")
+
+
+@router.post("/{id}/set_default_storage_block", status_code=status.HTTP_204_NO_CONTENT)
+async def set_default_storage_block(
+    block_id: str = Path(..., description="The block id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    try:
+        await models.blocks.set_default_storage_block(
+            session=session, block_id=block_id
         )
+    except ValueError as exc:
+        if "Block not found" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Block not found"
+            )
+        elif "Block spec type must be STORAGE" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Specified block is not a storage block",
+            )
+        else:
+            raise
+
+
+@router.post("/get_default_storage_block")
+async def get_default_storage_block(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> Optional[schemas.core.Block]:
+    model = await models.blocks.get_default_storage_block(session=session)
+    if model:
+        return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
+
+
+@router.post("/clear_default_storage_block")
+async def clear_default_storage_block(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> Optional[schemas.core.Block]:
+    await models.blocks.clear_default_storage_block(session=session)

@@ -574,6 +574,10 @@ class TestDockerFlowRunner:
         )
         return mock
 
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
+
     def test_runner_type(self):
         assert DockerFlowRunner().typename == "docker"
 
@@ -1201,6 +1205,10 @@ class TestKubernetesFlowRunner:
     @pytest.fixture(autouse=True)
     def skip_if_kubernetes_is_not_installed(self):
         pytest.importorskip("kubernetes")
+
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
 
     @pytest.fixture
     def mock_watch(self, monkeypatch):

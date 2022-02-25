@@ -7,6 +7,7 @@ import base64
 import json
 import warnings
 from typing import Any
+from uuid import UUID
 
 import cloudpickle
 import pydantic
@@ -73,18 +74,24 @@ class PickleSerializer:
 class BlockStorageSerializer:
     @staticmethod
     def dumps(block_document: dict) -> bytes:
+        if block_document["block_id"]:
+            block_id = str(block_document["block_id"])
+        else:
+            block_id = None
         block_document = {
             "data": json.dumps(block_document["data"]),
-            "blockid": block_document["blockid"],
+            "block_id": block_id,
         }
         return json.dumps(block_document).encode()
 
     @staticmethod
     def loads(blob: bytes) -> dict:
-        from prefect.orion.schemas.data import DataDocument
-
         block_document = json.loads(blob.decode())
+        if block_document["block_id"]:
+            block_id = UUID(block_document["block_id"])
+        else:
+            block_id = None
         return {
             "data": json.loads(block_document["data"]),
-            "blockid": block_document["blockid"],
+            "block_id": block_id,
         }
