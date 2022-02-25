@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 from typing import List
+from uuid import UUID
 
 import anyio
 import pendulum
@@ -28,7 +29,7 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
-    deployment_ids: List[str] = typer.Option(
+    deployment_ids: List[UUID] = typer.Option(
         None, "-d", "--deployment", help="One or more optional deployment IDs"
     ),
     flow_runner_types: List[str] = typer.Option(
@@ -51,7 +52,7 @@ async def create(
 
 @work_app.command()
 async def set_concurrency_limit(
-    id: str = typer.Argument(..., help="The id of the work queue"),
+    id: UUID = typer.Argument(..., help="The id of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
 ):
     """
@@ -71,7 +72,7 @@ async def set_concurrency_limit(
 
 @work_app.command()
 async def clear_concurrency_limit(
-    id: str = typer.Argument(..., help="The id of the work queue to clear"),
+    id: UUID = typer.Argument(..., help="The id of the work queue to clear"),
 ):
     """
     Clear any concurrency limits from a work queue.
@@ -90,7 +91,7 @@ async def clear_concurrency_limit(
 
 @work_app.command()
 async def pause(
-    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
+    id: UUID = typer.Argument(..., help="The ID of the work queue to pause."),
 ):
     """
     Pause a work queue.
@@ -109,7 +110,7 @@ async def pause(
 
 @work_app.command()
 async def unpause(
-    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
+    id: UUID = typer.Argument(..., help="The ID of the work queue to pause."),
 ):
     """
     Unpause a work queue.
@@ -127,7 +128,7 @@ async def unpause(
 
 
 @work_app.command()
-async def inspect(id: str):
+async def inspect(id: UUID):
     """
     Inspect a work queue by ID.
     """
@@ -170,7 +171,7 @@ async def ls():
 
 @work_app.command()
 async def preview(
-    id: str = typer.Argument(..., help="The id of the work queue"),
+    id: UUID = typer.Argument(..., help="The id of the work queue"),
     hours: int = typer.Option(
         None,
         "-h",
@@ -218,7 +219,7 @@ async def preview(
 
 
 @work_app.command()
-async def delete(id: str):
+async def delete(id: UUID):
     """
     Delete a work queue by ID.
     """
