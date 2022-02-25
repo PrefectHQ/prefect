@@ -7,6 +7,7 @@ import base64
 import json
 import warnings
 from typing import Any
+from uuid import UUID
 
 import cloudpickle
 import pydantic
@@ -51,17 +52,12 @@ class PickleSerializer:
     """
     Serializes arbitrary objects using the pickle protocol.
 
-    Wraps `cloudpickle` to encode bytes in base64 for safe transmission and handle
-    objects that cannot be serialized without throwing an exception.
+    Wraps `cloudpickle` to encode bytes in base64 for safe transmission.
     """
 
     @staticmethod
     def dumps(data: Any) -> bytes:
-        try:
-            data_bytes = cloudpickle.dumps(data)
-        except Exception:
-            warnings.warn(f"Failed to pickle data of type {type(data)}", stacklevel=3)
-            data_bytes = cloudpickle.dumps(repr(data))
+        data_bytes = cloudpickle.dumps(data)
 
         return base64.encodebytes(data_bytes)
 
@@ -78,18 +74,24 @@ class PickleSerializer:
 class BlockStorageSerializer:
     @staticmethod
     def dumps(block_document: dict) -> bytes:
+        if block_document["block_id"]:
+            block_id = str(block_document["block_id"])
+        else:
+            block_id = None
         block_document = {
             "data": json.dumps(block_document["data"]),
-            "blockid": block_document["blockid"],
+            "block_id": block_id,
         }
         return json.dumps(block_document).encode()
 
     @staticmethod
     def loads(blob: bytes) -> dict:
-        from prefect.orion.schemas.data import DataDocument
-
         block_document = json.loads(blob.decode())
+        if block_document["block_id"]:
+            block_id = UUID(block_document["block_id"])
+        else:
+            block_id = None
         return {
             "data": json.loads(block_document["data"]),
-            "blockid": block_document["blockid"],
+            "block_id": block_id,
         }

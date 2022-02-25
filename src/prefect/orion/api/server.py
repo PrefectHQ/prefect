@@ -7,6 +7,7 @@ import os
 from functools import partial
 from typing import Dict, List, Optional
 
+import sqlalchemy as sa
 from fastapi import Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -21,12 +22,13 @@ import prefect.orion.services as services
 import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
+from prefect.orion.exceptions import ObjectNotFoundError
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.2.0"
+ORION_API_VERSION = "0.3.0"
 
 logger = get_logger("orion")
 
@@ -59,12 +61,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+async def integrity_exception_handler(request: Request, exc: Exception):
+    """Capture database integrity errors."""
+    logger.error(f"Encountered exception in request:", exc_info=True)
+    return JSONResponse(
+        content={
+            "detail": (
+                "Data integrity conflict. This usually means a "
+                "unique or foreign key constraint was violated. "
+                "See server logs for details."
+            )
+        },
+        status_code=status.HTTP_409_CONFLICT,
+    )
+
+
 async def custom_internal_exception_handler(request: Request, exc: Exception):
     """Log a detailed exception for internal server errors before returning."""
     logger.error(f"Encountered exception in request:", exc_info=True)
     return JSONResponse(
         content={"exception_message": "Internal Server Error"},
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
+
+
+async def prefect_object_not_found_exception_handler(
+    request: Request, exc: ObjectNotFoundError
+):
+    """Return 404 status code on object not found exceptions."""
+    return JSONResponse(
+        content={"exception_message": str(exc)}, status_code=status.HTTP_404_NOT_FOUND
     )
 
 
@@ -137,6 +163,9 @@ def create_orion_api(
         api.blocks.router, prefix=router_prefix, dependencies=dependencies
     )
     api_app.include_router(
+        api.work_queues.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
         api.block_specs.router, prefix=router_prefix, dependencies=dependencies
     )
 
@@ -151,19 +180,83 @@ def create_orion_api(
 APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
 
 
-def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
+def create_app(
+    settings: prefect.settings.Settings = None, ignore_cache: bool = False
+) -> FastAPI:
     """Create an FastAPI app that includes the Orion API and UI"""
     settings = settings or prefect.settings.get_current_settings()
 
-    if settings in APP_CACHE:
+    if settings in APP_CACHE and not ignore_cache:
         return APP_CACHE[settings]
 
-    app = FastAPI(title=TITLE, version=API_VERSION)
+    async def run_migrations():
+        """Ensure the database is created and up to date with the current migrations"""
+        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
+            from prefect.orion.database.dependencies import provide_database_interface
+
+            db = provide_database_interface()
+            await db.create_db()
+
+    async def start_services():
+        """Start additional services when the Orion API starts up."""
+        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
+
+            loop = asyncio.get_running_loop()
+            service_instances = [
+                services.scheduler.Scheduler(),
+                services.late_runs.MarkLateRuns(),
+            ]
+            app.state.services = {
+                service: loop.create_task(service.start())
+                for service in service_instances
+            }
+
+            for service, task in app.state.services.items():
+                logger.info(f"{service.name} service scheduled to start in-app")
+                task.add_done_callback(partial(on_service_exit, service))
+        else:
+            logger.info(
+                "In-app services have been disabled and will need to be run separately."
+            )
+            app.state.services = None
+
+    async def stop_services():
+        """Ensure services are stopped before the Orion API shuts down."""
+        if app.state.services:
+            await asyncio.gather(*[service.stop() for service in app.state.services])
+            try:
+                await asyncio.gather(
+                    *[task.stop() for task in app.state.services.values()]
+                )
+            except Exception as exc:
+                # `on_service_exit` should handle logging exceptions on exit
+                pass
+
+    def on_service_exit(service, task):
+        """
+        Added as a callback for completion of services to log exit
+        """
+        try:
+            # Retrieving the result will raise the exception
+            task.result()
+        except Exception:
+            logger.error(f"{service.name} service failed!", exc_info=True)
+        else:
+            logger.info(f"{service.name} service stopped!")
+
+    app = FastAPI(
+        title=TITLE,
+        version=API_VERSION,
+        on_startup=[run_migrations, start_services],
+        on_shutdown=[stop_services],
+    )
     api_app = create_orion_api(
         fast_api_app_kwargs={
             "exception_handlers": {
                 Exception: custom_internal_exception_handler,
                 RequestValidationError: validation_exception_handler,
+                sa.exc.IntegrityError: integrity_exception_handler,
+                ObjectNotFoundError: prefect_object_not_found_exception_handler,
             }
         }
     )
@@ -222,54 +315,5 @@ def create_app(settings: prefect.settings.Settings = None) -> FastAPI:
 
     app.openapi = openapi
 
-    @app.on_event("startup")
-    async def start_services():
-        """Start additional services when the Orion API starts up."""
-        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
-            loop = asyncio.get_running_loop()
-            service_instances = [
-                services.scheduler.Scheduler(),
-                services.late_runs.MarkLateRuns(),
-            ]
-            app.state.services = {
-                service: loop.create_task(service.start())
-                for service in service_instances
-            }
-
-            for service, task in app.state.services.items():
-                logger.info(f"{service.name} service scheduled to start in-app")
-                task.add_done_callback(partial(on_service_exit, service))
-        else:
-            logger.info(
-                "In-app services have been disabled and will need to be run separately."
-            )
-            app.state.services = None
-
-    @app.on_event("shutdown")
-    async def wait_for_service_shutdown():
-        """Ensure services are stopped before the Orion API shuts down."""
-        if app.state.services:
-            await asyncio.gather(*[service.stop() for service in app.state.services])
-            try:
-                await asyncio.gather(
-                    *[task.stop() for task in app.state.services.values()]
-                )
-            except Exception as exc:
-                # `on_service_exit` should handle logging exceptions on exit
-                pass
-
-    def on_service_exit(service, task):
-        """
-        Added as a callback for completion of services to log exit
-        """
-        try:
-            # Retrieving the result will raise the exception
-            task.result()
-        except Exception:
-            logger.error(f"{service.name} service failed!", exc_info=True)
-        else:
-            logger.info(f"{service.name} service stopped!")
-
     APP_CACHE[settings] = app
-
     return app

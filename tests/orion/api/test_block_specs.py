@@ -60,19 +60,19 @@ class TestCreateBlockSpec:
         assert str(block_spec.id) == block_spec_id
 
     async def test_create_block_spec_with_existing_name_and_version_fails(
-        self, session, client_without_exceptions
+        self, session, client
     ):
-        response = await client_without_exceptions.post(
+        response = await client.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type=None, fields={}).dict(),
         )
         assert response.status_code == 201
 
-        response = await client_without_exceptions.post(
+        response = await client.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type="abc", fields={}).dict(),
         )
-        assert response.status_code == 422
+        assert response.status_code == 409
         assert 'Block spec "x/1.0" already exists.' in response.json()["detail"]
 
 
@@ -96,7 +96,7 @@ class TestDeleteBlockSpec:
 
 class TestReadBlockSpec:
     async def test_read_all_block_specs(self, session, client, block_specs):
-        result = await client.get(f"/block_specs/")
+        result = await client.post(f"/block_specs/filter")
         api_specs = pydantic.parse_obj_as(List[schemas.core.BlockSpec], result.json())
         assert [s.id for s in api_specs] == [
             block_specs[0].id,
@@ -105,7 +105,7 @@ class TestReadBlockSpec:
         ]
 
     async def test_read_block_specs_by_type(self, session, client, block_specs):
-        result = await client.get(f"/block_specs/", params=dict(type="abc"))
+        result = await client.post(f"/block_specs/filter", json=dict(type="abc"))
         api_specs = pydantic.parse_obj_as(List[schemas.core.BlockSpec], result.json())
         assert [s.id for s in api_specs] == [block_specs[0].id, block_specs[1].id]
 

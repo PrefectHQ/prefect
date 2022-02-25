@@ -9,7 +9,7 @@ export const randomTaskRun: MockFunction<TaskRun> = function() {
     cacheKey: this.create('string'),
     created: this.create('date'),
     dynamicKey: this.create('string'),
-    empiricalPolicy: {},
+    empiricalPolicy: null,
     estimatedRunTime: this.create('number'),
     estimatedStartTimeDelta: this.create('number'),
     totalRunTime: this.create('number'),
@@ -26,8 +26,6 @@ export const randomTaskRun: MockFunction<TaskRun> = function() {
     stateId: this.create('string'),
     stateType: this.create('stateType'),
     state: this.create('state'),
-    duration: this.create('number'),
-    subflowRuns: this.create('boolean'),
     tags: this.createMany('string', 3),
   })
 }
