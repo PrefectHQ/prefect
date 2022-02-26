@@ -1195,12 +1195,11 @@ class OrionClient:
             Optional[Block]:
         """
         response = await self.post("/blocks/get_default_storage_block")
-        json_response = response.json()
-        if not json_response:
+        if not response.content:
             return None
         if as_json:
-            return json_response
-        return create_block_from_api_block(json_response)
+            return response.json()
+        return create_block_from_api_block(response.json())
 
     async def set_default_storage_block(self, block_id: UUID) -> bool:
         await self.post(f"/blocks/{block_id}/set_default_storage_block")
