@@ -99,7 +99,7 @@ async def ls(limit: int = 15, offset: int = 0):
             limit=limit, offset=offset
         )
 
-    for cl in sorted(concurrency_limits, key=lambda q: pendulum.now("utc") - q.updated):
+    for cl in sorted(concurrency_limits, key=q.updated, reverse=True):
         table.add_row(
             str(cl.id),
             str(cl.tag),
