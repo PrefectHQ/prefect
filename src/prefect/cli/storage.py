@@ -169,9 +169,8 @@ async def ls():
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Storage Type", style="green")
     table.add_column("Name", style="green")
-    table.add_column("Default?", style="green", width=10)
+    table.add_column("Storage Type", style="green")
 
     async with get_client() as client:
         json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
@@ -180,17 +179,23 @@ async def ls():
         )
     blocks = pydantic.parse_obj_as(List[prefect.orion.schemas.core.Block], json_blocks)
 
-    for block in blocks:
+    for block in sorted(blocks, key=lambda block: block.id):
         table.add_row(
             str(block.id),
+            (
+                f"{block.name} [blue](**)[/]"
+                if str(block.id) == str(default_storage_block.get("id"))
+                else block.name
+            ),
             block.block_spec.name,
-            block.name,
-            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
         )
 
-    console.print(table)
     if not default_storage_block:
-        console.print(
-            "No default storage is set yet, so temporary local storage will be used."
+        table.caption = (
+            "No default storage is set. Temporary local storage will be used."
             "\nSet a default with `prefect storage set-default <id>`"
         )
+    else:
+        table.caption = "(**) denotes the current default"
+
+    console.print(table)
