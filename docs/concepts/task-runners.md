@@ -45,7 +45,7 @@ If you specify a task runner, a task runner instance of that type is created wit
 
 The [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via the `address` kwarg.
 
-To configure your flow to use DaskTaskRunner, import it [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign it as the task runner when the flow is defined.
+To configure your flow to use the `DaskTaskRunner`, import it from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign it as the task runner when the flow is defined.
 
 ```python hl_lines="4"
 from prefect import flow
