@@ -267,6 +267,8 @@
 }
 
 .filter-bar__menu-search {
+  max-height: 50vh;
+
   @media (max-width: 1024px) {
     top: 100%;
   }
