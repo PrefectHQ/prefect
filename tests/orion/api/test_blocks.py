@@ -1,7 +1,8 @@
 from uuid import uuid4
 
+import pydantic
 import pytest
-
+from typing import List
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockCreate, BlockUpdate
 from prefect.orion.schemas.core import Block
@@ -106,6 +107,86 @@ class TestReadBlock:
     async def test_read_missing_block(self, client):
         response = await client.get(f"/blocks/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestReadBlocks:
+    @pytest.fixture(autouse=True)
+    async def blocks(self, session, block_specs):
+
+        blocks = []
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[0].id, name="Block 1"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 2"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 3"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 4"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 5"
+                ),
+            )
+        )
+
+        session.add_all(blocks)
+        await session.commit()
+        return blocks
+
+    async def test_read_blocks(self, client, blocks):
+        response = await client.post("/blocks/filter")
+        assert response.status_code == 200
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert {b.id for b in read_blocks} == {b.id for b in blocks}
+        # sorted by block spec name, block spec version (desc), block name
+        assert [b.id for b in read_blocks] == [
+            blocks[2].id,
+            blocks[4].id,
+            blocks[0].id,
+            blocks[1].id,
+            blocks[3].id,
+        ]
+
+    async def test_read_blocks_limit_offset(self, client, blocks):
+        # sorted by block spec name, block spec version (desc), block name
+        response = await client.post("/blocks/filter", json=dict(limit=2))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[4].id]
+
+        response = await client.post("/blocks/filter", json=dict(limit=2, offset=2))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id]
+
+    async def test_read_blocks_type(self, client, blocks):
+        response = await client.post("/blocks/filter", json=dict(block_spec_type="abc"))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id, blocks[3].id]
 
 
 class TestDeleteBlock:
