@@ -15,7 +15,7 @@ tags:
 
 In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, using task runners to execute tasks sequentially, concurrently, or even in parallel. But so far you've run flows pretty much as scripts. 
 
-_Deployments_ take your flows to the next level: deployments add the information needed for scheduling a flow run or triggering it via an API call. Deployments elevate workflows from functions that users call manually to API-managed entities.
+[Deployments](/concepts/deployments/) take your flows to the next level: deployments add the information needed for scheduling a flow run or triggering it via an API call. Deployments elevate workflows from functions that users call manually to API-managed entities.
 
 Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
 
@@ -62,12 +62,12 @@ Save this in a file `leo_flow.py` and run it as a Python script. You'll see outp
 <div class="termy">
 ```
 $ python leo_flow.py
-20:49:47.730 | INFO    | prefect.engine - Created flow run 'rare-frog' for flow 'leonardo_dicapriflow'
-20:49:47.731 | INFO    | Flow run 'rare-frog' - Using task runner 'ConcurrentTaskRunner'
-20:49:47.791 | INFO    | Flow run 'rare-frog' - Created task run 'log_message-dd6ef374-0' for task 'log_message'
-20:49:47.839 | INFO    | Task run 'log_message-dd6ef374-0' - Hello Leo!
-20:49:47.887 | INFO    | Task run 'log_message-dd6ef374-0' - Finished in state Completed(None)
-20:49:48.204 | INFO    | Flow run 'rare-frog' - Finished in state Completed('All states completed.')
+12:14:30.012 | INFO    | prefect.engine - Created flow run 'certain-cormorant' for flow 'leonardo_dicapriflow'
+12:14:30.013 | INFO    | Flow run 'certain-cormorant' - Using task runner 'ConcurrentTaskRunner'
+12:14:30.090 | INFO    | Flow run 'certain-cormorant' - Created task run 'log_message-dd6ef374-0' for task 'log_message'
+12:14:30.143 | INFO    | Task run 'log_message-dd6ef374-0' - Hello Leo!
+12:14:30.191 | INFO    | Task run 'log_message-dd6ef374-0' - Finished in state Completed(None)
+12:14:30.459 | INFO    | Flow run 'certain-cormorant' - Finished in state Completed('All states completed.')
 ```
 </div>
 
@@ -86,11 +86,25 @@ You can additionally include the following pieces of optional information:
 - `parameters` whose values will be passed to the flow function when it runs
 - a `schedule` for auto-generating flow runs
 
-To create the deployment specification, import `DeploymentSpec`, then define a `DeploymentSpec` object as either Python or YAML code. For this example, define it as Python in the same `leo_flow.py` file as the flow. 
+To create the deployment specification, import `DeploymentSpec`, then define a `DeploymentSpec` object as either Python or YAML code. Save this in a new `leo_deployment.py` file. 
 
-```python hl_lines="2 14-18"
-from prefect import flow, task, get_run_logger
+```python
 from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    name="leonardo-deployment",
+    flow_location="./leo_flow.py",
+    tags=['tutorial','test'],
+    parameters={'name':'Leo'}
+)
+```
+
+Note that we moved the value passed as the `name` parameter to  `parameters=` in the deployment specification.
+
+Also, in the flow definition `leo_flow.py`, comment out or remove the last line `leonardo_dicapriflow("Leo")`, the call to the flow function. We don't need that anymore, because the flow runner will call it directly with the specified `parameters` when it executes the deployment.
+
+```python hl_lines="14"
+from prefect import flow, task, get_run_logger
 
 @task
 def log_message(name):
@@ -103,130 +117,215 @@ def leonardo_dicapriflow(name: str):
     log_message(name)
     return
 
-DeploymentSpec(
-    flow=leonardo_dicapriflow,
-    name="leonardo__deployment",
-    tags=['tutorial','test'],
-)
+# leonardo_dicapriflow("Leo")
 ```
 
+## Creating the deployment
 
+Now that you have a `leo_flow.py` flow definition and a `leo_deployment.py` deployment specification, you can use the Prefect CLI to create the deployment.
 
-To create a deployment, you define the deployment specification and then use that with the Orion server; for example, suppose we have the following two files located in `/Developer/workflows/`:
-
-=== "my_flow.py"
-
-    The definition of our workflow.
-
-    ```python
-    from prefect import flow, task
-    from typing import List
-
-
-    @task
-    def add_numbers(nums):
-        return sum(nums)
-
-    @flow(name="Addition Machine")
-    def calculator(nums: List[int]):
-        return add_numbers(nums)
-    ```
-
-    !!! note "Type Hints"
-        Note that we are using type hints to ensure typing compatibility between the API and Python. 
-
-=== "my_flow_deployment.py"
-
-    Our workflow deployment specification.
-    
-    ```python
-    from prefect.deployments import DeploymentSpec
-
-    # note that deployment names are 
-    # stored and referenced as '<flow name>/<deployment name>'
-    DeploymentSpec(
-        flow_location="/Developer/workflows/my_flow.py",
-        name="my-first-deployment",
-        parameters={"nums": [1, 2, 3, 4]}, 
-    )
-    ```
-
-We can then use the `prefect` CLI to register this deployment with the Orion server:
+Use the `prefect deployment create` command to create the deployment with the Orion server, specifying the name of the file that contains the deployment specification:
 
 <div class="termy">
 ```
-$ prefect deployment create ./my_flow_deployment.py
-Loading deployments from python script at <span style="color: green;">'my_flow_deployment.py'</span>...
-Created deployment <span style="color: green;">'my-first-deployment'</span> for flow <span style="color: green;">'Addition Machine'</span>
+$ prefect deployment create leo_deployment.py
+Loading deployments from python script at 'leo_deployment.py'...
+Created deployment 'leonardo-deployment' for flow 'leonardo_dicapriflow'
 ```
 </div>
 
-Now that the deployment is created, we can interact with it in multiple ways (click through the tabs to see the various options!):
+Now your deployment has been created by the Orion API and is ready to orchestrate future `leonardo_dicapriflow` flow runs.
 
-=== "The Dashboard"
+To demonstrate that your deployment exists, list all of the current deployments:
 
-    Navigate to your dashboard and you should see your newly created deployment under the "Deployments" tab; clicking "Quick Run" will trigger immediate execution!
+<div class="termy">
+```
+$ prefect deployment ls
+leonardo_dicapriflow/leonardo-deployment
+```
+</div>
 
-    <figure markdown=1>
-    ![](/img/tutorials/my-first-deployment.png){: max-width=600px}
-    </figure>
+Use `prefect deployment inspect` to display details for a specific deployment.
 
-=== "The CLI"
-
-    The same CLI that we used to create the deployment can be used to execute it; note that the CLI expects the name to be provided as 'Full Flow Name/Full Deployment Name':
-    
-    <div class="termy">
-    ```
-    $ prefect deployment execute 'Addition Machine/my-first-deployment'
-    11:56:10.440 | Beginning flow run 'feathered-silkworm' for flow 'Addition Machine'...
-    ```
-    </div>
-
-=== "The REST API"
-
-    We can additionally use the REST API directly; to faciliate this, we will demonstrate how this works with the convenient Python Orion Client:
-    
-    ```python
-    from prefect.client import get_client
-
-    async with get_client() as client:
-        deployment = await client.read_deployment_by_name("Addition Machine/my-first-deployment")
-        flow_run = await client.create_flow_run_from_deployment(deployment)
-    ```
-
-    Note that the return values of these methods are full model objects.
-
-As you can see above, deployments allow you to interact with this workflow and its associated configuration via automated services; runs created in this way are always submitted and managed by the Orion agent. 
-
-!!! tip "Managing Multiple Deployments"
-
-    Now that you've created one deployment, why stop there?  You can associate any number of deployments to your flows; the runs they generate will be associated with the corresponding deployment ID for easy discovery in the dashboard.  Additionally, using metadata such as flow `version`s provides another dimension for you to bookkeep and filter in your Orion dashboard.
-
-## Schedules
-
-Deployments can additionally have schedules that automate the creation of flow runs based on clock time.  Prefect currently supports three schedule types:
-
-- [`IntervalSchedule`][prefect.orion.schemas.schedules.IntervalSchedule]: best suited for deployments that need to run at some consistent cadence that isn't related to absolute time 
-- [`RRuleSchedule`][prefect.orion.schemas.schedules.RRuleSchedule]: best suited for deployments that rely on calendar logic such as irregular intervals, exclusions and day-of-month adjustments
-- [`CronSchedule`][prefect.orion.schemas.schedules.CronSchedule]: best suited for users who are already familiar with `cron` from use in other systems
-
-For example, suppose we wanted to run our first deployment above every 15 minutes; we can alter our deployment spec as follows:
-```python hl_lines="2-3 9"
-from prefect.deployments import DeploymentSpec
-from prefect.orion.schemas.schedules import IntervalSchedule
-from datetime import timedelta
-
-DeploymentSpec(
-    flow_location="/Developer/workflows/my_flow.py",
-    name="my-first-deployment",
-    parameters={"nums": [1, 2, 3, 4]}, 
-    schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+<div class='termy'>
+```
+$ prefect deployment inspect leonardo_dicapriflow/leonardo-deployment
+Deployment(
+    id='e642fa3e-2b6b-4815-bb5e-ef2df9afb31f',
+    created='31 minutes ago',
+    updated='31 minutes ago',
+    name='leonardo-deployment',
+    flow_id='1ef983a8-e3b9-464d-93b6-fd9fa902b689',
+    flow_data=DataDocument(encoding='blockstorage'),
+    parameters={'name': 'Leo'},
+    tags=['tutorial', 'test'],
+    flow_runner=FlowRunnerSettings()
 )
 ```
+</div>
 
-and rerun our `prefect deployment create` CLI command to update the deployment.
+Now that the deployment is created, you can interact with it in multiple ways. For example, you can use the Prefect CLI to execute a local flow run for the deployment.
 
-Once the deployment has been updated with a schedule, the Orion scheduler will proceed scheduling future runs that are inspectable in your dashboard.
+<div class="termy">
+```
+$ prefect deployment execute leonardo_dicapriflow/leonardo-deployment
+12:17:42.331 | INFO    | prefect.engine - Created flow run 'tan-lion' for flow 'leonardo_dicapriflow'
+12:17:42.331 | INFO    | Flow run 'tan-lion' - Using task runner 'ConcurrentTaskRunner'
+12:17:42.403 | INFO    | Flow run 'tan-lion' - Created task run 'log_message-718c3f46-0' for task 'log_message'
+12:17:42.449 | INFO    | Task run 'log_message-718c3f46-0' - Hello Leo!
+12:17:42.493 | INFO    | Task run 'log_message-718c3f46-0' - Finished in state Completed(None)
+12:17:42.771 | INFO    | Flow run 'tan-lion' - Finished in state Completed('All states completed.')
+```
+</div>
+
+When you executed the deployment, you referenced it by name in the format "flow name/deployment name". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each must have a unique name.
+
+You can also see your deployment in the [Orion UI](/ui/overview/). Start the server: 
+
+```bash
+prefect orion start
+```
+
+Open the UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and click **Deployments** to see any deployments you've created. You may need to click the **Show all deployments** button to see deployments with no schedule like the one you just created. (The default [filters](/ui/filters/) display scheduled deployments.)
+
+![Deployments are listed on the Deployments page of the Orion UI](/img/tutorials/my-first-deployment.png)
+
+Note that you can't **Quick Run** the deployment from the UI yet. As mentioned at the beginning of this tutorial, we still need two more items to run orchestrated deployments: a work queue and an agent. We'll set those up next.
+
+## Work queues and agents
+
+[Work queues and agents](/concepts/work-queues/) are the mechanisms by which the Orion API orchestrates deployment flow runs.
+
+Work queues let you organize flow runs into queues for execution. Agents pick up work from queues and execute the flows.
+
+There is no default global work queue or agent, so to orchestrate runs of `leonardo_dicapriflow` we need to configure a work queue and agent. 
+
+### Create a work queue
+
+Open a new terminal session and run the following command to create a work queue called `tutorial_queue`:
+
+```bash
+prefect work-queue create tutorial_queue
+```
+
+Orion API creates the work queue and returns the ID of the queue. Note this ID, you'll use it in a moment to create an agent that polls for work from this queue.
+
+<div class='termy'>
+```
+$ prefect work-queue create tutorial_queue
+UUID('3461754d-e411-4155-9bc7-a0145b6974a0')
+```
+</div>
+
+Run `prefect work-queue ls` to see a list of available work queues.
+
+```bash
+$ prefect work-queue ls
+                                         Work Queues
+┏━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                      ID ┃ … ┃ Con… ┃ Filter                                               ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 3461754d-e411-4155-9bc… │ … │ None │ {"tags": null, "deployment_ids": null, "flow_runner… │
+└─────────────────────────┴───┴──────┴──────────────────────────────────────────────────────┘
+                                 (**) denotes a paused queue
+```
+
+Note that you can provide optional [work queue configuration flags](/concepts/work-queues/#work-queue-configuration) to filter which deployments are allocated to a specific work queue by criteria such as tags, flow runners, or even specific deployments. The `tutorial_queue` work queue you just created will queue any available scheduled deployments.
+
+### Run an agent
+
+Now that you have a work flow to allocate work, run an agent to pick up work from that queue.
+
+In the terminal, run the `prefect agent start` command, passing the ID of the `tutorial_queue` work queue you just created (it will be different from the example shown here).
+
+```bash
+prefect agent start '3461754d-e411-4155-9bc7-a0145b6974a0'
+```
+
+That starts up an agent. Leave this running for the rest of the tutorial.
+
+```bash 
+$ prefect agent start '3461754d-e411-4155-9bc7-a0145b6974a0'
+Starting agent with ephemeral API...
+
+  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
+
+
+Agent started!
+```
+
+## Run an orchestrated deployment
+
+With a work flow and agent in place, you can create a flow run for `leonardo_dicapriflow` directly from the UI.
+
+Go back to the Prefect Orion UI and click the **Quick Run** button next the deployment.
+
+![Create a quick run for the deployment](/img/tutorials/quick-run.png)
+
+You'll see the flow run in the **Run History** pane of the UI.
+
+![The deployment flow run is shown in the UI run history](/img/tutorials/deployment-run.png)
+
+If you switch over to the terminal session where your agent is running, you'll see that the agent picked up the flow run and executed it.
+
+```bash
+❯ prefect agent start '3461754d-e411-4155-9bc7-a0145b6974a0'
+Starting agent with ephemeral API...
+
+  ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
+ | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
+ |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
+ |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
+
+
+Agent started!
+14:18:22.684 | INFO    | prefect.agent - Submitting flow run '1a466895-368f-4ecc-94ba-c735e8d6f4bc'
+14:18:22.718 | INFO    | prefect.flow_runner.subprocess - Opening subprocess for flow run '1a466895-368f-4ecc-94ba-c735e8d6f4bc'...
+14:18:22.730 | INFO    | prefect.agent - Completed submission of flow run '1a466895-368f-4ecc-94ba-c735e8d6f4bc'
+14:18:29.767 | INFO    | prefect.flow_runner.subprocess - Subprocess for flow run '1a466895-368f-4ecc-94ba-c735e8d6f4bc' exited cleanly.
+```
+
+Back in the UI, click **Flow Runs**. You'll see the flow run for the deployment, showing the 'tutorial' and 'test' tags specified in the deployment specification.
+
+![The flow run for the deployment is shown in the UI](/img/tutorials/dep-flow-runs.png)
+
+Click the flow run to see details. In the flow run logs, you can see that the flow run logged a "Hello Leo!" message as expected.
+
+![The flow run logs show the expected Hello Leo! log message](/img/tutorials/dep-flow-logs.png)
+
+## Cleaning up
+
+You're welcome to leave the work queue and agent running to experiment and to handle local development.
+
+To terminate the agent, simply go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
+
+To pause a work queue, run the Prefect CLI command `prefect work-queue pause`, passing the work queue ID.
+
+To delete a work queue, run the command `prefect work-queue delete`, passing the work queue ID.
+
+<div class='termy'>
+```
+$ prefect work-queue delete '3461754d-e411-4155-9bc7-a0145b6974a0'
+Deleted work queue 3461754d-e411-4155-9bc7-a0145b6974a0
+```
+</div>
+
+<!-- The REST API
+
+We can additionally use the REST API directly; to facilitate this, we will demonstrate how this works with the convenient Python Orion Client:
+
+```python
+from prefect.client import get_client
+
+async with get_client() as client:
+    deployment = await client.read_deployment_by_name("Addition Machine/my-first-deployment")
+    flow_run = await client.create_flow_run_from_deployment(deployment)
+```
+
+Note that the return values of these methods are full model objects. -->
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
