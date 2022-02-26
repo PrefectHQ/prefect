@@ -78,7 +78,7 @@ Like our previous flow examples, this is still a script that you have to run loc
 A [deployment specification](/concepts/deployments/#deployment-specifications) includes the settings that will be used to create a deployment in the Orion database. It consists of the following pieces of required information:
 
 - The deployment `name`
-- The `flow_location`, or the path to a flow definition
+- The `flow_location`: the path to a flow definition
 
 You can additionally include the following pieces of optional information:
 
