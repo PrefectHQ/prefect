@@ -16,7 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
-from contextlib import asynccontextmanager, contextmanager, nullcontext
+from contextlib import AsyncExitStack, asynccontextmanager, contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
@@ -642,36 +642,51 @@ async def enter_task_run_engine_from_worker(
     wait_for: Optional[Iterable[PrefectFuture]],
     settings: prefect.settings.Settings,
 ):
-    with prefect.context.ProfileContext(
-        name=f"task-run-{task_run.name}", settings=settings, env={}
-    ) as profile:
-        profile.initialize(create_home=False)
-        async with get_client() as client:
-            can_connect = await client.api_healthcheck()
-            if not can_connect:
-                raise RuntimeError(
-                    f"Cannot orchestrate task run '{task_run.id}'. "
-                    f"Failed to connect to API at {client.api_url}."
-                )
+    async with AsyncExitStack() as stack:
+        profile = stack.enter_context(
+            prefect.context.ProfileContext(
+                name=f"task-run-{task_run.name}", settings=settings, env={}
+            )
+        )
 
-            with TaskRunContext(
+        profile.initialize(create_home=False)
+
+        flow_run_context = prefect.context.FlowRunContext.get()
+        if flow_run_context:
+            # Accessible if on a worker that is running in the same thread as the flow
+            client = flow_run_context.client
+        else:
+            # Otherwise, retrieve a new client
+            client = await stack.enter_async_context(get_client())
+
+        stack.enter_context(
+            TaskRunContext(
                 task_run=task_run,
                 task=task,
                 client=client,
-            ):
-                try:
-                    return await orchestrate_task_run(
-                        task=task,
-                        task_run=task_run,
-                        parameters=parameters,
-                        wait_for=wait_for,
-                    )
-                except Exception as exc:
-                    return Failed(
-                        name="Crashed",
-                        message="Task run crashed with an unexpected exception.",
-                        data=DataDocument.encode("cloudpickle", exc),
-                    )
+            )
+        )
+
+        can_connect = await client.api_healthcheck()
+        if not can_connect:
+            raise RuntimeError(
+                f"Cannot orchestrate task run '{task_run.id}'. "
+                f"Failed to connect to API at {client.api_url}."
+            )
+
+        try:
+            return await orchestrate_task_run(
+                task=task,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+            )
+        except Exception as exc:
+            return Failed(
+                name="Crashed",
+                message="Task run crashed with an unexpected exception.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
 
 
 async def orchestrate_task_run(
