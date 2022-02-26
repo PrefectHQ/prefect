@@ -186,7 +186,7 @@ You can also see your deployment in the [Orion UI](/ui/overview/). Start the ser
 prefect orion start
 ```
 
-Open the UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and click **Deployments** to see any deployments you've created. You may need to click the **Show all deployments** button to see deployments with no schedule like the one you just created. (The default [filters](/ui/filters/) display scheduled deployments.)
+Open the UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and click **Deployments** to see any deployments you've created. You may need to click the **Show all deployments** button to see deployments with no schedule like the one you just created. (The default [filters](/ui/filters/) display deployments with scheduled runs.)
 
 ![Deployments are listed on the Deployments page of the Orion UI](/img/tutorials/my-first-deployment.png)
 
