@@ -68,8 +68,8 @@ def my_flow():
 
 !!! warning "Multiprocessing safety"
     Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
-    in scripts must be guarded with `if __name__ == "__main__":` or warnings will
-    be displayed.
+    in scripts must be guarded with `if __name__ == "__main__":` or you will encounter 
+    warnings and errors.
 
 If you don't provide the `address` of a Dask scheduler, a temporary local cluster will be created automatically.
 The number of workers used is based on the number of cores on your machine. The
@@ -231,10 +231,10 @@ def my_flow():
 
 | Parameter | Description |
 | --- | --- |
-| address | Address of a currently running Ray instance. |
+| address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
 | init_kwargs | Additional kwargs to use when calling `ray.init`. |
 
-If you don't provide the `address` of a Ray instance, a temporary instance will be created automatically.
+Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, a temporary instance will be created automatically.
 
 !!! warning "Ray environment limitations"
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
@@ -242,6 +242,32 @@ If you don't provide the `address` of a Ray instance, a temporary instance will 
     Ray currently does not support Python 3.10.
     
     Ray currently does not support non-x86/64 architectures such as ARM/M1 processors.
+
+## Running tasks sequentially
+
+Sometimes, it's useful to force tasks to run sequentially to make it easier to reason about the behavior of your program. Switching to the `SequentialTaskRunner` will force both sync and async tasks to run sequentially rather than concurrently.
+
+The following example somewhat trivializes the issue, but demonstrates using the `SequentialTaskRunner` to ensure sequential task execution (the elevator stops on each floor in order):
+
+```python
+from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+import random
+
+@task
+def stop_at_floor(floor):
+    situation = random.choice(["on fire","clear"])
+    print(f"elevator stops on {floor} which is {situation}")
+
+@flow(task_runner=SequentialTaskRunner(),
+      name="towering-infernflow",
+      )
+def glass_tower():
+    for floor in range(1,39):
+        stop_at_floor(floor)
+    
+glass_tower()
+```
 
 ## Using multiple task runners
 

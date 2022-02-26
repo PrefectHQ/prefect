@@ -135,7 +135,7 @@ if __name__ == "__main__":
     greetings(["arthur", "trillian", "ford", "marvin"])
 ```
 
-Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings. 
+Note that, because you're using `DaskTaskRunner` in a script, you must use `if __name__ == "__main__":` or you'll see warnings and errors. 
 
 Now run `dask_flow.py`. 
 
@@ -191,7 +191,7 @@ To demonstrate the ability to flexibly apply the task runner appropriate for you
 
 ```python hl_lines="2 12"
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect.task_runners import RayTaskRunner
 
 @task
 def say_hello(name):
@@ -201,7 +201,7 @@ def say_hello(name):
 def say_goodbye(name):
     print(f"goodbye {name}")
 
-@flow(task_runner=DaskTaskRunner())
+@flow(task_runner=RayTaskRunner())
 def greetings(names):
     for name in names:
         say_hello(name)
