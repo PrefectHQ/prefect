@@ -15,7 +15,7 @@ tags:
 
 In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, using task runners to execute tasks sequentially, concurrently, or even in parallel. But so far, you've run flows as scripts. 
 
-[Deployments](/concepts/deployments/) take your flows to the next level: deployments add the information needed for scheduling a flow run or triggering it via an API call. Deployments elevate workflows from functions that users call manually to API-managed entities.
+[Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities.
 
 Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
 
