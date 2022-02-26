@@ -929,6 +929,35 @@ class OrionClient:
         )
         return create_block_from_api_block(response.json())
 
+    async def read_blocks(
+        self,
+        block_spec_type: str = None,
+        offset: int = None,
+        limit: int = None,
+        as_json: bool = False,
+    ) -> List[Union[prefect.blocks.core.Block, Dict[str, Any]]]:
+        """
+        Read blocks
+
+        Args:
+            block_spec_type (str): an optional block spec type
+            offset (int): an offset
+            limit (int): the number of blocks to return
+            as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
+                JSON is returned from the API.
+
+        Returns:
+            A list of blocks
+        """
+        response = await self.post(
+            f"/blocks/filter",
+            json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
+        )
+        json_result = response.json()
+        if as_json:
+            return json_result
+        return [create_block_from_api_block(b) for b in json_result]
+
     async def create_deployment(
         self,
         flow_id: UUID,
@@ -1114,14 +1143,33 @@ class OrionClient:
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
-    async def get_default_storage_block(self) -> Optional[Block]:
+    async def get_default_storage_block(
+        self, as_json: bool = False
+    ) -> Optional[Union[Block, Dict[str, Any]]]:
+        """Returns the default storage block
+
+        Args:
+            as_json (bool, optional): if True, the raw JSON from the API is
+                returned. This can avoid instantiating a storage block (and any side
+                effects) Defaults to False.
+
+        Returns:
+            Optional[Block]:
+        """
         response = await self.post("/blocks/get_default_storage_block")
-        if not response.json():
+        json_response = response.json()
+        if not json_response:
             return None
-        return create_block_from_api_block(response.json())
+        if as_json:
+            return json_response
+        return create_block_from_api_block(json_response)
 
     async def set_default_storage_block(self, block_id: UUID) -> bool:
         await self.post(f"/blocks/{block_id}/set_default_storage_block")
+        return True
+
+    async def clear_default_storage_block(self) -> bool:
+        await self.post(f"/blocks/clear_default_storage_block")
         return True
 
     async def persist_data(

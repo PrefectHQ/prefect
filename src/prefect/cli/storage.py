@@ -1,17 +1,20 @@
 """
 Command line interface for managing storage settings
 """
-import json
 import textwrap
-from typing import Any, Callable, Coroutine, Dict, Tuple
+from typing import List
 from uuid import UUID
 
 import pendulum
+import pydantic
 import typer
 from fastapi import status
 from httpx import HTTPStatusError
 from rich.pretty import Pretty
+from rich.table import Table
+from rich.emoji import Emoji
 
+import prefect
 from prefect.blocks.core import get_block_class
 from prefect.cli.base import (
     PrefectTyper,
@@ -21,8 +24,6 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
-from prefect.settings import PREFECT_HOME
-from prefect.utilities.asyncio import sync_compatible
 
 storage_config_app = PrefectTyper(
     name="storage",
@@ -35,7 +36,8 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 
 
 @storage_config_app.command()
-async def configure():
+async def create():
+    """Create a new storage configuration"""
     async with get_client() as client:
         specs = await client.read_block_specs("STORAGE")
 
@@ -58,7 +60,7 @@ async def configure():
         if description:
             console.print(textwrap.indent(description, prefix="    "))
 
-    selection = typer.prompt("Select a storage type to configure", type=int)
+    selection = typer.prompt("Select a storage type to create", type=int)
 
     try:
         spec = specs[selection]
@@ -147,7 +149,48 @@ async def configure():
 
 @storage_config_app.command()
 async def set_default(storage_block_id: UUID):
-    """Update the default storage"""
+    """Change the default storage option"""
     async with get_client() as client:
         await client.set_default_storage_block(storage_block_id)
     exit_with_success("Updated default storage!")
+
+
+@storage_config_app.command()
+async def reset_default():
+    """Reset the default storage option"""
+    async with get_client() as client:
+        await client.clear_default_storage_block()
+    exit_with_success("Cleared default storage!")
+
+
+@storage_config_app.command()
+async def ls():
+    """View configured storage options"""
+
+    table = Table(
+        title="Configured Storage",
+        caption="If no storage configuration is set as default, temporary local storage will be used.",
+    )
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Storage Type", style="green")
+    table.add_column("Name", style="green")
+    table.add_column("Default?", style="green", width=10)
+
+    async with get_client() as client:
+        json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
+        default_storage_block = (
+            await client.get_default_storage_block(as_json=True) or {}
+        )
+    blocks = pydantic.parse_obj_as(List[prefect.orion.schemas.core.Block], json_blocks)
+
+    for block in blocks:
+        table.add_row(
+            str(block.id),
+            block.block_spec.name,
+            block.name,
+            Emoji("white_check_mark")
+            if str(block.id) == default_storage_block.get("id")
+            else None,
+        )
+
+    console.print(table)
