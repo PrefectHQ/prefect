@@ -43,7 +43,11 @@ from prefect.orion.schemas.core import QueueFilter, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLIENT_REQUEST_TIMEOUT,
+)
 from prefect.utilities.asyncio import asyncnullcontext
 
 if TYPE_CHECKING:
@@ -196,6 +200,8 @@ class OrionClient:
             httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        httpx_settings.setdefault("timeout", PREFECT_CLIENT_REQUEST_TIMEOUT.value())
 
         # Context management
         self._exit_stack = AsyncExitStack()

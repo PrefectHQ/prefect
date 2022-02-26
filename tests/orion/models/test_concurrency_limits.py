@@ -112,3 +112,22 @@ class TestReadingMultipleConcurrencyLimits:
 
         for cl in limits:
             assert cl.concurrency_limit == cl_data[cl.tag]
+
+    async def test_filtering_concurrency_limits_for_orchestration(self, session):
+        cl_data = {"tag 1": 42, "tag 2": 4242, "tag 3": 424242}
+        for tag, limit in cl_data.items():
+            await models.concurrency_limits.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimit(
+                    tag=tag, concurrency_limit=limit
+                ),
+            )
+
+        limits = (
+            await models.concurrency_limits.filter_concurrency_limits_for_orchestration(
+                session, ["tag 1", "tag 2", "tag 4"]
+            )
+        )
+        assert len(limits) == 2
+        for cl in limits:
+            assert cl.concurrency_limit == cl_data[cl.tag]
