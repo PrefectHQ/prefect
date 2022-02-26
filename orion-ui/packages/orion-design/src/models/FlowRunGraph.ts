@@ -1,9 +1,11 @@
 import { IState } from '@/models/State'
 
+export type TaskRunInputType = 'constant' | 'parameter' | 'task_run'
+
 export interface IFlowRunGraph {
   id: string,
   upstreamDependencies: {
-    inputType: 'constant' | 'parameter' | 'task_run',
+    inputType: TaskRunInputType,
     id: string,
   }[],
   state: IState | null,
@@ -11,7 +13,7 @@ export interface IFlowRunGraph {
 
 export class FlowRunGraph implements IFlowRunGraph {
   public readonly id: string
-  public upstreamDependencies: { inputType: 'constant' | 'parameter' | 'task_run', id: string }[]
+  public upstreamDependencies: { inputType: TaskRunInputType, id: string }[]
   public state: IState | null
 
   public constructor(flowRunGraph: FlowRunGraph) {
