@@ -127,7 +127,7 @@ async def get_default_storage_block(
     if model:
         return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
     else:
-        response.status_code = status.HTTP_204_NO_CONTENT
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/clear_default_storage_block", status_code=status.HTTP_204_NO_CONTENT)
