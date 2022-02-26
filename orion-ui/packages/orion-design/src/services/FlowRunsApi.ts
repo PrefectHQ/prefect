@@ -97,7 +97,7 @@ export class FlowRunsApi extends Api {
       parentTaskRunId: data.parent_task_run_id,
       stateId: data.state_id,
       stateType: data.state_type,
-      state: data.state ? statesApi.stateMapper(data.state) : null,
+      state: data.state ? statesApi.mapStateResponse(data.state) : null,
       tags: data.tags,
       runCount: data.run_count,
       created: new Date(data.created),
@@ -127,7 +127,7 @@ export class FlowRunsApi extends Api {
     return data.map(x => new FlowRunGraph({
       id: x.id,
       upstreamDependencies: this.mapFlowRunGraphDependenciesResponse(x.upstream_dependencies),
-      state: statesApi.stateMapper(x.state),
+      state: statesApi.mapStateResponse(x.state),
     }))
   }
 
