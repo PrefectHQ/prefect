@@ -243,7 +243,7 @@ class TestDefaultStorageBlock:
 
         response = await client.post(f"/blocks/get_default_storage_block")
         assert response.status_code == 204
-        assert response.json() is None
+        assert not response.content
 
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
 
@@ -268,7 +268,7 @@ class TestDefaultStorageBlock:
         assert response.status_code == 422
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.json() is None
+        assert not response.content
 
     async def test_get_default_storage_block(self, client, storage_block):
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
@@ -286,4 +286,4 @@ class TestDefaultStorageBlock:
         await client.post(f"/blocks/clear_default_storage_block")
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.json() is None
+        assert not response.content
