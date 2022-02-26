@@ -71,7 +71,7 @@ def my_flow():
     in scripts must be guarded with `if __name__ == "__main__":` or warnings will
     be displayed.
 
-If you don't provide the `address` of a Dask scheduler, a temporary cluster will be created automatically.
+If you don't provide the `address` of a Dask scheduler, a temporary local cluster will be created automatically.
 The number of workers used is based on the number of cores on your machine. The
 default should provide a mix of processes and threads that should work well for
 most workloads. If you want to specify this explicitly, you can pass
