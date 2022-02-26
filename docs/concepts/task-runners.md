@@ -214,9 +214,9 @@ def my_flow():
         future = show(3)
 ```
 
-## Using RayTaskRunner
+## Running tasks on Ray
 
-[`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via the `address` kwarg.
+The [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via the `address` kwarg.
 
 ```python hl_lines="4"
 from prefect import flow
