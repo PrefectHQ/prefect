@@ -33,7 +33,7 @@ async def many_flow_run_states(flow, session, db):
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
                     timestamp=pendulum.now("UTC"),
-                ).dict()
+                ).dict(),
             )
             for i in range(3)
         ]
@@ -72,7 +72,7 @@ async def many_task_run_states(flow_run, session, db):
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
                     timestamp=pendulum.now("UTC"),
-                ).dict()
+                ).dict(),
             )
             for i in range(3)
         ]
