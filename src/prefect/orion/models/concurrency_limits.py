@@ -59,10 +59,13 @@ async def read_concurrency_limit(
     concurrency_limit_id: UUID,
     db: OrionDBInterface,
 ):
-    query = (
-        sa.select(db.ConcurrencyLimit)
-        .where(db.ConcurrencyLimit.id == concurrency_limit_id)
-        .with_for_update()
+    """
+    Reads a concurrency limit by id. If used for orchestration, simultaneous read race
+    conditions might allow the the concurrency limit to be temporarily exceeded.
+    """
+
+    query = sa.select(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.id == concurrency_limit_id
     )
 
     result = await session.execute(query)
@@ -75,14 +78,37 @@ async def read_concurrency_limit_by_tag(
     tag: str,
     db: OrionDBInterface,
 ):
-    query = (
-        sa.select(db.ConcurrencyLimit)
-        .where(db.ConcurrencyLimit.tag == tag)
-        .with_for_update()
-    )
+    """
+    Reads a concurrency limit by tag. If used for orchestration, simultaneous read race
+    conditions might allow the the concurrency limit to be temporarily exceeded.
+    """
+
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.scalar()
+
+
+@inject_db
+async def filter_concurrency_limits_for_orchestration(
+    session: sa.orm.Session,
+    tags: List[str],
+    db: OrionDBInterface,
+):
+    """
+    Filters concurrency limits by tag. This will apply a "select for update" lock on
+    these rows to prevent simultaneous read race conditions from enabling the
+    the concurrency limit on these tags from being temporarily exceeded.
+    """
+
+    query = (
+        sa.select(db.ConcurrencyLimit)
+        .filter(db.ConcurrencyLimit.tag.in_(tags))
+        .order_by(db.ConcurrencyLimit.tag)
+        .with_for_update()
+    )
+    result = await session.execute(query)
+    return result.scalars().all()
 
 
 @inject_db
@@ -121,7 +147,8 @@ async def read_concurrency_limits(
     offset: Optional[int] = None,
 ):
     """
-    Read concurrency limits.
+    Reads a concurrency limits. If used for orchestration, simultaneous read race
+    conditions might allow the the concurrency limit to be temporarily exceeded.
 
     Args:
         session: A database session
@@ -132,11 +159,7 @@ async def read_concurrency_limits(
         List[db.ConcurrencyLimit]: concurrency limits
     """
 
-    query = (
-        sa.select(db.ConcurrencyLimit)
-        .order_by(db.ConcurrencyLimit.tag)
-        .with_for_update()
-    )
+    query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
 
     if offset is not None:
         query = query.offset(offset)

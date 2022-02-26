@@ -128,7 +128,7 @@ export class TaskRunsApi extends Api {
       endTime: data.end_time ? new Date(data.end_time) : null,
       stateId: data.state_id,
       stateType: data.state_type,
-      state: data.state ? statesApi.stateMapper(data.state) : null,
+      state: data.state ? statesApi.mapStateResponse(data.state) : null,
       tags: data.tags,
     })
   }
