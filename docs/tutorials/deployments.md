@@ -1,40 +1,118 @@
-# Flow deployments
+---
+description: Creating flow deployments and running them with work queues and agents.
+tags:
+    - Orion
+    - work queues
+    - agents
+    - orchestration
+    - flow runs
+    - deployments
+    - schedules
+    - tutorial
+---
 
-!!! tip "This tutorial relies on stateful Orion services"
-    This tutorial relies on stateful services such as the Orion agent and the Orion scheduler to work properly.  
+# Deployments
 
-    Please begin by running `prefect orion start` within your terminal:
-    <div class="termy">
-    ```
-    $ prefect orion start
+In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, using task runners to execute tasks sequentially, concurrently, or even in parallel. But so far you've run flows pretty much as scripts. 
 
-    Starting Orion API...
-    INFO:     Started server process [91744]
-    INFO:     Waiting for application startup.
-    13:58:06.102 | Agent service scheduled to start in-app
-    13:58:06.102 | Scheduler service scheduled to start in-app
-    13:58:06.102 | MarkLateRuns service scheduled to start in-app
-    INFO:     Application startup complete.
-    INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
-    ```
-    </div>
+_Deployments_ take your flows to the next level: deployments add the information needed for scheduling a flow run or triggering it via an API call. Deployments elevate workflows from functions that users call manually to API-managed entities.
 
-## Deployments
+Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
 
-Flow deployments elevate workflows from functions that users call manually to API-managed entities. Specifically, deployments contain all of the information necessary for scheduling a workflow and / or triggering it via API call.  Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
+## Components of a deployment
 
-A **deployment** consists of the following pieces of required information:
+You need just a few ingredients to turn a flow definition into a deployment:
 
-- a `name`
-- a `flow_location`, or the path to a flow definition; currently flow scripts must be located on the same filesystem as the Orion server
+- A flow
+- A deployment specification
 
-and may additionally include the following pieces of optional information:
+That's it. To create flow runs based on the deployment, you need a few more pieces:
 
-- a set of `tags` to attach to the runs generated from this deployment
-- a set of `parameters` whose values will be passed to the flow function when it runs
-- a `schedule` for auto-generating flow runs on some well defined cadence
+- Prefect Orion server
+- A work queue
+- An agent
 
-To create a deployment, we need to define a **deployment spec** and then register that spec with the Orion server; for example, suppose we have the following two files located in `/Developer/workflows/`:
+These all come with Prefect. You just have to configure them and set them to work.
+
+## From flow to deployment
+
+As noted earlier, the first ingredient of a deployment is a flow. You've seen a few of these already, and perhaps have written a few if you've been following the tutorials. 
+
+Let's start with a simple example:
+
+```python
+from prefect import flow, task, get_run_logger
+
+@task
+def log_message(name):
+    logger = get_run_logger()
+    logger.info(f"Hello {name}!")
+    return
+
+@flow(name="leonardo_dicapriflow")
+def leonardo_dicapriflow(name: str):
+    log_message(name)
+    return
+
+leonardo_dicapriflow("Leo")
+```
+
+Save this in a file `leo_flow.py` and run it as a Python script. You'll see output like this:
+
+<div class="termy">
+```
+$ python leo_flow.py
+20:49:47.730 | INFO    | prefect.engine - Created flow run 'rare-frog' for flow 'leonardo_dicapriflow'
+20:49:47.731 | INFO    | Flow run 'rare-frog' - Using task runner 'ConcurrentTaskRunner'
+20:49:47.791 | INFO    | Flow run 'rare-frog' - Created task run 'log_message-dd6ef374-0' for task 'log_message'
+20:49:47.839 | INFO    | Task run 'log_message-dd6ef374-0' - Hello Leo!
+20:49:47.887 | INFO    | Task run 'log_message-dd6ef374-0' - Finished in state Completed(None)
+20:49:48.204 | INFO    | Flow run 'rare-frog' - Finished in state Completed('All states completed.')
+```
+</div>
+
+Okay, but it's still a static script, much like our previous flow examples. Let's take this script and turn it into a deployment by creating a deployment specification.
+
+## Deployment specifications
+
+A [deployment specification](/concepts/deployments/#deployment-specifications) includes the settings that will be used to create a deployment in the Orion database. It consists of the following pieces of required information:
+
+- The deployment `name`
+- The `flow_location`, or the path to a flow definition
+
+You can additionally include the following pieces of optional information:
+
+- `tags` to attach to the runs generated from this deployment
+- `parameters` whose values will be passed to the flow function when it runs
+- a `schedule` for auto-generating flow runs
+
+To create the deployment specification, import `DeploymentSpec`, then define a `DeploymentSpec` object as either Python or YAML code. For this example, define it as Python in the same `leo_flow.py` file as the flow. 
+
+```python hl_lines="2 14-18"
+from prefect import flow, task, get_run_logger
+from prefect.deployments import DeploymentSpec
+
+@task
+def log_message(name):
+    logger = get_run_logger()
+    logger.info(f"Hello {name}!")
+    return
+
+@flow(name="leonardo_dicapriflow")
+def leonardo_dicapriflow(name: str):
+    log_message(name)
+    return
+
+DeploymentSpec(
+    flow=leonardo_dicapriflow,
+    name="leonardo__deployment",
+    tags=['tutorial','test'],
+)
+```
+
+
+
+To create a deployment, you define the deployment specification and then use that with the Orion server; for example, suppose we have the following two files located in `/Developer/workflows/`:
 
 === "my_flow.py"
 
