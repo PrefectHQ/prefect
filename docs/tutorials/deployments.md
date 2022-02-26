@@ -178,7 +178,7 @@ $ prefect deployment execute leonardo_dicapriflow/leonardo-deployment
 ```
 </div>
 
-When you executed the deployment, you referenced it by name in the format "flow name/deployment name". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each must have a unique name.
+When you executed the deployment, you referenced it by name in the format "<flow name>/<deployment name>". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each must have a unique name.
 
 You can also see your deployment in the [Orion UI](/ui/overview/). Start the server: 
 
