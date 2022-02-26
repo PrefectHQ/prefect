@@ -10,9 +10,9 @@ import pydantic
 import typer
 from fastapi import status
 from httpx import HTTPStatusError
+from rich.emoji import Emoji
 from rich.pretty import Pretty
 from rich.table import Table
-from rich.emoji import Emoji
 
 import prefect
 from prefect.blocks.core import get_block_class
@@ -188,9 +188,7 @@ async def ls():
             str(block.id),
             block.block_spec.name,
             block.name,
-            Emoji("white_check_mark")
-            if str(block.id) == default_storage_block.get("id")
-            else None,
+            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
         )
 
     console.print(table)

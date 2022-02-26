@@ -1,7 +1,7 @@
 """
 Routes for interacting with block objects.
 """
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum

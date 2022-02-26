@@ -1,8 +1,9 @@
+from typing import List
 from uuid import uuid4
 
 import pydantic
 import pytest
-from typing import List
+
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockCreate, BlockUpdate
 from prefect.orion.schemas.core import Block
