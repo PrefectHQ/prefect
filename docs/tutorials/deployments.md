@@ -71,7 +71,7 @@ $ python leo_flow.py
 ```
 </div>
 
-Okay, but it's still a static script, much like our previous flow examples. Let's take this script and turn it into a deployment by creating a deployment specification.
+Like our previous flow examples, this is still a script that you have to run locally. Let's take this script and turn it into a deployment by creating a deployment specification.
 
 ## Deployment specifications
 
