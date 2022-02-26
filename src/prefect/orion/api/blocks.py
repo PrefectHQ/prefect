@@ -100,15 +100,18 @@ async def set_default_storage_block(
 
 @router.post("/get_default_storage_block")
 async def get_default_storage_block(
+    response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> Optional[schemas.core.Block]:
     model = await models.blocks.get_default_storage_block(session=session)
     if model:
         return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
+    else:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/clear_default_storage_block")
+@router.post("/clear_default_storage_block", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_default_storage_block(
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> Optional[schemas.core.Block]:
+):
     await models.blocks.clear_default_storage_block(session=session)
