@@ -41,6 +41,19 @@ class TestCreateWorkQueue:
                 ),
             )
 
+    async def test_create_work_queue_throws_exception_on_name_conflict(
+        self,
+        session,
+        work_queue,
+    ):
+        with pytest.raises(IntegrityError):
+            await models.work_queues.create_work_queue(
+                session=session,
+                work_queue=schemas.core.WorkQueue(
+                    name=work_queue.name,
+                ),
+            )
+
 
 class TestReadWorkQueue:
     async def test_read_work_queue_by_id(self, session, work_queue):
@@ -117,6 +130,31 @@ class TestUpdateWorkQueue:
         assert updated_queue.is_paused
         # unset attributes should be ignored
         assert updated_queue.description == work_queue.description
+
+    async def test_update_work_queue_without_name(self, session, work_queue):
+        assert work_queue.is_paused is False
+        assert work_queue.concurrency_limit is None
+
+        result = await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(
+                concurrency_limit=3,
+                is_paused=True,
+            ),
+        )
+        assert result
+
+        updated_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue.id
+        )
+        # relevant attributes should be updated
+        assert updated_queue.is_paused
+        assert updated_queue.concurrency_limit == 3
+        # unset attributes should be ignored
+        assert updated_queue.description == work_queue.description
+        assert updated_queue.id == work_queue.id
+        assert updated_queue.name == work_queue.name
 
     async def test_update_work_queue_raises_on_bad_input_data(self, session):
         with pytest.raises(ValueError):

@@ -160,6 +160,10 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
+PREFECT_CLIENT_REQUEST_TIMEOUT = Setting(
+    float, default=30.0, description="""The default timeout for requests to the API"""
+)
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
@@ -242,26 +246,6 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-PREFECT_ORION_DATA_NAME = Setting(
-    str,
-    default="default",
-    description="""The name for the default data directory. Defaults to
-    `default`.""",
-)
-
-PREFECT_ORION_DATA_SCHEME = Setting(
-    str,
-    default="file",
-    description="""The scheme for the default data directory. Defaults to
-    `file`.""",
-)
-PREFECT_ORION_DATA_BASE_PATH = Setting(
-    str,
-    default="/tmp",
-    description="""The base path for the default data directory. Defaults to
-    `/tmp`.""",
-)
-
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
@@ -290,11 +274,26 @@ PREFECT_ORION_DATABASE_ECHO = Setting(
     description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
 
+
+PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
+    bool,
+    default=True,
+    description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
+)
+
+
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=1,
+    default=10,
     description="""A statement timeout, in seconds, applied to all database
-    interactions made by the API. Defaults to `1`.""",
+    interactions made by the API. Defaults to `10`.""",
+)
+
+PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
+    Optional[float],
+    default=5,
+    description="""A connection timeout, in seconds, applied to database
+    connections. Defaults to `5`.""",
 )
 
 PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(

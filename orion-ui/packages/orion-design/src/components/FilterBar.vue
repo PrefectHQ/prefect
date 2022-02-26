@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :dismissable="isDashboard" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :dismissable="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -15,21 +15,27 @@
       <div ref="observe" class="filter-bar__observe" />
     </teleport>
 
-    <teleport v-if="overlay" to=".application">
+    <teleport v-if="overlay" to="[data-teleport-target='app']">
       <div class="filter-bar__overlay" @click="close" />
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
       <template v-if="isOpen('search')">
-        <FiltersSearchMenu key="search" class="filter-bar__menu filter-bar__menu-search" />
+        <div key="search" class="filter-bar__menu filter-bar__menu-search">
+          <FiltersSearchMenu />
+        </div>
       </template>
 
       <template v-if="isOpen('save')">
-        <FiltersSaveMenu key="save" class="filter-bar__menu filter-bar__menu--save" @close="close" />
+        <div key="save" class="filter-bar__menu filter-bar__menu--save">
+          <FiltersSaveMenu class="filter-bar_menu-content" @close="close" />
+        </div>
       </template>
 
       <template v-if="isOpen('filters')">
-        <FiltersMenu key="filters" class="filter-bar__menu" @close="close" />
+        <div key="filters" class="filter-bar__menu">
+          <FiltersMenu class="filter-bar_menu-content" @close="close" />
+        </div>
       </template>
     </transition-group>
   </div>
@@ -37,22 +43,21 @@
 
 <script lang="ts" setup>
   import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu, media } from '@prefecthq/orion-design'
-  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-  import { useRoute } from 'vue-router'
+  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
+
+  const props = defineProps<{
+    disabled?: boolean,
+  }>()
 
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
-  const route = useRoute()
-
-  const dashboardRoute = 'Dashboard'
-  const isDashboard = computed(() => route.name === dashboardRoute)
 
   const classes = computed(() => ({
     root: {
-      'filter-bar--disabled': !isDashboard.value,
+      'filter-bar--disabled': props.disabled,
       'filter-bar--detached': detached.value,
     },
     saveButton: {
@@ -131,26 +136,17 @@
       observer?.unobserve(observe.value)
     }
   })
-
-  watch(() => route.name, () => {
-    if (isDashboard.value) {
-      tryObserve()
-    } else {
-      tryUnobserve()
-      detached.value = true
-    }
-  })
 </script>
 
 <style lang="scss">
 .filter-bar {
   margin: var(--m-2) var(--m-4);
-  height: 100%;
   position: sticky;
   top: 0;
   transition: all 150ms;
   left: 0;
   filter: $drop-shadow-sm;
+  height: 62px;
   background: #fff;
   display: flex;
   align-items: stretch;
@@ -179,7 +175,6 @@
 .filter-bar--disabled {
   pointer-events: none;
   cursor: default;
-  position: relative;
 
   &::after {
     position: absolute;
@@ -256,6 +251,7 @@
   z-index: 1;
   border-top: 1px solid var(--secondary-hover);
   overflow: hidden;
+  display: grid;
 
   @media (max-width: 1024px) {
     left: 0;
@@ -290,6 +286,10 @@
   > div > header {
     border-radius: 0 !important; // m-card...
   }
+}
+
+.filter-bar_menu-content {
+  height: 100%;
 }
 
 .filter-bar-transition-leave-active {

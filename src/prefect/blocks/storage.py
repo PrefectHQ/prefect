@@ -1,4 +1,5 @@
 import io
+import os
 from abc import abstractmethod
 from functools import partial
 from pathlib import Path
@@ -7,6 +8,7 @@ from typing import Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
+import httpx
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
@@ -30,6 +32,8 @@ class StorageBlock(Block, Generic[T]):
     The type `T` should be JSON serializable.
     """
 
+    _block_spec_type: Optional[str] = "STORAGE"
+
     @abstractmethod
     async def write(self, data: bytes) -> T:
         """
@@ -44,7 +48,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("s3storage-block")
+@register_block("S3 Storage", version="1.0")
 class S3StorageBlock(StorageBlock):
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
@@ -86,7 +90,7 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("tempstorage-block")
+@register_block("Temporary Local Storage", version="1.0")
 class TempStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         pass
@@ -96,7 +100,7 @@ class TempStorageBlock(StorageBlock):
 
     async def write(self, data):
         # Ensure the basepath exists
-        storage_dir = self.basepath()
+        storage_dir = self.basepath() / "prefect"
         storage_dir.mkdir(parents=True, exist_ok=True)
 
         # Write data
@@ -111,7 +115,7 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("localstorage-block")
+@register_block("Local Storage", version="1.0")
 class LocalStorageBlock(StorageBlock):
     storage_path: Optional[str]
 
@@ -142,23 +146,7 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("orionstorage-block")
-class OrionStorageBlock(StorageBlock):
-    def block_initialization(self) -> None:
-        pass
-
-    async def write(self, data: bytes) -> dict:
-        async with prefect.get_client() as client:
-            response = await client.post("/data/persist", content=data)
-            return response.json()
-
-    async def read(self, path_payload: dict) -> bytes:
-        async with prefect.get_client() as client:
-            response = await client.post("/data/retrieve", json=path_payload)
-            return response.content
-
-
-@register_block("googlecloudstorage-block")
+@register_block("Google Cloud Storage", version="1.0")
 class GoogleCloudStorageBlock(StorageBlock):
     bucket: str
     project: Optional[str]
@@ -189,7 +177,7 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("azureblobstorage-block")
+@register_block("Azure Blob Storage", version="1.0")
 class AzureBlobStorageBlock(StorageBlock):
     container: str
     connection_string: str
@@ -215,3 +203,34 @@ class AzureBlobStorageBlock(StorageBlock):
         )
         await run_sync_in_worker_thread(blob.upload_blob, data)
         return key
+
+
+@register_block("KV Server Storage", version="1.0")
+class KVServerStorageBlock(StorageBlock):
+    """
+    A storage block that works with generic KV APIs.
+    """
+
+    api_address: str
+
+    def block_initialization(self) -> None:
+        if os.path.exists("/.dockerenv"):
+            self.api_address = self.api_address.replace(
+                "127.0.0.1", "host.docker.internal"
+            )
+
+    async def write(self, data: bytes) -> str:
+        key = str(uuid4())
+
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{self.api_address}/{key}", json=data.decode() if data else None
+            )
+        return key
+
+    async def read(self, key: str) -> bytes:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{self.api_address}/{key}")
+        response.raise_for_status()
+        if response.content:
+            return str(response.json()).encode()

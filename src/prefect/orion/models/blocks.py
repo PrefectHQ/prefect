@@ -8,12 +8,10 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from cryptography.fernet import Fernet
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models import configurations
 
 
 @inject_db
@@ -22,21 +20,21 @@ async def create_block(
     block: schemas.core.Block,
     db: OrionDBInterface,
 ):
-    insert_values = block.dict(
-        shallow=True, exclude_unset=False, exclude={"block_spec", "created", "updated"}
-    )
-    insert_values["data"] = await encrypt_blockdata(session, insert_values["data"])
-    insert_stmt = (await db.insert(db.Block)).values(**insert_values)
 
-    await session.execute(insert_stmt)
-    query = (
-        sa.select(db.Block)
-        .where(db.Block.name == insert_values["name"])
-        .execution_options(populate_existing=True)
+    orm_block = db.Block(
+        name=block.name,
+        block_spec_id=block.block_spec_id,
     )
 
-    result = await session.execute(query)
-    return result.scalar()
+    # encrypt the data and store on the block
+    await orm_block.encrypt_data(session=session, data=block.data)
+
+    # add the block to the session and flush
+    session.add(orm_block)
+    await session.flush()
+
+    # reload the block in order to load the associated block spec relationship
+    return await read_block_by_id(session=session, block_id=orm_block.id)
 
 
 @inject_db
@@ -45,58 +43,56 @@ async def read_block_by_id(
     block_id: UUID,
     db: OrionDBInterface,
 ):
-    query = sa.select(db.Block).where(db.Block.id == block_id).with_for_update()
+    query = (
+        sa.select(db.Block)
+        .where(db.Block.id == block_id)
+        .execution_options(populate_existing=True)
+    )
 
     result = await session.execute(query)
     block = result.scalar()
-
-    if not block:
-        return None
-
-    block_dict = {
-        "name": block.name,
-        "blockref": block.blockref,
-        "blockid": block.id,
-        "data": block.data,
-    }
-
-    block_dict["data"] = await decrypt_blockdata(session, block_dict["data"])
-    return unpack_blockdata(block_dict)
+    return block
 
 
 @inject_db
 async def read_block_by_name(
     session: sa.orm.Session,
     name: str,
+    block_spec_name: str,
     db: OrionDBInterface,
+    block_spec_version: str = None,
 ):
-    query = sa.select(db.Block).where(db.Block.name == name)
+    """
+    Read a block with the given name and block spec name. If a block spec version
+    is provided, it is matched as well, otherwise the latest matching version is returned.
+    """
+    where_clause = [
+        db.Block.name == name,
+        db.BlockSpec.name == block_spec_name,
+    ]
+    if block_spec_version is not None:
+        where_clause.append(db.BlockSpec.version == block_spec_version)
+
+    query = (
+        sa.select(db.Block)
+        .join(db.BlockSpec, db.BlockSpec.id == db.Block.block_spec_id)
+        .where(sa.and_(*where_clause))
+        .order_by(db.BlockSpec.version.desc())
+        .limit(1)
+    )
     result = await session.execute(query)
     block = result.scalar()
-
-    if not block:
-        return None
-
-    block_dict = {
-        "name": block.name,
-        "blockref": block.blockref,
-        "blockid": block.id,
-        "data": block.data,
-    }
-
-    block_dict["data"] = await decrypt_blockdata(session, block_dict["data"])
-    return unpack_blockdata(block_dict)
+    return block
 
 
 @inject_db
-async def delete_block_by_name(
+async def delete_block(
     session: sa.orm.Session,
-    name: str,
+    block_id: UUID,
     db: OrionDBInterface,
 ) -> bool:
 
-    query = sa.delete(db.Block).where(db.Block.name == name)
-
+    query = sa.delete(db.Block).where(db.Block.id == block_id)
     result = await session.execute(query)
     return result.rowcount > 0
 
@@ -104,71 +100,59 @@ async def delete_block_by_name(
 @inject_db
 async def update_block(
     session: sa.orm.Session,
-    name: str,
+    block_id: UUID,
     block: schemas.actions.BlockUpdate,
     db: OrionDBInterface,
 ) -> bool:
 
+    block = await session.get(db.Block, block_id)
+    if not block:
+        return False
+
     update_values = block.dict(shallow=True, exclude_unset=True)
-    update_values = {k: v for k, v in update_values.items() if v is not None}
     if "data" in update_values:
-        update_values["data"] = await encrypt_blockdata(session, update_values["data"])
+        block.encrypt_data(session=session, data=update_values["data"])
+    if "name" in update_values:
+        block.name = update_values["name"]
 
-    update_stmt = sa.update(db.Block).where(db.Block.name == name).values(update_values)
+    await session.flush()
 
-    result = await session.execute(update_stmt)
-    return result.rowcount > 0
-
-
-def pack_blockdata(raw_block):
-    blockdata = dict()
-    blockdata["name"] = raw_block.pop("blockname")
-    blockdata["blockref"] = raw_block.pop("blockref")
-
-    # we remove blockid here in the event that a Block schema was used to template
-    # a block, the id will be generated by the ORM model on write
-    raw_block.pop("blockid", None)
-
-    blockdata["data"] = raw_block
-    return blockdata
+    return True
 
 
-def unpack_blockdata(blockdata):
-    block = dict(**blockdata["data"])
-    block["blockname"] = blockdata.pop("name", None)
-    block["blockref"] = blockdata.pop("blockref", None)
-    block["blockid"] = blockdata.pop("blockid", None)
-
+@inject_db
+async def get_default_storage_block(session: sa.orm.Session, db: OrionDBInterface):
+    query = (
+        sa.select(db.Block)
+        .where(db.Block.is_default_storage_block.is_(True))
+        .limit(1)
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    block = result.scalar()
     return block
 
 
-async def get_fernet_encryption(session):
-    environment_key = os.getenv("ORION_BLOCK_ENCRYPTION_KEY")
-    if environment_key:
-        return Fernet(environment_key.encode())
+@inject_db
+async def set_default_storage_block(
+    session: sa.orm.Session, block_id: UUID, db: OrionDBInterface
+):
+    block = await read_block_by_id(session=session, block_id=block_id)
+    if not block:
+        raise ValueError("Block not found")
+    elif block.block_spec.type != "STORAGE":
+        raise ValueError("Block spec type must be STORAGE")
 
-    configured_key = await configurations.read_configuration_by_key(
-        session, "BLOCK_ENCRYPTION_KEY"
+    await clear_default_storage_block(session=session)
+    block.is_default_storage_block = True
+    await session.flush()
+
+
+@inject_db
+async def clear_default_storage_block(session: sa.orm.Session, db: OrionDBInterface):
+    await session.execute(
+        sa.update(db.Block)
+        .where(db.Block.is_default_storage_block.is_(True))
+        .values(is_default_storage_block=False)
     )
-
-    if configured_key is None:
-        encryption_key = Fernet.generate_key()
-        configured_key = schemas.core.Configuration(
-            key="BLOCK_ENCRYPTION_KEY", value={"fernet_key": encryption_key.decode()}
-        )
-        await configurations.create_configuration(session, configured_key)
-    else:
-        encryption_key = configured_key.value["fernet_key"].encode()
-    return Fernet(encryption_key)
-
-
-async def encrypt_blockdata(session, blockdata: dict):
-    fernet = await get_fernet_encryption(session)
-    byte_blob = json.dumps(blockdata).encode()
-    return {"encrypted_blob": fernet.encrypt(byte_blob).decode()}
-
-
-async def decrypt_blockdata(session, blockdata: dict):
-    fernet = await get_fernet_encryption(session)
-    byte_blob = blockdata["encrypted_blob"].encode()
-    return json.loads(fernet.decrypt(byte_blob).decode())
+    await session.flush()
