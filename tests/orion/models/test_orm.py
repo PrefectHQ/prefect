@@ -84,6 +84,14 @@ async def many_task_run_states(flow_run, session, db):
     await session.commit()
 
 
+class TestBase:
+    async def test_repr(self, db, session, flow):
+        assert repr(flow) == f"Flow(id={flow.id})"
+        assert repr(db.Flow()) == f"Flow(id=None)"
+        flow_id = uuid4()
+        assert repr(db.Flow(id=flow_id)) == f"Flow(id={flow_id})"
+
+
 class TestFlowRun:
     async def test_flow_run_state_relationship_retrieves_current_state(
         self, many_flow_run_states, session, db
