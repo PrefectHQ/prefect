@@ -167,10 +167,7 @@ async def reset_default():
 async def ls():
     """View configured storage options"""
 
-    table = Table(
-        title="Configured Storage",
-        caption="If no storage configuration is set as default, temporary local storage will be used.",
-    )
+    table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Storage Type", style="green")
     table.add_column("Name", style="green")
@@ -192,3 +189,8 @@ async def ls():
         )
 
     console.print(table)
+    if not default_storage_block:
+        console.print(
+            "No default storage is set yet, so temporary local storage will be used."
+            "\nSet a default with `prefect storage set-default <id>`"
+        )
