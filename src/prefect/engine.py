@@ -390,42 +390,6 @@ async def create_and_begin_subflow_run(
     return terminal_state
 
 
-async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: OrionClient
-) -> None:
-    for future in task_run_futures:
-        logger = task_run_logger(future.task_run)
-        maybe_exception = await future._wait()
-        crashed_state = None
-
-        if isinstance(maybe_exception, CrashSignal):
-            # We captured a crash signal
-            logger.error(
-                f"Crash detected! {maybe_exception.message}",
-                exc_info=maybe_exception.cause,
-            )
-            crashed_state = maybe_exception.state
-
-        elif isinstance(maybe_exception, BaseException):
-            # An uncaptured exception occured
-            logger.error("Crashed with unexpected exception.", exc_info=maybe_exception)
-            crashed_state = Failed(
-                name="Crashed",
-                message="Task run crashed with an unexpected exception.",
-                data=DataDocument.encode("cloudpickle", maybe_exception),
-            )
-
-        if crashed_state:
-            # Update the state of the task run
-            await client.set_task_run_state(
-                task_run_id=future.task_run.id, state=crashed_state, force=True
-            )
-            future._final_state = crashed_state
-            engine_logger.debug(
-                f"Reported crashed task run {future.task_run.name!r} successfully."
-            )
-
-
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
@@ -831,6 +795,42 @@ async def orchestrate_task_run(
     return state
 
 
+async def wait_for_task_runs_and_report_crashes(
+    task_run_futures: Iterable[PrefectFuture], client: OrionClient
+) -> None:
+    for future in task_run_futures:
+        logger = task_run_logger(future.task_run)
+        maybe_exception = await future._wait()
+        crashed_state = None
+
+        if isinstance(maybe_exception, CrashSignal):
+            # We captured a crash signal
+            logger.error(
+                f"Crash detected! {maybe_exception.message}",
+                exc_info=maybe_exception.cause,
+            )
+            crashed_state = maybe_exception.state
+
+        elif isinstance(maybe_exception, BaseException):
+            # An uncaptured exception occured
+            logger.error("Crashed with unexpected exception.", exc_info=maybe_exception)
+            crashed_state = Failed(
+                name="Crashed",
+                message="Task run crashed with an unexpected exception.",
+                data=DataDocument.encode("cloudpickle", maybe_exception),
+            )
+
+        if crashed_state:
+            # Update the state of the task run
+            await client.set_task_run_state(
+                task_run_id=future.task_run.id, state=crashed_state, force=True
+            )
+            future._final_state = crashed_state
+            engine_logger.debug(
+                f"Reported crashed task run {future.task_run.name!r} successfully."
+            )
+
+
 @asynccontextmanager
 async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
@@ -876,7 +876,7 @@ def exception_to_crashed_signal(exc: BaseException) -> CrashSignal:
     state_message = message = None
 
     if isinstance(exc, anyio.get_cancelled_exc_class()):
-        state_message = "Execution was cancelled by the runtime environemnt."
+        state_message = "Execution was cancelled by the runtime environment."
         message = "Cancelled by the runtime environment."
 
     elif isinstance(exc, KeyboardInterrupt):

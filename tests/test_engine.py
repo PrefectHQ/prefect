@@ -194,18 +194,13 @@ class TestOrchestrateTaskRun:
 
         sleep = AsyncMock(side_effect=reset_scheduled_time)
         monkeypatch.setattr("anyio.sleep", sleep)
-
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=foo,
-                task_run=task_run,
-                parameters={},
-                wait_for=None,
-            )
+        )
 
         sleep.assert_awaited_once()
         assert state.is_completed()
@@ -232,18 +227,13 @@ class TestOrchestrateTaskRun:
 
         sleep = AsyncMock()
         monkeypatch.setattr("anyio.sleep", sleep)
-
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=foo,
-                task_run=task_run,
-                parameters={},
-                wait_for=None,
-            )
+        )
 
         sleep.assert_not_called()
         assert state.is_completed()
@@ -298,6 +288,7 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
+                client=orion_client,
             )
 
         # Check for a proper final result
@@ -360,18 +351,14 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=my_task,
+            task_run=task_run,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": {"nested": [future]}},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=my_task,
-                task_run=task_run,
-                # Nest the future in a collection to ensure that it is found
-                parameters={"x": {"nested": [future]}},
-                wait_for=None,
-            )
+        )
 
         # The task did not run
         mock.assert_not_called()
@@ -406,18 +393,14 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=my_task,
+            task_run=task_run,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": upstream_task_state},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=my_task,
-                task_run=task_run,
-                # Nest the future in a collection to ensure that it is found
-                parameters={"x": upstream_task_state},
-                wait_for=None,
-            )
+        )
 
         # The task ran with the state as its input
         mock.assert_called_once_with(upstream_task_state)
@@ -545,7 +528,8 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in flow_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in flow_run.state.message
         )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
@@ -586,7 +570,8 @@ class TestFlowRunCrashes:
         assert child_run.state.is_failed()
         assert child_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in child_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in child_run.state.message
         )
 
     async def test_keyboard_interrupt_crashes_flow(self, flow_run, orion_client):
@@ -658,7 +643,8 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in flow_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in flow_run.state.message
         )
 
 
