@@ -33,7 +33,7 @@ async def many_flow_run_states(flow, session, db):
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
                     timestamp=pendulum.now("UTC"),
-                ).dict()
+                ).dict(),
             )
             for i in range(3)
         ]
@@ -72,7 +72,7 @@ async def many_task_run_states(flow_run, session, db):
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
                     timestamp=pendulum.now("UTC"),
-                ).dict()
+                ).dict(),
             )
             for i in range(3)
         ]
@@ -82,6 +82,14 @@ async def many_task_run_states(flow_run, session, db):
         session.add_all(states)
 
     await session.commit()
+
+
+class TestBase:
+    async def test_repr(self, db, session, flow):
+        assert repr(flow) == f"Flow(id={flow.id})"
+        assert repr(db.Flow()) == f"Flow(id=None)"
+        flow_id = uuid4()
+        assert repr(db.Flow(id=flow_id)) == f"Flow(id={flow_id})"
 
 
 class TestFlowRun:
