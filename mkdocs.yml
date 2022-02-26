@@ -67,7 +67,7 @@ nav:
             - tutorials/flow-task-config.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
-            - tutorials/dask-task-runner.md
+            - tutorials/dask-ray-task-runners.md
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/virtual-environments.md
