@@ -17,11 +17,13 @@ Engine process overview
 """
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager, contextmanager, nullcontext
+from dataclasses import dataclass
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
 
 import anyio
+import httpx
 import pendulum
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
@@ -31,7 +33,7 @@ import prefect.context
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
-from prefect.exceptions import Abort, UpstreamTaskError
+from prefect.exceptions import Abort, CrashSignal, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
@@ -254,24 +256,30 @@ async def begin_flow_run(
         The final state of the run
     """
     logger = flow_run_logger(flow_run, flow)
+    async with AsyncExitStack() as stack:
 
-    async with detect_flow_run_crashes(flow_run=flow_run, client=client):
+        await stack.enter_async_context(
+            report_flow_run_crashes(flow_run=flow_run, client=client)
+        )
+        stack.enter_context(reraise_exceptions_as_crashes())
+
         # If the flow is async, we need to provide a portal so sync tasks can run
-        portal_context = start_blocking_portal() if flow.isasync else nullcontext()
+        sync_portal = (
+            stack.enter_context(start_blocking_portal()) if flow.isasync else None
+        )
 
         logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
-        async with flow.task_runner.start() as task_runner:
-            with portal_context as sync_portal:
-                terminal_state = await orchestrate_flow_run(
-                    flow,
-                    flow_run=flow_run,
-                    parameters=parameters,
-                    task_runner=task_runner,
-                    client=client,
-                    sync_portal=sync_portal,
-                )
+        task_runner = await stack.enter_async_context(flow.task_runner.start())
 
-        # Update the flow to the terminal state _after_ the task runner has shut down
+        terminal_state = await orchestrate_flow_run(
+            flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            task_runner=task_runner,
+            client=client,
+            sync_portal=sync_portal,
+        )
+
         await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
@@ -352,16 +360,21 @@ async def create_and_begin_subflow_run(
             logger.error("Received invalid parameters", exc_info=True)
             return state
 
-    async with detect_flow_run_crashes(flow_run=flow_run, client=client):
-        async with flow.task_runner.start() as task_runner:
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run=flow_run,
-                parameters=parameters,
-                task_runner=task_runner,
-                client=client,
-                sync_portal=parent_flow_run_context.sync_portal,
-            )
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(
+            report_flow_run_crashes(flow_run=flow_run, client=client)
+        )
+        stack.enter_context(reraise_exceptions_as_crashes())
+        task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+        terminal_state = await orchestrate_flow_run(
+            flow,
+            flow_run=flow_run,
+            parameters=parameters,
+            task_runner=task_runner,
+            client=client,
+            sync_portal=parent_flow_run_context.sync_portal,
+        )
 
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -377,33 +390,42 @@ async def create_and_begin_subflow_run(
     return terminal_state
 
 
-async def wait_for_task_runs_and_detect_crashes(
+async def wait_for_task_runs_and_report_crashes(
     task_run_futures: Iterable[PrefectFuture], client: OrionClient
 ) -> None:
     for future in task_run_futures:
         logger = task_run_logger(future.task_run)
-        state = await future._wait()
+        maybe_exception = await future._wait()
+        crashed_state = None
 
-        # Something went really wrong and its not even a state type
-        if isinstance(state, BaseException):
-            state = Failed(
+        if isinstance(maybe_exception, CrashSignal):
+            # We captured a crash signal
+            logger.error(
+                f"Crash detected! {maybe_exception.message}",
+                exc_info=maybe_exception.cause,
+            )
+            crashed_state = maybe_exception.state
+
+        elif isinstance(maybe_exception, BaseException):
+            # An uncaptured exception occured
+            logger.error("Crashed with unexpected exception.", exc_info=maybe_exception)
+            crashed_state = Failed(
                 name="Crashed",
                 message="Task run crashed with an unexpected exception.",
-                data=DataDocument.encode("cloudpickle", state),
+                data=DataDocument.encode("cloudpickle", maybe_exception),
             )
 
-        if state.name == "Crashed":  # TODO: Real crashed state should be added
-            logger.error(
-                f"Task run {future.task_run.name!r} crashed with unexpected exception.",
-                exc_info=state,
-            )
-            # Task run encountered unexpected exception
+        if crashed_state:
+            # Update the state of the task run
             await client.set_task_run_state(
-                task_run_id=future.task_run.id, state=state, force=True
+                task_run_id=future.task_run.id, state=crashed_state, force=True
+            )
+            future._final_state = crashed_state
+            engine_logger.debug(
+                f"Reported crashed task run {future.task_run.name!r} successfully."
             )
 
 
-@inject_client
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
@@ -470,7 +492,7 @@ async def orchestrate_flow_run(
                 else:
                     result = await run_sync_in_worker_thread(flow_call)
 
-            await wait_for_task_runs_and_detect_crashes(
+            await wait_for_task_runs_and_report_crashes(
                 flow_run_context.task_run_futures, client=client
             )
 
@@ -616,7 +638,7 @@ async def create_and_submit_task_run(
 
     future = await flow_run_context.task_runner.submit(
         task_run,
-        run_fn=enter_task_run_engine_from_worker,
+        run_fn=begin_task_run,
         run_kwargs=dict(
             task=task,
             task_run=task_run,
@@ -635,37 +657,35 @@ async def create_and_submit_task_run(
     return future
 
 
-async def enter_task_run_engine_from_worker(
+async def begin_task_run(
     task: Task,
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     settings: prefect.settings.Settings,
 ):
+    """
+    This method may be called from a worker so we enter a temporary profile context
+    with the settings from submission.
+    """
+    flow_run_context = prefect.context.FlowRunContext.get()
+
     async with AsyncExitStack() as stack:
+        stack.enter_context(reraise_exceptions_as_crashes())
+
         profile = stack.enter_context(
             prefect.context.ProfileContext(
                 name=f"task-run-{task_run.name}", settings=settings, env={}
             )
         )
-
         profile.initialize(create_home=False)
 
-        flow_run_context = prefect.context.FlowRunContext.get()
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
             client = flow_run_context.client
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
-
-        stack.enter_context(
-            TaskRunContext(
-                task_run=task_run,
-                task=task,
-                client=client,
-            )
-        )
 
         can_connect = await client.api_healthcheck()
         if not can_connect:
@@ -674,19 +694,13 @@ async def enter_task_run_engine_from_worker(
                 f"Failed to connect to API at {client.api_url}."
             )
 
-        try:
-            return await orchestrate_task_run(
-                task=task,
-                task_run=task_run,
-                parameters=parameters,
-                wait_for=wait_for,
-            )
-        except Exception as exc:
-            return Failed(
-                name="Crashed",
-                message="Task run crashed with an unexpected exception.",
-                data=DataDocument.encode("cloudpickle", exc),
-            )
+        return await orchestrate_task_run(
+            task=task,
+            task_run=task_run,
+            parameters=parameters,
+            wait_for=wait_for,
+            client=client,
+        )
 
 
 async def orchestrate_task_run(
@@ -694,6 +708,7 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
+    client: OrionClient,
 ) -> State:
     """
     Execute a task run
@@ -720,11 +735,16 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-    context = prefect.context.get_run_context()
-    assert isinstance(context, TaskRunContext), "Task run context missing."
-    logger = get_run_logger()
+    logger = task_run_logger(task_run, task=task)
+    task_run_context = TaskRunContext(
+        task_run=task_run,
+        task=task,
+        client=client,
+    )
 
-    cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
+    cache_key = (
+        task.cache_key_fn(task_run_context, parameters) if task.cache_key_fn else None
+    )
 
     try:
         # Resolve futures in parameters into data
@@ -732,13 +752,13 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await context.client.propose_state(
+        state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
     else:
         # Transition from `PENDING` -> `RUNNING`
-        state = await context.client.propose_state(
+        state = await client.propose_state(
             Running(state_details=StateDetails(cache_key=cache_key)),
             task_run_id=task_run.id,
         )
@@ -754,10 +774,11 @@ async def orchestrate_task_run(
             else:
                 logger.debug(f"Beginning execution...", extra={"state_message": True})
 
-            if task.isasync:
-                result = await task.fn(*args, **kwargs)
-            else:
-                result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+            with task_run_context:
+                if task.isasync:
+                    result = await task.fn(*args, **kwargs)
+                else:
+                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
@@ -782,9 +803,7 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await context.client.propose_state(
-            terminal_state, task_run_id=task_run.id
-        )
+        state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
@@ -798,9 +817,7 @@ async def orchestrate_task_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await context.client.propose_state(
-                Running(), task_run_id=task_run.id
-            )
+            state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
@@ -815,7 +832,7 @@ async def orchestrate_task_run(
 
 
 @asynccontextmanager
-async def detect_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
+async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -824,29 +841,81 @@ async def detect_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     try:
         yield
-    except anyio.get_cancelled_exc_class() as exc:
-        flow_run_logger(flow_run).error("Run cancelled by the async runtime.")
+    except CrashSignal as crash:
         with anyio.CancelScope(shield=True):
-            await client.propose_state(
-                state=Failed(
-                    name="Crashed",
-                    message="Execution was interrupted by the async runtime.",
-                    data=DataDocument.encode("cloudpickle", exc),
-                ),
+            flow_run_logger(flow_run).error(crash.message, exc_info=crash.cause)
+            await client.set_flow_run_state(
+                state=crash.state,
                 flow_run_id=flow_run.id,
+                force=True,
             )
-        raise
-    except KeyboardInterrupt as exc:
-        flow_run_logger(flow_run).error("Run received an interrupt signal.")
-        await client.propose_state(
-            state=Failed(
-                name="Crashed",
-                message="Execution was interrupted by the system.",
-                data=DataDocument.encode("cloudpickle", exc),
-            ),
-            flow_run_id=flow_run.id,
-        )
-        raise
+            engine_logger.debug(
+                f"Reported crashed flow run {flow_run.name!r} successfully!"
+            )
+        # Reraise the cause instead of the crash itself
+        raise crash.cause
+
+
+@contextmanager
+def reraise_exceptions_as_crashes():
+    """
+    Detect crashes during this context, wrapping unexpected exceptions into `Crashed`
+    signals.
+    """
+    try:
+        yield
+    except BaseException as exc:
+        raise exception_to_crashed_signal(exc) from exc
+
+
+def exception_to_crashed_signal(exc: BaseException) -> CrashSignal:
+    """
+    Takes an exception that occurs _outside_ of user code and converts it to a
+    'Crashed' signal and state.
+    """
+    state_message = message = None
+
+    if isinstance(exc, anyio.get_cancelled_exc_class()):
+        state_message = "Execution was cancelled by the runtime environemnt."
+        message = "Cancelled by the runtime environment."
+
+    elif isinstance(exc, KeyboardInterrupt):
+        state_message = "Execution was interrupted by the system."
+        message = "Received an interrupt signal."
+
+    elif isinstance(exc, httpx.TimeoutException):
+        try:
+            request: httpx.Request = exc.request
+        except RuntimeError:
+            # The request property is not set
+            state_message = "Request timed out while attempting to contact the server."
+            message = "Cannot reach the server. Request timed out."
+        else:
+            # TODO: We can check if this is actually our API url
+            state_message = f"Request to {request.url} timed out."
+            message = f"Cannot reach {request.url}. Request timed out."
+
+    else:
+        state_message = "Execution was interrupted by an unexpected exception."
+        message = "Interrupted by an unexpected exception."
+
+    return CrashSignal(
+        message,
+        cause=exc,
+        state=Failed(
+            name="Crashed",
+            message=state_message,
+            data=safe_encode_exception(exc),
+        ),
+    )
+
+
+def safe_encode_exception(exception: BaseException) -> DataDocument:
+    try:
+        document = DataDocument.encode("cloudpickle", exception)
+    except Exception as exc:
+        document = DataDocument.encode("cloudpickle", exc)
+    return document
 
 
 async def user_return_value_to_state(

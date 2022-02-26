@@ -1,7 +1,12 @@
 """
 Prefect-specific exceptions.
 """
+from typing import TYPE_CHECKING
+
 from rich.traceback import Traceback
+
+if TYPE_CHECKING:
+    from prefect.orion.schemas.states import State
 
 
 class PrefectException(Exception):
@@ -103,3 +108,21 @@ class Abort(PrefectSignal):
     """
 
     pass
+
+
+class CrashSignal(PrefectSignal):
+    """
+    Raised when a flow or task run crashes.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        cause: BaseException,
+        state: "State",
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.state = state
+        self.cause = cause
