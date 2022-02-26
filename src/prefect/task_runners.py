@@ -494,8 +494,17 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
         """
         Simple utility to store the orchestration result in memory on completion
+
+        Since this run is occuring on the main thread, we capture exceptions to prevent
+        task crashes from crashing the flow run. However, if a keyboard interrupt is
+        sent we allow the flow run to be killed to avoid blocking intentional aborts.
         """
-        self._results[task_run_id] = await run_fn(**run_kwargs)
+        try:
+            self._results[task_run_id] = await run_fn(**run_kwargs)
+        except KeyboardInterrupt:
+            raise
+        except BaseException as exc:
+            self._results[task_run_id] = exc
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
         """
