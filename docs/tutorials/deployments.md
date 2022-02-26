@@ -101,7 +101,7 @@ DeploymentSpec(
 
 Note that we moved the value passed as the `name` parameter to  `parameters=` in the deployment specification.
 
-Also, in the flow definition `leo_flow.py`, comment out or remove the last line `leonardo_dicapriflow("Leo")`, the call to the flow function. We don't need that anymore, because the flow runner will call it directly with the specified `parameters` when it executes the deployment.
+Also, in the flow definition `leo_flow.py`, comment out or remove the last line `leonardo_dicapriflow("Leo")`, the call to the flow function. We don't need that anymore, because Prefect will call it directly with the specified `parameters` when it executes the deployment.
 
 ```python hl_lines="14"
 from prefect import flow, task, get_run_logger
