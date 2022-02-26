@@ -24,6 +24,7 @@ from prefect.orion.utilities.database import (
     interval_add,
     now,
 )
+from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
 
 
 class ORMBase:
@@ -41,6 +42,9 @@ class ORMBase:
     #
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
     __mapper_args__ = {"eager_defaults": True}
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id})"
 
     @declared_attr
     def __tablename__(cls):
@@ -739,12 +743,47 @@ class ORMBlockSpec:
 @declarative_mixin
 class ORMBlock:
     name = sa.Column(sa.String, nullable=False, index=True)
-    blockref = sa.Column(sa.String, nullable=False)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+
+    @declared_attr
+    def block_spec_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_spec(cls):
+        return sa.orm.relationship("BlockSpec", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (
+            sa.Index(
+                "uq_block__spec_id_name",
+                "block_spec_id",
+                "name",
+                unique=True,
+            ),
+        )
+
+    async def encrypt_data(self, session, data):
+        """
+        Store encrypted data on the ORM model
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        self.data = await encrypt_fernet(session, data)
+
+    async def decrypt_data(self, session):
+        """
+        Retrieve decrypted data from the ORM model.
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        return await decrypt_fernet(session, self.data)
 
 
 @declarative_mixin
