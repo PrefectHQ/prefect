@@ -73,7 +73,7 @@ class TestTaskCall:
         assert isinstance(task_state, State)
         assert task_state.result() == 1
 
-    def test_async_task_called_inside_sync_flow_raises_clear_error(self):
+    def test_async_task_called_inside_sync_flow(self):
         @task
         async def foo(x):
             return x
@@ -83,10 +83,9 @@ class TestTaskCall:
             return foo(1)
 
         state = bar()
-        with pytest.raises(
-            RuntimeError, match="Your task is async, but your flow is sync"
-        ):
-            state.result()
+        task_state = state.result()
+        assert task_state.is_completed()
+        assert task_state.result() == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):

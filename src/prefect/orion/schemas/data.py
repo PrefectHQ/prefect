@@ -9,11 +9,6 @@ from typing_extensions import Literal
 import prefect.settings
 from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.settings import (
-    PREFECT_ORION_DATA_BASE_PATH,
-    PREFECT_ORION_DATA_NAME,
-    PREFECT_ORION_DATA_SCHEME,
-)
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -87,22 +82,3 @@ class DataDocument(PrefectBaseModel, Generic[D]):
 
     def __rich_repr__(self):
         yield "encoding", self.encoding
-
-
-class DataLocation(PrefectBaseModel):
-    """Represents the location of data stored in a file"""
-
-    name: str
-    scheme: Literal["file", "s3"] = "file"
-    base_path: str = "/tmp"
-
-
-def get_instance_data_location() -> DataLocation:
-    """
-    Return the current data location configured for this Orion instance
-    """
-    return DataLocation(
-        name=PREFECT_ORION_DATA_NAME.value(),
-        base_path=PREFECT_ORION_DATA_BASE_PATH.value(),
-        scheme=PREFECT_ORION_DATA_SCHEME.value().lower(),
-    )
