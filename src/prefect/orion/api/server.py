@@ -208,8 +208,9 @@ def create_app(
 
         session = await db.session()
         async with session:
-            async with session.begin():
-                for block_spec in BLOCK_REGISTRY.values():
+            for block_spec in BLOCK_REGISTRY.values():
+                # each block spec gets its own transaction
+                async with session.begin():
                     try:
                         await create_block_spec(
                             session=session,
@@ -269,7 +270,11 @@ def create_app(
     app = FastAPI(
         title=TITLE,
         version=API_VERSION,
-        on_startup=[run_migrations, add_block_specifications, start_services],
+        on_startup=[
+            run_migrations,
+            add_block_specifications,
+            start_services,
+        ],
         on_shutdown=[stop_services],
     )
     api_app = create_orion_api(

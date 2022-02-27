@@ -31,7 +31,7 @@ async def create_block_spec(
         block_spec: an ORM block spec model
     """
     insert_values = block_spec.dict(
-        shallow=True, exclude_unset=False, exclude={"created", "updated"}
+        shallow=True, exclude_unset=False, exclude={"created", "updated", "id"}
     )
     insert_stmt = (await db.insert(db.BlockSpec)).values(**insert_values)
     if override:
