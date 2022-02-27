@@ -177,31 +177,6 @@ def create_orion_api(
 APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
 
 
-async def _populate_db_block_specifications():
-    """Add all registered blocks to the database"""
-    from prefect.blocks.core import BLOCK_REGISTRY
-    from prefect.orion.database.dependencies import provide_database_interface
-    from prefect.orion.models.block_specs import create_block_spec
-
-    db = provide_database_interface()
-
-    should_override = bool(os.environ.get("PREFECT_ORION_DEV_UPDATE_BLOCKS"))
-
-    session = await db.session()
-    async with session:
-        for block_spec in BLOCK_REGISTRY.values():
-            # each block spec gets its own transaction
-            async with session.begin():
-                try:
-                    await create_block_spec(
-                        session=session,
-                        block_spec=block_spec.to_api_block_spec(),
-                        override=should_override,
-                    )
-                except sa.exc.IntegrityError:
-                    pass  # Block already exists
-
-
 def create_app(
     settings: prefect.settings.Settings = None, ignore_cache: bool = False
 ) -> FastAPI:
@@ -220,6 +195,30 @@ def create_app(
 
             db = provide_database_interface()
             await db.create_db()
+
+    async def add_block_specifications():
+        """Add all registered blocks to the database"""
+        from prefect.blocks.core import BLOCK_REGISTRY
+        from prefect.orion.database.dependencies import provide_database_interface
+        from prefect.orion.models.block_specs import create_block_spec
+
+        db = provide_database_interface()
+
+        should_override = bool(os.environ.get("PREFECT_ORION_DEV_UPDATE_BLOCKS"))
+
+        session = await db.session()
+        async with session:
+            for block_spec in BLOCK_REGISTRY.values():
+                # each block spec gets its own transaction
+                async with session.begin():
+                    try:
+                        await create_block_spec(
+                            session=session,
+                            block_spec=block_spec.to_api_block_spec(),
+                            override=should_override,
+                        )
+                    except sa.exc.IntegrityError:
+                        pass  # Block already exists
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
@@ -273,7 +272,7 @@ def create_app(
         version=API_VERSION,
         on_startup=[
             run_migrations,
-            _populate_db_block_specifications,
+            add_block_specifications,
             start_services,
         ],
         on_shutdown=[stop_services],
