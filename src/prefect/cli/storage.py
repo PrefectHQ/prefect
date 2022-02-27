@@ -130,7 +130,7 @@ async def create():
     )
 
     async with get_client() as client:
-        if not await client.get_default_storage_block():
+        if not await client.get_default_storage_block(as_json=True):
             set_default = typer.confirm(
                 "You do not have a default storage you like to set this as your default storage?",
                 default=True,
@@ -169,8 +169,9 @@ async def ls():
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Name", style="green")
     table.add_column("Storage Type", style="green")
+    table.add_column("Storage Version", style="green")
+    table.add_column("Name", style="green")
 
     async with get_client() as client:
         json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
@@ -179,15 +180,16 @@ async def ls():
         )
     blocks = pydantic.parse_obj_as(List[prefect.orion.schemas.core.Block], json_blocks)
 
-    for block in sorted(blocks, key=lambda block: block.id):
+    for block in blocks:
         table.add_row(
             str(block.id),
+            block.block_spec.name,
+            block.block_spec.version,
             (
                 f"{block.name} [blue](**)[/]"
                 if str(block.id) == str(default_storage_block.get("id"))
                 else block.name
             ),
-            block.block_spec.name,
         )
 
     if not default_storage_block:
