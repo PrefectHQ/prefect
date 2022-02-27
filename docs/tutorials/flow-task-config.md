@@ -131,7 +131,7 @@ Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
 
 A more advanced configuration parameter for flows is `task_runner`, which enables you to specify the execution environment used for task runs within a flow. We'll cover the use cases for task runners in a future tutorial. 
 
-For now, we'll just demonstrate that you can specify the task runner _almost_ like any other parameter: the difference is that you need to import the task runner, then specify you're using it with the `task_runner` parameter:
+For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option: the difference is that you need to import the task runner first, then specify you're using it with the `task_runner` option:
 
 ```python
 from prefect.task_runners import DaskTaskRunner
