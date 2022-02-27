@@ -45,7 +45,7 @@ This function doesn't do much
 
 The first thing you'll notice is the messages surrounding the expected output, "This function doesn't do much". 
 
-By simply adding the `@flow` decorator to your function, you create what we call a _flow run_ &mdash; the Prefect Orion orchestration engine manages task and flow state, including inspecting their progress, regardless of where your flow code runs.
+By adding the `@flow` decorator to your function, function calls will create a _flow run_ &mdash; the Prefect Orion orchestration engine manages task and flow state, including inspecting their progress, regardless of where your flow code runs.
 
 For clarity in future tutorial examples, we may not show these messages in results except where they are relevant to the discussion.
 
