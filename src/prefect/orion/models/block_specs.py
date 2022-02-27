@@ -35,7 +35,10 @@ async def create_block_spec(
     )
     insert_stmt = (await db.insert(db.BlockSpec)).values(**insert_values)
     if override:
-        insert_stmt = insert_stmt.on_conflict_do_update(set_=insert_values)
+        insert_stmt = insert_stmt.on_conflict_do_update(
+            index_elements=db.block_spec_unique_upsert_columns,
+            set_=insert_values,
+        )
     await session.execute(insert_stmt)
 
     query = (
