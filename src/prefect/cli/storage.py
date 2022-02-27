@@ -132,7 +132,8 @@ async def create():
     async with get_client() as client:
         if not await client.get_default_storage_block(as_json=True):
             set_default = typer.confirm(
-                "You do not have a default storage you like to set this as your default storage?",
+                "You do not have a default storage configuration. "
+                "Would you like to set this as your default storage?",
                 default=True,
             )
 
