@@ -19,7 +19,7 @@ In addition to the orchestration capabilities enabled by decorating functions as
 
 Basic flow configuration includes the ability to provide a name, description, and version for the flow.
 
-You specify flow configuration as parameters on the `@flow` decorator.
+You specify flow configuration as options on the `@flow` decorator.
 
 A flow `name` is a distinguished piece of metadata within Prefect. The name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
 
@@ -29,7 +29,7 @@ def my_flow():
     # run tasks and subflows
 ```
 
-A flow `description` enables you to provide documentation right alongside your flow object. You can also provide a specific `description` string as a flow parameter.
+A flow `description` enables you to provide documentation right alongside your flow object. You can also provide a specific `description` string as a flow option.
 
 ```python
 @flow(name="My Example Flow", 
@@ -129,7 +129,7 @@ Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
 
 ### Configuring task runners
 
-A more advanced configuration parameter for flows is `task_runner`, which enables you to specify the execution environment used for task runs within a flow. We'll cover the use cases for task runners in a future tutorial. 
+A more advanced configuration option for flows is `task_runner`, which enables you to specify the execution environment used for task runs within a flow. We'll cover the use cases for task runners in a future tutorial. 
 
 For now, we'll just demonstrate that you can specify the task runner _almost_ like any other option: the difference is that you need to import the task runner first, then specify you're using it with the `task_runner` option:
 
@@ -142,7 +142,7 @@ def my_flow(*args, **kwargs):
     # run parallel tasks and subflows with Dask
 ```
 
-Some task runners, such as the `DaskTaskRunner` and `RayTaskRunner`, can take additional, optional parameters of their own. See the [task runners tutorials](/tutorials/dask-task-runner/) and [Task Runners](/concepts/task-runners/) documentation for details.
+Some task runners, such as the `DaskTaskRunner` and `RayTaskRunner`, can take additional, optional configuration of their own. See the [task runners tutorials](/tutorials/dask-task-runner/) and [Task Runners](/concepts/task-runners/) documentation for details.
 
 ## Basic task configuration
 
@@ -155,7 +155,7 @@ def my_task():
     # do some work
 ```
 
-Tasks also accept [tags](/concepts/tasks/#tags) as a parameter. When you begin using Prefect Orion's orchestration features and UI, tags become a powerful tool for filtering and managing not just tasks, but flows and deployments as well.
+Tasks also accept [tags](/concepts/tasks/#tags) as an option. When you begin using Prefect Orion's orchestration features and UI, tags become a powerful tool for filtering and managing not just tasks, but flows and deployments as well.
 
 ```python
 @task(name="My Example Task", 
