@@ -110,7 +110,7 @@ class Abort(PrefectSignal):
     pass
 
 
-class CrashSignal(PrefectSignal):
+class Crash(PrefectSignal):
     """
     Raised when a flow or task run crashes.
     """

@@ -33,7 +33,7 @@ import prefect.context
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
-from prefect.exceptions import Abort, CrashSignal, UpstreamTaskError
+from prefect.exceptions import Abort, Crash, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
@@ -803,7 +803,7 @@ async def wait_for_task_runs_and_report_crashes(
         maybe_exception = await future._wait()
         crashed_state = None
 
-        if isinstance(maybe_exception, CrashSignal):
+        if isinstance(maybe_exception, Crash):
             # We captured a crash signal
             logger.error(
                 f"Crash detected! {maybe_exception.message}",
@@ -841,7 +841,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     try:
         yield
-    except CrashSignal as crash:
+    except Crash as crash:
         with anyio.CancelScope(shield=True):
             flow_run_logger(flow_run).error(crash.message, exc_info=crash.cause)
             await client.set_flow_run_state(
@@ -865,13 +865,13 @@ def reraise_exceptions_as_crashes():
     try:
         yield
     except BaseException as exc:
-        raise exception_to_crashed_signal(exc) from exc
+        raise exception_to_crash_signal(exc) from exc
 
 
-def exception_to_crashed_signal(exc: BaseException) -> CrashSignal:
+def exception_to_crash_signal(exc: BaseException) -> Crash:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
-    'Crashed' signal and state.
+    'Crash' signal and state.
     """
     state_message = message = None
 
@@ -899,7 +899,7 @@ def exception_to_crashed_signal(exc: BaseException) -> CrashSignal:
         state_message = "Execution was interrupted by an unexpected exception."
         message = "Interrupted by an unexpected exception."
 
-    return CrashSignal(
+    return Crash(
         message,
         cause=exc,
         state=Failed(
