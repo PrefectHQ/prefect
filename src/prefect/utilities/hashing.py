@@ -60,11 +60,13 @@ def hash_objects(*args, **kwargs) -> Optional[str]:
     On failure of both, `None` will be returned
     """
     try:
+        print("JSON", args, kwargs)
         return stable_hash(json.dumps((args, kwargs), sort_keys=True))
     except Exception:
         pass
 
     try:
+        print("PICKLE")
         return stable_hash(cloudpickle.dumps((args, kwargs)))
     except Exception:
         pass
