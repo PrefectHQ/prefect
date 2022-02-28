@@ -1,7 +1,5 @@
 import ast
 
-import httpx
-import pendulum
 import pytest
 import respx
 from httpx import Response
