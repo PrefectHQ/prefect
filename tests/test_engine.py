@@ -1,4 +1,3 @@
-import sys
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
@@ -13,9 +12,7 @@ from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
-    raise_failed_state,
     retrieve_flow_then_begin_flow_run,
-    user_return_value_to_state,
 )
 from prefect.exceptions import ParameterTypeError
 from prefect.futures import PrefectFuture
@@ -31,6 +28,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.states import raise_failed_state, return_value_to_state
 from prefect.task_runners import SequentialTaskRunner
 from prefect.utilities.testing import AsyncMock
 
@@ -38,11 +36,11 @@ from prefect.utilities.testing import AsyncMock
 class TestUserReturnValueToState:
     async def test_returns_single_state_unaltered(self):
         state = Completed(data=DataDocument.encode("json", "hello"))
-        assert await user_return_value_to_state(state) is state
+        assert await return_value_to_state(state) is state
 
     async def test_all_completed_states(self):
         states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await user_return_value_to_state(states)
+        result_state = await return_value_to_state(states)
         # States have been stored as data
         assert result_state.data.decode() == states
         # Message explains aggregate
@@ -56,7 +54,7 @@ class TestUserReturnValueToState:
             Failed(message="bye"),
             Failed(message="err"),
         ]
-        result_state = await user_return_value_to_state(states)
+        result_state = await return_value_to_state(states)
         # States have been stored as data
         assert result_state.data.decode() == states
         # Message explains aggregate
@@ -70,7 +68,7 @@ class TestUserReturnValueToState:
             Running(message="bye"),
             Pending(message="err"),
         ]
-        result_state = await user_return_value_to_state(states)
+        result_state = await return_value_to_state(states)
         # States have been stored as data
         assert result_state.data.decode() == states
         # Message explains aggregate
@@ -88,18 +86,18 @@ class TestUserReturnValueToState:
             task_runner=None,
             _final_state=state,
         )
-        result_state = await user_return_value_to_state(future)
+        result_state = await return_value_to_state(future)
         assert result_state.data.decode() is state
         assert result_state.is_completed()
         assert result_state.message == "All states completed."
 
     async def test_non_prefect_types_return_completed_state(self):
-        result_state = await user_return_value_to_state("foo")
+        result_state = await return_value_to_state("foo")
         assert result_state.is_completed()
         assert result_state.data.decode() == "foo"
 
     async def test_uses_passed_serializer(self):
-        result_state = await user_return_value_to_state("foo", serializer="json")
+        result_state = await return_value_to_state("foo", serializer="json")
         assert result_state.data.encoding == "json"
 
 
