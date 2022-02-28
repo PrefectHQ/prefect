@@ -39,7 +39,7 @@ def register_block(name: str = None, version: str = None):
     return wrapper
 
 
-def get_block_spec(name: str, version: str) -> "Block":
+def get_block_class(name: str, version: str) -> "Block":
     block = BLOCK_REGISTRY.get((name, version))
     if not block:
         raise ValueError(f"No block spec exists for {name}/{version}.")
@@ -118,7 +118,7 @@ class Block(BaseModel, ABC):
 
 def create_block_from_api_block(api_block_dict: dict):
     api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
-    block_spec_cls = get_block_spec(
+    block_spec_cls = get_block_class(
         name=api_block.block_spec.name,
         version=api_block.block_spec.version,
     )
