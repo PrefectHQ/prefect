@@ -815,9 +815,9 @@ async def wait_for_task_runs_and_report_crashes(
 
         crash_exceptions.append(exception)
 
-    # Now that we've finished reporting crashed tasks, reraise any interrupt exceptions
+    # Now that we've finished reporting crashed tasks, reraise any exit exceptions
     for exception in crash_exceptions:
-        if isinstance(exception, KeyboardInterrupt):
+        if isinstance(exception, (KeyboardInterrupt, SystemExit)):
             raise exception
 
 

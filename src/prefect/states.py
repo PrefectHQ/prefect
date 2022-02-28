@@ -1,20 +1,19 @@
 from collections import Counter
-from typing import TYPE_CHECKING, Any, Dict, Iterable
+from typing import Any, Dict, Iterable
 
 import anyio
 import httpx
 from typing_extensions import TypeGuard
 
+from prefect.client import OrionClient, inject_client
 from prefect.futures import resolve_futures_to_states
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Failed, StateType
+from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
 # Expose the state schema from Orion
 from .orion.schemas.states import State
-
-if TYPE_CHECKING:
-    from prefect.client import OrionClient
 
 
 def exception_to_crashed_state(exc: BaseException) -> State:
@@ -28,7 +27,10 @@ def exception_to_crashed_state(exc: BaseException) -> State:
         state_message = "Execution was cancelled by the runtime environment."
 
     elif isinstance(exc, KeyboardInterrupt):
-        state_message = "Execution was interrupted by the system."
+        state_message = "Execution was aborted by an interrupt signal."
+
+    elif isinstance(exc, SystemExit):
+        state_message = "Execution was aborted by sys.exit()."
 
     elif isinstance(exc, httpx.TimeoutException):
         try:
@@ -128,6 +130,8 @@ async def return_value_to_state(result: Any, serializer: str = "cloudpickle") ->
     return Completed(data=DataDocument.encode(serializer, result))
 
 
+@sync_compatible
+@inject_client
 async def raise_failed_state(state: State, client: "OrionClient") -> None:
     """
     Given a FAILED state, raise the contained exception.
