@@ -38,33 +38,34 @@ class CubeJSClient:
             - max_wait_time (int): The maximum amount of seconds to wait for
                 an API call to respond.
         """
-        self.cube_base_url = self.get_cube_base_url(subdomain=subdomain, url=url)
-        self.api_token = self.get_api_token(
-            security_context=security_context, secret=secret
-        )
+        self.subdomain = subdomain
+        self.url = url
+        self.security_context = security_context
+        self.secret = secret
+        self.cube_base_url = self._get_cube_base_url()
+        self.api_token = self.get_api_token()
+        self.query_api_url = self._get_query_api_url()
+        self.generated_sql_api_url = self._get_generated_sql_api_url()
         self.wait_api_call_secs = wait_api_call_secs
         self.max_wait_time = max_wait_time
 
-    def get_cube_base_url(self, subdomain: str, url: str) -> str:
+    def _get_cube_base_url(self) -> str:
         """
         Get Cube.js base URL.
-
-        Args:
-            - subdomain (str): Cube Cloud subdomain.
-            - url (str): Cube custom URL
-                (likely to be used in Cube.js self-hosted deployments).
 
         Returns:
             - Cube.js API base url.
         """
         cube_base_url = self.__CUBEJS_CLOUD_BASE_URL
-        if subdomain:
-            cube_base_url = f"{cube_base_url.format(subdomain=subdomain)}/cubejs-api"
+        if self.subdomain:
+            cube_base_url = (
+                f"{cube_base_url.format(subdomain=self.subdomain)}/cubejs-api"
+            )
         else:
-            cube_base_url = url
+            cube_base_url = self.url
         return cube_base_url
 
-    def get_query_api_url(self) -> str:
+    def _get_query_api_url(self) -> str:
         """
         Get Cube.js Query API URL.
 
@@ -73,7 +74,7 @@ class CubeJSClient:
         """
         return f"{self.cube_base_url}/v1/load"
 
-    def get_generated_sql_api_url(self) -> str:
+    def _get_generated_sql_api_url(self) -> str:
         """
         Get Cube.js Query SQL API URL.
 
@@ -83,38 +84,35 @@ class CubeJSClient:
 
         return f"{self.cube_base_url}/v1/sql"
 
-    def get_api_token(self, security_context: Union[str, Dict], secret: str) -> str:
+    def get_api_token(self) -> str:
         """
         Build API Token given the security context and the secret.
-
-        Args:
-            - security_context (str, dict, optional): The security context to use
-                during authentication.
-            - secret: The API secret used to generate an
-                API token for authentication.
 
         Returns:
             - The API Token to include in the authorization headers
                 when calling Cube.js APIs.
         """
-        api_token = jwt.encode(payload={}, key=secret)
-        if security_context:
+        api_token = jwt.encode(payload={}, key=self.secret)
+        if self.security_context:
 
-            extended_context = security_context
-            if "exp" not in security_context and "expiresIn" not in security_context:
+            extended_context = self.security_context
+            if (
+                "exp" not in self.security_context
+                and "expiresIn" not in self.security_context
+            ):
                 extended_context["expiresIn"] = "7d"
             api_token = jwt.encode(
-                payload=extended_context, key=secret, algorithm="HS256"
+                payload=extended_context, key=self.secret, algorithm="HS256"
             )
 
         return api_token
 
-    def get_data_from_url(self, url: str, params: Dict) -> Dict:
+    def _get_data_from_url(self, api_url: str, params: Dict) -> Dict:
         """
         Retrieve data from a Cube.js API.
 
         Args:
-            - url (str): The URL of the Cube API to call.
+            - api_url (str): The URL of the Cube API to call.
             - params (dict): Parameters to be passed to the API call.
 
         Raises:
@@ -133,7 +131,7 @@ class CubeJSClient:
         elapsed_wait_time = 0
         while not self.max_wait_time or elapsed_wait_time <= self.max_wait_time:
 
-            with session.get(url=url, params=params) as response:
+            with session.get(url=api_url, params=params) as response:
                 if response.status_code == 200:
                     data = response.json()
 
@@ -169,11 +167,11 @@ class CubeJSClient:
             - Cube.js `/load` API JSON response, augmented with SQL
                 information if `include_generated_sql` is `True`.
         """
-        data = self.get_data_from_url(url=self.get_query_api_url(), params=params)
+        data = self._get_data_from_url(api_url=self.query_api_url, params=params)
 
         if include_generated_sql:
-            data["sql"] = self.get_data_from_url(
-                url=self.get_generated_sql_api_url(), params=params
+            data["sql"] = self._get_data_from_url(
+                api_url=self.generated_sql_api_url, params=params
             )["sql"]
 
         return data
