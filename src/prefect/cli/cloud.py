@@ -4,12 +4,20 @@ Command line interface for interacting with Prefect Cloud
 from typing import Dict, Iterable, List
 
 import httpx
-import inquirer
+import readchar
 import typer
+from rich.live import Live
+from rich.table import Table
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_URL, update_profile
 
 cloud_app = PrefectTyper(
@@ -96,25 +104,72 @@ class CloudClient:
         return res.json()
 
 
-def prompt_select_workspace(workspaces: Iterable[str]) -> str:
+def build_table(selected_idx: int, workspaces: Iterable[str]) -> Table:
     """
-    Prompt the user to select a workspace via the CLI.
+    Generate a table of workspaces. The `select_idx` of workspaces will be highlighted.
 
     Args:
-        workspaces: list of workspaces
+        selected_idx: currently selected index
+        workspaces: Iterable of strings
 
     Returns:
-        the workspace that was selected
+        rich.table.Table
     """
-    questions = [
-        inquirer.List(
-            "workspace",
-            message="Select a workspace",
-            choices=sorted(workspaces),
-            carousel=True,
-        )
-    ]
-    return inquirer.prompt(questions)["workspace"]
+
+    table = Table()
+    table.add_column(
+        "[#024dfd]Select a Workspace:", justify="right", style="#8ea0ae", no_wrap=True
+    )
+
+    for i, workspace in enumerate(sorted(workspaces)):
+        if i == selected_idx:
+            table.add_row("[#024dfd on #FFFFFF]> " + workspace)
+        else:
+            table.add_row("  " + workspace)
+    return table
+
+
+def select_workspace(workspaces: Iterable[str]) -> str:
+    """
+    Given a list of workspaces, display them to user in a Table
+    and allow them to select one.
+
+    Args:
+        workspaces: List of workspaces to choose from
+
+    Returns:
+        str: the selected workspace
+    """
+
+    workspaces = sorted(workspaces)
+    current_idx = 0
+    selected_workspace = None
+
+    with Live(
+        build_table(current_idx, workspaces), auto_refresh=False, console=console
+    ) as live:
+        while selected_workspace is None:
+            key = readchar.readkey()
+
+            if key == readchar.key.UP:
+                current_idx = current_idx - 1
+                # wrap to bottom if at the top
+                if current_idx < 0:
+                    current_idx = len(workspaces) - 1
+            elif key == readchar.key.DOWN:
+                current_idx = current_idx + 1
+                # wrap to top if at the bottom
+                if current_idx >= len(workspaces):
+                    current_idx = 0
+            elif key == readchar.key.CTRL_C:
+                # gracefully exit with no message
+                exit_with_error("")
+            elif key == readchar.key.ENTER:
+                selected_workspace = workspaces[current_idx]
+
+            live.update(build_table(current_idx, workspaces), refresh=True)
+
+        return selected_workspace
 
 
 @cloud_app.command()
@@ -144,7 +199,7 @@ async def login(
     }
 
     if not workspace_handle:
-        workspace_handle = prompt_select_workspace(workspaces.keys())
+        workspace_handle = select_workspace(workspaces.keys())
 
     if workspace_handle not in workspaces:
         exit_with_error(
@@ -199,7 +254,7 @@ async def set(
     }
 
     if not workspace_handle:
-        workspace_handle = prompt_select_workspace(workspaces)
+        workspace_handle = select_workspace(workspaces)
 
     if workspace_handle not in workspaces:
         exit_with_error(
