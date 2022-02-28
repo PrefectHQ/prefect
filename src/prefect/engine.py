@@ -791,23 +791,34 @@ async def orchestrate_task_run(
 async def wait_for_task_runs_and_report_crashes(
     task_run_futures: Iterable[PrefectFuture], client: OrionClient
 ) -> None:
+    crash_exceptions = []
+
     for future in task_run_futures:
         logger = task_run_logger(future.task_run)
         state = await future._wait()
 
-        if state.name == "Crashed":
-            logger.info(f"Crash detected! {state.message}")
-            logger.debug(
-                "Crash details:", exc_info=state.result(raise_on_failure=False)
-            )
+        if not state.name == "Crashed":
+            continue
 
-            # Update the state of the task run
-            await client.set_task_run_state(
-                task_run_id=future.task_run.id, state=state, force=True
-            )
-            engine_logger.debug(
-                f"Reported crashed task run {future.task_run.name!r} successfully."
-            )
+        exception = state.result(raise_on_failure=False)
+
+        logger.info(f"Crash detected! {state.message}")
+        logger.debug("Crash details:", exc_info=exception)
+
+        # Update the state of the task run
+        await client.set_task_run_state(
+            task_run_id=future.task_run.id, state=state, force=True
+        )
+        engine_logger.debug(
+            f"Reported crashed task run {future.task_run.name!r} successfully."
+        )
+
+        crash_exceptions.append(exception)
+
+    # Now that we've finished reporting crashed tasks, reraise any interrupt exceptions
+    for exception in crash_exceptions:
+        if isinstance(exception, KeyboardInterrupt):
+            raise exception
 
 
 @asynccontextmanager

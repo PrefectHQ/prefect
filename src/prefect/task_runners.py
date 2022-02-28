@@ -198,7 +198,7 @@ class SequentialTaskRunner(BaseTaskRunner):
         # Run the function immediately and store the result in memory
         try:
             result = await run_fn(**run_kwargs)
-        except Exception as exc:
+        except BaseException as exc:
             result = exception_to_crashed_state(exc)
 
         self._results[task_run.id] = result
@@ -361,7 +361,7 @@ class DaskTaskRunner(BaseTaskRunner):
             return await future.result(timeout=timeout)
         except self._distributed.TimeoutError:
             return None
-        except Exception as exc:
+        except BaseException as exc:
             return exception_to_crashed_state(exc)
 
     @property
@@ -511,7 +511,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         try:
             self._results[task_run_id] = await run_fn(**run_kwargs)
-        except Exception as exc:
+        except BaseException as exc:
             self._results[task_run_id] = exception_to_crashed_state(exc)
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
@@ -626,7 +626,7 @@ class RayTaskRunner(BaseTaskRunner):
             # avoid blocking the event loop
             try:
                 result = await ref
-            except Exception as exc:
+            except BaseException as exc:
                 result = exception_to_crashed_state(exc)
 
         return result
