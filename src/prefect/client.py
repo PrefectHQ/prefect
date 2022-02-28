@@ -34,7 +34,7 @@ import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.blocks import storage
-from prefect.blocks.core import create_block_from_api_block
+from prefect.blocks.core import Block, create_block_from_api_block
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -887,10 +887,15 @@ class OrionClient:
 
         api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
 
+        # Drop fields that are not compliant with `CreateBlock`
+        payload = api_block.dict(
+            json_compatible=True, exclude={"block_spec", "id"}, exclude_unset=True
+        )
+
         try:
             response = await self.post(
                 "/blocks/",
-                json=api_block.dict(json_compatible=True),
+                json=payload,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
@@ -899,6 +904,24 @@ class OrionClient:
                 raise e
 
         return UUID(response.json().get("id"))
+
+    async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
+        """
+        Read all block specs with the given type
+
+        Args:
+            type: The name of the type of block spec
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.post(
+            f"/block_specs/filter", json={"block_spec_type": type}
+        )
+        return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
 
     async def read_block(self, block_id: UUID):
         """
@@ -943,6 +966,35 @@ class OrionClient:
             f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
         )
         return create_block_from_api_block(response.json())
+
+    async def read_blocks(
+        self,
+        block_spec_type: str = None,
+        offset: int = None,
+        limit: int = None,
+        as_json: bool = False,
+    ) -> List[Union[prefect.blocks.core.Block, Dict[str, Any]]]:
+        """
+        Read blocks
+
+        Args:
+            block_spec_type (str): an optional block spec type
+            offset (int): an offset
+            limit (int): the number of blocks to return
+            as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
+                JSON is returned from the API.
+
+        Returns:
+            A list of blocks
+        """
+        response = await self.post(
+            f"/blocks/filter",
+            json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
+        )
+        json_result = response.json()
+        if as_json:
+            return json_result
+        return [create_block_from_api_block(b) for b in json_result]
 
     async def create_deployment(
         self,
@@ -1129,6 +1181,34 @@ class OrionClient:
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
+    async def get_default_storage_block(
+        self, as_json: bool = False
+    ) -> Optional[Union[Block, Dict[str, Any]]]:
+        """Returns the default storage block
+
+        Args:
+            as_json (bool, optional): if True, the raw JSON from the API is
+                returned. This can avoid instantiating a storage block (and any side
+                effects) Defaults to False.
+
+        Returns:
+            Optional[Block]:
+        """
+        response = await self.post("/blocks/get_default_storage_block")
+        if not response.content:
+            return None
+        if as_json:
+            return response.json()
+        return create_block_from_api_block(response.json())
+
+    async def set_default_storage_block(self, block_id: UUID) -> bool:
+        await self.post(f"/blocks/{block_id}/set_default_storage_block")
+        return True
+
+    async def clear_default_storage_block(self) -> bool:
+        await self.post(f"/blocks/clear_default_storage_block")
+        return True
+
     async def persist_data(
         self,
         data: bytes,
@@ -1142,21 +1222,13 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-
-        # get default storage block
-        default_block_response = await self.post("/blocks/get_default_storage_block")
-        if (
-            default_block_response.status_code != 200
-            or not default_block_response.json()
-        ):
+        block = await self.get_default_storage_block()
+        if not block:
             warnings.warn(
                 "No default storage has been set on the server. "
                 "Using temporary local storage for results."
             )
             block = storage.TempStorageBlock()
-        else:
-            block = create_block_from_api_block(default_block_response.json())
-
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",

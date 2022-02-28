@@ -186,6 +186,8 @@ def create_app(
     if settings in APP_CACHE and not ignore_cache:
         return APP_CACHE[settings]
 
+    # TODO: Move these startup functions out of this closure into the top-level or
+    #       another dedicated location
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
         if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
@@ -193,6 +195,30 @@ def create_app(
 
             db = provide_database_interface()
             await db.create_db()
+
+    async def add_block_specifications():
+        """Add all registered blocks to the database"""
+        from prefect.blocks.core import BLOCK_REGISTRY
+        from prefect.orion.database.dependencies import provide_database_interface
+        from prefect.orion.models.block_specs import create_block_spec
+
+        db = provide_database_interface()
+
+        should_override = bool(os.environ.get("PREFECT_ORION_DEV_UPDATE_BLOCKS"))
+
+        session = await db.session()
+        async with session:
+            for block_spec in BLOCK_REGISTRY.values():
+                # each block spec gets its own transaction
+                async with session.begin():
+                    try:
+                        await create_block_spec(
+                            session=session,
+                            block_spec=block_spec.to_api_block_spec(),
+                            override=should_override,
+                        )
+                    except sa.exc.IntegrityError:
+                        pass  # Block already exists
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
@@ -245,7 +271,11 @@ def create_app(
     app = FastAPI(
         title=TITLE,
         version=API_VERSION,
-        on_startup=[run_migrations, start_services],
+        on_startup=[
+            run_migrations,
+            add_block_specifications,
+            start_services,
+        ],
         on_shutdown=[stop_services],
     )
     api_app = create_orion_api(

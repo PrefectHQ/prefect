@@ -178,6 +178,84 @@ class TestReadBlock:
         )
 
 
+class TestReadBlocks:
+    @pytest.fixture(autouse=True)
+    async def blocks(self, session, block_specs):
+
+        blocks = []
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[0].id, name="Block 1"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 2"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 3"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 4"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 5"
+                ),
+            )
+        )
+
+        session.add_all(blocks)
+        await session.commit()
+        return blocks
+
+    async def test_read_blocks(self, session, blocks):
+        read_blocks = await models.blocks.read_blocks(session=session)
+        assert {b.id for b in read_blocks} == {b.id for b in blocks}
+        # sorted by block spec name, block spec version (desc), block name
+        assert [b.id for b in read_blocks] == [
+            blocks[2].id,
+            blocks[4].id,
+            blocks[0].id,
+            blocks[1].id,
+            blocks[3].id,
+        ]
+
+    async def test_read_blocks_limit_offset(self, session, blocks):
+        # sorted by block spec name, block spec version (desc), block name
+        read_blocks = await models.blocks.read_blocks(session=session, limit=2)
+        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[4].id]
+        read_blocks = await models.blocks.read_blocks(
+            session=session, limit=2, offset=2
+        )
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id]
+
+    async def test_read_blocks_by_type(self, session, blocks):
+        read_blocks = await models.blocks.read_blocks(
+            session=session, block_spec_type="abc"
+        )
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id, blocks[3].id]
+
+
 class TestDeleteBlock:
     async def test_delete_block(self, session, block_specs):
         block = await models.blocks.create_block(
