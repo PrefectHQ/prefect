@@ -677,6 +677,50 @@ class TestCacheFunctionBuiltins:
         assert first_state.result() != second_state.result()
         assert first_state.result() == third_state.result() == 1
 
+    def test_task_input_hash_depends_on_task_key_and_code(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        def foo_new_code(x):
+            return x + 1
+
+        def foo_same_code(x):
+            return x
+
+        @task(cache_key_fn=task_input_hash)
+        def bar(x):
+            return x
+
+        @flow
+        def my_flow():
+            first = foo(1).wait()
+            foo.fn = foo_same_code
+            second = foo(1).wait()
+            foo.fn = foo_new_code
+            third = foo(1).wait()
+            fourth = bar(1).wait()
+            fifth = bar(1).wait()
+            return first, second, third, fourth, fifth
+
+        flow_state = my_flow()
+        (
+            first_state,
+            second_state,
+            third_state,
+            fourth_state,
+            fifth_state,
+        ) = flow_state.result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert third_state.name == "Completed"
+        assert fourth_state.name == "Completed"
+        assert fifth_state.name == "Cached"
+
+        assert first_state.result() == second_state.result() == 1
+        assert first_state.result() != third_state.result()
+        assert fourth_state.result() == fifth_state.result() == 1
+
 
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_call(self, orion_client):
