@@ -394,11 +394,15 @@ PREFECT_ORION_TELEMETRY_ENABLED = Setting(
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
-    bool, default=False, description="Whether or not to start the schedule service"
+    bool,
+    default=False,
+    description="Whether or not to start the scheduling service in the Orion application. If disabled, you will need to run this service separately to schedule runs for deployments.",
 )
 
 PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
-    bool, default=False, description="Whether or not to start the late runs service"
+    bool,
+    default=False,
+    description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
 )
 
 # Collect all defined settings
