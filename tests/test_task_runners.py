@@ -45,13 +45,6 @@ def dask_task_runner_with_existing_cluster():
             yield DaskTaskRunner(address=address)
 
 
-@pytest.fixture(autouse=True)
-@pytest.mark.service("ray")
-def use_kv_storage_with_ray(set_up_kv_storage):
-    """Ensure KV storage is used with ray"""
-    pass
-
-
 @pytest.fixture(scope="module")
 @pytest.mark.service("ray")
 def machine_ray_instance():

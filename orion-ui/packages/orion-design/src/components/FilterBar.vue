@@ -15,7 +15,7 @@
       <div ref="observe" class="filter-bar__observe" />
     </teleport>
 
-    <teleport v-if="overlay" to=".application">
+    <teleport v-if="overlay" to="[data-teleport-target='app']">
       <div class="filter-bar__overlay" @click="close" />
     </teleport>
 
@@ -267,6 +267,8 @@
 }
 
 .filter-bar__menu-search {
+  max-height: 50vh;
+
   @media (max-width: 1024px) {
     top: 100%;
   }
