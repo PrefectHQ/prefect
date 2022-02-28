@@ -172,3 +172,20 @@ class TestAPICompatibility:
         assert block.x == "x"
         assert block._block_spec_id == block_spec_id
         assert block._block_id == api_block.id
+
+    def test_create_block_from_api(self):
+        @register_block("just a name", version="1000000.0")
+        class MakesALottaAttributes(Block):
+            real_field: str
+            authentic_field: str
+
+            def block_initialization(self):
+                self.evil_fake_field = "evil fake data"
+
+        my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
+        api_block = my_block.to_api_block(
+            name="a corrupted api block", block_spec_id=uuid4()
+        )
+        assert "real_field" in api_block.data
+        assert "authentic_field" in api_block.data
+        assert "evil_fake_field" not in api_block.data
