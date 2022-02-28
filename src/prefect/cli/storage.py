@@ -170,9 +170,10 @@ async def ls():
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Storage Type", style="green")
-    table.add_column("Storage Version", style="green")
+    table.add_column("Storage Type", style="cyan")
+    table.add_column("Storage Version", style="cyan")
     table.add_column("Name", style="green")
+    table.add_column("Server Default", width=15)
 
     async with get_client() as client:
         json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
@@ -186,11 +187,8 @@ async def ls():
             str(block.id),
             block.block_spec.name,
             block.block_spec.version,
-            (
-                f"{block.name} [blue](**)[/]"
-                if str(block.id) == str(default_storage_block.get("id"))
-                else block.name
-            ),
+            block.name,
+            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
         )
 
     if not default_storage_block:
@@ -198,7 +196,5 @@ async def ls():
             "No default storage is set. Temporary local storage will be used."
             "\nSet a default with `prefect storage set-default <id>`"
         )
-    else:
-        table.caption = "(**) denotes the current default"
 
     console.print(table)
