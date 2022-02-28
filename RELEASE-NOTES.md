@@ -2,7 +2,7 @@
 
 ## 2.0a13
 
-In our biggest release yet, we've got some exciting changes to cover. We've also rehauled sections of our concepts and tutorials documentation, so 
+In our biggest release yet, we've got some exciting changes to cover.
 
 ### Work queues
 
