@@ -50,7 +50,7 @@ metadata:
   name: flow-runner
 rules:
 - apiGroups: [""]
-  resources: ["pods", "pods/log"]
+  resources: ["pods", "pods/log", "pods/status"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["batch"]
   resources: ["jobs"]
