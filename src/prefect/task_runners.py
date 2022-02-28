@@ -80,6 +80,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
+from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A, sync_compatible
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
@@ -126,6 +127,9 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
         If it is not finished after the timeout expires, `None` should be returned.
+
+        Implementers should be careful to ensure that this function never returns or
+        raises an exception.
         """
         raise NotImplementedError()
 
@@ -192,7 +196,12 @@ class SequentialTaskRunner(BaseTaskRunner):
             )
 
         # Run the function immediately and store the result in memory
-        self._results[task_run.id] = await run_fn(**run_kwargs)
+        try:
+            result = await run_fn(**run_kwargs)
+        except Exception as exc:
+            result = exception_to_crashed_state(exc)
+
+        self._results[task_run.id] = result
 
         return PrefectFuture(
             task_run=task_run, task_runner=self, asynchronous=asynchronous
@@ -352,6 +361,8 @@ class DaskTaskRunner(BaseTaskRunner):
             return await future.result(timeout=timeout)
         except self._distributed.TimeoutError:
             return None
+        except Exception as exc:
+            return exception_to_crashed_state(exc)
 
     @property
     def _distributed(self) -> "distributed":
@@ -496,15 +507,12 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Simple utility to store the orchestration result in memory on completion
 
         Since this run is occuring on the main thread, we capture exceptions to prevent
-        task crashes from crashing the flow run. However, if a keyboard interrupt is
-        sent we allow the flow run to be killed to avoid blocking intentional aborts.
+        task crashes from crashing the flow run.
         """
         try:
             self._results[task_run_id] = await run_fn(**run_kwargs)
-        except KeyboardInterrupt:
-            raise
-        except BaseException as exc:
-            self._results[task_run_id] = exc
+        except Exception as exc:
+            self._results[task_run_id] = exception_to_crashed_state(exc)
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
         """
@@ -616,7 +624,10 @@ class RayTaskRunner(BaseTaskRunner):
         with anyio.move_on_after(timeout):
             # We await the reference directly instead of using `ray.get` so we can
             # avoid blocking the event loop
-            result = await ref
+            try:
+                result = await ref
+            except Exception as exc:
+                result = exception_to_crashed_state(exc)
 
         return result
 

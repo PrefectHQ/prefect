@@ -628,8 +628,6 @@ async def begin_task_run(
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        stack.enter_context(reraise_exceptions_as_crashes())
-
         profile = stack.enter_context(
             prefect.context.ProfileContext(
                 name=f"task-run-{task_run.name}", settings=settings, env={}
@@ -793,32 +791,14 @@ async def wait_for_task_runs_and_report_crashes(
 ) -> None:
     for future in task_run_futures:
         logger = task_run_logger(future.task_run)
-        maybe_exception = await future._wait()
-        crashed_state = None
+        state = await future._wait()
 
-        if isinstance(maybe_exception, Crash):
-            # We captured a crash signal
-            logger.error(
-                f"Crash detected! {maybe_exception.message}",
-                exc_info=maybe_exception.cause,
-            )
-            crashed_state = maybe_exception.state
-
-        elif isinstance(maybe_exception, BaseException):
-            # An uncaptured exception occured
-            logger.error("Crashed with unexpected exception.", exc_info=maybe_exception)
-            crashed_state = Failed(
-                name="Crashed",
-                message="Task run crashed with an unexpected exception.",
-                data=DataDocument.encode("cloudpickle", maybe_exception),
-            )
-
-        if crashed_state:
+        if state.name == "Crashed":
+            logger.info(f"Crash detected! {state.message}")
             # Update the state of the task run
             await client.set_task_run_state(
-                task_run_id=future.task_run.id, state=crashed_state, force=True
+                task_run_id=future.task_run.id, state=state, force=True
             )
-            future._final_state = crashed_state
             engine_logger.debug(
                 f"Reported crashed task run {future.task_run.name!r} successfully."
             )
