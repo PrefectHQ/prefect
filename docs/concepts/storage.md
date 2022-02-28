@@ -13,7 +13,7 @@ tags:
 
 Storage lets you configure how flow code, task results, and flow results data are persisted.
 
-If no other storage is configured, Prefect uses the default local storage.
+If no other storage is configured, Prefect uses the default temporary local storage.
 
 Local storage works fine for many local flow and task run scenarios. However, to run flows using Docker or Kubernetes, you must set up remote storage.
 
