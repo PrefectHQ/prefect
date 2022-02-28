@@ -17,7 +17,7 @@ Thanks for using Prefect!!!
 
 This is the official docker image for Prefect Core, intended for executing
 Prefect Flows. For more information, please see the docs:
-https://docs.prefect.io/core/getting_started/installation.html#docker
+https://docs.prefect.io/core/getting_started/quick-start.html
 "
   exec bash --login
 else
