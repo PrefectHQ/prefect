@@ -254,7 +254,6 @@ async def begin_flow_run(
         await stack.enter_async_context(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
-        stack.enter_context(reraise_exceptions_as_crashes())
 
         # If the flow is async, we need to provide a portal so sync tasks can run
         sync_portal = (
@@ -357,7 +356,6 @@ async def create_and_begin_subflow_run(
         await stack.enter_async_context(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
-        stack.enter_context(reraise_exceptions_as_crashes())
         task_runner = await stack.enter_async_context(flow.task_runner.start())
 
         terminal_state = await orchestrate_flow_run(
@@ -622,8 +620,12 @@ async def begin_task_run(
     settings: prefect.settings.Settings,
 ):
     """
+    Entrypoint for task run execution.
+
+    This function is intended for submission to the task runner.
+
     This method may be called from a worker so we enter a temporary profile context
-    with the settings from submission.
+    with the settings from submission and ensure it is initialized.
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
@@ -795,6 +797,10 @@ async def wait_for_task_runs_and_report_crashes(
 
         if state.name == "Crashed":
             logger.info(f"Crash detected! {state.message}")
+            logger.debug(
+                "Crash details:", exc_info=state.result(raise_on_failure=False)
+            )
+
             # Update the state of the task run
             await client.set_task_run_state(
                 task_run_id=future.task_run.id, state=state, force=True
@@ -814,32 +820,23 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     try:
         yield
-    except Crash as crash:
+    except BaseException as exc:
+        state = exception_to_crashed_state(exc)
+        logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
-            flow_run_logger(flow_run).error(crash.message, exc_info=crash.cause)
+            logger.error(f"Crash detected! {state.message}")
+            logger.debug("Crash details:", exc_info=exc)
             await client.set_flow_run_state(
-                state=crash.state,
+                state=state,
                 flow_run_id=flow_run.id,
                 force=True,
             )
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
-        # Reraise the cause instead of the crash itself
-        raise crash.cause
 
-
-@contextmanager
-def reraise_exceptions_as_crashes():
-    """
-    Detect crashes during this context, wrapping unexpected exceptions into `Crash`
-    signals.
-    """
-    try:
-        yield
-    except BaseException as exc:
-        state = exception_to_crashed_state(exc)
-        raise Crash(message=state.message, cause=exc, state=state) from exc
+        # Reraise the exception
+        raise exc from None
 
 
 async def resolve_upstream_task_futures(
