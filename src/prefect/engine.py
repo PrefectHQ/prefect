@@ -35,12 +35,7 @@ from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, Crash, UpstreamTaskError
 from prefect.flows import Flow
-from prefect.futures import (
-    PrefectFuture,
-    call_repr,
-    resolve_futures_to_data,
-    resolve_futures_to_states,
-)
+from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -58,20 +53,18 @@ from prefect.orion.schemas.states import (
     Running,
     State,
     StateDetails,
-    StateType,
 )
-from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.settings import PREFECT_DEBUG_MODE, get_current_settings
+from prefect.states import exception_to_crashed_state, return_value_to_state
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
-    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import ensure_iterable, visit_collection
+from prefect.utilities.collections import visit_collection
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -482,7 +475,7 @@ async def orchestrate_flow_run(
                 flow_run_context.task_run_futures + flow_run_context.subflow_states
             ) or None
 
-        state = await user_return_value_to_state(result, serializer="cloudpickle")
+        state = await return_value_to_state(result, serializer="cloudpickle")
 
     state = await client.propose_state(
         state=state,
@@ -686,7 +679,7 @@ async def orchestrate_task_run(
 
     When the user function is run, the result will be used to determine a final state
     - if an exception is encountered, it is trapped and stored in a FAILED state
-    - otherwise, `user_return_value_to_state` is used to determine the state
+    - otherwise, `return_value_to_state` is used to determine the state
 
     If the final state is COMPLETED, we generate a cache key as specified by the task
 
@@ -754,7 +747,7 @@ async def orchestrate_task_run(
                 data=DataDocument.encode("cloudpickle", exc),
             )
         else:
-            terminal_state = await user_return_value_to_state(
+            terminal_state = await return_value_to_state(
                 result, serializer="cloudpickle"
             )
 
@@ -859,172 +852,14 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 @contextmanager
 def reraise_exceptions_as_crashes():
     """
-    Detect crashes during this context, wrapping unexpected exceptions into `Crashed`
+    Detect crashes during this context, wrapping unexpected exceptions into `Crash`
     signals.
     """
     try:
         yield
     except BaseException as exc:
-        raise exception_to_crash_signal(exc) from exc
-
-
-def exception_to_crash_signal(exc: BaseException) -> Crash:
-    """
-    Takes an exception that occurs _outside_ of user code and converts it to a
-    'Crash' signal and state.
-    """
-    state_message = message = None
-
-    if isinstance(exc, anyio.get_cancelled_exc_class()):
-        state_message = "Execution was cancelled by the runtime environment."
-        message = "Cancelled by the runtime environment."
-
-    elif isinstance(exc, KeyboardInterrupt):
-        state_message = "Execution was interrupted by the system."
-        message = "Received an interrupt signal."
-
-    elif isinstance(exc, httpx.TimeoutException):
-        try:
-            request: httpx.Request = exc.request
-        except RuntimeError:
-            # The request property is not set
-            state_message = "Request timed out while attempting to contact the server."
-            message = "Cannot reach the server. Request timed out."
-        else:
-            # TODO: We can check if this is actually our API url
-            state_message = f"Request to {request.url} timed out."
-            message = f"Cannot reach {request.url}. Request timed out."
-
-    else:
-        state_message = "Execution was interrupted by an unexpected exception."
-        message = "Interrupted by an unexpected exception."
-
-    return Crash(
-        message,
-        cause=exc,
-        state=Failed(
-            name="Crashed",
-            message=state_message,
-            data=safe_encode_exception(exc),
-        ),
-    )
-
-
-def safe_encode_exception(exception: BaseException) -> DataDocument:
-    try:
-        document = DataDocument.encode("cloudpickle", exception)
-    except Exception as exc:
-        document = DataDocument.encode("cloudpickle", exc)
-    return document
-
-
-async def user_return_value_to_state(
-    result: Any, serializer: str = "cloudpickle"
-) -> State:
-    """
-    Given a return value from a user-function, create a `State` the run should
-    be placed in.
-
-    - If data is returned, we create a 'COMPLETED' state with the data
-    - If a single, manually created state is returned, we use that state as given
-        (manual creation is determined by the lack of ids)
-    - If an upstream state or iterable of upstream states is returned, we apply the aggregate rule
-    - If a future or iterable of futures is returned, we resolve it into states then
-        apply the aggregate rule
-
-    The aggregate rule says that given multiple states we will determine the final state
-    such that:
-
-    - If any states are not COMPLETED the final state is FAILED
-    - If all of the states are COMPLETED the final state is COMPLETED
-    - The states will be placed in the final state `data` attribute
-
-    The aggregate rule is applied to _single_ futures to distinguish from returning a
-    _single_ state. This prevents a flow from assuming the state of a single returned
-    task future.
-    """
-
-    if (
-        is_state(result)
-        # Check for manual creation
-        and not result.state_details.flow_run_id
-        and not result.state_details.task_run_id
-    ):
-        return result
-
-    # Ensure any futures are resolved
-    result = await resolve_futures_to_states(result)
-
-    # If we resolved a task future or futures into states, we will determine a new state
-    # from their aggregate
-    if is_state(result) or is_state_iterable(result):
-        states = StateSet(ensure_iterable(result))
-
-        # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
-
-        # Generate a nice message for the aggregate
-        if states.all_completed():
-            message = "All states completed."
-        elif states.any_failed():
-            message = f"{states.fail_count}/{states.total_count} states failed."
-        elif not states.all_final():
-            message = (
-                f"{states.not_final_count}/{states.total_count} states are not final."
-            )
-        else:
-            message = "Given states: " + states.counts_message()
-
-        # TODO: We may actually want to set the data to a `StateSet` object and just allow
-        #       it to be unpacked into a tuple and such so users can interact with it
-        return State(
-            type=new_state_type,
-            message=message,
-            data=DataDocument.encode(serializer, result),
-        )
-
-    # Otherwise, they just gave data and this is a completed result
-    return Completed(data=DataDocument.encode(serializer, result))
-
-
-@sync_compatible
-@inject_client
-async def raise_failed_state(state: State, client: OrionClient = None) -> None:
-    """
-    Given a FAILED state, raise the contained exception.
-
-    If not given a FAILED state, this function will return immediately.
-
-    If the state contains a result of multiple states, the first FAILED state will be
-    raised.
-
-    If the state is FAILED but does not contain an exception type result, a `TypeError`
-    will be raised.
-    """
-    if not state.is_failed():
-        return
-
-    result = await client.resolve_datadoc(state.data)
-
-    if isinstance(result, BaseException):
-        raise result
-
-    elif isinstance(result, State):
-        # Raise the failure in the inner state
-        await raise_failed_state(result)
-
-    elif is_state_iterable(result):
-        # Raise the first failure
-        for state in result:
-            await raise_failed_state(state)
-
-    else:
-        raise TypeError(
-            f"Unexpected result for failure state: {result!r} —— "
-            f"{type(result).__name__} cannot be resolved into an exception"
-        )
+        state = exception_to_crashed_state(exc)
+        raise Crash(message=state.message, cause=exc, state=state) from exc
 
 
 async def resolve_upstream_task_futures(
