@@ -14,10 +14,16 @@ If you want to take a deeper dive into the concepts that make up the Prefect eco
 
 To jump right in and get started using Prefect Orion, you'll need to complete the following steps:
 
-1. [Install Prefect](/getting-started/installation/).
+- [Install Prefect](/getting-started/installation/).
+
+That's it! You're ready to [start writing local flows](/tutorials/first-steps/) and use the Prefect Orion UI to monitor those flows.
+
+If you want to start scheduling flows or using deployments to trigger flow runs via the API or UI, you'll need to set up a few additional Prefect features. 
+
 2. Start a [Prefect Orion API server](/ui/overview/) with `prefect orion start`.
-3. Create a [work queue](/concepts/work-queues/#work-queue-overview) to collect scheduled runs for deployments.
-4. [Start an agent](/concepts/work-queues/#agent-overview) in an environment that can execute work from a work queue.
+3. Configure [storage](/concepts/storage/) to persist flow and task data.
+4. Create a [work queue](/concepts/work-queues/#work-queue-overview) to collect scheduled runs for deployments.
+5. [Start an agent](/concepts/work-queues/#agent-overview) in an environment that can execute work from a work queue.
 
 If you have used Prefect Core and are familiar with Prefect workflows, we still recommend reading through the [Orion tutorials](/tutorials/first-steps/). Orion flows and subflows offer new functionality, and running deployments with [work queues and agents](/tutorials/deployments/) reflects a significant change in how you configure orchestration components.
 
