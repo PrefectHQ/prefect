@@ -2,11 +2,8 @@
 Functions for interacting with block ORM objects.
 Intended for internal use by the Orion API.
 """
-import json
-import os
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import schemas
@@ -83,6 +80,37 @@ async def read_block_by_name(
     result = await session.execute(query)
     block = result.scalar()
     return block
+
+
+@inject_db
+async def read_blocks(
+    session: sa.orm.Session,
+    db: OrionDBInterface,
+    block_spec_type: str = None,
+    offset: int = None,
+    limit: int = None,
+):
+    """
+    Read blocks with an optional limit and offset
+    """
+
+    query = (
+        sa.select(db.Block)
+        .join(db.BlockSpec, db.BlockSpec.id == db.Block.block_spec_id)
+        .order_by(db.BlockSpec.name, db.BlockSpec.version.desc(), db.Block.name)
+    )
+
+    if block_spec_type is not None:
+        query = query.where(db.BlockSpec.type == block_spec_type)
+
+    if offset is not None:
+        query = query.offset(offset)
+
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
 
 
 @inject_db
