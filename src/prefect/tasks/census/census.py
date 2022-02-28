@@ -21,7 +21,7 @@ class CensusSyncTask(Task):
     Args:
         - api_trigger (str, optional): default sync to trigger, if none is specified in `run`. The API
             trigger URL for a sync can be found on sync's configuration page
-            (https://app.getcensus.com/syncs/{sync_id}/configuration) under Sync Triggers > API
+            (https://app.getcensus.com/syncs/{sync_id}/configuration) under Sync Triggers > API.
         - **kwargs (dict, optional): additional kwargs to pass to the base Task constructor
 
     Example:
