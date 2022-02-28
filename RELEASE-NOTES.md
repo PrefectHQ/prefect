@@ -10,7 +10,7 @@ Work queues aggregate work to be done and agents poll a specific work queue for 
 
 Work queues enable some exiting new features:
 
-- Filtering: Each work queue can target a specific category of work. This filtering can be adjusted without restarting your agent.
+- Filtering: Each work queue can target a specific subset of work. This filtering can be adjusted without restarting your agent.
 - Concurrency limits: Each work queue can have a limited number of running flow runs.
 - Pausing: Each work queue can be paused independently. This prevents agents from submitting additional work.
 
