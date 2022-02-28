@@ -179,7 +179,7 @@ class OrionDBInterface(metaclass=DBSingleton):
     @property
     def block_spec_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSpec"""
-        return [self.BlockSpec.name, self.BlockSpec.version]
+        return self.orm.block_spec_unique_upsert_columns
 
     @property
     def flow_unique_upsert_columns(self):
