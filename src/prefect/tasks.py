@@ -60,7 +60,14 @@ def task_input_hash(
     Returns:
         a string hash if hashing succeeded, else `None`
     """
-    return hash_objects(hash(context.task.fn), arguments)
+    return hash_objects(
+        # We use the task key to get the qualified name for the task and include the
+        # task functions `co_code` bytes to avoid caching when the underlying function
+        # changes
+        context.task.task_key,
+        context.task.fn.__code__.co_code,
+        arguments,
+    )
 
 
 class Task(Generic[P, R]):
