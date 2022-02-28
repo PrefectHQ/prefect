@@ -30,7 +30,7 @@ Note that you will no longer be able to use the Kubernetes or Docker flow runner
 
 We've excited to announce a new task runner with support for [Ray](https://www.ray.io/). You can run your tasks on an existing Ray cluster, or dynamically create one with each flow run. Ray has powerful support for customizing runtime environments, parallelizing tasks to make use of your full compute power, and dynamically creating distributed task infrastructure.
 
-An [overview of using Ray](https://main--prefect-orion.netlify.app/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
+An [overview of using Ray](https://orion-docs.prefect.io/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
 
 ## 2.0a12
 
