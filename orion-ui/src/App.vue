@@ -1,5 +1,5 @@
 <template>
-  <div class="application" :class="classes.root">
+  <div class="application" :class="classes.root" data-teleport-target="app">
     <NavBar class="application__nav" />
     <template v-if="filtersVisible">
       <FilterBar class="application__filter-bar" :disabled="filtersDisabled" />

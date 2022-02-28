@@ -67,7 +67,7 @@ nav:
             - tutorials/flow-task-config.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
-            - tutorials/dask-task-runner.md
+            - tutorials/dask-ray-task-runners.md
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/virtual-environments.md
@@ -81,6 +81,7 @@ nav:
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Flow Runners: concepts/flow-runners.md
+        - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
@@ -167,6 +168,7 @@ nav:
     - Contributing: 
         - Overview: contributing/overview.md
         - Style: contributing/style.md
+        - Troubleshooting: contributing/common-mistakes.md
 
 extra:
   analytics:

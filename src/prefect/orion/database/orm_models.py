@@ -43,6 +43,9 @@ class ORMBase:
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
     __mapper_args__ = {"eager_defaults": True}
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id})"
+
     @declared_attr
     def __tablename__(cls):
         """

@@ -160,6 +160,10 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
+PREFECT_CLIENT_REQUEST_TIMEOUT = Setting(
+    float, default=30.0, description="""The default timeout for requests to the API"""
+)
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}/profiles.toml"),
@@ -283,6 +287,13 @@ PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     default=1,
     description="""A statement timeout, in seconds, applied to all database
     interactions made by the API. Defaults to `1`.""",
+)
+
+PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
+    Optional[float],
+    default=5,
+    description="""A connection timeout, in seconds, applied to database
+    connections. Defaults to `5`.""",
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(

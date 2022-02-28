@@ -490,14 +490,6 @@ def enter_task_run_engine(
             "task in a flow?"
         )
 
-    # Provide a helpful error if there is a async task in a sync flow; this would not
-    # error normally since it would just be an unawaited coroutine
-    if task.isasync and not flow_run_context.flow.isasync:
-        raise RuntimeError(
-            f"Your task is async, but your flow is synchronous. Async tasks may "
-            "only be called from async flows."
-        )
-
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
@@ -510,12 +502,12 @@ def enter_task_run_engine(
         wait_for=wait_for,
     )
 
-    # Async task run
-    if task.isasync:
+    # Async task run in async flow run
+    if task.isasync and flow_run_context.flow.isasync:
         return begin_run()  # Return a coroutine for the user to await
 
-    # Sync task run in sync flow run
-    if not flow_run_context.flow.isasync:
+    # Async or sync task run in sync flow run
+    elif not flow_run_context.flow.isasync:
         return run_async_from_worker_thread(begin_run)
 
     # Sync task run in async flow run

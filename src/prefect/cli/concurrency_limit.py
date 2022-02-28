@@ -1,8 +1,13 @@
 """
 Command line interface for working with concurrency limits.
 """
+import pendulum
 import typer
+from rich import box
+from rich.console import Group
+from rich.panel import Panel
 from rich.pretty import Pretty
+from rich.table import Table
 
 from prefect.cli.base import (
     PrefectTyper,
@@ -40,7 +45,7 @@ async def create(tag: str, concurrency_limit: int):
 
 
 @concurrency_limit_app.command()
-async def read(tag: str):
+async def inspect(tag: str):
     """
     View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
     which are currently using a concurrency slot.
@@ -49,7 +54,30 @@ async def read(tag: str):
     async with get_client() as client:
         result = await client.read_concurrency_limit_by_tag(tag=tag)
 
-    console.print(Pretty(result))
+    trid_table = Table()
+    trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
+
+    cl_table = Table(title=f"Concurrency Limit ID: [red]{str(result.id)}")
+    cl_table.add_column("Tag", style="green", no_wrap=True)
+    cl_table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+    cl_table.add_column("Created", style="magenta", no_wrap=True)
+    cl_table.add_column("Updated", style="magenta", no_wrap=True)
+
+    for trid in result.active_slots:
+        trid_table.add_row(str(trid))
+
+    cl_table.add_row(
+        str(result.tag),
+        str(result.concurrency_limit),
+        Pretty(pendulum.instance(result.created).diff_for_humans()),
+        Pretty(pendulum.instance(result.updated).diff_for_humans()),
+    )
+
+    group = Group(
+        cl_table,
+        trid_table,
+    )
+    console.print(Panel(group, expand=False))
 
 
 @concurrency_limit_app.command()
@@ -57,11 +85,29 @@ async def ls(limit: int = 15, offset: int = 0):
     """
     View all concurrency limits.
     """
+    table = Table(
+        title="Concurrency Limits",
+        caption="inspect a concurrency limit to show active task run IDs",
+    )
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Tag", style="green", no_wrap=True)
+    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+    table.add_column("Active Task Runs", style="magenta", no_wrap=True)
 
     async with get_client() as client:
-        result = await client.read_concurrency_limits(limit=limit, offset=offset)
+        concurrency_limits = await client.read_concurrency_limits(
+            limit=limit, offset=offset
+        )
 
-    console.print(Pretty(result))
+    for cl in sorted(concurrency_limits, key=q.updated, reverse=True):
+        table.add_row(
+            str(cl.id),
+            str(cl.tag),
+            str(cl.concurrency_limit),
+            str(len(cl.active_slots)),
+        )
+
+    console.print(table)
 
 
 @concurrency_limit_app.command()

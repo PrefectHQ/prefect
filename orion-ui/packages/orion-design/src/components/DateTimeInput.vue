@@ -7,7 +7,7 @@
     @click="showPicker = !showPicker"
   />
 
-  <teleport v-if="showPicker" to=".application">
+  <teleport v-if="showPicker" to="[data-teleport-target='app']">
     <div class="date-time-input__picker">
       <m-date-picker v-model="tempValue" class="date-time-input__date" />
       <m-time-picker v-model="tempValue" class="date-time-input__time" />

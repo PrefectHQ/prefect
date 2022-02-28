@@ -109,11 +109,11 @@ async def pause(
 
 
 @work_app.command()
-async def unpause(
-    id: UUID = typer.Argument(..., help="The ID of the work queue to pause."),
+async def resume(
+    id: UUID = typer.Argument(..., help="The ID of the work queue to resume."),
 ):
     """
-    Unpause a work queue.
+    Resume a paused work queue.
     """
     async with get_client() as client:
         result = await client.update_work_queue(
@@ -122,7 +122,7 @@ async def unpause(
         )
 
     if result:
-        exit_with_success(f"Unpaused work queue {id}")
+        exit_with_success(f"Resumed work queue {id}")
     else:
         exit_with_error(f"No work queue found with id {id}")
 
