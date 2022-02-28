@@ -42,8 +42,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu, media } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@/components'
+  import { media } from '@/utilities'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
 
