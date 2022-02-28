@@ -102,7 +102,7 @@ class Block(BaseModel, ABC):
             id=self._block_id or uuid4(),
             name=name or self._block_name,
             block_spec_id=block_spec_id or self._block_spec_id,
-            data={self.__dict__[key] for key in data_keys}
+            data=self.dict(include=data_keys),
             block_spec=self.to_api_block_spec(),
         )
 
