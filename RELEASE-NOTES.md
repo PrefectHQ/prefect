@@ -11,7 +11,7 @@ Work queues aggregate work to be done and agents poll a specific work queue for 
 Work queues enable some exiting new features:
 
 - Filtering: Each work queue can target a specific subset of work. This filtering can be adjusted without restarting your agent.
-- Concurrency limits: Each work queue can have a limited number of running flow runs.
+- Concurrency limits: Each work queue can limit the number of flows that run at the same time.
 - Pausing: Each work queue can be paused independently. This prevents agents from submitting additional work.
 
 Check out the [work queue documentation](https://orion-docs.prefect.io/concepts/work-queues/) for more details.
