@@ -19,7 +19,8 @@ from prefect.orion.services.loop_service import LoopService
 
 class Telemetry(LoopService):
     """
-    This service sends basic telemetry back to Prefect
+    This service sends basic telemetry back to Prefect. It can be toggled off
+    with the PREFECT_ORION_TELEMETRY_ENABLED setting.
     """
 
     def __init__(self):
