@@ -37,9 +37,9 @@
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
-  import { computed, ref } from 'vue'
+  import { computed, inject, ref } from 'vue'
   import FilterTags from '@/components/FilterTags.vue'
-  import { searchApi } from '@/services/SearchApi'
+  import { searchApi, createSearchKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
   import { omit } from '@/utilities/object'
@@ -53,12 +53,14 @@
   const loading = ref(false)
   const disabled = computed(() => loading.value || name.value.length === 0)
 
+  const createSearch = inject(createSearchKey, searchApi.createSearch)
+
   function save(): void {
     loading.value = true
 
     const payload = filtersStore.all.map(filter => omit(filter, ['id'])) as Filter[]
 
-    searchApi.createSearch(name.value, payload)
+    createSearch(name.value, payload)
       .then(() => {
         showToast('Saved search', 'success')
 
