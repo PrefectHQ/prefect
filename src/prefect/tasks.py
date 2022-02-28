@@ -60,7 +60,7 @@ def task_input_hash(
     Returns:
         a string hash if hashing succeeded, else `None`
     """
-    return hash_objects(context.task.fn, arguments)
+    return hash_objects(hash(context.task.fn), arguments)
 
 
 class Task(Generic[P, R]):
