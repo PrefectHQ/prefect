@@ -60,7 +60,7 @@ class CensusSyncTask(Task):
             - api_trigger (str): if not specified in run, it will pull from the default for the
                 CensusSyncTask constructor. The API trigger URL for a sync can be found on sync's
                 configuration page (https://app.getcensus.com/syncs/{sync_id}/configuration) under
-                Sync Triggers > API
+                Sync Triggers > API.
             - poll_status_every_n_seconds (int, optional): this task polls the Census API for the sync's
                 status. If provided, this value will override the default polling time of
                 60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
