@@ -755,6 +755,7 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+verified_task = true
 
 [pages.tasks.airbyte]
 title = "Airbyte Tasks"
