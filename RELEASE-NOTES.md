@@ -2,7 +2,7 @@
 
 ## 2.0a13
 
-We've got some exciting changes to cover in our biggest release yet.
+We've got some exciting changes to cover in our biggest release yet!
 
 ### Work queues
 
