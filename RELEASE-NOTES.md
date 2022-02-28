@@ -6,7 +6,7 @@ We've got some exciting changes to cover in our biggest release yet.
 
 ### Work queues
 
-Work queues define the work to be done and agents poll a specific work queue for new work. Previously, agents would poll for any scheduled flow run. Now, scheduled flow runs are added to work queues that can filter flow runs by tags, deployment, and flow runner type.
+Work queues aggregate work to be done and agents poll a specific work queue for new work. Previously, agents would poll for any scheduled flow run. Now, scheduled flow runs are added to work queues that can filter flow runs by tags, deployment, and flow runner type.
 
 Work queues enable some exiting new features:
 
