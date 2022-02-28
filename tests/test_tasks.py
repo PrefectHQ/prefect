@@ -614,6 +614,31 @@ class TestCacheFunctionBuiltins:
         assert first_state.result() != second_state.result()
         assert first_state.result() == third_state.result() == 1
 
+    def test_task_input_hash_works_with_object_return_types(self):
+        class TestClass:
+            def __init__(self, x):
+                self.x = x
+
+            def __eq__(self, other) -> bool:
+                return type(self) == type(other) and self.x == other.x
+
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return TestClass(x)
+
+        @flow
+        def bar():
+            return foo(1).wait(), foo(2).wait(), foo(1).wait()
+
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result()
+
 
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_call(self, orion_client):
