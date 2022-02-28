@@ -390,7 +390,7 @@ PREFECT_ORION_UI_ENABLED = Setting(
 PREFECT_ORION_TELEMETRY_ENABLED = Setting(
     bool,
     default=True,
-    description="""Whether or not to send anonymous telemetry stats to Prefect. Telemetry provides us metrics that we use to align improvements with common use-cases.""",
+    description="""If True, Orion sends anonymous data (e.g. count of flow runs) to Prefect to help us improve.""",
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
