@@ -1,13 +1,14 @@
 """
 Command line interface for working with agent services
 """
+import os
 from uuid import UUID
 
 import anyio
 import typer
 
 from prefect.agent import OrionAgent
-from prefect.cli.base import PrefectTyper, SettingsOption, app, console
+from prefect.cli.base import PrefectTyper, SettingsOption, app, console, exit_with_error
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
@@ -25,10 +26,13 @@ ascii_name = r"""
 """
 
 
+from prefect import get_client
+
+
 @agent_app.command()
 async def start(
     work_queue_id: UUID = typer.Argument(
-        ..., help="A work queue ID for the agent to pull from."
+        None, help="A work queue ID for the agent to pull from."
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -36,6 +40,28 @@ async def start(
     """
     Start an agent process.
     """
+
+    if os.environ.get("PREFECT_TEMP_KUBERNETES_WORK_QUEUE") and not work_queue_id:
+        async with get_client() as client:
+            work_queues = await client.read_work_queues()
+            for queue in work_queues:
+                if queue.name == "KUBERNETES":
+                    work_queue_id = queue.id
+                    break
+            if not work_queue_id:
+                work_queue_id = await client.create_work_queue(
+                    name="KUBERNETES", flow_runner_types=["kubernetes"]
+                )
+                console.print(f"Created kubernetes work queue {work_queue_id}.")
+
+    if not work_queue_id:
+        exit_with_error("Missing argument `work_queue_id`.")
+
+    try:
+        UUID(str(work_queue_id))
+    except:
+        exit_with_error("`work_queue_id` must be a valid UUID.")
+
     if not hide_welcome:
         if api:
             console.print(f"Starting agent connected to {api}...")
