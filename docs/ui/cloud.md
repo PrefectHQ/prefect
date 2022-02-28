@@ -26,6 +26,15 @@ Features only available on Prefect Cloud include:
 - User accounts
 - Workspaces
 
+The following sections will get you set up and using Prefect Cloud, following these steps:
+
+1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
+2. [Create workspaces](#create-a-workspace) for your account.
+3. [Create an API token](#create-an-api-token) to authorize a local execution environment.
+4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
+5. [Configure storage](#configure-storage).
+6. [Run a flow](#run-a-flow-with-cloud) and display the flow run in Prefect Cloud.
+
 ## Sign in or register
 
 To sign in with an existing account or register an account, go to [http://api-beta.prefect.io/](http://api-beta.prefect.io/).
@@ -38,27 +47,27 @@ You can create an account with:
 
 ## Create a workspace
 
-If you register a new account, you'll be prompted to create a new workspace. Workspaces enable you to organize work, keeping workflows for different projects, teams, or clients in their own spaces.
+If you register a new account, you'll be prompted to create a new workspace. Workspaces enable you to organize work, keeping workflows for different projects, teams, or clients in their own spaces. You multiple workspaces.
 
-![](/img/ui/cloud-new-login.png)
+![Creating a new Prefect Cloud account.](/img/ui/cloud-new-login.png)
 
 Click **Create Workspace**. You'll be prompted to provide a name and description for your first workspace.
 
-![](/img/ui/cloud-workspace-details.png)
+![Creating a new workspace in the Cloud UI.](/img/ui/cloud-workspace-details.png)
 
 Click **Create** to create the workspace. 
 
-![](/img/ui/cloud-workspace-list.png)
+![Viewing a list of available workspaces in the Cloud UI.](/img/ui/cloud-workspace-list.png)
 
 Click **Edit Workspace**. This lets you edit details about the workspace or delete the workspace. 
 
 It also provide the Prefect CLI command that configures Prefect to orchestrate flow runs with this workspace. Copy this command and run it in the environment in which you'll be running flows so they'll show up in your workspace.
 
-![](/img/ui/cloud-edit-workspace.png)
+![Editing a workspace.](/img/ui/cloud-edit-workspace.png)
 
 Click the Prefect logo: this always returns to your workspace list. Then click on a workspace name to view the dashboard for that workspace.
 
-![](/img/ui/cloud-workspace-dashboard.png)
+![Viewing a workspace dashboard in the Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
 ## Create an API token
 
@@ -66,18 +75,17 @@ API tokens enable you to authenticate an a local environment to work with Prefec
 
 To create an API token, click the account icon at the bottom-left corner of the UI, then click **Profile**. This displays your account profile.
 
-![](/img/ui/cloud-edit-profile.png)
+![Viewing an account profile in the Cloud UI.](/img/ui/cloud-edit-profile.png)
 
 Click the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
 
-![](/img/ui/cloud-api-keys.png)
+![Editing and creating API keys in the Cloud UI.](/img/ui/cloud-api-keys.png)
 
 Click **Create** to create a new API key. You're prompted to provide a name for the key. Click **Confirm** to generate the key.
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
-
-## Configuring Orion for Cloud
+## Configure Orion for Cloud
 
 Your next step is to configure a local execution environment to use Cloud as the API server for local flow runs.
 
@@ -106,3 +114,35 @@ When using Prefect Cloud, we recommend configuring global storage for persisting
 By default, Orion uses local file system storage to persist data like task results, cache keys, and so on. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using containers or distributed computing environments like Dask and Ray.
 
 ## Run a flow with Cloud
+
+Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like running local flows with the Prefect Orion API server, but because you configured `PREFECT_API_URL` and `PREFECT_API_KEY`, your flow runs show up in Cloud!
+
+In your local environment, where you configured the previous steps, create a file named `basic_flow.py` with the following contents:
+
+```python
+from prefect import flow, get_run_logger
+
+@flow(name="Testing")
+def basic_flow():
+    logger = get_run_logger()
+    logger.warning("The fun is about to begin")
+
+if __name__ == "__main__":
+    basic_flow()
+```
+
+Now run `basic_flow.py`.
+
+<div class='termy'>
+```
+$ python basic_flow.py
+11:31:46.135 | INFO    | prefect.engine - Created flow run 'delicate-woodpecker' for flow 'Testing'
+11:31:46.135 | INFO    | Flow run 'delicate-woodpecker' - Using task runner 'ConcurrentTaskRunner'
+11:31:46.748 | WARNING | Flow run 'delicate-woodpecker' - The fun is about to begin
+11:31:47.643 | INFO    | Flow run 'delicate-woodpecker' - Finished in state Completed(None)
+```
+</div>
+
+Go to the dashboard for your workspace in Prefect Cloud. You'll see the flow run results right there in Cloud!
+
+![Viewing local flow run results in the Cloud UI.](/img/ui/cloud-flow-run.png)
