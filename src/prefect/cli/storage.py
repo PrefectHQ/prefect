@@ -1,161 +1,200 @@
 """
 Command line interface for managing storage settings
 """
-import json
-from typing import Any, Callable, Coroutine, Dict, Tuple
+import textwrap
+from typing import List
+from uuid import UUID
 
 import pendulum
+import pydantic
 import typer
+from fastapi import status
+from httpx import HTTPStatusError
+from rich.emoji import Emoji
+from rich.pretty import Pretty
+from rich.table import Table
 
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
+import prefect
+from prefect.blocks.core import get_block_class
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.client import get_client
-from prefect.settings import PREFECT_HOME
-from prefect.utilities.asyncio import sync_compatible
 
-storage_config_app = typer.Typer(
+storage_config_app = PrefectTyper(
     name="storage",
     help="Commands for managing storage settings",
 )
 app.add_typer(storage_config_app)
 
-
-async def configure_temp_storage():
-    return ("tempstorage-block", dict())
-
-
-async def configure_local_storage():
-    local_data = dict()
-    console.print("Follow the prompts to configure local filesystem storage")
-    local_data["storage_path"] = typer.prompt(
-        "What directory would you like to persist data to?",
-        default=PREFECT_HOME.value() / "storage",
-        show_default=True,
-    )
-    return ("localstorage-block", local_data)
-
-
-async def configure_orion_storage():
-    return ("orionstorage-block", dict())
-
-
-async def configure_s3_storage():
-    console.print("Follow the prompts to configure S3 storage")
-    s3_data = dict()
-
-    aws_access_key_id = typer.prompt(
-        "AWS access_key_id", default="None", show_default=True
-    )
-    s3_data["aws_access_key_id"] = (
-        aws_access_key_id if aws_access_key_id != "None" else None
-    )
-
-    aws_secret_access_key = typer.prompt(
-        "AWS secret_access_key", default="None", show_default=True
-    )
-    s3_data["aws_secret_access_key"] = (
-        aws_secret_access_key if aws_secret_access_key != "None" else None
-    )
-
-    aws_session_token = typer.prompt(
-        "AWS session_token", default="None", show_default=True
-    )
-    s3_data["aws_session_token"] = (
-        aws_session_token if aws_session_token != "None" else None
-    )
-
-    profile_name = typer.prompt("AWS profile_name", default="None", show_default=True)
-    s3_data["profile_name"] = profile_name if profile_name != "None" else None
-
-    region_name = typer.prompt("AWS region_name", default="None", show_default=True)
-    s3_data["region_name"] = region_name if region_name != "None" else None
-
-    s3_data["bucket"] = typer.prompt(
-        "To which S3 bucket would you like to persist data?"
-    )
-
-    return ("s3storage-block", s3_data)
-
-
-async def configure_google_cloud_storage():
-    console.print("Follow the prompts to configure Google Cloud Storage")
-    gcs_data = dict()
-
-    gcs_data["project"] = typer.prompt(
-        "Which GCP project would like to use for storage?",
-        default=None,
-        show_default=True,
-    )
-
-    gcs_data["bucket"] = typer.prompt(
-        "To which GCS bucket would you like to persist data?"
-    )
-
-    path_to_service_account_credentials = typer.prompt(
-        "What is the path to your service account credentials file?",
-        default=None,
-        show_default=True,
-    )
-    try:
-        with open(path_to_service_account_credentials, "r") as sa_creds_file:
-            gcs_data["service_account_info"] = json.load(sa_creds_file)
-    except FileNotFoundError:
-        exit_with_error("Unable to find service account credentials file")
-    except json.JSONDecodeError:
-        exit_with_error(
-            "Unable to parse service account credentials file. Is it a valid json file?"
-        )
-
-    return ("googlecloudstorage-block", gcs_data)
-
-
-async def configure_azure_blob_storage():
-    console.print("Follow the prompts to configure Azure Blob Storage")
-    abs_data = dict()
-    abs_data["container"] = typer.prompt(
-        "To which Azure Blob container would you like to persist data?"
-    )
-    abs_data["connection_string"] = typer.prompt(
-        "What is your Azure connection string?"
-    )
-
-    return ("azureblobstorage-block", abs_data)
-
-
-storage_configuration_procedures: Dict[
-    str, Callable[..., Coroutine[Any, Any, Tuple[str, Dict[str, str]]]]
-] = dict(
-    temp=configure_temp_storage,
-    local=configure_local_storage,
-    orion=configure_orion_storage,
-    s3=configure_s3_storage,
-    gcs=configure_google_cloud_storage,
-    azure_blob=configure_azure_blob_storage,
-)
+JSON_TO_PY_TYPES = {"string": str}
+JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 
 
 @storage_config_app.command()
-@sync_compatible
-async def configure(storage_type: str):
+async def create():
+    """Create a new storage configuration"""
+    async with get_client() as client:
+        specs = await client.read_block_specs("STORAGE")
 
-    valid_storageblocks = storage_configuration_procedures.keys()
-    if storage_type not in valid_storageblocks:
-        exit_with_error(
-            f"Invalid storage type: pick one of {list(valid_storageblocks)}"
+    unconfigurable = set()
+    for spec in specs:
+        for property, property_spec in spec.fields["properties"].items():
+            if (
+                property_spec["type"] == "object"
+                and property in spec.fields["required"]
+            ):
+                unconfigurable.add(spec)
+
+    for spec in unconfigurable:
+        specs.remove(spec)
+
+    console.print("Found the following storage types:")
+    for i, spec in enumerate(specs):
+        console.print(f"{i}) {spec.name}")
+        description = spec.fields["description"]
+        if description:
+            console.print(textwrap.indent(description, prefix="    "))
+
+    selection = typer.prompt("Select a storage type to create", type=int)
+
+    try:
+        spec = specs[selection]
+    except:
+        exit_with_error(f"Invalid selection {selection!r}")
+
+    property_specs = spec.fields["properties"]
+    console.print(
+        f"You've selected {spec.name}. It has {len(property_specs)} option(s). "
+    )
+
+    properties = {}
+    required_properties = spec.fields.get("required", property_specs.keys())
+    for property, property_spec in property_specs.items():
+        required = property in required_properties
+        optional = " (optional)" if not required else ""
+
+        if property_spec["type"] == "object":
+            # TODO: Look into handling arbitrary types better or avoid having arbitrary
+            #       types in storage blocks
+            continue
+
+        # TODO: Some fields may have a default we can use instead
+        not_provided_value = JSON_TO_PY_EMPTY[property_spec["type"]]
+        default = not_provided_value if not required else None
+
+        value = typer.prompt(
+            f"{property_spec['title'].upper()}{optional}",
+            type=JSON_TO_PY_TYPES[property_spec["type"]],
+            default=default,
+            show_default=default
+            is not not_provided_value,  # Do not show our internal indicator
         )
+
+        if value is not not_provided_value:
+            properties[property] = value
+
+    name = typer.prompt("Choose a name for this storage configuration")
+
+    block_cls = get_block_class(spec.name, spec.version)
+
+    console.print("Validating configuration...")
+    try:
+        block = block_cls(**properties)
+    except Exception as exc:
+        exit_with_error(f"Validation failed! {str(exc)}")
+
+    console.print("Registering storage with server...")
+    block_id = None
+    while not block_id:
+        async with get_client() as client:
+            try:
+                block_id = await client.create_block(
+                    block=block, block_spec_id=spec.id, name=name
+                )
+            except HTTPStatusError as exc:
+                if exc.response.status_code == status.HTTP_409_CONFLICT:
+                    console.print(f"[red]The name {name!r} is already taken.[/]")
+                    name = typer.prompt(
+                        "Choose a new name for this storage configuration"
+                    )
+                else:
+                    raise
+
+    console.print(
+        f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
+    )
 
     async with get_client() as client:
-        await client.update_block_name(
-            name="ORION-CONFIG-STORAGE",
-            new_name=f"ORION-CONFIG-STORAGE-ARCHIVED-{pendulum.now('UTC')}",
-            raise_for_status=False,
+        if not await client.get_default_storage_block(as_json=True):
+            set_default = typer.confirm(
+                "You do not have a default storage configuration. "
+                "Would you like to set this as your default storage?",
+                default=True,
+            )
+
+            if set_default:
+                await client.set_default_storage_block(block_id)
+                exit_with_success(f"Set default storage to {name!r}.")
+
+            else:
+                console.print(
+                    "Default left unchanged. Use `prefect storage set-default "
+                    f"{block_id}` to set this as the default storage at a later time."
+                )
+
+
+@storage_config_app.command()
+async def set_default(storage_block_id: UUID):
+    """Change the default storage option"""
+    async with get_client() as client:
+        await client.set_default_storage_block(storage_block_id)
+    exit_with_success("Updated default storage!")
+
+
+@storage_config_app.command()
+async def reset_default():
+    """Reset the default storage option"""
+    async with get_client() as client:
+        await client.clear_default_storage_block()
+    exit_with_success("Cleared default storage!")
+
+
+@storage_config_app.command()
+async def ls():
+    """View configured storage options"""
+
+    table = Table(title="Configured Storage")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Storage Type", style="cyan")
+    table.add_column("Storage Version", style="cyan")
+    table.add_column("Name", style="green")
+    table.add_column("Server Default", width=15)
+
+    async with get_client() as client:
+        json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
+        default_storage_block = (
+            await client.get_default_storage_block(as_json=True) or {}
+        )
+    blocks = pydantic.parse_obj_as(List[prefect.orion.schemas.core.Block], json_blocks)
+
+    for block in blocks:
+        table.add_row(
+            str(block.id),
+            block.block_spec.name,
+            block.block_spec.version,
+            block.name,
+            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
         )
 
-        block_ref, data = await storage_configuration_procedures[storage_type]()
-
-        await client.create_block(
-            name="ORION-CONFIG-STORAGE",
-            blockref=block_ref,
-            **data,
+    if not default_storage_block:
+        table.caption = (
+            "No default storage is set. Temporary local storage will be used."
+            "\nSet a default with `prefect storage set-default <id>`"
         )
 
-        exit_with_success("Successfully configured Orion storage location!")
+    console.print(table)

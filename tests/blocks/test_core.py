@@ -6,7 +6,7 @@ from prefect.blocks.core import (
     BLOCK_REGISTRY,
     Block,
     create_block_from_api_block,
-    get_block_spec,
+    get_block_class,
     register_block,
 )
 
@@ -20,17 +20,17 @@ def reset_registered_blocks(monkeypatch):
 
 async def test_registering_and_getting_blocks():
     with pytest.raises(ValueError, match="(No block spec exists)"):
-        get_block_spec("is anyone home", "1.0")
+        get_block_class("is anyone home", "1.0")
 
     @register_block("yes i am home", version="1.0")
     class ARealLiveBlock(Block):
         def block_initialization(self):
             pass
 
-    assert get_block_spec("yes i am home", "1.0") == ARealLiveBlock
+    assert get_block_class("yes i am home", "1.0") == ARealLiveBlock
 
     with pytest.raises(ValueError, match="(No block spec exists)"):
-        get_block_spec("is anyone home", "2.0")
+        get_block_class("is anyone home", "2.0")
 
 
 class TestInvalidRegistration:
@@ -100,10 +100,10 @@ class TestAPICompatibility:
         assert self.MyOtherRegisteredBlock._block_spec_version == "3.0"
 
     def test_registration_names_and_versions(self):
-        assert get_block_spec("My Registered Block", "2.0") is self.MyRegisteredBlock
+        assert get_block_class("My Registered Block", "2.0") is self.MyRegisteredBlock
 
         assert (
-            get_block_spec("my-other-registered-block", "3.0")
+            get_block_class("my-other-registered-block", "3.0")
             is self.MyOtherRegisteredBlock
         )
 

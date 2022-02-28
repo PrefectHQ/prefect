@@ -96,7 +96,9 @@ async def set_up_kv_storage(session, run_storage_server):
     (useful for distributed flow or task runner tests)
     """
     block_spec = await models.block_specs.create_block_spec(
-        session=session, block_spec=KVServerStorageBlock.to_api_block_spec()
+        session=session,
+        block_spec=KVServerStorageBlock.to_api_block_spec(),
+        override=True,
     )
 
     block = await models.blocks.create_block(
