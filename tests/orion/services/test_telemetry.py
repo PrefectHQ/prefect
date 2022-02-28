@@ -5,7 +5,6 @@ import respx
 from httpx import Response
 
 import prefect
-from prefect.orion import models, schemas
 from prefect.orion.services.telemetry import Telemetry
 
 
