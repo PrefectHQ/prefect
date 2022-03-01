@@ -36,7 +36,7 @@ An [overview of using Ray](https://orion-docs.prefect.io/concepts/task-runners/#
 
 Prefect now supports profiles for configuration. You can store settings in profiles and switch between them. For example, this allows you to quickly switch between using a local and hosted API.
 
-View all of the available commands with `prefect config --help` and check out our [settings documentation](https://orion-docs.prefect.io/concepts/settings/) for a full list of features.
+View all of the available commands with `prefect config --help` and check out our [settings documentation](https://orion-docs.prefect.io/concepts/settings/) for a full description of how to use profiles.
 
 We've also rehauled our [settings reference](https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings) to make it easier to see all the available settings. You can override any setting with an environment variable or `prefect config set`.
 
