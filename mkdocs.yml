@@ -83,6 +83,7 @@ nav:
         - Flow Runners: concepts/flow-runners.md
         - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
+        - Storage: concepts/storage.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
     - 'Orion UI':

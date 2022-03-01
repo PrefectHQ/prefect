@@ -204,7 +204,7 @@ You'll see that, in the context of a flow, the variable `future` is a `PrefectFu
 <div class="termy">
 ```
 >>> hello_world()
-variable 'future' is type <class 'prefect.futures.PrefectFuture'>
+variable 'future' is type &#60;class 'prefect.futures.PrefectFuture'&#62;
 ```
 </div>
 
@@ -227,7 +227,7 @@ def hello_world():
 <div class="termy">
 ```
 >>> hello_world()
-<class 'str'>
+&#60;class 'str'&#62;
 Hello Marvin!
 ```
 </div>
@@ -397,7 +397,8 @@ from prefect.client import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag
-    limit_id = await client.create_concurrency_limit(tag="small_instance", concurrency_limit=10)
+    limit_id = await client.create_concurrency_limit(tag="small_instance", 
+                                                     concurrency_limit=10)
 ```
 
 To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:

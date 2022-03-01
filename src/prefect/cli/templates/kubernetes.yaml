@@ -15,17 +15,19 @@ spec:
       containers:
       - name: api
         image: ${image_name}
-        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--no-agent", "--log-level", "DEBUG"]
+        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--log-level", "DEBUG"]
         imagePullPolicy: "IfNotPresent"
         ports:
         - containerPort: 4200
       - name: agent
         image: ${image_name}
-        command: [ "prefect", "agent", "start"]
+        command: ["prefect", "agent", "start"]
         imagePullPolicy: "IfNotPresent"
         env:
           - name: PREFECT_API_URL
             value: http://orion:4200/api
+          - name: PREFECT_TEMP_KUBERNETES_WORK_QUEUE
+            value: "1"
 
 ---
 apiVersion: v1
@@ -48,7 +50,7 @@ metadata:
   name: flow-runner
 rules:
 - apiGroups: [""]
-  resources: ["pods", "pods/log"]
+  resources: ["pods", "pods/log", "pods/status"]
   verbs: ["get", "watch", "list"]
 - apiGroups: ["batch"]
   resources: ["jobs"]

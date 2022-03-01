@@ -8,7 +8,7 @@ A brief collection of rules and guidelines for how imports should be handled in 
 
 ### Imports in `__init__` files
 
-Leave __init__ files empty unless exposing an interface. If you must expose objects to present a simpler API, please follow these rules.
+Leave `__init__` files empty unless exposing an interface. If you must expose objects to present a simpler API, please follow these rules.
 
 #### Exposing objects from submodules
 

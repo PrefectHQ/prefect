@@ -96,11 +96,13 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "No block spec ID provided, either as an argument or on the block."
             )
+
+        data_keys = self.schema()["properties"].keys()
         return prefect.orion.schemas.core.Block(
             id=self._block_id or uuid4(),
             name=name or self._block_name,
             block_spec_id=block_spec_id or self._block_spec_id,
-            data=self.dict(),
+            data=self.dict(include=data_keys),
             block_spec=self.to_api_block_spec(),
         )
 
