@@ -28,7 +28,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.task_runners import SequentialTaskRunner
-from prefect.utilities.testing import AsyncMock
+from prefect.utilities.testing import AsyncMock, exceptions_equal
 
 
 class TestOrchestrateTaskRun:
@@ -402,6 +402,10 @@ class TestFlowRunCrashes:
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
         )
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(
+                flow_run.state.result(), anyio.get_cancelled_exc_class()()
+            )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
         started = anyio.Event()
@@ -432,6 +436,10 @@ class TestFlowRunCrashes:
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_failed()
         assert parent_flow_run.state.name == "Crashed"
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(
+                parent_flow_run.state.result(), anyio.get_cancelled_exc_class()()
+            )
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
@@ -445,12 +453,15 @@ class TestFlowRunCrashes:
             in child_run.state.message
         )
 
-    async def test_keyboard_interrupt_crashes_flow(self, flow_run, orion_client):
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow(
+        self, flow_run, orion_client, interrupt_type
+    ):
         @flow
         async def my_flow():
-            raise KeyboardInterrupt()
+            raise interrupt_type()
 
-        with pytest.raises(KeyboardInterrupt):
+        with pytest.raises(interrupt_type):
             await begin_flow_run(
                 flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
             )
@@ -458,7 +469,68 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
-        assert "Execution was aborted by an interrupt signal" in flow_run.state.message
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_during_orchestration_crashes_flow(
+        self, flow_run, orion_client, monkeypatch, interrupt_type
+    ):
+        monkeypatch.setattr(
+            "prefect.client.OrionClient.propose_state",
+            MagicMock(side_effect=interrupt_type()),
+        )
+
+        @flow
+        async def my_flow():
+            pass
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_subflow(
+        self, flow_run, orion_client, interrupt_type
+    ):
+        @flow
+        async def child_flow():
+            raise interrupt_type()
+
+        @flow
+        async def parent_flow():
+            await child_flow()
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=parent_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+        child_runs = await orion_client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
+        )
+        assert len(child_runs) == 1
+        child_run = child_runs[0]
+        assert child_run.id != flow_run.id
+        assert child_run.state.is_failed()
+        assert child_run.state.name == "Crashed"
+        assert "Execution was aborted" in child_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
         """
