@@ -46,6 +46,7 @@ from prefect.logging.loggers import (
 from prefect.orion.schemas import core
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import (
     Completed,
     Failed,
@@ -806,12 +807,18 @@ async def wait_for_task_runs_and_report_crashes(
         logger.debug("Crash details:", exc_info=exception)
 
         # Update the state of the task run
-        await client.set_task_run_state(
+        result = await client.set_task_run_state(
             task_run_id=future.task_run.id, state=state, force=True
         )
-        engine_logger.debug(
-            f"Reported crashed task run {future.task_run.name!r} successfully."
-        )
+        if result.status == SetStateStatus.ACCEPT:
+            engine_logger.debug(
+                f"Reported crashed task run {future.task_run.name!r} successfully."
+            )
+        else:
+            engine_logger.warning(
+                f"Failed to report crashed task run {future.task_run.name!r}. "
+                f"Orchestrator did not accept state: {result!r}"
+            )
 
         crash_exceptions.append(exception)
 
