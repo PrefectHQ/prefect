@@ -7,7 +7,7 @@
     @click="showPicker = !showPicker"
   />
 
-  <teleport v-if="showPicker" to=".application">
+  <teleport v-if="showPicker" to="[data-teleport-target='app']">
     <div class="date-time-input__picker">
       <m-date-picker v-model="tempValue" class="date-time-input__date" />
       <m-time-picker v-model="tempValue" class="date-time-input__time" />
@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
-  import { formatDateTimeNumeric } from '../utilities/dates'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
   const props = defineProps<{
     label: string,
@@ -64,7 +64,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .date-time-input__picker {
   background-color: $white;
   box-shadow: $box-shadow-sm;

@@ -1,8 +1,9 @@
 import 'vue-router'
-import { RouteGuard } from './router/guards/RouteGuard';
+import { RouteGuard } from '@prefecthq/orion-design'
 
 declare module 'vue-router' {
   interface RouteMeta {
-    guards?: RouteGuard[]
+    guards?: RouteGuard[],
+    filters?: { visible?: boolean, disabled?: boolean },
   }
 }

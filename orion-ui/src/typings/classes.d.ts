@@ -8,11 +8,11 @@ declare class D3Base {
   svg: any
 
   padding: {
-    top: number
-    bottom: number
-    middle: number
-    left: number
-    right: number
+    top: number,
+    bottom: number,
+    middle: number,
+    left: number,
+    right: number,
   }
 
   /**

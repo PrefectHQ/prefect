@@ -204,7 +204,7 @@ You'll see that, in the context of a flow, the variable `future` is a `PrefectFu
 <div class="termy">
 ```
 >>> hello_world()
-variable 'future' is type <class 'prefect.futures.PrefectFuture'>
+variable 'future' is type &#60;class 'prefect.futures.PrefectFuture'&#62;
 ```
 </div>
 
@@ -227,14 +227,37 @@ def hello_world():
 <div class="termy">
 ```
 >>> hello_world()
-<class 'str'>
+&#60;class 'str'&#62;
 Hello Marvin!
 ```
 </div>
 
 When you pass a future into a task, we will wait for the upstream task it references to reach a final state before starting the downstream task.
 
-Futures have a few useful methods. For example, [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state) retrieves the current state of the task run associated with a `PrefectFuture`.
+Futures have a few useful methods. For example, you can retrieve the result of the task run with  [`result()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.result):
+
+```python
+@flow
+def my_flow():
+    future = my_task()
+    result = future.result()
+```
+
+This method will wait for the task to return before returning the result. If the task run has failed, it will raise the task run's exception. You may disable this behavior with the `raise_on_failure` option:
+
+```python
+@flow
+def my_flow():
+    future = my_task()
+    result = future.result(raise_on_failure=False)
+    if future.get_state().is_failed():
+        # `result` is an exception! handle accordingly
+        ...
+    else:
+        # `result` is the expected return value of our task
+```
+
+You can retrieve the current state of the task run associated with the `PrefectFuture` using [`get_state()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.get_state):
 
 ```python
 @flow
@@ -243,15 +266,29 @@ def my_flow():
     state = future.get_state()
 ```
 
-You can also wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method and retrieve the task's result:
+You can also wait for a task to complete by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method:
 
 ```python
 @flow
 def my_flow():
     future = my_task()
     final_state = future.wait()
-    result = final_state.result()
 ```
+
+You can include a timeout in the `wait` call to take perform logic if the task has not finished in a given amount of time:
+
+```python
+@flow
+def my_flow():
+    future = my_task()
+    final_state = future.wait(1)  # Wait one second max
+    if final_state:
+        # Take action if the task is done
+        result = final_state.result()
+    else:
+        ... # Task action if the task is still running
+```
+
 
 You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
 
@@ -360,7 +397,8 @@ from prefect.client import get_client
 
 async with get_client() as client:
     # set a concurrency limit of 10 on the 'small_instance' tag
-    limit_id = await client.create_concurrency_limit(tag="small_instance", concurrency_limit=10)
+    limit_id = await client.create_concurrency_limit(tag="small_instance", 
+                                                     concurrency_limit=10)
 ```
 
 To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:

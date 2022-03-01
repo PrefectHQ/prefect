@@ -28,16 +28,16 @@
 </template>
 
 <script lang="ts" setup>
-  import media from '@/utilities/media'
   import { computed, ref } from 'vue'
   import {  useRouter } from 'vue-router'
-  import { FilterPrefixError } from '../models/FilterPrefixError'
-  import { FilterUrlService } from '../services'
-  import { FilterService } from '../services/FilterService'
-  import { useFiltersStore, FilterState } from '../stores/filters'
-  import { toPluralString } from '../utilities/strings'
-  import DismissibleTag from './DismissibleTag.vue'
-  import FilterTags from './FilterTags.vue'
+  import DismissibleTag from '@/components/DismissibleTag.vue'
+  import FilterTags from '@/components/FilterTags.vue'
+  import { FilterPrefixError } from '@/models/FilterPrefixError'
+  import { FilterService } from '@/services/FilterService'
+  import { FilterUrlService } from '@/services/FilterUrlService'
+  import { useFiltersStore, FilterState } from '@/stores/filters'
+  import { media } from '@/utilities/media'
+  import { toPluralString } from '@/utilities/strings'
 
   defineProps<{
     dismissable?: boolean,
@@ -84,7 +84,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use 'sass:map';
 
 .filters-search {

@@ -10,7 +10,7 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterObject, FilterProperty, FilterType } from '../types/filters'
+  import { FilterObject, FilterProperty, FilterType } from '@/types/filters'
 
   const emit = defineEmits<{
     (event: 'update:property', value: FilterProperty): void,
@@ -71,7 +71,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-builder-property-flow {
   display: flex;
   flex-wrap: wrap;

@@ -71,20 +71,25 @@ def venv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
-    subprocess.check_output([sys.executable, "-m", "venv", str(environment_path)])
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
+    subprocess.check_output(
+        [sys.executable, "-m", "venv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
@@ -98,20 +103,25 @@ def virtualenv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
-    subprocess.check_output(["virtualenv", str(environment_path)])
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
+    subprocess.check_output(
+        ["virtualenv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
@@ -126,36 +136,64 @@ def conda_environment_path(tmp_path):
     if not shutil.which("conda"):
         pytest.skip("`conda` is not installed.")
 
-    environment_path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    # Generate base creation command with the temporary path as the prefix for
+    # automatic cleanup
+    environment_path: Path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    create_env_command = [
+        "conda",
+        "create",
+        "-y",
+        "--prefix",
+        str(environment_path),
+    ]
 
-    # Create the conda environment with a matching python version up to `minor`
-    # We cannot match up to `micro` because it is not always available in conda
-    v = sys.version_info
-    python_version = f"{v.major}.{v.minor}"
-    subprocess.check_output(
-        [
-            "conda",
-            "create",
-            "-y",
-            "--prefix",
-            str(environment_path),
-            f"python={python_version}",
-        ]
-    )
+    # Get the current conda environment so we can clone it for speedup
+    current_conda_env = os.environ.get("CONDA_PREFIX")
+    if current_conda_env:
+        create_env_command.extend(["--clone", current_conda_env])
+
+    else:
+        # Otherwise, specify a matching python version up to `minor`
+        # We cannot match up to `micro` because it is not always available in conda
+        v = sys.version_info
+        python_version = f"{v.major}.{v.minor}"
+        create_env_command.append(f"python={python_version}")
+
+    print(f"Creating conda environment at {environment_path}")
+    subprocess.check_output(create_env_command)
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            "conda",
-            "run",
-            "--prefix",
-            str(environment_path),
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # Developers using conda should have a matching environment from `--clone`.
+    if not current_conda_env:
+
+        # Link packages from the current installation instead of reinstalling
+        conda_site_packages = (
+            environment_path / "lib" / f"python{python_version}" / "site-packages"
+        )
+        local_site_packages = (
+            Path(sys.prefix) / "lib" / f"python{python_version}" / "site-packages"
+        )
+        print(f"Linking packages from {local_site_packages} -> {conda_site_packages}")
+        for local_pkg in local_site_packages.iterdir():
+            conda_pkg = conda_site_packages / local_pkg.name
+            if not conda_pkg.exists():
+                conda_pkg.symlink_to(local_pkg, target_is_directory=local_pkg.is_dir())
+
+        # Linking is takes ~10s while faster than reinstalling in the environment takes
+        # ~60s. This blurb is retained for the future as we may encounter issues with
+        # linking and prefer to do the slow but correct installation.
+        # subprocess.check_output(
+        #     [
+        #         "conda",
+        #         "run",
+        #         "--prefix",
+        #         str(environment_path),
+        #         "pip",
+        #         "install",
+        #         "-e",
+        #         f"{prefect.__root_path__}[dev]",
+        #     ]
+        # )
 
     return environment_path
 
@@ -535,6 +573,10 @@ class TestDockerFlowRunner:
             MagicMock(return_value=mock),
         )
         return mock
+
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
 
     def test_runner_type(self):
         assert DockerFlowRunner().typename == "docker"
@@ -979,6 +1021,10 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
+    @pytest.mark.skipif(
+        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        reason=f"Expected breaking change in {MIN_COMPAT_PREFECT_VERSION}",
+    )
     @pytest.mark.service("docker")
     @pytest.mark.skipif(
         MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
@@ -995,6 +1041,10 @@ class TestDockerFlowRunner:
         This test confirms that the flow runner can properly start a flow run in a
         container running an old version of Prefect. This tests for regression in the
         path of "starting a flow run" as well as basic API communication.
+
+        When making a breaking change to the API, it's likely that no compatible image
+        will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
+        version and this test will be skipped until a compatible image can be found.
         """
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
 
@@ -1155,6 +1205,10 @@ class TestKubernetesFlowRunner:
     @pytest.fixture(autouse=True)
     def skip_if_kubernetes_is_not_installed(self):
         pytest.importorskip("kubernetes")
+
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
 
     @pytest.fixture
     def mock_watch(self, monkeypatch):

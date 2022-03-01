@@ -141,8 +141,14 @@ async def create_then_begin_flow_run(
     """
     Async entrypoint for flow calls
 
-    Creates the flow run in the backend then enters the main flow rum engine
+    Creates the flow run in the backend, then enters the main flow run engine.
     """
+    can_connect = await client.api_healthcheck()
+    if not can_connect:
+        raise RuntimeError(
+            f"Cannot create flow run. Failed to reach API at {client.api_url}."
+        )
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -267,9 +273,7 @@ async def begin_flow_run(
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = (
-        repr(terminal_state) if PREFECT_DEBUG_MODE.value() else str(terminal_state)
-    )
+    display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
 
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
@@ -360,9 +364,7 @@ async def create_and_begin_subflow_run(
         )
 
     # Display the full state (including the result) if debugging
-    display_state = (
-        repr(terminal_state) if PREFECT_DEBUG_MODE.value() else str(terminal_state)
-    )
+    display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
@@ -428,7 +430,7 @@ async def orchestrate_flow_run(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
 
-                if PREFECT_DEBUG_MODE.value():
+                if PREFECT_DEBUG_MODE:
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
                 else:
                     logger.debug(
@@ -488,14 +490,6 @@ def enter_task_run_engine(
             "task in a flow?"
         )
 
-    # Provide a helpful error if there is a async task in a sync flow; this would not
-    # error normally since it would just be an unawaited coroutine
-    if task.isasync and not flow_run_context.flow.isasync:
-        raise RuntimeError(
-            f"Your task is async, but your flow is synchronous. Async tasks may "
-            "only be called from async flows."
-        )
-
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
@@ -508,12 +502,12 @@ def enter_task_run_engine(
         wait_for=wait_for,
     )
 
-    # Async task run
-    if task.isasync:
+    # Async task run in async flow run
+    if task.isasync and flow_run_context.flow.isasync:
         return begin_run()  # Return a coroutine for the user to await
 
-    # Sync task run in sync flow run
-    if not flow_run_context.flow.isasync:
+    # Async or sync task run in sync flow run
+    elif not flow_run_context.flow.isasync:
         return run_async_from_worker_thread(begin_run)
 
     # Sync task run in async flow run
@@ -618,13 +612,24 @@ async def enter_task_run_engine_from_worker(
     ) as profile:
         profile.initialize(create_home=False)
         async with get_client() as client:
-            return await orchestrate_task_run(
-                task=task,
+            can_connect = await client.api_healthcheck()
+            if not can_connect:
+                raise RuntimeError(
+                    f"Cannot orchestrate task run '{task_run.id}'. "
+                    f"Failed to connect to API at {client.api_url}."
+                )
+
+            with TaskRunContext(
                 task_run=task_run,
-                parameters=parameters,
-                wait_for=wait_for,
+                task=task,
                 client=client,
-            )
+            ):
+                return await orchestrate_task_run(
+                    task=task,
+                    task_run=task_run,
+                    parameters=parameters,
+                    wait_for=wait_for,
+                )
 
 
 async def orchestrate_task_run(
@@ -632,7 +637,6 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
-    client: OrionClient,
 ) -> State:
     """
     Execute a task run
@@ -659,13 +663,9 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-
-    context = TaskRunContext(
-        task_run=task_run,
-        task=task,
-        client=client,
-    )
-    logger = get_run_logger(context)
+    context = prefect.context.get_run_context()
+    assert isinstance(context, TaskRunContext), "Task run context missing."
+    logger = get_run_logger()
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
@@ -675,13 +675,13 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await client.propose_state(
+        state = await context.client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
     else:
         # Transition from `PENDING` -> `RUNNING`
-        state = await client.propose_state(
+        state = await context.client.propose_state(
             Running(state_details=StateDetails(cache_key=cache_key)),
             task_run_id=task_run.id,
         )
@@ -690,20 +690,17 @@ async def orchestrate_task_run(
     while state.is_running():
 
         try:
-            with context:
-                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+            args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                if PREFECT_DEBUG_MODE.value():
-                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                else:
-                    logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
-                    )
+            if PREFECT_DEBUG_MODE.value():
+                logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
+            else:
+                logger.debug(f"Beginning execution...", extra={"state_message": True})
 
-                if task.isasync:
-                    result = await task.fn(*args, **kwargs)
-                else:
-                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+            if task.isasync:
+                result = await task.fn(*args, **kwargs)
+            else:
+                result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
 
         except Exception as exc:
             logger.error(
@@ -728,9 +725,11 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await client.propose_state(terminal_state, task_run_id=task_run.id)
+        state = await context.client.propose_state(
+            terminal_state, task_run_id=task_run.id
+        )
 
-        if state.type != terminal_state.type and PREFECT_DEBUG_MODE.value():
+        if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
                 extra={"send_to_orion": False},
@@ -742,10 +741,12 @@ async def orchestrate_task_run(
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), task_run_id=task_run.id)
+            state = await context.client.propose_state(
+                Running(), task_run_id=task_run.id
+            )
 
     # If debugging, use the more complete `repr` than the usual `str` description
-    display_state = repr(state) if PREFECT_DEBUG_MODE.value() else str(state)
+    display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)
 
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,

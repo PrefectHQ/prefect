@@ -137,6 +137,31 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.ConcurrencyLimit
 
     @property
+    def WorkQueue(self):
+        """A work queue model"""
+        return self.orm.WorkQueue
+
+    @property
+    def Agent(self):
+        """An agent model"""
+        return self.orm.Agent
+
+    @property
+    def BlockSpec(self):
+        """A block spec model"""
+        return self.orm.BlockSpec
+
+    @property
+    def Block(self):
+        """A block model"""
+        return self.orm.Block
+
+    @property
+    def Configuration(self):
+        """An configuration model"""
+        return self.orm.Configuration
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
@@ -150,6 +175,11 @@ class OrionDBInterface(metaclass=DBSingleton):
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return self.orm.flow_run_unique_upsert_columns
+
+    @property
+    def block_spec_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSpec"""
+        return self.orm.block_spec_unique_upsert_columns
 
     @property
     def flow_unique_upsert_columns(self):
