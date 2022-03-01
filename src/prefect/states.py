@@ -30,7 +30,7 @@ def exception_to_crashed_state(exc: BaseException) -> State:
         state_message = "Execution was aborted by an interrupt signal."
 
     elif isinstance(exc, SystemExit):
-        state_message = "Execution was aborted by sys.exit()."
+        state_message = "Execution was aborted by Python system exit call."
 
     elif isinstance(exc, httpx.TimeoutException):
         try:
