@@ -1,11 +1,12 @@
 """
 Interface and implementations of various task runners.
 
-**TaskRunners** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
+[Task Runners](/concepts/task-runners/) in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
 
 Example:
 
-    >>> from prefect import flow, task, task_runners
+    >>> from prefect import flow, task
+    >>> from prefect.task_runners import SequentialTaskRunner
     >>> from typing import List
     >>>
     >>> @task
@@ -16,7 +17,7 @@ Example:
     >>> def say_goodbye(name):
     ...     print(f"goodbye {name}")
     >>>
-    >>> @flow(task_runner=task_runners.SequentialTaskRunner())
+    >>> @flow(task_runner=SequentialTaskRunner())
     >>> def greetings(names: List[str]):
     ...     for name in names:
     ...         say_hello(name)
@@ -33,7 +34,8 @@ Example:
     goodbye marvin
 
     Switching to a `DaskTaskRunner`:
-    >>> flow.task_runner = task_runners.DaskTaskRunner()
+    >>> from prefect.task_runners import DaskTaskRunner
+    >>> flow.task_runner = DaskTaskRunner()
     >>> greetings(["arthur", "trillian", "ford", "marvin"])
     hello arthur
     goodbye arthur
@@ -44,10 +46,7 @@ Example:
     goodbye ford
     goodbye trillian
 
-The following task runners are currently supported:
-
-- `SequentialTaskRunner`: the simplest runner and the default; submits each task run sequentially as they are called and blocks until completion
-- `DaskTaskRunner`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
+For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -227,28 +226,28 @@ class DaskTaskRunner(BaseTaskRunner):
     the address of the scheduler via the `address` kwarg.
 
     !!! warning "Multiprocessing safety"
-        Please note that because the `DaskTaskRunner` uses multiprocessing, calls to flows
+        Note that, because the `DaskTaskRunner` uses multiprocessing, calls to flows
         in scripts must be guarded with `if __name__ == "__main__":` or warnings will
         be displayed.
 
     Args:
-        address (string, optional): address of a currently running dask
+        address (string, optional): Address of a currently running dask
             scheduler; if one is not provided, a temporary cluster will be
             created in `DaskTaskRunner.start()`.  Defaults to `None`.
-        cluster_class (string or callable, optional): the cluster class to use
+        cluster_class (string or callable, optional): The cluster class to use
             when creating a temporary dask cluster. Can be either the full
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
-        cluster_kwargs (dict, optional): addtional kwargs to pass to the
+        cluster_kwargs (dict, optional): Additional kwargs to pass to the
             `cluster_class` when creating a temporary dask cluster.
-        adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
+        adapt_kwargs (dict, optional): Additional kwargs to pass to `cluster.adapt`
             when creating a temporary dask cluster. Note that adaptive scaling
             is only enabled if `adapt_kwargs` are provided.
-        client_kwargs (dict, optional): additional kwargs to use when creating a
+        client_kwargs (dict, optional): Additional kwargs to use when creating a
             [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
 
     Examples:
 
-        Using a temporary local dask cluster
+        Using a temporary local dask cluster:
         >>> from prefect import flow
         >>> from prefect.task_runners import DaskTaskRunner
         >>> @flow(task_runner=DaskTaskRunner)
@@ -256,7 +255,7 @@ class DaskTaskRunner(BaseTaskRunner):
         >>>     ...
 
         Using a temporary cluster running elsewhere. Any Dask cluster class should
-        work, here we use [dask-cloudprovider](https://cloudprovider.dask.org)
+        work, here we use [dask-cloudprovider](https://cloudprovider.dask.org):
         >>> DaskTaskRunner(
         >>>     cluster_class="dask_cloudprovider.FargateCluster",
         >>>     cluster_kwargs={
@@ -266,7 +265,7 @@ class DaskTaskRunner(BaseTaskRunner):
         >>> )
 
 
-        Connecting to an existing dask cluster
+        Connecting to an existing dask cluster:
         >>> DaskTaskRunner(address="192.0.2.255:8786")
     """
 
@@ -345,9 +344,9 @@ class DaskTaskRunner(BaseTaskRunner):
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
         """
-        Retrieve the dask future corresponding to a prefect future
+        Retrieve the dask future corresponding to a Prefect future.
 
-        The dask future is for the `run_fn` which should return a `State`
+        The Dask future is for the `run_fn`, which should return a `State`.
         """
         return self._dask_futures[prefect_future.run_id]
 
@@ -384,11 +383,11 @@ class DaskTaskRunner(BaseTaskRunner):
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
-        Start the task runner and prep for context exit
+        Start the task runner and prep for context exit.
 
-        - Creates a cluster if an external address is not set
-        - Creates a client to connect to the cluster
-        - Pushes a call to wait for all running futures to complete on exit
+        - Creates a cluster if an external address is not set.
+        - Creates a client to connect to the cluster.
+        - Pushes a call to wait for all running futures to complete on exit.
         """
         if self.address:
             self.logger.info(
@@ -420,7 +419,7 @@ class DaskTaskRunner(BaseTaskRunner):
 
     def __getstate__(self):
         """
-        Allow the `DaskTaskRunner` to be serialized by dropping the `distributed.Client`
+        Allow the `DaskTaskRunner` to be serialized by dropping the `distributed.Client`,
         which contains locks. Must be deserialized on a dask worker.
         """
         data = self.__dict__.copy()
@@ -442,7 +441,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     Examples:
 
-        Using a thread for concurrency
+        Using a thread for concurrency:
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
@@ -516,7 +515,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
         """
-        Block until the run result has been populated
+        Block until the run result has been populated.
         """
         with anyio.move_on_after(timeout):
             result = None
@@ -535,7 +534,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     def __getstate__(self):
         """
-        Allow the `ConcurrentTaskRunner` to be serialized by dropping the task group
+        Allow the `ConcurrentTaskRunner` to be serialized by dropping the task group.
         """
         data = self.__dict__.copy()
         data.update({k: None for k in {"_task_group"}})
@@ -543,7 +542,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     def __setstate__(self, data: dict):
         """
-        When deserialized, we will no longer have a reference to the task group
+        When deserialized, we will no longer have a reference to the task group.
         """
         self.__dict__.update(data)
         self._task_group = None
@@ -555,13 +554,13 @@ class RayTaskRunner(BaseTaskRunner):
 
     By default, a temporary Ray cluster is created for the duration of the flow run.
 
-    Alternatively, if you already have a ray instance running, you can provide
+    Alternatively, if you already have a `ray` instance running, you can provide
     the connection URL via the `address` kwarg.
 
     Args:
-        address (string, optional): address of a currently running ray instance; if
+        address (string, optional): Address of a currently running `ray` instance; if
             one is not provided, a temporary instance will be created.
-        init_kwargs (dict, optional): additional kwargs to use when calling `ray.init`
+        init_kwargs (dict, optional): Additional kwargs to use when calling `ray.init`.
 
     Examples:
 

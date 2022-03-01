@@ -1,3 +1,4 @@
+import { InjectionKey } from 'vue'
 import { Api, Route } from '@/services/Api'
 import { Filter } from '@/types/filters'
 
@@ -39,3 +40,6 @@ export class SearchApi extends Api {
 }
 
 export const searchApi = new SearchApi()
+
+export const getSearchesKey: InjectionKey<SearchApi['getSearches']> = Symbol()
+export const createSearchKey: InjectionKey<SearchApi['createSearch']> = Symbol()

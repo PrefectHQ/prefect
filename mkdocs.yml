@@ -67,7 +67,7 @@ nav:
             - tutorials/flow-task-config.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
-            - tutorials/dask-task-runner.md
+            - tutorials/dask-ray-task-runners.md
             - tutorials/orion.md
             - tutorials/deployments.md
             - tutorials/virtual-environments.md
@@ -83,6 +83,7 @@ nav:
         - Flow Runners: concepts/flow-runners.md
         - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
+        - Storage: concepts/storage.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
     - 'Orion UI':

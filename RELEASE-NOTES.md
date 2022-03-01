@@ -1,5 +1,45 @@
 # Orion Release Notes
 
+## 2.0a13
+
+We've got some exciting changes to cover in our biggest release yet!
+
+### Work queues
+
+Work queues aggregate work to be done and agents poll a specific work queue for new work. Previously, agents would poll for any scheduled flow run. Now, scheduled flow runs are added to work queues that can filter flow runs by tags, deployment, and flow runner type.
+
+Work queues enable some exiting new features:
+
+- Filtering: Each work queue can target a specific subset of work. This filtering can be adjusted without restarting your agent.
+- Concurrency limits: Each work queue can limit the number of flows that run at the same time.
+- Pausing: Each work queue can be paused independently. This prevents agents from submitting additional work.
+
+Check out the [work queue documentation](https://orion-docs.prefect.io/concepts/work-queues/) for more details.
+
+Note, `prefect agent start` now requires you to pass a work queue identifier and `prefect orion start` no longer starts an agent by default.
+
+### Remote storage
+
+Prior to this release, the Orion server would store your flow code and results in its local file system. Now, we've introduced storage with external providers including AWS S3, Google Cloud Storage, and Azure Blob Storage.
+
+There's an interactive command, `prefect storage create`, which walks you through the options required to configure storage. Your settings are encrypted and stored in the Orion database.
+
+Note that you will no longer be able to use the Kubernetes or Docker flow runners without configuring storage. While automatically storing flow code in the API was convenient for early development, we're focused on enabling the [hybrid model](https://www.prefect.io/why-prefect/hybrid-model/) as a core feature of Orion.
+
+### Running tasks on Ray
+
+We're excited to announce a new task runner with support for [Ray](https://www.ray.io/). You can run your tasks on an existing Ray cluster, or dynamically create one with each flow run. Ray has powerful support for customizing runtime environments, parallelizing tasks to make use of your full compute power, and dynamically creating distributed task infrastructure.
+
+An [overview of using Ray](https://orion-docs.prefect.io/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
+
+### Profiles
+
+Prefect now supports profiles for configuration. You can store settings in profiles and switch between them. For example, this allows you to quickly switch between using a local and hosted API.
+
+View all of the available commands with `prefect config --help` and check out our [settings documentation](https://orion-docs.prefect.io/concepts/settings/) for a full description of how to use profiles.
+
+We've also rehauled our [settings reference](https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings) to make it easier to see all the available settings. You can override any setting with an environment variable or `prefect config set`.
+
 ## 2.0a12
 
 ### Filters
