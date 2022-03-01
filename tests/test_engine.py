@@ -402,10 +402,10 @@ class TestFlowRunCrashes:
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
         )
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(
-                flow_run.state.result(), anyio.get_cancelled_exc_class()()
-            )
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False),
+            anyio.get_cancelled_exc_class()(),
+        )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
         started = anyio.Event()
@@ -436,10 +436,10 @@ class TestFlowRunCrashes:
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_failed()
         assert parent_flow_run.state.name == "Crashed"
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(
-                parent_flow_run.state.result(), anyio.get_cancelled_exc_class()()
-            )
+        assert exceptions_equal(
+            parent_flow_run.state.result(raise_on_failure=False),
+            anyio.get_cancelled_exc_class()(),
+        )
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
@@ -470,8 +470,9 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert "Execution was aborted" in flow_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False), interrupt_type()
+        )
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_during_orchestration_crashes_flow(
@@ -519,8 +520,9 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert "Execution was aborted" in flow_run.state.message
-        with pytest.warns(UserWarning, match="not safe to re-raise"):
-            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False), interrupt_type()
+        )
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
