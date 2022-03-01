@@ -102,6 +102,7 @@ A flow run can be provided new parameters.
 ::: tab CLI
 ```bash
 $ prefect run --id "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7" --param a=2
+$ prefect run --path flow.py --param "a param with space"=2
 ```
 :::
 
