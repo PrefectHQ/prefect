@@ -458,7 +458,7 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
-        assert "Execution was interrupted by the system" in flow_run.state.message
+        assert "Execution was aborted by an interrupt signal" in flow_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
         """
