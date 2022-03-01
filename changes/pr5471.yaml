@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds `include_generated_sql` option to `CubeJSQueryTask` - [#5471](https://github.com/PrefectHQ/prefect/pull/5471)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
