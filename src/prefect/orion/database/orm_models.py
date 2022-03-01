@@ -1080,6 +1080,11 @@ class BaseORMConfiguration(ABC):
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
 
     @property
+    def block_spec_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSpec"""
+        return [self.BlockSpec.name, self.BlockSpec.version]
+
+    @property
     def flow_unique_upsert_columns(self):
         """Unique columns for upserting a Flow"""
         return [self.Flow.name]
