@@ -1027,9 +1027,8 @@ class TestDockerFlowRunner:
         reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
     )
     @pytest.mark.skipif(
-        # We did not publish 3.10 python images for this version
-        sys.version_info == (3, 10)
-        and MIN_COMPAT_PREFECT_VERSION == "2.0a13"
+        sys.version_info == (3, 10) and MIN_COMPAT_PREFECT_VERSION == "2.0a13",
+        reason="We did not publish a 3.10 image for 2.0a13",
     )
     async def test_execution_is_compatible_with_old_prefect_container_version(
         self,
