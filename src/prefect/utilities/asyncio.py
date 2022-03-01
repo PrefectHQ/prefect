@@ -6,8 +6,8 @@ import warnings
 from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial, wraps
-from typing import Any, Awaitable, Callable, Coroutine, List, Sequence, TypeVar, Union
-from uuid import uuid4
+from typing import Any, Awaitable, Callable, Coroutine, Dict, List, TypeVar, Union
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
@@ -205,17 +205,17 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
     """
 
     def __init__(self):
-        self.result = []
+        self._results: Dict[UUID, Any] = {}
         # Must be dynamically created since it differs base on the backend
         self._super: anyio.abc.TaskGroup = None
 
     async def _run_and_store(self, key, fn, args):
-        self.result[key] = await fn(*args)
+        self._results[key] = await fn(*args)
 
-    def start_soon(self, fn, *args):
-        key = len(self.result)
+    def start_soon(self, fn, *args) -> UUID:
+        key = uuid4()
         # Put a placeholder in-case the result is retrieved earlier
-        self.result.append(GatherIncomplete)
+        self._results[key] = GatherIncomplete
         self._super.start_soon(self._run_and_store, key, fn, args)
         return key
 
@@ -226,8 +226,8 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         """
         raise RuntimeError("`GatherTaskGroup` does not support `start`.")
 
-    def get_result(self, key):
-        result = self.result[key]
+    def get_result(self, key: UUID) -> Any:
+        result = self._results[key]
         if result == GatherIncomplete:
             raise GatherIncomplete(
                 "Task is not complete. "
