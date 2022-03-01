@@ -1,12 +1,7 @@
 """
 Prefect-specific exceptions.
 """
-from typing import TYPE_CHECKING
-
 from rich.traceback import Traceback
-
-if TYPE_CHECKING:
-    from prefect.orion.schemas.states import State
 
 
 class PrefectException(Exception):
