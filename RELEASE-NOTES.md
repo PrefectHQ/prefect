@@ -22,15 +22,23 @@ Note, `prefect agent start` now requires you to pass a work queue identifier and
 
 Prior to this release, the Orion server would store your flow code and results in its local file system. Now, we've introduced storage with external providers including AWS S3, Google Cloud Storage, and Azure Blob Storage.
 
-There's an interactive command, `prefect storage create`, which walks you through the options required to configure storage. Your settings are encrypted and stored in the Orion database.
+There's an interactive command, `prefect storage create`, which walks you thro\ugh the options required to configure storage. Your settings are encrypted and stored in the Orion database.
 
 Note that you will no longer be able to use the Kubernetes or Docker flow runners without configuring storage. While automatically storing flow code in the API was convenient for early development, we're focused on enabling the [hybrid model](https://www.prefect.io/why-prefect/hybrid-model/) as a core feature of Orion.
 
 ### Running tasks on Ray
 
-We've excited to announce a new task runner with support for [Ray](https://www.ray.io/). You can run your tasks on an existing Ray cluster, or dynamically create one with each flow run. Ray has powerful support for customizing runtime environments, parallelizing tasks to make use of your full compute power, and dynamically creating distributed task infrastructure.
+We're excited to announce a new task runner with support for [Ray](https://www.ray.io/). You can run your tasks on an existing Ray cluster, or dynamically create one with each flow run. Ray has powerful support for customizing runtime environments, parallelizing tasks to make use of your full compute power, and dynamically creating distributed task infrastructure.
 
 An [overview of using Ray](https://orion-docs.prefect.io/concepts/task-runners/#running-tasks-on-ray) can be found in our documentation.
+
+### Profiles
+
+Prefect now supports profiles for configuration. You can store settings in profiles and switch between them. For example, this allows you to quickly switch between using a local and hosted API.
+
+View all of the available commands with `prefect config --help` and check out our [settings documentation](https://orion-docs.prefect.io/concepts/settings/) for a full list of features.
+
+We've also rehauled our [settings reference](https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings) to make it easier to see all the available settings. You can override any setting with an environment variable or `prefect config set`.
 
 ## 2.0a12
 
