@@ -22,7 +22,7 @@ Note, `prefect agent start` now requires you to pass a work queue identifier and
 
 Prior to this release, the Orion server would store your flow code and results in its local file system. Now, we've introduced storage with external providers including AWS S3, Google Cloud Storage, and Azure Blob Storage.
 
-There's an interactive command, `prefect storage create`, which walks you thro\ugh the options required to configure storage. Your settings are encrypted and stored in the Orion database.
+There's an interactive command, `prefect storage create`, which walks you through the options required to configure storage. Your settings are encrypted and stored in the Orion database.
 
 Note that you will no longer be able to use the Kubernetes or Docker flow runners without configuring storage. While automatically storing flow code in the API was convenient for early development, we're focused on enabling the [hybrid model](https://www.prefect.io/why-prefect/hybrid-model/) as a core feature of Orion.
 
