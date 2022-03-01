@@ -108,21 +108,3 @@ class Abort(PrefectSignal):
     """
 
     pass
-
-
-class Crash(PrefectSignal):
-    """
-    Raised when a flow or task run crashes.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        cause: BaseException,
-        state: "State",
-    ) -> None:
-        super().__init__(message)
-        self.message = message
-        self.state = state
-        self.cause = cause
