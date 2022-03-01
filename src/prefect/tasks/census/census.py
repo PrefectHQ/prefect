@@ -19,10 +19,10 @@ class CensusSyncTask(Task):
     trigger section on the configuration page in the `api_trigger` param to set a default sync.
 
     Args:
-        - api_trigger (str, optional): default sync to trigger, if none is specified in `run`. The API
+        - api_trigger (str, optional): Default sync to trigger, if none is specified in `run`. The API
             trigger URL for a sync can be found on sync's configuration page
             (https://app.getcensus.com/syncs/{sync_id}/configuration) under Sync Triggers > API.
-        - **kwargs (dict, optional): additional kwargs to pass to the base Task constructor
+        - **kwargs (dict, optional): Additional kwargs to pass to the base Task constructor.
 
     Example:
         Trigger a Census sync with an `api_trigger` stored in a Prefect secret:
@@ -57,16 +57,16 @@ class CensusSyncTask(Task):
         when it receives an error status code from the trigger API call.
 
         Args:
-            - api_trigger (str): if not specified in run, it will pull from the default for the
+            - api_trigger (str): Ff not specified in run, it will pull from the default for the
                 CensusSyncTask constructor. The API trigger URL for a sync can be found on sync's
                 configuration page (https://app.getcensus.com/syncs/{sync_id}/configuration) under
                 Sync Triggers > API.
-            - poll_status_every_n_seconds (int, optional): this task polls the Census API for the sync's
+            - poll_status_every_n_seconds (int, optional): This task polls the Census API for the sync's
                 status. If provided, this value will override the default polling time of
                 60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
 
         Returns:
-            - dict: dictionary of statistics returned by Census on the specified sync in
+            - dict: Dictionary of statistics returned by Census on the specified sync in
                 following structure:
                 ```python
                 {
@@ -133,14 +133,14 @@ class CensusSyncTask(Task):
     @staticmethod
     def check_invalid_api(api_trigger: str):
         """
-        Makes sure the url for the API trigger matches the Census format specified below. If it does
+        Makes sure the URL for the API trigger matches the Census format specified below. If it does
         not, it will raise a ValueError.
 
         Format of api_trigger:
             - https://bearer:secret-token:{secret}@app.getcensus.com/api/v1/syncs/{sync_id}/trigger
 
         Args:
-            - api_trigger (str): if specified in the constructor, will call this validation there
+            - api_trigger (str): If specified in the constructor, will call this validation there
 
         Returns:
             - confirmed_pattern (Match Object - https://docs.python.org/3/library/re.html#match-objects)
