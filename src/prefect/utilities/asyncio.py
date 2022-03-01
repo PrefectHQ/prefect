@@ -6,10 +6,11 @@ import warnings
 from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial, wraps
-from typing import Any, Awaitable, Callable, TypeVar, Union
+from typing import Any, Awaitable, Callable, Coroutine, List, Sequence, TypeVar, Union
 from uuid import uuid4
 
 import anyio
+import anyio.abc
 import sniffio
 from typing_extensions import Literal, ParamSpec, TypeGuard
 
@@ -185,3 +186,82 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
 
     # Begin iterating so it will be cleaned up as an incomplete generator
     await EVENT_LOOP_GC_REFS[key].__anext__()
+
+
+class GatherIncomplete(RuntimeError):
+    """Used to indicate retrieving gather results before completion"""
+
+    pass
+
+
+class GatherTaskGroup(anyio.abc.TaskGroup):
+    """
+    A task group that gathers results.
+
+    AnyIO does not include support `gather`. This class extends the `TaskGroup`
+    interface to allow simple gathering.
+
+    See https://github.com/agronholm/anyio/issues/100
+    """
+
+    def __init__(self):
+        self.result = []
+        # Must be dynamically created since it differs base on the backend
+        self._super: anyio.abc.TaskGroup = None
+
+    async def _run_and_store(self, key, fn, args):
+        self.result[key] = await fn(*args)
+
+    def start_soon(self, fn, *args):
+        key = len(self.result)
+        # Put a placeholder in-case the result is retrieved earlier
+        self.result.append(GatherIncomplete)
+        self._super.start_soon(self._run_and_store, key, fn, args)
+        return key
+
+    async def start(self, fn, *args):
+        """
+        Since `start` returns the result of `task_status.started()` but here we must
+        return the key instead, we just won't support this method for now.
+        """
+        raise RuntimeError("`GatherTaskGroup` does not support `start`.")
+
+    def get_result(self, key):
+        result = self.result[key]
+        if result == GatherIncomplete:
+            raise GatherIncomplete(
+                "Task is not complete. "
+                "Results should not be retrieved until the task group exits."
+            )
+        return result
+
+    async def __aenter__(self):
+        self._super = anyio.create_task_group()
+        await self._super.__aenter__()
+        return self
+
+    async def __aexit__(self, *tb):
+        try:
+            retval = await self._super.__aexit__(*tb)
+            return retval
+        finally:
+            del self._super
+
+
+def create_gather_task_group() -> GatherTaskGroup:
+    """Create a new task group that gathers results"""
+    return GatherTaskGroup()
+
+
+async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
+    """
+    Run calls concurrently and gather their results.
+
+    Unlike `asyncio.gather` this expects to receieve _callables_ not _coroutines_.
+    This matches `anyio` semantics.
+    """
+    keys = []
+    async with create_gather_task_group() as tg:
+        for call in calls:
+            keys.append(tg.start_soon(call))
+    return [tg.get_result(key) for key in keys]
