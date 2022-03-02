@@ -1,3 +1,4 @@
+import urllib.parse
 from uuid import UUID, uuid4
 
 import pendulum
@@ -34,6 +35,20 @@ class TestCreateFlow:
         response_2 = await client.post("/flows/", json=flow_data)
         assert response_2.status_code == 200
         assert response_2.json()["name"] == "my-flow"
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my flow",
+            "my:flow",
+            r"my\flow",
+            "my👍flow",
+            "my|flow",
+        ],
+    )
+    async def test_create_flow_with_nonstandard_characters(self, client, name):
+        response = await client.post("/flows/", json=dict(name=name))
+        assert response.status_code == 201
 
     @pytest.mark.parametrize(
         "name",
@@ -142,6 +157,11 @@ class TestReadFlow:
         response = await client.get(f"/flows/name/{name}")
         assert response.status_code == 200
         assert response.json()["id"] == flow_id
+
+        response = await client.get(urllib.parse.quote(f"/flows/name/{name}"))
+        assert response.status_code == 200
+        assert response.json()["id"] == flow_id
+        assert response.json()["name"] == name
 
     @pytest.mark.parametrize(
         "name",
