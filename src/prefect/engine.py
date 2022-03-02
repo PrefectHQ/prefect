@@ -51,6 +51,7 @@ from prefect.states import exception_to_crashed_state, return_value_to_state
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
+    gather,
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
@@ -785,9 +786,11 @@ async def wait_for_task_runs_and_report_crashes(
 ) -> None:
     crash_exceptions = []
 
-    for future in task_run_futures:
+    # Gather states concurrently first
+    states = await gather(*(future._wait for future in task_run_futures))
+
+    for future, state in zip(task_run_futures, states):
         logger = task_run_logger(future.task_run)
-        state = await future._wait()
 
         if not state.name == "Crashed":
             continue
