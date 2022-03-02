@@ -79,6 +79,7 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
+from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A, sync_compatible
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
@@ -125,6 +126,9 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         """
         Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
         If it is not finished after the timeout expires, `None` should be returned.
+
+        Implementers should be careful to ensure that this function never returns or
+        raises an exception.
         """
         raise NotImplementedError()
 
@@ -191,7 +195,12 @@ class SequentialTaskRunner(BaseTaskRunner):
             )
 
         # Run the function immediately and store the result in memory
-        self._results[task_run.id] = await run_fn(**run_kwargs)
+        try:
+            result = await run_fn(**run_kwargs)
+        except BaseException as exc:
+            result = exception_to_crashed_state(exc)
+
+        self._results[task_run.id] = result
 
         return PrefectFuture(
             task_run=task_run, task_runner=self, asynchronous=asynchronous
@@ -351,6 +360,8 @@ class DaskTaskRunner(BaseTaskRunner):
             return await future.result(timeout=timeout)
         except self._distributed.TimeoutError:
             return None
+        except BaseException as exc:
+            return exception_to_crashed_state(exc)
 
     @property
     def _distributed(self) -> "distributed":
@@ -401,24 +412,10 @@ class DaskTaskRunner(BaseTaskRunner):
             )
         )
 
-        # Wait for all futures before tearing down the client / cluster on exit
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
         if self._client.dashboard_link:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for future in self._dask_futures.values():
-            try:
-                await future.result()
-            except Exception:
-                pass
 
     def __getstate__(self):
         """
@@ -507,8 +504,14 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     async def _run_and_store_result(self, task_run_id: UUID, run_fn, run_kwargs):
         """
         Simple utility to store the orchestration result in memory on completion
+
+        Since this run is occuring on the main thread, we capture exceptions to prevent
+        task crashes from crashing the flow run.
         """
-        self._results[task_run_id] = await run_fn(**run_kwargs)
+        try:
+            self._results[task_run_id] = await run_fn(**run_kwargs)
+        except BaseException as exc:
+            self._results[task_run_id] = exception_to_crashed_state(exc)
 
     async def _get_run_result(self, task_run_id: UUID, timeout: float = None):
         """
@@ -528,18 +531,6 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._task_group = await exit_stack.enter_async_context(
             anyio.create_task_group()
         )
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for task_run_id in self._task_run_ids:
-            try:
-                await self._get_run_result(task_run_id)
-            except Exception:
-                pass
 
     def __getstate__(self):
         """
@@ -632,7 +623,10 @@ class RayTaskRunner(BaseTaskRunner):
         with anyio.move_on_after(timeout):
             # We await the reference directly instead of using `ray.get` so we can
             # avoid blocking the event loop
-            result = await ref
+            try:
+                result = await ref
+            except BaseException as exc:
+                result = exception_to_crashed_state(exc)
 
         return result
 
@@ -681,9 +675,6 @@ class RayTaskRunner(BaseTaskRunner):
             metadata = None  # TODO: Some of this may be retrievable from the client ctx
             context = context_or_metadata
 
-        # Wait for all futures on exit
-        exit_stack.push_async_callback(self._wait_for_all_futures)
-
         # Shutdown differs depending on the connection type
         if context:
             # Just disconnect the client
@@ -711,14 +702,3 @@ class RayTaskRunner(BaseTaskRunner):
         Retrieve the ray object reference corresponding to a prefect future.
         """
         return self._ray_refs[prefect_future.run_id]
-
-    async def _wait_for_all_futures(self):
-        """
-        Waits for all futures to complete without timeout, ignoring any exceptions.
-        """
-        # Attempt to wait for all futures to complete
-        for ref in self._ray_refs.values():
-            try:
-                await ref
-            except Exception:
-                pass

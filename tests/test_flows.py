@@ -10,12 +10,12 @@ import pytest
 import prefect.context
 from prefect import flow, get_run_logger, tags, task
 from prefect.client import get_client
-from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
+from prefect.states import raise_failed_state
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
 
