@@ -202,12 +202,14 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
     interface to allow simple gathering.
 
     See https://github.com/agronholm/anyio/issues/100
+
+    This class should be instantiated with `create_gather_task_group`.
     """
 
-    def __init__(self):
+    def __init__(self, task_group: anyio.abc.TaskGroup):
         self._results: Dict[UUID, Any] = {}
-        # Must be dynamically created since it differs base on the backend
-        self._super: anyio.abc.TaskGroup = None
+        # The concrete task group implementation to use
+        self._task_group: anyio.abc.TaskGroup = task_group
 
     async def _run_and_store(self, key, fn, args):
         self._results[key] = await fn(*args)
@@ -216,7 +218,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         key = uuid4()
         # Put a placeholder in-case the result is retrieved earlier
         self._results[key] = GatherIncomplete
-        self._super.start_soon(self._run_and_store, key, fn, args)
+        self._task_group.start_soon(self._run_and_store, key, fn, args)
         return key
 
     async def start(self, fn, *args):
@@ -236,21 +238,23 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         return result
 
     async def __aenter__(self):
-        self._super = anyio.create_task_group()
-        await self._super.__aenter__()
+        await self._task_group.__aenter__()
         return self
 
     async def __aexit__(self, *tb):
         try:
-            retval = await self._super.__aexit__(*tb)
+            retval = await self._task_group.__aexit__(*tb)
             return retval
         finally:
-            del self._super
+            del self._task_group
 
 
 def create_gather_task_group() -> GatherTaskGroup:
     """Create a new task group that gathers results"""
-    return GatherTaskGroup()
+    # This function matches the AnyIO API which uses callables since the concrete
+    # task group class depends on the async library being used and cannot be
+    # determined until runtime
+    return GatherTaskGroup(anyio.create_task_group())
 
 
 async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
