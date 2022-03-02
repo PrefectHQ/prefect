@@ -19,7 +19,7 @@ from prefect.orion.services.loop_service import LoopService
 
 class Telemetry(LoopService):
     """
-    This service sends anonymous data (e.g. count of flow runs) to Prefect to help us improve. It can be toggled off with the PREFECT_ORION_TELEMETRY_ENABLED setting.
+    This service sends anonymous data (e.g. count of flow runs) to Prefect to help us improve. It can be toggled off with the PREFECT_ORION_ANALYTICS_ENABLED setting.
     """
 
     def __init__(self):
