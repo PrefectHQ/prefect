@@ -45,21 +45,20 @@ class OrionAgent:
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
-    async def update_work_queue_id_from_name(self) -> bool:
+    async def work_queue_id_from_name(self) -> Optional[UUID]:
         """
         For agents that were provided a work_queue_name, rather than a work_queue_id,
-        this function will retrieve the work queue ID corresponding to that name and assign
-        it to `work_queue_id`. If no matching queue is found, a warning is logged
-        and `work_queue_id = None`.
+        this function will retrieve the work queue ID corresponding to that name.
+        If no matching queue is found, a warning is logged and `None` is returned.
         """
         if not self.work_queue_name:
             raise ValueError("No work queue name provided.")
         try:
             work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
-            self.work_queue_id = work_queue.id
+            return work_queue.id
         except httpx.HTTPStatusError:
             self.logger.warn(f'No work queue found named "{self.work_queue_name}"')
-            self.work_queue_id = None
+            return None
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -74,20 +73,17 @@ class OrionAgent:
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        # if a work queue name was provided, try to load the corresponding ID
-        if self.work_queue_name:
-            await self.update_work_queue_id_from_name()
-            if not self.work_queue_id:
-                return []
+        # Use the work queue id or load one from the name
+        work_queue_id = self.work_queue_id or await self.work_queue_id_from_name()
+        if not work_queue_id:
+            return []
 
         try:
             submittable_runs = await self.client.get_runs_in_work_queue(
-                id=self.work_queue_id, limit=10, scheduled_before=before
+                id=work_queue_id, limit=10, scheduled_before=before
             )
-        except httpx.HTTPStatusError:
-            raise ValueError(
-                f"No work queue found with id {self.work_queue_id}"
-            ) from None
+        except httpx.HTTPStatusError as exc:
+            raise ValueError(f"No work queue found with id {work_queue_id}") from None
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
