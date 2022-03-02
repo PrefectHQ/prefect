@@ -26,8 +26,6 @@ spec:
         env:
           - name: PREFECT_API_URL
             value: http://orion:4200/api
-          - name: PREFECT_EXPERIMENTAL_CREATE_WORK_QUEUE
-            value: "1"
 
 ---
 apiVersion: v1
