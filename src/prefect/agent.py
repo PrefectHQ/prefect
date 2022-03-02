@@ -10,6 +10,7 @@ import anyio.to_process
 import httpx
 import pendulum
 from anyio.abc import TaskGroup
+from fastapi import status
 
 from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
@@ -56,9 +57,12 @@ class OrionAgent:
         try:
             work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
             return work_queue.id
-        except httpx.HTTPStatusError:
-            self.logger.warn(f'No work queue found named "{self.work_queue_name}"')
-            return None
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                self.logger.warn(f'No work queue found named "{self.work_queue_name}"')
+                return None
+            else:
+                raise
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -83,7 +87,12 @@ class OrionAgent:
                 id=work_queue_id, limit=10, scheduled_before=before
             )
         except httpx.HTTPStatusError as exc:
-            raise ValueError(f"No work queue found with id {work_queue_id}") from None
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise ValueError(
+                    f"No work queue found with id '{work_queue_id}'"
+                ) from None
+            else:
+                raise
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
