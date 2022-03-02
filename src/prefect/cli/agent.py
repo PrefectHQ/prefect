@@ -5,6 +5,7 @@ import os
 from uuid import UUID
 
 import anyio
+import pendulum
 import typer
 
 from prefect.agent import OrionAgent
@@ -34,6 +35,7 @@ async def start(
     work_queue_id: UUID = typer.Argument(
         None, help="A work queue ID for the agent to pull from."
     ),
+    work_queue_name: str = typer.Option(None, "--work-queue-name", "-n"),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
 ):
@@ -54,13 +56,15 @@ async def start(
                 )
                 console.print(f"Created kubernetes work queue {work_queue_id}.")
 
-    if not work_queue_id:
-        exit_with_error("Missing argument `work_queue_id`.")
-
-    try:
-        UUID(str(work_queue_id))
-    except:
-        exit_with_error("`work_queue_id` must be a valid UUID.")
+    if not work_queue_id and not work_queue_name:
+        exit_with_error("Either `work_queue_id` or `work_queue_name` must be provided.")
+    elif work_queue_id and work_queue_name:
+        exit_with_error("Provide only one of `work_queue_id` or `work_queue_name`.")
+    elif work_queue_id:
+        try:
+            UUID(str(work_queue_id))
+        except:
+            exit_with_error("`work_queue_id` must be a valid UUID.")
 
     if not hide_welcome:
         if api:
@@ -69,10 +73,14 @@ async def start(
             console.print("Starting agent with ephemeral API...")
 
     running = True
-    async with OrionAgent(work_queue_id=work_queue_id) as agent:
+    async with OrionAgent(
+        work_queue_id=work_queue_id,
+        work_queue_name=work_queue_name,
+    ) as agent:
         if not hide_welcome:
             console.print(ascii_name)
             console.print("Agent started!")
+
         while running:
             try:
                 await agent.get_and_submit_flow_runs()
