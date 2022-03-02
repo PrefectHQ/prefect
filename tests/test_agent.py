@@ -104,9 +104,9 @@ async def test_agent_with_work_queue(
         await create_run_with_deployment(Completed()),
         await orion_client.create_flow_run(foo, state=Scheduled()),
     ]
-    flow_run_ids = [fr.id for fr in flow_runs]
+    flow_run_ids = [run.id for run in flow_runs]
 
-    # Pull runs from the work queue
+    # Pull runs from the work queue to get expected runs
     work_queue_runs = await orion_client.get_runs_in_work_queue(
         work_queue_id, scheduled_before=pendulum.now().add(seconds=10)
     )
