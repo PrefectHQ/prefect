@@ -231,7 +231,7 @@ def create_app(
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
 
-        if prefect.settings.PREFECT_ORION_TELEMETRY_ENABLED.value():
+        if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
         loop = asyncio.get_running_loop()
