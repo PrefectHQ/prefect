@@ -46,7 +46,7 @@
     "jest-dev-server": "^6.0.0",
     "jest-puppeteer": "^6.0.0",
     "miragejs": "^0.1.43",
-    "puppeteer": "^13.3.2",
+    "puppeteer": "^13.4.1",
     "sass": "^1.49.8",
     "ts-jest": "^27.0.7",
     "ts-node": "10.1.0",
