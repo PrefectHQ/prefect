@@ -79,6 +79,11 @@ class TestFlow:
         ):
             Flow(fn=my_fn)
 
+    @pytest.mark.parametrize("name", ["my/flow", "my%flow"])
+    def test_invalid_name(self, name):
+        with pytest.raises(ValueError, match="(Names can not contain)"):
+            Flow(fn=lambda: 1, name=name)
+
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
