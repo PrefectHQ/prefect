@@ -518,10 +518,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Block until the run result has been populated.
         """
         with anyio.move_on_after(timeout):
-            result = None
+            result = self._results.get(task_run_id)
             while not result:
+                await anyio.sleep(0)  # yield to other tasks
                 result = self._results.get(task_run_id)
-                await anyio.sleep(0.1)
         return result
 
     async def _start(self, exit_stack: AsyncExitStack):
