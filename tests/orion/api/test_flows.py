@@ -35,6 +35,17 @@ class TestCreateFlow:
         assert response_2.status_code == 200
         assert response_2.json()["name"] == "my-flow"
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/flow",
+            "my%flow",
+        ],
+    )
+    async def test_create_flow_with_invalid_characters_fails(self, client, name):
+        response = await client.post("/flows/", json=dict(name=name))
+        assert response.status_code == 422
+
 
 class TestUpdateFlow:
     async def test_update_flow_succeeds(self, session, client):
@@ -112,6 +123,36 @@ class TestReadFlow:
 
     async def test_read_flow_by_name_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/flows/{uuid4()}")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my flow",
+            "my:flow",
+            r"my\flow",
+            "my👍flow",
+            "my|flow",
+        ],
+    )
+    async def test_read_flow_by_name_with_nonstandard_characters(self, client, name):
+        response = await client.post("/flows/", json=dict(name=name))
+        flow_id = response.json()["id"]
+
+        response = await client.get(f"/flows/name/{name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == flow_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/flow",
+            "my%flow",
+        ],
+    )
+    async def test_read_flow_by_name_with_invalid_characters_fails(self, client, name):
+
+        response = await client.get(f"/flows/name/{name}")
         assert response.status_code == 404
 
 
