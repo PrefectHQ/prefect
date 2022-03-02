@@ -16,6 +16,14 @@ export type IWorkQueueResponse = {
   concurrency_limit: number | null,
 }
 
+export type IWorkQueueRequest = {
+  name: string,
+  filter: IWorkQueueFilterResponse | null,
+  description: string | null,
+  is_paused: boolean | null,
+  concurrency_limit: number | null,
+}
+
 export type IWorkQueueFilterResponse = {
   tags: string[] | null,
   deployment_ids: string[] | null,
@@ -32,6 +40,18 @@ export class WorkQueuesApi extends Api {
 
   public getWorkQueues(filter: PaginatedFilter): Promise<WorkQueue[]> {
     return this.post<IWorkQueueResponse[]>('/filter', filter).then(response => this.mapWorkQueuesResponse(response))
+  }
+
+  public createWorkQueue(request: IWorkQueueRequest): Promise<WorkQueue> {
+    return this.post<IWorkQueueResponse>('/', request).then(response => this.mapWorkQueueResponse(response))
+  }
+
+  public updateWorkQueue(id: string, request: IWorkQueueRequest): Promise<void> {
+    return this.patch(`/${id}`, request)
+  }
+
+  public deleteWorkQueue(id: string): Promise<void> {
+    return this.delete(`/${id}`)
   }
 
   protected mapWorkQueue(data: IWorkQueueResponse): WorkQueue {
