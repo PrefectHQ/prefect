@@ -1,4 +1,4 @@
-# Artifacts <Badge text="Beta"/>
+# Artifacts
 
 The [Artifacts API](/api/latest/backend/artifacts.html) enables you to publish data from task runs that is rendered natively in the Prefect UI, both Prefect Cloud and Prefect Server. 
 
