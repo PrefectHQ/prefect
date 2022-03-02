@@ -17,12 +17,12 @@
     "@prefecthq/orion-design": "0.1.29",
     "@prefecthq/vue-compositions": "0.1.18",
     "core-js": "^3.6.5",
-    "d3": "^7.0.0",
+    "d3": "^7.3.0",
     "esbuild": "^0.13.4",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
     "vue": "^3.0.5",
-    "vue-router": "^4.0.0-0"
+    "vue-router": "^4.0.13"
   },
   "devDependencies": {
     "@babel/helper-compilation-targets": "^7.16.7",
@@ -33,7 +33,7 @@
     "@types/faker": "^5.5.9",
     "@types/jest": "^27.0.2",
     "@types/jest-dev-server": "^5.0.0",
-    "@types/jest-environment-puppeteer": "^4.4.1",
+    "@types/jest-environment-puppeteer": "^5.0.0",
     "@types/puppeteer": "^5.4.4",
     "@types/sass-loader": "^8.0.2",
     "@vitejs/plugin-vue": "^1.2.5",
