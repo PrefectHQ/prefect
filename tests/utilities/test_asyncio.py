@@ -1,11 +1,16 @@
 import asyncio
 import threading
+import uuid
+from functools import partial
 
 import anyio
 import pytest
 
 from prefect.utilities.asyncio import (
+    GatherIncomplete,
     add_event_loop_shutdown_callback,
+    create_gather_task_group,
+    gather,
     in_async_main_thread,
     in_async_worker_thread,
     run_async_from_worker_thread,
@@ -183,3 +188,32 @@ def test_add_event_loop_shutdown_callback_is_not_called_with_loop_run_until_comp
     thread.start()
     assert not callback_called.wait(timeout=1)
     thread.join(timeout=1)
+
+
+async def test_gather():
+    async def foo(i):
+        return i + 1
+
+    results = await gather(*[partial(foo, i) for i in range(10)])
+    assert results == [await foo(i) for i in range(10)]
+
+
+async def test_gather_task_group_get_result():
+    async def foo():
+        await anyio.sleep(0.1)
+        return 1
+
+    async with create_gather_task_group() as tg:
+        k = tg.start_soon(foo)
+        with pytest.raises(GatherIncomplete):
+            tg.get_result(k)
+
+    assert tg.get_result(k) == 1
+
+
+async def test_gather_task_group_get_result_bad_uuid():
+    async with create_gather_task_group() as tg:
+        pass
+
+    with pytest.raises(KeyError):
+        tg.get_result(uuid.uuid4())
