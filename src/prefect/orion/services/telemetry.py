@@ -20,7 +20,6 @@ from prefect.orion.services.loop_service import LoopService
 class Telemetry(LoopService):
     """
     This service sends anonymous data (e.g. count of flow runs) to Prefect to help us improve. It can be toggled off with the PREFECT_ORION_TELEMETRY_ENABLED setting.
-    with the PREFECT_ORION_TELEMETRY_ENABLED setting.
     """
 
     def __init__(self):
@@ -31,6 +30,11 @@ class Telemetry(LoopService):
 
     @inject_db
     async def _fetch_or_set_telemetry_session(self, db: OrionDBInterface):
+        """
+        This method looks for a telemetry session in the configuration table.
+        If there isn't one, it sets one. It then sets `self.session_id` and `self.session_start_timestamp`.
+        Telemetry sessions last until the database is reset.
+        """
         session = await db.session()
         async with session:
             async with session.begin():
@@ -62,7 +66,7 @@ class Telemetry(LoopService):
                         "session_start_timestamp"
                     ]
         self.logger.debug(
-            f"""Telemetry Session: {self.session_id}, {self.session_start_timestamp}"""
+            f"Telemetry Session: {self.session_id}, {self.session_start_timestamp}"
         )
         return (self.session_start_timestamp, self.session_id)
 
@@ -93,7 +97,11 @@ class Telemetry(LoopService):
                     "x-prefect-event": "prefect_server",
                 },
             )
-            self.logger.debug(f"Telemetry request result: {result.json()}")
+
+            try:
+                result.raise_for_status()
+            except Exception:
+                self.logger.exception("Failed to send telemetry.")
 
 
 if __name__ == "__main__":
