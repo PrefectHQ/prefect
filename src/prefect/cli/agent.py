@@ -32,10 +32,9 @@ from prefect import get_client
 
 @agent_app.command()
 async def start(
-    work_queue_id: UUID = typer.Argument(
-        None, help="A work queue ID for the agent to pull from."
+    work_queue: str = typer.Argument(
+        ..., help="A work queue name or ID for the agent to pull from."
     ),
-    work_queue_name: str = typer.Option(None, "--work-queue-name", "-n"),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
 ):
@@ -43,28 +42,25 @@ async def start(
     Start an agent process.
     """
 
-    if os.environ.get("PREFECT_TEMP_KUBERNETES_WORK_QUEUE") and not work_queue_id:
+    if os.environ.get("PREFECT_TEMP_KUBERNETES_WORK_QUEUE") and not work_queue:
         async with get_client() as client:
             work_queues = await client.read_work_queues()
             for queue in work_queues:
                 if queue.name == "KUBERNETES":
-                    work_queue_id = queue.id
+                    work_queue = queue.id
                     break
-            if not work_queue_id:
-                work_queue_id = await client.create_work_queue(
+            if not work_queue:
+                work_queue = await client.create_work_queue(
                     name="KUBERNETES", flow_runner_types=["kubernetes"]
                 )
-                console.print(f"Created kubernetes work queue {work_queue_id}.")
+                console.print(f"Created kubernetes work queue {work_queue}.")
 
-    if not work_queue_id and not work_queue_name:
-        exit_with_error("Either `work_queue_id` or `work_queue_name` must be provided.")
-    elif work_queue_id and work_queue_name:
-        exit_with_error("Provide only one of `work_queue_id` or `work_queue_name`.")
-    elif work_queue_id:
-        try:
-            UUID(str(work_queue_id))
-        except:
-            exit_with_error("`work_queue_id` must be a valid UUID.")
+    try:
+        work_queue_id = UUID(work_queue)
+        work_queue_name = None
+    except:
+        work_queue_id = None
+        work_queue_name = work_queue
 
     if not hide_welcome:
         if api:
@@ -79,7 +75,9 @@ async def start(
     ) as agent:
         if not hide_welcome:
             console.print(ascii_name)
-            console.print("Agent started!")
+            console.print(
+                f"Agent started! Looking for work from queue '{work_queue}'..."
+            )
 
         while running:
             try:
