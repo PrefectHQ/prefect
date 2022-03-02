@@ -62,6 +62,25 @@ async def update_work_queue(
         )
 
 
+# treat name as a path to allow "/" to appear in the parameter
+@router.get("/name/{name:path}")
+async def read_work_queue_by_name(
+    name: str = Path(..., description="The work queue name"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.WorkQueue:
+    """
+    Get a work queue by id.
+    """
+    work_queue = await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
+    )
+    if not work_queue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+        )
+    return work_queue
+
+
 @router.get("/{id}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
