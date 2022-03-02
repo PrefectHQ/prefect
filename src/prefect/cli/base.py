@@ -3,8 +3,11 @@ Base `prefect` command-line application and utilities
 """
 import functools
 import os
+import platform
+import sys
 from typing import TypeVar
 
+import pendulum
 import rich.console
 import typer
 import typer.core
@@ -116,10 +119,52 @@ def enter_profile_from_option(fn):
 
 
 @app.command()
-def version():
+async def version():
     """Get the current Prefect version."""
-    # TODO: expand this to a much richer display of version and system information
-    console.print(prefect.__version__)
+    import sqlite3
+
+    from prefect.orion.api.server import ORION_API_VERSION
+    from prefect.orion.utilities.database import get_dialect
+    from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+
+    version_info = {
+        "Version": prefect.__version__,
+        "API version": ORION_API_VERSION,
+        "Python version": platform.python_version(),
+        "Git commit": prefect.__version_info__["full-revisionid"][:8],
+        "Built": pendulum.parse(
+            prefect.__version_info__["date"]
+        ).to_day_datetime_string(),
+        "OS/Arch": f"{sys.platform}/{platform.machine()}",
+        "Profile": prefect.context.get_profile_context().name,
+    }
+
+    try:
+        async with prefect.get_client() as client:
+            is_ephemeral = client._ephemeral_app is not None
+    except Exception as exc:
+        version_info["Server type"] = "<client error>"
+    else:
+        version_info["Server type"] = "ephemeral" if is_ephemeral else "hosted"
+
+    # TODO: Consider adding an API route to retrieve this information?
+    if is_ephemeral:
+        database = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value()).name
+        version_info["Server"] = {"Database": database}
+        if database == "sqlite":
+            version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
+
+    def display(object: dict, nesting: int = 0):
+        # Recursive display of a dictionary with nesting
+        for key, value in object.items():
+            key += ":"
+            if isinstance(value, dict):
+                console.print(key)
+                return display(value, nesting + 2)
+            prefix = " " * nesting
+            console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+
+    display(version_info)
 
 
 def exit_with_error(message, code=1, **kwargs):
