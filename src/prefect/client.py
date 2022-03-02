@@ -1592,6 +1592,7 @@ class OrionClient:
                 representation of state orchestration output
         """
         state_data = schemas.actions.StateCreate(
+            name=state.name,
             type=state.type,
             message=state.message,
             data=orion_doc or state.data,
