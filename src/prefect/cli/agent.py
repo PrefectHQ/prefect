@@ -5,8 +5,9 @@ import os
 from uuid import UUID
 
 import anyio
-import pendulum
+import httpx
 import typer
+from fastapi import status
 
 from prefect.agent import OrionAgent
 from prefect.cli.base import PrefectTyper, SettingsOption, app, console, exit_with_error
@@ -41,26 +42,25 @@ async def start(
     """
     Start an agent process.
     """
-
-    if os.environ.get("PREFECT_TEMP_KUBERNETES_WORK_QUEUE") and not work_queue:
-        async with get_client() as client:
-            work_queues = await client.read_work_queues()
-            for queue in work_queues:
-                if queue.name == "KUBERNETES":
-                    work_queue = queue.id
-                    break
-            if not work_queue:
-                work_queue = await client.create_work_queue(
-                    name="KUBERNETES", flow_runner_types=["kubernetes"]
-                )
-                console.print(f"Created kubernetes work queue {work_queue}.")
-
     try:
         work_queue_id = UUID(work_queue)
         work_queue_name = None
     except:
         work_queue_id = None
         work_queue_name = work_queue
+
+    if os.environ.get("PREFECT_EXPERIMENTAL_CREATE_WORK_QUEUE") and work_queue_name:
+        async with get_client() as client:
+            try:
+                work_queue = await client.read_work_queue_by_name(work_queue_name)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                    work_queue = None
+                else:
+                    raise
+            if not work_queue:
+                await client.create_work_queue(name=work_queue_name)
+                console.print(f"Created work queue {work_queue_name!r}.")
 
     if not hide_welcome:
         if api:
