@@ -17,12 +17,13 @@ from prefect.utilities.asyncio import is_async_fn, sync_compatible
 T = TypeVar("T")
 
 
-def SettingsOption(setting: Setting, **kwargs) -> typer.Option:
+def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
         # The default is dynamically retrieved
-        default=enter_profile_from_option(setting.value),
+        enter_profile_from_option(setting.value),
+        *args,
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
         # source is from the environment or profile, but typer does not support this
