@@ -222,26 +222,27 @@ def create_app(
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
 
-            loop = asyncio.get_running_loop()
-            service_instances = [
-                services.scheduler.Scheduler(),
-                services.late_runs.MarkLateRuns(),
-            ]
-            app.state.services = {
-                service: loop.create_task(service.start())
-                for service in service_instances
-            }
+        service_instances = []
 
-            for service, task in app.state.services.items():
-                logger.info(f"{service.name} service scheduled to start in-app")
-                task.add_done_callback(partial(on_service_exit, service))
-        else:
-            logger.info(
-                "In-app services have been disabled and will need to be run separately."
-            )
-            app.state.services = None
+        if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
+            service_instances.append(services.scheduler.Scheduler())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
+            service_instances.append(services.late_runs.MarkLateRuns())
+
+        if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
+            service_instances.append(services.telemetry.Telemetry())
+
+        loop = asyncio.get_running_loop()
+
+        app.state.services = {
+            service: loop.create_task(service.start()) for service in service_instances
+        }
+
+        for service, task in app.state.services.items():
+            logger.info(f"{service.name} service scheduled to start in-app")
+            task.add_done_callback(partial(on_service_exit, service))
 
     async def stop_services():
         """Ensure services are stopped before the Orion API shuts down."""
