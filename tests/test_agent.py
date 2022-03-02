@@ -58,6 +58,20 @@ async def test_agent_start_and_shutdown():
     assert agent.client is None, "Shuts down the client"
 
 
+async def test_start_agent_with_no_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Either work_queue_id or work_queue_name must be provided)"
+    ):
+        OrionAgent()
+
+
+async def test_start_agent_with_both_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Provide only one of work_queue_id and work_queue_name)"
+    ):
+        OrionAgent(work_queue_id=uuid4(), work_queue_name="foo")
+
+
 async def test_agent_with_work_queue(orion_client, deployment, work_queue_id):
     @flow
     def foo():
@@ -97,6 +111,74 @@ async def test_agent_with_work_queue(orion_client, deployment, work_queue_id):
     # Only include scheduled runs in the past or next prefetch seconds
     # Does not include runs without deployments
     assert submitted_flow_run_ids == set(flow_run_ids[1:4])
+
+
+async def test_agent_with_work_queue_name(orion_client, deployment, work_queue_id):
+    @flow
+    def foo():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
+    )
+
+    flow_runs = [
+        await create_run_with_deployment(Pending()),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment(Running()),
+        await create_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    work_queue = await orion_client.read_work_queue(work_queue_id)
+
+    async with OrionAgent(
+        work_queue_name=work_queue.name, prefetch_seconds=10
+    ) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+        assert agent.work_queue_id is None
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+        assert agent.work_queue_id == work_queue.id
+
+    submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+    # Only include scheduled runs in the past or next prefetch seconds
+    # Does not include runs without deployments
+    assert submitted_flow_run_ids == set(flow_run_ids[1:4])
+
+
+async def test_agent_with_work_queue_name_survives_queue_deletion(
+    orion_client, work_queue_id
+):
+    work_queue = await orion_client.read_work_queue(work_queue_id)
+
+    async with OrionAgent(
+        work_queue_name=work_queue.name, prefetch_seconds=10
+    ) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+        assert agent.work_queue_id == work_queue.id
+
+        # delete the work queue
+        await orion_client.delete_work_queue_by_id(work_queue.id)
+
+        # gracefully handled
+        assert await agent.get_and_submit_flow_runs() == []
+        assert agent.work_queue_id is None
 
 
 async def test_agent_internal_submit_run_called(
