@@ -94,7 +94,7 @@ class CloudClient:
             res = await self._client.get(route, **kwargs)
             res.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (401, 403) :
+            if exc.response.status_code in (401, 403):
                 exit_with_error(
                     "Unable to authenticate. Please ensure your credentials are correct."
                 )
