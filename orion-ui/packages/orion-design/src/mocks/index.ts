@@ -8,6 +8,7 @@ import { randomState } from './state'
 import { randomStateType } from './stateType'
 import { randomChar, randomString, randomSentence, randomParagraph } from './string'
 import { randomTaskRun } from './taskRun'
+import { randomWorkQueue, randomWorkQueueFilter } from './workQueue'
 
 export const mocks = {
   boolean: randomBoolean,
@@ -23,4 +24,6 @@ export const mocks = {
   stateType: randomStateType,
   string: randomString,
   taskRun: randomTaskRun,
+  workQueue: randomWorkQueue,
+  workQueueFilter: randomWorkQueueFilter,
 }
