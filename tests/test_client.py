@@ -774,6 +774,19 @@ class TestClientWorkQueues:
         assert isinstance(lookup, schemas.core.WorkQueue)
         assert lookup.name == "foo"
 
+    async def test_create_then_read_work_queue_by_name(self, orion_client):
+        queue_id = await orion_client.create_work_queue(name="foo")
+        assert isinstance(queue_id, UUID)
+
+        lookup = await orion_client.read_work_queue_by_name("foo")
+        assert isinstance(lookup, schemas.core.WorkQueue)
+        assert lookup.name == "foo"
+        assert lookup.id == queue_id
+
+    async def test_read_nonexistant_work_queue(self, orion_client):
+        with pytest.raises(httpx.HTTPStatusError):
+            await orion_client.read_work_queue_by_name("foo")
+
     async def test_get_runs_from_queue_includes(self, orion_client, deployment):
         blank_queue_id = await orion_client.create_work_queue(name="blank")
         assert isinstance(blank_queue_id, UUID)

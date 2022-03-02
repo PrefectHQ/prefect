@@ -749,6 +749,22 @@ class OrionClient:
             raise httpx.RequestError(str(response))
         return UUID(work_queue_id)
 
+    async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
+        """
+        Read a work queue by name.
+
+        Args:
+            name (str): a unique name for the work queue
+
+        Raises:
+            httpx.StatusError: if no work queue is found
+
+        Returns:
+            schemas.core.WorkQueue: a work queue API object
+        """
+        response = await self.get(f"/work_queues/name/{name}")
+        return schemas.core.WorkQueue.parse_obj(response.json())
+
     async def update_work_queue(self, id: UUID, **kwargs) -> bool:
         """
         Update properties of a work queue.
