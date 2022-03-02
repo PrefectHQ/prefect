@@ -268,4 +268,3 @@ class TestParsing:
         quoted_response = test_client.get(urllib.parse.quote(f"/{x}"))
 
         assert x == response.json() == quoted_response.json()
-        assert 1 == 0
