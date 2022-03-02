@@ -133,7 +133,7 @@ async def start(
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED`
-    telemetry: bool = SettingsOption(PREFECT_ORION_ANALYTICS_ENABLED),
+    analytics: bool = SettingsOption(PREFECT_ORION_ANALYTICS_ENABLED),
     late_runs: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED`
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
@@ -141,7 +141,7 @@ async def start(
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
-    server_env["PREFECT_ORION_ANALYTICS_ENABLED"] = str(telemetry)
+    server_env["PREFECT_ORION_ANALYTICS_ENABLED"] = str(analytics)
     server_env["PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
 
