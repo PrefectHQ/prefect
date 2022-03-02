@@ -54,6 +54,18 @@ class TestCreateWorkQueue:
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == 409
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            "work%queue",
+        ],
+    )
+    async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
+        response = await client.post("/work_queues/", json=dict(name=name))
+        assert response.status_code == 422
+        assert b"Name contains an invalid character" in response.content
+
 
 class TestUpdateWorkQueue:
     async def test_update_work_queue(
@@ -112,7 +124,14 @@ class TestReadWorkQueueByName:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "name", ["work queue", "work/queue", "work:queue", "work\queue", "work👍queue"]
+        "name",
+        [
+            "work queue",
+            "work:queue",
+            "work\queue",
+            "work👍queue",
+            "work|queue",
+        ],
     )
     async def test_read_work_queue_by_name_with_nonstandard_characters(
         self, client, name
@@ -123,6 +142,20 @@ class TestReadWorkQueueByName:
         response = await client.get(f"/work_queues/name/{name}")
         assert response.status_code == 200
         assert response.json()["id"] == work_queue_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            "work%queue",
+        ],
+    )
+    async def test_read_work_queue_by_name_with_invalid_characters_fails(
+        self, client, name
+    ):
+
+        response = await client.get(f"/work_queues/name/{name}")
+        assert response.status_code == 404
 
 
 class TestReadWorkQueues:
