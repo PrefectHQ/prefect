@@ -133,7 +133,9 @@ async def start(
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED`
-    analytics: bool = SettingsOption(PREFECT_ORION_ANALYTICS_ENABLED),
+    analytics: bool = SettingsOption(
+        PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
+    ),
     late_runs: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED`
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
