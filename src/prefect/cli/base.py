@@ -70,7 +70,7 @@ def version_callback(value: bool):
     if value:
         import prefect
 
-        console.print(prefect.version)
+        console.print(prefect.__version__)
         raise typer.Exit()
 
 
@@ -126,11 +126,13 @@ async def version():
     from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
     version_info = {
-        "Version": prefect.version,
+        "Version": prefect.__version__,
         "API version": ORION_API_VERSION,
         "Python version": platform.python_version(),
-        "Git commit": prefect.version_info["full-revisionid"][:8],
-        "Built": pendulum.parse(prefect.version_info["date"]).to_day_datetime_string(),
+        "Git commit": prefect.__version_info__["full-revisionid"][:8],
+        "Built": pendulum.parse(
+            prefect.__version_info__["date"]
+        ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
         "Profile": prefect.context.get_profile_context().name,
     }

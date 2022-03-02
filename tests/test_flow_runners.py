@@ -536,7 +536,7 @@ class TestSubprocessFlowRunner:
 
 class TestGetPrefectImageName:
     async def test_tag_includes_python_minor_version(self, monkeypatch):
-        monkeypatch.setattr("prefect.version", "2.0.0")
+        monkeypatch.setattr("prefect.__version__", "2.0.0")
         assert (
             get_prefect_image_name()
             == f"prefecthq/prefect:2.0.0-python{python_version_minor()}"
@@ -544,14 +544,14 @@ class TestGetPrefectImageName:
 
     @pytest.mark.parametrize("prerelease", ["a", "a5", "b1", "rc2"])
     async def test_tag_includes_prereleases(self, monkeypatch, prerelease):
-        monkeypatch.setattr("prefect.version", "2.0.0" + prerelease)
+        monkeypatch.setattr("prefect.__version__", "2.0.0" + prerelease)
         assert (
             get_prefect_image_name()
             == f"prefecthq/prefect:2.0.0{prerelease}-python{python_version_minor()}"
         )
 
     async def test_tag_detects_development(self, monkeypatch):
-        monkeypatch.setattr("prefect.version", "2.0.0+5.g6fcc2b9a")
+        monkeypatch.setattr("prefect.__version__", "2.0.0+5.g6fcc2b9a")
         monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
         assert get_prefect_image_name() == "prefecthq/prefect:dev-python3.10"
 
@@ -1023,7 +1023,7 @@ class TestDockerFlowRunner:
 
     @pytest.mark.service("docker")
     @pytest.mark.skipif(
-        MIN_COMPAT_PREFECT_VERSION > prefect.version.split("+")[0],
+        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
         reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
     )
     @pytest.mark.skipif(
@@ -1188,7 +1188,7 @@ class TestDockerFlowRunner:
 
         output = client.containers.run(tag, "prefect version")
         container_version = output.decode().strip()
-        test_run_version = prefect.version
+        test_run_version = prefect.__version__
 
         if container_version != test_run_version:
             # We are in a local run, just warn if the versions do not match

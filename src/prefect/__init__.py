@@ -3,8 +3,8 @@
 from . import _version
 import pathlib
 
-version_info = _version.get_versions()
-version = version_info["version"]
+__version_info__ = _version.get_versions()
+__version__ = __version_info__["version"]
 
 # The absolute path to this module
 __module_path__ = pathlib.Path(__file__).parent
