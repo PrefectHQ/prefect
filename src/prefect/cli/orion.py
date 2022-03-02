@@ -176,7 +176,10 @@ async def start(
 
 
 @orion_app.command()
-def kubernetes_manifest():
+def kubernetes_manifest(
+    image_tag: str = None,
+    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+):
     """
     Generates a Kubernetes manifest for deploying Orion to a cluster.
 
@@ -189,7 +192,8 @@ def kubernetes_manifest():
     )
     manifest = template.substitute(
         {
-            "image_name": get_prefect_image_name(),
+            "image_name": image_tag or get_prefect_image_name(),
+            "log_level": log_level,
         }
     )
     print(manifest)

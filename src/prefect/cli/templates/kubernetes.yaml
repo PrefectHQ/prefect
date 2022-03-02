@@ -15,7 +15,7 @@ spec:
       containers:
       - name: api
         image: ${image_name}
-        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--log-level", "DEBUG"]
+        command: ["prefect", "orion", "start", "--host", "0.0.0.0", "--log-level", "${log_level}"]
         imagePullPolicy: "IfNotPresent"
         ports:
         - containerPort: 4200
