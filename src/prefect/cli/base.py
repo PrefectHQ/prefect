@@ -3,8 +3,12 @@ Base `prefect` command-line application and utilities
 """
 import functools
 import os
+import platform
+import sys
+import textwrap
 from typing import TypeVar
 
+import pendulum
 import rich.console
 import typer
 import typer.core
@@ -67,7 +71,7 @@ def version_callback(value: bool):
     if value:
         import prefect
 
-        console.print(prefect.__version__)
+        console.print(prefect.version)
         raise typer.Exit()
 
 
@@ -116,8 +120,36 @@ def enter_profile_from_option(fn):
 @app.command()
 def version():
     """Get the current Prefect version."""
-    # TODO: expand this to a much richer display of version and system information
-    console.print(prefect.__version__)
+    from prefect.orion.api.server import ORION_API_VERSION
+
+    version_info = dict(
+        package_version=prefect.version,
+        api_version=ORION_API_VERSION,
+        python_version=platform.python_version(),
+        platform=sys.platform,
+        arch=platform.machine(),
+        profile=prefect.context.get_profile_context().name,
+        date=pendulum.parse(prefect.version_info["date"]).to_day_datetime_string(),
+        commit=prefect.version_info["full-revisionid"][:8],
+    )
+    version_string = textwrap.dedent(
+        """
+        Version:           {package_version}
+        API version:       {api_version}
+        Python version:    {python_version}
+        Git commit:        {commit}
+        Built:             {date}
+        OS/Arch:           {platform}/{arch}
+        Profile:           {profile}
+        """.format(
+            **version_info
+        )
+    ).lstrip()
+
+    # TODO: Query the API for version info as well and split into Client/Server sections
+    #       like `docker version` does.
+
+    console.print(version_string)
 
 
 def exit_with_error(message, code=1, **kwargs):

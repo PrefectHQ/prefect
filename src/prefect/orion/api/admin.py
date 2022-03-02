@@ -30,7 +30,7 @@ async def read_settings() -> prefect.settings.Settings:
 @router.get("/version")
 async def read_version() -> str:
     """Returns the Prefect version number"""
-    return prefect.__version__
+    return prefect.version
 
 
 @router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)

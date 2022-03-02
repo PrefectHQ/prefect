@@ -27,7 +27,7 @@ from prefect.orion.exceptions import ObjectNotFoundError
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
-API_VERSION = prefect.__version__
+API_VERSION = prefect.version
 ORION_API_VERSION = "0.3.0"
 
 logger = get_logger("orion")
