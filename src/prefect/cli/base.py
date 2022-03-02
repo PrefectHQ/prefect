@@ -5,7 +5,6 @@ import functools
 import os
 import platform
 import sys
-import textwrap
 from typing import TypeVar
 
 import pendulum
@@ -118,38 +117,51 @@ def enter_profile_from_option(fn):
 
 
 @app.command()
-def version():
+async def version():
     """Get the current Prefect version."""
+    import sqlite3
+
     from prefect.orion.api.server import ORION_API_VERSION
+    from prefect.orion.utilities.database import get_dialect
+    from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
-    version_info = dict(
-        package_version=prefect.version,
-        api_version=ORION_API_VERSION,
-        python_version=platform.python_version(),
-        platform=sys.platform,
-        arch=platform.machine(),
-        profile=prefect.context.get_profile_context().name,
-        date=pendulum.parse(prefect.version_info["date"]).to_day_datetime_string(),
-        commit=prefect.version_info["full-revisionid"][:8],
-    )
-    version_string = textwrap.dedent(
-        """
-        Version:           {package_version}
-        API version:       {api_version}
-        Python version:    {python_version}
-        Git commit:        {commit}
-        Built:             {date}
-        OS/Arch:           {platform}/{arch}
-        Profile:           {profile}
-        """.format(
-            **version_info
-        )
-    ).lstrip()
+    version_info = {
+        "Version": prefect.version,
+        "API version": ORION_API_VERSION,
+        "Python version": platform.python_version(),
+        "Git commit": prefect.version_info["full-revisionid"][:8],
+        "Built": pendulum.parse(prefect.version_info["date"]).to_day_datetime_string(),
+        "OS/Arch": f"{sys.platform}/{platform.machine()}",
+        "Profile": prefect.context.get_profile_context().name,
+    }
 
-    # TODO: Query the API for version info as well and split into Client/Server sections
-    #       like `docker version` does.
+    try:
+        async with prefect.get_client() as client:
+            connectable = await client.api_healthcheck()
+            is_ephemeral = client._ephemeral_app is not None
+    except Exception as exc:
+        version_info["Server type"] = "<client error>"
+    else:
+        version_info["Server type"] = "ephemeral" if is_ephemeral else "hosted"
 
-    console.print(version_string)
+    # TODO: Consider adding an API route to retrieve this information?
+    if is_ephemeral:
+        database = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value()).name
+        version_info["Server"] = {"Database": database}
+        if database == "sqlite":
+            version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
+
+    def display(object: dict, nesting: int = 0):
+        # Recursive display of a dictionary with nesting
+        for key, value in object.items():
+            if isinstance(value, dict):
+                console.print(key)
+                return display(value, nesting + 2)
+            key += ":"
+            prefix = " " * nesting
+            console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+
+    display(version_info)
 
 
 def exit_with_error(message, code=1, **kwargs):
