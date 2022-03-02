@@ -137,7 +137,6 @@ async def version():
 
     try:
         async with prefect.get_client() as client:
-            connectable = await client.api_healthcheck()
             is_ephemeral = client._ephemeral_app is not None
     except Exception as exc:
         version_info["Server type"] = "<client error>"
@@ -154,10 +153,10 @@ async def version():
     def display(object: dict, nesting: int = 0):
         # Recursive display of a dictionary with nesting
         for key, value in object.items():
+            key += ":"
             if isinstance(value, dict):
                 console.print(key)
                 return display(value, nesting + 2)
-            key += ":"
             prefix = " " * nesting
             console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
 
