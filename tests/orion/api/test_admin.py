@@ -11,8 +11,8 @@ async def test_hello_world(client):
 async def test_version(client):
     response = await client.get("/admin/version")
     assert response.status_code == 200
-    assert prefect.__version__
-    assert response.json() == prefect.__version__
+    assert prefect.version
+    assert response.json() == prefect.version
 
 
 class TestSettings:

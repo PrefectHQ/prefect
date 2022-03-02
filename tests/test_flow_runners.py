@@ -1023,7 +1023,7 @@ class TestDockerFlowRunner:
 
     @pytest.mark.service("docker")
     @pytest.mark.skipif(
-        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        MIN_COMPAT_PREFECT_VERSION > prefect.version.split("+")[0],
         reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
     )
     @pytest.mark.skipif(
@@ -1188,7 +1188,7 @@ class TestDockerFlowRunner:
 
         output = client.containers.run(tag, "prefect version")
         container_version = output.decode().strip()
-        test_run_version = prefect.__version__
+        test_run_version = prefect.version
 
         if container_version != test_run_version:
             # We are in a local run, just warn if the versions do not match
