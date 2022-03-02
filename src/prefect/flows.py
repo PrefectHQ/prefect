@@ -90,6 +90,10 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
+        # names must be URL-compatible
+        if name and any(c in name for c in ["/", "%"]):
+            raise ValueError("Names can not contain '/' or '%'")
+
         self.name = name or fn.__name__.replace("_", "-")
         task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (

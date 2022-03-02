@@ -149,6 +149,12 @@ class DeploymentSpec(PrefectBaseModel):
             )
         return values
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        if any(c in v for c in ["/", "%"]):
+            raise ValueError("Names can not contain '/' or '%'")
+        return v
+
     class Config:
         arbitrary_types_allowed = True
 
