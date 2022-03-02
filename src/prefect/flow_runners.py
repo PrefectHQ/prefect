@@ -76,7 +76,7 @@ def get_prefect_image_name(
         python_version: An optional override for the Python version; must be at the
             minor level e.g. '3.9'.
     """
-    parsed_version = (prefect_version or prefect.version).split("+")
+    parsed_version = (prefect_version or prefect.__version__).split("+")
     prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
 
     python_version = python_version or python_version_minor()
