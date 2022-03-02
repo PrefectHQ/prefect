@@ -58,8 +58,8 @@ async def test_invalid_names(name):
 
 
 @pytest.mark.parametrize("version", invalid_names)
-async def test_invalid_block_spec_version(name):
+async def test_invalid_block_spec_version(version):
     with pytest.raises(
         pydantic.ValidationError, match="(Version contains an invalid character)"
     ):
-        assert schemas.core.BlockSpec(name="valid name", version=name)
+        assert schemas.core.BlockSpec(name="valid name", version=version)
