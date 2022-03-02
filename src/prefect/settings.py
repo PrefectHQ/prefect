@@ -387,10 +387,10 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
-PREFECT_ORION_TELEMETRY_ENABLED = Setting(
+PREFECT_ORION_ANALYTICS_ENABLED = Setting(
     bool,
     default=True,
-    description="""If True, Orion sends anonymous data (e.g. count of flow runs) to Prefect to help us improve.""",
+    description="""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve.""",
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
