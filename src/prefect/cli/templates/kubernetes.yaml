@@ -21,12 +21,12 @@ spec:
         - containerPort: 4200
       - name: agent
         image: ${image_name}
-        command: ["prefect", "agent", "start"]
+        command: ["prefect", "agent", "start", "kubernetes"]
         imagePullPolicy: "IfNotPresent"
         env:
           - name: PREFECT_API_URL
             value: http://orion:4200/api
-          - name: PREFECT_TEMP_KUBERNETES_WORK_QUEUE
+          - name: PREFECT_EXPERIMENTAL_CREATE_WORK_QUEUE
             value: "1"
 
 ---
