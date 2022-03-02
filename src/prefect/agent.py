@@ -7,6 +7,7 @@ from uuid import UUID
 
 import anyio
 import anyio.to_process
+import httpx
 import pendulum
 from anyio.abc import TaskGroup
 
@@ -23,14 +24,42 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
-    def __init__(self, work_queue_id: UUID, prefetch_seconds: int = None) -> None:
+    def __init__(
+        self,
+        work_queue_id: UUID = None,
+        work_queue_name: str = None,
+        prefetch_seconds: int = None,
+    ) -> None:
+        if not work_queue_id and not work_queue_name:
+            raise ValueError(
+                "Either work_queue_id or work_queue_name must be provided."
+            )
+        if work_queue_id and work_queue_name:
+            raise ValueError("Provide only one of work_queue_id and work_queue_name.")
         self.work_queue_id = work_queue_id
+        self.work_queue_name = work_queue_name
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
+
+    async def update_work_queue_id_from_name(self) -> bool:
+        """
+        For agents that were provided a work_queue_name, rather than a work_queue_id,
+        this function will retrieve the work queue ID corresponding to that name and assign
+        it to `work_queue_id`. If no matching queue is found, a warning is logged
+        and `work_queue_id = None`.
+        """
+        if not self.work_queue_name:
+            raise ValueError("No work queue name provided.")
+        try:
+            work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
+            self.work_queue_id = work_queue.id
+        except httpx.HTTPStatusError:
+            self.logger.warn(f'No work queue found named "{self.work_queue_name}"')
+            self.work_queue_id = None
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
@@ -44,9 +73,22 @@ class OrionAgent:
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
-        submittable_runs = await self.client.get_runs_in_work_queue(
-            id=self.work_queue_id, limit=10, scheduled_before=before
-        )
+
+        # if a work queue name was provided, try to load the corresponding ID
+        if self.work_queue_name:
+            await self.update_work_queue_id_from_name()
+            if not self.work_queue_id:
+                return []
+
+        try:
+            submittable_runs = await self.client.get_runs_in_work_queue(
+                id=self.work_queue_id, limit=10, scheduled_before=before
+            )
+        except httpx.HTTPStatusError:
+            raise ValueError(
+                f"No work queue found with id {self.work_queue_id}"
+            ) from None
+
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
 
