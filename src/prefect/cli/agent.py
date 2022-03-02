@@ -49,19 +49,6 @@ async def start(
         work_queue_id = None
         work_queue_name = work_queue
 
-    if os.environ.get("PREFECT_EXPERIMENTAL_CREATE_WORK_QUEUE") and work_queue_name:
-        async with get_client() as client:
-            try:
-                work_queue = await client.read_work_queue_by_name(work_queue_name)
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                    work_queue = None
-                else:
-                    raise
-            if not work_queue:
-                await client.create_work_queue(name=work_queue_name)
-                console.print(f"Created work queue {work_queue_name!r}.")
-
     if not hide_welcome:
         if api:
             console.print(f"Starting agent connected to {api}...")
