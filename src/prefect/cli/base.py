@@ -17,7 +17,7 @@ from prefect.utilities.asyncio import is_async_fn, sync_compatible
 T = TypeVar("T")
 
 
-def SettingsOption(setting: Setting) -> typer.Option:
+def SettingsOption(setting: Setting, **kwargs) -> typer.Option:
     """Custom `typer.Option` factory to load the default value from settings"""
 
     return typer.Option(
@@ -28,6 +28,7 @@ def SettingsOption(setting: Setting) -> typer.Option:
         # source is from the environment or profile, but typer does not support this
         # yet. See https://github.com/tiangolo/typer/issues/354
         show_default=f"from {setting.name}",
+        **kwargs,
     )
 
 
