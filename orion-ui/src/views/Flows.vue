@@ -4,12 +4,21 @@
       Flows
     </PageHeader>
 
-    <FlowsPageFlowList :filter="filter" />
+    <m-loader :loading="loading" />
+
+    <template v-if="empty">
+      <FlowsPageFlowListEmptyState />
+    </template>
+
+    <template v-else>
+      <FlowsPageFlowList :flows="flows" />
+    </template>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { FlowsPageFlowList, PageHeader, UnionFilters, workspaceDashboardKey } from '@prefecthq/orion-design'
+  import { FlowsPageFlowList, PageHeader, UnionFilters, flowsApi, workspaceDashboardKey, FlowsPageFlowListEmptyState } from '@prefecthq/orion-design'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
 
   // todo: create a routes object with methods like nebula has
@@ -22,4 +31,12 @@
   const filter = computed<UnionFilters>(() => ({
     sort: sort.value,
   }))
+
+  const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], {
+    interval: 30000,
+  })
+
+  const flows = computed(() => flowsSubscription.response.value ?? [])
+  const empty = computed(() => flowsSubscription.response.value !== undefined && flows.value.length === 0)
+  const loading = computed(() => flowsSubscription.response.value === undefined)
 </script>

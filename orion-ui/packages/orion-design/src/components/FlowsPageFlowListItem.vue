@@ -9,7 +9,7 @@
         {{ deploymentsCount.toLocaleString() }}
         {{ toPluralString('Deployment', deploymentsCount) }}
       </m-tag>
-      <m-tags class="flows-page-flow-list-item__tags" :tags="['test', 'another', 'yet another', 'hello!!!!!!!!']" />
+      <m-tags class="flows-page-flow-list-item__tags" :tags="flow.tags" />
     </div>
 
     <FilterButton class="flows-page-flow-list-item__recent" :route="route" :filters="recentFlowRunsFilters">
@@ -84,6 +84,7 @@
 @use 'sass:map';
 
 .flows-page-flow-list-item {
+  text-align: left;
   display: grid;
   gap: var(--m-1);
   grid-template-areas: 'name'
