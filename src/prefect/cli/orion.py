@@ -113,7 +113,7 @@ async def open_process_and_stream_output(
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
     process = await anyio.open_process(
-        command, stderr=subprocess.STDOUT, stdout=sys.stdout, **kwargs
+        command, stderr=sys.stderr, stdout=sys.stdout, **kwargs
     )
     if task_status:
         task_status.started()
@@ -147,6 +147,7 @@ async def start(
     server_env["PREFECT_ORION_ANALYTICS_ENABLED"] = str(analytics)
     server_env["PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
+    server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
     base_url = f"http://{host}:{port}"
 
@@ -163,8 +164,6 @@ async def start(
                     str(host),
                     "--port",
                     str(port),
-                    "--log-level",
-                    log_level.lower(),
                 ],
                 env=server_env,
             )
