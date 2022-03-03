@@ -82,7 +82,9 @@ class KubernetesRun(RunConfig):
     the default).
 
     Note: use the default
-    [job template](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml)
+    [job template](
+    https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/
+    job_template.yaml)
     as a base to build on. Once a `job_template` is specified, the default is no longer
     used:
 
