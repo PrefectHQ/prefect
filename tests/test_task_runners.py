@@ -424,7 +424,7 @@ class TestTaskRunnerParallelism:
 
         if sys.platform != "darwin":
             # CI machines are slow
-            sleep_time += 1
+            sleep_time += 1.5
 
         if isinstance(runner, RayTaskRunner):
             # Ray is slow
