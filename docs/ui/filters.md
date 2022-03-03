@@ -87,7 +87,7 @@ String values are always applied as a contains filter, unless they are surrounde
 | `flow_run_older:` | `fro:` | Returns all flow runs that started before the relative period using h (hour), d (day), w (week), m (month), and y (year). |
 | `flow_run_state:` | `frs:` | Returns all flow runs with the specified states. |
 | `flow_run_tag:` | `frt:` | Returns all flow runs with all of the specified tags. |
-| <nobr>`flow_run_upcoming:`</nobr> | `fru:` | Returns all flow runs scheduled to start before the relative period using h (hour), d (day), w (week), m | (month), and y (year). |
+| <span class="no-wrap">`flow_run_upcoming:`</span> | <span class="no-wrap">`fru:`</span> | Returns all flow runs scheduled to start before the relative period using h (hour), d (day), w (week), m | (month), and y (year). |
 | `flow_tag:` | `ft:` | Returns all flows with all of the specified tags. |
 | `tag:` | `t:` | Returns all entities with the specified tags. |
 | `task_run:` | `tr:` | Returns all task runs with names that contain the string. |
