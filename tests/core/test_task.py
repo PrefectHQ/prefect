@@ -828,12 +828,19 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
 
 
 def test_task_call_with_self_succeeds():
-    from pathlib import Path
+    import dataclasses
+
+    @dataclasses.dataclass
+    class TestClass:
+        count: int
+
+        def increment(self):
+            self.count = self.count + 1
 
     seconds_task = task(
-        Path.is_absolute, target="{{task_slug}}_{{map_index}}", result=LocalResult()
+        TestClass.increment, target="{{task_slug}}_{{map_index}}", result=LocalResult()
     )
-    initial = Path("foo")
+    initial = TestClass(count=0)
 
     with Flow("test") as flow:
         seconds_task(initial)
