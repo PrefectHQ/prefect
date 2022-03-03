@@ -112,7 +112,7 @@ class TestReadWorkQueueByName:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "name", ["work queue", "work/queue", "work:queue", "work\queue", "work👍queue"]
+        "name", ["work queue", "work/queue", "work:queue", "work\\queue", "work👍queue"]
     )
     async def test_read_work_queue_by_name_with_nonstandard_characters(
         self, client, name
