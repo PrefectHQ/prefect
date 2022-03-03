@@ -22,7 +22,7 @@
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
     "vue": "^3.0.5",
-    "vue-router": "^4.0.0-0"
+    "vue-router": "^4.0.13"
   },
   "devDependencies": {
     "@babel/helper-compilation-targets": "^7.16.7",
