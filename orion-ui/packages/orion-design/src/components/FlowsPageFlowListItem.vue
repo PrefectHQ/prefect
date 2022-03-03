@@ -3,21 +3,19 @@
     <h2 class="flows-page-flow-list-item__name">
       {{ flow.name }}
     </h2>
-    <div class="d-flex align-bottom mt-1">
-      <div class="font-weight-semibold">
-        <i class="pi pi-map-pin-line pi-sm" />
-        <span>
-          {{ deploymentsCount.toLocaleString() }}
-          {{ toPluralString('Deployment', deploymentsCount) }}</span>
-      </div>
-      <m-tags :tags="flow.tags" class="ml-1" />
+
+    <div class="flows-page-flow-list-item__details">
+      <m-tag icon="pi-map-pin-line" flat>
+        {{ deploymentsCount.toLocaleString() }}
+        {{ toPluralString('Deployment', deploymentsCount) }}
+      </m-tag>
+      <m-tags class="flows-page-flow-list-item__tags" :tags="['test', 'another', 'yet another', 'hello!!!!!!!!']" />
     </div>
-    <div v-if="media.sm" class="flows-page-flow-list-item__content ml-auto nowrap">
-      <FilterButton :route="route" :filters="recentFlowRunsFilters">
-        {{ recentFlowRunsCount.toLocaleString() }}
-        {{ toPluralString('Recent Run', recentFlowRunsCount) }}
-      </FilterButton>
-    </div>
+
+    <FilterButton class="flows-page-flow-list-item__recent" :route="route" :filters="recentFlowRunsFilters">
+      {{ recentFlowRunsCount.toLocaleString() }}
+      {{ toPluralString('Recent Run', recentFlowRunsCount) }}
+    </FilterButton>
   </ListItem>
 </template>
 
@@ -33,7 +31,6 @@
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
-  import { media } from '@/utilities/media'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
@@ -84,20 +81,50 @@
 </script>
 
 <style lang="scss">
+@use 'sass:map';
+
 .flows-page-flow-list-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: grid;
+  gap: var(--m-1);
+  grid-template-areas: 'name'
+                       'recent'
+                       'details';
+
+  @media only screen and (min-width: map.get($breakpoints, 'xs')) {
+    grid-template-columns: 1fr 130px;
+    grid-template-areas: 'name    recent'
+                         'details details';
+  }
+
+  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
+    grid-template-areas: 'name    recent'
+                         'details recent';
+  }
 }
 
 .flows-page-flow-list-item__name {
-  flex: 1;
-  min-width: 0;
+  grid-area: name;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  > * {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.flows-page-flow-list-item__details {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--m-1);
+  grid-area: details;
+}
+
+.flows-page-flow-list-item__recent {
+  grid-area: recent;
+
+  @media only screen and (min-width: map.get($breakpoints, 'xs')) {
+    justify-self: end;
   }
+}
+
+.flows-page-flow-list-item__tags {
+  overflow: hidden;
 }
 </style>
