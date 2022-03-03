@@ -13,7 +13,7 @@ from prefect.utilities.testing import temporary_settings
 
 @pytest.fixture()
 def app():
-    return create_app()
+    return create_app(ephemeral=True)
 
 
 @pytest.fixture
