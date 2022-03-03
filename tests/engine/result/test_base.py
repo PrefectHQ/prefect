@@ -75,5 +75,3 @@ def test_result_format_template_from_context():
         assert new.location == "indeed/functional/yes?"
         assert res.location == "{this}/{works}/yes?"
         assert new != res
-
-

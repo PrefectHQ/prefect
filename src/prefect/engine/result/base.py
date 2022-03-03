@@ -27,7 +27,6 @@ from typing import Any
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
-import prefect
 
 
 # Subclass of `NotImplementedError` to make it easier to distinguish this error
