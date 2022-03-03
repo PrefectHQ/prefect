@@ -12,7 +12,6 @@ from typing import Any, Sequence, Union
 import anyio
 import anyio.abc
 import typer
-from anyio.streams.text import TextReceiveStream
 
 import prefect
 from prefect.cli.base import (
@@ -37,6 +36,8 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
+    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncio import run_sync_in_worker_thread
@@ -132,11 +133,11 @@ async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    scheduler: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED`
+    scheduler: bool = SettingsOption(PREFECT_ORION_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
         PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
     ),
-    late_runs: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED`
+    late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
