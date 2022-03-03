@@ -1,6 +1,6 @@
 """
 The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
-The threshold for a late run can be configured by changing `PREFECT_ORION_SERVICES_MARK_LATE_AFTER`.
+The threshold for a late run can be configured by changing `PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS`.
 """
 
 import asyncio
