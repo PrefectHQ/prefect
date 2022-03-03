@@ -36,7 +36,7 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
-    PREFECT_ORION_SERVICES_MARK_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_ORION_UI_ENABLED,
 )
@@ -139,7 +139,7 @@ async def start(
     analytics: bool = SettingsOption(
         PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
     ),
-    late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_MARK_LATE_RUNS_ENABLED),
+    late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
