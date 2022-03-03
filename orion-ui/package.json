@@ -27,7 +27,7 @@
   "devDependencies": {
     "@babel/helper-compilation-targets": "^7.16.7",
     "@babel/runtime": "^7.17.2",
-    "@prefecthq/eslint-config": "1.0.14",
+    "@prefecthq/eslint-config": "1.0.15",
     "@types/d3": "^7.1.0",
     "@types/expect-puppeteer": "^4.4.7",
     "@types/faker": "^5.5.9",
