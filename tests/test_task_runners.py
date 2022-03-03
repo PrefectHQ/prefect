@@ -421,7 +421,7 @@ class TestTaskRunnerParallelism:
         A larger value will decrease brittleness but increase test times
         """
         # CI machines are slow so we add time
-        sleep_time = 0.25 if sys.platform == "darwin" else 1.5
+        sleep_time = 0.25 if sys.platform == "darwin" else 1.75
 
         # Ray is slow
         if isinstance(runner, RayTaskRunner):
