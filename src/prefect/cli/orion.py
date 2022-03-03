@@ -127,6 +127,8 @@ async def open_process_and_stream_output(
             except Exception:
                 pass  # Process may already be terminated
 
+            await process.aclose()
+
 
 @orion_app.command()
 async def start(
