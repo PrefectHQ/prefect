@@ -1,4 +1,4 @@
-import { RouteGuardExecutioner } from '@prefecthq/orion-design/services'
+import { RouteGuardExecutioner } from '@prefecthq/orion-design'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
@@ -17,6 +17,11 @@ const routes: RouteRecordRaw[] = [
         visible: true,
       },
     },
+  },
+  {
+    path: '/flows',
+    name: 'Flows',
+    component: () => import('../views/Flows.vue'),
   },
   {
     path: '/flow-run/:id',
