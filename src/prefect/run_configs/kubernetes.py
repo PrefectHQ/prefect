@@ -80,7 +80,7 @@ class KubernetesRun(RunConfig):
     
     Use a custom `job_template` with a custom label (or any other necessary changes to the default).
     
-    (_Note_: use the default [job template](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml) as a base to build on. Once a `job_template` is specified, the default is no longer used):
+    Note: use the default [job template](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml) as a base to build on. Once a `job_template` is specified, the default is no longer used:
     
     ```python
     flow.run_config = KubernetesRun(
