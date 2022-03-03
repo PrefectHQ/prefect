@@ -16,7 +16,10 @@ For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster run w
 
 ## Requirements
 
-To run the steps in this tutorial, all you'll need is `kubectl` configured to connect to a cluster.
+To run the steps in this tutorial, all you'll need is a few easily configured prerequisites: 
+
+- `kubectl` configured to connect to a cluster.
+- A [Storage](/concepts/storage/) configuration that is not Local Storage or Temporary Local Storage.
 
 An easy way to get started is to use [Docker Desktop](https://www.docker.com/products/docker-desktop), turning on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration.
 
