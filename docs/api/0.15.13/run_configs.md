@@ -162,7 +162,7 @@ flow.run_config = KubernetesRun(
 
 ```
 
-Augment the `job_template` with a custom label (use the default [job template](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml). Once a `job_template` is specified, the default is no longer used):
+Augment the `job_template` with a custom label (use the default [job template](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/agent/kubernetes/job_template.yaml) as a base to build on. Once a `job_template` is specified, the default is no longer used):
 
 
 ```python
