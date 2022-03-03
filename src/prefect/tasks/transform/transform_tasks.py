@@ -1,4 +1,5 @@
 from transform import MQLClient
+import os
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -119,4 +120,22 @@ class TrasformCreateMaterialization(Task):
         Returns:
             - TODO
         """
-        pass
+        # Raise error if both api_key and api_key_env_var are missing
+        if not (api_key or api_key_env_var):
+            raise ValueError()
+        
+        # Raise error if api_key is missing and env var is not found
+        if not api_key and api_key_env_var not in os.environ.keys():
+            raise ValueError()
+        
+        mql_api_key = api_key or os.environ[api_key_env_var]
+
+        # Raise error if both mql_server_url and mql_server_url_env_var are missing
+        if not (mql_server_url or mql_server_url_env_var):
+            raise ValueError()
+        
+        # Raise error if mql_server_url is missing and env var is not found
+        if not mql_server_url and mql_server_url_env_var not in os.environ.keys():
+            raise ValueError()
+        
+        mql_url = mql_server_url or os.environ[mql_server_url_env_var]
