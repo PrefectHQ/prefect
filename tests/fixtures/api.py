@@ -74,7 +74,7 @@ async def hosted_orion_api():
         ],
         env=env,
         stdout=sys.stdout,
-        stderr=subprocess.STDOUT,
+        stderr=sys.stderr,
     )
 
     api_url = "http://localhost:2222/api"
