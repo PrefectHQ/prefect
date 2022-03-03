@@ -420,12 +420,18 @@ class TestTaskRunnerParallelism:
         Amount of time to sleep before writing 'foo'
         A larger value will decrease brittleness but increase test times
         """
-        # CI machines are slow so we add time
-        sleep_time = 0.25 if sys.platform == "darwin" else 1.75
+        sleep_time = 0.25
 
-        # Ray is slow
+        if sys.platform != "darwin":
+            # CI machines are slow
+            sleep_time += 1
+
         if isinstance(runner, RayTaskRunner):
+            # Ray is slow
             sleep_time += 1.5
+        elif isinstance(runner, ConcurrentTaskRunner):
+            # Account for thread overhead
+            sleep_time += 0.5
 
         return sleep_time
 
