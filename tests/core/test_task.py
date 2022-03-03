@@ -825,3 +825,15 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
         "If you're trying to run this task outside of a Flow context, "
         f"you need to call {run_call}" in str(exc_info)
     )
+
+
+def test_task_call_with_self_succeeds():
+    from pathlib import Path
+
+    seconds_task = task(Path.is_absolute, target="{{task_slug}}_{{map_index}}", result=LocalResult())
+    initial = Path("foo")
+
+    with Flow("test") as flow:
+        seconds_task(initial)
+        assert flow.run().is_successful()
+
