@@ -42,7 +42,7 @@
     "date-fns": "^2.28.0",
     "eslint": "^8.10.0",
     "faker": "^5.5.3",
-    "jest": "^27.3.1",
+    "jest": "^27.5.1",
     "jest-dev-server": "^6.0.0",
     "jest-puppeteer": "^6.0.0",
     "miragejs": "^0.1.43",
