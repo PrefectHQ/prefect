@@ -1,4 +1,6 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
+import { InjectionKey } from 'vue'
 import { DateString } from '..'
 import { FlowRun, RunHistory, StateHistory, StateType, IFlowRunnerResponse, FlowRunGraph, IFlowRunGraphResponse } from '@/models'
 import { Api, Route } from '@/services/Api'
@@ -158,4 +160,6 @@ export class FlowRunsApi extends Api {
 
 }
 
-export const flowRunsApi = new FlowRunsApi()
+export const flowRunsApi = createActions(new FlowRunsApi())
+
+export const getFlowRunsCountKey: InjectionKey<FlowRunsApi['getFlowRunsCount']> = Symbol()
