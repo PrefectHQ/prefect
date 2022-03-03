@@ -12,14 +12,14 @@
         <slot>
           <router-link :to="link">
             <m-button color="primary" miter icon="pi-add-line">
-            {{ buttonText }}
+              {{ buttonText }}
             </m-button>
           </router-link>
         </slot>
-        
-       
       </div>
-      <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
+      <slot name="example">
+        <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
+      </slot>
     </div>
   </m-card>
 </template>
@@ -33,7 +33,7 @@
     props: {
       buttonText: {
         type: String,
-        required: true,
+        default: '',
       },
 
       header: {
@@ -47,15 +47,15 @@
       },
 
       link: {
-        type:String,
-        required: true,
+        type: String,
+        default: '',
       },
 
       imagePath: {
         type: String,
-        required: true,
+        default: '',
       },
-    }
+    },
   })
 </script>
 
