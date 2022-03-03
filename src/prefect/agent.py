@@ -59,7 +59,9 @@ class OrionAgent:
             return work_queue.id
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                self.logger.warn(f"No work queue found named {self.work_queue_name!r}")
+                self.logger.warning(
+                    f"No work queue found named {self.work_queue_name!r}"
+                )
                 return None
             else:
                 raise
