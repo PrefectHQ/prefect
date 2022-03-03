@@ -5,7 +5,8 @@ Prefect integrates with Docker via the [flow runner interface](/concepts/flow-ru
 
 ## Requirements
 
-- The [Docker Engine](https://docs.docker.com/engine/) must be installed and running on the same machine as your agent.
+- [Docker Engine](https://docs.docker.com/engine/) must be installed and running on the same machine as your agent.
+- A [Storage](/concepts/storage/) configuration that is not Local Storage or Temporary Local Storage.
 - You must run a standalone Orion API server (`prefect orion start`).
 
 ## Your first Docker deployment
@@ -20,7 +21,6 @@ from prefect.flow_runners import DockerFlowRunner
 @flow
 def my_flow():
     print("Hello from Docker!")
-
 
 DeploymentSpec(
     name="example",
@@ -61,7 +61,7 @@ You should see a container with a name matching your flow run name.
 
 When you create a deployment with a Docker flow runner, the container image defaults to a Prefect image. This image has the `prefect` package preinstalled.
 
-We ensure that the Prefect and Python versions used to create the deployment are used when the deployment is run. For example, if using Prefect `2.0a7` and Python `3.8`, we will generate the image tag `prefecthq/prefect:2.0a7-python3.8`.
+We ensure that the Prefect and Python versions used to create the deployment are used when the deployment is run. For example, if using Prefect `2.0a13` and Python `3.8`, we will generate the image tag `prefecthq/prefect:2.0a7-python3.8`.
 
 Often, you will want to use your own Docker image to run your flow. This image may have additional requirements preinstalled.
 
