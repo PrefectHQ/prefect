@@ -41,6 +41,8 @@ class MarkLateRuns(LoopService):
 
         self.batch_size: int = 100
 
+        raise RuntimeError("Late runs should be disabled!")
+
     @inject_db
     async def run_once(self, db: OrionDBInterface):
         """
@@ -49,6 +51,7 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
+
         session = await db.session()
         async with session:
             async with session.begin():
