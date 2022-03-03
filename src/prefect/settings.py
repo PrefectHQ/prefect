@@ -354,7 +354,7 @@ PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
     this often. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_MARK_LATE_AFTER = Setting(
+PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
     default=timedelta(seconds=5),
     description="""The late runs service will mark runs as late after they

@@ -15,8 +15,8 @@ from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
 from prefect.orion.utilities.database import date_add, now
 from prefect.settings import (
+    PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS,
-    PREFECT_ORION_SERVICES_MARK_LATE_AFTER,
 )
 
 
@@ -36,12 +36,10 @@ class MarkLateRuns(LoopService):
 
         # mark runs late if they are this far past their expected start time
         self.mark_late_after: datetime.timedelta = (
-            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.value()
+            PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
         )
 
         self.batch_size: int = 100
-
-        raise RuntimeError("Late runs should be disabled!")
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
