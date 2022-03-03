@@ -235,17 +235,17 @@ class ECSAgent(Agent):
         if not self.run_task_kwargs.get("capacityProviderStrategy"):
             self.launch_type = launch_type.upper() if launch_type else "FARGATE"
 
-            self.logger.error(
+            self.logger.debug(
                 "No launch type or capacity provider given. Setting launch type to FARGATE.",
             )
-            # If running on fargate, auto-configure `networkConfiguration` for the
-            # user if they didn't configure it themselves.
-        if not self.run_task_kwargs.get("networkConfiguration"):
-            if self.launch_type:
-                if self.launch_type == "FARGATE":
-                    self.run_task_kwargs[
-                        "networkConfiguration"
-                    ] = self.infer_network_configuration()
+        # If running on fargate, auto-configure `networkConfiguration` for the
+        # user if they didn't configure it themselves.
+        if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
+            "networkConfiguration"
+        ):
+            self.run_task_kwargs[
+                "networkConfiguration"
+            ] = self.infer_network_configuration()
 
     def infer_network_configuration(self) -> dict:
         """Infer default values for `networkConfiguration`.
@@ -448,7 +448,6 @@ class ECSAgent(Agent):
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
         # Use launchType only if capacity provider is not specified
-
         if not out.get("capacityProviderStrategy"):
             out["launchType"] = self.launch_type
 
