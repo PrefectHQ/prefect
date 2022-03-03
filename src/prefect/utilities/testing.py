@@ -78,4 +78,7 @@ def assert_does_not_warn():
     """
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        yield
+        try:
+            yield
+        except Warning as warning:
+            raise AssertionError(f"Warning was raised. {warning!r}") from warning
