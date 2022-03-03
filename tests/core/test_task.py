@@ -830,10 +830,11 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
 def test_task_call_with_self_succeeds():
     from pathlib import Path
 
-    seconds_task = task(Path.is_absolute, target="{{task_slug}}_{{map_index}}", result=LocalResult())
+    seconds_task = task(
+        Path.is_absolute, target="{{task_slug}}_{{map_index}}", result=LocalResult()
+    )
     initial = Path("foo")
 
     with Flow("test") as flow:
         seconds_task(initial)
         assert flow.run().is_successful()
-

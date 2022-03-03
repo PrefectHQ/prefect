@@ -738,7 +738,7 @@ class TaskRunner(Runner):
 
             # self can't be used as a formatting parameter because it would ruin all method calls such as
             # result.exists() by providing two values of self
-            formatting_kwargs.pop("self")
+            formatting_kwargs.pop("self", None)
 
             if not isinstance(target, str):
                 target = target(**formatting_kwargs)
