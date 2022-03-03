@@ -5,7 +5,7 @@ Defines the Orion FastAPI app.
 import asyncio
 import os
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
 from fastapi import Depends, FastAPI, Request, status
@@ -174,17 +174,30 @@ def create_orion_api(
     return api_app
 
 
-APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
+APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
 def create_app(
-    settings: prefect.settings.Settings = None, ignore_cache: bool = False
+    settings: prefect.settings.Settings = None,
+    ephemeral: bool = False,
+    ignore_cache: bool = False,
 ) -> FastAPI:
-    """Create an FastAPI app that includes the Orion API and UI"""
-    settings = settings or prefect.settings.get_current_settings()
+    """
+    Create an FastAPI app that includes the Orion API and UI
 
-    if settings in APP_CACHE and not ignore_cache:
-        return APP_CACHE[settings]
+    Args:
+        settings: The settings to use to create the app. If not set, settings are pulled
+            from the context.
+        ignore_cache: If set, a new application will be created even if the settings
+            match. Otherwise, an application is returned from the cache.
+        ephemeral: If set, the application will be treated as ephemeral. The UI
+            and services will be disabled.
+    """
+    settings = settings or prefect.settings.get_current_settings()
+    cache_key = (settings, ephemeral)
+
+    if cache_key in APP_CACHE and not ignore_cache:
+        return APP_CACHE[cache_key]
 
     # TODO: Move these startup functions out of this closure into the top-level or
     #       another dedicated location
@@ -222,6 +235,10 @@ def create_app(
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
+
+        if ephemeral:
+            app.state.services = None
+            return
 
         service_instances = []
 
@@ -312,6 +329,7 @@ def create_app(
     if (
         os.path.exists(prefect.__ui_static_path__)
         and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and not ephemeral
     ):
         ui_app.mount(
             "/",
@@ -320,7 +338,7 @@ def create_app(
         )
         app.mount("/", app=ui_app, name="ui")
     else:
-        pass
+        pass  # TODO: Add a static file for a disabled or missing UI
 
     def openapi():
         """
@@ -343,5 +361,5 @@ def create_app(
 
     app.openapi = openapi
 
-    APP_CACHE[settings] = app
+    APP_CACHE[cache_key] = app
     return app
