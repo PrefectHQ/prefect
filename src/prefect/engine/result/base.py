@@ -27,6 +27,7 @@ from typing import Any
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
+import prefect
 
 
 # Subclass of `NotImplementedError` to make it easier to distinguish this error
@@ -136,6 +137,21 @@ class Result:
         else:
             new.location = new.default_location
         return new
+
+    def pipe(self, task: 'prefect.tasks.Task', *args, **kwargs) -> 'prefect.tasks.Task':
+        """
+        "Pipes" this result through another task. `result.pipe(task)` is equivalent to `task(result)`, but can result
+        in more readable code when used in a long chain of task calls.
+
+        Args:
+            task: The task to apply to this result
+            *args: Additional positional arguments to include as task arguments
+            **kwargs: Additional keyword arguments to include as task arguments
+
+        Returns:
+            - Task: A new task with the new arguments bound to it
+        """
+        return task(self, *args, **kwargs)
 
     def exists(self, location: str, **kwargs: Any) -> bool:
         """

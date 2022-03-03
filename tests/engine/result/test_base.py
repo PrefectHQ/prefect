@@ -75,3 +75,12 @@ def test_result_format_template_from_context():
         assert new.location == "indeed/functional/yes?"
         assert res.location == "{this}/{works}/yes?"
         assert new != res
+
+
+def test_result_pipe():
+    res = Result(3)
+    task = prefect.task(lambda x, foo: x + 1)
+
+    with prefect.Flow("test"):
+        # A task created using .pipe should be identical to one created by using __call__
+        assert vars(task(res, foo="bar")) == vars(res.pipe(task, foo="bar"))
