@@ -2417,3 +2417,16 @@ class TestTaskRunNames:
 
         state = flow.run()
         assert state.result[test_task_key].result == ["hello-1", "hello-2", "hello-3"]
+
+    def test_task_pipeline(self):
+        @prefect.task()
+        def add_1(x):
+            return x + 1
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            result = add_1(1).pipe(add_1).pipe(add_1).pipe(add_1)
+
+        state = flow.run()
+        assert state.result[result].result == 5
