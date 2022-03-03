@@ -55,10 +55,6 @@ async def hosted_orion_api():
         The connection string
     """
 
-    env = os.environ.copy()
-    # Disable services so tests are not affected
-    env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = "False"
-
     # Will connect to the same database as normal test clients
     process = await anyio.open_process(
         command=[
@@ -72,7 +68,6 @@ async def hosted_orion_api():
             "--log-level",
             "info",
         ],
-        env=env,
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
