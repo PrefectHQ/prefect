@@ -1,5 +1,6 @@
 import io
 import os
+import warnings
 from abc import abstractmethod
 from functools import partial
 from pathlib import Path
@@ -77,6 +78,21 @@ class FileStorageBlock(StorageBlock):
         description="Additional options to pass to the underlying fsspec file system.",
     )
 
+    def block_initialization(self) -> None:
+        # Check for missing remote storage dependency
+        try:
+            fsspec.open(self.base_path + "check")
+        except ImportError as exc:
+            # The path is a remote file system that uses a lib that is not installed
+            exc_message = str(exc).rstrip(".")
+            warnings.warn(
+                f"File storage created with remote base path "
+                f"{self.base_path!r}, but you are missing a Python module required to "
+                f"use the given remote storage protocol. {exc_message}.",
+                stacklevel=3,
+            )
+        return super().block_initialization()
+
     @pydantic.validator("base_path")
     def ensure_trailing_slash(cls, value):
         if is_local_path(value):
@@ -85,6 +101,7 @@ class FileStorageBlock(StorageBlock):
         else:
             if not value.endswith("/"):
                 return value + "/"
+        return value
 
     def _create_key(self, data: bytes):
         if self.key_type == "uuid":
