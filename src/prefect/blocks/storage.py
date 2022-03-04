@@ -5,7 +5,7 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Dict, Generic, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, Literal, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
@@ -17,7 +17,6 @@ from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
 
-import prefect
 from prefect.blocks.core import Block, register_block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
@@ -73,7 +72,7 @@ class FileStorageBlock(StorageBlock):
     key_type: Literal["hash", "uuid", "timestamp"] = pydantic.Field(
         "hash", description="The method to use to generate file names."
     )
-    options: Dict[str, str] = pydantic.Field(
+    options: Dict[str, Any] = pydantic.Field(
         default_factory=dict,
         description="Additional options to pass to the underlying fsspec file system.",
     )
