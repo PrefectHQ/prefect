@@ -1,4 +1,5 @@
 export * from './ApiRouteParams'
+export * from './Crumb'
 export * from './Deployment'
 export * from './EmpiricalPolicy'
 export * from './FilterDateError'

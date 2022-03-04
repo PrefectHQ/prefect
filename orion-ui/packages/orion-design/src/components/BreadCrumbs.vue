@@ -20,7 +20,7 @@
   /* eslint-disable */
   import { withDefaults } from 'vue'
   import BreadCrumb from '@/components/BreadCrumb.vue'
-  import { Crumb } from '@/models/crumb'
+  import { Crumb } from '@/models/Crumb'
 
   interface Props {
     crumbs: Crumb[],
