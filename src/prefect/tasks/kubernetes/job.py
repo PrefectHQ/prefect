@@ -4,6 +4,7 @@ from typing import Any, Optional, cast
 from kubernetes import client
 from concurrent.futures import ThreadPoolExecutor
 
+import prefect
 from prefect import Task
 from prefect.engine import signals
 from prefect.utilities.tasks import defaults_from_attrs
@@ -724,7 +725,18 @@ class RunNamespacedJob(Task):
 
         pod_log_streams = {}
 
-        with ThreadPoolExecutor() as pool:
+        # Context is thread-local and isn't automatically copied
+        # to the threads spawned by ThreadPoolExecutor.
+        # Add an initializer which updates the thread's Context with
+        # values from the current Context.
+        context_copy = prefect.context.copy()
+
+        def initialize_thread(context):
+            prefect.context.update(context)
+
+        with ThreadPoolExecutor(
+            initializer=initialize_thread, initargs=(context_copy,)
+        ) as pool:
             completed = False
             while not completed:
                 job = api_client_job.read_namespaced_job_status(
