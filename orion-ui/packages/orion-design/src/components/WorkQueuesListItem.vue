@@ -7,7 +7,7 @@
     <div class="work-queues-list-item__status">
       <WorkQueuePausedTag />
 
-      <m-tags :tags="workQueue.filter?.tags ?? []" />
+      <m-tags :tags="workQueue.filter?.tags" />
     </div>
 
     <div class="work-queues-list-item__concurrency">
