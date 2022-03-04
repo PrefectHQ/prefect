@@ -1,6 +1,7 @@
 import { randomBoolean } from './boolean'
 import { randomDate } from './date'
 import { randomDeployment } from './deployment'
+import { randomFlow } from './flow'
 import { randomFlowRun } from './flowRun'
 import { randomLog } from './log'
 import { randomNumber } from './number'
@@ -15,6 +16,7 @@ export const mocks = {
   char: randomChar,
   date: randomDate,
   deployment: randomDeployment,
+  flow: randomFlow,
   flowRun: randomFlowRun,
   log: randomLog,
   number: randomNumber,
