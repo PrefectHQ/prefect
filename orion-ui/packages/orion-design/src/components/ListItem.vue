@@ -23,7 +23,7 @@
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 
-    border-top: 1px solid $secondary-hover;
+    border-top: 1px solid var(--secondary-hover);
   }
 
   &:last-of-type {
