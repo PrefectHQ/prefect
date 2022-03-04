@@ -1,5 +1,6 @@
 import os
 from transform import MQLClient
+from transform.exceptions import AuthException, QueryRuntimeException, URLException
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -54,7 +55,7 @@ class TransformCreateMaterialization(Task):
         output_table: str = None,
         force: bool = False,
         use_async: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.api_key = api_key
         self.api_key_env_var = api_key_env_var
@@ -129,6 +130,8 @@ class TransformCreateMaterialization(Task):
             - `ValueError` if both `api_key` and `api_key_env_var` are missing.
             - `ValueError` if both `mql_server_url` and `mql_server_url_env_var` ar missing.
             - `ValueError` if `materialization_name` is missing.
+            - `prefect.engine.signals.FAIL` if the connection with the Transform server cannot
+                be established.
             - `prefect.engine.signals.FAIL` if the materialization creation process fails.
 
         Returns:
@@ -164,12 +167,17 @@ class TransformCreateMaterialization(Task):
             msg = "`materialization_name` is missing."
             raise ValueError(msg)
 
-        mql = MQLClient(
-            api_key=mql_api_key, mql_server_url=mql_url, use_async=use_async
-        )
+        try:
+            mql_client = MQLClient(
+                api_key=mql_api_key, mql_server_url=mql_url, use_async=use_async
+            )
+        except (AuthException, URLException) as e:
+            msg = f"Cannot connect to Transform server! Error is: {e.msg}"
+            raise FAIL(message=msg)
 
+        response = None
         if use_async:
-            response = mql.create_materialization(
+            response = mql_client.create_materialization(
                 materialization_name=materialization_name,
                 start_time=start_time,
                 end_time=end_time,
@@ -177,13 +185,23 @@ class TransformCreateMaterialization(Task):
                 output_table=output_table,
                 force=force,
             )
-            return response
+            if response.is_failed:
+                msg = f"Transform materialization async creation failed! Error is: {response.error}"
+                raise FAIL(message=msg)
         else:
-            return mql.materialize(
-                materialization_name=materialization_name,
-                start_time=start_time,
-                end_time=end_time,
-                model_key_id=model_key_id,
-                output_table=output_table,
-                force=force,
-            )
+            try:
+                response = mql_client.materialize(
+                    materialization_name=materialization_name,
+                    start_time=start_time,
+                    end_time=end_time,
+                    model_key_id=model_key_id,
+                    output_table=output_table,
+                    force=force,
+                )
+            except QueryRuntimeException as e:
+                msg = (
+                    f"Transform materialization sync creation failed! Error is: {e.msg}"
+                )
+                raise FAIL(message=msg)
+
+        return response

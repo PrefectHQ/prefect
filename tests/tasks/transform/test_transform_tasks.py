@@ -1,5 +1,10 @@
 import pytest
+from unittest import mock
+from typing import Optional
+from transform.models import MqlQueryStatusResp, MqlQueryStatus, MqlMaterializeResp
+from transform.exceptions import QueryRuntimeException
 
+from prefect.engine.signals import FAIL
 from prefect.tasks.transform import TransformCreateMaterialization
 
 
@@ -73,8 +78,7 @@ class TestTransformCreateMaterialization:
         msg_match = "`mql_server_url` is missing and `mql_server_url_env_var` not found in env vars."
         with pytest.raises(ValueError, match=msg_match):
             transform_task.run(
-                api_key="key",
-                mql_server_url_env_var="mql_server_url_env_var"
+                api_key="key", mql_server_url_env_var="mql_server_url_env_var"
             )
 
     def test_run_raises_with_missing_materialization_name(self):
@@ -83,3 +87,184 @@ class TestTransformCreateMaterialization:
         msg_match = "`materialization_name` is missing."
         with pytest.raises(ValueError, match=msg_match):
             transform_task.run(api_key="key", mql_server_url="url")
+
+    def test_run_raises_on_connection_exception(self):
+        transform_task = TransformCreateMaterialization()
+
+        msg_match = "Cannot connect to Transform server!"
+        with pytest.raises(FAIL, match=msg_match):
+            transform_task.run(
+                api_key="key", mql_server_url="url", materialization_name="mt_name"
+            )
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_raises_on_create_materialization_async(self, mock_mql_client):
+        error_msg = "Error while creating async materialization!"
+
+        class mockMQLClient:
+            def create_materialization(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+            ):
+                return MqlQueryStatusResp(
+                    query_id="xyz", status=MqlQueryStatus.FAILED, error=error_msg
+                )
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        msg_match = (
+            f"Transform materialization async creation failed! Error is: {error_msg}"
+        )
+        with pytest.raises(FAIL, match=msg_match):
+            transform_task.run(
+                api_key="key",
+                mql_server_url="url",
+                materialization_name="mt_name",
+                use_async=True,
+            )
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_raises_on_create_materialization_sync(self, mock_mql_client):
+        error_msg = "Error while creating sync materialization!"
+
+        class mockMQLClient:
+            def materialize(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+                timeout: Optional[int] = None,
+            ):
+                raise QueryRuntimeException(query_id="xyz", msg=error_msg)
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        msg_match = (
+            f"Transform materialization sync creation failed! Error is: {error_msg}"
+        )
+        with pytest.raises(FAIL, match=msg_match):
+            transform_task.run(
+                api_key="key", mql_server_url="url", materialization_name="mt_name"
+            )
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_on_create_materialization_async_successful_status(
+        self, mock_mql_client
+    ):
+        class mockMQLClient:
+            def create_materialization(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+            ):
+                return MqlQueryStatusResp(
+                    query_id="xyz", status=MqlQueryStatus.SUCCESSFUL, error=None
+                )
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        response = transform_task.run(
+            api_key="key",
+            mql_server_url="url",
+            materialization_name="mt_name",
+            use_async=True,
+        )
+
+        assert response.is_complete is True
+        assert response.is_successful is True
+        assert response.is_failed is False
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_on_create_materialization_async_pending_status(self, mock_mql_client):
+        class mockMQLClient:
+            def create_materialization(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+            ):
+                return MqlQueryStatusResp(
+                    query_id="xyz", status=MqlQueryStatus.PENDING, error=None
+                )
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        response = transform_task.run(
+            api_key="key",
+            mql_server_url="url",
+            materialization_name="mt_name",
+            use_async=True,
+        )
+
+        assert response.is_complete is False
+        assert response.is_successful is False
+        assert response.is_failed is False
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_on_create_materialization_async_running_status(self, mock_mql_client):
+        class mockMQLClient:
+            def create_materialization(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+            ):
+                return MqlQueryStatusResp(
+                    query_id="xyz", status=MqlQueryStatus.RUNNING, error=None
+                )
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        response = transform_task.run(
+            api_key="key",
+            mql_server_url="url",
+            materialization_name="mt_name",
+            use_async=True,
+        )
+
+        assert response.is_complete is False
+        assert response.is_successful is False
+        assert response.is_failed is False
+
+    @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
+    def test_run_on_create_materialization_sync(self, mock_mql_client):
+        class mockMQLClient:
+            def materialize(
+                materialization_name: str,
+                start_time: Optional[str] = None,
+                end_time: Optional[str] = None,
+                model_key_id: Optional[int] = None,
+                output_table: Optional[str] = None,
+                force: bool = False,
+                timeout: Optional[int] = None,
+            ):
+                return MqlMaterializeResp(
+                    schema="schema", table="table", query_id="xyz"
+                )
+
+        mock_mql_client.return_value = mockMQLClient
+        transform_task = TransformCreateMaterialization()
+
+        response = transform_task.run(
+            api_key="key", mql_server_url="url", materialization_name="mt_name"
+        )
+
+        assert response.fully_qualified_name == "schema.table"
