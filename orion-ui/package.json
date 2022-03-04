@@ -44,7 +44,7 @@
     "faker": "^5.5.3",
     "jest": "^27.5.1",
     "jest-dev-server": "^6.0.3",
-    "jest-puppeteer": "^6.0.0",
+    "jest-puppeteer": "^6.1.0",
     "miragejs": "^0.1.43",
     "puppeteer": "^13.4.1",
     "sass": "^1.49.8",
