@@ -86,6 +86,4 @@ export class WorkQueuesApi extends Api {
 
 }
 
-export const getWorkQueuesKey: InjectionKey<WorkQueuesApi['getWorkQueues']> = Symbol()
-
 export const workQueuesApi = new WorkQueuesApi()
