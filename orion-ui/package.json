@@ -13,12 +13,12 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/miter-design": "0.1.22",
+    "@prefecthq/miter-design": "0.1.25",
     "@prefecthq/orion-design": "0.1.29",
     "@prefecthq/vue-compositions": "0.1.18",
     "core-js": "^3.6.5",
     "d3": "^7.3.0",
-    "esbuild": "^0.13.4",
+    "esbuild": "^0.14.25",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
     "vue": "^3.0.5",
