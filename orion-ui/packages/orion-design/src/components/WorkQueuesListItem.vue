@@ -5,9 +5,7 @@
     </div>
 
     <div class="work-queues-list-item__status">
-      <m-tag class="work-queues-list-item__paused" :color="workQueue.isPaused ? 'grey-40' : 'primary'">
-        <span>{{ workQueue.isPaused ? 'paused' : 'active' }}</span>
-      </m-tag>
+      <WorkQueuePausedTag />
 
       <m-tags :tags="workQueue.filter?.tags ?? []" />
     </div>
