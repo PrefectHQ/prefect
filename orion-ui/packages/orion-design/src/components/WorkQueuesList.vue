@@ -9,19 +9,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
   import WorkQueueItem from '@/components/WorkQueuesListItem.vue'
-  import { PaginatedFilter } from '@/services/Filter'
-  import { workQueuesApi, getWorkQueuesKey } from '@/services/WorkQueuesApi'
+  import { WorkQueue } from '@/models/WorkQueue'
 
-  const props = defineProps<{
-    filter: PaginatedFilter,
+  defineProps<{
+    workQueues: WorkQueue[],
   }>()
-
-  const getWorkQueues = inject(getWorkQueuesKey, workQueuesApi.getWorkQueues)
-  const workQueuesSubscription = useSubscription(getWorkQueues, [props.filter])
-  const workQueues = computed(() => workQueuesSubscription.response.value ?? [])
 </script>
 
 <style lang="scss">
