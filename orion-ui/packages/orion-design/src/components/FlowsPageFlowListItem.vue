@@ -1,7 +1,7 @@
 <template>
   <ListItem class="flows-page-flow-list-item">
     <div class="flows-page-flow-list-item__name">
-      <BreadCrumbs :crumbs="crumbs" @click="openFlowPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
     </div>
 
     <div class="flows-page-flow-list-item__details">
