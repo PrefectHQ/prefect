@@ -56,7 +56,7 @@ class TestTransformCreateMaterialization:
     def test_run_raises_with_missing_api_key_and_env_var_not_found(self):
         transform_task = TransformCreateMaterialization()
 
-        msg_match = "`api_key` is missing and `api_key_env_var` was not found in environment variables."
+        msg_match = "`api_key` is missing and `api_key_env_var` not found in env vars."
         with pytest.raises(ValueError, match=msg_match):
             transform_task.run(api_key_env_var="key_env_var")
 
@@ -70,10 +70,11 @@ class TestTransformCreateMaterialization:
     def test_run_raises_with_missing_mql_server_url_and_env_var_not_found(self):
         transform_task = TransformCreateMaterialization()
 
-        msg_match = "`mql_server_url` is missing and `mql_server_url_env_var` was not found in environment variables."
+        msg_match = "`mql_server_url` is missing and `mql_server_url_env_var` not found in env vars."
         with pytest.raises(ValueError, match=msg_match):
             transform_task.run(
-                api_key="key", mql_server_url_env_var="mql_server_url_env_var"
+                api_key="key",
+                mql_server_url_env_var="mql_server_url_env_var"
             )
 
     def test_run_raises_with_missing_materialization_name(self):

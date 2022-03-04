@@ -143,7 +143,7 @@ class TransformCreateMaterialization(Task):
 
         # Raise error if api_key is missing and env var is not found
         if not api_key and api_key_env_var not in os.environ.keys():
-            msg = "`api_key` is missing and `api_key_env_var` was not found in environment variables."
+            msg = "`api_key` is missing and `api_key_env_var` not found in env vars."
             raise ValueError(msg)
 
         mql_api_key = api_key or os.environ[api_key_env_var]
@@ -155,7 +155,7 @@ class TransformCreateMaterialization(Task):
 
         # Raise error if mql_server_url is missing and env var is not found
         if not mql_server_url and mql_server_url_env_var not in os.environ.keys():
-            msg = "`mql_server_url` is missing and `mql_server_url_env_var` was not found in environment variables."
+            msg = "`mql_server_url` is missing and `mql_server_url_env_var` not found in env vars."
             raise ValueError(msg)
 
         mql_url = mql_server_url or os.environ[mql_server_url_env_var]
