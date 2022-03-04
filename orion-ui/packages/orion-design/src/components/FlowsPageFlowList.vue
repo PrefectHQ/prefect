@@ -2,7 +2,7 @@
   <div class="flows-list">
     <m-card shadow="sm">
       <template v-for="flow in flows" :key="flow.id">
-        <FlowsPageFlowListItem :flow="flow" class="flows-list__item" />
+        <FlowsPageFlowListItem :flow="flow" />
       </template>
     </m-card>
   </div>
@@ -16,11 +16,3 @@
     flows: Flow[],
   }>()
 </script>
-
-<style lang="scss">
-.flows-list__item {
-  &:not(:first-of-type) {
-    border-top: 1px solid var(--secondary-hover);
-  }
-}
-</style>
