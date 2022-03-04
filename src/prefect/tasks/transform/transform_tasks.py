@@ -35,8 +35,8 @@ class TrasformCreateMaterialization(Task):
             `schema_name.table_name` where the materialization will be created.
         - force (bool, optional): Whether to force the materialization creation
             or not.
-        - run_async (bool, optional): Whether to trigger the materialization creation
-            in async mode or not. Defaults to `True`.
+        - use_async (bool, optional): Whether to trigger the materialization creation
+            in async mode or not. Defaults to `False`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor.
     """
@@ -53,7 +53,7 @@ class TrasformCreateMaterialization(Task):
         end_time: str = None,
         output_table: str = None,
         force: bool = False,
-        run_async: bool = True,
+        use_async: bool = True,
         **kwargs
     ):
         self.api_key = api_key
@@ -66,7 +66,7 @@ class TrasformCreateMaterialization(Task):
         self.end_time = end_time
         self.output_table = output_table
         self.force = force
-        self.run_async = run_async
+        self.use_async = use_async
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -80,7 +80,7 @@ class TrasformCreateMaterialization(Task):
         "end_time",
         "output_table",
         "force",
-        "run_async",
+        "use_async",
     )
     def run(
         self,
@@ -94,7 +94,7 @@ class TrasformCreateMaterialization(Task):
         end_time: str = None,
         output_table: str = None,
         force: bool = False,
-        run_async: bool = True,
+        use_async: bool = False,
     ):
         """
         Task run method to create a materialization against a Transform metrics
@@ -122,8 +122,8 @@ class TrasformCreateMaterialization(Task):
                 `schema_name.table_name` where the materialization will be created.
             - force (bool, optional): Whether to force the materialization creation
                 or not.
-            - run_async (bool, optional): Whether to trigger the materialization creation
-                in async mode or not. Defaults to `True`.
+            - use_async (bool, optional): Whether to trigger the materialization creation
+                in async mode or not. Defaults to `False`.
 
         Raises:
             - `ValueError` if both `api_key` and `api_key_env_var` are missing.
@@ -164,9 +164,9 @@ class TrasformCreateMaterialization(Task):
             msg = "`materialization_name` is missing."
             raise ValueError(msg)
         
-        mql = MQLClient(api_key=mql_api_key, mql_server_url=mql_url)
+        mql = MQLClient(api_key=mql_api_key, mql_server_url=mql_url, use_async=use_async)
 
-        if run_async:
+        if use_async:
             response = mql.create_materialization(
                 materialization_name=materialization_name,
                 start_time=start_time,
