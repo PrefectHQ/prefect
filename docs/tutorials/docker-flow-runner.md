@@ -14,12 +14,12 @@ In this tutorial we'll work through the steps you'll need to:
 To run a deployed flow in a Docker container, you'll need the following:
 
 - [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
-- A [Storage](/concepts/storage/) configuration that is not Local Storage or Temporary Local Storage.
+- A remote [Storage](/concepts/storage/) configuration, not Local Storage or Temporary Local Storage.
 - You must run a standalone Orion API server (`prefect orion start`).
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
-You'll need to configure a non-local store such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. See the [Storage](/concepts/storage/) documentation for details. 
+You'll need to configure a remote store such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. See the [Storage](/concepts/storage/) documentation for details. 
 
 ## A simple Docker deployment
 
