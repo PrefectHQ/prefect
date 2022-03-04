@@ -12,10 +12,7 @@
       <m-tags class="flows-page-flow-list-item__tags" :tags="flow.tags" />
     </div>
 
-    <FilterButton class="flows-page-flow-list-item__recent" :route="route" :filters="recentFlowRunsFilters">
-      {{ recentFlowRunsCount.toLocaleString() }}
-      {{ toPluralString('Recent Run', recentFlowRunsCount) }}
-    </FilterButton>
+    <FilterCountButton class="flows-page-flow-list-item__recent" :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
   </ListItem>
 </template>
 
@@ -23,7 +20,7 @@
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { subWeeks } from 'date-fns'
   import { computed, inject } from 'vue'
-  import FilterButton from '@/components/FilterButton.vue'
+  import FilterCountButton from '@/components/FilterCountButton.vue'
   import ListItem from '@/components/ListItem.vue'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
