@@ -81,7 +81,7 @@ class KubernetesRun(RunConfig):
     Use a custom `job_template` with a custom label (or any other necessary changes to
     the default).
 
-    Note: use the default
+    Note: you can use the default job template, found at
     `/prefect/src/prefect/agent/kubernetes/job_template.yaml` in the repository,
     as a base to build on. Once a `job_template` is specified, the default is no longer
     used:
