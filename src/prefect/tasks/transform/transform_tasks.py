@@ -140,31 +140,33 @@ class TrasformCreateMaterialization(Task):
         if not (api_key or api_key_env_var):
             msg = "Both `api_key` and `api_key_env_var` are missing."
             raise ValueError(msg)
-        
+
         # Raise error if api_key is missing and env var is not found
         if not api_key and api_key_env_var not in os.environ.keys():
             msg = "`api_key` is missing and `api_key_env_var` was not found in environment variables."
             raise ValueError(msg)
-        
+
         mql_api_key = api_key or os.environ[api_key_env_var]
 
         # Raise error if both mql_server_url and mql_server_url_env_var are missing
         if not (mql_server_url or mql_server_url_env_var):
             msg = "Both `mql_server_url` and `mql_server_url_env_var` are missing."
             raise ValueError(msg)
-        
+
         # Raise error if mql_server_url is missing and env var is not found
         if not mql_server_url and mql_server_url_env_var not in os.environ.keys():
             msg = "`mql_server_url` is missing and `mql_server_url_env_var` was not found in environment variables."
             raise ValueError(msg)
-        
+
         mql_url = mql_server_url or os.environ[mql_server_url_env_var]
 
         if not materialization_name:
             msg = "`materialization_name` is missing."
             raise ValueError(msg)
-        
-        mql = MQLClient(api_key=mql_api_key, mql_server_url=mql_url, use_async=use_async)
+
+        mql = MQLClient(
+            api_key=mql_api_key, mql_server_url=mql_url, use_async=use_async
+        )
 
         if use_async:
             response = mql.create_materialization(
@@ -173,7 +175,7 @@ class TrasformCreateMaterialization(Task):
                 end_time=end_time,
                 model_key_id=model_key_id,
                 output_table=output_table,
-                force=force    
+                force=force,
             )
             return response
         else:
@@ -183,5 +185,5 @@ class TrasformCreateMaterialization(Task):
                 end_time=end_time,
                 model_key_id=model_key_id,
                 output_table=output_table,
-                force=force
-        )
+                force=force,
+            )
