@@ -6,15 +6,16 @@
       </template>
     </m-card>
 
-    <div v-if="workQueues.length === 0" class="work-queue-list__empty-state">
-      <h2>No results found</h2>
-    </div>
+    <template v-if="workQueues.length === 0">
+      <WorkQueuesListEmptyState class="work-queue-list__empty-state" />
+    </template>
   </div>
 </template>
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, inject } from 'vue'
+  import WorkQueuesListEmptyState from '@/components/WorkQueuesListEmptyState.vue'
   import WorkQueueItem from '@/components/WorkQueuesListItem.vue'
   import { PaginatedFilter } from '@/services/Filter'
   import { workQueuesApi, getWorkQueuesKey } from '@/services/WorkQueuesApi'
