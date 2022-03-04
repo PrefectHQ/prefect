@@ -59,15 +59,23 @@ class FileStorageBlock(StorageBlock):
     Store data as a file on local or remote file systems.
 
     Supports any file system supported by `fsspec`. The file system is specified using
-    a protocol. For example: "s3://my-bucket/my-folder/"
+    a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
+
+    Credentials for external services will be retrieved
 
     Each blob is stored in a separate file. The key type defaults to "hash" to avoid
     storing duplicates. If you always want to store a new file, you can use "uuid" or
     "timestamp".
     """
 
-    base_path: str
-    key_type: Literal["hash", "uuid", "timestamp"] = "hash"
+    base_path: str = pydantic.Field(..., description="The folder to write files in.")
+    key_type: Literal["hash", "uuid", "timestamp"] = pydantic.Field(
+        "hash", description="The method to use to generate file names."
+    )
+    options: Dict[str, str] = pydantic.Field(
+        default_factory=dict,
+        description="Additional options to pass to the underlying fsspec file system.",
+    )
 
     @pydantic.validator("base_path")
     def ensure_trailing_slash(cls, value):
@@ -90,24 +98,24 @@ class FileStorageBlock(StorageBlock):
 
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
-        await run_sync_in_worker_thread(self._write_sync, key, data)
+        file = fsspec.open(self.base_path + key, "wb", **self.options)
+        await run_sync_in_worker_thread(self._write_sync, file, data)
         return key
 
     async def read(self, key: str) -> bytes:
-        return await run_sync_in_worker_thread(self._read_sync, key)
+        file = fsspec.open(self.base_path + key, "rb", **self.options)
+        return await run_sync_in_worker_thread(self._read_sync, file)
 
-    def _write_sync(self, key: str, data: bytes) -> None:
-        of: fsspec.core.OpenFile = fsspec.open(self.base_path + key, "wb")
-
-        if of.fs.exists(of.path) and self.key_type == "hash":
+    def _write_sync(self, file: fsspec.core.OpenFile, data: bytes) -> None:
+        if file.fs.exists(file.path) and self.key_type == "hash":
             return  # Do not write on hash collision
 
-        with of as file:
-            file.write(data)
+        with file as io:
+            io.write(data)
 
-    def _read_sync(self, key: str) -> bytes:
-        with fsspec.open(self.base_path + key, "rb") as file:
-            return file.read()
+    def _read_sync(self, file: fsspec.core.OpenFile) -> bytes:
+        with file as io:
+            return io.read()
 
 
 @register_block("S3 Storage", version="1.0")
