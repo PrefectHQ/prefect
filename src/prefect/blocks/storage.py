@@ -5,7 +5,7 @@ from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Any, Dict, Generic, Literal, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
@@ -16,6 +16,7 @@ import pydantic
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block, register_block
 from prefect.settings import PREFECT_HOME
