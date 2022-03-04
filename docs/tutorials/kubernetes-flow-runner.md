@@ -1,5 +1,5 @@
 ---
-description: Learn how to run flow as Kubernetes Jobs using the KubernetesFlowRunner.
+description: Learn how to run flows as Kubernetes Jobs using the KubernetesFlowRunner.
 tags:
     - Kubernetes
     - orchestration

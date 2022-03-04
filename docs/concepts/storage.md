@@ -1,5 +1,5 @@
 ---
-description: 
+description: Prefect storage configuration enables you to set up local or remote data stores used for flow code, task results, and flow results.
 tags:
     - Orion
     - storage
@@ -7,6 +7,9 @@ tags:
     - database configuration
     - configuration
     - settings
+    - S3
+    - Azure Blob Storage
+    - Google Cloud Storage
 ---
 
 # Storage
