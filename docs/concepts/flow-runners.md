@@ -134,6 +134,7 @@ Requirements for `DockerFlowRunner`:
 
 - Docker Engine must be available.
 - You must configure [Storage](/concepts/storage/) other than temporary local storage.
+- The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
 
 `DockerFlowRunner` supports the following settings:
 
@@ -149,6 +150,30 @@ Requirements for `DockerFlowRunner`:
 You can use the Prefect CLI command `prefect dev build-image` to build a Prefect Docker image for development. Use `prefect dev build-image --help` to see additional supported options.
 
 Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for getting started running a flow in a Docker container.
+
+### Configuring a custom image
+
+When you create a deployment with a Docker flow runner, the container image defaults to a Prefect image. This image has the `prefect` package preinstalled.
+
+We ensure that the Prefect and Python versions used to create the deployment are used when the deployment is run. For example, if using Prefect `2.0a13` and Python `3.8`, we will generate the image tag `prefecthq/prefect:2.0a13-python3.8`.
+
+Often, you will want to use your own Docker image to run your flow. This image may have additional requirements preinstalled.
+
+To use a custom image, provide the `image` setting:
+
+```python
+DockerFlowRunner(image="my-custom-tag")
+```
+
+When using a custom image, you must have the `prefect` Python package installed and available from the default `python` command. We recommend deriving your image from a Prefect base image such as `prefecthq/prefect:2.0a13-python3.8`.
+
+### Adding requirements to the default image
+
+If you have some Python dependencies, but do not want to build your own image, the default Prefect image supports dynamic installation with `pip`. To use this feature, provide the environment variable `EXTRA_PIP_PACKAGES` as a space-delimited string:
+
+```python
+DockerFlowRunner(env={"EXTRA_PIP_PACKAGES": "my-extra-package1 my-extra-package2"})
+```
 
 ## Kubernetes flow runner
 
