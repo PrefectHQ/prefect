@@ -15,7 +15,7 @@ Storage lets you configure how flow code, task results, and flow results data ar
 
 If no other storage is configured, Prefect uses the default Temporary Local Storage.
 
-Local storage works fine for many local flow and task run scenarios. However, to run flows using Docker or Kubernetes, you must set up remote storage such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store.
+Local storage works fine for many local flow and task run scenarios. However, to run flows using Docker or Kubernetes, you must set up remote storage such as S3, Google Cloud Storage, or Azure Blob Storage. You can also configure a self-hosted key-value store for testing.
 
 Prefect Orion supports creating multiple storage configurations and switching between storage as needed.
 

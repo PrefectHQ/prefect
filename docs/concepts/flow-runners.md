@@ -133,7 +133,7 @@ DeploymentSpec(
 Requirements for `DockerFlowRunner`:
 
 - Docker Engine must be available.
-- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Docker.
+- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, or Azure Blob Storage. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
 
 `DockerFlowRunner` supports the following settings:
@@ -182,7 +182,7 @@ DockerFlowRunner(env={"EXTRA_PIP_PACKAGES": "my-extra-package1 my-extra-package2
 Requirements for `KubernetesFlowRunner`:
 
 - `kubectl` must be available.
-- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Kubernetes.
+- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, or Azure Blob Storage. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Kubernetes.
 
 The Prefect CLI command `prefect orion kubernetes-manifest` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
