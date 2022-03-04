@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :dismissable="!disabled" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :show-placeholder="!disabled" :dismissable="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
