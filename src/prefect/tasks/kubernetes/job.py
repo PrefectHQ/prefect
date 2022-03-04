@@ -734,7 +734,9 @@ class RunNamespacedJob(Task):
         def initialize_thread(context):
             prefect.context.update(context)
 
-        with ThreadPoolExecutor(initializer=initialize_thread, initargs=(context_copy,)) as pool:
+        with ThreadPoolExecutor(
+            initializer=initialize_thread, initargs=(context_copy,)
+        ) as pool:
             completed = False
             while not completed:
                 job = api_client_job.read_namespaced_job_status(
