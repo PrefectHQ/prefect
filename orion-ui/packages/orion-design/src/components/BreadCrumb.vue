@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { Crumb } from '@/models/crumb'
+  import { Crumb } from '@/models/Crumb'
 
   defineProps<{ crumb: Crumb }>()
 </script>
