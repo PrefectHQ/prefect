@@ -23,6 +23,8 @@ To run the steps in this tutorial, all you'll need is a few easily configured pr
 
 An easy way to get started is to use [Docker Desktop](https://www.docker.com/products/docker-desktop), turning on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration.
 
+You'll need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
+
 ## Running Orion on Kubernetes
 
 The easiest way to get started with the Kubernetes flow runner is to run Orion itself on Kubernetes. 
