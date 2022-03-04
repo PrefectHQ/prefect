@@ -45,8 +45,8 @@ from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
-    PREFECT_CLIENT_REQUEST_TIMEOUT,
 )
 from prefect.utilities.asyncio import asyncnullcontext
 
@@ -201,7 +201,7 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
-        httpx_settings.setdefault("timeout", PREFECT_CLIENT_REQUEST_TIMEOUT.value())
+        httpx_settings.setdefault("timeout", PREFECT_API_REQUEST_TIMEOUT.value())
 
         # Context management
         self._exit_stack = AsyncExitStack()
