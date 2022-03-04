@@ -1,4 +1,4 @@
-import { WorkQueueFilter } from '..'
+import { WorkQueueFilter } from '@/models'
 import { WorkQueue } from '@/models/WorkQueue'
 import { MockFunction } from '@/services/Mocker'
 
