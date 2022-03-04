@@ -6,7 +6,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 from prefect.engine.signals import FAIL
 
 
-class TrasformCreateMaterialization(Task):
+class TransformCreateMaterialization(Task):
     """
     Task to create a materialization against a Transform metrics layer
     deployment.
