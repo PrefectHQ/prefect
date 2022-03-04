@@ -1,4 +1,6 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
+import { InjectionKey } from 'vue'
 import {
   Deployment,
   IFlowDataResponse,
@@ -115,4 +117,6 @@ export class DeploymentsApi extends Api {
 
 }
 
-export const deploymentsApi = new DeploymentsApi()
+export const deploymentsApi = createActions(new DeploymentsApi())
+
+export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
