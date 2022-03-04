@@ -19,9 +19,6 @@ FS_STORAGE_BLOCKS = [
     storage.LocalStorageBlock.parse_obj(
         {"blockref": "localstorage-block", "storage_path": TemporaryDirectory().name}
     ),
-    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="hash"),
-    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="uuid"),
-    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="timestamp"),
 ]
 
 
@@ -32,6 +29,36 @@ async def test_storage_block_spec_type():
         pass
 
     assert MyStorageBlock._block_spec_type == "STORAGE"
+
+
+class TestFileStorageBlock:
+    @pytest.mark.parametrize("key_type", ["hash", "uuid", "timestamp"])
+    async def test_roundtrip(self, tmp_path, key_type):
+        block = storage.FileStorageBlock(base_path=tmp_path, key_type=key_type)
+        key = await block.write(b"hello")
+        assert await block.read(key) == b"hello"
+
+    async def test_warns_on_missing_library_at_init_then_raises_on_usage(self):
+        try:
+            import s3fs
+        except:
+            pass
+        else:
+            pytest.skip(reason="s3fs is installed so no warning would be raised")
+
+        with pytest.warns(UserWarning, match="Install s3fs"):
+            block = storage.FileStorageBlock(base_path="s3://prefect-test-bucket")
+
+        assert (
+            block.base_path == "s3://prefect-test-bucket/"
+        ), "Base path still set correctly"
+
+        with pytest.raises(ImportError, match="Install s3fs"):
+            await block.read("test")
+
+    async def test_adds_trailing_slash(self):
+        block = storage.FileStorageBlock(base_path="/tmp/test")
+        assert block.base_path == "/tmp/test/"
 
 
 @pytest.mark.parametrize(
