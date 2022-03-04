@@ -1,6 +1,6 @@
 """
 The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
-The threshold for a late run can be configured by changing `PREFECT_ORION_SERVICES_MARK_LATE_AFTER`.
+The threshold for a late run can be configured by changing `PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS`.
 """
 
 import asyncio
@@ -15,8 +15,8 @@ from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
 from prefect.orion.utilities.database import date_add, now
 from prefect.settings import (
+    PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
     PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS,
-    PREFECT_ORION_SERVICES_MARK_LATE_AFTER,
 )
 
 
@@ -36,7 +36,7 @@ class MarkLateRuns(LoopService):
 
         # mark runs late if they are this far past their expected start time
         self.mark_late_after: datetime.timedelta = (
-            PREFECT_ORION_SERVICES_MARK_LATE_AFTER.value()
+            PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
         )
 
         self.batch_size: int = 100
@@ -49,6 +49,7 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
+
         session = await db.session()
         async with session:
             async with session.begin():
