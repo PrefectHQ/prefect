@@ -133,7 +133,7 @@ DeploymentSpec(
 Requirements for `DockerFlowRunner`:
 
 - Docker Engine must be available.
-- You must configure [Storage](/concepts/storage/) other than temporary local storage.
+- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
 
 `DockerFlowRunner` supports the following settings:
@@ -147,7 +147,7 @@ Requirements for `DockerFlowRunner`:
 | volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
-You can use the Prefect CLI command `prefect dev build-image` to build a Prefect Docker image for development. Use `prefect dev build-image --help` to see additional supported options.
+Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
 Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for getting started running a flow in a Docker container.
 
@@ -165,7 +165,7 @@ To use a custom image, provide the `image` setting:
 DockerFlowRunner(image="my-custom-tag")
 ```
 
-When using a custom image, you must have the `prefect` Python package installed and available from the default `python` command. We recommend deriving your image from a Prefect base image such as `prefecthq/prefect:2.0a13-python3.8`.
+When using a custom image, you must have the `prefect` Python package installed and available from the default `python` command. We recommend deriving your image from a Prefect base image available from [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
 ### Adding requirements to the default image
 
@@ -182,7 +182,7 @@ DockerFlowRunner(env={"EXTRA_PIP_PACKAGES": "my-extra-package1 my-extra-package2
 Requirements for `KubernetesFlowRunner`:
 
 - `kubectl` must be available.
-- You must configure [Storage](/concepts/storage/) other than temporary local storage.
+- You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Kubernetes.
 
 The Prefect CLI command `prefect orion kubernetes-manifest` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
