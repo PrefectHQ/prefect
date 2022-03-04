@@ -54,7 +54,7 @@ def build_docs(
 
     Note that this command only functions properly with an editable install.
     """
-    schema = create_app().openapi()
+    schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
         schema_path = (
