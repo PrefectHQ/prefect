@@ -20,8 +20,8 @@
 
 <script lang="ts" setup>
   import { provide } from 'vue'
-  import EmptyStateCard from './EmptyStateCard.vue'
-  import FlowsPageFlowListItem from './FlowsPageFlowListItem.vue'
+  import EmptyStateCard from '@/components/EmptyStateCard.vue'
+  import FlowsPageFlowListItem from '@/components/FlowsPageFlowListItem.vue'
   import { getDeploymentsCountKey } from '@/services/DeploymentsApi'
   import { getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { mocker } from '@/services/Mocker'

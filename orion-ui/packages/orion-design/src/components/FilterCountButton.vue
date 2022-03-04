@@ -15,7 +15,7 @@
     filters: Required<Filter>[],
     count: number,
     label: string,
-    route?: RouteLocationRaw,
+    route?: Exclude<RouteLocationRaw, string>,
     disabled?: boolean,
   }>()
 
@@ -29,12 +29,12 @@
   }))
 
   function applyFilters(): void {
-    const filters = FilterService.stringify(props.filters)
+    const filter = FilterService.stringify(props.filters)
 
-    if (props.route && typeof props.route !== 'string') {
-      router.push({ ...props.route, query: { ...props.route.query, filter: filters } })
+    if (props.route) {
+      router.push({ ...props.route, query: { ...props.route.query, filter } })
     } else {
-      router.push({ query: { ...currentRoute.query, filter: filters } })
+      router.push({ query: { ...currentRoute.query, filter } })
     }
   }
 </script>
