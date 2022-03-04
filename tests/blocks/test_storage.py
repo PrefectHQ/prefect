@@ -19,6 +19,9 @@ FS_STORAGE_BLOCKS = [
     storage.LocalStorageBlock.parse_obj(
         {"blockref": "localstorage-block", "storage_path": TemporaryDirectory().name}
     ),
+    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="hash"),
+    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="uuid"),
+    storage.FileStorageBlock(base_path="/tmp/prefect", key_type="timestamp"),
 ]
 
 
