@@ -1,8 +1,6 @@
 <template>
   <button type="button" class="filter-button" :class="classes" @click="applyFilters">
-    <slot>
-      {{ countLabel }}
-    </slot>
+    {{ countLabel }}
   </button>
 </template>
 
