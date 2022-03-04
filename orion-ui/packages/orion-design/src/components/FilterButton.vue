@@ -1,23 +1,30 @@
 <template>
   <button type="button" class="filter-button" :class="classes" @click="applyFilters">
-    <slot />
+    <slot>
+      {{ countLabel }}
+    </slot>
   </button>
 </template>
 
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { RouteLocationRaw, useRoute, useRouter } from 'vue-router'
-  import { FilterService } from '../services/FilterService'
-  import { Filter } from '../types/filters'
+  import { FilterService } from '@/services/FilterService'
+  import { Filter } from '@/types/filters'
+  import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{
     filters: Required<Filter>[],
+    count: number,
+    label: string,
     route?: RouteLocationRaw,
     disabled?: boolean,
   }>()
 
   const router = useRouter()
   const currentRoute = useRoute()
+
+  const countLabel = computed(() => `${props.count.toLocaleString()} ${toPluralString(props.label, props.count)}`)
 
   const classes = computed(() => ({
     'filter-button--disabled': props.disabled,
