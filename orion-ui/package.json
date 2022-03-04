@@ -13,7 +13,7 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/miter-design": "0.1.22",
+    "@prefecthq/miter-design": "0.1.25",
     "@prefecthq/orion-design": "0.1.29",
     "@prefecthq/vue-compositions": "0.1.18",
     "core-js": "^3.6.5",
@@ -49,7 +49,7 @@
     "puppeteer": "^13.4.1",
     "sass": "^1.49.8",
     "ts-jest": "^27.0.7",
-    "ts-node": "10.1.0",
+    "ts-node": "10.6.0",
     "typescript": "^4.6.2",
     "vite": "^2.8.6",
     "vue-class-component": "^8.0.0-0",
