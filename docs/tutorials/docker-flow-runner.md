@@ -19,7 +19,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
-You'll need to configure a remote store such as S3, Google Cloud Storage, Azure Blob Storage, or a key-value store. See the [Storage](/concepts/storage/) documentation for details. 
+You'll need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
 
 ## A simple Docker deployment
 
