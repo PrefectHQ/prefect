@@ -78,9 +78,9 @@ export class WorkQueuesApi extends Api {
 
   protected mapWorkQueueFilter(data: IWorkQueueFilterResponse): WorkQueueFilter {
     return new WorkQueueFilter({
-      tags: data.tags,
-      deploymentIds: data.deployment_ids,
-      flowRunnerTypes: data.flow_runner_types,
+      tags: data.tags ?? [],
+      deploymentIds: data.deployment_ids ?? [],
+      flowRunnerTypes: data.flow_runner_types ?? [],
     })
   }
 
