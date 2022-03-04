@@ -34,7 +34,7 @@ class TrasformCreateMaterialization(Task):
         - output_table (str, optional): The name of the database table, in the form of
             `schema_name.table_name` where the materialization will be created.
         - force (bool, optional): Whether to force the materialization creation
-            or not.
+            or not. Defaults to `False`.
         - use_async (bool, optional): Whether to trigger the materialization creation
             in async mode or not. Defaults to `False`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -53,7 +53,7 @@ class TrasformCreateMaterialization(Task):
         end_time: str = None,
         output_table: str = None,
         force: bool = False,
-        use_async: bool = True,
+        use_async: bool = False,
         **kwargs
     ):
         self.api_key = api_key
@@ -121,7 +121,7 @@ class TrasformCreateMaterialization(Task):
             - output_table (str, optional): The name of the database table, in the form of
                 `schema_name.table_name` where the materialization will be created.
             - force (bool, optional): Whether to force the materialization creation
-                or not.
+                or not. Defaults to `False`.
             - use_async (bool, optional): Whether to trigger the materialization creation
                 in async mode or not. Defaults to `False`.
 
