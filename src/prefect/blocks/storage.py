@@ -93,6 +93,12 @@ class FileStorageBlock(StorageBlock):
             )
         return super().block_initialization()
 
+    @pydantic.validator("base_path", pre=True)
+    def allow_pathlib_paths(cls, value):
+        if isinstance(value, Path):
+            return str(value)
+        return value
+
     @pydantic.validator("base_path")
     def ensure_trailing_slash(cls, value):
         if is_local_path(value):
