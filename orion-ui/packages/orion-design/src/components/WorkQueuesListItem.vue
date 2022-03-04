@@ -1,5 +1,5 @@
 <template>
-  <section class="work-queues-list-item">
+  <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
       <BreadCrumbs :crumbs="crumbs" />
     </div>
@@ -16,12 +16,13 @@
         :value="workQueue.concurrencyLimit ? workQueue.concurrencyLimit.toLocaleString() : 'No Limit'"
       />
     </div>
-  </section>
+  </ListItem>
 </template>
 
 <script lang="ts" setup>
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import ListItem from '@/components/ListItem.vue'
   import { WorkQueue } from '@/models/WorkQueue'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
@@ -62,10 +63,5 @@
   grid-area: status;
   display: flex;
   gap: 2px;
-}
-
-.work-queues-list-item__paused > span {
-  padding: 0 var(--p-1) !important;
-  font-size: 13px;
 }
 </style>
