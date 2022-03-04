@@ -36,7 +36,9 @@ class TrasformCreateMaterialization(Task):
         - force (bool, optional): Whether to force the materialization creation
             or not.
         - run_async (bool, optional): Whether to trigger the materialization creation
-            in async mode or not.
+            in async mode or not. Defaults to `True`.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(
@@ -121,38 +123,46 @@ class TrasformCreateMaterialization(Task):
             - force (bool, optional): Whether to force the materialization creation
                 or not.
             - run_async (bool, optional): Whether to trigger the materialization creation
-                in async mode or not.
+                in async mode or not. Defaults to `True`.
 
         Raises:
             - `ValueError` if both `api_key` and `api_key_env_var` are missing.
             - `ValueError` if both `mql_server_url` and `mql_server_url_env_var` ar missing.
             - `ValueError` if `materialization_name` is missing.
+            - `prefect.engine.signals.FAIL` if the materialization creation process fails.
 
         Returns:
-            - TODO
+            - An `MqlQueryStatusResp` object if `run_async` is `True`.
+            - An `MqlMaterializeResp` object if `run_async` is `False`.
+
         """
         # Raise error if both api_key and api_key_env_var are missing
         if not (api_key or api_key_env_var):
-            raise ValueError()
+            msg = "Both `api_key` and `api_key_env_var` are missing."
+            raise ValueError(msg)
         
         # Raise error if api_key is missing and env var is not found
         if not api_key and api_key_env_var not in os.environ.keys():
-            raise ValueError()
+            msg = "`api_key` is missing and `api_key_env_var` was not found in environment variables."
+            raise ValueError(msg)
         
         mql_api_key = api_key or os.environ[api_key_env_var]
 
         # Raise error if both mql_server_url and mql_server_url_env_var are missing
         if not (mql_server_url or mql_server_url_env_var):
-            raise ValueError()
+            msg = "Both `mql_server_url` and `mql_server_url_env_var` are missing."
+            raise ValueError(msg)
         
         # Raise error if mql_server_url is missing and env var is not found
         if not mql_server_url and mql_server_url_env_var not in os.environ.keys():
-            raise ValueError()
+            msg = "`mql_server_url` is missing and `mql_server_url_env_var` was not found in environment variables."
+            raise ValueError(msg)
         
         mql_url = mql_server_url or os.environ[mql_server_url_env_var]
 
         if not materialization_name:
-            raise ValueError()
+            msg = "`materialization_name` is missing."
+            raise ValueError(msg)
         
         mql = MQLClient(api_key=mql_api_key, mql_server_url=mql_url)
 
