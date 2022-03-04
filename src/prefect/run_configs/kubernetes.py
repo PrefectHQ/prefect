@@ -83,7 +83,6 @@ class KubernetesRun(RunConfig):
 
     Note: use the default
     `/prefect/src/prefect/agent/kubernetes/job_template.yaml` in the repository,
-    job_template.yaml)
     as a base to build on. Once a `job_template` is specified, the default is no longer
     used:
 
