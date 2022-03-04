@@ -99,6 +99,11 @@ class FileStorageBlock(StorageBlock):
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
         file = fsspec.open(self.base_path + key, "wb", **self.options)
+
+        # TODO: Some file systems support async and would require passing the current
+        #       event loop in `self.options`. This would probably be better for
+        #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
+
         await run_sync_in_worker_thread(self._write_sync, file, data)
         return key
 
