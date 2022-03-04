@@ -8,6 +8,7 @@ import boto3
 import pendulum
 import pytest
 from moto import mock_s3
+from pydantic import ValidationError
 
 from prefect.blocks import storage
 from prefect.utilities.hashing import stable_hash
@@ -111,6 +112,15 @@ class TestFileStorageBlock:
     @pytest.mark.parametrize("key_type", ["hash", "uuid", "timestamp"])
     async def test_roundtrip_by_key_type(self, tmp_path, key_type):
         block = storage.FileStorageBlock(base_path=tmp_path, key_type=key_type)
+        key = await block.write(b"hello")
+        assert await block.read(key) == b"hello"
+
+    def test_invalid_key_type(self, tmp_path):
+        with pytest.raises(ValidationError):
+            storage.FileStorageBlock(base_path=tmp_path, key_type="foo")
+
+    async def test_write_when_directory_does_not_exist(self, tmp_path):
+        block = storage.FileStorageBlock(base_path=tmp_path / "new_folder")
         key = await block.write(b"hello")
         assert await block.read(key) == b"hello"
 
