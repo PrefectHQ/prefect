@@ -15,7 +15,7 @@
       v-model="term"
       class="filters-search__input"
       type="text"
-      :placeholder="placeholderText"
+      :placeholder="placeholder"
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
@@ -41,12 +41,12 @@
 
   interface Props {
   dismissable?: boolean
-  showPlaceholder?: boolean
+  placeholder?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   dismissable: true,
-  showPlaceholder: true
+  placeholder: 'Search...'
 })
 
   
@@ -57,7 +57,6 @@ const props = withDefaults(defineProps<Props>(), {
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
-  const placeholderText = computed(()=> props.showPlaceholder ? 'Search...' : '')
   function add(): void {
     if (term.value == '') {
       return
