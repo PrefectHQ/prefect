@@ -5,7 +5,7 @@ export interface IWorkQueue {
   created: Date,
   updated: Date,
   name: string,
-  filter: IWorkQueueFilter | null,
+  filter: IWorkQueueFilter,
   description: string | null,
   isPaused: boolean,
   concurrencyLimit: number | null,
@@ -16,7 +16,7 @@ export class WorkQueue implements IWorkQueue {
   public created: Date
   public updated: Date
   public name: string
-  public filter: IWorkQueueFilter | null
+  public filter: IWorkQueueFilter
   public description: string | null
   public isPaused: boolean
   public concurrencyLimit: number | null
