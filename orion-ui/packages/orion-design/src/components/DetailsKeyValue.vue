@@ -5,7 +5,7 @@
     </div>
     <div class="details-key-value__value">
       <slot>
-        {{ value }}
+        {{ value ?? '--' }}
       </slot>
     </div>
   </div>
@@ -54,6 +54,8 @@
 
 .details-key-value--stacked {
   flex-direction: column;
+  width: 100%;
+  white-space: pre-wrap !important;
 
   .details-key-value__label {
     color: var(--black);
