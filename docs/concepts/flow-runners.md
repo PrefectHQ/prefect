@@ -209,4 +209,4 @@ The Prefect CLI command `prefect orion kubernetes-manifest` automatically genera
 | restart_policy | The Kubernetes restart policy to use for Jobs. |
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
-Check out the [Kubernetes flow runner tutorial](/tutorials/kubernetes-flow-runner/) for getting started running a flows with Kubernetes.
+Check out the [Kubernetes flow runner tutorial](/tutorials/kubernetes-flow-runner/) for an example of running deployments as Jobs with Kubernetes.
