@@ -1,4 +1,5 @@
 import { AxiosResponse } from 'axios'
+import { InjectionKey } from 'vue'
 import { PaginatedFilter } from '.'
 import { WorkQueue } from '@/models/WorkQueue'
 import { WorkQueueFilter } from '@/models/WorkQueueFilter'
@@ -10,14 +11,14 @@ export type IWorkQueueResponse = {
   created: DateString,
   updated: DateString,
   name: string,
-  filter: IWorkQueueFilterResponse | null,
+  filter: IWorkQueueFilterResponse,
   description: string | null,
   is_paused: boolean | null,
   concurrency_limit: number | null,
 }
 
 export type IWorkQueueRequest = {
-  name: string,
+  name: string | null,
   filter: IWorkQueueFilterResponse | null,
   description: string | null,
   is_paused: boolean | null,
@@ -46,6 +47,14 @@ export class WorkQueuesApi extends Api {
     return this.post<IWorkQueueResponse>('/', request).then(response => this.mapWorkQueueResponse(response))
   }
 
+  public pauseWorkQueue(id: string): Promise<void> {
+    return this.patch(`/${id}`, { 'is_paused': true })
+  }
+
+  public resumeWorkQueue(id: string): Promise<void> {
+    return this.patch(`/${id}`, { 'is_paused': false })
+  }
+
   public updateWorkQueue(id: string, request: IWorkQueueRequest): Promise<void> {
     return this.patch(`/${id}`, request)
   }
@@ -60,7 +69,7 @@ export class WorkQueuesApi extends Api {
       created: new Date(data.created),
       updated: new Date(data.updated),
       name: data.name,
-      filter: data.filter ? this.mapWorkQueueFilter(data.filter) : null,
+      filter: this.mapWorkQueueFilter(data.filter),
       description: data.description,
       isPaused: data.is_paused ?? false,
       concurrencyLimit: data.concurrency_limit,
@@ -84,5 +93,9 @@ export class WorkQueuesApi extends Api {
   }
 
 }
+
+export const getWorkQueueKey: InjectionKey<WorkQueuesApi['getWorkQueue']> = Symbol()
+export const pauseWorkQueueKey: InjectionKey<WorkQueuesApi['pauseWorkQueue']> = Symbol()
+export const resumeWorkQueueKey: InjectionKey<WorkQueuesApi['resumeWorkQueue']> = Symbol()
 
 export const workQueuesApi = new WorkQueuesApi()
