@@ -1,11 +1,11 @@
 import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
-import { DateString } from '..'
 import { FlowRun, RunHistory, StateHistory, StateType, IFlowRunnerResponse, FlowRunGraph, IFlowRunGraphResponse } from '@/models'
 import { Api, Route } from '@/services/Api'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
+import { DateString } from '@/types'
 import { State, StateName } from '@/types/states'
 
 export type IFlowRunResponse = {
