@@ -159,12 +159,12 @@ from prefect.schedules import clocks, Schedule
 
 now = datetime.datetime.utcnow()
 
-clock1   = clocks.IntervalClock(start_date=now, 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 1"})
-clock2   = clocks.IntervalClock(start_date=now + datetime.timedelta(seconds=30), 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 2"})
+clock1 = clocks.IntervalClock(start_date=now,
+                              interval=datetime.timedelta(minutes=1),
+                              parameter_defaults={"p": "CLOCK 1"})
+clock2 = clocks.IntervalClock(start_date=now + datetime.timedelta(seconds=30),
+                              interval=datetime.timedelta(minutes=1),
+                              parameter_defaults={"p": "CLOCK 2"})
 
 # the full schedule
 schedule = Schedule(clocks=[clock1, clock2])
