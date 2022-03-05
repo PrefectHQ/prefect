@@ -134,7 +134,7 @@ Agent started!
 
 Now we're ready to run our deployed flow in Docker!
 
-## Running the Docker deployment
+## Run the Docker deployment
 
 Go back to the original terminal session, then use the `prefect deployment run` command to create a flow run for the `my-docker-flow/docker-example` deployment:
 
