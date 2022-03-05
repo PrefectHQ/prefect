@@ -12,20 +12,48 @@ tags:
 
 Prefect integrates with Kubernetes via the [flow runner interface](/concepts/flow-runners/). The [KubernetesFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.KubernetesFlowRunner) runs Prefect flows on Kubernetes as Jobs. You can also can run the Orion API, UI, and agent on Kubernetes.
 
-For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster run with Docker Desktop.
+For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster.
 
 ## Requirements
 
-To run the steps in this tutorial, all you'll need is a few easily configured prerequisites: 
+To run the steps in this tutorial, you'll need a few easily configured prerequisites: 
 
 - `kubectl` configured to connect to a cluster.
 - A remote [Storage](/concepts/storage/) configuration, not Local Storage or Temporary Local Storage.
 
 An easy way to get started is to use [Docker Desktop](https://www.docker.com/products/docker-desktop), turning on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration.
 
-You'll need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
+You'll also need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
 
-## Running Orion on Kubernetes
+## A simple Kubernetes deployment
+
+We'll create a simple flow that simply logs a message, indicating that it ran in the Kubernetes cluster. We'll include the [deployment specification](/concepts/deployments/#deployment-specifications) alongside the flow code. 
+
+Save the following script to the file `kubernetes-deployment.py`:
+
+```python
+from prefect import flow, get_run_logger
+from prefect.deployments import DeploymentSpec
+from prefect.flow_runners import KubernetesFlowRunner
+
+@flow
+def my_kubernetes_flow():
+    logger = get_run_logger()
+    logger.info("Hello from Kubernetes!")
+
+DeploymentSpec(
+    name="k8s-example",
+    flow=my_kubernetes_flow,
+    flow_runner=KubernetesFlowRunner()
+)
+```
+
+Notice that this code is not significantly different from the example we used to demonstrate the `DockerFlowRunner` for running a flow in a Docker container &mdash; we just imported `KubernetesFlowRunner` and specified it as the flow runner for this deployment.
+
+
+In future when we reference the deployment, we'll use the format "flow name/deployment name" &mdash; in this case, `my-kubernetes-flow/k8s-example`.
+
+## Run Orion on Kubernetes
 
 The easiest way to get started with the Kubernetes flow runner is to run Orion itself on Kubernetes. 
 
@@ -41,12 +69,15 @@ prefect orion kubernetes-manifest | kubectl apply -f -
 
 After applying the output of this command to your cluster, a Kubernetes deployment named "orion" should start running.
 
-```bash
-deployment.apps/orion configured
-service/orion unchanged
+<div class='termy'>
+```
+$ prefect orion kubernetes-manifest | kubectl apply -f -
+deployment.apps/orion created
+service/orion created
 role.rbac.authorization.k8s.io/flow-runner created
 rolebinding.rbac.authorization.k8s.io/flow-runner-role-binding created
 ```
+</div>
 
 Check the logs with `kubectl` to demonstrate that the deployment is running and an Prefect agent is ready to run a flow:
 
@@ -54,17 +85,21 @@ Check the logs with `kubectl` to demonstrate that the deployment is running and 
 kubectl logs -lapp=orion --all-containers
 ```
 
-You should see something like this:
+You should see something like this indicating that the Orion API is running in Kubernetes:
 
 ```bash
-Configure Prefect to communicate with the server with:
-
-    PREFECT_API_URL=http://0.0.0.0:4200/api
-
-Check out the dashboard at <http://0.0.0.0:4200>
-
-The agent has been disabled. Start an agent with `prefect agent start`.
-
+$ kubectl logs -lapp=orion --all-containers
+INFO:     10.1.0.1:26106 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:56253 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:23968 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:47196 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:36464 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:7321 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:2044 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:29042 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:29406 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+INFO:     10.1.0.1:38615 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
+Created kubernetes work queue 48199460-6a55-45c1-a96f-baf849c8c25f.
 Starting agent connected to http://orion:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
@@ -74,19 +109,20 @@ Starting agent connected to http://orion:4200/api...
 
 
 Agent started!
-
 ```
 
-This Kubernetes deployment runs the Orion API and UI servers in one container and the agent process in another container, both using pre-built Prefect container images. 
+This Kubernetes deployment runs the Orion API and UI servers, creates a [work queue](/concepts/work-queues/), and starts and agent &mdash; all within the cluster. 
 
-## Forwarding Orion ports to Kubernetes
+## Configure the Orion API on Kubernetes
 
-Next, we'll run a flow in Kubernetes. But before we do, we need to make sure of two things:
+To interact with the Prefect Orion API running in Kubernetes, we need to make sure of two things:
 
-- The `prefect` command knows to talk to the Orion API running Kubernetes
-- We can visit the Orion UI, running in Kubernetes
+- The `prefect` command knows to talk to the Orion API running in Kubernetes
+- We can visit the Orion UI running in Kubernetes
 
-To do this, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. 
+### Forward ports
+
+First, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. 
 
 ```bash
 kubectl port-forward deployment/orion 4200:4200
@@ -94,129 +130,163 @@ kubectl port-forward deployment/orion 4200:4200
 
 This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment. You’ll see output like this:
 
-```bash
+<div class='termy'>
+```
+$ kubectl port-forward deployment/orion 4200:4200
 Forwarding from 127.0.0.1:4200 -> 4200
 Forwarding from [::1]:4200 -> 4200
+Handling connection for 4200
 ```
+</div>
 
-Keep this command running, and open a new terminal for the next commands.
+Keep this command running, and open a new terminal for the next commands. Make sure you change to the same directory as you were previously using and activate your Python virtual environment, if you're using one.
 
-## Running flows on Kubernetes
+### Configure the API URL
 
-Now that we have Orion running on Kubernetes, let's talk about running your actual flows and tasks on Kubernetes. To demonstrate this, we’ll do three things:
+Now we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
 
-- Set an environment variable to so we can communicate with the Orion API running in Kubernetes.
-- Create a flow and deployment that will run in Kubernetes.
-- Inspect our flow runs that are executing in the Kubernetes cluster.
+In the new terminal session, run the `prefect config view` command to see your current Prefect settings. We're particularly interested in `PREFECT_API_URL`.
 
-## Configure communication with the cluster
+<div class='termy'>
+```
+$ prefect config view
+PREFECT_PROFILE='default'
+PREFECT_API_URL='http://127.0.0.1:4200/api'
+```
+</div>
 
-Before we do anything else, we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
+If your `PREFECT_API_URL` is currently set to 'http://127.0.0.1:4200/api' or 'http://localhost:4200/api', great! Prefect is configured to communicate with the API at the address we're forwarding, so you can go to the next step.
 
-To do this, set the `PREFECT_API_URL` environment variable:
+If `PREFECT_API_URL` is not set as shown above, run the following Prefect CLI command to configure it for this tutorial:
 
 ```bash
-export PREFECT_API_URL=http://localhost:4200/api
+prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 ```
 
 Since we previously configured port forwarding for the localhost port to the Kubernetes environment, we’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
 
-## Creating a flow and deployment
+### Configure storage
 
-Now that the environment is configured, we can write a flow that runs on the "orion" cluster. Specifying the [KubernetesFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.KubernetesFlowRunner) runs your flow as a Kubernetes job.
+Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data. 
 
-You can think of a deployment as a way to tell Prefect when and how to run flows on a schedule. Using a flow runner requires creating a Prefect deployment for your flow.
+Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blog Storage.
 
-Let's configure a new deployment that runs a flow using the Kubernetes flow runner. This deployment will run a flow that prints "Hello from Kubernetes!".
+Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.
 
-To test out this flow, paste this code into a file named `k8s_flow.py`.
-
-```python
-from prefect import flow
-from prefect.deployments import DeploymentSpec
-from prefect.flow_runners import KubernetesFlowRunner
-
-@flow
-def test_flow():
-    print("Hello from Kubernetes!")
-
-DeploymentSpec(
-    flow=test_flow,
-    name="test-deployment",
-    flow_runner=KubernetesFlowRunner(stream_output=True),
-)
+<div class='termy'>
 ```
+$ prefect storage create
+Found the following storage types:
+0) Azure Blob Storage
+    Store data in an Azure blob storage container
+1) Google Cloud Storage
+    Store data in a GCS bucket
+2) KV Server Storage
+    Store data by sending requests to a KV server
+3) Local Storage
+    Store data in a run's local file system
+4) S3 Storage
+    Store data in an AWS S3 bucket
+5) Temporary Local Storage
+    Store data in a temporary directory in a run's local file system
+Select a storage type to create: 4
+You've selected S3 Storage. It has 6 option(s).
+BUCKET: the-curious-case-of-benjamin-bucket
+AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
+AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+AWS SESSION TOKEN (optional):
+PROFILE NAME (optional):
+REGION NAME (optional):
+Choose a name for this storage configuration: benjamin-bucket
+Validating configuration...
+Registering storage with server...
+Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
+You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
+Set default storage to 'benjamin-bucket'.
+```
+</div>
 
-Note that the flow itself is incredibly simple &mdash; it just prints a message &mdash; but you could put more sophisticated flow logic here and even call tasks or subflows.
+We set this storage as the default for the server running in Kubernetes, and any flow runs orchestrated by this server can use the persistent S3 storage for flow code, task results, and flow results.
 
-This code also includes a [deployment specification](/concepts/deployments/#deployment-specifications) that specifies we want to use the Kubernetes flow runner.
+## Create the deployment on Kubernetes
 
-Now, use the Prefect CLI to [create the deployment](/concepts/deployments/#creating-deployments):
+Now use the Prefect CLI to create the deployment, passing the file containing the flow code and deployment specification, `docker-deployment.py`:
+
+<div class='termy'>
+```
+$ prefect deployment create ./kubernetes-deployment.py
+Loading deployments from python script at 'kubernetes-deployment.py'...
+Created deployment 'k8s-example' for flow 'my-kubernetes-flow'
+```
+</div>
+
+## Run a flow on Kubernetes
+
+Now we can run the deployment using the `prefect deployment run` CLI command:
+
+<div class='termy'>
+```
+$ prefect deployment run my-kubernetes-flow/k8s-example
+Created flow run 'poetic-scorpion' (adb711df-e005-41c7-a822-9cb3ae2704f4)
+```
+</div>
+
+You can also run the flow from the Prefect Orion UI. Open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200). You should see the flow run deployment “my-kubernetes-flow” and a successful flow run.
+
+![Screenshot showing the "my-kubernetes-flow" flow](/img/tutorials/k8s-test-flow.png)
+
+Click **Deployments** to see the entry for this deployment, `k8s-example`. You can run the flow interactively using the **Quick Run** button. 
+
+![Screenshot showing deployed “k8s-example” deployment](/img/tutorials/k8s-test-deploy.png)
+
+Go ahead and kick off an ad-hoc flow run: click **Quick Run** to run the deployment a second time.
+
+## Inspect flow run Jobs
+
+Let's take a closer look at the `my-kubernetes-flow` flow runs we created from the `k8s-example` deployment.
+
+Click **Flow Runs** to see that we did, in fact, create two flow runs that executed as Kubernetes Jobs.
+
+![Screenshot showing flow runs for “k8s-example”](/img/tutorials/k8s-flow-runs.png)
+
+Now select one of the flow runs by clicking on the flow run name &mdash; in this case I clicked "poetic-scorpion". Your flow names will be different.
+
+![Screenshot showing details for the "poetic-scorpion" flow run](/img/tutorials/k8s-flow-run-logs.png)
+
+Go to the **Logs** tab of your flow run. You should see the "Hello from Kubernetes!" log message created by the flow running in Kubernetes!
+
+You can also inspect the Jobs directly through Kubernetes by using `kubectl`. Use `kubectl get jobs` to get the Jobs you just ran:
+
+<div class='termy'>
+```
+$ kubectl get jobs -l app=orion
+NAME                     COMPLETIONS   DURATION   AGE
+impetuous-condorbwwmc    1/1           6s         16m
+poetic-scorpion9m8tq     1/1           5s         31m
+```
+</div>
+
+If you know the name of the specific flow run whose Job you want to find, using the flow run name and `kubectl get jobs` you can find the Jobs for that flow run (your flow run names may be different since they're automatically generated at flow run time):
 
 ```bash
-prefect deployment create k8s_flow.py
+kubectl get jobs -l io.prefect.flow-run-name=poetic-scorpion
 ```
 
-Running this command creates a deployment in the Prefect Orion backend, or updates an existing deployment if you’ve run this tutorial before.
+Since each flow run is a Kubernetes Job, every Job starts a Pod, which in turn starts a container. You can use the `kubectl logs` command to see the logs for all Pods created by a specific Job:
 
-Once you’ve created a deployment, you can use it to schedule a flow run:
-
-```bash
-prefect deployment run test-flow/test-deployment
+<div class='termy'>
 ```
-
-Go to the Orion UI — open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200) — you should see the flow run deployment “test-flow” and a successful flow run.
-
-![Screenshot showing the "test-flow" flow](/img/tutorials/k8s-test-flow.png)
-
-Click **Deployments** to see the entry for this deployment, “test-deployment”. You can run the flow interactively using the **Quick Run** button. 
-
-![Screenshot showing deployed “test-deployment” flow deployment](/img/tutorials/k8s-test-deploy.png)
-
-If you click **Flow Runs** you should see the completed flow runs for this deployment that ran in the cluster.
-
-![Screenshot showing flow runs for “test-deployment”](/img/tutorials/k8s-flow-runs.png)
-
-## Inspecting flow run jobs
-
-Once the Prefect agent successfully runs a flow using Kubernetes, you'll start to see Jobs for your flow runs. You can use `kubectl get jobs` to get Orion's Jobs like this:
-
-```bash
-kubectl get jobs -l app=orion
+$ kubectl logs -l job-name=poetic-scorpion9m8tq
+00:50:12.123 | INFO    | Flow run 'poetic-scorpion' - Using task runner 'ConcurrentTaskRunner'
+00:50:12.155 | INFO    | Flow run 'poetic-scorpion' - Hello from Kubernetes!
+00:50:12.806 | INFO    | Flow run 'poetic-scorpion' - Finished in state Completed(None)
 ```
+</div>
 
-You should see a list of Jobs for flow runs similar to this:
-
-```bash
-NAME                   COMPLETIONS   DURATION   AGE
-lumpy-jaybirdszdgj     1/1           4s         13m
-turquoise-shrewdnlq7   1/1           4s         3m38s 
-```
-
-If you know the name of the flow run whose jobs you want to find, you can also find Jobs for a specific flow run. You can see these in the Orion UI flow run listing as well as in the list of Jobs that there was a Job for flow run `lumpy-jaybird`.
-
-Using the flow run name and `kubectl get jobs` we can find the Jobs for that flow run (your flow run names may be different since they're automatically generated at flow run time):
-
-```bash
-kubectl get jobs -l io.prefect.flow-run-name=lumpy-jaybird
-```
-
-Since each flow run is a Kubernetes Job, every Job starts a Pod, which in turn starts a container. You can use the following command to see the logs for all Pods created by a specific Job:
-
-```bash
-kubectl logs -l job-name=lumpy-jaybirdszdgj
-```
-
-If your agent is processing flow runs with the Kubernetes flow runner correctly, you should see logging output like the following from the Job's Pods when you run the previous command:
-
-```
-18:07:51.404 | INFO    | Flow run 'lumpy-jaybird' - Using task runner 'SequentialTaskRunner'
-18:07:51.497 | INFO    | Flow run 'lumpy-jaybird' - Finished in state Completed(None)
-Hello from Kubernetes!
-```
-
-You did it! The new Kubernetes flow runner ran your flow in Kubernetes!
+You did it! The Kubernetes flow runner ran your flow as a Job in Kubernetes!
 
 To continue experimenting with the flow in Kubernetes, make any changes to the flow definition and run `prefect deployment create` again for the flow file. This updates the deployment. Orion will pick up your changes for the next scheduled flow run.
+
+## Cleaning up
 
 To clean up your cluster, follow the Docker Desktop instructions to [disable Kubernetes](https://docs.docker.com/desktop/kubernetes/#disable-kubernetes).
