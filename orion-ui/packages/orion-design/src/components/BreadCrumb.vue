@@ -16,7 +16,7 @@
   defineProps<{ crumb: Crumb }>()
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 a {
   text-decoration: none;
 
