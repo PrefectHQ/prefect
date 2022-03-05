@@ -17,12 +17,11 @@
 
 <script lang="ts">
   import { defineComponent, PropType } from 'vue'
-  import { formatDateTimeNumeric, formatTimeNumeric } from '..'
   import CopyButton from '@/components/CopyButton.vue'
   import LogLevelLabel from '@/components/LogLevelLabel.vue'
   import TaskRunLink from '@/components/TaskRunLink.vue'
   import { Log } from '@/models'
-  import { logLevelLabel } from '@/utilities'
+  import { formatDateTimeNumeric, formatTimeNumeric, logLevelLabel } from '@/utilities'
   import { snakeCase } from '@/utilities/strings'
 
   export default defineComponent({

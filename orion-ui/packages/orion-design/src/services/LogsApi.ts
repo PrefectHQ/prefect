@@ -1,8 +1,8 @@
 import { AxiosResponse } from 'axios'
-import { LogsRequestFilter } from '..'
 import { Route } from '.'
 import { Log } from '@/models/Log'
 import { Api } from '@/services/Api'
+import { LogsRequestFilter } from '@/types'
 
 export type ILogResponse = {
   id: string,
