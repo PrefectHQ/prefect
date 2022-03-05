@@ -1,5 +1,7 @@
 <template>
-  <m-tag class="small-tag" v-bind="$attrs" />
+  <m-tag class="small-tag" v-bind="$attrs">
+    <slot />
+  </m-tag>
 </template>
 
 <script lang="ts">
