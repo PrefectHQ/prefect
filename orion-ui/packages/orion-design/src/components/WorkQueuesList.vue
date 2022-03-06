@@ -2,14 +2,14 @@
   <div class="work-queue-list">
     <m-card shadow="sm">
       <template v-for="workQueue in workQueues" :key="workQueue.id">
-        <WorkQueueItem :work-queue="workQueue" class="work-queue-list__item" />
+        <WorkQueuesListItem :work-queue="workQueue" class="work-queue-list__item" />
       </template>
     </m-card>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import WorkQueueItem from '@/components/WorkQueuesListItem.vue'
+  import WorkQueuesListItem from '@/components/WorkQueuesListItem.vue'
   import { WorkQueue } from '@/models/WorkQueue'
 
   defineProps<{
