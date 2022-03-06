@@ -1,11 +1,11 @@
 <template>
-  <div class="details-key-value" :class="{ 'details-key-value--stacked': stacked }">
+  <div class="details-key-value" :class="{ 'details-key-value--stacked': stacked, 'details-key-value--not-stacked': !stacked }">
     <div class="details-key-value__label">
       {{ label }}:
     </div>
     <div class="details-key-value__value">
-      <slot>
-        {{ value ?? '--' }}
+      <slot :empty-value="emptyValue">
+        {{ value ?? emptyValue }}
       </slot>
     </div>
   </div>
@@ -29,6 +29,8 @@
       required: false,
     },
   })
+
+  const emptyValue = '--'
 </script>
 
 <style lang="scss">
@@ -39,10 +41,6 @@
   letter-spacing: -.09px;
   line-height: 18px;
   font-weight: 600;
-
-  &:not(.details-key-value--stacked){
-    white-space: nowrap;
-  }
 }
 
 .details-key-value__label {
@@ -53,6 +51,10 @@
   color: var(--grey-80);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.details-key-value--not-stacked {
+  white-space: nowrap;
 }
 
 .details-key-value--stacked {
