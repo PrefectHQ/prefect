@@ -15,7 +15,7 @@
       v-model="term"
       class="filters-search__input"
       type="text"
-      placeholder="Search..."
+      :placeholder="placeholder"
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
@@ -39,9 +39,17 @@
   import { media } from '@/utilities/media'
   import { toPluralString } from '@/utilities/strings'
 
-  defineProps<{
-    dismissable?: boolean,
-  }>()
+  interface Props {
+  dismissable?: boolean
+  placeholder?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  dismissable: true,
+  placeholder: 'Search...'
+})
+
+  
 
   const filtersStore = useFiltersStore()
   const filterUrlService = new FilterUrlService(useRouter())
@@ -49,7 +57,6 @@
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
-
   function add(): void {
     if (term.value == '') {
       return
