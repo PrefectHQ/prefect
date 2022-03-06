@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :dismissable="!disabled" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissable="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -55,6 +55,7 @@
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
+  const placeholderText = computed(()=> props.disabled ? '' : 'Search...')
 
   const classes = computed(() => ({
     root: {
