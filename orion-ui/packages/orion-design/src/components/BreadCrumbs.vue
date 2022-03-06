@@ -35,7 +35,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .bread-crumbs__crumb {
   font-size: 14px;
 
