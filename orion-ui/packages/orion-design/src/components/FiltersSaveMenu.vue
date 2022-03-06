@@ -19,7 +19,7 @@
 
     <div class="filters-save-menu__content">
       <m-input v-model="name" label="Name" placeholder="New Filter" class="mb-2" />
-      <FilterTags :filters="filtersStore.all" />
+      <FilterTags :filters="filtersStore.all" class="filters-save-menu__tags" />
     </div>
 
     <template #actions>
@@ -120,6 +120,11 @@
 .filters-save-menu__content {
   border-top: solid 1px var(--secondary-hover);
   padding: var(--p-2);
+}
+
+.filters-save-menu__tags {
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .filters-save-menu__actions {
