@@ -35,11 +35,14 @@
 .details-key-value {
   display: flex;
   gap: 2px;
-  white-space: nowrap;
   font-size: 13px;
   letter-spacing: -.09px;
   line-height: 18px;
   font-weight: 600;
+
+  &:not(.details-key-value--stacked){
+    white-space: nowrap;
+  }
 }
 
 .details-key-value__label {
@@ -55,7 +58,6 @@
 .details-key-value--stacked {
   flex-direction: column;
   width: 100%;
-  white-space: pre-wrap;
 
   .details-key-value__label {
     color: var(--black);
