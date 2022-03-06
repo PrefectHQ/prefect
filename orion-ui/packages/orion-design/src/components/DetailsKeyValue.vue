@@ -55,7 +55,7 @@
 .details-key-value--stacked {
   flex-direction: column;
   width: 100%;
-  white-space: pre-wrap !important;
+  white-space: pre-wrap;
 
   .details-key-value__label {
     color: var(--black);
