@@ -1,6 +1,7 @@
 export { default as BreadCrumb } from './BreadCrumb.vue'
 export { default as BreadCrumbs } from './BreadCrumbs.vue'
 export { default as ButtonCard } from './ButtonCard.vue'
+export { default as CodeBanner } from './CodeBanner.vue'
 export { default as CopyButton } from './CopyButton.vue'
 export { default as DateTimeInput } from './DateTimeInput.vue'
 export { default as DetailsKeyValue } from './DetailsKeyValue.vue'
