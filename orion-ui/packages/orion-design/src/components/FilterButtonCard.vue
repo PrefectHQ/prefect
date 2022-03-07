@@ -46,7 +46,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .filter-button-card {
   padding: 0 8px;
   display: flex;
