@@ -98,5 +98,8 @@ export class WorkQueuesApi extends Api {
 export const getWorkQueueKey: InjectionKey<WorkQueuesApi['getWorkQueue']> = Symbol()
 export const pauseWorkQueueKey: InjectionKey<WorkQueuesApi['pauseWorkQueue']> = Symbol()
 export const resumeWorkQueueKey: InjectionKey<WorkQueuesApi['resumeWorkQueue']> = Symbol()
+export const createWorkQueueKey: InjectionKey<WorkQueuesApi['createWorkQueue']> = Symbol()
+export const updateWorkQueueKey: InjectionKey<WorkQueuesApi['updateWorkQueue']> = Symbol()
+export const deleteWorkQueueKey: InjectionKey<WorkQueuesApi['deleteWorkQueue']> = Symbol()
 
 export const workQueuesApi = new WorkQueuesApi()
