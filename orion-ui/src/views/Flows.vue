@@ -11,6 +11,9 @@
     </template>
 
     <template v-else>
+      <div class="flows__controls">
+        <m-input v-model="term" placeholder="Search..." />
+      </div>
       <FlowsPageFlowList :flows="flows" />
     </template>
   </div>
@@ -26,19 +29,32 @@
     name: 'Dashboard',
   })
 
-  const sort = ref<'STATE_ASC' | 'STATE_DESC'>('STATE_ASC')
+  const term = ref('')
 
-  const filter = computed<UnionFilters>(() => ({
-    sort: sort.value,
-  }))
+  const filter = computed<UnionFilters>(() => {
+    const filter: UnionFilters = {}
 
-  const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], {
-    interval: 30000,
+    if (term.value.length > 0) {
+      filter.flows = {
+        name: {
+          any_: [term.value],
+        },
+      }
+    }
+
+    return filter
   })
 
+  const subscriptionOptions = {
+    interval: 30000,
+  }
+
+  const countFlowsSubscription = useSubscription(flowsApi.getFlowsCount, [{}], subscriptionOptions)
+  const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
+
   const flows = computed(() => flowsSubscription.response.value ?? [])
-  const empty = computed(() => flowsSubscription.response.value !== undefined && flows.value.length === 0)
-  const loading = computed(() => flowsSubscription.response.value === undefined)
+  const empty = computed(() => countFlowsSubscription.response.value === 0)
+  const loading = computed(() => countFlowsSubscription.response.value === undefined || flowsSubscription.response.value === undefined)
 </script>
 
 <style lang="scss" scoped>
@@ -50,5 +66,11 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+}
+.flows__controls {
+  display: grid;
+  grid-template-columns: 1fr 250px;
+  gap: var(--m-1);
+  margin-bottom: var(--m-2);
 }
 </style>
