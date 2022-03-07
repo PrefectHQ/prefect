@@ -33,11 +33,13 @@
   import { UnionFilters } from '@/services/Filter'
   import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
   import { ClosePanel, ExitPanel } from '@/utilities/panels'
+  import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
   import { ShowToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     workQueue: WorkQueue,
-    refreshWorkQueuesList: () => void,
+    workQueueSubscription: WorkQueueSubscription,
+    workQueuesListSubscription: WorkQueuesListSubscription,
     getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
     updateWorkQueue: (workQueueId: string, request: IWorkQueueRequest) => Promise<void>,
     deleteWorkQueue: (workQueueId: string) => Promise<void>,
@@ -53,7 +55,8 @@
     try {
       saving.value = true
       await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
-      props.refreshWorkQueuesList()
+      await props.workQueueSubscription.refresh()
+      props.workQueuesListSubscription.refresh()
       props.useShowToast('Updated Work Queue')
       props.useClosePanel()
     } catch (err) {
@@ -68,7 +71,7 @@
     try {
       saving.value = true
       await props.deleteWorkQueue(id)
-      props.refreshWorkQueuesList()
+      props.workQueuesListSubscription.refresh()
       props.useShowToast('Deleted Work Queue')
       props.useExitPanel()
     } catch (err) {
