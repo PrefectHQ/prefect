@@ -67,37 +67,36 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import CodeBanner from '@/components/CodeBanner.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
 
   const props = defineProps<{
     // "workQueueId" will probably come from URL soon
     workQueueId: string,
-    refreshWorkQueuesList: () => void,
+    workQueueSubscription: WorkQueueSubscription,
+    workQueuesListSubscription: WorkQueuesListSubscription,
     openWorkQueueEditPanel: (workQueue: WorkQueue) => void,
-    getWorkQueue: (workQueueId: string) => Promise<WorkQueue>,
     pauseWorkQueue: (workQueueId: string) => Promise<void>,
     resumeWorkQueue: (workQueueId: string) => Promise<void>,
   }>()
 
   const saving = ref(false)
 
-  const workQueueSubscription = useSubscription(props.getWorkQueue, [props.workQueueId])
-  const loading = computed(() => workQueueSubscription.loading.value && workQueueSubscription.response.value === undefined)
-  const workQueue = computed(() => workQueueSubscription.response.value ?? null)
+  const loading = computed(() => props.workQueueSubscription.loading.value && props.workQueueSubscription.response.value === undefined)
+  const workQueue = computed(() => props.workQueueSubscription.response.value ?? null)
   const concurrencyLimit = computed(() => workQueue.value?.concurrencyLimit ? workQueue.value.concurrencyLimit.toLocaleString() : 'No Limit')
   const createdDate = computed(() => workQueue.value?.created ? workQueue.value.created.toISOString() : null)
 
   async function pause(): Promise<void> {
     saving.value = true
     await props.pauseWorkQueue(props.workQueueId)
-    await workQueueSubscription.refresh()
+    await props.workQueueSubscription.refresh()
 
-    props.refreshWorkQueuesList()
+    props.workQueuesListSubscription.refresh()
 
     saving.value = false
   }
@@ -105,9 +104,9 @@
   async function resume(): Promise<void> {
     saving.value = true
     await props.resumeWorkQueue(props.workQueueId)
-    await workQueueSubscription.refresh()
+    await props.workQueueSubscription.refresh()
 
-    props.refreshWorkQueuesList()
+    props.workQueuesListSubscription.refresh()
 
     saving.value = false
   }

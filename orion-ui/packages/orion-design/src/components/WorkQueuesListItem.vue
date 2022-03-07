@@ -20,7 +20,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
+  import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
+  import { computed, inject } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import ListItem from '@/components/ListItem.vue'
@@ -36,15 +37,21 @@
   const crumbs = computed(() => [{ text: props.workQueue.name, to: `#${props.workQueue.id}` }])
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
+    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
+
     injectedServices.useShowPanel(WorkQueueEditPanel, {
       workQueue,
+      workQueueSubscription,
       ...injectedServices,
     })
   }
 
   function openWorkQueuePanel(workQueueId: string): void {
+    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
+
     injectedServices.useShowPanel(WorkQueuePanel, {
       workQueueId,
+      workQueueSubscription,
       openWorkQueueEditPanel,
       ...injectedServices,
     })
