@@ -1,6 +1,6 @@
 <template>
-  <component :is="props.tag" class="bread-crumbs">
-    <i v-if="props.icon" class="pi text--grey-40 mr-2" :class="props.icon" />
+  <component :is="tag" class="bread-crumbs">
+    <i v-if="icon" class="pi text--grey-40 mr-2" :class="icon" />
     <span class="bread-crumbs__crumbs">
       <span
         v-for="(crumb, index) in crumbs"
@@ -17,21 +17,20 @@
 </template>
 
 <script lang="ts" setup>
-  /* eslint-disable */
   import { withDefaults } from 'vue'
   import BreadCrumb from '@/components/BreadCrumb.vue'
   import { Crumb } from '@/models/Crumb'
 
   interface Props {
     crumbs: Crumb[],
-    icon?: string,
+    icon?: string | null,
     tag?: string,
     bold?: boolean,
   }
 
-  const props = withDefaults(defineProps<Props>(), {
+  withDefaults(defineProps<Props>(), {
     tag: 'h1',
-    bold: false,
+    icon: null,
   })
 </script>
 

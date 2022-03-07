@@ -71,6 +71,7 @@
     }
   }
 }
+
 .filter-button--disabled {
   cursor: text;
   color: var(--grey-80);
