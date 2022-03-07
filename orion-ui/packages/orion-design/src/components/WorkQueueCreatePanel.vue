@@ -32,10 +32,11 @@
   import { UnionFilters } from '@/services/Filter'
   import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
   import { ExitPanel } from '@/utilities/panels'
+  import { WorkQueuesListSubscription } from '@/utilities/subscriptions'
   import { ShowToast } from '@/utilities/toasts'
 
   const props = defineProps<{
-    refreshWorkQueuesList: () => void,
+    workQueuesListSubscription: WorkQueuesListSubscription,
     getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
     createWorkQueue: (request: IWorkQueueRequest) => Promise<WorkQueue>,
     useShowToast: ShowToast,
@@ -49,7 +50,7 @@
     try {
       saving.value = true
       await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
-      props.refreshWorkQueuesList()
+      props.workQueuesListSubscription.refresh()
       props.useShowToast('Created Work Queue')
       props.useExitPanel()
     } catch (err) {

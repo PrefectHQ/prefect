@@ -10,5 +10,3 @@ export type ExitPanel = () => void
 export const showPanelKey: InjectionKey<ShowPanel> = Symbol()
 export const closePanelKey: InjectionKey<ClosePanel> = Symbol()
 export const exitPanelKey: InjectionKey<ExitPanel> = Symbol()
-
-export const refreshWorkQueuesListKey: InjectionKey<() => Promise<void>> = Symbol()
