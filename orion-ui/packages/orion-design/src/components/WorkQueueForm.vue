@@ -84,24 +84,11 @@
   import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
   import TagsInput from '@/components/TagsInput.vue'
   import { Deployment } from '@/models/Deployment'
+  import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { UnionFilters } from '@/services/Filter'
-  import { FlowRunnerType } from '@/types/FlowRunnerType'
-
-  type WorkQueueFormValues = {
-    id: string | null,
-    name: string | null,
-    description: string | null,
-    concurrencyLimit: number | null,
-    filter: {
-      tags: string[],
-      flowRunnerTypes: FlowRunnerType[],
-      deploymentIds: string[],
-    },
-    isPaused: boolean,
-  }
 
   const props = defineProps<{
-    workQueue: WorkQueueFormValues,
+    values: WorkQueueFormValues,
     getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
   }>()
 
@@ -117,7 +104,7 @@
 
   const internalValue = computed({
     get() {
-      return props.workQueue
+      return props.values
     },
     set(value: WorkQueueFormValues) {
       emit('update:workQueue', value)

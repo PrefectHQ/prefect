@@ -7,7 +7,7 @@
 
     <section>
       <WorkQueueForm
-        v-model:work-queue="newWorkQueue"
+        v-model:values="workQueueFormValues"
         :get-deployments="getDeployments"
       />
     </section>
@@ -28,6 +28,7 @@
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
   import { Deployment } from '@/models/Deployment'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { UnionFilters } from '@/services/Filter'
   import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
   import { ExitPanel } from '@/utilities/panels'
@@ -42,32 +43,21 @@
   }>()
 
   const saving = ref(false)
-  const newWorkQueue = ref({
-    id: null,
-    name: null,
-    description: null,
-    concurrencyLimit: null,
-    filter: {
-      tags: [],
-      flowRunnerTypes: [],
-      deploymentIds: [],
-    },
-    isPaused: false,
-  })
+  const workQueueFormValues = ref(new WorkQueueFormValues())
 
   async function createWorkQueue(): Promise<void> {
     try {
       saving.value = true
       await props.createWorkQueue({
-        name: newWorkQueue.value.name,
-        description: newWorkQueue.value.description,
-        concurrency_limit: newWorkQueue.value.concurrencyLimit,
+        name: workQueueFormValues.value.name,
+        description: workQueueFormValues.value.description,
+        concurrency_limit: workQueueFormValues.value.concurrencyLimit,
         filter:{
-          tags: newWorkQueue.value.filter.tags,
-          deployment_ids: newWorkQueue.value.filter.deploymentIds,
-          flow_runner_types: newWorkQueue.value.filter.flowRunnerTypes,
+          tags: workQueueFormValues.value.filter.tags,
+          deployment_ids: workQueueFormValues.value.filter.deploymentIds,
+          flow_runner_types: workQueueFormValues.value.filter.flowRunnerTypes,
         },
-        is_paused: newWorkQueue.value.isPaused,
+        is_paused: workQueueFormValues.value.isPaused,
       })
       props.refreshWorkQueuesList()
       props.useShowToast('Created Work Queue')

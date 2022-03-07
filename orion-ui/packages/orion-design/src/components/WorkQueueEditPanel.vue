@@ -7,7 +7,7 @@
 
     <section>
       <WorkQueueForm
-        v-model:work-queue="editedWorkQueue"
+        v-model:values="workQueueFormValues"
         :get-deployments="getDeployments"
         @remove="remove"
       />
@@ -29,6 +29,7 @@
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
   import { Deployment } from '@/models/Deployment'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { UnionFilters } from '@/services/Filter'
   import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
   import { ClosePanel, ExitPanel } from '@/utilities/panels'
@@ -46,21 +47,21 @@
   }>()
 
   const saving = ref(false)
-  const editedWorkQueue = ref(props.workQueue)
+  const workQueueFormValues = ref(new WorkQueueFormValues(props.workQueue))
 
   async function update(): Promise<void> {
     try {
       saving.value = true
       await props.updateWorkQueue(props.workQueue.id, {
-        name: editedWorkQueue.value.name,
-        description: editedWorkQueue.value.description,
-        concurrency_limit: editedWorkQueue.value.concurrencyLimit,
+        name: workQueueFormValues.value.name,
+        description: workQueueFormValues.value.description,
+        concurrency_limit: workQueueFormValues.value.concurrencyLimit,
         filter:{
-          tags: editedWorkQueue.value.filter.tags,
-          deployment_ids: editedWorkQueue.value.filter.deploymentIds,
-          flow_runner_types: editedWorkQueue.value.filter.flowRunnerTypes,
+          tags: workQueueFormValues.value.filter.tags,
+          deployment_ids: workQueueFormValues.value.filter.deploymentIds,
+          flow_runner_types: workQueueFormValues.value.filter.flowRunnerTypes,
         },
-        is_paused: editedWorkQueue.value.isPaused,
+        is_paused: workQueueFormValues.value.isPaused,
       })
       props.refreshWorkQueuesList()
       props.useShowToast('Updated Work Queue')
