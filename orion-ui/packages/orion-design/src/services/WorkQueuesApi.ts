@@ -5,6 +5,7 @@ import { WorkQueue } from '@/models/WorkQueue'
 import { WorkQueueFilter } from '@/models/WorkQueueFilter'
 import { Api, Route } from '@/services/Api'
 import { DateString } from '@/types/dates'
+import { FlowRunnerType } from '@/types/FlowRunnerType'
 
 export type IWorkQueueResponse = {
   id: string,
@@ -17,18 +18,18 @@ export type IWorkQueueResponse = {
   concurrency_limit: number | null,
 }
 
-export type IWorkQueueRequest = {
+export type IWorkQueueRequest = Partial<{
   name: string | null,
   filter: IWorkQueueFilterResponse | null,
   description: string | null,
   is_paused: boolean | null,
   concurrency_limit: number | null,
-}
+}>
 
 export type IWorkQueueFilterResponse = {
   tags: string[] | null,
   deployment_ids: string[] | null,
-  flow_runner_types: string[] | null,
+  flow_runner_types: FlowRunnerType[] | null,
 }
 
 export class WorkQueuesApi extends Api {
