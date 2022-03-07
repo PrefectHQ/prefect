@@ -17,19 +17,19 @@
 </template>
 
 <script lang="ts" setup>
+  import { computed } from 'vue'
   import { Icon } from '@/types/icons'
-  import { computed } from 'vue';
 
   const props = defineProps<{
     icon?: Icon,
     heading?: string,
-    full?: boolean
+    full?: boolean,
   }>()
 
   const classes = computed(() => ({
     content: {
-      'panel-section__content--full': props.full
-    }
+      'panel-section__content--full': props.full,
+    },
   }))
 </script>
 
@@ -50,7 +50,6 @@
 
 .panel-section__header {
   border-top: 1px solid var(--secondary-hover);
-  border-bottom: 1px solid var(--secondary-hover);
   display: flex;
   align-items: center;
   gap: var(--m-1);
@@ -69,6 +68,6 @@
   font-size: 18px;
   line-height: 28px;
   color: var(--grey-80);
+  flex-grow: 1;
 }
-
 </style>

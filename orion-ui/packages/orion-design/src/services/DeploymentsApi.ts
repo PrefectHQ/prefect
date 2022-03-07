@@ -14,10 +14,13 @@ import {
   isIntervalScheduleResponse,
   RRuleSchedule,
   CronSchedule,
-  IntervalSchedule
+  IntervalSchedule,
+  StateType,
+  Flow
 } from '@/models'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
+import { IFlowResponse } from '@/services/FlowsApi'
 import { DateString } from '@/types/dates'
 
 export type IDeploymentResponse = {
@@ -34,12 +37,21 @@ export type IDeploymentResponse = {
   flow_runner: IFlowRunnerResponse,
 }
 
+// this type is incomplete
+// https://orion-docs.prefect.io/api-ref/rest-api/#/Deployments/create_flow_run_from_deployment_deployments__id__create_flow_run_post
+export type ICreateFlowRunRequest = {
+  state: {
+    type: StateType,
+    message: string,
+  },
+}
+
 export class DeploymentsApi extends Api {
 
   protected route: Route = '/deployments'
 
-  public getDeployment(id: string): Promise<Deployment> {
-    return this.get<IDeploymentResponse>(`/${id}`).then(response => this.mapDeploymentResponse(response))
+  public getDeployment(deploymentId: string): Promise<Deployment> {
+    return this.get<IDeploymentResponse>(`/${deploymentId}`).then(response => this.mapDeploymentResponse(response))
   }
 
   public getDeployments(filter: UnionFilters): Promise<Deployment[]> {
@@ -48,6 +60,10 @@ export class DeploymentsApi extends Api {
 
   public getDeploymentsCount(filter: UnionFilters): Promise<number> {
     return this.post<number>('/count', filter).then(({ data }) => data)
+  }
+
+  public createDeploymentFlowRun(deploymentId: string, body: ICreateFlowRunRequest): Promise<Flow> {
+    return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body).then(response => this.mapFlowResponse(response))
   }
 
   protected mapDeployments(data: IDeploymentResponse): Deployment {
@@ -115,9 +131,28 @@ export class DeploymentsApi extends Api {
     return this.mapDeployments(data)
   }
 
+  protected mapFlow(data: IFlowResponse): Flow {
+    return new Flow({
+      id: data.id,
+      name: data.name,
+      tags: data.tags,
+      created: new Date(data.created),
+      updated: new Date(data.updated),
+    })
+  }
+
+  protected mapFlowResponse({ data }: AxiosResponse<IFlowResponse>): Flow {
+    return this.mapFlow(data)
+  }
+
+  protected mapFlowsResponse({ data }: AxiosResponse<IFlowResponse[]>): Flow[] {
+    return data.map(x => this.mapFlow(x))
+  }
+
 }
 
 export const deploymentsApi = createActions(new DeploymentsApi())
 
 export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
+export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()
