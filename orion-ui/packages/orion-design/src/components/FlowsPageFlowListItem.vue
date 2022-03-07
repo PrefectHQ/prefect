@@ -26,7 +26,7 @@
   import ListItem from '@/components/ListItem.vue'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
-  import { deploymentsApi, getDeploymentsCountKey } from '@/services/DeploymentsApi'
+  import { deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
@@ -82,9 +82,13 @@
   const deploymentsCountSubscription = useSubscription(getDeploymentsCount, [countFilter])
   const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
 
+  const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
+
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
+      getDeployments,
+      getDeploymentsCount,
     })
   }
 </script>
