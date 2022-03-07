@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
+import { GlobalClosePanels } from './guards/GlobalClosePanels'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: RouteRecordRaw[] = [
@@ -67,6 +68,7 @@ const router = createRouter({
 })
 
 RouteGuardExecutioner.register(new GlobalLoadFiltersFromRoute())
+RouteGuardExecutioner.register(new GlobalClosePanels())
 
 router.beforeEach(async (to, from) => {
   return await RouteGuardExecutioner.before(to, from)
