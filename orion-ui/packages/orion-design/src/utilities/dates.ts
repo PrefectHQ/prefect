@@ -2,6 +2,7 @@
 /* eslint-disable import/no-duplicates */
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
+import { formatInTimeZone } from 'date-fns-tz'
 
 const dateTimeNumericFormat = 'yyyy/MM/dd hh:mm:ss a'
 const timeNumericFormat = 'hh:mm:ss a'
@@ -35,4 +36,8 @@ export function formatDate(date: Date | string): string {
 
 export function parseDate(input: string, reference: Date = new Date()): Date {
   return parse(input, dateFormat, reference)
+}
+
+export function formatDateTimeNumericInTimeZone(date: Date | string, timezone: string): string {
+  return formatInTimeZone(date, timezone, dateTimeNumericFormat)
 }
