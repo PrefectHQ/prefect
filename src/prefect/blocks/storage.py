@@ -1,22 +1,28 @@
 import io
 import os
+import warnings
 from abc import abstractmethod
 from functools import partial
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Any, Dict, Generic, Optional, TypeVar
 from uuid import uuid4
 
 import anyio
+import fsspec
 import httpx
+import pendulum
+import pydantic
 from azure.storage.blob import BlobServiceClient
 from google.cloud import storage as gcs
 from google.oauth2 import service_account
+from typing_extensions import Literal
 
-import prefect
 from prefect.blocks.core import Block, register_block
 from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.filesystem import is_local_path
+from prefect.utilities.hashing import stable_hash
 
 # Storage block "key" type which should match for read/write in each implementation
 T = TypeVar("T")
@@ -46,6 +52,98 @@ class StorageBlock(Block, Generic[T]):
         """
         Retrieve persisted bytes given the return value of a prior call to `write`.
         """
+
+
+@register_block("File Storage", version="1.0")
+class FileStorageBlock(StorageBlock):
+    """
+    Store data as a file on local or remote file systems.
+
+    Supports any file system supported by `fsspec`. The file system is specified using
+    a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
+
+    Credentials for external services will be retrieved
+
+    Each blob is stored in a separate file. The key type defaults to "hash" to avoid
+    storing duplicates. If you always want to store a new file, you can use "uuid" or
+    "timestamp".
+    """
+
+    base_path: str = pydantic.Field(..., description="The folder to write files in.")
+    key_type: Literal["hash", "uuid", "timestamp"] = pydantic.Field(
+        "hash", description="The method to use to generate file names."
+    )
+    options: Dict[str, Any] = pydantic.Field(
+        default_factory=dict,
+        description="Additional options to pass to the underlying fsspec file system.",
+    )
+
+    def block_initialization(self) -> None:
+        # Check for missing remote storage dependency
+        try:
+            fsspec.open(self.base_path + "check")
+        except ImportError as exc:
+            # The path is a remote file system that uses a lib that is not installed
+            exc_message = str(exc).rstrip(".")
+            warnings.warn(
+                f"File storage created with remote base path "
+                f"{self.base_path!r}, but you are missing a Python module required to "
+                f"use the given remote storage protocol. {exc_message}.",
+                stacklevel=3,
+            )
+        return super().block_initialization()
+
+    @pydantic.validator("base_path", pre=True)
+    def allow_pathlib_paths(cls, value):
+        if isinstance(value, Path):
+            return str(value)
+        return value
+
+    @pydantic.validator("base_path")
+    def ensure_trailing_slash(cls, value):
+        if is_local_path(value):
+            if not value.endswith(os.sep):
+                return value + os.sep
+        else:
+            if not value.endswith("/"):
+                return value + "/"
+        return value
+
+    def _create_key(self, data: bytes):
+        if self.key_type == "uuid":
+            return uuid4().hex
+        elif self.key_type == "hash":
+            return stable_hash(data)
+        elif self.key_type == "timestamp":
+            return pendulum.now().isoformat()
+        else:
+            raise ValueError(f"Unknown key type {self.key_type!r}")
+
+    async def write(self, data: bytes) -> str:
+        key = self._create_key(data)
+        file = fsspec.open(self.base_path + key, "wb", **self.options)
+
+        # TODO: Some file systems support async and would require passing the current
+        #       event loop in `self.options`. This would probably be better for
+        #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
+
+        await run_sync_in_worker_thread(self._write_sync, file, data)
+        return key
+
+    async def read(self, key: str) -> bytes:
+        file = fsspec.open(self.base_path + key, "rb", **self.options)
+        return await run_sync_in_worker_thread(self._read_sync, file)
+
+    def _write_sync(self, file: fsspec.core.OpenFile, data: bytes) -> None:
+        if file.fs.exists(file.path) and self.key_type == "hash":
+            return  # Do not write on hash collision
+
+        with file as io:
+            io.write(data)
+
+    def _read_sync(self, file: fsspec.core.OpenFile) -> bytes:
+        with file as io:
+            return io.read()
 
 
 @register_block("S3 Storage", version="1.0")

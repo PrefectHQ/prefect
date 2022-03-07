@@ -433,6 +433,10 @@ class TestTaskRunnerParallelism:
             # Account for thread overhead
             sleep_time += 0.5
 
+        if sys.version_info < (3, 8):
+            # Python 3.7 is slower
+            sleep_time += 0.5
+
         return sleep_time
 
     @pytest.fixture
