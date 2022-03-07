@@ -105,6 +105,10 @@ def main(
         )
 
         ctx.with_resource(profile_ctx)
+    else:
+        # If not given a profile, initialize the global one
+        profile_ctx = prefect.context.get_profile_context()
+        profile_ctx.initialize()
 
 
 def enter_profile_from_option(fn):
