@@ -1,0 +1,82 @@
+<template>
+  <m-panel class="work-queue-create-panel">
+    <template #title>
+      <i class="pi pi-robot-line pi-1x" />
+      <span class="ml-1">New Work Queue</span>
+    </template>
+
+    <section>
+      <WorkQueueForm
+        v-model:work-queue="newWorkQueue"
+        :get-deployments="getDeployments"
+      />
+    </section>
+
+    <template #actions="{ close }">
+      <m-button miter @click="close">
+        Cancel
+      </m-button>
+      <m-button color="primary" miter :loading="saving" @click="createWorkQueue">
+        Save
+      </m-button>
+    </template>
+  </m-panel>
+</template>
+
+<script lang="ts" setup>
+  import { ref } from 'vue'
+  import WorkQueueForm from '@/components/WorkQueueForm.vue'
+  import { Deployment } from '@/models/Deployment'
+  import { WorkQueue } from '@/models/WorkQueue'
+  import { UnionFilters } from '@/services/Filter'
+  import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
+  import { ExitPanel } from '@/utilities/panels'
+  import { ShowToast } from '@/utilities/toasts'
+
+  const props = defineProps<{
+    refreshWorkQueuesList: () => void,
+    getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
+    createWorkQueue: (request: IWorkQueueRequest) => Promise<WorkQueue>,
+    useShowToast: ShowToast,
+    useExitPanel: ExitPanel,
+  }>()
+
+  const saving = ref(false)
+  const newWorkQueue = ref({
+    id: null,
+    name: null,
+    description: null,
+    concurrencyLimit: null,
+    filter: {
+      tags: [],
+      flowRunnerTypes: [],
+      deploymentIds: [],
+    },
+    isPaused: false,
+  })
+
+  async function createWorkQueue(): Promise<void> {
+    try {
+      saving.value = true
+      await props.createWorkQueue({
+        name: newWorkQueue.value.name,
+        description: newWorkQueue.value.description,
+        concurrency_limit: newWorkQueue.value.concurrencyLimit,
+        filter:{
+          tags: newWorkQueue.value.filter.tags,
+          deployment_ids: newWorkQueue.value.filter.deploymentIds,
+          flow_runner_types: newWorkQueue.value.filter.flowRunnerTypes,
+        },
+        is_paused: newWorkQueue.value.isPaused,
+      })
+      props.refreshWorkQueuesList()
+      props.useShowToast('Created Work Queue')
+      props.useExitPanel()
+    } catch (err) {
+      console.warn('error with creating work queue', err)
+      props.useShowToast('Error with creating work queue', 'error')
+    } finally {
+      saving.value = false
+    }
+  }
+</script>
