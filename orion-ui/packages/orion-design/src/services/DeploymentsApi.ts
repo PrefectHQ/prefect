@@ -32,7 +32,7 @@ export type IDeploymentResponse = {
   flow_data: IFlowDataResponse,
   schedule: IScheduleResponse | null,
   is_schedule_active: boolean | null,
-  parameters: unknown,
+  parameters: Record<string, string>,
   tags: string[] | null,
   flow_runner: IFlowRunnerResponse,
 }
