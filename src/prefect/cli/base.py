@@ -25,7 +25,7 @@ def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
 
     return typer.Option(
         # The default is dynamically retrieved
-        enter_profile_from_option(setting.value),
+        setting.value,
         *args,
         # Typer shows "(dynamic)" by default. We'd like to actually show the value
         # that would be used if the parameter is not specified and a reference if the
@@ -41,15 +41,14 @@ def SettingsArgument(setting: Setting) -> typer.Argument:
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        default=enter_profile_from_option(setting.value),
+        default=setting.value,
         show_default=f"from {setting.name}",
     )
 
 
 class PrefectTyper(typer.Typer):
     """
-    Wraps commands created by `Typer` to support async functions and to enter the
-    profile given by the global `--profile` option.
+    Wraps commands created by `Typer` to support async functions.
     """
 
     def command(self, *args, **kwargs):
@@ -58,7 +57,6 @@ class PrefectTyper(typer.Typer):
         def wrapper(fn):
             if is_async_fn(fn):
                 fn = sync_compatible(fn)
-            fn = enter_profile_from_option(fn)
             return command_decorator(fn)
 
         return wrapper
@@ -78,6 +76,7 @@ def version_callback(value: bool):
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     version: bool = typer.Option(
         None,
         "--version",
@@ -94,8 +93,18 @@ def main(
         is_eager=True,
     ),
 ):
-    if profile is not None:
-        os.environ["PREFECT_PROFILE"] = profile
+    if profile:
+        # Exit early if the profile is set but not valid
+        try:
+            prefect.settings.load_profile(profile)
+        except ValueError:
+            exit_with_error(f"Profile {profile!r} not found.")
+
+        profile_ctx = prefect.context.profile(
+            profile, override_existing_variables=True, initialize=True
+        )
+
+        ctx.with_resource(profile_ctx)
 
 
 def enter_profile_from_option(fn):
