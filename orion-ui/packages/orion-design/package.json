@@ -57,7 +57,7 @@
     ],
     "types": "./dist/index.d.ts",
     "dependencies": {
-        "@prefecthq/miter-design": "0.1.26",
+        "@prefecthq/miter-design": "0.1.30",
         "@prefecthq/vue-compositions": "0.1.18",
         "axios": "^0.24.0",
         "core-js": "^3.6.5",
