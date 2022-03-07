@@ -42,24 +42,25 @@
   padding: var(--p-1) var(--p-2);
 }
 
-.work-queues-list-item__title{
+.work-queues-list-item__title {
   grid-area: title;
+  text-align: left;
   margin-top: calc(var(--m-1) * -1);
 }
 
-.work-queues-list-item__filters{
+.work-queues-list-item__filters {
   grid-area: filters;
   display: flex;
   align-items: center;
 }
 
-.work-queues-list-item__concurrency{
+.work-queues-list-item__concurrency {
   grid-area: concurrency;
   display: flex;
   align-items: center;
 }
 
-.work-queues-list-item__status{
+.work-queues-list-item__status {
   grid-area: status;
   display: flex;
   gap: 2px;
