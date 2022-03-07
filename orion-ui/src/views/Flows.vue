@@ -1,10 +1,10 @@
 <template>
-  <div>
+  <div class="flows">
     <PageHeader icon="flow">
       Flows
     </PageHeader>
 
-    <m-loader :loading="loading" />
+    <m-loader class="flows__loader" :loading="loading" />
 
     <template v-if="empty">
       <FlowsPageFlowListEmptyState />
@@ -40,3 +40,15 @@
   const empty = computed(() => flowsSubscription.response.value !== undefined && flows.value.length === 0)
   const loading = computed(() => flowsSubscription.response.value === undefined)
 </script>
+
+<style lang="scss" scoped>
+.flows {
+  position: relative;
+}
+
+.flows__loader {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+</style>
