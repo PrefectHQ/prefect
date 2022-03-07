@@ -47,22 +47,12 @@
   }>()
 
   const saving = ref(false)
-  const workQueueFormValues = ref(new WorkQueueFormValues(props.workQueue))
+  const workQueueFormValues = ref(new WorkQueueFormValues({ ...props.workQueue }))
 
   async function update(): Promise<void> {
     try {
       saving.value = true
-      await props.updateWorkQueue(props.workQueue.id, {
-        name: workQueueFormValues.value.name,
-        description: workQueueFormValues.value.description,
-        concurrency_limit: workQueueFormValues.value.concurrencyLimit,
-        filter:{
-          tags: workQueueFormValues.value.filter.tags,
-          deployment_ids: workQueueFormValues.value.filter.deploymentIds,
-          flow_runner_types: workQueueFormValues.value.filter.flowRunnerTypes,
-        },
-        is_paused: workQueueFormValues.value.isPaused,
-      })
+      await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
       props.refreshWorkQueuesList()
       props.useShowToast('Updated Work Queue')
       props.useClosePanel()

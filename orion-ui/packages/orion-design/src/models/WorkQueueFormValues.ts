@@ -1,4 +1,5 @@
 import { WorkQueue } from '@/models/WorkQueue'
+import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
 import { FlowRunnerType } from '@/types/FlowRunnerType'
 
 export class WorkQueueFormValues {
@@ -23,6 +24,20 @@ export class WorkQueueFormValues {
       tags: [],
       flowRunnerTypes: [],
       deploymentIds: [],
+    }
+  }
+
+  public getWorkQueueRequest(): IWorkQueueRequest {
+    return {
+      'name': this.name,
+      'description': this.description,
+      'concurrency_limit': this.concurrencyLimit,
+      'filter': {
+        'tags': this.filter.tags,
+        'deployment_ids': this.filter.deploymentIds,
+        'flow_runner_types': this.filter.flowRunnerTypes,
+      },
+      'is_paused': this.isPaused,
     }
   }
 }
