@@ -23,9 +23,9 @@ export type InjectedServices = {
   getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
 }
 
-async function emptyRefresh(): Promise<void> {
-  // do nothing
-}
+// this is only used to ensure callable type for "refresh" method if actual refresh is not provided
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+async function emptyRefresh(): Promise<void> {}
 
 export function useInjectedServices(): InjectedServices {
   const useShowPanel = inject(showPanelKey, showPanel)
