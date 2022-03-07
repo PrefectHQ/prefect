@@ -825,3 +825,23 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
         "If you're trying to run this task outside of a Flow context, "
         f"you need to call {run_call}" in str(exc_info)
     )
+
+
+def test_task_call_with_self_succeeds():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class TestClass:
+        count: int
+
+        def increment(self):
+            self.count = self.count + 1
+
+    seconds_task = task(
+        TestClass.increment, target="{{task_slug}}_{{map_index}}", result=LocalResult()
+    )
+    initial = TestClass(count=0)
+
+    with Flow("test") as flow:
+        seconds_task(initial)
+        assert flow.run().is_successful()
