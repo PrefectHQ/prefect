@@ -68,7 +68,7 @@
   const recentFlowRunsCountFilter = computed<UnionFilters>(() => ({
     ...countFilter.value,
     flow_runs: {
-      start_time: {
+      expected_start_time: {
         after_: subWeeks(new Date(), 1).toISOString(),
       },
     },
