@@ -10,19 +10,27 @@
         </slot>
       </div>
     </header>
-    <div class="panel-section__content">
+    <div class="panel-section__content" :class="classes.content">
       <slot />
     </div>
   </section>
 </template>
 
 <script lang="ts" setup>
-  import { Icon } from '@/types/icons';
+  import { Icon } from '@/types/icons'
+  import { computed } from 'vue';
 
-  defineProps<{
+  const props = defineProps<{
     icon?: Icon,
-    heading?: string
+    heading?: string,
+    full?: boolean
   }>()
+
+  const classes = computed(() => ({
+    content: {
+      'panel-section__content--full': props.full
+    }
+  }))
 </script>
 
 <style lang="scss">
@@ -34,6 +42,10 @@
 .panel-section__header,
 .panel-section__content {
   padding: var(--panel-padding);
+}
+
+.panel-section__content--full {
+  padding: 0;
 }
 
 .panel-section__header {
