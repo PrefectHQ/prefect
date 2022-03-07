@@ -19,6 +19,6 @@ export const randomWorkQueueFilter: MockFunction<WorkQueueFilter> = function(wor
   return new WorkQueueFilter({
     tags: workQueueFilter?.tags ?? this.createMany('string', 3),
     deploymentIds: workQueueFilter?.deploymentIds ?? this.createMany('string', 3),
-    flowRunnerTypes: workQueueFilter?.flowRunnerTypes ?? this.createMany('string', 3),
+    flowRunnerTypes: workQueueFilter?.flowRunnerTypes ?? this.createMany('flowRunnerType', 3),
   })
 }
