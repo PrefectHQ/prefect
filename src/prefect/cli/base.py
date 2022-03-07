@@ -113,26 +113,6 @@ def main(
         profile_ctx.initialize()
 
 
-def enter_profile_from_option(fn):
-    @functools.wraps(fn)
-    def with_profile_from_option(*args, **kwargs):
-        name = os.environ.get("PREFECT_PROFILE", "default")
-
-        # Exit early if the profile is set but not valid
-        try:
-            prefect.settings.load_profile(name)
-        except ValueError:
-            exit_with_error(f"Profile {name!r} not found.")
-
-        context = prefect.context.profile(
-            name, override_existing_variables=name != "default", initialize=True
-        )
-        with context:
-            return fn(*args, **kwargs)
-
-    return with_profile_from_option
-
-
 @app.command()
 async def version():
     """Get the current Prefect version."""
