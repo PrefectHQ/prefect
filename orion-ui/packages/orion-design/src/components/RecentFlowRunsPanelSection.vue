@@ -105,7 +105,7 @@
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 @use 'sass:map';
 .recent-flow-runs-panel-section__heading {
   display: flex;
