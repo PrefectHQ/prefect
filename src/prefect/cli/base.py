@@ -36,13 +36,15 @@ def SettingsOption(setting: Setting, *args, **kwargs) -> typer.Option:
     )
 
 
-def SettingsArgument(setting: Setting) -> typer.Argument:
+def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
     """Custom `typer.Argument` factory to load the default value from settings"""
 
     # See comments in `SettingsOption`
     return typer.Argument(
-        default=setting.value,
+        setting.value,
+        *args,
         show_default=f"from {setting.name}",
+        **kwargs,
     )
 
 
