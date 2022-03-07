@@ -54,14 +54,16 @@
 
 .details-key-value--stacked {
   flex-direction: column;
+  font-weight: 400;
 
   .details-key-value__label {
-    color: var(--black);
-    font-weight: bold;
+    color: var(--grey-80);
+    font-weight: 600;
   }
 
   .details-key-value__value {
-    color: var(--grey-60);
+    font-family: var(--font-secondary);
+
   }
 }
 </style>
