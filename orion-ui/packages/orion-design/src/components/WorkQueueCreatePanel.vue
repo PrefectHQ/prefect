@@ -48,17 +48,7 @@
   async function createWorkQueue(): Promise<void> {
     try {
       saving.value = true
-      await props.createWorkQueue({
-        name: workQueueFormValues.value.name,
-        description: workQueueFormValues.value.description,
-        concurrency_limit: workQueueFormValues.value.concurrencyLimit,
-        filter:{
-          tags: workQueueFormValues.value.filter.tags,
-          deployment_ids: workQueueFormValues.value.filter.deploymentIds,
-          flow_runner_types: workQueueFormValues.value.filter.flowRunnerTypes,
-        },
-        is_paused: workQueueFormValues.value.isPaused,
-      })
+      await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
       props.refreshWorkQueuesList()
       props.useShowToast('Created Work Queue')
       props.useExitPanel()
