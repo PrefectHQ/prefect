@@ -10,7 +10,7 @@
     <div class="flow-panel__details">
       <DetailsKeyValue label="Created Date" :value="formatDateTimeNumeric(flow.created)" stacked />
       <div class="flow-panel__id">
-        <DetailsKeyValue label="Flow ID" :value="flow.id" stacked />
+        <DetailsKeyValue label="Flow ID" :value="flow.id" class="text-truncate" stacked />
         <CopyButton :value="flow.id" label="Copy">
           <template #default />
         </CopyButton>
@@ -18,24 +18,9 @@
       <DetailsKeyValue label="Tags" stacked>
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
+      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
+      <DeploymentsPanelSection v-bind="{ filter, getDeployments, getDeploymentsCount, createDeploymentFlowRun }" />
     </div>
-
-    <PanelSection icon="map-pin-line">
-      <template #heading>
-        <div class="flow-panel__deployments-heading">
-          Deployments
-          <span class="flow-panel__count">{{ deploymentsCount }}</span>
-        </div>
-      </template>
-      <template v-if="noDeployments">
-        No Results
-      </template>
-      <template v-else>
-        <template v-for="deployment in deployments" :key="deployment.id">
-          {{ deployment.name }}
-        </template>
-      </template>
-    </PanelSection>
 
     <template #actions="{ close }">
       <m-button @click="close">
@@ -46,21 +31,29 @@
 </template>
 
 <script lang="ts" setup>
+  import { computed } from 'vue'
+  import { RouteLocationRaw } from 'vue-router'
   import CopyButton from './CopyButton.vue'
+  import DeploymentsPanelSection from './DeploymentsPanelSection.vue'
   import DetailsKeyValue from './DetailsKeyValue.vue'
+  import RecentFlowRunsPanelSection from './RecentFlowRunsPanelSection.vue'
   import { Flow } from '@/models/Flow'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
+  import { UnionFilters } from '@/services/Filter'
+  import { FlowRunsApi } from '@/services/FlowRunsApi'
+  import { Filter } from '@/types/filters'
   import { formatDateTimeNumeric } from '@/utilities/dates'
-  import PanelSection from './PanelSection.vue'
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import { inject, computed } from 'vue'
-  import { getDeploymentsCountKey, getDeploymentsKey, deploymentsApi } from '@/services/DeploymentsApi'
-import { UnionFilters } from '@/services/Filter'
 
   const props = defineProps<{
     flow: Flow,
+    getDeployments: DeploymentsApi['getDeployments'],
+    getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
+    createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+    dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
 
-  const deploymentsFilter = computed<UnionFilters>(() => ({
+  const filter = computed<UnionFilters>(() => ({
     flows: {
       id: {
         any_: [props.flow.id],
@@ -68,14 +61,13 @@ import { UnionFilters } from '@/services/Filter'
     },
   }))
 
-  const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
-  const deploymentsCountSubscription = useSubscription(getDeploymentsCount, [deploymentsFilter])
-  const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
-
-  const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
-  const deploymentsSubscription = useSubscription(getDeployments, [deploymentsFilter])
-  const deployments = computed(() => deploymentsSubscription.response.value ?? [])
-  const noDeployments = computed(() => deploymentsSubscription.response.value?.length === 0)
+  const baseFilter = computed<Required<Filter>>(() => ({
+    object: 'flow',
+    property: 'name',
+    type: 'string',
+    operation: 'equals',
+    value: props.flow.name,
+  }))
 </script>
 
 <style lang="scss">
@@ -99,12 +91,6 @@ import { UnionFilters } from '@/services/Filter'
   display: flex;
   justify-content: space-between;
   min-width: 0;
-}
-
-.flow-panel__deployments-heading {
-  display: flex;
-  align-items: center;
-  gap: var(--m-1);
 }
 
 .flow-panel__count {
