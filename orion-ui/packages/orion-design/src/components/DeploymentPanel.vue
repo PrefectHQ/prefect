@@ -16,11 +16,7 @@
         <m-tags :tags="deployment.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentParametersPanelSection
-        :parameters="{
-          test: 'hello world',
-        }"
-      />
+      <DeploymentParametersPanelSection :parameters="deployment.parameters" />
     </div>
 
     <template #actions="{ close }">
@@ -49,8 +45,6 @@
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
-
-  console.log(props.deployment)
 
   const baseFilter = computed<Required<Filter>>(() => ({
     object: 'deployment',
