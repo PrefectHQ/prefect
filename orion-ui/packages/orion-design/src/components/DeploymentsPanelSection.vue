@@ -13,7 +13,7 @@
     </template>
     <template v-else>
       <template v-for="deployment in deployments" :key="deployment.id">
-        <div class="deployments-panel-section__deployment">
+        <button type="button" class="deployments-panel-section__deployment" @click="openDeploymentPanel(deployment)">
           <span class="deployment-panel-section__deployment-name">
             {{ deployment.name }}
           </span>
@@ -25,7 +25,7 @@
           <m-button color="alternate" @click="run(deployment)">
             Quick Run
           </m-button>
-        </div>
+        </button>
       </template>
     </template>
   </PanelSection>
@@ -35,13 +35,20 @@
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { RouteLocationRaw } from 'vue-router'
+  import DeploymentPanel from './DeploymentPanel.vue'
   import PanelSection from './PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { FlowRunsApi } from '@/services/FlowRunsApi'
+  import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
     filter: UnionFilters,
+    showPanel: ShowPanel,
+    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+    dashboardRoute: Exclude<RouteLocationRaw, string>,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
@@ -67,6 +74,14 @@
       .then(() => showToast('Flow run scheduled'))
       .finally(() => deploymentsSubscription.refresh())
   }
+
+  function openDeploymentPanel(deployment: Deployment): void {
+    props.showPanel(DeploymentPanel, {
+      deployment,
+      getFlowRunsCount: props.getFlowRunsCount,
+      dashboardRoute: props.dashboardRoute,
+    })
+  }
 </script>
 
 <style lang="scss">
@@ -82,7 +97,15 @@
   padding: var(--panel-padding);
   align-items: center;
   gap: var(--m-1);
+  width: 100%;
+  border: 0;
+  background: none;
   border-top: 1px solid var(--secondary-hover);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--primary-hover);
+  }
 }
 
 .deployment-panel-section__deployment-name {

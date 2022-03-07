@@ -1,5 +1,5 @@
 <template>
-  <m-panel>
+  <m-panel class="flow-panel">
     <template #title>
       <div class="flow-panel__title">
         <i class="pi pi-flow pi-sm flow-panel__icon" />
@@ -19,7 +19,7 @@
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentsPanelSection v-bind="{ filter, getDeployments, getDeploymentsCount, createDeploymentFlowRun }" />
+      <DeploymentsPanelSection v-bind="{ filter, showPanel, dashboardRoute, getDeployments, getDeploymentsCount, createDeploymentFlowRun, getFlowRunsCount }" />
     </div>
 
     <template #actions="{ close }">
@@ -43,9 +43,11 @@
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
     flow: Flow,
+    showPanel: ShowPanel,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
