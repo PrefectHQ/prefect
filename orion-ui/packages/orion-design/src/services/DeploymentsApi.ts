@@ -119,4 +119,5 @@ export class DeploymentsApi extends Api {
 
 export const deploymentsApi = createActions(new DeploymentsApi())
 
+export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
