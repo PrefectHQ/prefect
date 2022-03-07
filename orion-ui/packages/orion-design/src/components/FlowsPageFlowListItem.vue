@@ -26,7 +26,7 @@
   import ListItem from '@/components/ListItem.vue'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
-  import { deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
+  import { createDeploymentFlowRunKey, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
@@ -53,7 +53,7 @@
       property: 'start_date',
       type: 'date',
       operation: 'newer',
-      value: '7d',
+      value: '1w',
     },
   ])
 
@@ -83,12 +83,16 @@
   const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
 
   const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
+  const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
 
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
+      dashboardRoute: route,
       getDeployments,
       getDeploymentsCount,
+      createDeploymentFlowRun,
+      getFlowRunsCount,
     })
   }
 </script>
