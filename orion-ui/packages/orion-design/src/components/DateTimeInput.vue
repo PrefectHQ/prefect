@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
-  import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
 
   const props = defineProps<{
     label: string,
@@ -56,7 +56,7 @@
 
   const showPicker = ref(false)
   const tempValue = ref(props.value ?? new Date())
-  const formatted = computed(() => props.value ? formatDateTimeNumeric(props.value) : '')
+  const formatted = computed(() => props.value ? formatDateTimeNumericInTimeZone(props.value) : '')
 
   function applyTempValue(): void {
     emit('update:value', tempValue.value)
