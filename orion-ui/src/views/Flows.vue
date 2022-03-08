@@ -12,7 +12,11 @@
 
     <template v-else>
       <div class="flows__controls">
-        <m-input v-model="term" placeholder="Search..." />
+        <m-input v-model="term" placeholder="Search...">
+          <template #prepend>
+            <i class="pi pi-price-tag-line pi-sm" />
+          </template>
+        </m-input>
       </div>
       <FlowsPageFlowList :flows="flows" />
     </template>
