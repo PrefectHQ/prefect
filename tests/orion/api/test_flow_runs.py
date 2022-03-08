@@ -439,7 +439,6 @@ class TestReadFlowRuns:
 
 
 class TestReadFlowRunGraph:
-
     @pytest.fixture
     async def graph_data(self, session):
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
@@ -468,14 +467,16 @@ class TestReadFlowRunGraph:
                     task_key=str(r),
                     dynamic_key=str(r * 3),
                     state=states.Completed(),
-                    task_inputs=dict(x=[TaskRunResult(id=prev_tr.id)]) if prev_tr else dict()
+                    task_inputs=dict(x=[TaskRunResult(id=prev_tr.id)])
+                    if prev_tr
+                    else dict(),
                 )
             )
 
             prev_tr = tr
 
         await session.commit()
-    
+
         return fr
 
     async def test_read_flow_run_graph(self, flow_run, client):
@@ -486,20 +487,30 @@ class TestReadFlowRunGraph:
         response = await client.get(f"/flow_runs/{graph_data.id}/graph")
         assert len(response.json()) == 10
 
-    async def test_read_flow_run_graph_returns_upstream_dependencies(self, graph_data, client):
+    async def test_read_flow_run_graph_returns_upstream_dependencies(
+        self, graph_data, client
+    ):
         filter_graph = lambda task_run: len(task_run["upstream_dependencies"]) > 0
 
         response = await client.get(f"/flow_runs/{graph_data.id}/graph")
-        
+
         # Remove task runs that don't have upstream dependencies, since we know the first created task run doesn't have any
         # but we have no guarantee of ordering
         task_runs = list(filter(filter_graph, response.json()))
-        
+
         # Make sure we've only removed the root task run
         assert len(task_runs) == 9
 
         # Test that all task runs in the list have exactly one upstream dependency
-        assert all(len(task_run["upstream_dependencies"] if task_run["upstream_dependencies"] else []) == 1 for task_run in task_runs)
+        assert all(
+            len(
+                task_run["upstream_dependencies"]
+                if task_run["upstream_dependencies"]
+                else []
+            )
+            == 1
+            for task_run in task_runs
+        )
 
 
 class TestDeleteFlowRuns:
