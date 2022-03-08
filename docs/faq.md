@@ -48,7 +48,7 @@ Orion is alpha software and we do not recommend Orion for production use at this
 
 ### How is Orion licensed?
 
-The Orion technical preview is licensed under the [Prefect Community License 1.0](https://www.prefect.io/legal/prefect-community-license), a highly permissive open-source license. The Prefect Community License places no restrictions on use except for distributing Prefect Orion as a service outside your organization. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+The Orion technical preview is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
 ## Features
 
