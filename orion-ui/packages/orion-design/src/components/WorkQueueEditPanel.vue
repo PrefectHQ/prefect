@@ -5,6 +5,8 @@
       <span class="ml-1">New Work Queue</span>
     </template>
 
+    <m-loader :loading="saving" class="work-queue-edit-panel__loader" />
+
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
@@ -27,11 +29,10 @@
 <script lang="ts" setup>
   import { ref } from 'vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
-  import { Deployment } from '@/models/Deployment'
   import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
-  import { UnionFilters } from '@/services/Filter'
-  import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
+  import { WorkQueuesApi } from '@/services/WorkQueuesApi'
   import { closePanel, exitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
@@ -40,9 +41,9 @@
     workQueue: WorkQueue,
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
-    getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
-    updateWorkQueue: (workQueueId: string, request: IWorkQueueRequest) => Promise<void>,
-    deleteWorkQueue: (workQueueId: string) => Promise<void>,
+    getDeployments: DeploymentsApi['getDeployments'],
+    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
+    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
   }>()
 
   const saving = ref(false)
@@ -79,3 +80,12 @@
     }
   }
 </script>
+
+<style lang="scss">
+.work-queue-edit-panel__loader {
+  position: absolute !important;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+</style>
