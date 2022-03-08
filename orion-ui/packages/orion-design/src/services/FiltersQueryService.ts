@@ -1,14 +1,14 @@
 /* eslint-disable import/no-duplicates */
-import { addYears } from 'date-fns'
 import addDays from 'date-fns/addDays'
 import addHours from 'date-fns/addHours'
 import addMonths from 'date-fns/addMonths'
 import addWeeks from 'date-fns/addWeeks'
+import addYears from 'date-fns/addYears'
 import startOfToday from 'date-fns/startOfToday'
 import subDays from 'date-fns/subDays'
+import { DatePartShort, isDatePartShort } from '..'
 import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
-import { DatePartShort, isDatePartShort } from '@/types/dates'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '@/types/filters'
 import {
   FlowFilter as FlowFilterQuery,
@@ -200,27 +200,28 @@ export class FiltersQueryService {
   }
 
   private static createRelativeDate(relative: RelativeDateFilterValue): Date {
-    const unit = relative.slice(-1)
+    const unit = this.parseRelativeDateUnit(relative)
     const value = parseInt(relative)
     const valueNegative = value * -1
-
-    if (!isDatePartShort(unit)) {
-      throw new FilterRelativeDateUnitError()
-    }
 
     return this.createDateFromUnitAndValue(unit, valueNegative)
 
   }
 
   private static createUpcomingRelativeDate(relative: RelativeDateFilterValue): Date {
-    const unit = relative.slice(-1)
+    const unit = this.parseRelativeDateUnit(relative)
     const value = parseInt(relative)
 
-    if (!isDatePartShort(unit)) {
+    return this.createDateFromUnitAndValue(unit, value)
+  }
+
+  private static parseRelativeDateUnit(relative: string): DatePartShort {
+    const possibleUnit = relative.slice(-1)
+    if (!isDatePartShort(possibleUnit)) {
       throw new FilterRelativeDateUnitError()
     }
 
-    return this.createDateFromUnitAndValue(unit, value)
+    return possibleUnit
   }
 
   private static createDateFromUnitAndValue(unit: DatePartShort, value: number): Date {
