@@ -914,7 +914,7 @@ class Task(metaclass=TaskMetaclass):
         chain of task calls.
 
         Args:
-            - task: The task to apply
+            - __prefect_task: The task to apply
             - **kwargs: Additional keyword arguments to include as task arguments
 
         Returns:
