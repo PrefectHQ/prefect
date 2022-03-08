@@ -83,16 +83,16 @@
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
   import TagsInput from '@/components/TagsInput.vue'
-  // import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
+  import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
 
   const props = defineProps<{
-    values: any,
+    values: WorkQueueFormValues,
     getDeployments: DeploymentsApi['getDeployments'],
   }>()
 
   const emit = defineEmits<{
-    (event: 'update:workQueue', value: any): void,
+    (event: 'update:workQueue', value: WorkQueueFormValues): void,
     (event: 'remove', value: string): void,
   }>()
 
@@ -101,23 +101,9 @@
   const deploymentsSubscription = useSubscription(props.getDeployments, [{}])
   const deployments = computed(() => deploymentsSubscription.response.value ?? [])
 
-  const internalValue = computed({
-    get() {
-      return props.values
-    },
-    set(value: any) {
-      emit('update:workQueue', value)
-    },
-  })
+  const internalValue = computed(() => props.values)
 
-  const isActive = computed({
-    get() {
-      return !internalValue.value.isPaused
-    },
-    set(value) {
-      internalValue.value.isPaused = !value
-    },
-  })
+  const isActive = computed(() => !internalValue.value.isPaused)
 </script>
 
 <style lang="scss">
