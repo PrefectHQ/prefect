@@ -26,7 +26,7 @@
 
     <div class="mb-2">
       <DetailsKeyValue label="Flow Runner Types" stacked>
-        <!-- <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" /> -->
+        <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" />
       </DetailsKeyValue>
     </div>
 
@@ -81,7 +81,7 @@
   import { computed, ref } from 'vue'
   import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
-  // import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
+  import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
   import TagsInput from '@/components/TagsInput.vue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
