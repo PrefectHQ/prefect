@@ -18,7 +18,7 @@
     </div>
 
     <div class="work-queue-panel__details-row">
-      <CodeBanner :code="workQueue?.id" heading="Work queue is ready to go!" description="Work queues define the work to be done and agents poll a specific work queue for new work." />
+      <CodeBanner :code="prefect agent start ${workQueue?.id}" heading="Work queue is ready to go!" description="Work queues define the work to be done and agents poll a specific work queue for new work." />
     </div>
     <div class="work-queue-panel__details-row">
       <DetailsKeyValue label="Concurrency Limit" :value="workQueue ? concurrencyLimit : null" stacked />
