@@ -20,19 +20,19 @@
 
     <div class="mb-2">
       <DetailsKeyValue label="Tags" stacked>
-        <TagsInput v-model:tags="internalValue.filter.tags" />
+        <!-- <TagsInput v-model:tags="internalValue.filter.tags" /> -->
       </DetailsKeyValue>
     </div>
 
     <div class="mb-2">
       <DetailsKeyValue label="Flow Runner Types" stacked>
-        <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" />
+        <!-- <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" /> -->
       </DetailsKeyValue>
     </div>
 
     <div class="mb-2">
       <DetailsKeyValue label="Deployments" stacked>
-        <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
+        <!-- <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" /> -->
       </DetailsKeyValue>
     </div>
 
@@ -79,10 +79,10 @@
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
-  import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
+  // import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
-  import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
-  import TagsInput from '@/components/TagsInput.vue'
+  // import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
+  // import TagsInput from '@/components/TagsInput.vue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
 
@@ -101,9 +101,23 @@
   const deploymentsSubscription = useSubscription(props.getDeployments, [{}])
   const deployments = computed(() => deploymentsSubscription.response.value ?? [])
 
-  const internalValue = computed(() => props.values)
+  const internalValue = computed({
+    get() {
+      return props.values
+    },
+    set(value: WorkQueueFormValues) {
+      emit('update:workQueue', value)
+    },
+  })
 
-  const isActive = computed(() => !internalValue.value.isPaused)
+  const isActive = computed({
+    get() {
+      return !internalValue.value.isPaused
+    },
+    set(value) {
+      internalValue.value.isPaused = !value
+    },
+  })
 </script>
 
 <style lang="scss">
