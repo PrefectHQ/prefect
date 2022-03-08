@@ -217,6 +217,7 @@ export class FiltersQueryService {
 
   private static parseRelativeDateUnit(relative: string): DatePartShort {
     const possibleUnit = relative.slice(-1)
+
     if (!isDatePartShort(possibleUnit)) {
       throw new FilterRelativeDateUnitError()
     }
