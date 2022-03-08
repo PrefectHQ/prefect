@@ -1,6 +1,6 @@
+import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { inject } from 'vue'
 import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
-import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
 import { WorkQueuesListSubscription, workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
@@ -19,7 +19,7 @@ export type InjectedServices = {
 }
 
 export function useInjectedServices(): InjectedServices {
-  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)!
+  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey, null)!
   const getWorkQueue = inject(getWorkQueueKey, workQueuesApi.getWorkQueue)
   const createWorkQueue = inject(createWorkQueueKey, workQueuesApi.createWorkQueue)
   const pauseWorkQueue = inject(pauseWorkQueueKey, workQueuesApi.pauseWorkQueue)
