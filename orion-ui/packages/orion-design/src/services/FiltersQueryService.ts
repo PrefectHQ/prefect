@@ -1,4 +1,5 @@
 /* eslint-disable import/no-duplicates */
+import { addYears } from 'date-fns'
 import addDays from 'date-fns/addDays'
 import addHours from 'date-fns/addHours'
 import addMonths from 'date-fns/addMonths'
@@ -7,6 +8,7 @@ import startOfToday from 'date-fns/startOfToday'
 import subDays from 'date-fns/subDays'
 import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
+import { DatePartShort, isDatePartShort } from '@/types/dates'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '@/types/filters'
 import {
   FlowFilter as FlowFilterQuery,
@@ -202,6 +204,10 @@ export class FiltersQueryService {
     const value = parseInt(relative)
     const valueNegative = value * -1
 
+    if (!isDatePartShort(unit)) {
+      return new Date()
+    }
+
     return this.createDateFromUnitAndValue(unit, valueNegative)
 
   }
@@ -210,10 +216,14 @@ export class FiltersQueryService {
     const unit = relative.slice(-1)
     const value = parseInt(relative)
 
+    if (!isDatePartShort(unit)) {
+      return new Date()
+    }
+
     return this.createDateFromUnitAndValue(unit, value)
   }
 
-  private static createDateFromUnitAndValue(unit: string, value: number): Date {
+  private static createDateFromUnitAndValue(unit: DatePartShort, value: number): Date {
     switch (unit) {
       case 'h':
         return addHours(new Date, value)
@@ -223,6 +233,8 @@ export class FiltersQueryService {
         return addWeeks(startOfToday(), value)
       case 'm':
         return addMonths(startOfToday(), value)
+      case 'y':
+        return addYears(startOfToday(), value)
       default:
         throw new FilterRelativeDateUnitError()
     }
