@@ -20,7 +20,7 @@
       required: true,
     },
     value: {
-      type: String as PropType<string | null>,
+      type: String as PropType<string | null | undefined>,
       required: false,
       default: null,
     },
