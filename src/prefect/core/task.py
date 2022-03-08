@@ -635,10 +635,9 @@ class Task(metaclass=TaskMetaclass):
         )
         return new
 
-    def test(self, __foo: str):
+    def test(self, __foo: str) -> None:
         """
-        Args:
-            - __foo: test
+        Foo
         """
         pass
 
