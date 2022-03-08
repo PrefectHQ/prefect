@@ -1,7 +1,7 @@
 """
 Command line interface for working with profiles
 """
-import textwrap
+import os
 from typing import List
 
 import toml
@@ -78,6 +78,13 @@ def set(variables: List[str]):
     for var, value in parsed_variables:
         env[var] = value
         console.print(f"Set variable {var!r} to {value!r}")
+
+    for var, _ in parsed_variables:
+        if var in os.environ:
+            console.print(
+                f"[yellow]{var!r} is also set by an environment variable which will "
+                f"override your config value. Run `unset {var}` to clear it."
+            )
 
     prefect.settings.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
