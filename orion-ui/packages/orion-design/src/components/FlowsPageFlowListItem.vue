@@ -1,8 +1,8 @@
 <template>
   <ListItem class="flows-page-flow-list-item">
-    <h2 class="flows-page-flow-list-item__name">
-      {{ flow.name }}
-    </h2>
+    <div class="flows-page-flow-list-item__name">
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
+    </div>
 
     <div class="flows-page-flow-list-item__details">
       <m-tag icon="pi-map-pin-line" flat>
@@ -20,19 +20,25 @@
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { subWeeks } from 'date-fns'
   import { computed, inject } from 'vue'
+  import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import FilterCountButton from '@/components/FilterCountButton.vue'
+  import FlowPanel from '@/components/FlowPanel.vue'
   import ListItem from '@/components/ListItem.vue'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
-  import { deploymentsApi, getDeploymentsCountKey } from '@/services/DeploymentsApi'
+  import { createDeploymentFlowRunKey, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
+  import { showPanelKey } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
 
-  const route = inject(workspaceDashboardKey)
+  const crumbs = [{ text: props.flow.name, to: '#' }]
+
+  const route = inject(workspaceDashboardKey)!
+  const showPanel = inject(showPanelKey)!
 
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
     {
@@ -47,7 +53,7 @@
       property: 'start_date',
       type: 'date',
       operation: 'newer',
-      value: '7d',
+      value: '1w',
     },
   ])
 
@@ -62,7 +68,7 @@
   const recentFlowRunsCountFilter = computed<UnionFilters>(() => ({
     ...countFilter.value,
     flow_runs: {
-      start_time: {
+      expected_start_time: {
         after_: subWeeks(new Date(), 1).toISOString(),
       },
     },
@@ -75,6 +81,21 @@
   const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
   const deploymentsCountSubscription = useSubscription(getDeploymentsCount, [countFilter])
   const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
+
+  const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
+  const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
+
+  function openFlowPanel(): void {
+    showPanel(FlowPanel, {
+      flow: props.flow,
+      showPanel,
+      dashboardRoute: route,
+      getDeployments,
+      getDeploymentsCount,
+      createDeploymentFlowRun,
+      getFlowRunsCount,
+    })
+  }
 </script>
 
 <style lang="scss">
