@@ -8,7 +8,7 @@
     </template>
 
     <div class="deployment-panel__details">
-      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumeric(deployment.created)" stacked />
+      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(deployment.created)" stacked />
       <DetailsKeyValue label="Schedule" :value="schedule" stacked />
       <DetailsKeyValue label="Flow storage type" :value="deployment.flowData.encoding" stacked />
       <DetailsKeyValue label="Flow runner" :value="deployment.flowRunner?.type" stacked />
@@ -37,7 +37,7 @@
   import { CronSchedule, IntervalSchedule, RRuleSchedule } from '@/models/Schedule'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
-  import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
   import { secondsToApproximateString } from '@/utilities/seconds'
 
   const props = defineProps<{
