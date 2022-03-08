@@ -16,11 +16,7 @@
         <m-tags :tags="deployment.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentParametersPanelSection
-        :parameters="{
-          test: 'hello world',
-        }"
-      />
+      <DeploymentParametersPanelSection :parameters="deployment.parameters" />
     </div>
 
     <template #actions="{ close }">
@@ -34,9 +30,9 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
-  import DeploymentParametersPanelSection from './DeploymentParametersPanelSection.vue'
-  import DetailsKeyValue from './DetailsKeyValue.vue'
-  import RecentFlowRunsPanelSection from './RecentFlowRunsPanelSection.vue'
+  import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
+  import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { CronSchedule, IntervalSchedule, RRuleSchedule } from '@/models/Schedule'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
@@ -49,8 +45,6 @@
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
-
-  console.log(props.deployment)
 
   const baseFilter = computed<Required<Filter>>(() => ({
     object: 'deployment',
