@@ -9,7 +9,7 @@
     </form>
     <div class="tags-input__tags">
       <template v-for="tag in tags" :key="tag">
-        <!-- <DismissibleTag :label="tag" class="tags-input__tag" dismissible @dismiss="removeTag(tag)" /> -->
+        <DismissibleTag :label="tag" class="tags-input__tag" dismissible @dismiss="removeTag(tag)" />
       </template>
     </div>
   </div>
@@ -17,7 +17,7 @@
 
 <script lang="ts" setup>
   import { PropType, ref } from 'vue'
-  // import DismissibleTag from '@/components/DismissibleTag.vue'
+  import DismissibleTag from '@/components/DismissibleTag.vue'
 
   const tagToAdd = ref<string | null>(null)
 
