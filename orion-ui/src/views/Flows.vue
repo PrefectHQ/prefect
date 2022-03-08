@@ -14,9 +14,10 @@
       <div class="flows__controls">
         <m-input v-model="term" placeholder="Search...">
           <template #prepend>
-            <i class="pi pi-price-tag-line pi-sm" />
+            <i class="pi pi-search-line pi-sm" />
           </template>
         </m-input>
+        <TagsInput v-model:tags="tags" />
       </div>
       <FlowsPageFlowList :flows="flows" />
     </template>
@@ -24,7 +25,16 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowsPageFlowList, PageHeader, UnionFilters, flowsApi, workspaceDashboardKey, FlowsPageFlowListEmptyState } from '@prefecthq/orion-design'
+  import {
+    TagsInput,
+    FlowsPageFlowList,
+    PageHeader,
+    UnionFilters,
+    flowsApi,
+    workspaceDashboardKey,
+    FlowsPageFlowListEmptyState,
+    Require
+  } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
 
@@ -34,15 +44,22 @@
   })
 
   const term = ref('')
+  const tags = ref([])
 
   const filter = computed<UnionFilters>(() => {
-    const filter: UnionFilters = {}
+    const filter: Require<UnionFilters, 'flows'> = {
+      flows: {},
+    }
 
     if (term.value.length > 0) {
-      filter.flows = {
-        name: {
-          any_: [term.value],
-        },
+      filter.flows.name = {
+        any_: [term.value],
+      }
+    }
+
+    if (tags.value.length > 0) {
+      filter.flows.tags = {
+        all_: tags.value,
       }
     }
 
@@ -62,6 +79,8 @@
 </script>
 
 <style lang="scss" scoped>
+@use 'sass:map';
+
 .flows {
   position: relative;
 }
@@ -73,8 +92,12 @@
 }
 .flows__controls {
   display: grid;
-  grid-template-columns: 1fr 250px;
-  gap: var(--m-1);
+  grid-template-columns: 1fr;
+  gap: var(--m-2);
   margin-bottom: var(--m-2);
+
+  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
+    grid-template-columns: 1fr 250px;
+  }
 }
 </style>
