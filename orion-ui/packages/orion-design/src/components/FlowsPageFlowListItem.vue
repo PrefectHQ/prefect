@@ -32,7 +32,7 @@
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
-  import { showPanelKey } from '@/utilities/panels'
+  import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
@@ -40,7 +40,6 @@
   const crumbs = [{ text: props.flow.name, to: '#' }]
 
   const route = inject(workspaceDashboardKey)!
-  const showPanel = inject(showPanelKey)!
 
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
     {
