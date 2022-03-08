@@ -28,8 +28,8 @@
   import { isSameDay } from 'date-fns'
   import { computed, PropType } from 'vue'
   import FlowRunLog from '@/components/FlowRunLog.vue'
-  import { Log } from '@/models'
-  import { formatDateInTimeZone } from '@/utilities'
+  import { Log } from '@/models/Log'
+  import { formatDateInTimeZone } from '@/utilities/dates'
 
   const props = defineProps({
     logs: {

@@ -1,8 +1,9 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { Route } from '.'
 import { Log } from '@/models/Log'
 import { Api } from '@/services/Api'
-import { LogsRequestFilter } from '@/types'
+import { LogsRequestFilter } from '@/types/LogsRequestFilter'
 
 export type ILogResponse = {
   id: string,
@@ -44,4 +45,4 @@ export class LogsApi extends Api {
 
 }
 
-export const logsApi = new LogsApi()
+export const logsApi = createActions(new LogsApi())

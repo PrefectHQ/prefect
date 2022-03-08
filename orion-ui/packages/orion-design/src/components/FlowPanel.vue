@@ -19,7 +19,7 @@
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentsPanelSection v-bind="{ filter, showPanel, dashboardRoute, getDeployments, getDeploymentsCount, createDeploymentFlowRun, getFlowRunsCount }" />
+      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, getDeployments, getDeploymentsCount, createDeploymentFlowRun, getFlowRunsCount }" />
     </div>
 
     <template #actions="{ close }">
@@ -33,26 +33,26 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
-  import CopyButton from './CopyButton.vue'
-  import DeploymentsPanelSection from './DeploymentsPanelSection.vue'
-  import DetailsKeyValue from './DetailsKeyValue.vue'
-  import RecentFlowRunsPanelSection from './RecentFlowRunsPanelSection.vue'
+  import CopyButton from '@/components/CopyButton.vue'
+  import DeploymentsPanelSection from '@/components/DeploymentsPanelSection.vue'
+  import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
+  import { Deployment } from '@/models/Deployment'
   import { Flow } from '@/models/Flow'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
-  import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
     flow: Flow,
-    showPanel: ShowPanel,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     dashboardRoute: Exclude<RouteLocationRaw, string>,
+    openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed<UnionFilters>(() => ({

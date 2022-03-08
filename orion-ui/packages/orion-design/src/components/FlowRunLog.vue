@@ -20,8 +20,9 @@
   import CopyButton from '@/components/CopyButton.vue'
   import LogLevelLabel from '@/components/LogLevelLabel.vue'
   import TaskRunLink from '@/components/TaskRunLink.vue'
-  import { Log } from '@/models'
-  import { formatDateTimeNumericInTimeZone, formatTimeNumericInTimeZone, logLevelLabel } from '@/utilities'
+  import { Log } from '@/models/Log'
+  import { formatDateTimeNumericInTimeZone, formatTimeNumericInTimeZone } from '@/utilities/dates'
+  import { logLevelLabel } from '@/utilities/logs'
   import { snakeCase } from '@/utilities/strings'
 
   export default defineComponent({
