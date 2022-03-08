@@ -1,23 +1,15 @@
 import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
-import {
-  Deployment,
-  IFlowDataResponse,
-  FlowData,
-  FlowRunner,
-  IFlowRunnerResponse,
-  IScheduleResponse,
-  Schedule,
-  isRRuleScheduleResponse,
-  isCronScheduleResponse,
-  isIntervalScheduleResponse,
-  RRuleSchedule,
-  CronSchedule,
-  IntervalSchedule,
-  StateType,
-  Flow
-} from '@/models'
+import { Deployment } from '@/models/Deployment'
+import { Flow } from '@/models/Flow'
+import { FlowData } from '@/models/FlowData'
+import { FlowRunner } from '@/models/FlowRunner'
+import { IFlowDataResponse } from '@/models/IFlowDataResponse'
+import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { IScheduleResponse, isCronScheduleResponse, isIntervalScheduleResponse, isRRuleScheduleResponse } from '@/models/IScheduleResponse'
+import { CronSchedule, IntervalSchedule, RRuleSchedule, Schedule } from '@/models/Schedule'
+import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { IFlowResponse } from '@/services/FlowsApi'
@@ -32,7 +24,7 @@ export type IDeploymentResponse = {
   flow_data: IFlowDataResponse,
   schedule: IScheduleResponse | null,
   is_schedule_active: boolean | null,
-  parameters: unknown,
+  parameters: Record<string, string>,
   tags: string[] | null,
   flow_runner: IFlowRunnerResponse,
 }
@@ -153,6 +145,6 @@ export class DeploymentsApi extends Api {
 
 export const deploymentsApi = createActions(new DeploymentsApi())
 
-export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
+export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()

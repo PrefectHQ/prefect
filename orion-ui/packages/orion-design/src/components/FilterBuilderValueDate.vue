@@ -28,7 +28,8 @@
   import { Ref, computed, onMounted, watch } from 'vue'
   import DateTimeInput from '@/components/DateTimeInput.vue'
   import { FilterOperation, FilterType, FilterValue, FilterObject } from '@/types/filters'
-  import { isDateOperation, isRelativeDateOperation, toPluralString } from '@/utilities'
+  import { isDateOperation, isRelativeDateOperation } from '@/utilities/filters'
+  import { toPluralString } from '@/utilities/strings'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,

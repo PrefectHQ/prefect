@@ -1,5 +1,5 @@
-import { WorkQueueFilter } from '@/models'
 import { WorkQueue } from '@/models/WorkQueue'
+import { WorkQueueFilter } from '@/models/WorkQueueFilter'
 import { MockFunction } from '@/services/Mocker'
 
 export const randomWorkQueue: MockFunction<WorkQueue> = function(workQueue?: Partial<WorkQueue>) {
@@ -19,6 +19,6 @@ export const randomWorkQueueFilter: MockFunction<WorkQueueFilter> = function(wor
   return new WorkQueueFilter({
     tags: workQueueFilter?.tags ?? this.createMany('string', 3),
     deploymentIds: workQueueFilter?.deploymentIds ?? this.createMany('string', 3),
-    flowRunnerTypes: workQueueFilter?.flowRunnerTypes ?? this.createMany('string', 3),
+    flowRunnerTypes: workQueueFilter?.flowRunnerTypes ?? this.createMany('flowRunnerType', 3),
   })
 }

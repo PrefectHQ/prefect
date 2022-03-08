@@ -22,7 +22,7 @@
               Paused
             </span>
           </template>
-          <m-button color="alternate" @click="run(deployment)">
+          <m-button color="alternate" @click.stop="run(deployment)">
             Quick Run
           </m-button>
         </button>
@@ -52,6 +52,7 @@
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed(() => props.filter)
