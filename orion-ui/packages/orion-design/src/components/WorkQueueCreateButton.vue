@@ -5,14 +5,16 @@
 </template>
 
 <script lang="ts" setup>
-  import WorkQueueCreatePanel from '@/components/WorkQueueCreatePanel.vue'
+  // import WorkQueueCreatePanel from '@/components/WorkQueueCreatePanel.vue'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { showPanel } from '@/utilities/panels'
 
   const injectedServices = useInjectedServices()
 
   function openCreateWorkQueuePanel(): void {
-    showPanel(WorkQueueCreatePanel, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
+    showPanel('div', {
       ...injectedServices,
     })
   }
