@@ -44,11 +44,9 @@
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumeric } from '@/utilities/dates'
-  import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
     flow: Flow,
-    showPanel: ShowPanel,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
