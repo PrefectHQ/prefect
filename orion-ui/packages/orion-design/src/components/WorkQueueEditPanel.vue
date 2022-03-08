@@ -27,11 +27,10 @@
 <script lang="ts" setup>
   import { ref } from 'vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
-  import { Deployment } from '@/models/Deployment'
   import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
-  import { UnionFilters } from '@/services/Filter'
-  import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
+  import { WorkQueuesApi } from '@/services/WorkQueuesApi'
   import { ClosePanel, ExitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
   import { ShowToast } from '@/utilities/toasts'
@@ -40,9 +39,9 @@
     workQueue: WorkQueue,
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
-    getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
-    updateWorkQueue: (workQueueId: string, request: IWorkQueueRequest) => Promise<void>,
-    deleteWorkQueue: (workQueueId: string) => Promise<void>,
+    getDeployments: DeploymentsApi['getDeployments'],
+    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
+    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
     useShowToast: ShowToast,
     useExitPanel: ExitPanel,
     useClosePanel: ClosePanel,

@@ -26,19 +26,17 @@
 <script lang="ts" setup>
   import { ref } from 'vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
-  import { Deployment } from '@/models/Deployment'
-  import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
-  import { UnionFilters } from '@/services/Filter'
-  import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
+  import { WorkQueuesApi } from '@/services/WorkQueuesApi'
   import { ExitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription } from '@/utilities/subscriptions'
   import { ShowToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     workQueuesListSubscription: WorkQueuesListSubscription,
-    getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
-    createWorkQueue: (request: IWorkQueueRequest) => Promise<WorkQueue>,
+    getDeployments: DeploymentsApi['getDeployments'],
+    createWorkQueue: WorkQueuesApi['createWorkQueue'],
     useShowToast: ShowToast,
     useExitPanel: ExitPanel,
   }>()

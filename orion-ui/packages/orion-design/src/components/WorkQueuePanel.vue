@@ -72,6 +72,7 @@
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { WorkQueuesApi } from '@/services/WorkQueuesApi'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
 
   const props = defineProps<{
@@ -80,8 +81,8 @@
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
     openWorkQueueEditPanel: (workQueue: WorkQueue) => void,
-    pauseWorkQueue: (workQueueId: string) => Promise<void>,
-    resumeWorkQueue: (workQueueId: string) => Promise<void>,
+    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
+    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
   }>()
 
   const saving = ref(false)
