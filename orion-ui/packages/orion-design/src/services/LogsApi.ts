@@ -1,3 +1,4 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { Route } from '.'
 import { Log } from '@/models/Log'
@@ -44,4 +45,4 @@ export class LogsApi extends Api {
 
 }
 
-export const logsApi = new LogsApi()
+export const logsApi = createActions(new LogsApi())
