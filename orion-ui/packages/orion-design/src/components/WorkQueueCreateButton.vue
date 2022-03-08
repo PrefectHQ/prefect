@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts" setup>
-  // import WorkQueueCreatePanel from '@/components/WorkQueueCreatePanel.vue'
+  import WorkQueueCreatePanel from '@/components/WorkQueueCreatePanel.vue'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { showPanel } from '@/utilities/panels'
 
