@@ -22,7 +22,7 @@
               Paused
             </span>
           </template>
-          <m-button color="alternate" @click="run(deployment)">
+          <m-button color="alternate" @click.stop="run(deployment)">
             Quick Run
           </m-button>
         </button>
