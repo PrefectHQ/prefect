@@ -10,7 +10,7 @@ import {
   ObjectRelativeDateFilter,
   ObjectUpcomingRelativeDateFilter
 } from '@/types/filters'
-import { formatDateTimeNumeric } from '@/utilities/dates'
+import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
 
 export class FilterStringifyService {
   public static stringifyFilters(filters: Required<Filter>[]): string[] {
@@ -38,7 +38,7 @@ export class FilterStringifyService {
     switch (filter.operation) {
       case 'after':
       case 'before':
-        return formatDateTimeNumeric(filter.value)
+        return formatDateTimeNumericInTimeZone(filter.value)
       case 'newer':
       case 'older':
       case 'upcoming':
