@@ -1,10 +1,8 @@
 import { showPanel, closePanel, exitPanel, showToast } from '@prefecthq/miter-design'
 import { inject } from 'vue'
-import { Deployment } from '@/models/Deployment'
-import { WorkQueue } from '@/models/WorkQueue'
-import { deploymentsApi, getDeploymentsKey } from '@/services/DeploymentsApi'
-import { UnionFilters } from '@/services/Filter'
-import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, IWorkQueueRequest } from '@/services/WorkQueuesApi'
+import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
+import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
+import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
 import { showPanelKey, closePanelKey, exitPanelKey, ShowPanel, ClosePanel, ExitPanel } from '@/utilities/panels'
 import { WorkQueuesListSubscription, workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 import { showToastKey, ShowToast } from '@/utilities/toasts'
@@ -15,13 +13,16 @@ export type InjectedServices = {
   useExitPanel: ExitPanel,
   useShowToast: ShowToast,
   workQueuesListSubscription: WorkQueuesListSubscription,
-  getWorkQueue: (workQueueId: string) => Promise<WorkQueue>,
-  createWorkQueue: (request: IWorkQueueRequest) => Promise<WorkQueue>,
-  pauseWorkQueue: (workQueueId: string) => Promise<void>,
-  resumeWorkQueue: (workQueueId: string) => Promise<void>,
-  updateWorkQueue: (workQueueId: string, request: IWorkQueueRequest) => Promise<void>,
-  deleteWorkQueue: (workQueueId: string) => Promise<void>,
-  getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
+  getWorkQueue: WorkQueuesApi['getWorkQueue'],
+  createWorkQueue: WorkQueuesApi['createWorkQueue'],
+  pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
+  resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
+  updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
+  deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
+  getDeployments: DeploymentsApi['getDeployments'],
+  getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
+  createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+  getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
 }
 
 export function useInjectedServices(): InjectedServices {
@@ -37,6 +38,9 @@ export function useInjectedServices(): InjectedServices {
   const updateWorkQueue = inject(updateWorkQueueKey, workQueuesApi.updateWorkQueue)
   const deleteWorkQueue = inject(deleteWorkQueueKey, workQueuesApi.deleteWorkQueue)
   const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
+  const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
+  const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
+  const getFlowRunsCount = inject(getFlowRunsCountKey, flowRunsApi.getFlowRunsCount)
 
   return {
     useShowPanel,
@@ -51,5 +55,8 @@ export function useInjectedServices(): InjectedServices {
     updateWorkQueue,
     deleteWorkQueue,
     getDeployments,
+    getDeploymentsCount,
+    createDeploymentFlowRun,
+    getFlowRunsCount,
   }
 }
