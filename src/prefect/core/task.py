@@ -907,7 +907,7 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
-    def pipe(self, task: "Task", *args: Any, **kwargs: Any) -> "Task":
+    def pipe(self, task: "Task", /, **kwargs: Any) -> "Task":
         """
         "Pipes" the result of this task through another task. `some_task().pipe(other_task)` is
         equivalent to `other_task(some_task())`, but can result in more readable code when used in a long
@@ -915,13 +915,14 @@ class Task(metaclass=TaskMetaclass):
 
         Args:
             - task: The task to apply
-            - *args: Additional positional arguments to include as task arguments
             - **kwargs: Additional keyword arguments to include as task arguments
 
         Returns:
             - Task: A new task with the new arguments bound to it
         """
-        return task(self, *args, **kwargs)
+        if "self" in kwargs:
+            raise ValueError('You cannot use the keyword argument "self" in .pipe.')
+        return task(self, **kwargs)
 
     # Serialization ------------------------------------------------------------
 
