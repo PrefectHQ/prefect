@@ -1,5 +1,5 @@
 """
-This module contains a collection of tasks to interact with Trasform metrics layer.
+This module contains a collection of tasks to interact with Transform metrics layer.
 """
 
 try:

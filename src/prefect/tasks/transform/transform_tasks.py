@@ -22,9 +22,9 @@ class TransformCreateMaterialization(Task):
         - api_key_env_var (str, optional): The name of the environment variable
             that contains the API Key to be used to connect to Transform MQL Server.
         - mql_server_url (str, optional): The URL of the Transform MQL Server
-            where to create the materialization.
+            from which to create the materialization.
         - mql_server_url_env_var (str, optional): The name of the environment variable
-            that contains the URL of the Transform MQL Server where to
+            that contains the URL of the Transform MQL Server from which to
             create the materialization.
         - model_key_id (int, optional): The unique identifier of the Transform model
             against which the transformation will be created.
@@ -33,12 +33,12 @@ class TransformCreateMaterialization(Task):
         - start_time (str, optional): The UTC start time of the materialization.
         - end_time (str, optional): The UTC end time of the materialization.
         - output_table (str, optional): The name of the database table, in the form of
-            `schema_name.table_name` where the materialization will be created.
+            `schema_name.table_name`, where the materialization will be created.
         - force (bool, optional): Whether to force the materialization creation
             or not. Defaults to `False`.
         - use_async (bool, optional): Whether to trigger the materialization creation
             in async mode or not. Defaults to `False`.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor.
     """
 
@@ -109,9 +109,9 @@ class TransformCreateMaterialization(Task):
             - api_key_env_var (str, optional): The name of the environment variable
                 that contains the API Key to be used to connect to Transform MQL Server.
             - mql_server_url (str, optional): The URL of the Transform MQL Server
-                where to create the materialization.
+                from which to create the materialization.
             - mql_server_url_env_var (str, optional): The name of the environment variable
-                that contains the URL of the Transform MQL Server where to
+                that contains the URL of the Transform MQL Server from which to
                 create the materialization.
             - model_key_id (int, optional): The unique identifier of the Transform model
                 against which the transformation will be created.
@@ -120,7 +120,7 @@ class TransformCreateMaterialization(Task):
             - start_time (str, optional): The UTC start time of the materialization.
             - end_time (str, optional): The ISO end time of the materialization.
             - output_table (str, optional): The name of the database table, in the form of
-                `schema_name.table_name` where the materialization will be created.
+                `schema_name.table_name`, where the materialization will be created.
             - force (bool, optional): Whether to force the materialization creation
                 or not. Defaults to `False`.
             - use_async (bool, optional): Whether to trigger the materialization creation
@@ -128,7 +128,7 @@ class TransformCreateMaterialization(Task):
 
         Raises:
             - `ValueError` if both `api_key` and `api_key_env_var` are missing.
-            - `ValueError` if both `mql_server_url` and `mql_server_url_env_var` ar missing.
+            - `ValueError` if both `mql_server_url` and `mql_server_url_env_var` are missing.
             - `ValueError` if `materialization_name` is missing.
             - `prefect.engine.signals.FAIL` if the connection with the Transform server cannot
                 be established.
