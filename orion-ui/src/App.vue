@@ -11,13 +11,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { showPanel } from '@prefecthq/miter-design'
-  import { FilterBar, showPanelKey } from '@prefecthq/orion-design'
-  import { provide, computed } from 'vue'
+  import { FilterBar } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
   import { useRoute } from 'vue-router'
   import NavBar from '@/components/NavBar.vue'
-
-  provide(showPanelKey, showPanel)
 
   const route = useRoute()
 
