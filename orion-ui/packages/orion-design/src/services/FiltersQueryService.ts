@@ -205,7 +205,7 @@ export class FiltersQueryService {
     const valueNegative = value * -1
 
     if (!isDatePartShort(unit)) {
-      return new Date()
+      throw new FilterRelativeDateUnitError()
     }
 
     return this.createDateFromUnitAndValue(unit, valueNegative)
@@ -217,7 +217,7 @@ export class FiltersQueryService {
     const value = parseInt(relative)
 
     if (!isDatePartShort(unit)) {
-      return new Date()
+      throw new FilterRelativeDateUnitError()
     }
 
     return this.createDateFromUnitAndValue(unit, value)
@@ -235,8 +235,6 @@ export class FiltersQueryService {
         return addMonths(startOfToday(), value)
       case 'y':
         return addYears(startOfToday(), value)
-      default:
-        throw new FilterRelativeDateUnitError()
     }
 
   }
