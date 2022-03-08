@@ -32,7 +32,7 @@
 
     <div class="mb-2">
       <DetailsKeyValue label="Deployments" stacked>
-        <!-- <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" /> -->
+        <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
       </DetailsKeyValue>
     </div>
 
@@ -79,7 +79,7 @@
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
-  // import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
+  import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   // import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
   // import TagsInput from '@/components/TagsInput.vue'
