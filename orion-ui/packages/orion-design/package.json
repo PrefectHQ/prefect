@@ -74,6 +74,7 @@
         "@types/puppeteer": "^5.4.4",
         "@vitejs/plugin-vue": "^1.2.5",
         "date-fns": "^2.25.0",
+        "date-fns-tz": "^1.3.0",
         "eslint": "^8.6.0",
         "replace": "^1.2.1",
         "sass": "^1.35.2",
