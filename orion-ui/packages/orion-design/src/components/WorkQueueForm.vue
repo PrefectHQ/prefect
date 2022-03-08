@@ -83,13 +83,12 @@
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
   import TagsInput from '@/components/TagsInput.vue'
-  import { Deployment } from '@/models/Deployment'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
-  import { UnionFilters } from '@/services/Filter'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
 
   const props = defineProps<{
     values: WorkQueueFormValues,
-    getDeployments: (filter: UnionFilters) => Promise<Deployment[]>,
+    getDeployments: DeploymentsApi['getDeployments'],
   }>()
 
   const emit = defineEmits<{
