@@ -31,9 +31,9 @@
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
-  import { ClosePanel, ExitPanel } from '@/utilities/panels'
+  import { closePanel, exitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
-  import { ShowToast } from '@/utilities/toasts'
+  import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     workQueue: WorkQueue,
@@ -42,9 +42,6 @@
     getDeployments: DeploymentsApi['getDeployments'],
     updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
     deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
-    useShowToast: ShowToast,
-    useExitPanel: ExitPanel,
-    useClosePanel: ClosePanel,
   }>()
 
   const saving = ref(false)
@@ -56,11 +53,11 @@
       await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
       await props.workQueueSubscription.refresh()
       props.workQueuesListSubscription.refresh()
-      props.useShowToast('Updated Work Queue')
-      props.useClosePanel()
+      showToast('Updated Work Queue')
+      closePanel()
     } catch (err) {
       console.warn('error with updating work queue', err)
-      props.useShowToast('Error with updating work queue', 'error')
+      showToast('Error with updating work queue', 'error')
     } finally {
       saving.value = false
     }
@@ -71,11 +68,11 @@
       saving.value = true
       await props.deleteWorkQueue(id)
       props.workQueuesListSubscription.refresh()
-      props.useShowToast('Deleted Work Queue')
-      props.useExitPanel()
+      showToast('Deleted Work Queue')
+      exitPanel()
     } catch (err) {
       console.warn('error with deleting work queue', err)
-      props.useShowToast('Error with deleting work queue', 'error')
+      showToast('Error with deleting work queue', 'error')
     } finally {
       saving.value = false
     }

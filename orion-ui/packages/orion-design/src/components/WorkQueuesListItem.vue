@@ -30,6 +30,7 @@
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { showPanel } from '@/utilities/panels'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
@@ -39,7 +40,7 @@
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
 
-    injectedServices.useShowPanel(WorkQueueEditPanel, {
+    showPanel(WorkQueueEditPanel, {
       workQueue,
       workQueueSubscription,
       ...injectedServices,
@@ -49,7 +50,7 @@
   function openWorkQueuePanel(workQueueId: string): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
 
-    injectedServices.useShowPanel(WorkQueuePanel, {
+    showPanel(WorkQueuePanel, {
       workQueueId,
       workQueueSubscription,
       openWorkQueueEditPanel,

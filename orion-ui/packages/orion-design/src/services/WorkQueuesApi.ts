@@ -1,3 +1,4 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { PaginatedFilter } from '.'
@@ -102,4 +103,4 @@ export const createWorkQueueKey: InjectionKey<WorkQueuesApi['createWorkQueue']> 
 export const updateWorkQueueKey: InjectionKey<WorkQueuesApi['updateWorkQueue']> = Symbol()
 export const deleteWorkQueueKey: InjectionKey<WorkQueuesApi['deleteWorkQueue']> = Symbol()
 
-export const workQueuesApi = new WorkQueuesApi()
+export const workQueuesApi = createActions(new WorkQueuesApi())
