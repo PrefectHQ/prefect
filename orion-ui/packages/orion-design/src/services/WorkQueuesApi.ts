@@ -5,6 +5,7 @@ import { WorkQueue } from '@/models/WorkQueue'
 import { WorkQueueFilter } from '@/models/WorkQueueFilter'
 import { Api, Route } from '@/services/Api'
 import { DateString } from '@/types/dates'
+import { FlowRunnerType } from '@/types/FlowRunnerType'
 
 export type IWorkQueueResponse = {
   id: string,
@@ -17,18 +18,18 @@ export type IWorkQueueResponse = {
   concurrency_limit: number | null,
 }
 
-export type IWorkQueueRequest = {
+export type IWorkQueueRequest = Partial<{
   name: string | null,
   filter: IWorkQueueFilterResponse | null,
   description: string | null,
   is_paused: boolean | null,
   concurrency_limit: number | null,
-}
+}>
 
 export type IWorkQueueFilterResponse = {
   tags: string[] | null,
   deployment_ids: string[] | null,
-  flow_runner_types: string[] | null,
+  flow_runner_types: FlowRunnerType[] | null,
 }
 
 export class WorkQueuesApi extends Api {
@@ -97,5 +98,8 @@ export class WorkQueuesApi extends Api {
 export const getWorkQueueKey: InjectionKey<WorkQueuesApi['getWorkQueue']> = Symbol()
 export const pauseWorkQueueKey: InjectionKey<WorkQueuesApi['pauseWorkQueue']> = Symbol()
 export const resumeWorkQueueKey: InjectionKey<WorkQueuesApi['resumeWorkQueue']> = Symbol()
+export const createWorkQueueKey: InjectionKey<WorkQueuesApi['createWorkQueue']> = Symbol()
+export const updateWorkQueueKey: InjectionKey<WorkQueuesApi['updateWorkQueue']> = Symbol()
+export const deleteWorkQueueKey: InjectionKey<WorkQueuesApi['deleteWorkQueue']> = Symbol()
 
 export const workQueuesApi = new WorkQueuesApi()

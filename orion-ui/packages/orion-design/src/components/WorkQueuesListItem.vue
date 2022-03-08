@@ -1,11 +1,11 @@
 <template>
   <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
-      <BreadCrumbs :crumbs="crumbs" />
+      <BreadCrumbs :crumbs="crumbs" @click="openWorkQueuePanel(workQueue.id)" />
     </div>
 
     <div class="work-queues-list-item__status">
-      <WorkQueuePausedTag />
+      <WorkQueuePausedTag :work-queue="workQueue" />
 
       <m-tags :tags="workQueue.filter?.tags" />
     </div>
@@ -20,14 +20,42 @@
 </template>
 
 <script lang="ts" setup>
+  import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
+  import { computed, inject } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import ListItem from '@/components/ListItem.vue'
+  import WorkQueueEditPanel from '@/components/WorkQueueEditPanel.vue'
+  import WorkQueuePanel from '@/components/WorkQueuePanel.vue'
+  import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
+  import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { WorkQueue } from '@/models/WorkQueue'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
-  const crumbs = [{ text: props.workQueue.name, to: '#' }]
+  const injectedServices = useInjectedServices()
+  const crumbs = computed(() => [{ text: props.workQueue.name, to: `#${props.workQueue.id}` }])
+
+  function openWorkQueueEditPanel(workQueue: WorkQueue): void {
+    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
+
+    injectedServices.useShowPanel(WorkQueueEditPanel, {
+      workQueue,
+      workQueueSubscription,
+      ...injectedServices,
+    })
+  }
+
+  function openWorkQueuePanel(workQueueId: string): void {
+    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
+
+    injectedServices.useShowPanel(WorkQueuePanel, {
+      workQueueId,
+      workQueueSubscription,
+      openWorkQueueEditPanel,
+      ...injectedServices,
+    })
+  }
 </script>
 
 <style lang="scss">
