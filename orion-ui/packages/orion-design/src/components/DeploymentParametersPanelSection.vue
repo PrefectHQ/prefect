@@ -25,9 +25,9 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import CopyButton from './CopyButton.vue'
-  import DetailsKeyValue from './DetailsKeyValue.vue'
-  import PanelSection from './PanelSection.vue'
+  import CopyButton from '@/components/CopyButton.vue'
+  import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
 
   const props = defineProps<{

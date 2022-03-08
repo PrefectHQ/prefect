@@ -30,9 +30,9 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
-  import DeploymentParametersPanelSection from './DeploymentParametersPanelSection.vue'
-  import DetailsKeyValue from './DetailsKeyValue.vue'
-  import RecentFlowRunsPanelSection from './RecentFlowRunsPanelSection.vue'
+  import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
+  import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { CronSchedule, IntervalSchedule, RRuleSchedule } from '@/models/Schedule'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
