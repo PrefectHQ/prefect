@@ -9,7 +9,7 @@
     ],
     "scripts": {
         "dev": "vue-tsc & vite build --watch & npm run dev-components & npm run dev-models & npm run dev-services & npm run dev-utilities",
-        "build": "vue-tsc && vite build && npm run build-components && npm run build-models && npm run build-services && npm run build-utilities",
+        "build": "vue-tsc && vite build && npm run build-services",
         "build-components": "vite build --mode components",
         "build-models": "vite build --mode models",
         "build-services": "vite build --mode services",
