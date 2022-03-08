@@ -1,12 +1,22 @@
-import { Component, InjectionKey } from 'vue'
+import {
+  showPanel as miterShowPanel,
+  closePanel as miterClosePanel,
+  exitPanel as miterExitPanel
+} from '@prefecthq/miter-design'
+import { Component } from 'vue'
 
 // any because its a generic constructor
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type InstanceOfComponent = Component & { new (...args: any): any }
-export type ShowPanel = <T extends InstanceOfComponent>(component: T, props: InstanceType<T>['$props']) => void
-export type ClosePanel = () => void
-export type ExitPanel = () => void
 
-export const showPanelKey: InjectionKey<ShowPanel> = Symbol()
-export const closePanelKey: InjectionKey<ClosePanel> = Symbol()
-export const exitPanelKey: InjectionKey<ExitPanel> = Symbol()
+export function showPanel<T extends InstanceOfComponent>(component: T, props: InstanceType<T>['$props']): void {
+  return miterShowPanel(component, props)
+}
+
+export function closePanel(): void {
+  return miterClosePanel()
+}
+
+export function exitPanel(): void {
+  return miterExitPanel()
+}

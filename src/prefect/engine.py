@@ -47,7 +47,11 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
 from prefect.settings import PREFECT_DEBUG_MODE, get_current_settings
-from prefect.states import exception_to_crashed_state, return_value_to_state
+from prefect.states import (
+    exception_to_crashed_state,
+    return_value_to_state,
+    safe_encode_exception,
+)
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
@@ -185,11 +189,22 @@ async def retrieve_flow_then_begin_flow_run(
     - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
+
     deployment = await client.read_deployment(flow_run.deployment_id)
+
     flow_run_logger(flow_run).debug(
         f"Loading flow for deployment {deployment.name!r}..."
     )
-    flow = await load_flow_from_deployment(deployment, client=client)
+    try:
+        flow = await load_flow_from_deployment(deployment, client=client)
+    except Exception as exc:
+        message = "Flow could not be retrieved from deployment."
+        flow_run_logger(flow_run).exception(message)
+        state = Failed(message=message, data=safe_encode_exception(exc))
+        await client.set_flow_run_state(
+            state=state, flow_run_id=flow_run_id, force=True
+        )
+        return state
 
     await client.update_flow_run(
         flow_run_id=flow_run_id,
