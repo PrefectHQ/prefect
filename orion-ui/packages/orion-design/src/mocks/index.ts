@@ -3,6 +3,7 @@ import { randomDate } from './date'
 import { randomDeployment } from './deployment'
 import { randomFlow } from './flow'
 import { randomFlowRun } from './flowRun'
+import { randomFlowRunnerType } from './flowRunnerType'
 import { randomLog } from './log'
 import { randomNumber } from './number'
 import { randomState } from './state'
@@ -28,4 +29,5 @@ export const mocks = {
   taskRun: randomTaskRun,
   workQueue: randomWorkQueue,
   workQueueFilter: randomWorkQueueFilter,
+  flowRunnerType: randomFlowRunnerType,
 }
