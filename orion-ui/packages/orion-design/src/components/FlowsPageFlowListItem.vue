@@ -25,22 +25,21 @@
   import FilterCountButton from '@/components/FilterCountButton.vue'
   import FlowPanel from '@/components/FlowPanel.vue'
   import ListItem from '@/components/ListItem.vue'
+  import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { Deployment } from '@/models/Deployment'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
-  import { createDeploymentFlowRunKey, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
-  import { flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
 
-  const crumbs = [{ text: props.flow.name, to: '#' }]
-
   const route = inject(workspaceDashboardKey)!
+  const injectedServices = useInjectedServices()
 
+  const crumbs = [{ text: props.flow.name, to: '#' }]
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
     {
       object: 'flow',
@@ -75,34 +74,26 @@
     },
   }))
 
-  const getFlowRunsCount = inject(getFlowRunsCountKey, flowRunsApi.getFlowRunsCount)
-  const recentFlowRunsCountSubscription = useSubscription(getFlowRunsCount, [recentFlowRunsCountFilter])
+  const recentFlowRunsCountSubscription = useSubscription(injectedServices.getFlowRunsCount, [recentFlowRunsCountFilter])
   const recentFlowRunsCount = computed(() => recentFlowRunsCountSubscription.response.value ?? 0)
 
-  const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
-  const deploymentsCountSubscription = useSubscription(getDeploymentsCount, [countFilter])
+  const deploymentsCountSubscription = useSubscription(injectedServices.getDeploymentsCount, [countFilter])
   const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
-
-  const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
-  const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
 
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
       dashboardRoute: route,
-      getDeployments,
-      getDeploymentsCount,
-      createDeploymentFlowRun,
-      getFlowRunsCount,
       openDeploymentPanel,
+      ...injectedServices,
     })
   }
 
   function openDeploymentPanel(deployment: Deployment): void {
     showPanel(DeploymentPanel, {
       deployment,
-      getFlowRunsCount,
       dashboardRoute: route,
+      ...injectedServices,
     })
   }
 </script>

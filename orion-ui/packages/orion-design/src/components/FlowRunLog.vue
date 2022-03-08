@@ -21,7 +21,7 @@
   import LogLevelLabel from '@/components/LogLevelLabel.vue'
   import TaskRunLink from '@/components/TaskRunLink.vue'
   import { Log } from '@/models/Log'
-  import { formatDateTimeNumeric, formatTimeNumeric  } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone, formatTimeNumericInTimeZone } from '@/utilities/dates'
   import { logLevelLabel } from '@/utilities/logs'
   import { snakeCase } from '@/utilities/strings'
 
@@ -49,11 +49,11 @@
       },
 
       time: function() {
-        return formatTimeNumeric(this.log.timestamp)
+        return formatTimeNumericInTimeZone(this.log.timestamp)
       },
 
       dateTime: function() {
-        return formatDateTimeNumeric(this.log.timestamp)
+        return formatDateTimeNumericInTimeZone(this.log.timestamp)
       },
     },
   })
