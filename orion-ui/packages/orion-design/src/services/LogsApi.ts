@@ -2,7 +2,7 @@ import { AxiosResponse } from 'axios'
 import { Route } from '.'
 import { Log } from '@/models/Log'
 import { Api } from '@/services/Api'
-import { LogsRequestFilter } from '@/types'
+import { LogsRequestFilter } from '@/types/LogsRequestFilter'
 
 export type ILogResponse = {
   id: string,

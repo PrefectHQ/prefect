@@ -1,5 +1,5 @@
-import { WorkQueueFilter } from '@/models'
 import { WorkQueue } from '@/models/WorkQueue'
+import { WorkQueueFilter } from '@/models/WorkQueueFilter'
 import { MockFunction } from '@/services/Mocker'
 
 export const randomWorkQueue: MockFunction<WorkQueue> = function(workQueue?: Partial<WorkQueue>) {
