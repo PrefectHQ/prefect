@@ -47,7 +47,7 @@
 
     <template #actions="{ close }">
       <m-button miter @click="close">
-        close
+        Close
       </m-button>
       <m-button miter @click="open">
         <i class="pi pi-xs pi-pencil-line mr-1" /> Edit
