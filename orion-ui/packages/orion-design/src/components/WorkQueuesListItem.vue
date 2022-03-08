@@ -21,7 +21,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import ListItem from '@/components/ListItem.vue'
@@ -30,6 +30,7 @@
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { showPanel } from '@/utilities/panels'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
@@ -39,7 +40,7 @@
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
 
-    injectedServices.useShowPanel(WorkQueueEditPanel, {
+    showPanel(WorkQueueEditPanel, {
       workQueue,
       workQueueSubscription,
       ...injectedServices,
@@ -49,7 +50,7 @@
   function openWorkQueuePanel(workQueueId: string): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
 
-    injectedServices.useShowPanel(WorkQueuePanel, {
+    showPanel(WorkQueuePanel, {
       workQueueId,
       workQueueSubscription,
       openWorkQueueEditPanel,
