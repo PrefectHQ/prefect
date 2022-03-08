@@ -6,26 +6,12 @@ Vertex describes these as "training" jobs, but they can be used to run any kind 
 ## Requirements
 
 The required dependencies for the Vertex Agent aren't [installed by
-default](/core/getting_started/installation.md). If you're a `pip` user you'll
-need to add the `gcp` extra. Likewise, with `conda` you'll need to install
-`google-cloud-aiplatform`:
-
-:::: tabs
-::: tab Pip
+default](/core/getting_started/installation.md). You'll
+need to add the `gcp` extra via `pip`. 
 
 ```bash
 pip install prefect[gcp]
 ```
-
-:::
-::: tab Conda
-
-```bash
-conda install -c conda-forge prefect google-cloud-aiplatform
-```
-
-:::
-::::
 
 ::: warning Prefect Server
 In order to use this agent with Prefect Server the server's GraphQL API

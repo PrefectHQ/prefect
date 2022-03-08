@@ -833,3 +833,23 @@ def test_result_pipe():
     with prefect.Flow("test"):
         # A task created using .pipe should be identical to one created by using __call__
         assert vars(t(1, foo="bar")) == vars(t.pipe(t, foo="bar"))
+
+
+def test_task_call_with_self_succeeds():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class TestClass:
+        count: int
+
+        def increment(self):
+            self.count = self.count + 1
+
+    seconds_task = task(
+        TestClass.increment, target="{{task_slug}}_{{map_index}}", result=LocalResult()
+    )
+    initial = TestClass(count=0)
+
+    with Flow("test") as flow:
+        seconds_task(initial)
+        assert flow.run().is_successful()
