@@ -635,6 +635,9 @@ class Task(metaclass=TaskMetaclass):
         )
         return new
 
+    def test(self, __foo: str):
+        pass
+
     def bind(
         self,
         *args: Any,
