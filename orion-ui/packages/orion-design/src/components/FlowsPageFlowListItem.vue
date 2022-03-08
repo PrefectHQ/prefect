@@ -88,6 +88,7 @@
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
+      showPanel,
       dashboardRoute: route,
       getDeployments,
       getDeploymentsCount,
