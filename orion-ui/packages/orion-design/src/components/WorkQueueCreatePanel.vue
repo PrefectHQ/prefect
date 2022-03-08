@@ -5,6 +5,8 @@
       <span class="ml-1">New Work Queue</span>
     </template>
 
+    <m-loader :loading="saving" class="work-queue-create-panel__loader" />
+
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
@@ -57,3 +59,12 @@
     }
   }
 </script>
+
+<style lang="scss">
+.work-queue-create-panel__loader {
+  position: absolute !important;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+</style>
