@@ -8,7 +8,7 @@
     </template>
 
     <div class="flow-panel__details">
-      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumeric(flow.created)" stacked />
+      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(flow.created)" stacked />
       <div class="flow-panel__id">
         <DetailsKeyValue label="Flow ID" :value="flow.id" class="text-truncate" stacked />
         <CopyButton :value="flow.id" label="Copy">
@@ -42,7 +42,7 @@
   import { UnionFilters } from '@/services/Filter'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
-  import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
   import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
