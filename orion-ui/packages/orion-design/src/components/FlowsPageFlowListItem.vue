@@ -21,9 +21,11 @@
   import { subWeeks } from 'date-fns'
   import { computed, inject } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
+  import DeploymentPanel from '@/components/DeploymentPanel.vue'
   import FilterCountButton from '@/components/FilterCountButton.vue'
   import FlowPanel from '@/components/FlowPanel.vue'
   import ListItem from '@/components/ListItem.vue'
+  import { Deployment } from '@/models/Deployment'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
   import { createDeploymentFlowRunKey, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
@@ -88,12 +90,20 @@
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
-      showPanel,
       dashboardRoute: route,
       getDeployments,
       getDeploymentsCount,
       createDeploymentFlowRun,
       getFlowRunsCount,
+      openDeploymentPanel,
+    })
+  }
+
+  function openDeploymentPanel(deployment: Deployment): void {
+    showPanel(DeploymentPanel, {
+      deployment,
+      getFlowRunsCount,
+      dashboardRoute: route,
     })
   }
 </script>
