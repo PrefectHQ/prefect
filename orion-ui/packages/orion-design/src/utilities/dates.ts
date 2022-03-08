@@ -11,7 +11,6 @@ const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 export function formatDateTimeNumeric(date: Date | string): string {
   const parsed = new Date(date)
-  console.log(format(parsed, dateTimeNumericFormat))
   return format(parsed, dateTimeNumericFormat)
 }
 
