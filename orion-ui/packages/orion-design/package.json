@@ -9,7 +9,7 @@
     ],
     "scripts": {
         "dev": "vue-tsc & vite build --watch & npm run dev-components & npm run dev-models & npm run dev-services & npm run dev-utilities",
-        "build": "vue-tsc && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode components && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode services && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode utilities && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode stores && npm run build-components && npm run build-models && npm run build-services && npm run build-utilities",
+        "build": "vue-tsc && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode components && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode services && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode utilities && node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build --mode stores",
         "build-components": "vite build --mode components",
         "build-models": "vite build --mode models",
         "build-services": "vite build --mode services",
