@@ -5,6 +5,8 @@
       <span class="ml-1">New Work Queue</span>
     </template>
 
+    <m-loader :loading="saving" class="work-queue-panel__loader" />
+
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
