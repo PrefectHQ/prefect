@@ -20,7 +20,7 @@
 
     <div class="mb-2">
       <DetailsKeyValue label="Tags" stacked>
-        <!-- <TagsInput v-model:tags="internalValue.filter.tags" /> -->
+        <TagsInput v-model:tags="internalValue.filter.tags" />
       </DetailsKeyValue>
     </div>
 
@@ -82,7 +82,7 @@
   import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   // import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
-  // import TagsInput from '@/components/TagsInput.vue'
+  import TagsInput from '@/components/TagsInput.vue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
 
