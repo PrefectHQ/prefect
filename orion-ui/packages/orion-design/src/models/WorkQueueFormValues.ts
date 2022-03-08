@@ -1,5 +1,4 @@
 import { WorkQueue } from '@/models/WorkQueue'
-import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
 import { FlowRunnerType } from '@/types/FlowRunnerType'
 
 export class WorkQueueFormValues {
@@ -27,7 +26,7 @@ export class WorkQueueFormValues {
     }
   }
 
-  public getWorkQueueRequest(): IWorkQueueRequest {
+  public getWorkQueueRequest(): any {
     return {
       'name': this.name,
       'description': this.description,
