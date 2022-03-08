@@ -49,7 +49,7 @@
       saving.value = true
       await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
       props.workQueuesListSubscription.refresh()
-      showToast('Created Work Queue')
+      showToast('Created Work Queue', 'success')
       exitPanel()
     } catch (err) {
       console.warn('error with creating work queue', err)
