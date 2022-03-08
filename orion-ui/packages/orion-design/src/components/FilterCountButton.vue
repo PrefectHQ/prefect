@@ -1,5 +1,5 @@
 <template>
-  <button type="button" class="filter-button" :class="classes" @click="applyFilters">
+  <button type="button" class="filter-button" :class="classes" :disabled="disabledOrNoFilters" @click="applyFilters">
     {{ countLabel }}
   </button>
 </template>
@@ -23,9 +23,10 @@
   const currentRoute = useRoute()
 
   const countLabel = computed(() => `${props.count.toLocaleString()} ${toPluralString(props.label, props.count)}`)
+  const disabledOrNoFilters = computed(() => !!props.disabled || !props.filters.length)
 
   const classes = computed(() => ({
-    'filter-button--disabled': props.disabled,
+    'filter-button--disabled': disabledOrNoFilters.value,
   }))
 
   function applyFilters(): void {
