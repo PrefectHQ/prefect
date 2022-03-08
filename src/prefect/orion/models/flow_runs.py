@@ -6,6 +6,7 @@ Intended for internal use by the Orion API.
 import contextlib
 from itertools import chain
 from typing import List, Optional
+import datetime
 from uuid import UUID
 
 import pendulum
@@ -266,6 +267,11 @@ class DependencyResult(PrefectBaseModel):
     id: UUID
     upstream_dependencies: List[TaskRunResult]
     state: State
+    expected_start_time: Optional[datetime.datetime]
+    start_time: Optional[datetime.datetime]
+    end_time: Optional[datetime.datetime]
+    total_run_time: Optional[datetime.timedelta]
+    estimated_run_time: Optional[datetime.timedelta]
 
 
 async def read_task_run_dependencies(
@@ -297,6 +303,11 @@ async def read_task_run_dependencies(
                 "id": task_run.id,
                 "upstream_dependencies": inputs,
                 "state": task_run.state,
+                "expected_start_time": task_run.expected_start_time,
+                "start_time": task_run.start_time,
+                "end_time": task_run.end_time,
+                "total_run_time": task_run.total_run_time,
+                "estimated_run_time": task_run.estimated_run_time,
             }
         )
 
