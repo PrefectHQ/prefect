@@ -6,9 +6,9 @@ import addWeeks from 'date-fns/addWeeks'
 import addYears from 'date-fns/addYears'
 import startOfToday from 'date-fns/startOfToday'
 import subDays from 'date-fns/subDays'
-import { DatePartShort, isDatePartShort } from '..'
 import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
+import { DatePartShort, isDatePartShort } from '@/types/dates'
 import { DeploymentFilter, Filter, FlowFilter, FlowRunFilter, RelativeDateFilterValue, TaskRunFilter } from '@/types/filters'
 import {
   FlowFilter as FlowFilterQuery,
