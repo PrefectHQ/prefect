@@ -31,6 +31,7 @@
   import { workspaceDashboardKey } from '@/router/routes'
   import { UnionFilters } from '@/services/Filter'
   import { Filter } from '@/types/filters'
+  import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
@@ -80,7 +81,7 @@
   const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
 
   function openFlowPanel(): void {
-    injectedServices.useShowPanel(FlowPanel, {
+    showPanel(FlowPanel, {
       flow: props.flow,
       dashboardRoute: route,
       openDeploymentPanel,
@@ -89,7 +90,7 @@
   }
 
   function openDeploymentPanel(deployment: Deployment): void {
-    injectedServices.useShowPanel(DeploymentPanel, {
+    showPanel(DeploymentPanel, {
       deployment,
       dashboardRoute: route,
       ...injectedServices,
