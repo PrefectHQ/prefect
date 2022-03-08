@@ -3,7 +3,7 @@
     <form @submit.prevent="addTag">
       <m-input v-model="tagToAdd" placeholder="Press enter to add tags...">
         <template #prepend>
-          <i class="pi pi-price-tag-line pi-sm" />
+          <i class="pi pi-label pi-sm" />
         </template>
       </m-input>
     </form>
