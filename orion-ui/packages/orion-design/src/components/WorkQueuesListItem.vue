@@ -21,7 +21,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import ListItem from '@/components/ListItem.vue'
