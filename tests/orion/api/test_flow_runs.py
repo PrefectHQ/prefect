@@ -8,9 +8,9 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.models.flow_runs import DependencyResult
-from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, data, responses, states
+from prefect.orion.schemas.core import TaskRunResult
 
 
 class TestCreateFlowRun:
