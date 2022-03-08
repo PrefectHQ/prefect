@@ -35,23 +35,17 @@
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { RouteLocationRaw } from 'vue-router'
-  import DeploymentPanel from '@/components/DeploymentPanel.vue'
   import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
-  import { FlowRunsApi } from '@/services/FlowRunsApi'
-  import { ShowPanel } from '@/utilities/panels'
 
   const props = defineProps<{
     filter: UnionFilters,
-    showPanel: ShowPanel,
-    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
-    dashboardRoute: Exclude<RouteLocationRaw, string>,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed(() => props.filter)
@@ -73,14 +67,6 @@
       .catch(() => showToast('Failed to schedule flow run', 'error'))
       .then(() => showToast('Flow run scheduled'))
       .finally(() => deploymentsSubscription.refresh())
-  }
-
-  function openDeploymentPanel(deployment: Deployment): void {
-    props.showPanel(DeploymentPanel, {
-      deployment,
-      getFlowRunsCount: props.getFlowRunsCount,
-      dashboardRoute: props.dashboardRoute,
-    })
   }
 </script>
 
