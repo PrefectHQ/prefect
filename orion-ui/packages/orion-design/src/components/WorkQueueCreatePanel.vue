@@ -26,9 +26,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref } from 'vue'
+  import { ref, toRaw } from 'vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
-  import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
+  // import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
   import { exitPanel } from '@/utilities/panels'
@@ -42,12 +42,12 @@
   }>()
 
   const saving = ref(false)
-  const workQueueFormValues = ref(new WorkQueueFormValues())
+  const workQueueFormValues = ref({})
 
   async function createWorkQueue(): Promise<void> {
     try {
       saving.value = true
-      await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
+      await props.createWorkQueue(toRaw(workQueueFormValues) as any)
       props.workQueuesListSubscription.refresh()
       showToast('Created Work Queue')
       exitPanel()
