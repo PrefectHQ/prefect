@@ -58,7 +58,8 @@ export class DeploymentsApi extends Api {
     return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body).then(response => this.mapFlowResponse(response))
   }
 
-  protected mapDeployments(data: IDeploymentResponse): Deployment {
+  // this is public temporarily to be used in ListItemDeployment in orion-ui which is still using the old models
+  public mapDeployment(data: IDeploymentResponse): Deployment {
     return new Deployment({
       id: data.id,
       created: new Date(data.created),
@@ -116,11 +117,11 @@ export class DeploymentsApi extends Api {
   }
 
   protected mapDeploymentsResponse({ data }: AxiosResponse<IDeploymentResponse[]>): Deployment[] {
-    return data.map(x => this.mapDeployments(x))
+    return data.map(x => this.mapDeployment(x))
   }
 
   protected mapDeploymentResponse({ data }: AxiosResponse<IDeploymentResponse>): Deployment {
-    return this.mapDeployments(data)
+    return this.mapDeployment(data)
   }
 
   protected mapFlow(data: IFlowResponse): Flow {
