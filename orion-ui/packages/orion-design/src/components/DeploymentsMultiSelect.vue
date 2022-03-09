@@ -36,14 +36,14 @@
 
   const deploymentColumns =  [
     {
-      label: 'Name',
-      value: 'name',
-      search: true,
-    },
-    {
       label: 'Select',
       value: 'actions',
       search: false,
+    },
+    {
+      label: 'Name',
+      value: 'name',
+      search: true,
     },
   ]
 
