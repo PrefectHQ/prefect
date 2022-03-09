@@ -1,10 +1,7 @@
 <template>
   <ListItem class="list-item--deployment" icon="pi-map-pin-line">
     <div class="list-item__title">
-      <h2>
-        {{ item.name }}
-      </h2>
-
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openDeploymentPanel" />
       <div
         class="
           tag-container
@@ -128,7 +125,9 @@
 </template>
 
 <script lang="ts">
-  import { media } from '@prefecthq/orion-design/utilities'
+  /* eslint-disable */
+  import { media, showPanel, DeploymentPanel, useInjectedServices, DeploymentsApi } from '@prefecthq/orion-design'
+  import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
   import Drawer from '@/components/Global/Drawer/Drawer.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -162,6 +161,17 @@
     scheduleActive: boolean = this.item.is_schedule_active
     creatingRun: boolean = false
     media = media
+    crumbs = [{ text: this.item.name, to: window.location.href }]
+    injectedServices = useInjectedServices()
+    deploymentsApi = new DeploymentsApi()
+
+    openDeploymentPanel(): void {
+      showPanel(DeploymentPanel, {
+        deployment: this.deploymentsApi.mapDeployment(this.item as any),
+        dashboardRoute: { name: 'Dashboard' },
+        ...this.injectedServices,
+      })
+    }
 
     async createRun(): Promise<void> {
       this.creatingRun = true
@@ -175,7 +185,8 @@
           },
         },
       })
-      this.$toast({
+
+      showToast({
         type: res.error ? 'error' : 'success',
         message: res.error
           ? `Error: ${res.error}`
@@ -188,7 +199,7 @@
     }
 
     get location(): string {
-      return this.item.flow_data.blob || '--'
+      return this.item.flow_data.encoding || '--'
     }
 
     get parameters(): Record<string, any>[] {
