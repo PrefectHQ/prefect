@@ -1,5 +1,5 @@
 import { exitPanel } from '@prefecthq/miter-design'
-import { RouteGuard } from '@/types/RouteGuard'
+import { RouteGuard } from '@prefecthq/orion-design'
 
 export class GlobalClosePanels implements RouteGuard {
 
