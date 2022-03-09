@@ -65,11 +65,11 @@ export function secondsToApproximateString(
   showOnes: boolean = true,
 ): string {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(input)
-  const _y = intervalString('y', years, showOnes)
-  const _d = intervalString('d', days, showOnes)
-  const _h = intervalString('h', hours, showOnes)
-  const _m = intervalString('m', minutes, showOnes)
-  const _s = intervalString('s', seconds, showOnes)
+  const _y = intervalString('y', years, showOnes, false)
+  const _d = intervalString('d', days, showOnes, false)
+  const _h = intervalString('h', hours, showOnes, false)
+  const _m = intervalString('m', minutes, showOnes, false)
+  const _s = intervalString('s', seconds, showOnes, false)
 
   if (years > 0 && days == 0) {
     return _y
