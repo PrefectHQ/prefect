@@ -2449,14 +2449,14 @@ class TestTaskRunNames:
 
         with Flow("test") as flow:
             result = (
-                add_time(datetime.fromtimestamp(0), days=1)
+                add_time(datetime.utcfromtimestamp(0), days=1)
                 .pipe(add_time, hours=1)
                 .pipe(add_time, minutes=1)
             )
 
             state = flow.run()
             assert state.result[result].result == datetime(
-                year=1970, month=1, day=2, hour=11, minute=1
+                year=1970, month=1, day=2, hour=1, minute=1
             )
 
     def test_task_pipeline_no_varargs(self):
