@@ -25,7 +25,8 @@
 </template>
 
 <script lang="ts">
-  import { defineComponent } from 'vue'
+  import { defineComponent, PropType } from 'vue'
+  import { RouteLocationRaw } from 'vue-router'
 
   export default defineComponent({
     name: 'EmptyStateCard',
@@ -47,8 +48,8 @@
       },
 
       link: {
-        type: String,
-        default: '',
+        type: [Object, String] as PropType<RouteLocationRaw>,
+        default: () => '',
       },
 
       imagePath: {
