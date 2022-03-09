@@ -1,6 +1,7 @@
 flake8
 ipython
 mkdocs
+mkdocs-gen-files
 mkdocs-material
 mkdocstrings
 mock; python_version < '3.8'
@@ -12,6 +13,7 @@ pytest-asyncio >= 0.17
 pytest-env
 pytest-timeout
 pytkdocs >= 0.13.0
+pyyaml
 requests
 setuptools != 60.9.0; python_version < '3.8'
 virtualenv
