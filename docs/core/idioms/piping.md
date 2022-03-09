@@ -1,4 +1,4 @@
-# Using the Pipe Operator
+# Using the functional pipe operator
 
 ## Background and Motivation
 Functional pipes are a common idiom in several languages. 
