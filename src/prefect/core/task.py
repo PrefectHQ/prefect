@@ -915,7 +915,7 @@ class Task(metaclass=TaskMetaclass):
 
         Args:
             - _prefect_task: The task to apply
-            - **kwargs: Additional keyword arguments to include as task arguments
+            - **kwargs: Additional keyword arguments to include as task arguments.
 
         Returns:
             - Task: A new task with the new arguments bound to it
