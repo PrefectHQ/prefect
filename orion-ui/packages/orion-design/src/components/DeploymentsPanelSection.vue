@@ -32,13 +32,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     filter: UnionFilters,
@@ -65,7 +65,7 @@
       },
     })
       .catch(() => showToast('Failed to schedule flow run', 'error'))
-      .then(() => showToast('Flow run scheduled'))
+      .then(() => showToast('Flow run scheduled', 'success'))
       .finally(() => deploymentsSubscription.refresh())
   }
 </script>
