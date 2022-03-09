@@ -915,10 +915,10 @@ class Task(metaclass=TaskMetaclass):
 
         Args:
             - _prefect_task: The task to execute after this task.
-            - **kwargs: Additional keyword arguments to include as task arguments
+            - **kwargs: Additional keyword arguments to include as task arguments.
 
         Returns:
-            - Task: A new task with the new arguments bound to it
+            - Task: A new task with the new arguments bound to it.
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
