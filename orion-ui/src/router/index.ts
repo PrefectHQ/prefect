@@ -1,8 +1,9 @@
-import { RouteGuardExecutioner, GlobalClosePanels } from '@prefecthq/orion-design'
+import { RouteGuardExecutioner } from '@prefecthq/orion-design'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
+import { GlobalClosePanels } from './guards/GlobalClosePanels'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: RouteRecordRaw[] = [
