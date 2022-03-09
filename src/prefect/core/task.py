@@ -918,7 +918,7 @@ class Task(metaclass=TaskMetaclass):
             - **kwargs: Additional keyword arguments to include as task arguments.
 
         Returns:
-            - Task: A new task with the new arguments bound to it
+            - Task: A new task with the new arguments bound to it.
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
