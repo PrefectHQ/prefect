@@ -55,7 +55,7 @@
       await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
       await props.workQueueSubscription.refresh()
       props.workQueuesListSubscription.refresh()
-      showToast('Updated Work Queue')
+      showToast('Updated Work Queue', 'success')
       closePanel()
     } catch (err) {
       console.warn('error with updating work queue', err)
@@ -70,7 +70,7 @@
       saving.value = true
       await props.deleteWorkQueue(id)
       props.workQueuesListSubscription.refresh()
-      showToast('Deleted Work Queue')
+      showToast('Deleted Work Queue', 'success')
       exitPanel()
     } catch (err) {
       console.warn('error with deleting work queue', err)
