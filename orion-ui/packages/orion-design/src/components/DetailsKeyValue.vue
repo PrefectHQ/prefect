@@ -64,7 +64,6 @@
 
   .details-key-value__label {
     color: var(--grey-80);
-    font-family: 'input-sans';
     font-weight: 600;
   }
 
