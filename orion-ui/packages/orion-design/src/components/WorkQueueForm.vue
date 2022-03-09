@@ -31,7 +31,7 @@
     </div>
 
     <div class="mb-2">
-      <DetailsKeyValue label="Deployments" stacked>
+      <DetailsKeyValue label="Select Deployment(s)" stacked>
         <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
       </DetailsKeyValue>
     </div>
