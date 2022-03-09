@@ -212,16 +212,17 @@ def inspect(name: str = None, show_defaults: bool = False, show_sources: bool = 
         profiles = prefect.settings.load_profiles()
         if name not in profiles:
             exit_with_error(f"Profle {name!r} not found.")
-        profile = profiles[name]
+        current_settings = profiles[name]
     else:
         profile = prefect.context.get_profile_context()
+        name = profile.name
+        current_settings = profile.settings.dict()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
     default_settings = prefect.settings.get_default_settings().dict()
     env_settings = prefect.settings.get_settings_from_env().dict()
-    current_settings = profile.settings.dict()
 
-    output = [f"PREFECT_PROFILE={profile.name!r}"]
+    output = [f"PREFECT_PROFILE={name!r}"]
 
     # Collect differences from defaults set in the env and the profile
     env_overrides = {
