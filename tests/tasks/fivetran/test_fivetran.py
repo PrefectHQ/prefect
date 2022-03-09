@@ -49,7 +49,7 @@ class TestFivetran:
         os.getenv("FIVETRAN_TEST_API_KEY") is None,
         reason="You need a Fivetran API Key and API Secret to perform an actual Fivetran test",
     )
-    def test_fetch_fivetran_invalid_endpoint(self) -> None:
+    def test_fivetran_invalid_endpoint(self) -> None:
         with pytest.raises(
             HTTPError,
             match="404 Client Error: Not Found for url: https://api.fivetran.com/v1/connectors/invalid_id",
@@ -65,7 +65,7 @@ class TestFivetran:
         os.getenv("FIVETRAN_TEST_CONNECTOR_ID") is None,
         reason="You need a valid Fivetran connector id to perform this test",
     )
-    def test_fetch_fivetran_valid_endpoint(self) -> None:
+    def test_fivetran_valid_endpoint(self) -> None:
         result = FivetranSyncTask().run(
             api_key=os.getenv("FIVETRAN_TEST_API_KEY"),
             api_secret=os.getenv("FIVETRAN_TEST_API_SECRET"),
