@@ -46,7 +46,7 @@ Functional piping offers an alternative that doesn't suffer the issues of either
 
 Prefect offers two types of "pipe":
 * `|`, the pipe operator, which sets task dependencies, but does *not* pass arguments between tasks
-* `.pipe()`, the `Task` pipe method which sets task dependencies *and* passes arguments between tasks
+* `.pipe()`, the `Task` pipe method, which sets task dependencies *and* passes arguments between tasks
 
 Since this first operator is very unusual to use, we will focus instead on the `pipe` method.
 At its core, `task_a.pipe(task_b)` is *exactly equivalent to* `task_b(task_a)`, or :
