@@ -35,7 +35,7 @@
   position: fixed;
   top: 0;
   width: 62px;
-  z-index: 10;
+  z-index: var(--layer-nav);
 
   .nav-item {
     // color: $red !important;
