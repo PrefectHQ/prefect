@@ -1,0 +1,6 @@
+collectionName: prefect-slack
+author: Prefect
+authorUrl: https://prefect.io
+description: Collection for sending Slack messages in your flows.
+documentation: https://studious-doodle-23dbef26.pages.github.io/
+iconUrl: /img/collections/Slack_Mark_Web.png
