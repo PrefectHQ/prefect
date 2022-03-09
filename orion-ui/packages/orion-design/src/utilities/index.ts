@@ -1,6 +1,7 @@
 export * from './arrays'
 export * from './dates'
 export * from './filters'
+export * from './httpStatus'
 export * from './icons'
 export * from './logs'
 export * from './media'
