@@ -1,6 +1,4 @@
-import { useFiltersStore, RouteGuard } from '@prefecthq/orion-design'
-import { FilterService } from '@prefecthq/orion-design/services'
-import { asArray, isString } from '@prefecthq/orion-design/utilities'
+import { useFiltersStore, RouteGuard, FilterService, asArray, isString } from '@prefecthq/orion-design'
 import { RouteLocationNormalized } from 'vue-router'
 
 export class GlobalLoadFiltersFromRoute implements RouteGuard {
