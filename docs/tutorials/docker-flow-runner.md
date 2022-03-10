@@ -98,11 +98,11 @@ Updated profile 'default'
 ```
 </div>
 
-### Configure storage
+## Configure storage
 
 Now that we can communicate with the Orion API, lets configure [storage](/concepts/storage/) for flow and task run data. 
 
-Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blog Storage.
+Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
 
 Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.
 
@@ -203,7 +203,7 @@ Hello from Docker!
 ```
 </div>
 
-Open the Prefect Orion UI at [http://127.0.0.1:4200](dashboard at http://127.0.0.1:4200) and go to the **Logs** tab of your flow run. You should see the "Hello from Docker!" log message created by the flow running in the Docker container!
+Open the Prefect Orion UI at [http://127.0.0.1:4200](http://127.0.0.1:4200) and go to the **Logs** tab of your flow run. You should see the "Hello from Docker!" log message created by the flow running in the Docker container!
 
 ![Log messages from the deployment flow run.](/img/tutorials/docker-flow-log.png)
 
