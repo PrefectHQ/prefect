@@ -117,9 +117,7 @@ async def create():
                 )
             except ObjectAlreadyExists:
                 console.print(f"[red]The name {name!r} is already taken.[/]")
-                name = typer.prompt(
-                    "Choose a new name for this storage configuration"
-                )
+                name = typer.prompt("Choose a new name for this storage configuration")
 
     console.print(
         f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
