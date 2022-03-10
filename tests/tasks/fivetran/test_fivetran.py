@@ -2,6 +2,7 @@ import pytest
 import requests
 import responses
 import logging
+import os
 
 from prefect.task.fivetran import FivetranSyncTask
 
