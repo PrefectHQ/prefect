@@ -96,7 +96,7 @@ nav:
         - ui/filters.md
     - Collections:
         - Overview: collections/overview.md
-        - Catalog: collections/catalog.md
+        - Collections Catalog: collections/catalog.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
