@@ -169,6 +169,8 @@ Since we previously configured port forwarding for the localhost port to the Kub
 
 Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data. 
 
+Note that if you created remote storage for the [Docker flow runner tutorial](/tutorials/docker-flow-runner/#configure-storage), you'll still need to create a new storage configuration here: storage is configured on the Orion server, and in this case we need to configure storage on the server running in Kubernetes rather than the one you ran locally in the Docker tutorial.
+
 Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blog Storage.
 
 Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.

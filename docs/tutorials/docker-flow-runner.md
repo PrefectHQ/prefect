@@ -98,6 +98,49 @@ Updated profile 'default'
 ```
 </div>
 
+### Configure storage
+
+Now that we can communicate with the Orion API, lets configure [storage](/concepts/storage/) for flow and task run data. 
+
+Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blog Storage.
+
+Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.
+
+<div class='termy'>
+```
+$ prefect storage create
+Found the following storage types:
+0) Azure Blob Storage
+    Store data in an Azure blob storage container
+1) Google Cloud Storage
+    Store data in a GCS bucket
+2) KV Server Storage
+    Store data by sending requests to a KV server
+3) Local Storage
+    Store data in a run's local file system
+4) S3 Storage
+    Store data in an AWS S3 bucket
+5) Temporary Local Storage
+    Store data in a temporary directory in a run's local file system
+Select a storage type to create: 4
+You've selected S3 Storage. It has 6 option(s).
+BUCKET: the-curious-case-of-benjamin-bucket
+AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
+AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+AWS SESSION TOKEN (optional):
+PROFILE NAME (optional):
+REGION NAME (optional):
+Choose a name for this storage configuration: benjamin-bucket
+Validating configuration...
+Registering storage with server...
+Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
+You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
+Set default storage to 'benjamin-bucket'.
+```
+</div>
+
+We set this storage as the default that Orion will use for flows running in the Docker container. Any flow runs can use the persistent S3 storage for flow code, task results, and flow results rather than relying on local storage that will disappear when the container shuts down.
+
 ## Create a work queue and agent
 
 Work queues organize work that agents can pick up to execute. Work queues can be configured to make available deployments based on criteria such as tags, flow runners, or even specific deployments. Agents are configured to poll for work from specific work queues. To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
