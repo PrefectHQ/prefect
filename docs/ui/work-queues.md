@@ -39,7 +39,7 @@ Click **Create Work Queue** to create a new work queue. You'll be able to specif
 Click on the name of any work queue to see details about it. This panel shows you the:
 
 - Status
-- CLI command to run an agent that polls this work queue
+- CLI command to [run an agent](/concepts/work-queues/#agent-overview) that polls this work queue
 - Configuration details
 
 You can also pause a work queue from this panel.
