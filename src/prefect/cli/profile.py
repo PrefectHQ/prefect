@@ -2,9 +2,9 @@
 Command line interface for working with profiles
 """
 import os
+import textwrap
 from typing import List
 
-import textwrap
 import toml
 import typer
 
