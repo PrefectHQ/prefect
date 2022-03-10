@@ -1,5 +1,5 @@
 """
-Command line interface for working with profiles
+Command line interface for working with profiles.
 """
 import os
 import textwrap
