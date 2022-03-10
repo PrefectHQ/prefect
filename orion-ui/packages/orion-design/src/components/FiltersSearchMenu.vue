@@ -51,7 +51,7 @@
         showToast('Search removed', 'success')
       })
       .catch(error => {
-        showToast('error', 'Error removing search')
+        showToast('Error removing search', 'error')
         console.error(error)
       })
       .finally(() => {
