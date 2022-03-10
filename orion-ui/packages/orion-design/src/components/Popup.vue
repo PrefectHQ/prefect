@@ -53,9 +53,9 @@
     hideClose?: boolean,
     hideConfirm?: boolean,
     modelValue: boolean,
-    closeColor?: string
-    confirmColor?: string
-    buttonMiter?: boolean
+    closeColor?: string,
+    confirmColor?: string,
+    buttonMiter?: boolean,
   }>()
 
   interface IPopupEmits extends ObjectEmitsOptions {
