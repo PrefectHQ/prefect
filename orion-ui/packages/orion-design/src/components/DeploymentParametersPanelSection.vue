@@ -1,5 +1,5 @@
 <template>
-  <PanelSection class="deployment-parameters-panel-section" icon="map-pin-line" full>
+  <PanelSection class="deployment-parameters-panel-section" icon="settings-4-line" full>
     <template #heading>
       <div class="deployment-parameters-panel-section__heading">
         <span>Parameters</span>
