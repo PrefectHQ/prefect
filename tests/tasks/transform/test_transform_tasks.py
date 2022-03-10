@@ -22,7 +22,7 @@ class TestTransformCreateMaterialization:
         assert transform_task.end_time is None
         assert transform_task.output_table is None
         assert transform_task.force is False
-        assert transform_task.use_async is False
+        assert transform_task.wait_for_creation is True
 
     def test_construction_with_values(self):
         transform_task = TransformCreateMaterialization(
@@ -36,7 +36,7 @@ class TestTransformCreateMaterialization:
             end_time="1900-01-01",
             output_table="out_table",
             force=True,
-            use_async=True,
+            wait_for_creation=False,
         )
 
         assert transform_task.api_key == "key"
@@ -49,7 +49,7 @@ class TestTransformCreateMaterialization:
         assert transform_task.end_time == "1900-01-01"
         assert transform_task.output_table == "out_table"
         assert transform_task.force is True
-        assert transform_task.use_async is True
+        assert transform_task.wait_for_creation is False
 
     def test_run_raises_with_missing_api_key_and_env_var(self):
         transform_task = TransformCreateMaterialization()
@@ -128,7 +128,7 @@ class TestTransformCreateMaterialization:
                 api_key="key",
                 mql_server_url="url",
                 materialization_name="mt_name",
-                use_async=True,
+                wait_for_creation=False,
             )
 
     @mock.patch("prefect.tasks.transform.transform_tasks.MQLClient")
@@ -185,7 +185,7 @@ class TestTransformCreateMaterialization:
             api_key="key",
             mql_server_url="url",
             materialization_name="mt_name",
-            use_async=True,
+            wait_for_creation=False,
         )
 
         assert response.is_complete is True
@@ -217,7 +217,7 @@ class TestTransformCreateMaterialization:
             api_key="key",
             mql_server_url="url",
             materialization_name="mt_name",
-            use_async=True,
+            wait_for_creation=False,
         )
 
         assert response.is_complete is False
@@ -249,7 +249,7 @@ class TestTransformCreateMaterialization:
             api_key="key",
             mql_server_url="url",
             materialization_name="mt_name",
-            use_async=True,
+            wait_for_creation=False,
         )
 
         assert response.is_complete is False
