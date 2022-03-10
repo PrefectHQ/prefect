@@ -5,7 +5,7 @@ Defines the Orion FastAPI app.
 import asyncio
 import os
 from functools import partial
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
 from fastapi import Depends, FastAPI, Request, status
@@ -130,9 +130,6 @@ def create_orion_api(
 
     # api routers
     api_app.include_router(
-        api.data.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
         api.flows.router, prefix=router_prefix, dependencies=dependencies
     )
     api_app.include_router(
@@ -177,18 +174,38 @@ def create_orion_api(
     return api_app
 
 
-APP_CACHE: Dict[prefect.settings.Settings, FastAPI] = {}
+APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
 
 
 def create_app(
-    settings: prefect.settings.Settings = None, ignore_cache: bool = False
+    settings: prefect.settings.Settings = None,
+    ephemeral: bool = False,
+    ignore_cache: bool = False,
 ) -> FastAPI:
-    """Create an FastAPI app that includes the Orion API and UI"""
+    """
+    Create an FastAPI app that includes the Orion API and UI
+
+    Args:
+        settings: The settings to use to create the app. If not set, settings are pulled
+            from the context.
+        ignore_cache: If set, a new application will be created even if the settings
+            match. Otherwise, an application is returned from the cache.
+        ephemeral: If set, the application will be treated as ephemeral. The UI
+            and services will be disabled.
+    """
     settings = settings or prefect.settings.get_current_settings()
+    cache_key = (settings, ephemeral)
 
-    if settings in APP_CACHE and not ignore_cache:
-        return APP_CACHE[settings]
+    if cache_key in APP_CACHE and not ignore_cache:
+        return APP_CACHE[cache_key]
 
+    if not ephemeral:
+        # Initialize the profile to configure logging
+        profile = prefect.context.get_profile_context()
+        profile.initialize()
+
+    # TODO: Move these startup functions out of this closure into the top-level or
+    #       another dedicated location
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
         if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
@@ -197,28 +214,57 @@ def create_app(
             db = provide_database_interface()
             await db.create_db()
 
+    async def add_block_specifications():
+        """Add all registered blocks to the database"""
+        from prefect.blocks.core import BLOCK_REGISTRY
+        from prefect.orion.database.dependencies import provide_database_interface
+        from prefect.orion.models.block_specs import create_block_spec
+
+        db = provide_database_interface()
+
+        should_override = bool(os.environ.get("PREFECT_ORION_DEV_UPDATE_BLOCKS"))
+
+        session = await db.session()
+        async with session:
+            for block_spec in BLOCK_REGISTRY.values():
+                # each block spec gets its own transaction
+                async with session.begin():
+                    try:
+                        await create_block_spec(
+                            session=session,
+                            block_spec=block_spec.to_api_block_spec(),
+                            override=should_override,
+                        )
+                    except sa.exc.IntegrityError:
+                        pass  # Block already exists
+
     async def start_services():
         """Start additional services when the Orion API starts up."""
-        if prefect.settings.PREFECT_ORION_SERVICES_RUN_IN_APP:
 
-            loop = asyncio.get_running_loop()
-            service_instances = [
-                services.scheduler.Scheduler(),
-                services.late_runs.MarkLateRuns(),
-            ]
-            app.state.services = {
-                service: loop.create_task(service.start())
-                for service in service_instances
-            }
-
-            for service, task in app.state.services.items():
-                logger.info(f"{service.name} service scheduled to start in-app")
-                task.add_done_callback(partial(on_service_exit, service))
-        else:
-            logger.info(
-                "In-app services have been disabled and will need to be run separately."
-            )
+        if ephemeral:
             app.state.services = None
+            return
+
+        service_instances = []
+
+        if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
+            service_instances.append(services.scheduler.Scheduler())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
+            service_instances.append(services.late_runs.MarkLateRuns())
+
+        if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
+            service_instances.append(services.telemetry.Telemetry())
+
+        loop = asyncio.get_running_loop()
+
+        app.state.services = {
+            service: loop.create_task(service.start()) for service in service_instances
+        }
+
+        for service, task in app.state.services.items():
+            logger.info(f"{service.name} service scheduled to start in-app")
+            task.add_done_callback(partial(on_service_exit, service))
 
     async def stop_services():
         """Ensure services are stopped before the Orion API shuts down."""
@@ -247,7 +293,11 @@ def create_app(
     app = FastAPI(
         title=TITLE,
         version=API_VERSION,
-        on_startup=[run_migrations, start_services],
+        on_startup=[
+            run_migrations,
+            add_block_specifications,
+            start_services,
+        ],
         on_shutdown=[stop_services],
     )
     api_app = create_orion_api(
@@ -284,6 +334,7 @@ def create_app(
     if (
         os.path.exists(prefect.__ui_static_path__)
         and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and not ephemeral
     ):
         ui_app.mount(
             "/",
@@ -292,7 +343,7 @@ def create_app(
         )
         app.mount("/", app=ui_app, name="ui")
     else:
-        pass
+        pass  # TODO: Add a static file for a disabled or missing UI
 
     def openapi():
         """
@@ -315,5 +366,5 @@ def create_app(
 
     app.openapi = openapi
 
-    APP_CACHE[settings] = app
+    APP_CACHE[cache_key] = app
     return app

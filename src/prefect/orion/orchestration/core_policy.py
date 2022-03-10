@@ -89,44 +89,44 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     ) -> None:
 
         self._applied_limits = []
-        all_limits = await concurrency_limits.read_concurrency_limits(
-            context.session, limit=None, offset=None
+        filtered_limits = (
+            await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                context.session, tags=context.run.tags
+            )
         )
-        limits_by_tag = {limit.tag: limit for limit in all_limits}
-        for tag in context.run.tags:
-            cl = limits_by_tag.get(tag, None)
+        run_limits = {limit.tag: limit for limit in filtered_limits}
+        for tag, cl in run_limits.items():
 
-            if cl is not None:
-                limit = cl.concurrency_limit
-                if limit == 0:
-                    # limits of 0 will deadlock, and the transition needs to abort
-                    for stale_tag in self._applied_limits:
-                        stale_limit = limits_by_tag.get(stale_tag, None)
-                        active_slots = set(stale_limit.active_slots)
-                        active_slots.discard(str(context.run.id))
-                        stale_limit.active_slots = list(active_slots)
+            limit = cl.concurrency_limit
+            if limit == 0:
+                # limits of 0 will deadlock, and the transition needs to abort
+                for stale_tag in self._applied_limits:
+                    stale_limit = run_limits.get(stale_tag, None)
+                    active_slots = set(stale_limit.active_slots)
+                    active_slots.discard(str(context.run.id))
+                    stale_limit.active_slots = list(active_slots)
 
-                    await self.abort_transition(
-                        reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
-                    )
-                elif len(cl.active_slots) >= limit:
-                    # if the limit has already been reached, delay the transition
-                    for stale_tag in self._applied_limits:
-                        stale_limit = limits_by_tag.get(stale_tag, None)
-                        active_slots = set(stale_limit.active_slots)
-                        active_slots.discard(str(context.run.id))
-                        stale_limit.active_slots = list(active_slots)
+                await self.abort_transition(
+                    reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
+                )
+            elif len(cl.active_slots) >= limit:
+                # if the limit has already been reached, delay the transition
+                for stale_tag in self._applied_limits:
+                    stale_limit = run_limits.get(stale_tag, None)
+                    active_slots = set(stale_limit.active_slots)
+                    active_slots.discard(str(context.run.id))
+                    stale_limit.active_slots = list(active_slots)
 
-                    await self.delay_transition(
-                        30,
-                        f"Concurrency limit for the {tag} tag has been reached",
-                    )
-                else:
-                    # log the TaskRun ID to active_slots
-                    self._applied_limits.append(tag)
-                    active_slots = set(cl.active_slots)
-                    active_slots.add(str(context.run.id))
-                    cl.active_slots = list(active_slots)
+                await self.delay_transition(
+                    30,
+                    f"Concurrency limit for the {tag} tag has been reached",
+                )
+            else:
+                # log the TaskRun ID to active_slots
+                self._applied_limits.append(tag)
+                active_slots = set(cl.active_slots)
+                active_slots.add(str(context.run.id))
+                cl.active_slots = list(active_slots)
 
     async def cleanup(
         self,
@@ -158,16 +158,16 @@ class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
 
-        all_limits = await concurrency_limits.read_concurrency_limits(
-            context.session, limit=None, offset=None
+        filtered_limits = (
+            await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                context.session, tags=context.run.tags
+            )
         )
-        limit_lookup = {limit.tag: limit for limit in all_limits}
-        for tag in context.run.tags:
-            cl = limit_lookup.get(tag, None)
-            if cl is not None:
-                active_slots = set(cl.active_slots)
-                active_slots.discard(str(context.run.id))
-                cl.active_slots = list(active_slots)
+        run_limits = {limit.tag: limit for limit in filtered_limits}
+        for tag, cl in run_limits.items():
+            active_slots = set(cl.active_slots)
+            active_slots.discard(str(context.run.id))
+            cl.active_slots = list(active_slots)
 
 
 class CacheInsertion(BaseOrchestrationRule):

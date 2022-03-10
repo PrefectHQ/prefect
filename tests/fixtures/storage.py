@@ -12,6 +12,7 @@ import pytest
 from fastapi import Body, FastAPI
 from fastapi.exceptions import RequestValidationError
 
+from prefect.blocks.storage import KVServerStorageBlock
 from prefect.orion import models
 from prefect.orion.api.server import validation_exception_handler
 from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
@@ -96,18 +97,15 @@ async def set_up_kv_storage(session, run_storage_server):
     """
     block_spec = await models.block_specs.create_block_spec(
         session=session,
-        block_spec=BlockSpecCreate(
-            name="kv-server-storage-block", version="1.0", type="STORAGE", fields=dict()
-        ),
+        block_spec=KVServerStorageBlock.to_api_block_spec(),
+        override=True,
     )
 
     block = await models.blocks.create_block(
         session=session,
-        block=BlockCreate(
-            name="test-storage-block",
-            data=dict(api_address="http://127.0.0.1:1234/storage"),
-            block_spec_id=block_spec.id,
-        ),
+        block=KVServerStorageBlock(
+            api_address="http://127.0.0.1:1234/storage"
+        ).to_api_block(name="test-storage-block", block_spec_id=block_spec.id),
     )
 
     await models.blocks.set_default_storage_block(session=session, block_id=block.id)

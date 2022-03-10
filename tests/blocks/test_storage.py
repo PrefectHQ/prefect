@@ -1,12 +1,17 @@
+import os.path
+import uuid
 from itertools import product
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
 import boto3
+import pendulum
 import pytest
 from moto import mock_s3
+from pydantic import ValidationError
 
 from prefect.blocks import storage
+from prefect.utilities.hashing import stable_hash
 
 TEST_DATA = [
     # Test a couple forms of bytes
@@ -15,12 +20,20 @@ TEST_DATA = [
 ]
 
 FS_STORAGE_BLOCKS = [
-    storage.OrionStorageBlock.parse_obj({"blockref": "orionstorage-block"}),
     storage.TempStorageBlock.parse_obj({"blockref": "tempstorage-block"}),
     storage.LocalStorageBlock.parse_obj(
         {"blockref": "localstorage-block", "storage_path": TemporaryDirectory().name}
     ),
 ]
+
+
+async def test_storage_block_spec_type():
+    assert storage.StorageBlock._block_spec_type == "STORAGE"
+
+    class MyStorageBlock(storage.StorageBlock):
+        pass
+
+    assert MyStorageBlock._block_spec_type == "STORAGE"
 
 
 @pytest.mark.parametrize(
@@ -93,3 +106,82 @@ async def test_s3_block_write_and_read_roundtrips(user_data):
 
         storage_token = await storage_block.write(user_data)
         assert await storage_block.read(storage_token) == user_data
+
+
+class TestFileStorageBlock:
+    @pytest.mark.parametrize("key_type", ["hash", "uuid", "timestamp"])
+    async def test_roundtrip_by_key_type(self, tmp_path, key_type):
+        block = storage.FileStorageBlock(base_path=tmp_path, key_type=key_type)
+        key = await block.write(b"hello")
+        assert await block.read(key) == b"hello"
+
+    def test_invalid_key_type(self, tmp_path):
+        with pytest.raises(ValidationError):
+            storage.FileStorageBlock(base_path=tmp_path, key_type="foo")
+
+    async def test_write_when_directory_does_not_exist(self, tmp_path):
+        block = storage.FileStorageBlock(base_path=tmp_path / "new_folder")
+        key = await block.write(b"hello")
+        assert await block.read(key) == b"hello"
+
+    @pytest.mark.parametrize("key_type", ["hash", "uuid", "timestamp"])
+    async def test_key_type_determines_file_name(self, tmp_path, key_type):
+        block = storage.FileStorageBlock(base_path=tmp_path, key_type=key_type)
+        key = await block.write(b"hello")
+
+        if key_type == "hash":
+            assert key == stable_hash(b"hello")
+        elif key_type == "uuid":
+            assert uuid.UUID(key)
+        elif key_type == "timestamp":
+            assert pendulum.parse(key)
+
+        assert (tmp_path / key).exists()
+
+    async def test_warns_on_missing_library_at_init_then_raises_on_usage(self):
+        # Skip test if a developer happens to have this installed already
+        try:
+            import s3fs
+        except:
+            pass
+        else:
+            pytest.skip(reason="s3fs is installed so no warning would be raised")
+
+        with pytest.warns(UserWarning, match="Install s3fs"):
+            block = storage.FileStorageBlock(base_path="s3://prefect-test-bucket")
+
+        assert (
+            block.base_path == "s3://prefect-test-bucket/"
+        ), "Base path still set correctly"
+
+        with pytest.raises(ImportError, match="Install s3fs"):
+            await block.read("test")
+
+    async def test_adds_trailing_slash(self):
+        block = storage.FileStorageBlock(base_path="/tmp/test")
+        assert block.base_path == "/tmp/test/"
+
+    async def test_includes_options_on_open(self, monkeypatch):
+        mock = MagicMock()
+        monkeypatch.setattr("fsspec.open", mock)
+
+        block = storage.FileStorageBlock(
+            base_path="/tmp/test", options={"test": 1, "foo": "bar"}
+        )
+
+        key = await block.write(b"")
+        mock.assert_called_with(f"/tmp/test/{key}", "wb", test=1, foo="bar")
+
+        await block.read(key)
+        mock.assert_called_with(f"/tmp/test/{key}", "rb", test=1, foo="bar")
+
+    async def test_hash_key_does_not_overwrite(self, tmp_path):
+        block = storage.FileStorageBlock(base_path=tmp_path, key_type="hash")
+
+        key1 = await block.write(b"test")
+        mtime1 = os.path.getmtime(tmp_path / key1)
+        key2 = await block.write(b"test")
+        mtime2 = os.path.getmtime(tmp_path / key2)
+
+        assert key1 == key2
+        assert mtime2 == mtime1, "Should not write contents again"

@@ -15,6 +15,7 @@ $ python -m asyncio
 ```
 </div>
 """
+import datetime
 import warnings
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -42,7 +43,11 @@ from prefect.orion.schemas.core import QueueFilter, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_URL,
+)
 from prefect.utilities.asyncio import asyncnullcontext
 
 if TYPE_CHECKING:
@@ -82,7 +87,7 @@ def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
 
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(profile.settings),
+        PREFECT_API_URL.value() or create_app(profile.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
     )
 
@@ -195,6 +200,8 @@ class OrionClient:
             httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
+
+        httpx_settings.setdefault("timeout", PREFECT_API_REQUEST_TIMEOUT.value())
 
         # Context management
         self._exit_stack = AsyncExitStack()
@@ -707,7 +714,7 @@ class OrionClient:
         self,
         name: str,
         tags: List[str] = None,
-        deployment_ids: List[str] = None,
+        deployment_ids: List[UUID] = None,
         flow_runner_types: List[str] = None,
     ) -> UUID:
         """
@@ -742,7 +749,23 @@ class OrionClient:
             raise httpx.RequestError(str(response))
         return UUID(work_queue_id)
 
-    async def update_work_queue(self, id: str, **kwargs) -> bool:
+    async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
+        """
+        Read a work queue by name.
+
+        Args:
+            name (str): a unique name for the work queue
+
+        Raises:
+            httpx.StatusError: if no work queue is found
+
+        Returns:
+            schemas.core.WorkQueue: a work queue API object
+        """
+        response = await self.get(f"/work_queues/name/{name}")
+        return schemas.core.WorkQueue.parse_obj(response.json())
+
+    async def update_work_queue(self, id: UUID, **kwargs) -> bool:
         """
         Update properties of a work queue.
 
@@ -766,9 +789,40 @@ class OrionClient:
             return True
         return False
 
+    async def get_runs_in_work_queue(
+        self,
+        id: UUID,
+        limit: int = 10,
+        scheduled_before: datetime.datetime = None,
+    ) -> List[schemas.core.FlowRun]:
+        """
+        Read flow runs off a work queue.
+
+        Args:
+            id: the id of the work queue to read from
+            limit: a limit on the number of runs to return
+            scheduled_before: a timestamp; only runs scheduled before this time will be returned.
+                Defaults to now.
+
+        Raises:
+            httpx.RequestError
+
+        Returns:
+            List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
+        """
+        json_data = {"limit": limit}
+        if scheduled_before:
+            json_data.update({"scheduled_before": scheduled_before.isoformat()})
+
+        response = await self.post(
+            f"/work_queues/{id}/get_runs",
+            json=json_data,
+        )
+        return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
+
     async def read_work_queue(
         self,
-        id: str,
+        id: UUID,
     ) -> schemas.core.WorkQueue:
         """
         Read a work queue.
@@ -810,7 +864,7 @@ class OrionClient:
 
     async def delete_work_queue_by_id(
         self,
-        id: str,
+        id: UUID,
     ):
         """
         Delete a work queue by its ID.
@@ -838,7 +892,7 @@ class OrionClient:
 
     async def create_block(
         self,
-        block: Block,
+        block: prefect.blocks.core.Block,
         block_spec_id: UUID = None,
         name: str = None,
     ) -> Optional[UUID]:
@@ -847,27 +901,17 @@ class OrionClient:
         Block.
         """
 
-        block_fields = block.dict(exclude=["block_name", "block_id", "block_spec_id"])
+        api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
 
-        if not block_spec_id or block.block_spec_id:
-            raise ValueError(
-                "No block spec ID provided either on the block or as an argument."
-            )
-        elif not name or block.name:
-            raise ValueError(
-                "No block name provided either on the block or as an argument."
-            )
-
-        block_create = schemas.actions.BlockCreate(
-            name=name or block.name,
-            block_spec_id=block_spec_id or block.block_spec_id,
-            data=block_fields,
+        # Drop fields that are not compliant with `CreateBlock`
+        payload = api_block.dict(
+            json_compatible=True, exclude={"block_spec", "id"}, exclude_unset=True
         )
 
         try:
             response = await self.post(
                 "/blocks/",
-                json=block_create.dict(json_compatible=True),
+                json=payload,
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
@@ -876,6 +920,24 @@ class OrionClient:
                 raise e
 
         return UUID(response.json().get("id"))
+
+    async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
+        """
+        Read all block specs with the given type
+
+        Args:
+            type: The name of the type of block spec
+
+        Raises:
+            httpx.RequestError: if the block was not found for any reason
+
+        Returns:
+            A hydrated block or None.
+        """
+        response = await self.post(
+            f"/block_specs/filter", json={"block_spec_type": type}
+        )
+        return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
 
     async def read_block(self, block_id: UUID):
         """
@@ -920,6 +982,35 @@ class OrionClient:
             f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
         )
         return create_block_from_api_block(response.json())
+
+    async def read_blocks(
+        self,
+        block_spec_type: str = None,
+        offset: int = None,
+        limit: int = None,
+        as_json: bool = False,
+    ) -> List[Union[prefect.blocks.core.Block, Dict[str, Any]]]:
+        """
+        Read blocks
+
+        Args:
+            block_spec_type (str): an optional block spec type
+            offset (int): an offset
+            limit (int): the number of blocks to return
+            as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
+                JSON is returned from the API.
+
+        Returns:
+            A list of blocks
+        """
+        response = await self.post(
+            f"/blocks/filter",
+            json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
+        )
+        json_result = response.json()
+        if as_json:
+            return json_result
+        return [create_block_from_api_block(b) for b in json_result]
 
     async def create_deployment(
         self,
@@ -1106,6 +1197,34 @@ class OrionClient:
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
+    async def get_default_storage_block(
+        self, as_json: bool = False
+    ) -> Optional[Union[Block, Dict[str, Any]]]:
+        """Returns the default storage block
+
+        Args:
+            as_json (bool, optional): if True, the raw JSON from the API is
+                returned. This can avoid instantiating a storage block (and any side
+                effects) Defaults to False.
+
+        Returns:
+            Optional[Block]:
+        """
+        response = await self.post("/blocks/get_default_storage_block")
+        if not response.content:
+            return None
+        if as_json:
+            return response.json()
+        return create_block_from_api_block(response.json())
+
+    async def set_default_storage_block(self, block_id: UUID) -> bool:
+        await self.post(f"/blocks/{block_id}/set_default_storage_block")
+        return True
+
+    async def clear_default_storage_block(self) -> bool:
+        await self.post(f"/blocks/clear_default_storage_block")
+        return True
+
     async def persist_data(
         self,
         data: bytes,
@@ -1119,22 +1238,17 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-
-        # get default storage block
-        default_block_response = await self.post("/blocks/get_default_storage_block")
-        if not default_block_response.json():
+        block = await self.get_default_storage_block()
+        if not block:
             warnings.warn(
                 "No default storage has been set on the server. "
                 "Using temporary local storage for results."
             )
             block = storage.TempStorageBlock()
-        else:
-            block = create_block_from_api_block(default_block_response.json())
-
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": block.block_id},
+            data={"data": storage_token, "block_id": block._block_id},
         )
         return storage_datadoc
 
@@ -1494,6 +1608,7 @@ class OrionClient:
                 representation of state orchestration output
         """
         state_data = schemas.actions.StateCreate(
+            name=state.name,
             type=state.type,
             message=state.message,
             data=orion_doc or state.data,

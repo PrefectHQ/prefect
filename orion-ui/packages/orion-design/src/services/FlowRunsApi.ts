@@ -1,9 +1,17 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
-import { DateString } from '..'
-import { FlowRun, RunHistory, StateHistory, StateType, IFlowRunnerResponse } from '@/models'
+import { InjectionKey } from 'vue'
+import { FlowRun } from '@/models/FlowRun'
+import { FlowRunGraph } from '@/models/FlowRunGraph'
+import { IFlowRunGraphResponse } from '@/models/IFlowRunGraphResponse'
+import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { RunHistory } from '@/models/RunHistory'
+import { StateHistory } from '@/models/StateHistory'
+import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
+import { DateString } from '@/types/dates'
 import { State, StateName } from '@/types/states'
 
 export type IFlowRunResponse = {
@@ -70,6 +78,10 @@ export class FlowRunsApi extends Api {
     return this.post<IFlowRunHistoryResponse[]>('/history', filter).then(response => this.mapFlowRunsHistoryResponse(response))
   }
 
+  public getFlowRunsGraph(id: string): Promise<FlowRunGraph[]> {
+    return this.get<IFlowRunGraphResponse[]>(`/${id}/graph`).then(response => this.mapFlowRunGraphResponse(response))
+  }
+
   protected mapFlowRun(data: IFlowRunResponse): FlowRun {
     return new FlowRun({
       id: data.id,
@@ -93,7 +105,7 @@ export class FlowRunsApi extends Api {
       parentTaskRunId: data.parent_task_run_id,
       stateId: data.state_id,
       stateType: data.state_type,
-      state: data.state ? statesApi.stateMapper(data.state) : null,
+      state: data.state ? statesApi.mapStateResponse(data.state) : null,
       tags: data.tags,
       runCount: data.run_count,
       created: new Date(data.created),
@@ -119,6 +131,23 @@ export class FlowRunsApi extends Api {
     })
   }
 
+  protected mapFlowRunGraphResponse({ data }: AxiosResponse<IFlowRunGraphResponse[]>): FlowRunGraph[] {
+    return data.map(x => new FlowRunGraph({
+      id: x.id,
+      upstreamDependencies: this.mapFlowRunGraphDependenciesResponse(x.upstream_dependencies),
+      state: statesApi.mapStateResponse(x.state),
+    }))
+  }
+
+  protected mapFlowRunGraphDependenciesResponse(data: IFlowRunGraphResponse['upstream_dependencies']): FlowRunGraph['upstreamDependencies'] {
+    return data.map(x => {
+      return {
+        id: x.id,
+        inputType: x.input_type,
+      }
+    })
+  }
+
   protected mapFlowRunsHistoryResponse({ data }: AxiosResponse<IFlowRunHistoryResponse[]>): RunHistory[] {
     return data.map(x => this.mapFlowRunsHistory(x))
   }
@@ -137,4 +166,6 @@ export class FlowRunsApi extends Api {
 
 }
 
-export const flowRunsApi = new FlowRunsApi()
+export const flowRunsApi = createActions(new FlowRunsApi())
+
+export const getFlowRunsCountKey: InjectionKey<FlowRunsApi['getFlowRunsCount']> = Symbol()

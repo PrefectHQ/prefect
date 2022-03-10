@@ -1,4 +1,6 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
+import { InjectionKey } from 'vue'
 import { Flow } from '@/models/Flow'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
@@ -47,4 +49,6 @@ export class FlowsApi extends Api {
 
 }
 
-export const flowsApi = new FlowsApi()
+export const flowsApi = createActions(new FlowsApi())
+
+export const getFlowsKey: InjectionKey<FlowsApi['getFlows']> = Symbol()

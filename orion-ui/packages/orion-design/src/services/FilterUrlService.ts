@@ -2,7 +2,7 @@ import { LocationQuery, LocationQueryValue, Router } from 'vue-router'
 import { FilterService } from '@/services/FilterService'
 import { FilterState, useFiltersStore } from '@/stores/filters'
 import { Filter } from '@/types/filters'
-import { hasFilter } from '@/utilities'
+import { hasFilter } from '@/utilities/filters'
 
 export class FilterUrlService {
   private readonly router: Router

@@ -1,5 +1,7 @@
+from typing import List
 from uuid import uuid4
 
+import pydantic
 import pytest
 
 from prefect.orion import models, schemas
@@ -108,6 +110,86 @@ class TestReadBlock:
         assert response.status_code == 404
 
 
+class TestReadBlocks:
+    @pytest.fixture(autouse=True)
+    async def blocks(self, session, block_specs):
+
+        blocks = []
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[0].id, name="Block 1"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 2"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 3"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[1].id, name="Block 4"
+                ),
+            )
+        )
+        blocks.append(
+            await models.blocks.create_block(
+                session=session,
+                block=schemas.core.Block(
+                    block_spec_id=block_specs[2].id, name="Block 5"
+                ),
+            )
+        )
+
+        session.add_all(blocks)
+        await session.commit()
+        return blocks
+
+    async def test_read_blocks(self, client, blocks):
+        response = await client.post("/blocks/filter")
+        assert response.status_code == 200
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert {b.id for b in read_blocks} == {b.id for b in blocks}
+        # sorted by block spec name, block spec version (desc), block name
+        assert [b.id for b in read_blocks] == [
+            blocks[2].id,
+            blocks[4].id,
+            blocks[0].id,
+            blocks[1].id,
+            blocks[3].id,
+        ]
+
+    async def test_read_blocks_limit_offset(self, client, blocks):
+        # sorted by block spec name, block spec version (desc), block name
+        response = await client.post("/blocks/filter", json=dict(limit=2))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[4].id]
+
+        response = await client.post("/blocks/filter", json=dict(limit=2, offset=2))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id]
+
+    async def test_read_blocks_type(self, client, blocks):
+        response = await client.post("/blocks/filter", json=dict(block_spec_type="abc"))
+        read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
+        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id, blocks[3].id]
+
+
 class TestDeleteBlock:
     async def test_delete_block(self, session, client, block_specs):
         response = await client.post(
@@ -160,11 +242,13 @@ class TestDefaultStorageBlock:
     async def test_set_default_storage_block(self, client, storage_block):
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.json() is None
+        assert response.status_code == 204
+        assert not response.content
 
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
 
         response = await client.post(f"/blocks/get_default_storage_block")
+        assert response.status_code == 200
         assert response.json()["id"] == str(storage_block.id)
 
     async def test_set_default_fails_if_not_storage_block(
@@ -184,7 +268,7 @@ class TestDefaultStorageBlock:
         assert response.status_code == 422
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.json() is None
+        assert not response.content
 
     async def test_get_default_storage_block(self, client, storage_block):
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
@@ -202,4 +286,4 @@ class TestDefaultStorageBlock:
         await client.post(f"/blocks/clear_default_storage_block")
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.json() is None
+        assert not response.content

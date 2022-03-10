@@ -13,6 +13,14 @@ from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.utilities.testing import AsyncMock
 
 
+@pytest.fixture
+async def work_queue_id(deployment, orion_client):
+    work_queue_id = await orion_client.create_work_queue(
+        name="testing", deployment_ids=[str(deployment.id)]
+    )
+    return work_queue_id
+
+
 def mock_flow_runner(runner_type, start_error=None):
     runner = MagicMock()
 
@@ -30,7 +38,7 @@ def mock_flow_runner(runner_type, start_error=None):
 
 
 async def test_agent_start_will_not_run_without_start():
-    agent = OrionAgent()
+    agent = OrionAgent(work_queue_id="foo")
     mock = AsyncMock()
     with pytest.raises(RuntimeError, match="Agent is not started"):
         agent.client = mock
@@ -40,7 +48,7 @@ async def test_agent_start_will_not_run_without_start():
 
 
 async def test_agent_start_and_shutdown():
-    async with OrionAgent() as agent:
+    async with OrionAgent(work_queue_id="foo") as agent:
         assert agent.started
         assert agent.task_group is not None
         assert agent.client is not None
@@ -50,7 +58,24 @@ async def test_agent_start_and_shutdown():
     assert agent.client is None, "Shuts down the client"
 
 
-async def test_agent_submittable_flow_run_filter(orion_client, deployment):
+async def test_start_agent_with_no_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Either work_queue_id or work_queue_name must be provided)"
+    ):
+        OrionAgent()
+
+
+async def test_start_agent_with_both_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Provide only one of work_queue_id and work_queue_name)"
+    ):
+        OrionAgent(work_queue_id=uuid4(), work_queue_name="foo")
+
+
+@pytest.mark.parametrize("use_work_queue_name", [True, False])
+async def test_agent_with_work_queue(
+    orion_client, deployment, work_queue_id, use_work_queue_name
+):
     @flow
     def foo():
         pass
@@ -81,33 +106,67 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
-        agent.submit_run = AsyncMock()  # do not actually run
-        agent.submitting_flow_run_ids.add(
-            flow_run_ids[3]
-        )  # add a submitting id to check skip
+    # Pull runs from the work queue to get expected runs
+    work_queue_runs = await orion_client.get_runs_in_work_queue(
+        work_queue_id, scheduled_before=pendulum.now().add(seconds=10)
+    )
+    work_queue_flow_run_ids = {run.id for run in work_queue_runs}
+
+    # Should only include scheduled runs in the past or next prefetch seconds
+    # Should not include runs without deployments
+    assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
+
+    if use_work_queue_name:
+        work_queue = await orion_client.read_work_queue(work_queue_id)
+        agent = OrionAgent(work_queue_name=work_queue.name, prefetch_seconds=10)
+    else:
+        agent = OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10)
+
+    async with agent:
+        agent.submit_run = AsyncMock()  # do not actually run anything
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
-    # Only include scheduled runs in the past or next prefetch seconds
-    # Does not include runs without deployments
-    assert submitted_flow_run_ids == {flow_run_ids[1], flow_run_ids[2]}
+    assert submitted_flow_run_ids == work_queue_flow_run_ids
 
 
-async def test_agent_internal_submit_run_called(orion_client, deployment):
+async def test_agent_with_work_queue_name_survives_queue_deletion(
+    orion_client, work_queue_id
+):
+    work_queue = await orion_client.read_work_queue(work_queue_id)
+
+    async with OrionAgent(
+        work_queue_name=work_queue.name, prefetch_seconds=10
+    ) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+
+        await agent.get_and_submit_flow_runs()
+
+        # delete the work queue
+        await orion_client.delete_work_queue_by_id(work_queue.id)
+
+        # gracefully handled
+        await agent.get_and_submit_flow_runs()
+
+
+async def test_agent_internal_submit_run_called(
+    orion_client, deployment, work_queue_id
+):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         agent.submit_run = AsyncMock()
         await agent.get_and_submit_flow_runs()
 
     agent.submit_run.assert_awaited_once_with(flow_run)
 
 
-async def test_agent_submits_using_the_retrieved_flow_runner(orion_client, deployment):
+async def test_agent_submits_using_the_retrieved_flow_runner(
+    orion_client, deployment, work_queue_id
+):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
@@ -119,7 +178,7 @@ async def test_agent_submits_using_the_retrieved_flow_runner(orion_client, deplo
 
     submit_flow_run = AsyncMock(side_effect=mark_as_started)
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner().submit_flow_run = submit_flow_run
         await agent.get_and_submit_flow_runs()
@@ -129,7 +188,9 @@ async def test_agent_submits_using_the_retrieved_flow_runner(orion_client, deplo
     )
 
 
-async def test_agent_submit_run_sets_pending_state(orion_client, deployment):
+async def test_agent_submit_run_sets_pending_state(
+    orion_client, deployment, work_queue_id
+):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
@@ -139,7 +200,7 @@ async def test_agent_submit_run_sets_pending_state(orion_client, deployment):
     def mark_as_started(_, task_status):
         task_status.started()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner().submit_flow_run = AsyncMock(side_effect=mark_as_started)
@@ -152,7 +213,7 @@ async def test_agent_submit_run_sets_pending_state(orion_client, deployment):
 
 
 async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
-    orion_client, deployment, monkeypatch
+    orion_client, deployment, monkeypatch, work_queue_id
 ):
     # TODO: We should abstract this now/sleep pattern into fixtures for resuse
     #       as there are a few other locations we want to test sleeps without
@@ -179,7 +240,7 @@ async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
     def mark_as_started(_, task_status):
         task_status.started()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner().submit_flow_run = AsyncMock(side_effect=mark_as_started)
@@ -196,7 +257,7 @@ async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
 
 @pytest.mark.parametrize("return_state", [Scheduled(), Running()])
 async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
-    orion_client, deployment, return_state
+    orion_client, deployment, return_state, work_queue_id
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -207,7 +268,7 @@ async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
     def mark_as_started(_, task_status):
         task_status.started()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
@@ -225,7 +286,9 @@ async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
     )
 
 
-async def test_agent_submit_run_aborts_if_flow_run_is_missing(orion_client, deployment):
+async def test_agent_submit_run_aborts_if_flow_run_is_missing(
+    orion_client, deployment, work_queue_id
+):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
@@ -238,7 +301,7 @@ async def test_agent_submit_run_aborts_if_flow_run_is_missing(orion_client, depl
     def mark_as_started(_, task_status):
         task_status.started()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
@@ -256,7 +319,7 @@ async def test_agent_submit_run_aborts_if_flow_run_is_missing(orion_client, depl
 
 
 async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
-    orion_client, deployment
+    orion_client, deployment, work_queue_id
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -267,7 +330,7 @@ async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
     def mark_as_started(_, task_status):
         task_status.started()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
@@ -286,7 +349,7 @@ async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
 
 
 async def test_agent_fails_flow_if_flow_runner_submission_fails(
-    orion_client, deployment
+    orion_client, deployment, work_queue_id
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -296,7 +359,7 @@ async def test_agent_fails_flow_if_flow_runner_submission_fails(
 
     submit_flow_run = AsyncMock(side_effect=ValueError("Hello!"))
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner().submit_flow_run = submit_flow_run
         agent.logger = MagicMock()
@@ -317,7 +380,7 @@ async def test_agent_fails_flow_if_flow_runner_submission_fails(
 
 
 async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
-    orion_client, deployment
+    orion_client, deployment, work_queue_id
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -330,7 +393,7 @@ async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
     # submission the same as if it had thrown an error.
     submit_flow_run = AsyncMock()
 
-    async with OrionAgent(prefetch_seconds=10) as agent:
+    async with OrionAgent(work_queue_id, prefetch_seconds=10) as agent:
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner().submit_flow_run = submit_flow_run
         agent.logger = MagicMock()
@@ -352,7 +415,9 @@ async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
         raise result
 
 
-async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(orion_client):
+async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(
+    orion_client, work_queue_id
+):
     @flow
     def foo():
         pass
@@ -372,12 +437,12 @@ async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(orion_clie
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
 
-    agent = OrionAgent(prefetch_seconds=10)
+    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
     assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})
 
 
 async def test_agent_dispatches_universal_flow_run_to_subproccess_runner(
-    orion_client, deployment
+    orion_client, deployment, work_queue_id
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -385,16 +450,18 @@ async def test_agent_dispatches_universal_flow_run_to_subproccess_runner(
         flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
     )
 
-    agent = OrionAgent(prefetch_seconds=10)
+    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
     assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})
 
 
-async def test_agent_dispatches_to_given_runner(orion_client, deployment):
+async def test_agent_dispatches_to_given_runner(
+    orion_client, deployment, work_queue_id
+):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=Scheduled(scheduled_time=pendulum.now("utc")),
         flow_runner=SubprocessFlowRunner(env={"foo": "bar"}),
     )
 
-    agent = OrionAgent(prefetch_seconds=10)
+    agent = OrionAgent(work_queue_id, prefetch_seconds=10)
     assert agent.get_flow_runner(flow_run) == SubprocessFlowRunner(env={"foo": "bar"})

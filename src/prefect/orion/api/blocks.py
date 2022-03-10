@@ -1,7 +1,7 @@
 """
 Routes for interacting with block objects.
 """
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
@@ -34,6 +34,26 @@ async def create_block(
         )
 
     return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
+
+
+@router.post("/filter")
+async def read_blocks(
+    limit: int = dependencies.LimitBody(),
+    block_spec_type: str = Body(None, description="The block spec type"),
+    offset: int = Body(0, ge=0),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.core.Block]:
+    """
+    Query for blocks.
+    """
+    result = await models.blocks.read_blocks(
+        session=session,
+        block_spec_type=block_spec_type,
+        offset=offset,
+        limit=limit,
+    )
+
+    return [await schemas.core.Block.from_orm_model(session, b) for b in result]
 
 
 @router.get("/{id}")
@@ -100,15 +120,18 @@ async def set_default_storage_block(
 
 @router.post("/get_default_storage_block")
 async def get_default_storage_block(
+    response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> Optional[schemas.core.Block]:
     model = await models.blocks.get_default_storage_block(session=session)
     if model:
         return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
+    else:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/clear_default_storage_block")
+@router.post("/clear_default_storage_block", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_default_storage_block(
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> Optional[schemas.core.Block]:
+):
     await models.blocks.clear_default_storage_block(session=session)

@@ -8,7 +8,7 @@ import {
   FilterType,
   FilterValue,
   ObjectStringFilter
-} from '@/types'
+} from '@/types/filters'
 import { parseDateTimeNumeric } from '@/utilities/dates'
 
 export class FilterParseService {

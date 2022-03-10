@@ -747,10 +747,7 @@ class TestTaskConcurrencyLimits:
         assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
 
     async def test_concurrency_race_condition_deleted_tags_dont_impact_execution(
-        self,
-        session,
-        run_type,
-        initialize_orchestration,
+        self, session, run_type, initialize_orchestration
     ):
         await self.create_concurrency_limit(session, "big limit", 2)
         await self.create_concurrency_limit(session, "small limit", 1)

@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :dismissable="!disabled" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissable="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -15,14 +15,14 @@
       <div ref="observe" class="filter-bar__observe" />
     </teleport>
 
-    <teleport v-if="overlay" to=".application">
+    <teleport v-if="overlay" to="[data-teleport-target='app']">
       <div class="filter-bar__overlay" @click="close" />
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
       <template v-if="isOpen('search')">
         <div key="search" class="filter-bar__menu filter-bar__menu-search">
-          <FiltersSearchMenu />
+          <FiltersSearchMenu @close="toggle('search')" />
         </div>
       </template>
 
@@ -42,8 +42,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu, media } from '@prefecthq/orion-design'
-  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+  import FiltersMenu from '@/components/FiltersMenu.vue'
+  import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
+  import FiltersSearch  from '@/components/FiltersSearch.vue'
+  import FiltersSearchMenu from '@/components/FiltersSearchMenu.vue'
+  import { FilterService } from '@/services/FilterService'
+  import { getSearchesKey, searchApi } from '@/services/SearchApi'
+  import { useFiltersStore } from '@/stores/filters'
+  import { isSame } from '@/utilities/arrays'
+  import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
 
@@ -54,6 +63,18 @@
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
+  const placeholderText = computed(()=> props.disabled ? '' : 'Search...')
+
+  const filtersStore = useFiltersStore()
+  const getSearches = inject(getSearchesKey, searchApi.getSearches)
+  const searchesSubscription = useSubscription(getSearches)
+  const savedSearches = computed(() => searchesSubscription.response.value ?? [])
+
+  const usingSavedSearch = computed(() => {
+    const stringFilters = FilterService.stringify(filtersStore.all)
+
+    return savedSearches.value.some(search => isSame(FilterService.stringify(search.filters), stringFilters))
+  })
 
   const classes = computed(() => ({
     root: {
@@ -62,6 +83,7 @@
     },
     saveButton: {
       'filter-bar__button--open': isOpen('save'),
+      'filter-bar__button--active': usingSavedSearch.value,
     },
     filtersButton: {
       'filter-bar__button--open': isOpen('filters'),
@@ -237,6 +259,10 @@
   }
 }
 
+.filter-bar__button--active {
+  color: var(--primary);
+}
+
 .filter-bar__button--open {
   background-color: var(--primary);
   color: #fff;
@@ -267,6 +293,8 @@
 }
 
 .filter-bar__menu-search {
+  max-height: 50vh;
+
   @media (max-width: 1024px) {
     top: 100%;
   }
