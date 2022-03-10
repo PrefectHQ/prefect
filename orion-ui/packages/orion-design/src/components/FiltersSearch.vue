@@ -15,7 +15,7 @@
       v-model="term"
       class="filters-search__input"
       type="text"
-      placeholder="Search..."
+      :placeholder="placeholder"
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref } from 'vue'
+  import { computed, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import FilterTags from '@/components/FilterTags.vue'
@@ -39,9 +39,17 @@
   import { media } from '@/utilities/media'
   import { toPluralString } from '@/utilities/strings'
 
-  defineProps<{
+  interface Props {
     dismissable?: boolean,
-  }>()
+    placeholder?: string,
+  }
+
+  withDefaults(defineProps<Props>(), {
+    // eslint-disable-next-line vue/no-boolean-default
+    dismissable: true,
+    placeholder: 'Search...',
+  })
+
 
   const filtersStore = useFiltersStore()
   const filterUrlService = new FilterUrlService(useRouter())
@@ -49,7 +57,6 @@
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
-
   function add(): void {
     if (term.value == '') {
       return

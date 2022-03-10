@@ -1,18 +1,11 @@
 import { AxiosResponse } from 'axios'
-import {
-  ITaskInputResponse,
-  EmpiricalPolicy,
-  IEmpiricalPolicyResponse,
-  StateType,
-  TaskInput,
-  TaskRun,
-  ConstantTaskInput,
-  ParameterTaskInput,
-  TaskRunTaskInput,
-  isConstantTaskInputResponse,
-  isParameterTaskInputResponse,
-  isTaskRunTaskInputResponse
-} from '@/models'
+import { InjectionKey } from 'vue'
+import { EmpiricalPolicy } from '@/models/EmpiricalPolicy'
+import { IEmpiricalPolicyResponse } from '@/models/IEmpiricalPolicyResponse'
+import { isConstantTaskInputResponse, isParameterTaskInputResponse, isTaskRunTaskInputResponse, ITaskInputResponse } from '@/models/ITaskInputResponse'
+import { StateType } from '@/models/StateType'
+import { ConstantTaskInput, ParameterTaskInput, TaskInput, TaskRunTaskInput } from '@/models/TaskInput'
+import { TaskRun } from '@/models/TaskRun'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
@@ -127,7 +120,7 @@ export class TaskRunsApi extends Api {
       endTime: data.end_time ? new Date(data.end_time) : null,
       stateId: data.state_id,
       stateType: data.state_type,
-      state: data.state ? statesApi.stateMapper(data.state) : null,
+      state: data.state ? statesApi.mapStateResponse(data.state) : null,
       tags: data.tags,
     })
   }
@@ -143,3 +136,5 @@ export class TaskRunsApi extends Api {
 }
 
 export const taskRunsApi = new TaskRunsApi()
+
+export const getTaskRunKey: InjectionKey<TaskRunsApi['getTaskRun']> = Symbol()

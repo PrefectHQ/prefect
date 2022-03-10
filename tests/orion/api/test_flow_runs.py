@@ -10,6 +10,7 @@ from prefect.orion import models, schemas
 from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, data, responses, states
+from prefect.orion.schemas.core import TaskRunResult
 
 
 class TestCreateFlowRun:
@@ -438,9 +439,78 @@ class TestReadFlowRuns:
 
 
 class TestReadFlowRunGraph:
+    @pytest.fixture
+    async def graph_data(self, session):
+        create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
+        create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
+            session=session, flow_run=flow_run
+        )
+        create_task_run = lambda task_run: models.task_runs.create_task_run(
+            session=session, task_run=task_run
+        )
+
+        flow = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
+
+        fr = await create_flow_run(
+            flow_run=core.FlowRun(
+                flow_id=flow.id,
+                tags=["running"],
+                state=states.Completed(),
+            )
+        )
+
+        prev_tr = None
+        for r in range(10):
+            tr = await create_task_run(
+                core.TaskRun(
+                    flow_run_id=fr.id,
+                    task_key=str(r),
+                    dynamic_key=str(r * 3),
+                    state=states.Completed(),
+                    task_inputs=dict(x=[TaskRunResult(id=prev_tr.id)])
+                    if prev_tr
+                    else dict(),
+                )
+            )
+
+            prev_tr = tr
+
+        await session.commit()
+
+        return fr
+
     async def test_read_flow_run_graph(self, flow_run, client):
         response = await client.get(f"/flow_runs/{flow_run.id}/graph")
         assert response.status_code == 200
+
+    async def test_read_flow_run_graph_returns_dependencies(self, graph_data, client):
+        response = await client.get(f"/flow_runs/{graph_data.id}/graph")
+        assert len(response.json()) == 10
+
+    async def test_read_flow_run_graph_returns_upstream_dependencies(
+        self, graph_data, client
+    ):
+        filter_graph = lambda task_run: len(task_run["upstream_dependencies"]) > 0
+
+        response = await client.get(f"/flow_runs/{graph_data.id}/graph")
+
+        # Remove task runs that don't have upstream dependencies, since we know the first created task run doesn't have any
+        # but we have no guarantee of ordering
+        task_runs = list(filter(filter_graph, response.json()))
+
+        # Make sure we've only removed the root task run
+        assert len(task_runs) == 9
+
+        # Test that all task runs in the list have exactly one upstream dependency
+        assert all(
+            len(
+                task_run["upstream_dependencies"]
+                if task_run["upstream_dependencies"]
+                else []
+            )
+            == 1
+            for task_run in task_runs
+        )
 
 
 class TestDeleteFlowRuns:

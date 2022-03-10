@@ -3,7 +3,7 @@ name: UI tests
 on:
   pull_request:
     paths:
-      - .github/workflows/ui-tests.yaml
+      - .github/workflows/ui-tests.yml
       - orion-ui/**
       - .nvmrc
   push:
@@ -14,17 +14,17 @@ jobs:
   build-orion-design:
     name: Build orion-design
     runs-on: ubuntu-latest
-
+    env:
+      NODE_OPTIONS: --max_old_space_size=8192
+      
     steps:
       - uses: actions/checkout@v2
 
-      - name: Read version from .nvmrc
-        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
-        id: nvm
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Install orion-ui dependencies
         working-directory: ./orion-ui
@@ -45,13 +45,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Read version from .nvmrc
-        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
-        id: nvm
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Install orion-ui dependencies
         working-directory: ./orion-ui

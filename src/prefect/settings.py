@@ -162,10 +162,12 @@ PREFECT_API_KEY = Setting(
 
 PREFECT_CLOUD_URL = Setting(
     str,
-    # TODO - this needs to be w/e the final cloud URL is.
-    #  Defaulting to localhost now for development
-    default="http://localhost:8000/api",
-    description="",
+    default="https://api-beta.prefect.io/api",
+    description="""API URL for Prefect Cloud""",
+)
+
+PREFECT_API_REQUEST_TIMEOUT = Setting(
+    float, default=30.0, description="""The default timeout for requests to the API"""
 )
 
 PREFECT_PROFILES_PATH = Setting(
@@ -250,26 +252,6 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-PREFECT_ORION_DATA_NAME = Setting(
-    str,
-    default="default",
-    description="""The name for the default data directory. Defaults to
-    `default`.""",
-)
-
-PREFECT_ORION_DATA_SCHEME = Setting(
-    str,
-    default="file",
-    description="""The scheme for the default data directory. Defaults to
-    `file`.""",
-)
-PREFECT_ORION_DATA_BASE_PATH = Setting(
-    str,
-    default="/tmp",
-    description="""The base path for the default data directory. Defaults to
-    `/tmp`.""",
-)
-
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
@@ -313,11 +295,11 @@ PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     interactions made by the API. Defaults to `1`.""",
 )
 
-PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(
-    bool,
-    default=False,
-    description="""If `True`, Orion services are started as part of the
-    webserver and run in the same event loop. Defaults to `False`.""",
+PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
+    Optional[float],
+    default=5,
+    description="""A connection timeout, in seconds, applied to database
+    connections. Defaults to `5`.""",
 )
 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
@@ -378,7 +360,7 @@ PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
     this often. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_MARK_LATE_AFTER = Setting(
+PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
     default=timedelta(seconds=5),
     description="""The late runs service will mark runs as late after they
@@ -411,6 +393,23 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
+PREFECT_ORION_ANALYTICS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve.""",
+)
+
+PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the scheduling service in the Orion application. If disabled, you will need to run this service separately to schedule runs for deployments.",
+)
+
+PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
+)
 
 # Collect all defined settings
 

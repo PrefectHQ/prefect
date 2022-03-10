@@ -1,23 +1,45 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Dict, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 
 import prefect
+from prefect.orion.utilities.functions import parameter_schema
 
 BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 
-def register_block(name: str, version: str):
+def register_block(name: str = None, version: str = None):
+    """
+    Register a block spec with an optional name and version.
+
+    Args:
+        name (str): If provided, the block spec name. If not provided, the
+            `_block_spec_name` private field will be checked, and if that is
+            `None`, the block spec class name will be used.
+        version (str): If provided, the block spec version. If not provided,
+            the `_block_spec_version` private field will be checked. If not
+            found, an error will be raised.
+    """
+
     def wrapper(block):
-        BLOCK_REGISTRY[(name, version)] = block
+        registered_name = name or block._block_spec_name
+        if not registered_name:
+            raise ValueError("No _block_spec_name set and no name provided.")
+        registered_version = version or block._block_spec_version
+        if not registered_version:
+            raise ValueError("No _block_spec_version set and no version provided.")
+
+        BLOCK_REGISTRY[(registered_name, registered_version)] = block
+        block._block_spec_name = registered_name
+        block._block_spec_version = registered_version
         return block
 
     return wrapper
 
 
-def get_block_spec(name: str, version: str) -> "Block":
+def get_block_class(name: str, version: str) -> "Block":
     block = BLOCK_REGISTRY.get((name, version))
     if not block:
         raise ValueError(f"No block spec exists for {name}/{version}.")
@@ -52,43 +74,58 @@ class Block(BaseModel, ABC):
     def block_initialization(self) -> None:
         pass
 
-    block_spec_id: Optional[UUID]
-    block_spec_name: Optional[str]
-    block_spec_version: Optional[str]
-    block_id: Optional[UUID]
-    block_name: Optional[str]
+    # -- private class variables
+    # type is set by the class itself
+    _block_spec_type: Optional[str] = None
+    # name and version are set by the registration decorator
+    _block_spec_name: Optional[str] = None
+    _block_spec_version: Optional[str] = None
 
-    def to_api_block(self) -> prefect.orion.schemas.core.Block:
-        data = self.dict()
+    # -- private instance variables
+    # these are set when blocks are loaded from the API
+    _block_id: Optional[UUID] = None
+    _block_spec_id: Optional[UUID] = None
+    _block_name: Optional[str] = None
 
-        for field in [
-            "block_spec_id",
-            "block_id",
-            "block_name",
-            "block_spec_name",
-            "block_spec_version",
-        ]:
-            data.pop(field)
+    def to_api_block(
+        self, name: str = None, block_spec_id: UUID = None
+    ) -> prefect.orion.schemas.core.Block:
+        if not name or self._block_name:
+            raise ValueError("No name provided, either as an argument or on the block.")
+        if not block_spec_id or self._block_spec_id:
+            raise ValueError(
+                "No block spec ID provided, either as an argument or on the block."
+            )
 
+        data_keys = self.schema()["properties"].keys()
         return prefect.orion.schemas.core.Block(
-            id=self.block_id,
-            name=self.block_name,
-            block_spec_id=self.block_spec_id,
-            data=data,
+            id=self._block_id or uuid4(),
+            name=name or self._block_name,
+            block_spec_id=block_spec_id or self._block_spec_id,
+            data=self.dict(include=data_keys),
+            block_spec=self.to_api_block_spec(),
+        )
+
+    @classmethod
+    def to_api_block_spec(cls) -> prefect.orion.schemas.core.BlockSpec:
+        fields = cls.schema()
+        fields["title"] = cls._block_spec_name
+        return prefect.orion.schemas.core.BlockSpec(
+            name=cls._block_spec_name,
+            version=cls._block_spec_version,
+            type=cls._block_spec_type,
+            fields=fields,
         )
 
 
 def create_block_from_api_block(api_block_dict: dict):
     api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
-    block_spec_cls = get_block_spec(
+    block_spec_cls = get_block_class(
         name=api_block.block_spec.name,
         version=api_block.block_spec.version,
     )
-    return block_spec_cls(
-        block_id=api_block.id,
-        block_spec_id=api_block.block_spec_id,
-        block_name=api_block.name,
-        block_spec_name=api_block.block_spec.name,
-        block_spec_version=api_block.block_spec.version,
-        **api_block.data,
-    )
+    block = block_spec_cls(**api_block.data)
+    block._block_id = api_block.id
+    block._block_spec_id = api_block.block_spec_id
+    block._block_name = api_block.name
+    return block
