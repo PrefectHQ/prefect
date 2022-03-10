@@ -24,9 +24,7 @@ task.
 One way to do this is to nest the task function calls:
 
 ```python
-res = task_5(
-    task_4(task_3(task_2(task_1(arg, keyword=1), keyword=2), keyword=3),
-           keyword=4), keyword=5)
+res = task_5(task_4(task_3(task_2(task_1(arg, keyword=1), keyword=2), keyword=3), keyword=4), keyword=5)
 ```
 
 Unfortunately this code is quite confusing. In particular, it reads from inside
@@ -90,10 +88,10 @@ may consider the "call chain" formatting style:
 ```python
 (
     task_1(arg, keyword=1)
-        .pipe(task_2, keyword=2)
-        .pipe(task_3, keyword=3)
-        .pipe(task_4, keyword=4)
-        .pipe(task_5, keyword=5)
+    .pipe(task_2, keyword=2)
+    .pipe(task_3, keyword=3)
+    .pipe(task_4, keyword=4)
+    .pipe(task_5, keyword=5)
 )
 ```
 
