@@ -14,7 +14,7 @@
   import { taskRunsApi, getTaskRunKey } from '@/services/TaskRunsApi'
 
   const getTaskRun = inject(getTaskRunKey, taskRunsApi.getTaskRun)
-   
+
   const props = defineProps({
     taskId: {
       type: String,
