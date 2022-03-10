@@ -3,7 +3,7 @@ import requests
 import responses
 import logging
 
-from prefect.tast.fivetran import FivetranSyncTask
+from prefect.task.fivetran import FivetranSyncTask
 
 logging.basicConfig()
 log = logging.getLogger()
