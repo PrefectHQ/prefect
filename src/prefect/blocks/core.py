@@ -15,10 +15,10 @@ def register_block(name: str = None, version: str = None):
     Register a block spec with an optional name and version.
 
     Args:
-        name (str): if provided, the block spec name. If not provided, the
+        name (str): If provided, the block spec name. If not provided, the
             `_block_spec_name` private field will be checked, and if that is
             `None`, the block spec class name will be used.
-        version (str): if provided, the block spec version. If not provided,
+        version (str): If provided, the block spec version. If not provided,
             the `_block_spec_version` private field will be checked. If not
             found, an error will be raised.
     """
