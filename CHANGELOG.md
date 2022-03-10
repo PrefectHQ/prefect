@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.1.0 <Badge text="beta" type="success" />
+
+Released on March 10, 2022.
+
+### Features
+
+- Add `.pipe` operator to `prefect.Task` for functional chaining - [#5507](https://github.com/PrefectHQ/prefect/pull/5507)
+- Add Kubernetes authentication support to `VaultSecret` - [#5412](https://github.com/PrefectHQ/prefect/pull/5412)
+
+### Enhancement
+
+- Allow tasks to consume `self` as an argument - [#5508](https://github.com/PrefectHQ/prefect/pull/5508)
+- Improve the default idempotency key for `create_flow_run` task when mapping during a local flow run - [#5443](https://github.com/PrefectHQ/prefect/pulls/5443)
+
+### Fixes
+
+- Fix the broken URL displayed in `entrypoint.sh` - [#5490](https://github.com/PrefectHQ/prefect/pull/5490)
+- Fix zombie processes created by Hasura container during `prefect server start` - [#5476](https://github.com/PrefectHQ/prefect/pull/5479)
+
+### Task Library
+
+- Add Airbyte configuration export task - [#5410](https://github.com/PrefectHQ/prefect/pull/5410)
+- Update `Glob` task to accept a string path - [#5499](https://github.com/PrefectHQ/prefect/pull/54990)
+- Fix pod logging while using `RunNamespacedJob` - [#5514](https://github.com/PrefectHQ/prefect/pull/5514)
+- Add `include_generated_sql` option to `CubeJSQueryTask` - [#5471](https://github.com/PrefectHQ/prefect/pull/5471)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Andrew Klimovski](https://github.com/klimbot)
+- [Brett Polivka](https://github.com/polivbr)
+- [Jamie Dick](https://github.com/jamiedick)
+- [Michael Milton](https://github.com/multimeric)
+- [Paul Gierz](https://github.com/pgierz)
+- [VincentAntoine](https://github.com/VincentAntoine)
+- [pseudoyim](https://github.com/pseudoyim)
+
 ## 1.0.0 <Badge text="beta" type="success" />
 
 Released on February 23, 2022.

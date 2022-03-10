@@ -1,5 +1,0 @@
-fix:
-  - "Fix pod logging in RunNamespacedJob - [#5514](https://github.com/PrefectHQ/prefect/pull/5514)"
-
-contributor:
-  - "[Brett Polivka](https://github.com/polivbr)"
