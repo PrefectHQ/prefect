@@ -1,8 +1,9 @@
 """Script to generate the collections catalog table"""
-import mkdocs_gen_files
-import yaml
 import glob
 from pathlib import Path
+
+import mkdocs_gen_files
+import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 ITEMS_PER_ROW = 5
@@ -19,7 +20,9 @@ with mkdocs_gen_files.open("collections/catalog.md", "a") as markdown_file:
         with open(collection_file, "r") as file:
             collection_configs.append(yaml.safe_load(file))
 
-    sorted_collection_configs = sorted(collection_configs, key=lambda x: x["collectionName"])
+    sorted_collection_configs = sorted(
+        collection_configs, key=lambda x: x["collectionName"]
+    )
 
     chunked_collection_configs = [
         sorted_collection_configs[i : i + ITEMS_PER_ROW]
