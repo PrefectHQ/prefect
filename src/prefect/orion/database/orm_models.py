@@ -99,7 +99,7 @@ class ORMFlow:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (sa.UniqueConstraint("name"), sa.Index("created"))
 
 
 @declarative_mixin
