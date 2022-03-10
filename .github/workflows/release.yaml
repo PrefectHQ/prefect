@@ -19,17 +19,14 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
 
-      - name: Read version from .nvmrc
-        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
-        id: nvm
-
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - uses: actions/cache@v2
         with:
@@ -66,6 +63,7 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
+          - 3.10
 
     steps:
       # Not needed until we want multiarchecture builds

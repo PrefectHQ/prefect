@@ -100,6 +100,31 @@ class TestReadWorkQueue:
         assert response.status_code == 404
 
 
+class TestReadWorkQueueByName:
+    async def test_read_work_queue_by_name(self, client, work_queue):
+        response = await client.get(f"/work_queues/name/{work_queue.name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == str(work_queue.id)
+        assert response.json()["name"] == work_queue.name
+
+    async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
+        response = await client.get(f"/work_queues/name/some-made-up-work-queue")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "name", ["work queue", "work/queue", "work:queue", "work\\queue", "work👍queue"]
+    )
+    async def test_read_work_queue_by_name_with_nonstandard_characters(
+        self, client, name
+    ):
+        response = await client.post("/work_queues/", json=dict(name=name))
+        work_queue_id = response.json()["id"]
+
+        response = await client.get(f"/work_queues/name/{name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == work_queue_id
+
+
 class TestReadWorkQueues:
     @pytest.fixture
     async def work_queues(self, session):

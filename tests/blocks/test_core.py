@@ -122,6 +122,21 @@ class TestAPICompatibility:
             "required": ["x"],
         }
 
+    def test_create_api_block_spec_only_includes_pydantic_fields(self):
+        @register_block("just a name", version="1000000.0")
+        class MakesALottaAttributes(Block):
+            real_field: str
+            authentic_field: str
+
+            def block_initialization(self):
+                self.evil_fake_field = "evil fake data"
+
+        my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
+        block_spec = my_block.to_api_block_spec()
+        assert "real_field" in block_spec.fields["properties"].keys()
+        assert "authentic_field" in block_spec.fields["properties"].keys()
+        assert "evil_fake_field" not in block_spec.fields["properties"].keys()
+
     def test_create_api_block_spec_with_different_registered_name(self):
         block_spec = self.MyOtherRegisteredBlock.to_api_block_spec()
         assert block_spec.name == "my-other-registered-block"
@@ -157,3 +172,20 @@ class TestAPICompatibility:
         assert block.x == "x"
         assert block._block_spec_id == block_spec_id
         assert block._block_id == api_block.id
+
+    def test_create_block_from_api(self):
+        @register_block("just a name", version="1000000.0")
+        class MakesALottaAttributes(Block):
+            real_field: str
+            authentic_field: str
+
+            def block_initialization(self):
+                self.evil_fake_field = "evil fake data"
+
+        my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
+        api_block = my_block.to_api_block(
+            name="a corrupted api block", block_spec_id=uuid4()
+        )
+        assert "real_field" in api_block.data
+        assert "authentic_field" in api_block.data
+        assert "evil_fake_field" not in api_block.data

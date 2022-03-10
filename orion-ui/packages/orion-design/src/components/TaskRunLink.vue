@@ -13,7 +13,7 @@
   import StateTypeIcon from '@/components/StateTypeIcon.vue'
   import { taskRunsApi, getTaskRunKey } from '@/services/TaskRunsApi'
 
-  const getTaskRun = inject(getTaskRunKey) ?? taskRunsApi.getTaskRun
+  const getTaskRun = inject(getTaskRunKey, taskRunsApi.getTaskRun)
 
   const props = defineProps({
     taskId: {

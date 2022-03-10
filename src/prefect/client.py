@@ -45,8 +45,8 @@ from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
-    PREFECT_CLIENT_REQUEST_TIMEOUT,
 )
 from prefect.utilities.asyncio import asyncnullcontext
 
@@ -87,7 +87,7 @@ def get_client() -> "OrionClient":
     profile = prefect.context.get_profile_context()
 
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(profile.settings),
+        PREFECT_API_URL.value() or create_app(profile.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
     )
 
@@ -201,7 +201,7 @@ class OrionClient:
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
-        httpx_settings.setdefault("timeout", PREFECT_CLIENT_REQUEST_TIMEOUT.value())
+        httpx_settings.setdefault("timeout", PREFECT_API_REQUEST_TIMEOUT.value())
 
         # Context management
         self._exit_stack = AsyncExitStack()
@@ -748,6 +748,22 @@ class OrionClient:
         if not work_queue_id:
             raise httpx.RequestError(str(response))
         return UUID(work_queue_id)
+
+    async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
+        """
+        Read a work queue by name.
+
+        Args:
+            name (str): a unique name for the work queue
+
+        Raises:
+            httpx.StatusError: if no work queue is found
+
+        Returns:
+            schemas.core.WorkQueue: a work queue API object
+        """
+        response = await self.get(f"/work_queues/name/{name}")
+        return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs) -> bool:
         """
@@ -1592,6 +1608,7 @@ class OrionClient:
                 representation of state orchestration output
         """
         state_data = schemas.actions.StateCreate(
+            name=state.name,
             type=state.type,
             message=state.message,
             data=orion_doc or state.data,
