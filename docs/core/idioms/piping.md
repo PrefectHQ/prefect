@@ -82,6 +82,9 @@ as follows:
 task_1(arg, keyword=1).pipe(task_2, keyword=2).pipe(task_3, keyword=3)
 ```
 
+Notice how this reads strictly left-to-right, and doesn't require us to invent
+intermediate variable names.
+
 To make this more readable as the number of tasks in the pipeline increases, you
 may consider the "call chain" formatting style:
 
@@ -145,9 +148,9 @@ with Flow("my flow") as flow:
 
 ## Secondary Argument Positions
 
-Note that so far we have only used keyword arguments as the "other" arguments
-when we use `.pipe()`. This is because `.pipe()` **does not support** positional
-secondary arguments. Therefore the following will always fail:
+Note that so far we have only used keyword arguments as the "secondary"
+arguments when we use `.pipe()`. This is because `.pipe()` **does not support** 
+positional secondary arguments. Therefore, the following will always fail:
 
 ```python
 task_a().pipe(task_b, 1, 2, 3)
