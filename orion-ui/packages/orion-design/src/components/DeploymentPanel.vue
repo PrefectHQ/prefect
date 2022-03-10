@@ -38,7 +38,7 @@
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
-  import { secondsToApproximateString } from '@/utilities/seconds'
+  import { secondsToString } from '@/utilities/seconds'
 
   const props = defineProps<{
     deployment: Deployment,
@@ -58,7 +58,7 @@
     const { schedule } = props.deployment
 
     if (schedule instanceof IntervalSchedule) {
-      return `Every ${secondsToApproximateString(schedule.interval)}`
+      return `Every ${secondsToString(schedule.interval)}`
     }
 
     if (schedule instanceof CronSchedule) {
