@@ -1,0 +1,5 @@
+enhancement:
+  - "Fix conda install command for Kubernetes python client - [#5515](https://github.com/PrefectHQ/prefect/pull/5515)"
+
+contributor:
+  - "[pseudoyim](https://github.com/pseudoyim)"
