@@ -59,14 +59,13 @@ The following sections provide details about Orion UI pages and visualizations:
 - [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that enable agents to pick up flow runs.
 
-<!-- ## Prefect Cloud
+## Prefect Cloud
 
-Prefect Cloud provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
+[Prefect Cloud](https://beta.prefect.io) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
 
 - All of the UI features of the local Orion server UI.
-- The ability to invite and manage teams. 
 - The option to create multiple workspaces to organize flows by team, project, or business function.
+- API keys to sync deployments and flow runs with the Prefect Cloud API.
+- A hosted Orion metadata database that stores flow and task run history.
 
-See the [Prefect Cloud](/ui/cloud.md) documentation for details about setting up accounts, workspaces, and teams. -->
-
-<!-- This section to be removed for moved to dev docs closer to release -->
+See the [Prefect Cloud](/ui/cloud.md) documentation for details about setting up accounts, workspaces, and API keys.
