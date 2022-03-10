@@ -14,9 +14,10 @@
           <m-button
             v-if="!hideClose"
             class="mr-1"
-            color="secondary"
+            :color="closeColor ?? 'secondary'"
             height="36px"
             :disabled="loading"
+            :miter="buttonMiter"
             @click="emit('close')"
           >
             {{ closeText ?? 'Close' }}
@@ -24,9 +25,10 @@
 
           <m-button
             v-if="!hideConfirm"
-            color="primary"
+            :color="confirmColor ?? 'primary'"
             height="36px"
             :disabled="loading"
+            :miter="buttonMiter"
             @click="emit('confirm')"
           >
             {{ confirmText ?? 'Confirm' }}
@@ -51,6 +53,9 @@
     hideClose?: boolean,
     hideConfirm?: boolean,
     modelValue: boolean,
+    closeColor?: string,
+    confirmColor?: string,
+    buttonMiter?: boolean,
   }>()
 
   interface IPopupEmits extends ObjectEmitsOptions {

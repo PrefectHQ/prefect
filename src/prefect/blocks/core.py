@@ -15,10 +15,10 @@ def register_block(name: str = None, version: str = None):
     Register a block spec with an optional name and version.
 
     Args:
-        name (str): if provided, the block spec name. If not provided, the
+        name (str): If provided, the block spec name. If not provided, the
             `_block_spec_name` private field will be checked, and if that is
             `None`, the block spec class name will be used.
-        version (str): if provided, the block spec version. If not provided,
+        version (str): If provided, the block spec version. If not provided,
             the `_block_spec_version` private field will be checked. If not
             found, an error will be raised.
     """
@@ -96,11 +96,13 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "No block spec ID provided, either as an argument or on the block."
             )
+
+        data_keys = self.schema()["properties"].keys()
         return prefect.orion.schemas.core.Block(
             id=self._block_id or uuid4(),
             name=name or self._block_name,
             block_spec_id=block_spec_id or self._block_spec_id,
-            data=self.dict(),
+            data=self.dict(include=data_keys),
             block_spec=self.to_api_block_spec(),
         )
 

@@ -1,4 +1,3 @@
-import sys
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
@@ -13,9 +12,7 @@ from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
-    raise_failed_state,
     retrieve_flow_then_begin_flow_run,
-    user_return_value_to_state,
 )
 from prefect.exceptions import ParameterTypeError
 from prefect.futures import PrefectFuture
@@ -23,7 +20,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
     Cancelled,
-    Completed,
     Failed,
     Pending,
     Running,
@@ -32,132 +28,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.task_runners import SequentialTaskRunner
-from prefect.utilities.testing import AsyncMock
-
-
-class TestUserReturnValueToState:
-    async def test_returns_single_state_unaltered(self):
-        state = Completed(data=DataDocument.encode("json", "hello"))
-        assert await user_return_value_to_state(state) is state
-
-    async def test_all_completed_states(self):
-        states = [Completed(message="hi"), Completed(message="bye")]
-        result_state = await user_return_value_to_state(states)
-        # States have been stored as data
-        assert result_state.data.decode() == states
-        # Message explains aggregate
-        assert result_state.message == "All states completed."
-        # Aggregate type is completed
-        assert result_state.is_completed()
-
-    async def test_some_failed_states(self):
-        states = [
-            Completed(message="hi"),
-            Failed(message="bye"),
-            Failed(message="err"),
-        ]
-        result_state = await user_return_value_to_state(states)
-        # States have been stored as data
-        assert result_state.data.decode() == states
-        # Message explains aggregate
-        assert result_state.message == "2/3 states failed."
-        # Aggregate type is failed
-        assert result_state.is_failed()
-
-    async def test_some_unfinal_states(self):
-        states = [
-            Completed(message="hi"),
-            Running(message="bye"),
-            Pending(message="err"),
-        ]
-        result_state = await user_return_value_to_state(states)
-        # States have been stored as data
-        assert result_state.data.decode() == states
-        # Message explains aggregate
-        assert result_state.message == "2/3 states are not final."
-        # Aggregate type is failed
-        assert result_state.is_failed()
-
-    async def test_single_state_in_future_is_processed(self, task_run):
-        # Unlike a single state without a future, which represents an override of the
-        # return state, this is a child task run that is being used to determine the
-        # flow state
-        state = Completed(data=DataDocument.encode("json", "hello"))
-        future = PrefectFuture(
-            task_run=task_run,
-            task_runner=None,
-            _final_state=state,
-        )
-        result_state = await user_return_value_to_state(future)
-        assert result_state.data.decode() is state
-        assert result_state.is_completed()
-        assert result_state.message == "All states completed."
-
-    async def test_non_prefect_types_return_completed_state(self):
-        result_state = await user_return_value_to_state("foo")
-        assert result_state.is_completed()
-        assert result_state.data.decode() == "foo"
-
-    async def test_uses_passed_serializer(self):
-        result_state = await user_return_value_to_state("foo", serializer="json")
-        assert result_state.data.encoding == "json"
-
-
-class TestRaiseFailedState:
-    failed_state = State(
-        type=StateType.FAILED,
-        data=DataDocument.encode("cloudpickle", ValueError("Test")),
-    )
-
-    def test_works_in_sync_context(self):
-        with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(self.failed_state)
-
-    async def test_raises_state_exception(self):
-        with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(self.failed_state)
-
-    async def test_returns_without_error_for_completed_states(self):
-        assert await raise_failed_state(Completed()) is None
-
-    async def test_raises_nested_state_exception(self):
-        with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", self.failed_state),
-                )
-            )
-
-    async def test_raises_first_nested_multistate_exception(self):
-        # TODO: We may actually want to raise a "multi-error" here where we have several
-        #       exceptions displayed at once
-        inner_states = [
-            Completed(),
-            self.failed_state,
-            State(
-                type=StateType.FAILED,
-                data=DataDocument.encode(
-                    "cloudpickle", ValueError("Should not be raised")
-                ),
-            ),
-        ]
-        with pytest.raises(ValueError, match="Test"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", inner_states),
-                )
-            )
-
-    async def test_raises_error_if_failed_state_does_not_contain_exception(self):
-        with pytest.raises(TypeError, match="str cannot be resolved into an exception"):
-            await raise_failed_state(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", "foo"),
-                )
-            )
+from prefect.utilities.testing import AsyncMock, exceptions_equal
 
 
 class TestOrchestrateTaskRun:
@@ -194,18 +65,13 @@ class TestOrchestrateTaskRun:
 
         sleep = AsyncMock(side_effect=reset_scheduled_time)
         monkeypatch.setattr("anyio.sleep", sleep)
-
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=foo,
-                task_run=task_run,
-                parameters={},
-                wait_for=None,
-            )
+        )
 
         sleep.assert_awaited_once()
         assert state.is_completed()
@@ -232,18 +98,13 @@ class TestOrchestrateTaskRun:
 
         sleep = AsyncMock()
         monkeypatch.setattr("anyio.sleep", sleep)
-
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=foo,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=foo,
-                task_run=task_run,
-                parameters={},
-                wait_for=None,
-            )
+        )
 
         sleep.assert_not_called()
         assert state.is_completed()
@@ -298,6 +159,7 @@ class TestOrchestrateTaskRun:
                 task_run=task_run,
                 parameters={},
                 wait_for=None,
+                client=orion_client,
             )
 
         # Check for a proper final result
@@ -360,18 +222,14 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=my_task,
+            task_run=task_run,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": {"nested": [future]}},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=my_task,
-                task_run=task_run,
-                # Nest the future in a collection to ensure that it is found
-                parameters={"x": {"nested": [future]}},
-                wait_for=None,
-            )
+        )
 
         # The task did not run
         mock.assert_not_called()
@@ -406,18 +264,14 @@ class TestOrchestrateTaskRun:
         )
 
         # Actually run the task
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=my_task,
+            task_run=task_run,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": upstream_task_state},
+            wait_for=None,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=my_task,
-                task_run=task_run,
-                # Nest the future in a collection to ensure that it is found
-                parameters={"x": upstream_task_state},
-                wait_for=None,
-            )
+        )
 
         # The task ran with the state as its input
         mock.assert_called_once_with(upstream_task_state)
@@ -545,7 +399,12 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in flow_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in flow_run.state.message
+        )
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False),
+            anyio.get_cancelled_exc_class()(),
         )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
@@ -577,6 +436,10 @@ class TestFlowRunCrashes:
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_failed()
         assert parent_flow_run.state.name == "Crashed"
+        assert exceptions_equal(
+            parent_flow_run.state.result(raise_on_failure=False),
+            anyio.get_cancelled_exc_class()(),
+        )
 
         child_runs = await orion_client.read_flow_runs(
             flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
@@ -586,15 +449,19 @@ class TestFlowRunCrashes:
         assert child_run.state.is_failed()
         assert child_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in child_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in child_run.state.message
         )
 
-    async def test_keyboard_interrupt_crashes_flow(self, flow_run, orion_client):
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_flow(
+        self, flow_run, orion_client, interrupt_type
+    ):
         @flow
         async def my_flow():
-            raise KeyboardInterrupt()
+            raise interrupt_type()
 
-        with pytest.raises(KeyboardInterrupt):
+        with pytest.raises(interrupt_type):
             await begin_flow_run(
                 flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
             )
@@ -602,7 +469,70 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
-        assert "Execution was interrupted by the system" in flow_run.state.message
+        assert "Execution was aborted" in flow_run.state.message
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False), interrupt_type()
+        )
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_during_orchestration_crashes_flow(
+        self, flow_run, orion_client, monkeypatch, interrupt_type
+    ):
+        monkeypatch.setattr(
+            "prefect.client.OrionClient.propose_state",
+            MagicMock(side_effect=interrupt_type()),
+        )
+
+        @flow
+        async def my_flow():
+            pass
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_flow_function_crashes_subflow(
+        self, flow_run, orion_client, interrupt_type
+    ):
+        @flow
+        async def child_flow():
+            raise interrupt_type()
+
+        @flow
+        async def parent_flow():
+            await child_flow()
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=parent_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        assert exceptions_equal(
+            flow_run.state.result(raise_on_failure=False), interrupt_type()
+        )
+
+        child_runs = await orion_client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
+        )
+        assert len(child_runs) == 1
+        child_run = child_runs[0]
+        assert child_run.id != flow_run.id
+        assert child_run.state.is_failed()
+        assert child_run.state.name == "Crashed"
+        assert "Execution was aborted" in child_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
         """
@@ -658,7 +588,130 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert (
-            "Execution was interrupted by the async runtime" in flow_run.state.message
+            "Execution was cancelled by the runtime environment"
+            in flow_run.state.message
+        )
+
+
+class TestTaskRunCrashes:
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_function_crashes_task_and_flow(
+        self, flow_run, orion_client, interrupt_type
+    ):
+        @task
+        async def my_task():
+            raise interrupt_type()
+
+        @flow
+        async def my_flow():
+            await my_task()
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+        task_runs = await orion_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_failed()
+        assert task_run.state.name == "Crashed"
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(task_run.state.result(), interrupt_type())
+
+    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
+    async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
+        self, flow_run, orion_client, interrupt_type, monkeypatch
+    ):
+
+        monkeypatch.setattr(
+            "prefect.engine.orchestrate_task_run", AsyncMock(side_effect=interrupt_type)
+        )
+
+        @task
+        async def my_task():
+            pass
+
+        @flow
+        async def my_flow():
+            await my_task()
+
+        with pytest.raises(interrupt_type):
+            await begin_flow_run(
+                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert "Execution was aborted" in flow_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(flow_run.state.result(), interrupt_type())
+
+        task_runs = await orion_client.read_task_runs()
+        assert len(task_runs) == 1
+        task_run = task_runs[0]
+        assert task_run.state.is_failed()
+        assert task_run.state.name == "Crashed"
+        assert "Execution was aborted" in task_run.state.message
+        with pytest.warns(UserWarning, match="not safe to re-raise"):
+            assert exceptions_equal(task_run.state.result(), interrupt_type())
+
+    async def test_error_in_task_orchestration_crashes_task_but_not_flow(
+        self, flow_run, orion_client, monkeypatch
+    ):
+        exception = ValueError("Boo!")
+
+        monkeypatch.setattr(
+            "prefect.engine.orchestrate_task_run", AsyncMock(side_effect=exception)
+        )
+
+        @task
+        async def my_task():
+            pass
+
+        @flow
+        async def my_flow():
+            await my_task()
+
+        # Note exception should not be re-raised
+        state = await begin_flow_run(
+            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+        )
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Failed"
+        assert "1/1 states failed" in flow_run.state.message
+
+        task_run_states = state.result(raise_on_failure=False)
+        assert len(task_run_states) == 1
+        task_run_state = task_run_states[0]
+        assert task_run_state.is_failed()
+        assert task_run_state.name == "Crashed"
+        assert (
+            "Execution was interrupted by an unexpected exception"
+            in task_run_state.message
+        )
+        assert exceptions_equal(
+            task_run_state.result(raise_on_failure=False), exception
+        )
+
+        # Check that the state was reported to the server
+        task_run = await orion_client.read_task_run(
+            task_run_state.state_details.task_run_id
+        )
+        compare_fields = {"name", "type", "message"}
+        assert task_run_state.dict(include=compare_fields) == task_run.state.dict(
+            include=compare_fields
         )
 
 

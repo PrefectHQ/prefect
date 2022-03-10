@@ -302,7 +302,7 @@ def temporary_environ(
         overrides = set(old_env.keys()).intersection(variables.keys())
         if overrides and warn_on_override:
             warnings.warn(
-                f"Temporary environment is overriding key(s): {', '.join(overrides)}",
+                f"The following environment variables will be temporarily overwritten: {', '.join(overrides)}",
                 stacklevel=3,
             )
 
@@ -336,7 +336,6 @@ def profile(
 ):
     """
     Switch to a profile for the duration of this context.
-
 
     Profile contexts are confined to an async context in a single thread.
 
