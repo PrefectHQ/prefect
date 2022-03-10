@@ -84,6 +84,113 @@ class TestCreateFlowRun:
             idempotency_key=None,
         )
 
+    def test_creates_flow_run_with_idempotency_from_task_run_id_in_context(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        with prefect.context({"task_run_id": "test"}):
+            create_flow_run.run(flow_id="flow-id")
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=None,
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key="test",
+        )
+
+    def test_creates_flow_run_with_idempotency_from_map_index_in_context(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        with prefect.context({"task_run_id": "test", "map_index": 1}):
+            create_flow_run.run(flow_id="flow-id")
+
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=None,
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key="test-1",
+        )
+
+    def testcreates_flow_run_with_name_from_current_run_name(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        MockFlowView.from_id.return_value.name = "child_flow_name"
+
+        with prefect.context({"flow_run_name": "parent_run_name"}):
+            create_flow_run.run(flow_id="flow-id")
+
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name="parent_run_name-child_flow_name",
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key=None,
+        )
+
+    def test_use_in_local_flow_run(self, MockFlowView, MockClient):
+        captured_context = None
+
+        def capture_context(*args, **kwargs):
+            nonlocal captured_context
+            captured_context = prefect.context.copy()
+
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        MockFlowView.from_id.return_value.name = "flow_name"
+        MockClient().create_flow_run.side_effect = capture_context
+
+        with prefect.Flow("test") as flow:
+            create_flow_run(flow_id="flow-id")
+
+        flow.run()
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=captured_context["flow_run_name"] + "-flow_name",
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key=captured_context["task_run_id"],
+        )
+
+    def test_map_in_local_flow_run(self, MockFlowView, MockClient):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+
+        with prefect.Flow("test") as flow:
+            create_flow_run.map(
+                flow_id=prefect.unmapped("flow-id"), labels=["a", "b", "c"]
+            )
+
+        flow.run()
+
+        assert MockClient().create_flow_run.call_count == 3
+        seen_idempotency_keys = set()
+        for i, (expected_label, call) in enumerate(
+            zip(["a", "b", "c"], MockClient().create_flow_run.calls)
+        ):
+            # Label is mapped over
+            _, kwargs = call.args
+            assert kwargs["label"] == expected_label
+
+            # Idempotency keys are unique
+            assert kwargs["idempotency_key"] not in seen_idempotency_keys
+            seen_idempotency_keys.add(kwargs["idempotency_key"])
+
+            # Idempotency keys include map index
+            assert kwargs["idempotency_key"].endswith(f"-{i}")
+
     @pytest.mark.parametrize(
         "kwargs",
         [
