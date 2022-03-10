@@ -135,7 +135,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--m-1);
+  margin-bottom: var(--m-2);
+  p {
+    padding: var(--p-2);
+  }
 }
 
 .panel__actions{
