@@ -14,7 +14,7 @@
 
     <div class="mb-2">
       <DetailsKeyValue label="Concurrency Limit (optional)" stacked>
-        <m-number-input v-model="internalValue.concurrencyLimit" class="work-queue-form__number-input" />
+        <m-number-input v-model="internalValue.concurrencyLimit" :min="0" class="work-queue-form__number-input" />
       </DetailsKeyValue>
     </div>
 
