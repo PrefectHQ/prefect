@@ -1,0 +1,2 @@
+fix:
+  - "Fix the default idempotency key for `create_flow_run` when mapping during a local flow run - [#5443](https://github.com/PrefectHQ/prefect/pulls/5443)"
