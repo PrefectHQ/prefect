@@ -3,6 +3,7 @@ State schemas.
 """
 
 import datetime
+import warnings
 from collections.abc import Iterable
 from typing import Generic, TypeVar, Union, overload
 from uuid import UUID
@@ -135,6 +136,12 @@ class State(IDBaseModel, Generic[R]):
         if self.is_failed() and raise_on_failure:
             if isinstance(data, Exception):
                 raise data
+            elif isinstance(data, BaseException):
+                warnings.warn(
+                    f"State result is a {type(data).__name__!r} type and is not safe "
+                    "to re-raise, it will be returned instead."
+                )
+                return data
             elif isinstance(data, State):
                 data.result()
             elif isinstance(data, Iterable) and all(

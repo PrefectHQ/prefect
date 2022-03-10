@@ -99,7 +99,7 @@ class ORMFlow:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (sa.UniqueConstraint("name"), sa.Index("ix_flow__created", "created"))
 
 
 @declarative_mixin
@@ -1078,6 +1078,11 @@ class BaseORMConfiguration(ABC):
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
+
+    @property
+    def block_spec_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSpec"""
+        return [self.BlockSpec.name, self.BlockSpec.version]
 
     @property
     def flow_unique_upsert_columns(self):

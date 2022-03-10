@@ -1,13 +1,16 @@
 """
 Command line interface for working with agent services
 """
+import os
 from uuid import UUID
 
 import anyio
+import httpx
 import typer
+from fastapi import status
 
 from prefect.agent import OrionAgent
-from prefect.cli.base import PrefectTyper, SettingsOption, app, console
+from prefect.cli.base import PrefectTyper, SettingsOption, app, console, exit_with_error
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
@@ -25,10 +28,13 @@ ascii_name = r"""
 """
 
 
+from prefect import get_client
+
+
 @agent_app.command()
 async def start(
-    work_queue_id: UUID = typer.Argument(
-        ..., help="A work queue ID for the agent to pull from."
+    work_queue: str = typer.Argument(
+        ..., help="A work queue name or ID for the agent to pull from."
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -36,6 +42,13 @@ async def start(
     """
     Start an agent process.
     """
+    try:
+        work_queue_id = UUID(work_queue)
+        work_queue_name = None
+    except:
+        work_queue_id = None
+        work_queue_name = work_queue
+
     if not hide_welcome:
         if api:
             console.print(f"Starting agent connected to {api}...")
@@ -43,10 +56,16 @@ async def start(
             console.print("Starting agent with ephemeral API...")
 
     running = True
-    async with OrionAgent(work_queue_id=work_queue_id) as agent:
+    async with OrionAgent(
+        work_queue_id=work_queue_id,
+        work_queue_name=work_queue_name,
+    ) as agent:
         if not hide_welcome:
             console.print(ascii_name)
-            console.print("Agent started!")
+            console.print(
+                f"Agent started! Looking for work from queue '{work_queue}'..."
+            )
+
         while running:
             try:
                 await agent.get_and_submit_flow_runs()

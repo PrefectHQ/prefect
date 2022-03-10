@@ -357,22 +357,16 @@
     },
   ]
 
-  const applyFilter = (filter: PremadeFilter) => {
-    const filterToAdd: Required<Filter> = {
+  const applyFilter = (filter: PremadeFilter): void => {
+    const service = new FilterUrlService(router)
+
+    service.add({
       object: 'flow_run',
       property: 'state',
       type: 'state',
       operation: 'or',
       value: [filter.type],
-    }
-
-    if (hasFilter(filtersStore.all, filterToAdd)) {
-      return
-    }
-
-    const service = new FilterUrlService(router)
-
-    service.add(filterToAdd)
+    })
   }
 </script>
 

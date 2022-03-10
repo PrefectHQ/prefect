@@ -69,6 +69,22 @@ class TestReadWorkQueue:
         )
 
 
+class TestReadWorkQueueByName:
+    async def test_read_work_queue_by_name(self, session, work_queue):
+
+        read_work_queue = await models.work_queues.read_work_queue_by_name(
+            session=session, name=work_queue.name
+        )
+        assert read_work_queue.id == work_queue.id
+
+    async def test_read_work_queue_by_name_returns_none_if_does_not_exist(
+        self, session
+    ):
+        assert not await models.work_queues.read_work_queue_by_name(
+            session=session, name="a name that doesn't exist"
+        )
+
+
 class TestReadWorkQueues:
     @pytest.fixture
     async def work_queues(self, session):
