@@ -59,6 +59,18 @@ The following sections provide details about Orion UI pages and visualizations:
 - [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that enable agents to pick up flow runs.
 
+## Navigating the UI
+
+Icons on the left side of the Orion UI help you navigate to commonly used pages.
+
+The Prefect icon always takes you back to the Orion UI dashboard. In Prefect Cloud, it returns you to the list of workspaces.
+
+| Icon | Description |
+| --- | --- |
+| ![Workspace](/img/ui/workspace-icon.png) | **Workspace** returns to the dashboard of the current workspace. ([Prefect Cloud](#prefect-cloud) only) |
+| ![Flows](/img/ui/flows-icon.png) | **Flows** displays a searchable list of flows tracked by the API. |
+| ![Work Queues](/img/ui/work-queues-icon.png) | **Work Queues** displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+
 ## Prefect Cloud
 
 [Prefect Cloud](https://beta.prefect.io) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
@@ -68,4 +80,4 @@ The following sections provide details about Orion UI pages and visualizations:
 - API keys to sync deployments and flow runs with the Prefect Cloud API.
 - A hosted Orion metadata database that stores flow and task run history.
 
-See the [Prefect Cloud](/ui/cloud.md) documentation for details about setting up accounts, workspaces, and API keys.
+See the [Prefect Cloud](/ui/cloud/) documentation for details about setting up accounts, workspaces, and API keys.
