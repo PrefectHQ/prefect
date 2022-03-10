@@ -14,7 +14,6 @@ from pydantic import BaseModel
 
 import prefect.exceptions
 from prefect import flow
-from prefect.blocks.core import Block, register_block
 from prefect.client import OrionClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
@@ -796,7 +795,7 @@ class TestClientWorkQueues:
         assert lookup.id == queue_id
 
     async def test_read_nonexistant_work_queue(self, orion_client):
-        with pytest.raises(prefect.exceptions.PrefectException):
+        with pytest.raises(httpx.HTTPStatusError):
             await orion_client.read_work_queue_by_name("foo")
 
     async def test_get_runs_from_queue_includes(self, orion_client, deployment):

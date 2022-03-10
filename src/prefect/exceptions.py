@@ -64,6 +64,7 @@ class ObjectNotFound(PrefectException):
     """
     Raised when the client cannot find an object it is looking for from the API.
     """
+
     pass
 
 
@@ -110,5 +111,3 @@ class Abort(PrefectSignal):
     """
 
     pass
-
-
