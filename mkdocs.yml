@@ -89,6 +89,7 @@ nav:
         - ui/dashboard.md
         - ui/flows-and-tasks.md
         - ui/filters.md
+        - ui/work-queues.md
         - ui/cloud.md
     - FAQ: faq.md
     - 'API Reference': 

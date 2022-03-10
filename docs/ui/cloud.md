@@ -111,7 +111,7 @@ In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the de
 
 When using Prefect Cloud, we recommend configuring global storage for persisting flow and task data. See [Storage](/concepts/storage/) for details.
 
-By default, Orion uses local file system storage to persist data like task results, cache keys, and so on. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using containers or distributed computing environments like Dask and Ray.
+By default, Orion uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using containers or distributed computing environments like Dask and Ray.
 
 ## Run a flow with Cloud
 
@@ -146,3 +146,5 @@ $ python basic_flow.py
 Go to the dashboard for your workspace in Prefect Cloud. You'll see the flow run results right there in Cloud!
 
 ![Viewing local flow run results in the Cloud UI.](/img/ui/cloud-flow-run.png)
+
+To run deployments using the API or directly from the Cloud UI, you'll need to configure [work queues](/ui/work-queues/) and agents. See the [Work Queues & Agents](/concepts/work-queues/) documentation for details, and the [Deployments tutorial](/tutorials/deployments/#work-queues-and-agents) for a hands-on example.
