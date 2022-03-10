@@ -12,7 +12,6 @@ from typing import Any, Sequence, Union
 import anyio
 import anyio.abc
 import typer
-from anyio.streams.text import TextReceiveStream
 
 import prefect
 from prefect.cli.base import (
@@ -34,8 +33,11 @@ from prefect.orion.database.alembic_commands import (
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
+    PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
+    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncio import run_sync_in_worker_thread
@@ -111,7 +113,7 @@ async def open_process_and_stream_output(
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
     process = await anyio.open_process(
-        command, stderr=subprocess.STDOUT, stdout=sys.stdout, **kwargs
+        command, stderr=sys.stderr, stdout=sys.stdout, **kwargs
     )
     if task_status:
         task_status.started()
@@ -125,20 +127,29 @@ async def open_process_and_stream_output(
             except Exception:
                 pass  # Process may already be terminated
 
+            await process.aclose()
+
 
 @orion_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    services: bool = True,  # Note this differs from the default of `PREFECT_ORION_SERVICES_RUN_IN_APP`
+    scheduler: bool = SettingsOption(PREFECT_ORION_SERVICES_SCHEDULER_ENABLED),
+    analytics: bool = SettingsOption(
+        PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
+    ),
+    late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
 ):
     """Start an Orion server"""
 
     server_env = os.environ.copy()
-    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_ORION_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
+    server_env["PREFECT_ORION_ANALYTICS_ENABLED"] = str(analytics)
+    server_env["PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
     server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
+    server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
     base_url = f"http://{host}:{port}"
 
@@ -155,8 +166,6 @@ async def start(
                     str(host),
                     "--port",
                     str(port),
-                    "--log-level",
-                    log_level.lower(),
                 ],
                 env=server_env,
             )
@@ -169,7 +178,10 @@ async def start(
 
 
 @orion_app.command()
-def kubernetes_manifest():
+def kubernetes_manifest(
+    image_tag: str = None,
+    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+):
     """
     Generates a Kubernetes manifest for deploying Orion to a cluster.
 
@@ -182,7 +194,8 @@ def kubernetes_manifest():
     )
     manifest = template.substitute(
         {
-            "image_name": get_prefect_image_name(),
+            "image_name": image_tag or get_prefect_image_name(),
+            "log_level": log_level,
         }
     )
     print(manifest)

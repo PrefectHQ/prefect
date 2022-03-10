@@ -63,6 +63,26 @@ async def read_work_queue(
 
 
 @inject_db
+async def read_work_queue_by_name(
+    session: sa.orm.Session, name: str, db: OrionDBInterface
+):
+    """
+    Reads a WorkQueue by id.
+
+    Args:
+        session (sa.orm.Session): A database session
+        work_queue_id (str): a WorkQueue id
+
+    Returns:
+        db.WorkQueue: the WorkQueue
+    """
+
+    query = select(db.WorkQueue).filter_by(name=name)
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@inject_db
 async def read_work_queues(
     db: OrionDBInterface,
     session: sa.orm.Session,

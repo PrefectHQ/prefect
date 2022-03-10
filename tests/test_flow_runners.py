@@ -42,7 +42,11 @@ from prefect.flow_runners import (
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_URL
-from prefect.utilities.testing import AsyncMock, temporary_settings
+from prefect.utilities.testing import (
+    AsyncMock,
+    assert_does_not_warn,
+    temporary_settings,
+)
 
 
 class VersionInfo(NamedTuple):
@@ -972,11 +976,9 @@ class TestDockerFlowRunner:
         monkeypatch.setattr("sys.platform", platform)
         mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
-        with pytest.warns(None) as warnings:
+        with assert_does_not_warn():
             await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
         call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
             "extra_hosts"
@@ -1021,14 +1023,14 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    @pytest.mark.skipif(
-        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
-        reason=f"Expected breaking change in {MIN_COMPAT_PREFECT_VERSION}",
-    )
     @pytest.mark.service("docker")
     @pytest.mark.skipif(
         MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
         reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
+    )
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 10) and MIN_COMPAT_PREFECT_VERSION == "2.0a13",
+        reason="We did not publish a 3.10 image for 2.0a13",
     )
     async def test_execution_is_compatible_with_old_prefect_container_version(
         self,

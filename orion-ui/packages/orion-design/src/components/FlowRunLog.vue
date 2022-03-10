@@ -17,12 +17,12 @@
 
 <script lang="ts">
   import { defineComponent, PropType } from 'vue'
-  import { formatDateTimeNumeric, formatTimeNumeric } from '..'
   import CopyButton from '@/components/CopyButton.vue'
   import LogLevelLabel from '@/components/LogLevelLabel.vue'
   import TaskRunLink from '@/components/TaskRunLink.vue'
-  import { Log } from '@/models'
-  import { logLevelLabel } from '@/utilities'
+  import { Log } from '@/models/Log'
+  import { formatDateTimeNumericInTimeZone, formatTimeNumericInTimeZone } from '@/utilities/dates'
+  import { logLevelLabel } from '@/utilities/logs'
   import { snakeCase } from '@/utilities/strings'
 
   export default defineComponent({
@@ -49,11 +49,11 @@
       },
 
       time: function() {
-        return formatTimeNumeric(this.log.timestamp)
+        return formatTimeNumericInTimeZone(this.log.timestamp)
       },
 
       dateTime: function() {
-        return formatDateTimeNumeric(this.log.timestamp)
+        return formatDateTimeNumericInTimeZone(this.log.timestamp)
       },
     },
   })

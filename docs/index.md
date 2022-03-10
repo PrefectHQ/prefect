@@ -118,15 +118,13 @@ asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
 
 ### Orion dashboard
 
-After running any of these flows, fire up the UI to gain insight into their execution:
+After running flows, fire up the UI to gain insight into their execution:
 
 ```bash
 prefect orion start
 ```
 
-<figure markdown=1>
-![](./img/tutorials/hello-orion-dashboard.png){: max-width=600px}
-</figure>
+![](./img/ui/orion-dashboard.png)
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
 

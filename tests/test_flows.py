@@ -10,12 +10,12 @@ import pytest
 import prefect.context
 from prefect import flow, get_run_logger, tags, task
 from prefect.client import get_client
-from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
+from prefect.states import raise_failed_state
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
 
@@ -614,7 +614,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(1)
+            time.sleep(2)
             canary_file.touch()
 
         t0 = time.perf_counter()
@@ -623,11 +623,11 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
         # doing so. The canary file _will_ be created.
-        time.sleep(1)
+        time.sleep(2)
         assert canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):

@@ -1,9 +1,7 @@
 <template>
   <ListItem class="list-item-flow" icon="pi-flow">
     <div class="list-item__title">
-      <h2>
-        {{ item.name }}
-      </h2>
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
@@ -32,22 +30,35 @@
 </template>
 
 <script lang="ts" setup>
-  import { Filter, useFiltersStore, FlowsFilter } from '@prefecthq/orion-design'
-  import { FilterUrlService, FiltersQueryService } from '@prefecthq/orion-design/services'
-  import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
+  import {
+    useFiltersStore,
+    FlowsFilter,
+    FilterUrlService,
+    FiltersQueryService,
+    media,
+    toPluralString,
+    showPanel,
+    FlowPanel,
+    useInjectedServices,
+    Flow,
+    Deployment,
+    DeploymentPanel
+  } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
   import { Api, Query, Endpoints } from '@/plugins/api'
-  import { Flow } from '@/typings/objects'
   import { Buckets } from '@/typings/run_history'
 
   const props = defineProps<{ item: Flow }>()
 
   const filtersStore = useFiltersStore()
   const router = useRouter()
+
+  const crumbs = [{ text: props.item.name, to: window.location.href }]
+  const injectedServices = useInjectedServices()
 
   const flows: FlowsFilter = {
     flows: {
@@ -97,22 +108,35 @@
     return queries.flow_run_history?.response.value || []
   })
 
-  function filter() {
-    const filterToAdd: Required<Filter> = {
+  function filter(): void {
+    const service = new FilterUrlService(router)
+
+    service.add({
       object: 'flow',
       property: 'name',
       type: 'string',
       operation: 'equals',
       value: props.item.name,
-    }
+    })
+  }
 
-    if (hasFilter(filtersStore.all, filterToAdd)) {
-      return
-    }
+  const route = { name: 'Dashboard' }
 
-    const service = new FilterUrlService(router)
+  function openFlowPanel(): void {
+    showPanel(FlowPanel, {
+      flow: props.item,
+      dashboardRoute: route,
+      openDeploymentPanel,
+      ...injectedServices,
+    })
+  }
 
-    service.add(filterToAdd)
+  function openDeploymentPanel(deployment: Deployment): void {
+    showPanel(DeploymentPanel, {
+      deployment,
+      dashboardRoute: route,
+      ...injectedServices,
+    })
   }
 </script>
 

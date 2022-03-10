@@ -1,7 +1,7 @@
 <template>
   <div
     ref="container"
-    class="component-container d-flex flex-column"
+    class="component-container timeline d-flex flex-column"
     :class="{
       'header-hidden': hideHeader,
       'header-visible': !hideHeader,

@@ -12,20 +12,21 @@
         <slot>
           <router-link :to="link">
             <m-button color="primary" miter icon="pi-add-line">
-            {{ buttonText }}
+              {{ buttonText }}
             </m-button>
           </router-link>
         </slot>
-        
-       
       </div>
-      <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
+      <slot name="example">
+        <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
+      </slot>
     </div>
   </m-card>
 </template>
 
 <script lang="ts">
-  import { defineComponent } from 'vue'
+  import { defineComponent, PropType } from 'vue'
+  import { RouteLocationRaw } from 'vue-router'
 
   export default defineComponent({
     name: 'EmptyStateCard',
@@ -33,7 +34,7 @@
     props: {
       buttonText: {
         type: String,
-        required: true,
+        default: '',
       },
 
       header: {
@@ -47,15 +48,15 @@
       },
 
       link: {
-        type:String,
-        required: true,
+        type: [Object, String] as PropType<RouteLocationRaw>,
+        default: () => '',
       },
 
       imagePath: {
         type: String,
-        required: true,
+        default: '',
       },
-    }
+    },
   })
 </script>
 

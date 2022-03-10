@@ -18,6 +18,7 @@ async def create_block_spec(
     session: sa.orm.Session,
     block_spec: schemas.core.BlockSpec,
     db: OrionDBInterface,
+    override: bool = False,
 ):
     """
     Create a new block spec.
@@ -30,9 +31,14 @@ async def create_block_spec(
         block_spec: an ORM block spec model
     """
     insert_values = block_spec.dict(
-        shallow=True, exclude_unset=False, exclude={"created", "updated"}
+        shallow=True, exclude_unset=False, exclude={"created", "updated", "id"}
     )
     insert_stmt = (await db.insert(db.BlockSpec)).values(**insert_values)
+    if override:
+        insert_stmt = insert_stmt.on_conflict_do_update(
+            index_elements=db.block_spec_unique_upsert_columns,
+            set_=insert_values,
+        )
     await session.execute(insert_stmt)
 
     query = (
