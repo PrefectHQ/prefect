@@ -18,7 +18,7 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(name="work-queue", help="Commands for work queue CRUD.")
 app.add_typer(work_app)
@@ -41,12 +41,15 @@ async def create(
     Create a work queue.
     """
     async with get_client() as client:
-        result = await client.create_work_queue(
-            name=name,
-            tags=tags or None,
-            deployment_ids=deployment_ids or None,
-            flow_runner_types=flow_runner_types or None,
-        )
+        try:
+            result = await client.create_work_queue(
+                name=name,
+                tags=tags or None,
+                deployment_ids=deployment_ids or None,
+                flow_runner_types=flow_runner_types or None,
+            )
+        except ObjectAlreadyExists:
+            exit_with_error(f"Work queue with name: {name!r} already exists.")
 
     console.print(Pretty(result))
 
