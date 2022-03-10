@@ -22,7 +22,7 @@
     <transition-group name="filter-bar-transition" mode="out-in">
       <template v-if="isOpen('search')">
         <div key="search" class="filter-bar__menu filter-bar__menu-search">
-          <FiltersSearchMenu />
+          <FiltersSearchMenu @close="toggle('search')" />
         </div>
       </template>
 
