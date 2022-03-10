@@ -141,7 +141,7 @@ setup(
     package_data={"prefect": ["py.typed"]},
     include_package_data=True,
     entry_points={"console_scripts": ["prefect=prefect.cli:cli"]},
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     description="The Prefect Core automation and scheduling engine.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
