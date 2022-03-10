@@ -33,6 +33,7 @@
     flowsApi,
     workspaceDashboardKey,
     FlowsPageFlowListEmptyState,
+    TagsInput,
     Require
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
@@ -74,7 +75,10 @@
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
 
   const flows = computed(() => flowsSubscription.response.value ?? [])
-  const empty = computed(() => countFlowsSubscription.response.value === 0)
+  const empty = computed(() => {
+    const emp = countFlowsSubscription.response.value === 0 && !term.value.length
+    console.log('empty', emp)
+    return emp})
   const loading = computed(() => countFlowsSubscription.response.value === undefined || flowsSubscription.response.value === undefined)
 </script>
 
