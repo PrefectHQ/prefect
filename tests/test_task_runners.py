@@ -26,6 +26,7 @@ from prefect.task_runners import (
     RayTaskRunner,
     SequentialTaskRunner,
 )
+from prefect.utilities.testing import exceptions_equal
 
 if sys.version_info[1] >= 10:
     RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
@@ -252,6 +253,13 @@ parameterize_with_sequential_task_runners = parameterize_with_task_runners(
     default_sequential_task_runner
 )
 
+parameterize_with_all_task_runner_types = parameterize_with_task_runners(
+    default_sequential_task_runner,
+    default_concurrent_task_runner,
+    default_ray_task_runner,
+    default_dask_task_runner,
+)
+
 
 async def test_task_runner_cannot_be_started_while_running():
     async with SequentialTaskRunner().start() as task_runner:
@@ -412,12 +420,22 @@ class TestTaskRunnerParallelism:
         Amount of time to sleep before writing 'foo'
         A larger value will decrease brittleness but increase test times
         """
-        # CI machines are slow so we add time
-        sleep_time = 0.25 if sys.platform == "darwin" else 1.5
+        sleep_time = 0.25
 
-        # Ray is slow
-        if isinstance(runner, RayTaskRunner):
+        if sys.platform != "darwin":
+            # CI machines are slow
             sleep_time += 1.5
+
+        if isinstance(runner, RayTaskRunner):
+            # Ray is slow
+            sleep_time += 1.5
+        elif isinstance(runner, ConcurrentTaskRunner):
+            # Account for thread overhead
+            sleep_time += 0.5
+
+        if sys.version_info < (3, 8):
+            # Python 3.7 is slower
+            sleep_time += 0.5
 
         return sleep_time
 
@@ -455,7 +473,8 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.get_sleep_time(task_runner))
+            # This test is prone to flaking
+            time.sleep(self.get_sleep_time(task_runner) + 0.5)
             tmp_file.write_text("foo")
 
         @task
@@ -646,6 +665,33 @@ async def test_submit_and_wait(task_runner):
         assert state is not None, "wait timed out"
         assert isinstance(state, State), "wait should return a state"
         assert state.result() == 1
+
+
+@parameterize_with_all_task_runner_types
+@pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
+async def test_wait_captures_exceptions_as_crashed_state(task_runner, exception):
+    task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
+
+    async def fake_orchestrate_task_run():
+        raise exception
+
+    async with task_runner.start():
+        future = await task_runner.submit(
+            task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
+        )
+
+        state = await task_runner.wait(future, 5)
+        assert state is not None, "wait timed out"
+        assert isinstance(state, State), "wait should return a state"
+        assert state.name == "Crashed"
+        result = state.result(raise_on_failure=False)
+
+        # Ray and Dask wrap the exception, interrupts will result in "Cancelled" tasks
+        # or "Killed" workers while normal errors will result in a "RayTaskError" with
+        # Ray or the raw error with Dask. We care more about the crash detection and
+        # lack of re-raise here than the equality of the exception.
+        if not isinstance(task_runner, (DaskTaskRunner, RayTaskRunner)):
+            assert exceptions_equal(result, exception)
 
 
 class TestDaskTaskRunner:

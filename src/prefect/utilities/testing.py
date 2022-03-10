@@ -3,6 +3,7 @@ Internal utilities for tests.
 """
 import os
 import sys
+import warnings
 from contextlib import contextmanager
 
 import prefect.context
@@ -68,3 +69,16 @@ def temporary_settings(**kwargs):
                 os.environ[key] = old_env[key]
             else:
                 os.environ.pop(key, None)
+
+
+@contextmanager
+def assert_does_not_warn():
+    """
+    Converts warnings to errors within this context to assert warnings are not raised.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        try:
+            yield
+        except Warning as warning:
+            raise AssertionError(f"Warning was raised. {warning!r}") from warning

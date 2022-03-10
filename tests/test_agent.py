@@ -58,7 +58,24 @@ async def test_agent_start_and_shutdown():
     assert agent.client is None, "Shuts down the client"
 
 
-async def test_agent_with_work_queue(orion_client, deployment, work_queue_id):
+async def test_start_agent_with_no_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Either work_queue_id or work_queue_name must be provided)"
+    ):
+        OrionAgent()
+
+
+async def test_start_agent_with_both_work_queue_args_errors():
+    with pytest.raises(
+        ValueError, match="(Provide only one of work_queue_id and work_queue_name)"
+    ):
+        OrionAgent(work_queue_id=uuid4(), work_queue_name="foo")
+
+
+@pytest.mark.parametrize("use_work_queue_name", [True, False])
+async def test_agent_with_work_queue(
+    orion_client, deployment, work_queue_id, use_work_queue_name
+):
     @flow
     def foo():
         pass
@@ -89,14 +106,47 @@ async def test_agent_with_work_queue(orion_client, deployment, work_queue_id):
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    async with OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10) as agent:
-        agent.submit_run = AsyncMock()  # do not actually run
+    # Pull runs from the work queue to get expected runs
+    work_queue_runs = await orion_client.get_runs_in_work_queue(
+        work_queue_id, scheduled_before=pendulum.now().add(seconds=10)
+    )
+    work_queue_flow_run_ids = {run.id for run in work_queue_runs}
+
+    # Should only include scheduled runs in the past or next prefetch seconds
+    # Should not include runs without deployments
+    assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
+
+    if use_work_queue_name:
+        work_queue = await orion_client.read_work_queue(work_queue_id)
+        agent = OrionAgent(work_queue_name=work_queue.name, prefetch_seconds=10)
+    else:
+        agent = OrionAgent(work_queue_id=work_queue_id, prefetch_seconds=10)
+
+    async with agent:
+        agent.submit_run = AsyncMock()  # do not actually run anything
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
-    # Only include scheduled runs in the past or next prefetch seconds
-    # Does not include runs without deployments
-    assert submitted_flow_run_ids == set(flow_run_ids[1:4])
+    assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+
+async def test_agent_with_work_queue_name_survives_queue_deletion(
+    orion_client, work_queue_id
+):
+    work_queue = await orion_client.read_work_queue(work_queue_id)
+
+    async with OrionAgent(
+        work_queue_name=work_queue.name, prefetch_seconds=10
+    ) as agent:
+        agent.submit_run = AsyncMock()  # do not actually run
+
+        await agent.get_and_submit_flow_runs()
+
+        # delete the work queue
+        await orion_client.delete_work_queue_by_id(work_queue.id)
+
+        # gracefully handled
+        await agent.get_and_submit_flow_runs()
 
 
 async def test_agent_internal_submit_run_called(
