@@ -98,7 +98,7 @@ extras = {
     "sendgrid": ["sendgrid >= 6.7.0"],
     "cubejs": ["PyJWT >= 2.3.0"],
     "neo4j": ["py2neo >= 2021.2.3"],
-    "transform": ["transform == 1.0.12"],
+    "transform": ["transform >= 1.0.12"],
 }
 
 

@@ -111,7 +111,10 @@ class TestTransformCreateMaterialization:
                 force: bool = False,
             ):
                 return MqlQueryStatusResp(
-                    query_id="xyz", status=MqlQueryStatus.FAILED, error=error_msg
+                    query_id="xyz",
+                    status=MqlQueryStatus.FAILED,
+                    sql="sql_query",
+                    error=error_msg,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -169,7 +172,10 @@ class TestTransformCreateMaterialization:
                 force: bool = False,
             ):
                 return MqlQueryStatusResp(
-                    query_id="xyz", status=MqlQueryStatus.SUCCESSFUL, error=None
+                    query_id="xyz",
+                    status=MqlQueryStatus.SUCCESSFUL,
+                    sql="sql_query",
+                    error=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -198,7 +204,10 @@ class TestTransformCreateMaterialization:
                 force: bool = False,
             ):
                 return MqlQueryStatusResp(
-                    query_id="xyz", status=MqlQueryStatus.PENDING, error=None
+                    query_id="xyz",
+                    status=MqlQueryStatus.PENDING,
+                    sql="sql_query",
+                    error=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -227,7 +236,10 @@ class TestTransformCreateMaterialization:
                 force: bool = False,
             ):
                 return MqlQueryStatusResp(
-                    query_id="xyz", status=MqlQueryStatus.RUNNING, error=None
+                    query_id="xyz",
+                    status=MqlQueryStatus.RUNNING,
+                    sql="sql_query",
+                    error=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
