@@ -62,10 +62,16 @@ class ParameterTypeError(PrefectException):
 
 class ObjectNotFound(PrefectException):
     """
-    Raised when the client cannot find an object it is looking for from the API.
+    Raised when the client receives a 404 (not found) from the API.
     """
 
     pass
+
+
+class ObjectAlreadyExists(PrefectException):
+    """
+    Raised when the client receives a 409 (conflict) from the API.
+    """
 
 
 class UpstreamTaskError(PrefectException):

@@ -22,7 +22,7 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 storage_config_app = PrefectTyper(
     name="storage",
@@ -115,14 +115,11 @@ async def create():
                 block_id = await client.create_block(
                     block=block, block_spec_id=spec.id, name=name
                 )
-            except HTTPStatusError as exc:
-                if exc.response.status_code == status.HTTP_409_CONFLICT:
-                    console.print(f"[red]The name {name!r} is already taken.[/]")
-                    name = typer.prompt(
-                        "Choose a new name for this storage configuration"
-                    )
-                else:
-                    raise
+            except ObjectAlreadyExists:
+                console.print(f"[red]The name {name!r} is already taken.[/]")
+                name = typer.prompt(
+                    "Choose a new name for this storage configuration"
+                )
 
     console.print(
         f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"

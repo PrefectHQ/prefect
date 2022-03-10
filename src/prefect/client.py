@@ -734,7 +734,8 @@ class OrionClient:
                 will be included in the queue
 
         Raises:
-            httpx.RequestError
+            prefect.exceptions.ObjectAlreadyExists: If request returns 409
+            httpx.RequestError: If request fails
 
         Returns:
             UUID: The UUID of the newly created workflow
@@ -747,7 +748,14 @@ class OrionClient:
                 flow_runner_types=flow_runner_types or None,
             ),
         ).dict(json_compatible=True)
-        response = await self.post("/work_queues/", json=data)
+        try:
+            response = await self.post("/work_queues/", json=data)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise prefect.exceptions.ObjectAlreadyExists
+            else:
+                raise e
+
         work_queue_id = response.json().get("id")
         if not work_queue_id:
             raise httpx.RequestError(str(response))
@@ -930,11 +938,10 @@ class OrionClient:
                 json=payload,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 400:
-                return False
+            if e.response.status_code == 409:
+                raise prefect.exceptions.ObjectAlreadyExists
             else:
                 raise e
-
         return UUID(response.json().get("id"))
 
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
