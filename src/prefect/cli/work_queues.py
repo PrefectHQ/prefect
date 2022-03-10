@@ -118,15 +118,14 @@ async def resume(
     """
     async with get_client() as client:
         try:
-            result = await client.update_work_queue(
+            await client.update_work_queue(
                 id=id,
                 is_paused=False,
             )
         except ObjectNotFound:
             exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Resumed work queue {id}")
+    exit_with_success(f"Resumed work queue {id}")
 
 
 @work_app.command()
@@ -232,9 +231,9 @@ async def delete(id: UUID):
     Delete a work queue by ID.
     """
     async with get_client() as client:
-        result = await client.delete_work_queue_by_id(id=id)
+        try:
+            await client.delete_work_queue_by_id(id=id)
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Deleted work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Deleted work queue {id}")

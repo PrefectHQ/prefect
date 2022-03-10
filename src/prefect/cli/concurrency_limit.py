@@ -7,7 +7,6 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
 
-
 from prefect.cli.base import (
     PrefectTyper,
     app,
