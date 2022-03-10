@@ -2,12 +2,11 @@
 Command line interface for working with concurrency limits.
 """
 import pendulum
-import typer
-from rich import box
 from rich.console import Group
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
+
 
 from prefect.cli.base import (
     PrefectTyper,
@@ -17,11 +16,11 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
-from prefect.utilities.asyncio import sync_compatible
+from prefect.exceptions import ObjectNotFound
 
 concurrency_limit_app = PrefectTyper(
     name="concurrency-limit",
-    help="Commands for managing task-level concurrency limits",
+    help="Commands for managing task-level concurrency limits.",
 )
 app.add_typer(concurrency_limit_app)
 
@@ -52,7 +51,10 @@ async def inspect(tag: str):
     """
 
     async with get_client() as client:
-        result = await client.read_concurrency_limit_by_tag(tag=tag)
+        try:
+            result = await client.read_concurrency_limit_by_tag(tag=tag)
+        except ObjectNotFound:
+            exit_with_error(f"No concurrency limit found for the tag: {tag}")
 
     trid_table = Table()
     trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
@@ -89,8 +91,8 @@ async def ls(limit: int = 15, offset: int = 0):
         title="Concurrency Limits",
         caption="inspect a concurrency limit to show active task run IDs",
     )
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Tag", style="green", no_wrap=True)
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Concurrency Limit", style="blue", no_wrap=True)
     table.add_column("Active Task Runs", style="magenta", no_wrap=True)
 
@@ -99,10 +101,10 @@ async def ls(limit: int = 15, offset: int = 0):
             limit=limit, offset=offset
         )
 
-    for cl in sorted(concurrency_limits, key=q.updated, reverse=True):
+    for cl in sorted(concurrency_limits, key=lambda c: c.updated, reverse=True):
         table.add_row(
-            str(cl.id),
             str(cl.tag),
+            str(cl.id),
             str(cl.concurrency_limit),
             str(len(cl.active_slots)),
         )
@@ -117,9 +119,9 @@ async def delete(tag: str):
     """
 
     async with get_client() as client:
-        result = await client.delete_concurrency_limit_by_tag(tag=tag)
+        try:
+            await client.delete_concurrency_limit_by_tag(tag=tag)
+        except ObjectNotFound:
+            exit_with_error(f"No concurrency limit found for the tag: {tag}")
 
-    if result:
-        exit_with_success(f"Deleted concurrency limit set on the tag: {tag}")
-    else:
-        exit_with_error(f"No concurrency limit found for the tag: {tag}")
+    exit_with_success(f"Deleted concurrency limit set on the tag: {tag}")

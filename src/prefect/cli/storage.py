@@ -5,13 +5,11 @@ import textwrap
 from typing import List
 from uuid import UUID
 
-import pendulum
 import pydantic
 import typer
 from fastapi import status
 from httpx import HTTPStatusError
 from rich.emoji import Emoji
-from rich.pretty import Pretty
 from rich.table import Table
 
 import prefect
@@ -24,10 +22,11 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
+from prefect.exceptions import ObjectNotFound
 
 storage_config_app = PrefectTyper(
     name="storage",
-    help="Commands for managing storage settings",
+    help="Commands for managing storage settings.",
 )
 app.add_typer(storage_config_app)
 
@@ -37,7 +36,7 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 
 @storage_config_app.command()
 async def create():
-    """Create a new storage configuration"""
+    """Create a new storage configuration."""
     async with get_client() as client:
         specs = await client.read_block_specs("STORAGE")
 
@@ -150,15 +149,20 @@ async def create():
 
 @storage_config_app.command()
 async def set_default(storage_block_id: UUID):
-    """Change the default storage option"""
+    """Change the default storage option."""
+
     async with get_client() as client:
-        await client.set_default_storage_block(storage_block_id)
+        try:
+            await client.set_default_storage_block(storage_block_id)
+        except ObjectNotFound:
+            exit_with_error(f"No storage found for id: {storage_block_id}!")
+
     exit_with_success("Updated default storage!")
 
 
 @storage_config_app.command()
 async def reset_default():
-    """Reset the default storage option"""
+    """Reset the default storage option."""
     async with get_client() as client:
         await client.clear_default_storage_block()
     exit_with_success("Cleared default storage!")
@@ -166,7 +170,7 @@ async def reset_default():
 
 @storage_config_app.command()
 async def ls():
-    """View configured storage options"""
+    """View configured storage options."""
 
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", no_wrap=True)

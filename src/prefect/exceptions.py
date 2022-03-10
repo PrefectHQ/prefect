@@ -60,6 +60,13 @@ class ParameterTypeError(PrefectException):
     pass
 
 
+class ObjectNotFound(PrefectException):
+    """
+    Raised when the client cannot find an object it is looking for from the API.
+    """
+    pass
+
+
 class UpstreamTaskError(PrefectException):
     """
     Raised when a task relies on the result of another task but that task is not
@@ -103,3 +110,5 @@ class Abort(PrefectSignal):
     """
 
     pass
+
+
