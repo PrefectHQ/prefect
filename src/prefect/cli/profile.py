@@ -55,66 +55,6 @@ def ls():
 
 
 @profile_app.command()
-def set(variables: List[str]):
-    """
-    Change the value for a setting.
-
-    Sets the value in the current profile.
-    """
-    profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_profile_context()
-    env = profiles[profile.name]
-
-    parsed_variables = []
-    for variable in variables:
-        try:
-            var, value = variable.split("=")
-        except ValueError:
-            exit_with_error(
-                f"Failed to parse argument {variable!r}. Use the format 'VAR=VAL'."
-            )
-
-        parsed_variables.append((var, value))
-
-    for var, value in parsed_variables:
-        env[var] = value
-        console.print(f"Set variable {var!r} to {value!r}")
-
-    for var, _ in parsed_variables:
-        if var in os.environ:
-            console.print(
-                f"[yellow]{var!r} is also set by an environment variable which will "
-                f"override your config value. Run `unset {var}` to clear it."
-            )
-
-    prefect.settings.write_profiles(profiles)
-    exit_with_success(f"Updated profile {profile.name!r}")
-
-
-@profile_app.command()
-def unset(variables: List[str]):
-    """
-    Restore the default value for a setting.
-
-    Removes the setting from the current profile.
-    """
-    profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_profile_context()
-    env = profiles[profile.name]
-
-    for var in variables:
-        if var not in env:
-            exit_with_error(f"Variable {var!r} not found in profile {profile.name!r}.")
-        env.pop(var)
-
-    for var in variables:
-        console.print(f"Unset variable {var!r}")
-
-    prefect.settings.write_profiles(profiles)
-    exit_with_success(f"Updated profile {profile.name!r}")
-
-
-@profile_app.command()
 def create(
     name: str,
     from_name: str = typer.Option(None, "--from", help="Copy an existing profile."),
@@ -131,7 +71,7 @@ def create(
                 [red]Profile {name!r} already exists.[/red]
                 To create a new profile, remove the existing profile first:
 
-                    prefect profile rm {name!r}
+                    prefect profile delete {name!r}
                 """
             ).strip()
         )
@@ -166,9 +106,9 @@ def create(
 
 
 @profile_app.command()
-def rm(name: str):
+def delete(name: str):
     """
-    Remove the given profile.
+    Delete the given profile.
     """
     profiles = prefect.settings.load_profiles()
     if name not in profiles:
