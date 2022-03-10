@@ -28,5 +28,15 @@ export function isSame(arrayA: any[], arrayB: any[]): boolean {
     return false
   }
 
-  return arrayA.every(itemA => arrayB.some(itemB => itemA.toString() === itemB.toString()))
+  const arrayBCopy = [...arrayB]
+
+  return arrayA.every(itemA => arrayBCopy.some((itemB, index) => {
+    const match = itemA.toString() === itemB.toString()
+
+    if (match) {
+      arrayBCopy.splice(index, 1)
+    }
+
+    return match
+  }))
 }
