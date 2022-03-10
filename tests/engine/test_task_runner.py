@@ -2417,3 +2417,95 @@ class TestTaskRunNames:
 
         state = flow.run()
         assert state.result[test_task_key].result == ["hello-1", "hello-2", "hello-3"]
+
+    def test_task_pipeline(self):
+        """
+        A simple pipeline
+        """
+
+        @prefect.task()
+        def add_1(x):
+            return x + 1
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            result = add_1(1).pipe(add_1).pipe(add_1).pipe(add_1)
+
+        state = flow.run()
+        assert state.result[result].result == 5
+
+    def test_task_pipeline_kwargs(self):
+        """
+        A simple pipeline with kwargs being passed in the pipe method
+        """
+        from datetime import datetime, timedelta
+        from prefect import Flow
+
+        @prefect.task()
+        def add_time(date: datetime, **kwargs) -> datetime:
+            delta = timedelta(**kwargs)
+            return date + delta
+
+        with Flow("test") as flow:
+            result = (
+                add_time(datetime.utcfromtimestamp(0), days=1)
+                .pipe(add_time, hours=1)
+                .pipe(add_time, minutes=1)
+            )
+
+            state = flow.run()
+            assert state.result[result].result == datetime(
+                year=1970, month=1, day=2, hour=1, minute=1
+            )
+
+    def test_task_pipeline_no_varargs(self):
+        """
+        Verify that we don't accept positional args beyond the implicitly piped argument in .pipe
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            print(dict(**kwargs))
+            return arg
+
+        with Flow("test") as flow:
+            with pytest.raises(TypeError):
+                accepts_anything("initial arg").pipe(
+                    accepts_anything, "some positional arg"
+                )
+
+    def test_task_pipeline_keyword_task(self):
+        """
+        Verify that passing task as a keyword argument works fine
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            return dict(**kwargs)
+
+        with Flow("test") as flow:
+            res = accepts_anything("initial arg").pipe(
+                accepts_anything, task="some kwarg"
+            )
+            state = flow.run()
+            assert state.result[res].result == dict(task="some kwarg")
+
+    def test_task_pipeline_keyword_self(self):
+        """
+        Verify that passing self as a keyword argument throws an error
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            return dict(**kwargs)
+
+        with Flow("test") as flow:
+            with pytest.raises(ValueError):
+                res = accepts_anything("initial arg").pipe(
+                    accepts_anything, self="some kwarg"
+                )
+            state = flow.run()

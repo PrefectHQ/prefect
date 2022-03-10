@@ -827,6 +827,14 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
     )
 
 
+def test_result_pipe():
+    t = prefect.task(lambda x, foo: x + 1)
+
+    with prefect.Flow("test"):
+        # A task created using .pipe should be identical to one created by using __call__
+        assert vars(t(1, foo="bar")) == vars(t.pipe(t, foo="bar"))
+
+
 def test_task_call_with_self_succeeds():
     import dataclasses
 

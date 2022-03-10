@@ -907,6 +907,23 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
+    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+        """
+        "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
+        equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
+        long chain of task calls.
+
+        Args:
+            - _prefect_task: The task to execute after this task.
+            - **kwargs: Additional keyword arguments to include as task arguments.
+
+        Returns:
+            - Task: A new task with the new arguments bound to it.
+        """
+        if "self" in kwargs:
+            raise ValueError('You cannot use the keyword argument "self" in .pipe.')
+        return _prefect_task(_prefect_self, **kwargs)
+
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
