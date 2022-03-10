@@ -103,8 +103,8 @@ def create_flow_run(
         - idempotency_key: a unique idempotency key for scheduling the
             flow run. Duplicate flow runs with the same idempotency key will only create
             a single flow run. This is useful for ensuring that only one run is created
-            if this task is retried. If not provided, defaults to the active `task_run_id`
-            and its map index.
+            if this task is retried. If not provided, defaults to the active task run
+            id and its map index.
 
     Returns:
         str: The UUID of the created flow run
