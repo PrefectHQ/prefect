@@ -1,10 +1,13 @@
 import { Filter, FlowFilter, FlowRunFilter, TaskRunFilter, DeploymentFilter } from '@/types/filters/server-types'
 
-type StringKeys<T extends Filter> = Extract<keyof T, string>
-interface Sortable<T extends Filter> {
-  sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
+export type PaginatedFilter = {
   limit?: number,
   offset?: number,
+}
+
+type StringKeys<T extends Filter> = Extract<keyof T, string>
+type Sortable<T extends Filter> = PaginatedFilter & {
+  sort?: `${Uppercase<StringKeys<T>>}_${'ASC' | 'DESC'}`,
 }
 
 export type DeploymentsFilter = { deployments?: DeploymentFilter }

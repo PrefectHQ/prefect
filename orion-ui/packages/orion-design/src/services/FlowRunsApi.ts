@@ -1,9 +1,17 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
-import { DateString } from '..'
-import { FlowRun, RunHistory, StateHistory, StateType, IFlowRunnerResponse, FlowRunGraph, IFlowRunGraphResponse } from '@/models'
+import { InjectionKey } from 'vue'
+import { FlowRun } from '@/models/FlowRun'
+import { FlowRunGraph } from '@/models/FlowRunGraph'
+import { IFlowRunGraphResponse } from '@/models/IFlowRunGraphResponse'
+import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { RunHistory } from '@/models/RunHistory'
+import { StateHistory } from '@/models/StateHistory'
+import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
+import { DateString } from '@/types/dates'
 import { State, StateName } from '@/types/states'
 
 export type IFlowRunResponse = {
@@ -158,4 +166,6 @@ export class FlowRunsApi extends Api {
 
 }
 
-export const flowRunsApi = new FlowRunsApi()
+export const flowRunsApi = createActions(new FlowRunsApi())
+
+export const getFlowRunsCountKey: InjectionKey<FlowRunsApi['getFlowRunsCount']> = Symbol()

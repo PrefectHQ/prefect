@@ -160,7 +160,7 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
-PREFECT_CLIENT_REQUEST_TIMEOUT = Setting(
+PREFECT_API_REQUEST_TIMEOUT = Setting(
     float, default=30.0, description="""The default timeout for requests to the API"""
 )
 
@@ -296,13 +296,6 @@ PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
     connections. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(
-    bool,
-    default=False,
-    description="""If `True`, Orion services are started as part of the
-    webserver and run in the same event loop. Defaults to `False`.""",
-)
-
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
@@ -361,7 +354,7 @@ PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
     this often. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_MARK_LATE_AFTER = Setting(
+PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
     default=timedelta(seconds=5),
     description="""The late runs service will mark runs as late after they
@@ -394,6 +387,23 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
+PREFECT_ORION_ANALYTICS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve.""",
+)
+
+PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the scheduling service in the Orion application. If disabled, you will need to run this service separately to schedule runs for deployments.",
+)
+
+PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
+)
 
 # Collect all defined settings
 

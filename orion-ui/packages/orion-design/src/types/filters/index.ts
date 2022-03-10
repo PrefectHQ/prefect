@@ -1,10 +1,10 @@
-import { StateType } from '../../models/StateType'
-import { flip } from '../../utilities/object'
 import { DeploymentFilter } from './deployments'
 import { FlowRunFilter } from './flowRuns'
 import { FlowFilter } from './flows'
 import { TagFilter } from './tags'
 import { TaskRunFilter } from './taskRuns'
+import { StateType } from '@/models/StateType'
+import { flip } from '@/utilities/object'
 
 export type RelativeDateFilterValue = `${number}h` | `${number}d` | `${number}w` | `${number}m` | `${number}y`
 
