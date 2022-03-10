@@ -3,8 +3,9 @@ import mkdocs_gen_files
 import yaml
 import glob
 from pathlib import Path
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-ITEMS_IN_ROW = 3
+ITEMS_PER_ROW = 5
 
 with mkdocs_gen_files.open("collections/catalog.md", "a") as markdown_file:
     collection_files = [
@@ -18,23 +19,17 @@ with mkdocs_gen_files.open("collections/catalog.md", "a") as markdown_file:
         with open(collection_file, "r") as file:
             collection_configs.append(yaml.safe_load(file))
 
-    # TODO: Remove. For testing.
-    collection_configs = collection_configs * 8
+    sorted_collection_configs = sorted(collection_configs, key=lambda x: x["collectionName"])
 
     chunked_collection_configs = [
-        collection_configs[i : i + ITEMS_IN_ROW]
-        for i in range(0, len(collection_configs), ITEMS_IN_ROW)
+        sorted_collection_configs[i : i + ITEMS_PER_ROW]
+        for i in range(0, len(collection_configs), ITEMS_PER_ROW)
     ]
 
-    print("<table>", file=markdown_file)
-    for row in chunked_collection_configs:
-        print("<tr>", file=markdown_file)
-        for item in row:
-            print(f"""
-            <td>
-                <h4>{item['collectionName']}</h4>
-                <img src={item['iconUrl']} style="max-height: 128px; max-width: 128px">
-            </td>
-            """, file=markdown_file)
-        print("</tr>", file=markdown_file)
-    print("</table>", file=markdown_file)
+    env = Environment(
+        loader=FileSystemLoader("./docs/collections/templates/"),
+        autoescape=select_autoescape(enabled_extensions="html"),
+    )
+    template = env.get_template("table.html")
+
+    print(template.render(collections=sorted_collection_configs), file=markdown_file)

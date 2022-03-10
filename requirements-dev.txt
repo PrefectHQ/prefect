@@ -1,5 +1,6 @@
 flake8
 ipython
+jinja2
 mkdocs
 mkdocs-gen-files
 mkdocs-material
