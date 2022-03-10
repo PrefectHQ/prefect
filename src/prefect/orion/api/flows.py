@@ -114,6 +114,7 @@ async def read_flows(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
@@ -125,6 +126,7 @@ async def read_flows(
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
         deployment_filter=deployments,
+        sort=sort,
         offset=offset,
         limit=limit,
     )
