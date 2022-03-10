@@ -1,6 +1,5 @@
 collectionName: prefect-azure
 author: Prefect
 authorUrl: https://prefect.io
-description: Collection for interacting with Azure services in your flows.
 documentation: https://cautious-journey-3e322fa3.pages.github.io/
-iconUrl: /img/collections/Microsoft_Azure.png
+iconUrl: /img/collections/azure.png
