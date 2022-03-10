@@ -68,7 +68,7 @@
   grid-template-columns: 1fr min-content min-content;
   column-gap: var(--m-1);
   row-gap: 2px;
-  padding: var(--p-1) var(--p-2);
+  padding: var(--p-2) var(--p-2);
 }
 
 .work-queues-list-item__title {
