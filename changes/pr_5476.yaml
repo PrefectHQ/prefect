@@ -1,5 +1,0 @@
-fix:
-  - "Run hasura service with `init: true` flag to reap zombie processes - [#5476](https://github.com/PrefectHQ/prefect/pull/5479)"
-
-contributor:
-  - "[VincentAntoine](https://github.com/VincentAntoine)"

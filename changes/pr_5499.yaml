@@ -1,5 +1,0 @@
-fix:
-  - "Fixes Glob task to correctly accept a str for path - [#5499](https://github.com/PrefectHQ/prefect/pull/54990)"
-
-contributor:
-  - "[Paul Gierz](https://github.com/pgierz)"

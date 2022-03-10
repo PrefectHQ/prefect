@@ -1,5 +1,0 @@
-enhancement:
-  - "Implementation of Hashicorp Vault Kubernetes based authentication - [#5412](https://github.com/PrefectHQ/prefect/pull/5412)"
-
-contributor:
-  - "[Andrew Klimovski](https://github.com/klimbot)"

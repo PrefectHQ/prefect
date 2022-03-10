@@ -1,2 +1,0 @@
-fix:
-  - "Fix the broken URL in the entrypoint.sh - [#5490](https://github.com/PrefectHQ/prefect/pull/5490)"
