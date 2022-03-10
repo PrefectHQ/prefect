@@ -16,9 +16,9 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("flow", schema=None) as batch_op:
-        batch_op.create_index("created", ["created"], unique=False)
+        batch_op.create_index("ix_flow__created", ["created"], unique=False)
 
 
 def downgrade():
     with op.batch_alter_table("flow", schema=None) as batch_op:
-        batch_op.drop_index("created")
+        batch_op.drop_index("ix_flow__created")
