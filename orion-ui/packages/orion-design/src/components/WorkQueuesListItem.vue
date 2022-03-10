@@ -68,13 +68,11 @@
   grid-template-columns: 1fr min-content min-content;
   column-gap: var(--m-1);
   row-gap: 2px;
-  padding: var(--p-3) var(--p-2);
 }
 
 .work-queues-list-item__title {
   grid-area: title;
   text-align: left;
-  margin-top: calc(var(--m-1) * -1);
 }
 
 .work-queues-list-item__filters {
