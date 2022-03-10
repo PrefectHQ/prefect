@@ -68,7 +68,7 @@
   grid-template-columns: 1fr min-content min-content;
   column-gap: var(--m-1);
   row-gap: 2px;
-  padding: var(--p-2) var(--p-2);
+  padding: var(--p-3) var(--p-2);
 }
 
 .work-queues-list-item__title {
@@ -93,5 +93,6 @@
   grid-area: status;
   display: flex;
   gap: 2px;
+  flex-wrap: wrap;
 }
 </style>
