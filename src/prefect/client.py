@@ -264,7 +264,7 @@ class OrionClient:
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
             retry_seconds = int(response.headers["Retry-After"])
-            anyio.sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await self._client.post(route, **kwargs)
 
         if raise_for_status:
@@ -294,7 +294,7 @@ class OrionClient:
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
             retry_seconds = int(response.headers["Retry-After"])
-            anyio.sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await self._client.patch(route, **kwargs)
 
         if raise_for_status:
@@ -324,7 +324,7 @@ class OrionClient:
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
             retry_seconds = int(response.headers["Retry-After"])
-            anyio.sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await self._client.delete(route, **kwargs)
 
         if raise_for_status:
@@ -357,7 +357,7 @@ class OrionClient:
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
             retry_seconds = int(response.headers["Retry-After"])
-            anyio.sleep(retry_seconds)
+            await anyio.sleep(retry_seconds)
             response = await self._client.get(route, **kwargs)
 
         if raise_for_status:
