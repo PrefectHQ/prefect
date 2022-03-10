@@ -910,8 +910,8 @@ class Task(metaclass=TaskMetaclass):
     def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
         """
         "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
-        equivalent to ``other_task(some_task())``, but can result in more readable code when used in a long
-        chain of task calls.
+        equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
+        long chain of task calls.
 
         Args:
             - _prefect_task: The task to execute after this task.
