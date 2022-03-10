@@ -20,3 +20,13 @@ export function asArray<T>(input: T | T[] | null): T[] {
 
   return input
 }
+
+// we really do want any here
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isSame(arrayA: any[], arrayB: any[]): boolean {
+  if (arrayA.length !== arrayB.length) {
+    return false
+  }
+
+  return arrayA.every(itemA => arrayB.some(itemB => itemA.toString() === itemB.toString()))
+}
