@@ -18,7 +18,7 @@
 
       <template v-else-if="empty">
         <p key="empty" class="filters-search-menu__empty">
-          Click the <i class="pi pi-star-Fiine" /> icon to save a search and it will show here.
+          Click the <i class="pi pi-star-line" /> icon to save a search and it will show here.
         </p>
       </template>
     </transition-group>
@@ -27,14 +27,19 @@
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
-  import { subscribe } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { computed, inject } from 'vue'
   import { useRouter } from 'vue-router'
   import { FilterUrlService } from '@/services/FilterUrlService'
-  import { searchApi } from '@/services/SearchApi'
+  import { getSearchesKey, searchApi } from '@/services/SearchApi'
   import { Filter } from '@/types/filters'
 
-  const subscription = subscribe(searchApi.getSearches.bind(searchApi), [])
+  const emit = defineEmits<{
+    (event: 'close'): void,
+  }>()
+
+  const getSearches = inject(getSearchesKey, searchApi.getSearches)
+  const subscription = useSubscription(getSearches)
   const filters = computed(() => subscription.response.value ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading.value)
@@ -42,6 +47,7 @@
 
   function apply(filters: Required<Filter>[]): void {
     filterUrlService.replaceAll(filters)
+    emit('close')
   }
 
   function remove(id: string): void {
@@ -50,7 +56,7 @@
         showToast('Search removed', 'success')
       })
       .catch(error => {
-        showToast('error', 'Error removing search')
+        showToast('Error removing search', 'error')
         console.error(error)
       })
       .finally(() => {
@@ -127,10 +133,9 @@
 }
 
 .filters-search-menu__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
+  vertical-align: middle;
+  text-align: center;
+  width: 100%;
 }
 
 .filters-search-menu__loader {

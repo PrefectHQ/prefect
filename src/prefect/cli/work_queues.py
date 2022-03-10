@@ -2,6 +2,7 @@
 Command line interface for working with work queues.
 """
 from typing import List
+from uuid import UUID
 
 import anyio
 import pendulum
@@ -28,7 +29,7 @@ async def create(
     tags: List[str] = typer.Option(
         None, "-t", "--tag", help="One or more optional tags"
     ),
-    deployment_ids: List[str] = typer.Option(
+    deployment_ids: List[UUID] = typer.Option(
         None, "-d", "--deployment", help="One or more optional deployment IDs"
     ),
     flow_runner_types: List[str] = typer.Option(
@@ -51,7 +52,7 @@ async def create(
 
 @work_app.command()
 async def set_concurrency_limit(
-    id: str = typer.Argument(..., help="The id of the work queue"),
+    id: UUID = typer.Argument(..., help="The id of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
 ):
     """
@@ -71,7 +72,7 @@ async def set_concurrency_limit(
 
 @work_app.command()
 async def clear_concurrency_limit(
-    id: str = typer.Argument(..., help="The id of the work queue to clear"),
+    id: UUID = typer.Argument(..., help="The id of the work queue to clear"),
 ):
     """
     Clear any concurrency limits from a work queue.
@@ -90,7 +91,7 @@ async def clear_concurrency_limit(
 
 @work_app.command()
 async def pause(
-    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
+    id: UUID = typer.Argument(..., help="The ID of the work queue to pause."),
 ):
     """
     Pause a work queue.
@@ -108,11 +109,11 @@ async def pause(
 
 
 @work_app.command()
-async def unpause(
-    id: str = typer.Argument(..., help="The ID of the work queue to pause."),
+async def resume(
+    id: UUID = typer.Argument(..., help="The ID of the work queue to resume."),
 ):
     """
-    Unpause a work queue.
+    Resume a paused work queue.
     """
     async with get_client() as client:
         result = await client.update_work_queue(
@@ -121,13 +122,13 @@ async def unpause(
         )
 
     if result:
-        exit_with_success(f"Unpaused work queue {id}")
+        exit_with_success(f"Resumed work queue {id}")
     else:
         exit_with_error(f"No work queue found with id {id}")
 
 
 @work_app.command()
-async def inspect(id: str):
+async def inspect(id: UUID):
     """
     Inspect a work queue by ID.
     """
@@ -169,7 +170,56 @@ async def ls():
 
 
 @work_app.command()
-async def delete(id: str):
+async def preview(
+    id: UUID = typer.Argument(..., help="The id of the work queue"),
+    hours: int = typer.Option(
+        None,
+        "-h",
+        "--hours",
+        help="The number of hours to look ahead; defaults to 1 hour",
+    ),
+):
+    """
+    Preview a work queue.
+    """
+    table = Table(caption="(**) denotes a late run", caption_style="red")
+    table.add_column(
+        "Scheduled Start Time", justify="left", style="yellow", no_wrap=True
+    )
+    table.add_column("Run ID", justify="left", style="cyan", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("Deployment ID", style="blue", no_wrap=True)
+
+    window = pendulum.now("utc").add(hours=hours or 1)
+    async with get_client() as client:
+        runs = await client.get_runs_in_work_queue(
+            id, limit=10, scheduled_before=window
+        )
+
+    now = pendulum.now("utc")
+    sort_by_created_key = lambda r: now - r.created
+
+    for run in sorted(runs, key=sort_by_created_key):
+        table.add_row(
+            f"{run.expected_start_time} [red](**)"
+            if run.expected_start_time < now
+            else f"{run.expected_start_time}",
+            str(run.id),
+            run.name,
+            str(run.deployment_id),
+        )
+
+    if runs:
+        console.print(table)
+    else:
+        console.print(
+            "No runs found - try increasing how far into the future you preview with the --hours flag",
+            style="yellow",
+        )
+
+
+@work_app.command()
+async def delete(id: UUID):
     """
     Delete a work queue by ID.
     """
