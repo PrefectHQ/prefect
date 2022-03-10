@@ -13,7 +13,7 @@
     </template>
     <template v-else>
       <template v-for="deployment in deployments" :key="deployment.id">
-        <div class="deployments-panel-section__deployment">
+        <button type="button" class="deployments-panel-section__deployment" @click="openDeploymentPanel(deployment)">
           <span class="deployment-panel-section__deployment-name">
             {{ deployment.name }}
           </span>
@@ -22,29 +22,30 @@
               Paused
             </span>
           </template>
-          <m-button color="alternate" @click="run(deployment)">
+          <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
             Quick Run
           </m-button>
-        </div>
+        </button>
       </template>
     </template>
   </PanelSection>
 </template>
 
 <script lang="ts" setup>
-  import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import PanelSection from './PanelSection.vue'
+  import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     filter: UnionFilters,
     getDeployments: DeploymentsApi['getDeployments'],
     getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed(() => props.filter)
@@ -64,7 +65,7 @@
       },
     })
       .catch(() => showToast('Failed to schedule flow run', 'error'))
-      .then(() => showToast('Flow run scheduled'))
+      .then(() => showToast('Flow run scheduled', 'success'))
       .finally(() => deploymentsSubscription.refresh())
   }
 </script>
@@ -82,7 +83,15 @@
   padding: var(--panel-padding);
   align-items: center;
   gap: var(--m-1);
+  width: 100%;
+  border: 0;
+  background: none;
   border-top: 1px solid var(--secondary-hover);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--primary-hover);
+  }
 }
 
 .deployment-panel-section__deployment-name {

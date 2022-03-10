@@ -75,7 +75,7 @@ jobs:
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -139,7 +139,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"

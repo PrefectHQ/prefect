@@ -1,23 +1,15 @@
 import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
-import {
-  Deployment,
-  IFlowDataResponse,
-  FlowData,
-  FlowRunner,
-  IFlowRunnerResponse,
-  IScheduleResponse,
-  Schedule,
-  isRRuleScheduleResponse,
-  isCronScheduleResponse,
-  isIntervalScheduleResponse,
-  RRuleSchedule,
-  CronSchedule,
-  IntervalSchedule,
-  StateType,
-  Flow
-} from '@/models'
+import { Deployment } from '@/models/Deployment'
+import { Flow } from '@/models/Flow'
+import { FlowData } from '@/models/FlowData'
+import { FlowRunner } from '@/models/FlowRunner'
+import { IFlowDataResponse } from '@/models/IFlowDataResponse'
+import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { IScheduleResponse, isCronScheduleResponse, isIntervalScheduleResponse, isRRuleScheduleResponse } from '@/models/IScheduleResponse'
+import { CronSchedule, IntervalSchedule, RRuleSchedule, Schedule } from '@/models/Schedule'
+import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { IFlowResponse } from '@/services/FlowsApi'
@@ -32,7 +24,7 @@ export type IDeploymentResponse = {
   flow_data: IFlowDataResponse,
   schedule: IScheduleResponse | null,
   is_schedule_active: boolean | null,
-  parameters: unknown,
+  parameters: Record<string, string>,
   tags: string[] | null,
   flow_runner: IFlowRunnerResponse,
 }
@@ -66,7 +58,8 @@ export class DeploymentsApi extends Api {
     return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body).then(response => this.mapFlowResponse(response))
   }
 
-  protected mapDeployments(data: IDeploymentResponse): Deployment {
+  // this is public temporarily to be used in ListItemDeployment in orion-ui which is still using the old models
+  public mapDeployment(data: IDeploymentResponse): Deployment {
     return new Deployment({
       id: data.id,
       created: new Date(data.created),
@@ -124,11 +117,11 @@ export class DeploymentsApi extends Api {
   }
 
   protected mapDeploymentsResponse({ data }: AxiosResponse<IDeploymentResponse[]>): Deployment[] {
-    return data.map(x => this.mapDeployments(x))
+    return data.map(x => this.mapDeployment(x))
   }
 
   protected mapDeploymentResponse({ data }: AxiosResponse<IDeploymentResponse>): Deployment {
-    return this.mapDeployments(data)
+    return this.mapDeployment(data)
   }
 
   protected mapFlow(data: IFlowResponse): Flow {
@@ -153,6 +146,6 @@ export class DeploymentsApi extends Api {
 
 export const deploymentsApi = createActions(new DeploymentsApi())
 
-export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
+export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()

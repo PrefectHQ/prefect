@@ -1,5 +1,5 @@
 <template>
-  <m-panel>
+  <m-panel class="flow-panel">
     <template #title>
       <div class="flow-panel__title">
         <i class="pi pi-flow pi-sm flow-panel__icon" />
@@ -8,7 +8,7 @@
     </template>
 
     <div class="flow-panel__details">
-      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumeric(flow.created)" stacked />
+      <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(flow.created)" stacked />
       <div class="flow-panel__id">
         <DetailsKeyValue label="Flow ID" :value="flow.id" class="text-truncate" stacked />
         <CopyButton :value="flow.id" label="Copy">
@@ -19,7 +19,7 @@
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentsPanelSection v-bind="{ filter, getDeployments, getDeploymentsCount, createDeploymentFlowRun }" />
+      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, getDeployments, getDeploymentsCount, createDeploymentFlowRun, getFlowRunsCount }" />
     </div>
 
     <template #actions="{ close }">
@@ -33,16 +33,17 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
-  import CopyButton from './CopyButton.vue'
-  import DeploymentsPanelSection from './DeploymentsPanelSection.vue'
-  import DetailsKeyValue from './DetailsKeyValue.vue'
-  import RecentFlowRunsPanelSection from './RecentFlowRunsPanelSection.vue'
+  import CopyButton from '@/components/CopyButton.vue'
+  import DeploymentsPanelSection from '@/components/DeploymentsPanelSection.vue'
+  import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
+  import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
+  import { Deployment } from '@/models/Deployment'
   import { Flow } from '@/models/Flow'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
-  import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
 
   const props = defineProps<{
     flow: Flow,
@@ -51,6 +52,7 @@
     createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     dashboardRoute: Exclude<RouteLocationRaw, string>,
+    openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed<UnionFilters>(() => ({

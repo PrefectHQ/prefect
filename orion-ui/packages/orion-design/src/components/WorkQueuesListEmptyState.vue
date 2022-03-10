@@ -3,9 +3,8 @@
     header="Create a work queue to get started"
     description="Work queues specify the criteria for flow runs to be picked up by a corresponding agent process, which runs in your execution environment. They are defined by the set of deployments, tags, or flow runners that they filter for."
   >
-    <m-button color="primary" miter icon="pi-add-line">
-      Create Work Queue
-    </m-button>
+    <WorkQueueCreateButton />
+
     <template #example>
       <div class="work-queues-list-empty-state__examples">
         <template v-for="workQueue in workQueues" :key="workQueue.id">
@@ -19,6 +18,7 @@
 <script lang="ts" setup>
   import { provide } from 'vue'
   import EmptyStateCard from '@/components/EmptyStateCard.vue'
+  import WorkQueueCreateButton from '@/components/WorkQueueCreateButton.vue'
   import WorkQueuesListItem from '@/components/WorkQueuesListItem.vue'
   import { getDeploymentsCountKey } from '@/services/DeploymentsApi'
   import { getFlowRunsCountKey } from '@/services/FlowRunsApi'

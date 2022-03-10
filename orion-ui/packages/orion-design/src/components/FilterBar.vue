@@ -43,8 +43,11 @@
 
 <script lang="ts" setup>
   import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-  import { FiltersSearch, FiltersSearchMenu, FiltersSaveMenu, FiltersMenu } from '@/components'
-  import { media } from '@/utilities'
+  import FiltersMenu from '@/components/FiltersMenu.vue'
+  import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
+  import FiltersSearch  from '@/components/FiltersSearch.vue'
+  import FiltersSearchMenu from '@/components/FiltersSearchMenu.vue'
+  import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
 

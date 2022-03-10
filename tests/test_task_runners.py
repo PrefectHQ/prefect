@@ -473,7 +473,8 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
-            time.sleep(self.get_sleep_time(task_runner))
+            # This test is prone to flaking
+            time.sleep(self.get_sleep_time(task_runner) + 0.5)
             tmp_file.write_text("foo")
 
         @task
