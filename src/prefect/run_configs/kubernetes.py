@@ -77,6 +77,40 @@ class KubernetesRun(RunConfig):
         image_pull_policy="Always"
     )
     ```
+
+    Use a custom `job_template` with a custom label (or any other necessary changes to
+    the default).
+
+    Note: you can use the default job template, found at
+    `/prefect/src/prefect/agent/kubernetes/job_template.yaml` in the repository,
+    as a base to build on. Once a `job_template` is specified, the default is no longer
+    used:
+
+    ```python
+    flow.run_config = KubernetesRun(
+        image="example/my-custom-image:my-tag,
+        job_template={
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "spec": {
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "my-custom-label": "something"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "flow"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    )
+    ```
     """
 
     def __init__(
