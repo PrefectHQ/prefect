@@ -28,9 +28,9 @@
   provide(getDeploymentsCountKey, () => Promise.resolve(mocker.create('number', [0, 3])))
 
   const workQueues = [
-    mocker.create('workQueue', [{ name: 'Local', isPaused: false, concurrencyLimit: 70 }]),
-    mocker.create('workQueue', [{ name: 'Docker', isPaused: false, concurrencyLimit: 10 }]),
-    mocker.create('workQueue', [{ name: 'Kubernetes-production', isPaused: false, concurrencyLimit: 500 }]),
+    mocker.create('workQueue', [{ name: 'Local', isPaused: false, filter: { tags: ['Temporary'] }, concurrencyLimit: 70 }]),
+    mocker.create('workQueue', [{ name: 'Docker', isPaused: false, filter: { tags: ['Apollo', 'DevOps'] }, concurrencyLimit: 10 }]),
+    mocker.create('workQueue', [{ name: 'Kubernetes-production', isPaused: false, filter: { tags: ['Apollo', 'DevOps', 'Production'] }, concurrencyLimit: 500 }]),
   ]
 </script>
 
