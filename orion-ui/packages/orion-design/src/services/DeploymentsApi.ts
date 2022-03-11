@@ -58,8 +58,8 @@ export class DeploymentsApi extends Api {
     return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body).then(response => this.mapFlowResponse(response))
   }
 
-  public deleteDeployment(deploymentId: string): Promise<AxiosResponse> {
-    return this.delete<void>(`/${deploymentId}`)
+  public deleteDeployment(deploymentId: string): Promise<void> {
+    return this.delete(`/${deploymentId}`)
   }
 
   // this is public temporarily to be used in ListItemDeployment in orion-ui which is still using the old models
