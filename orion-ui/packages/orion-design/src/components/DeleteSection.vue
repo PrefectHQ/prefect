@@ -16,7 +16,7 @@
             <m-button
               color="delete"
               miter
-              @click="emit('remove', item.id!)"
+              @click="emit('remove', id!)"
             >
               Delete {{label}}
             </m-button>
@@ -44,13 +44,11 @@
 
 <script lang="ts" setup>
 import { ref } from "vue"
-import { Deployment } from "@/models/Deployment"
-import { WorkQueue } from "@/models/WorkQueue"
 import DetailsKeyValue from "@/components/DetailsKeyValue.vue"
 
 
 const props = defineProps<{
-  item: Deployment | WorkQueue,
+  id: string,
   label: string
 }>()
 
