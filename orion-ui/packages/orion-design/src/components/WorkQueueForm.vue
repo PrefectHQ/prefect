@@ -1,6 +1,13 @@
 <template>
   <div class="work-queue-form">
     <div class="mb-2">
+      <m-toggle v-model="isActive" class="work-queue-form__toggle">
+        <span v-if="isActive">Active</span>
+        <span v-else>Paused</span>
+      </m-toggle>
+    </div>
+
+    <div class="mb-2">
       <DetailsKeyValue label="Name" stacked>
         <m-input v-model="internalValue.name" placeholder="" class="work-queue-form__text-input" />
       </DetailsKeyValue>
@@ -38,15 +45,6 @@
     <div class="mb-2">
       <DetailsKeyValue label="Select Deployment(s)" stacked>
         <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
-      </DetailsKeyValue>
-    </div>
-
-    <div class="mb-2">
-      <DetailsKeyValue label="Is Active" stacked>
-        <m-toggle v-model="isActive" class="work-queue-form__toggle">
-          <span v-if="isActive">Active</span>
-          <span v-else>Paused</span>
-        </m-toggle>
       </DetailsKeyValue>
     </div>
 
