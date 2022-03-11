@@ -147,7 +147,7 @@
 .work-queue-form__danger-zone {
   position: relative;
   color: var(--error);
-  background-color: rgba(251, 78, 78, 0.3);
+  background-color: lighten($error, 30%);
   padding: var(--p-2);
 }
 
