@@ -19,7 +19,7 @@
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
-      <DeploymentDeleteSection :item="deployment" label="Deployment" @remove="remove" />
+      <DeleteSection :item="deployment" label="Deployment" @remove="remove" />
     </div>
 
     <template #actions="{ close }">
@@ -34,7 +34,7 @@
   import { computed, ref } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
   import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
-  import DeploymentDeleteSection from '@/components/DeleteSection.vue'
+  import DeleteSection from '@/components/DeleteSection.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
   import { Deployment } from '@/models/Deployment'
