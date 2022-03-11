@@ -9,7 +9,7 @@ export interface IFlowRunGraph {
     id: string,
   }[],
   state: IState | null,
-  expectedStartTime: string | null,
+  expectedStartTime: Date | null,
   estimatedRunTime: number | null,
   totalRunTime: number | null,
   startTime: Date | null,
@@ -20,7 +20,7 @@ export class FlowRunGraph implements IFlowRunGraph {
   public readonly id: string
   public upstreamDependencies: { inputType: TaskRunInputType, id: string }[]
   public state: IState | null
-  public expectedStartTime: string | null
+  public expectedStartTime: Date | null
   public estimatedRunTime: number | null
   public totalRunTime: number | null
   public startTime: Date | null
