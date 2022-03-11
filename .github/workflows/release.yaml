@@ -23,13 +23,10 @@ jobs:
         with:
           python-version: 3.8
 
-      - name: Read version from .nvmrc
-        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
-        id: nvm
-
       - uses: actions/setup-node@v3
         with:
-          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - uses: actions/cache@v2
         with:
