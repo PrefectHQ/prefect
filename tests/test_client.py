@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -11,8 +12,8 @@ from fastapi import Depends, FastAPI
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
+import prefect.exceptions
 from prefect import flow
-from prefect.blocks.core import Block, register_block
 from prefect.client import OrionClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
@@ -282,6 +283,11 @@ async def test_read_deployment_by_name(orion_client):
     assert lookup.schedule == schedule
 
 
+async def test_read_nonexistent_deployment_by_name(orion_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await orion_client.read_deployment_by_name("not-a-real-deployment")
+
+
 async def test_create_then_read_concurrency_limit(orion_client):
     cl_id = await orion_client.create_concurrency_limit(
         tag="client-created", concurrency_limit=12345
@@ -292,6 +298,11 @@ async def test_create_then_read_concurrency_limit(orion_client):
     assert lookup.concurrency_limit == 12345
 
 
+async def test_read_nonexistent_concurrency_limit_by_tag(orion_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await orion_client.read_concurrency_limit_by_tag("not-a-real-tag")
+
+
 async def test_deleting_concurrency_limits(orion_client):
     cl = await orion_client.create_concurrency_limit(
         tag="dead-limit-walking", concurrency_limit=10
@@ -299,7 +310,7 @@ async def test_deleting_concurrency_limits(orion_client):
 
     assert await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
     await orion_client.delete_concurrency_limit_by_tag("dead-limit-walking")
-    with pytest.raises(httpx.HTTPStatusError, match="404"):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_concurrency_limit_by_tag("dead-limit-walking")
 
 
