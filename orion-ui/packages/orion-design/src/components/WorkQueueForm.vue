@@ -49,39 +49,15 @@
     </div>
 
     <template v-if="internalValue.id">
-      <div class="mb-2">
-        <template v-if="showDeleteButton">
-          <div class="work-queue-form__danger-zone">
-            <DetailsKeyValue label="Danger Zone" stacked>
-              <div class="d-flex align-center font-weight-semibold mt-2 content__delete__btn">
-                <i class="pi pi-information-line pi-sm mr-1 content-delete__text" />
-                <span class="content-delete__text">Deleting this work queue will delete all its data stored in Cloud.</span>
-              </div>
-
-              <div class="mt-2">
-                <m-button color="delete" miter @click="emit('remove', internalValue.id!)">
-                  Delete Work Queue
-                </m-button>
-                <m-icon-button icon="pi-lg pi-close-line" class="work-queue-form__hide-delete" flat @click="showDeleteButton = false" />
-              </div>
-            </DetailsKeyValue>
-          </div>
-        </template>
-        <template v-else>
-          <DetailsKeyValue label="Delete Work Queue" stacked>
-            <m-button class="work-queue-form__show-delete" miter @click="showDeleteButton = true">
-              Show Delete Button
-            </m-button>
-          </DetailsKeyValue>
-        </template>
+      <DeleteSection label="Work Queue" @remove="emit('remove', internalValue.id!)" />
+      </template>
       </div>
-    </template>
-  </div>
 </template>
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
+  import DeleteSection from '@/components/DeleteSection.vue'
   import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
@@ -97,10 +73,10 @@
 
   const emit = defineEmits<{
     (event: 'update:workQueue', value: WorkQueueFormValues): void,
-    (event: 'remove', value: string): void,
+    (event: 'remove', value: string): void
   }>()
 
-  const showDeleteButton = ref(false)
+ 
 
   const deploymentsSubscription = useSubscription(props.getDeployments, [{}])
   const deployments = computed(() => deploymentsSubscription.response.value ?? [])
@@ -178,30 +154,5 @@
   }
 }
 
-.work-queue-form__danger-zone {
-  position: relative;
-  color: var(--error);
-  background-color: rgba(251, 78, 78, 0.3);
-  padding: var(--p-2);
-}
 
-.work-queue-form__hide-delete {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-}
-
-.work-queue-form__show-delete {
-  > :first-child {
-    border-color: var(--error) !important;
-    color: var(--error) !important;
-  }
-}
-
-.work-queue-form__show-delete.active {
-  > :first-child {
-    color: var(--white) !important;
-    background-color: var(--error) !important;
-  }
-}
 </style>
