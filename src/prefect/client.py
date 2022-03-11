@@ -651,9 +651,9 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
         concurrency_limit_id = response.json().get("id")
 
@@ -710,9 +710,9 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
     async def create_work_queue(
         self,
@@ -752,9 +752,9 @@ class OrionClient:
             response = await self.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 409:
-                raise prefect.exceptions.ObjectAlreadyExists
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
-                raise e
+                raise
 
         work_queue_id = response.json().get("id")
         if not work_queue_id:
@@ -799,9 +799,9 @@ class OrionClient:
             await self.patch(f"/work_queues/{id}", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
     async def get_runs_in_work_queue(
         self,
@@ -836,9 +836,9 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def read_work_queue(
@@ -862,9 +862,9 @@ class OrionClient:
             response = await self.get(f"/work_queues/{id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queues(
@@ -910,9 +910,9 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
     async def create_block(
         self,
@@ -939,9 +939,9 @@ class OrionClient:
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 409:
-                raise prefect.exceptions.ObjectAlreadyExists
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
-                raise e
+                raise
         return UUID(response.json().get("id"))
 
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
@@ -1118,9 +1118,9 @@ class OrionClient:
             response = await self.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
         return schemas.core.Deployment.parse_obj(response.json())
 
@@ -1256,9 +1256,9 @@ class OrionClient:
             await self.post(f"/blocks/{block_id}/set_default_storage_block")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise prefect.exceptions.ObjectNotFound
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
+                raise
 
     async def clear_default_storage_block(self):
         await self.post(f"/blocks/clear_default_storage_block")
