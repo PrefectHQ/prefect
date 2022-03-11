@@ -4,7 +4,7 @@
       {{ label }}:
     </div>
     <div class="details-key-value__value">
-      <slot :empty-value="emptyValue">
+      <slot v-bind="{ emptyValue }">
         {{ value ?? emptyValue }}
       </slot>
     </div>
