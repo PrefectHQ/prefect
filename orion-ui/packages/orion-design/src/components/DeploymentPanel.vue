@@ -42,7 +42,7 @@
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
-  import { DeploymentsApi } from '..'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { showToast } from '@/utilities/toasts'
   import { exitPanel } from '@/utilities/panels'
   import { secondsToString } from '@/utilities/seconds'
