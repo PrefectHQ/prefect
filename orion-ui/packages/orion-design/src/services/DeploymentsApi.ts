@@ -59,7 +59,7 @@ export class DeploymentsApi extends Api {
   }
 
   public deleteDeployment(deploymentId: string): Promise<void> {
-    return this.delete<void>(`/${deploymentId}`).then(({ data }) => data)
+    return this.delete<void>(`/${deploymentId}`)
   }
 
   // this is public temporarily to be used in ListItemDeployment in orion-ui which is still using the old models
