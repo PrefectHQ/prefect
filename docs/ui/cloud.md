@@ -37,7 +37,7 @@ The following sections will get you set up and using Prefect Cloud, following th
 
 ## Sign in or register
 
-To sign in with an existing account or register an account, go to [http://api-beta.prefect.io/](http://api-beta.prefect.io/).
+To sign in with an existing account or register an account, go to [http://beta.prefect.io/](http://beta.prefect.io/).
 
 You can create an account with:
 
