@@ -45,7 +45,7 @@
 <script lang="ts" setup>
 import { ref } from "vue"
 import { Deployment } from "@/models/Deployment"
-import {WorkQueue} from "@/models/WorkQueue"
+import { WorkQueue } from "@/models/WorkQueue"
 import DetailsKeyValue from "@/components/DetailsKeyValue.vue"
 
 
