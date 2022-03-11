@@ -50,7 +50,6 @@
 
   const props = defineProps<{
     deployment: Deployment,
-    flowsListSubscription: FlowsListSubscription,
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     deleteDeployment: DeploymentsApi['deleteDeployment']
     dashboardRoute: Exclude<RouteLocationRaw, string>,
@@ -89,7 +88,6 @@ const saving = ref(false)
     try {
       saving.value = true
       await props.deleteDeployment(id)
-      props.flowsListSubscription?.refresh()
       showToast('Deleted Deployment', 'success')
       exitPanel()
     } catch (err) {
