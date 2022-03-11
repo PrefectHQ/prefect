@@ -93,7 +93,7 @@
 
   const emit = defineEmits<{
     (event: 'update:workQueue', value: WorkQueueFormValues): void,
-    (event: 'remove', value: string): void,
+    (event: 'remove', value: string): void
   }>()
 
   const showDeleteButton = ref(false)
