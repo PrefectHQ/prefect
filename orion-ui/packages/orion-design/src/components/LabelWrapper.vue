@@ -13,13 +13,16 @@
 
 <style lang="scss">
 .label-wrapper {
-    margin-top: 15px;
-    width: 100%;
-  }
+  margin-top: 15px;
+  width: 100%;
+}
 
 .label-wrapper__super {
-    display: block;
-    font: 11px Barlow;
-    opacity: 80%;
-  }
+  display: block;
+  font-size: 13px;
+  font-family: "input-sans";
+  line-height: 18px;
+  letter-spacing: -.09px;
+  font-weight: 600;
+}
 </style>
