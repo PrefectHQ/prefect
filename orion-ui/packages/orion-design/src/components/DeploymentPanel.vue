@@ -93,8 +93,8 @@ const saving = ref(false)
       showToast('Deleted Deployment', 'success')
       exitPanel()
     } catch (err) {
-      console.warn('error with deleting work queue', err)
-      showToast('Error with deleting work queue', 'error')
+      console.warn('error deleting deployment', err)
+      showToast('Error deleting deployment', 'error')
     } finally {
       saving.value = false
     }
