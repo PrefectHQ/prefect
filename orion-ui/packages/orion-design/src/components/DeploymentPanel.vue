@@ -7,6 +7,8 @@
       </div>
     </template>
 
+    <m-loader :loading="saving" class="deployment-panel__loader" />
+
     <div class="deployment-panel__details">
       <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(deployment.created)" stacked />
       <DetailsKeyValue label="Schedule" :value="schedule" stacked />
@@ -17,6 +19,7 @@
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
+      <DeploymentDeleteSection :item="deployment" label="Deployment" @remove="remove" />
     </div>
 
     <template #actions="{ close }">
@@ -28,9 +31,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
   import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
+  import DeploymentDeleteSection from '@/components/DeleteSection.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
   import { Deployment } from '@/models/Deployment'
@@ -39,12 +43,19 @@
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
   import { secondsToApproximateString } from '@/utilities/seconds'
+import { DeploymentsApi } from '..'
+ import { showToast } from '@/utilities/toasts'
+ import { exitPanel } from '@/utilities/panels'
+ import { FlowsListSubscription } from '@/utilities/subscriptions'
 
   const props = defineProps<{
     deployment: Deployment,
+    flowsListSubscription: FlowsListSubscription,
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+    deleteDeployment: DeploymentsApi['deleteDeployment']
     dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
+
 
   const baseFilter = computed<Required<Filter>>(() => ({
     object: 'deployment',
@@ -54,6 +65,7 @@
     value: props.deployment.name,
   }))
 
+const saving = ref(false)
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
@@ -71,6 +83,22 @@
 
     return null
   })
+  
+
+  async function remove(id: string): Promise<void> {
+    try {
+      saving.value = true
+      await props.deleteDeployment(id)
+      props.flowsListSubscription.refresh()
+      showToast('Deleted Deployment', 'success')
+      exitPanel()
+    } catch (err) {
+      console.warn('error with deleting work queue', err)
+      showToast('Error with deleting work queue', 'error')
+    } finally {
+      saving.value = false
+    }
+  }
 </script>
 
 <style lang="scss">
@@ -108,5 +136,12 @@
   border-radius: 100px;
   min-width: 24px;
   display: inline-block;
+}
+
+.deployment-panel__loader {
+  position: absolute !important;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 </style>
