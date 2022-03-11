@@ -49,6 +49,7 @@ from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.utilities.asyncio import asyncnullcontext
+from prefect.utilities.httpx import PrefectHttpxClient
 
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner
@@ -232,7 +233,7 @@ class OrionClient:
                 f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
             )
 
-        self._client = httpx.AsyncClient(**httpx_settings)
+        self._client = PrefectHttpxClient(**httpx_settings)
         self.logger = get_logger("client")
 
     @property
@@ -260,13 +261,6 @@ class OrionClient:
         """
         response = await self._client.post(route, **kwargs)
 
-        if response.status_code == 429:
-            # respect CloudFlare conventions for handling rate-limit response headers
-            # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
-            retry_seconds = int(response.headers["Retry-After"])
-            await anyio.sleep(retry_seconds)
-            response = await self._client.post(route, **kwargs)
-
         if raise_for_status:
             response.raise_for_status()
 
@@ -290,13 +284,6 @@ class OrionClient:
         """
         response = await self._client.patch(route, **kwargs)
 
-        if response.status_code == 429:
-            # respect CloudFlare conventions for handling rate-limit response headers
-            # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
-            retry_seconds = int(response.headers["Retry-After"])
-            await anyio.sleep(retry_seconds)
-            response = await self._client.patch(route, **kwargs)
-
         if raise_for_status:
             response.raise_for_status()
 
@@ -319,13 +306,6 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.delete(route, **kwargs)
-
-        if response.status_code == 429:
-            # respect CloudFlare conventions for handling rate-limit response headers
-            # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
-            retry_seconds = int(response.headers["Retry-After"])
-            await anyio.sleep(retry_seconds)
-            response = await self._client.delete(route, **kwargs)
 
         if raise_for_status:
             response.raise_for_status()
@@ -352,13 +332,6 @@ class OrionClient:
             an `httpx.Response` object
         """
         response = await self._client.get(route, **kwargs)
-
-        if response.status_code == 429:
-            # respect CloudFlare conventions for handling rate-limit response headers
-            # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
-            retry_seconds = int(response.headers["Retry-After"])
-            await anyio.sleep(retry_seconds)
-            response = await self._client.get(route, **kwargs)
 
         if raise_for_status:
             response.raise_for_status()
