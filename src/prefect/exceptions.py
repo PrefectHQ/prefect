@@ -65,13 +65,19 @@ class ObjectNotFound(PrefectException):
     Raised when the client receives a 404 (not found) from the API.
     """
 
-    pass
+    def __init__(self, http_exc: Exception, *args, **kwargs):
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
 
 
 class ObjectAlreadyExists(PrefectException):
     """
     Raised when the client receives a 409 (conflict) from the API.
     """
+
+    def __init__(self, http_exc: Exception, *args, **kwargs):
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
 
 
 class UpstreamTaskError(PrefectException):
