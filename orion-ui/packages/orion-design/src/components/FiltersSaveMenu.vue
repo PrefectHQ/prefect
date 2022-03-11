@@ -37,9 +37,10 @@
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, inject, ref } from 'vue'
   import FilterTags from '@/components/FilterTags.vue'
-  import { searchApi, createSearchKey } from '@/services/SearchApi'
+  import { searchApi, createSearchKey, getSearchesKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
   import { omit } from '@/utilities/object'
@@ -54,6 +55,8 @@
   const disabled = computed(() => loading.value || name.value.length === 0)
 
   const createSearch = inject(createSearchKey, searchApi.createSearch)
+  const getSearches = inject(getSearchesKey, searchApi.getSearches)
+  const searchesSubscription = useSubscription(getSearches)
 
   function save(): void {
     loading.value = true
@@ -63,6 +66,8 @@
     createSearch(name.value, payload)
       .then(() => {
         showToast('Saved search', 'success')
+
+        searchesSubscription.refresh()
 
         emit('close')
       })
