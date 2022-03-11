@@ -14,14 +14,18 @@
         Work queues are defined by the set of deployments, tags, or flow runners that they filter for.
         <a href="https://orion-docs.prefect.io/concepts/work-queues/">View our docs to learn more.</a>
       </p>
-      <WorkQueuePausedTag :work-queue="workQueue" />
     </div>
 
     <div class="work-queue-panel__details-row">
       <CodeBanner :code="`prefect agent start ${workQueue?.id}`" heading="Work queue is ready to go!" description="Work queues define the work to be done and agents poll a specific work queue for new work." />
     </div>
     <div class="work-queue-panel__details-row">
-      <DetailsKeyValue label="Concurrency Limit" :value="workQueue ? concurrencyLimit : null" stacked />
+      <DetailsKeyValue
+        label="Concurrency Limit"
+        :value="workQueue ? concurrencyLimit : null"
+        stacked
+      />
+      <WorkQueuePausedTag :work-queue="workQueue" />
     </div>
     <div class="work-queue-panel__details-row">
       <DetailsKeyValue label="Created Date" :value="createdDate" stacked />
@@ -135,10 +139,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--m-1);
+  margin-bottom: var(--m-2);
 }
 
-.panel__actions{
+.work-queue-panel__preface {
+  padding: var(--p-2);
+}
+
+.panel__actions {
   button {
     flex-grow: 1;
   }

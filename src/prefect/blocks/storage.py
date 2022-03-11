@@ -62,7 +62,7 @@ class FileStorageBlock(StorageBlock):
     Supports any file system supported by `fsspec`. The file system is specified using
     a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
-    Credentials for external services will be retrieved
+    Credentials for external services will be retrieved.
 
     Each blob is stored in a separate file. The key type defaults to "hash" to avoid
     storing duplicates. If you always want to store a new file, you can use "uuid" or
@@ -148,7 +148,7 @@ class FileStorageBlock(StorageBlock):
 
 @register_block("S3 Storage", version="1.0")
 class S3StorageBlock(StorageBlock):
-    """Store data in an AWS S3 bucket"""
+    """Store data in an AWS S3 bucket."""
 
     bucket: str
     aws_access_key_id: Optional[str] = None
@@ -192,7 +192,7 @@ class S3StorageBlock(StorageBlock):
 
 @register_block("Temporary Local Storage", version="1.0")
 class TempStorageBlock(StorageBlock):
-    """Store data in a temporary directory in a run's local file system"""
+    """Store data in a temporary directory in a run's local file system."""
 
     def block_initialization(self) -> None:
         pass
@@ -219,7 +219,7 @@ class TempStorageBlock(StorageBlock):
 
 @register_block("Local Storage", version="1.0")
 class LocalStorageBlock(StorageBlock):
-    """Store data in a run's local file system"""
+    """Store data in a run's local file system."""
 
     storage_path: Optional[str]
 
@@ -252,7 +252,7 @@ class LocalStorageBlock(StorageBlock):
 
 @register_block("Google Cloud Storage", version="1.0")
 class GoogleCloudStorageBlock(StorageBlock):
-    """Store data in a GCS bucket"""
+    """Store data in a GCS bucket."""
 
     bucket: str
     project: Optional[str]
@@ -285,7 +285,7 @@ class GoogleCloudStorageBlock(StorageBlock):
 
 @register_block("Azure Blob Storage", version="1.0")
 class AzureBlobStorageBlock(StorageBlock):
-    """Store data in an Azure blob storage container"""
+    """Store data in an Azure blob storage container."""
 
     container: str
     connection_string: str
@@ -316,7 +316,7 @@ class AzureBlobStorageBlock(StorageBlock):
 @register_block("KV Server Storage", version="1.0")
 class KVServerStorageBlock(StorageBlock):
     """
-    Store data by sending requests to a KV server
+    Store data by sending requests to a KV server.
     """
 
     api_address: str
