@@ -1,7 +1,8 @@
 import Subscription from '@prefecthq/vue-compositions/src/subscribe/subscription'
+import {FlowsApi} from '@/services/FlowsApi'
 import { InjectionKey } from 'vue'
 import { WorkQueuesApi } from '@/services/WorkQueuesApi'
-import { FlowsApi } from '..'
+
 
 export type WorkQueueSubscription = Subscription<WorkQueuesApi['getWorkQueue']>
 export type WorkQueuesListSubscription = Subscription<WorkQueuesApi['getWorkQueues']>
