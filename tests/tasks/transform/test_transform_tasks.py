@@ -115,6 +115,11 @@ class TestTransformCreateMaterialization:
                     status=MqlQueryStatus.FAILED,
                     sql="sql_query",
                     error=error_msg,
+                    chart_value_max=None,
+                    chart_value_min=None,
+                    result=None,
+                    result_primary_time_granularity=None,
+                    result_source=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -176,6 +181,11 @@ class TestTransformCreateMaterialization:
                     status=MqlQueryStatus.SUCCESSFUL,
                     sql="sql_query",
                     error=None,
+                    chart_value_max=None,
+                    chart_value_min=None,
+                    result=None,
+                    result_primary_time_granularity=None,
+                    result_source=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -208,6 +218,11 @@ class TestTransformCreateMaterialization:
                     status=MqlQueryStatus.PENDING,
                     sql="sql_query",
                     error=None,
+                    chart_value_max=None,
+                    chart_value_min=None,
+                    result=None,
+                    result_primary_time_granularity=None,
+                    result_source=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
@@ -240,6 +255,11 @@ class TestTransformCreateMaterialization:
                     status=MqlQueryStatus.RUNNING,
                     sql="sql_query",
                     error=None,
+                    chart_value_max=None,
+                    chart_value_min=None,
+                    result=None,
+                    result_primary_time_granularity=None,
+                    result_source=None,
                 )
 
         mock_mql_client.return_value = mockMQLClient
