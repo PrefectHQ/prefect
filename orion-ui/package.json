@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vite",
+    "serve": "vite --host",
     "build": "vite build",
     "test": "cross-env VITE_PREFECT_USE_MIRAGEJS=true PREFECT_UI_PORT=4002 jest",
     "test:unit": "cross-env VITE_PREFECT_USE_MIRAGEJS=true PREFECT_UI_PORT=4002 jest --projects test-projects/unit",
