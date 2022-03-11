@@ -42,11 +42,11 @@
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
-  import { secondsToApproximateString } from '@/utilities/seconds'
-import { DeploymentsApi } from '..'
- import { showToast } from '@/utilities/toasts'
- import { exitPanel } from '@/utilities/panels'
- import { FlowsListSubscription } from '@/utilities/subscriptions'
+  import { DeploymentsApi } from '..'
+  import { showToast } from '@/utilities/toasts'
+  import { exitPanel } from '@/utilities/panels'
+  import { FlowsListSubscription } from '@/utilities/subscriptions'
+  import { secondsToString } from '@/utilities/seconds'
 
   const props = defineProps<{
     deployment: Deployment,
@@ -70,7 +70,7 @@ const saving = ref(false)
     const { schedule } = props.deployment
 
     if (schedule instanceof IntervalSchedule) {
-      return `Every ${secondsToApproximateString(schedule.interval)}`
+      return `Every ${secondsToString(schedule.interval)}`
     }
 
     if (schedule instanceof CronSchedule) {

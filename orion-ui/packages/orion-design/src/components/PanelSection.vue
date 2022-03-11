@@ -44,6 +44,10 @@
   padding: var(--panel-padding);
 }
 
+.panel-section__content {
+  padding-top: 0;
+}
+
 .panel-section__content--full {
   padding: 0;
 }
