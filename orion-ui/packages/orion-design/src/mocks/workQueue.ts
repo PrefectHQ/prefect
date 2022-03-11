@@ -8,7 +8,7 @@ export const randomWorkQueue: MockFunction<WorkQueue> = function(workQueue?: Par
     created: workQueue?.created ?? this.create('date'),
     updated: workQueue?.updated ?? this.create('date'),
     name: workQueue?.name ?? this.create('string'),
-    filter: workQueue?.filter ?? this.create('workQueueFilter'),
+    filter: this.create('workQueueFilter', [workQueue?.filter]),
     description: workQueue?.description ?? this.create('string'),
     isPaused: workQueue?.isPaused ?? this.create('boolean'),
     concurrencyLimit: workQueue?.concurrencyLimit ?? this.create('number'),
