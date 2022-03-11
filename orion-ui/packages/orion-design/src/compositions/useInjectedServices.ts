@@ -3,7 +3,7 @@ import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeployme
 import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
 import { WorkQueuesListSubscription, workQueuesListSubscriptionKey, FlowsListSubscription, flowsListSubscriptionKey } from '@/utilities/subscriptions'
-import { flowsApi, FlowsApi } from '..'
+
 
 export type InjectedServices = {
   workQueuesListSubscription: WorkQueuesListSubscription,
