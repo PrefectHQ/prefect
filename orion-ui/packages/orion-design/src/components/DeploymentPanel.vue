@@ -19,7 +19,7 @@
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
-      <DeleteSection :id="deployment.id" label="Deployment" @remove="remove" />
+      <DeleteSection label="Deployment" @remove="remove" />
     </div>
 
     <template #actions="{ close }">
@@ -83,10 +83,10 @@ const saving = ref(false)
   })
   
 
-  async function remove(id: string): Promise<void> {
+  async function remove(): Promise<void> {
     try {
       saving.value = true
-      await props.deleteDeployment(id)
+      await props.deleteDeployment(props.deployment.id)
       showToast('Deleted Deployment', 'success')
       exitPanel()
     } catch (err) {
