@@ -19,7 +19,7 @@
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
-      <DeleteSection :item="deployment" label="Deployment" @remove="remove" />
+      <DeleteSection :id="deployment.id" label="Deployment" @remove="remove" />
     </div>
 
     <template #actions="{ close }">
