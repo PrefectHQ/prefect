@@ -639,14 +639,21 @@ class OrionClient:
             tag: a tag the concurrency limit is applied to
 
         Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
             the concurrency limit set on a specific tag
         """
-        response = await self.get(
-            f"/concurrency_limits/tag/{tag}",
-        )
+        try:
+            response = await self.get(
+                f"/concurrency_limits/tag/{tag}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
         concurrency_limit_id = response.json().get("id")
 
@@ -693,22 +700,19 @@ class OrionClient:
             tag: a tag the concurrency limit is applied to
 
         Raises:
-            httpx.RequestError
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
 
-        Returns:
-            True if the concurrency limit was deleted, False otherwise
         """
         try:
-            response = await self.delete(
+            await self.delete(
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                return False
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
-
-        return True
+                raise
 
     async def create_work_queue(
         self,
@@ -730,7 +734,8 @@ class OrionClient:
                 will be included in the queue
 
         Raises:
-            httpx.RequestError
+            prefect.exceptions.ObjectAlreadyExists: If request returns 409
+            httpx.RequestError: If request fails
 
         Returns:
             UUID: The UUID of the newly created workflow
@@ -743,7 +748,14 @@ class OrionClient:
                 flow_runner_types=flow_runner_types or None,
             ),
         ).dict(json_compatible=True)
-        response = await self.post("/work_queues/", json=data)
+        try:
+            response = await self.post("/work_queues/", json=data)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         work_queue_id = response.json().get("id")
         if not work_queue_id:
             raise httpx.RequestError(str(response))
@@ -765,7 +777,7 @@ class OrionClient:
         response = await self.get(f"/work_queues/name/{name}")
         return schemas.core.WorkQueue.parse_obj(response.json())
 
-    async def update_work_queue(self, id: UUID, **kwargs) -> bool:
+    async def update_work_queue(self, id: UUID, **kwargs):
         """
         Update properties of a work queue.
 
@@ -775,19 +787,21 @@ class OrionClient:
 
         Raises:
             ValueError: if no kwargs are provided
+            prefect.exceptions.ObjectNotFound: if request returns 404
             httpx.RequestError: if the request fails
 
-        Returns:
-            bool: a boolean specifying whether the operation was successful
         """
         if not kwargs:
             raise ValueError("No fields provided to update.")
 
         data = WorkQueueUpdate(**kwargs).dict(json_compatible=True, exclude_unset=True)
-        response = await self.patch(f"/work_queues/{id}", json=data)
-        if response.status_code == 204:
-            return True
-        return False
+        try:
+            await self.patch(f"/work_queues/{id}", json=data)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def get_runs_in_work_queue(
         self,
@@ -805,7 +819,8 @@ class OrionClient:
                 Defaults to now.
 
         Raises:
-            httpx.RequestError
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
 
         Returns:
             List[schemas.core.FlowRun]: a list of FlowRun objects read from the queue
@@ -814,10 +829,16 @@ class OrionClient:
         if scheduled_before:
             json_data.update({"scheduled_before": scheduled_before.isoformat()})
 
-        response = await self.post(
-            f"/work_queues/{id}/get_runs",
-            json=json_data,
-        )
+        try:
+            response = await self.post(
+                f"/work_queues/{id}/get_runs",
+                json=json_data,
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def read_work_queue(
@@ -831,12 +852,19 @@ class OrionClient:
             id: the id of the work queue to load
 
         Raises:
-            httpx.RequestError
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
 
         Returns:
             WorkQueue: an instantiated WorkQueue object
         """
-        response = await self.get(f"/work_queues/{id}")
+        try:
+            response = await self.get(f"/work_queues/{id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def read_work_queues(
@@ -873,22 +901,18 @@ class OrionClient:
             id: the id of the work queue to delete
 
         Raises:
-            httpx.RequestError
-
-        Returns:
-            True if the work queue was deleted, False otherwise
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
         """
         try:
-            response = await self.delete(
+            await self.delete(
                 f"/work_queues/{id}",
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                return False
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
-                raise e
-
-        return True
+                raise
 
     async def create_block(
         self,
@@ -914,11 +938,10 @@ class OrionClient:
                 json=payload,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 400:
-                return False
+            if e.response.status_code == 409:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
-                raise e
-
+                raise
         return UUID(response.json().get("id"))
 
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
@@ -1084,10 +1107,21 @@ class OrionClient:
         Args:
             name: the deployment name of interest
 
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
         Returns:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
-        response = await self.get(f"/deployments/name/{name}")
+        try:
+            response = await self.get(f"/deployments/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployments(
@@ -1217,13 +1251,17 @@ class OrionClient:
             return response.json()
         return create_block_from_api_block(response.json())
 
-    async def set_default_storage_block(self, block_id: UUID) -> bool:
-        await self.post(f"/blocks/{block_id}/set_default_storage_block")
-        return True
+    async def set_default_storage_block(self, block_id: UUID):
+        try:
+            await self.post(f"/blocks/{block_id}/set_default_storage_block")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
-    async def clear_default_storage_block(self) -> bool:
+    async def clear_default_storage_block(self):
         await self.post(f"/blocks/clear_default_storage_block")
-        return True
 
     async def persist_data(
         self,

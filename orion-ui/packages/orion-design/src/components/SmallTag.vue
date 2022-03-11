@@ -16,7 +16,11 @@
 
 <style lang="scss">
 .small-tag > span {
-  padding: 0 var(--p-1) !important;
+  height: auto !important;
+  padding: 2px 4px !important;
+  font-family: barlow;
+  font-weight: 600;
   font-size: 13px;
+  line-height: 13px;
 }
 </style>
