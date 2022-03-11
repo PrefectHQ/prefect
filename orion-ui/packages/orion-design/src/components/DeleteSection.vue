@@ -7,9 +7,9 @@
             class="d-flex align-center font-weight-semibold mt-2 content__delete__btn"
           >
             <i class="pi pi-information-line pi-sm mr-1 content-delete__text" />
-            <span class="content-delete__text"
-              >Deleting this {{label.toLowerCase()}} will delete all its data.</span
-            >
+            <span class="content-delete__text">
+              Deleting this {{label.toLowerCase()}} will delete all its data.
+            </span>
           </div>
 
           <div class="mt-2">
