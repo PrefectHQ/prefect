@@ -2,7 +2,7 @@ import { inject } from 'vue'
 import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey, deleteDeploymentKey } from '@/services/DeploymentsApi'
 import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
-import { WorkQueuesListSubscription, workQueuesListSubscriptionKey, FlowsListSubscription, flowsListSubscriptionKey } from '@/utilities/subscriptions'
+import { WorkQueuesListSubscription, workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
 
 export type InjectedServices = {
@@ -18,7 +18,7 @@ export type InjectedServices = {
   createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
   getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
   deleteDeployment: DeploymentsApi['deleteDeployment']
-  flowsListSubcription: FlowsListSubscription
+
 }
 
 export function useInjectedServices(): InjectedServices {
@@ -34,11 +34,9 @@ export function useInjectedServices(): InjectedServices {
   const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
   const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
   const getFlowRunsCount = inject(getFlowRunsCountKey, flowRunsApi.getFlowRunsCount)
-  const flowsListSubcription=inject(flowsListSubscriptionKey, null)!
 
   return {
     workQueuesListSubscription,
-    flowsListSubcription,
     getWorkQueue,
     createWorkQueue,
     deleteDeployment,
