@@ -1,5 +1,4 @@
 import Subscription from '@prefecthq/vue-compositions/src/subscribe/subscription'
-import {FlowsApi} from '@/services/FlowsApi'
 import { InjectionKey } from 'vue'
 import { WorkQueuesApi } from '@/services/WorkQueuesApi'
 
