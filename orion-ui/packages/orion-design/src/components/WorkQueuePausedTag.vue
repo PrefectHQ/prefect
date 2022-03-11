@@ -1,5 +1,5 @@
 <template>
-  <SmallTag class="work-queues-list-item__paused" :miter="false" :color="workQueue?.isPaused ? 'grey-40' : 'success'">
+  <SmallTag class="work-queue-paused-tag" :miter="false" :color="workQueue?.isPaused ? 'grey-40' : 'success'">
     <span>{{ text }}</span>
   </SmallTag>
 </template>
@@ -17,6 +17,6 @@
     if (!props.workQueue) {
       return '--'
     }
-    return props.workQueue.isPaused ? 'paused' : 'active'
+    return props.workQueue.isPaused ? 'Paused' : 'Active'
   })
 </script>
