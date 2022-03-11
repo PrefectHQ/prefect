@@ -134,7 +134,7 @@ export class FlowRunsApi extends Api {
   protected mapFlowRunGraphResponse({ data }: AxiosResponse<IFlowRunGraphResponse[]>): FlowRunGraph[] {
     return data.map((x: IFlowRunGraphResponse) => new FlowRunGraph({
       id: x.id,
-      expectedStartTime: x.expected_start_time,
+      expectedStartTime: x.expected_start_time ? new Date(x.expected_start_time) : null,
       startTime: x.start_time ? new Date(x.start_time) : null,
       endTime: x.end_time ? new Date(x.end_time) : null,
       totalRunTime: x.total_run_time,
