@@ -31,7 +31,6 @@
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
-  import { exitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
 
@@ -50,7 +49,6 @@
       await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
       props.workQueuesListSubscription.refresh()
       showToast('Created Work Queue', 'success')
-      exitPanel()
     } catch (err) {
       console.warn('error with creating work queue', err)
       showToast('Error with creating work queue', 'error')
