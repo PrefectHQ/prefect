@@ -49,7 +49,7 @@
     </div>
 
     <template v-if="internalValue.id">
-      <DeleteSection label="Work Queue" :id="internalValue.id" @remove="emit('remove', internalValue.id!)" />
+      <DeleteSection label="Work Queue" @remove="emit('remove', internalValue.id!)" />
       </template>
       </div>
 </template>

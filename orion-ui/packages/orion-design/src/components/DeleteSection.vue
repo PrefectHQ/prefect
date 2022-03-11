@@ -16,7 +16,7 @@
             <m-button
               color="delete"
               miter
-              @click="emit('remove', id!)"
+              @click="emit('remove')"
             >
               Delete {{label}}
             </m-button>
@@ -48,13 +48,12 @@ import DetailsKeyValue from "@/components/DetailsKeyValue.vue"
 
 
 const props = defineProps<{
-  id: string,
   label: string
 }>()
 
 const deleteLabel=`Delete ${props.label}`
 const emit = defineEmits<{
-  (event: "remove", value: string): void
+  (event: "remove"): void
 }>()
 
 const showDeleteButton = ref(false)
