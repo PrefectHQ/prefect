@@ -6,7 +6,7 @@ import mkdocs_gen_files
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-with mkdocs_gen_files.open("collections/catalog.md", "a") as markdown_file:
+with mkdocs_gen_files.open("collections/catalog.md", "w") as markdown_file:
     # Get file paths for all collections files
     collection_files = [
         file
@@ -27,10 +27,10 @@ with mkdocs_gen_files.open("collections/catalog.md", "a") as markdown_file:
     )
 
     env = Environment(
-        loader=FileSystemLoader("./docs/collections/templates/"),
+        loader=FileSystemLoader("./docs/collections/"),
         autoescape=select_autoescape(enabled_extensions="html"),
     )
-    template = env.get_template("table.html")
+    template = env.get_template("catalog.md")
 
-    # Render jinja2 template and append to catalog.md
-    print(template.render(collections=sorted_collection_configs), file=markdown_file)
+    # Render jinja2 template and write to catalog.md
+    markdown_file.write(template.render(collections=sorted_collection_configs))
