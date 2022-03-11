@@ -89,7 +89,7 @@ const saving = ref(false)
     try {
       saving.value = true
       await props.deleteDeployment(id)
-      props.flowsListSubscription.refresh()
+      props.flowsListSubscription?.refresh()
       showToast('Deleted Deployment', 'success')
       exitPanel()
     } catch (err) {
