@@ -45,7 +45,6 @@
   import { DeploymentsApi } from '..'
   import { showToast } from '@/utilities/toasts'
   import { exitPanel } from '@/utilities/panels'
-  import { FlowsListSubscription } from '@/utilities/subscriptions'
   import { secondsToString } from '@/utilities/seconds'
 
   const props = defineProps<{
