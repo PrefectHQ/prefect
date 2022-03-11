@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import warnings
 from pathlib import Path
 from types import ModuleType
@@ -340,6 +341,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
     networks: List[str] = Field(default_factory=list)
+    network_mode: str = None
     labels: Dict[str, str] = None
     auto_remove: bool = False
     volumes: List[str] = Field(default_factory=list)
@@ -406,6 +408,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         container_settings = dict(
             image=self.image,
             network=self.networks[0] if self.networks else None,
+            network_mode=self._get_network_mode(),
             command=self._get_start_command(flow_run),
             environment=self._get_environment_variables(),
             auto_remove=self.auto_remove,
@@ -466,6 +469,35 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return ImagePullPolicy.ALWAYS
             return ImagePullPolicy.IF_NOT_PRESENT
         return self.image_pull_policy
+
+    def _get_network_mode(self) -> Optional[str]:
+        # User's value takes precedence; this may collide with the incompatible options
+        # mentioned below.
+        if self.network_mode:
+            return self.network_mode
+
+        # Network mode is not compatible with networks or ports (we do not support ports
+        # yet though)
+        if self.networks:
+            return None
+
+        # Check for a local API connection
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
+
+        if api_url:
+            try:
+                _, netloc, _, _, _, _ = urllib.parse.urlparse(api_url)
+            except:
+                return None
+
+            host = netloc.split(":")[0]
+
+            # If using a locally hosted API, use a host network
+            if host == "127.0.0.1" or host == "localhost":
+                return "host"
+
+        # Default to unset
+        return None
 
     def _should_pull_image(self, docker_client: "DockerClient") -> bool:
         """
