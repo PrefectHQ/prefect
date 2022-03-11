@@ -1,8 +1,9 @@
 import { inject } from 'vue'
-import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey } from '@/services/DeploymentsApi'
+import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey, deleteDeploymentKey } from '@/services/DeploymentsApi'
 import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
-import { WorkQueuesListSubscription, workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
+import { WorkQueuesListSubscription, workQueuesListSubscriptionKey, FlowsListSubscription, flowsListSubscriptionKey } from '@/utilities/subscriptions'
+import { flowsApi, FlowsApi } from '..'
 
 export type InjectedServices = {
   workQueuesListSubscription: WorkQueuesListSubscription,
@@ -16,6 +17,8 @@ export type InjectedServices = {
   getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
   createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
   getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+  deleteDeployment: DeploymentsApi['deleteDeployment']
+  flowsListSubcription: FlowsListSubscription
 }
 
 export function useInjectedServices(): InjectedServices {
@@ -27,14 +30,18 @@ export function useInjectedServices(): InjectedServices {
   const updateWorkQueue = inject(updateWorkQueueKey, workQueuesApi.updateWorkQueue)
   const deleteWorkQueue = inject(deleteWorkQueueKey, workQueuesApi.deleteWorkQueue)
   const getDeployments = inject(getDeploymentsKey, deploymentsApi.getDeployments)
+  const deleteDeployment = inject(deleteDeploymentKey, deploymentsApi.deleteDeployment)
   const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
   const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
   const getFlowRunsCount = inject(getFlowRunsCountKey, flowRunsApi.getFlowRunsCount)
+  const flowsListSubcription=inject(flowsListSubscriptionKey, null)!
 
   return {
     workQueuesListSubscription,
+    flowsListSubcription,
     getWorkQueue,
     createWorkQueue,
+    deleteDeployment,
     pauseWorkQueue,
     resumeWorkQueue,
     updateWorkQueue,

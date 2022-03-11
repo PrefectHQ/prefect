@@ -58,6 +58,10 @@ export class DeploymentsApi extends Api {
     return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body).then(response => this.mapFlowResponse(response))
   }
 
+  public deleteDeployment(deploymentId: string): Promise<void> {
+    return this.delete<void>(`/${deploymentId}`).then(({ data }) => data)
+  }
+
   // this is public temporarily to be used in ListItemDeployment in orion-ui which is still using the old models
   public mapDeployment(data: IDeploymentResponse): Deployment {
     return new Deployment({
@@ -149,3 +153,4 @@ export const deploymentsApi = createActions(new DeploymentsApi())
 export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
 export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
 export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()
+export const deleteDeploymentKey: InjectionKey<DeploymentsApi['deleteDeployment']>=Symbol()
