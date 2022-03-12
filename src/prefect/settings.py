@@ -575,18 +575,29 @@ def get_active_profile(name_only: bool = False):
 
 
 def set_active_profile(name: str):
-    pass
+    all_profiles = load_profiles(ignore_defaults=True)
+    return write_profiles(all_profiles, active_profile=name)
 
 
-def load_profiles(active_only: bool = False) -> Dict[str, Dict[str, str]]:
+def load_profiles(
+    ignore_defaults: bool = False, active_only: bool = False
+) -> Dict[str, Dict[str, str]]:
     """
     Load all profiles from the profiles path.
     """
+    if all([ignore_defaults, active_only]):
+        raise ValueError("Only one of ignore_defaults and active_only can be True.")
+
     path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
-    default_path = Path(__file__).parent.joinpath("profiles.toml")
-    default_profile_config = toml.loads(default_path.read_text())
-    active_profile = default_profile_config["active"]
-    profiles = default_profile_config["profiles"]
+
+    if not ignore_defaults:
+        default_path = Path(__file__).parent.joinpath("profiles.toml")
+        default_profile_config = toml.loads(default_path.read_text())
+        active_profile = default_profile_config["active"]
+        profiles = default_profile_config["profiles"]
+    else:
+        profiles = {}
+        active_profile = None
 
     # if user as a profiles.toml, load it
     if path.exists():
@@ -600,9 +611,9 @@ def load_profiles(active_only: bool = False) -> Dict[str, Dict[str, str]]:
         return profiles
 
 
-def write_profiles(profiles: dict):
+def write_profiles(profiles: dict, active_profile: str = None):
     """
-    Writes all profiles to the profiles path.
+    Writes all non-default profiles to the profiles path.
 
     Existing data will be lost.
 
@@ -617,7 +628,13 @@ def write_profiles(profiles: dict):
                 f"Unknown setting(s) found in profile {profile!r}: {unknown_keys}"
             )
 
-    profiles = {**DEFAULT_PROFILES, **profiles}
+    profiles = {"profiles": profiles}
+
+    if active_profile is None:
+        # preserve current active profile
+        active_profile = get_active_profile(name_only=True)
+
+    profiles["active"] = active_profile
     return path.write_text(toml.dumps(profiles))
 
 
