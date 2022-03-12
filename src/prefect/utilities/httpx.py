@@ -65,7 +65,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_count += 1
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
-            retry_seconds = int(response.headers["Retry-After"])
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                retry_seconds = int(retry_after)
+            else:
+                retry_seconds = 2 ** retry_count  # default to exponential backoff
+
             await anyio.sleep(retry_seconds)
             response = await self.send(
                 request, auth=auth, follow_redirects=follow_redirects
