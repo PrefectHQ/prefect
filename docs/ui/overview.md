@@ -48,7 +48,7 @@ Configure Prefect to communicate with the server with:
 Check out the dashboard at http://127.0.0.1:4200
 ```
 
-When Prefect Server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
+When Prefect Orion server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
 ![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
 
