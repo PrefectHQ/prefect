@@ -49,7 +49,6 @@ from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.utilities.asyncio import asyncnullcontext
-
 from prefect.utilities.httpx import PrefectHttpxClient
 
 if TYPE_CHECKING:
