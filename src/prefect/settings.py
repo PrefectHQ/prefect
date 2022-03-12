@@ -605,6 +605,10 @@ def load_profiles(
         profiles = {**profiles, **user_profile_config["profiles"]}
         active_profile = user_profile_config.get("active") or active_profile
 
+    env_profile = os.getenv("PREFECT_PROFILE")
+    if env_profile:
+        active_profile = env_profile
+
     if active_only:
         return {active_profile: profiles[active_profile]}
     else:

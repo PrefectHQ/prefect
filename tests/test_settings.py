@@ -6,7 +6,6 @@ import pytest
 import prefect.context
 import prefect.settings
 from prefect.settings import (
-    DEFAULT_PROFILES,
     PREFECT_API_URL,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
@@ -129,7 +128,7 @@ class TestProfiles:
             yield path
 
     def test_load_profiles_no_profiles_file(self):
-        assert load_profiles() == DEFAULT_PROFILES
+        assert load_profiles()
 
     def test_load_profiles_missing_default(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
@@ -140,10 +139,8 @@ class TestProfiles:
                 """
             )
         )
-        assert load_profiles() == {
-            **DEFAULT_PROFILES,
-            "foo": {"PREFECT_API_KEY": "bar"},
-        }
+        assert load_profiles()["foo"] == {"PREFECT_API_KEY": "bar"}
+        assert isinstance(load_profiles()["default"], dict)
 
     def test_load_profiles_with_default(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
