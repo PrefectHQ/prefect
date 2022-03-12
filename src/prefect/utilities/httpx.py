@@ -76,181 +76,181 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
         return response
 
-        async def get(
-            self,
-            url: URLTypes,
-            *,
-            params: QueryParamTypes = None,
-            headers: HeaderTypes = None,
-            cookies: CookieTypes = None,
-            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
-            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            extensions: dict = None,
-            raise_for_status: bool = True,
-        ) -> Response:
-            """
-            Send a `GET` request.
+    async def get(
+        self,
+        url: URLTypes,
+        *,
+        params: QueryParamTypes = None,
+        headers: HeaderTypes = None,
+        cookies: CookieTypes = None,
+        auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+        timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        extensions: dict = None,
+        raise_for_status: bool = True,
+    ) -> Response:
+        """
+        Send a `GET` request.
 
-            **Parameters**: See `httpx.request`.
-            """
-            return await self.request(
-                "GET",
-                url,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                follow_redirects=follow_redirects,
-                timeout=timeout,
-                extensions=extensions,
-                raise_for_status=raise_for_status,
-            )
+        **Parameters**: See `httpx.request`.
+        """
+        return await self.request(
+            "GET",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            raise_for_status=raise_for_status,
+        )
 
-        async def post(
-            self,
-            url: URLTypes,
-            *,
-            content: RequestContent = None,
-            data: RequestData = None,
-            files: RequestFiles = None,
-            json: typing.Any = None,
-            params: QueryParamTypes = None,
-            headers: HeaderTypes = None,
-            cookies: CookieTypes = None,
-            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
-            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            extensions: dict = None,
-            raise_for_status: bool = True,
-        ) -> Response:
-            """
-            Send a `POST` request.
+    async def post(
+        self,
+        url: URLTypes,
+        *,
+        content: RequestContent = None,
+        data: RequestData = None,
+        files: RequestFiles = None,
+        json: typing.Any = None,
+        params: QueryParamTypes = None,
+        headers: HeaderTypes = None,
+        cookies: CookieTypes = None,
+        auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+        timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        extensions: dict = None,
+        raise_for_status: bool = True,
+    ) -> Response:
+        """
+        Send a `POST` request.
 
-            **Parameters**: See `httpx.request`.
-            """
-            return await self.request(
-                "POST",
-                url,
-                content=content,
-                data=data,
-                files=files,
-                json=json,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                follow_redirects=follow_redirects,
-                timeout=timeout,
-                extensions=extensions,
-                raise_for_status=raise_for_status,
-            )
+        **Parameters**: See `httpx.request`.
+        """
+        return await self.request(
+            "POST",
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            raise_for_status=raise_for_status,
+        )
 
-        async def put(
-            self,
-            url: URLTypes,
-            *,
-            content: RequestContent = None,
-            data: RequestData = None,
-            files: RequestFiles = None,
-            json: typing.Any = None,
-            params: QueryParamTypes = None,
-            headers: HeaderTypes = None,
-            cookies: CookieTypes = None,
-            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
-            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            extensions: dict = None,
-            raise_for_status: bool = True,
-        ) -> Response:
-            """
-            Send a `PUT` request.
+    async def put(
+        self,
+        url: URLTypes,
+        *,
+        content: RequestContent = None,
+        data: RequestData = None,
+        files: RequestFiles = None,
+        json: typing.Any = None,
+        params: QueryParamTypes = None,
+        headers: HeaderTypes = None,
+        cookies: CookieTypes = None,
+        auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+        timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        extensions: dict = None,
+        raise_for_status: bool = True,
+    ) -> Response:
+        """
+        Send a `PUT` request.
 
-            **Parameters**: See `httpx.request`.
-            """
-            return await self.request(
-                "PUT",
-                url,
-                content=content,
-                data=data,
-                files=files,
-                json=json,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                follow_redirects=follow_redirects,
-                timeout=timeout,
-                extensions=extensions,
-                raise_for_status=raise_for_status,
-            )
+        **Parameters**: See `httpx.request`.
+        """
+        return await self.request(
+            "PUT",
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            raise_for_status=raise_for_status,
+        )
 
-        async def patch(
-            self,
-            url: URLTypes,
-            *,
-            content: RequestContent = None,
-            data: RequestData = None,
-            files: RequestFiles = None,
-            json: typing.Any = None,
-            params: QueryParamTypes = None,
-            headers: HeaderTypes = None,
-            cookies: CookieTypes = None,
-            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
-            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            extensions: dict = None,
-            raise_for_status: bool = True,
-        ) -> Response:
-            """
-            Send a `PATCH` request.
+    async def patch(
+        self,
+        url: URLTypes,
+        *,
+        content: RequestContent = None,
+        data: RequestData = None,
+        files: RequestFiles = None,
+        json: typing.Any = None,
+        params: QueryParamTypes = None,
+        headers: HeaderTypes = None,
+        cookies: CookieTypes = None,
+        auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+        timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        extensions: dict = None,
+        raise_for_status: bool = True,
+    ) -> Response:
+        """
+        Send a `PATCH` request.
 
-            **Parameters**: See `httpx.request`.
-            """
-            return await self.request(
-                "PATCH",
-                url,
-                content=content,
-                data=data,
-                files=files,
-                json=json,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                follow_redirects=follow_redirects,
-                timeout=timeout,
-                extensions=extensions,
-                raise_for_status=raise_for_status,
-            )
+        **Parameters**: See `httpx.request`.
+        """
+        return await self.request(
+            "PATCH",
+            url,
+            content=content,
+            data=data,
+            files=files,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            raise_for_status=raise_for_status,
+        )
 
-        async def delete(
-            self,
-            url: URLTypes,
-            *,
-            params: QueryParamTypes = None,
-            headers: HeaderTypes = None,
-            cookies: CookieTypes = None,
-            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
-            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
-            extensions: dict = None,
-            raise_for_status: bool = True,
-        ) -> Response:
-            """
-            Send a `DELETE` request.
+    async def delete(
+        self,
+        url: URLTypes,
+        *,
+        params: QueryParamTypes = None,
+        headers: HeaderTypes = None,
+        cookies: CookieTypes = None,
+        auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+        timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+        extensions: dict = None,
+        raise_for_status: bool = True,
+    ) -> Response:
+        """
+        Send a `DELETE` request.
 
-            **Parameters**: See `httpx.request`.
-            """
-            return await self.request(
-                "DELETE",
-                url,
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                follow_redirects=follow_redirects,
-                timeout=timeout,
-                extensions=extensions,
-                raise_for_status=raise_for_status,
-            )
+        **Parameters**: See `httpx.request`.
+        """
+        return await self.request(
+            "DELETE",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            follow_redirects=follow_redirects,
+            timeout=timeout,
+            extensions=extensions,
+            raise_for_status=raise_for_status,
+        )
