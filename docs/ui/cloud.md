@@ -11,7 +11,7 @@ tags:
 
 # Prefect Cloud
 
-Prefect Cloud is a hosted UI for your flows and deployments. Prefect Cloud provides all the capabilities of the [Orion UI](/ui/overview/), plus additional features available only for Cloud accounts. This includes:
+Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Orion UI](/ui/overview/) in a hosted environment, including:
 
 - Flow run summaries
 - Deployed flow details
@@ -30,7 +30,7 @@ The following sections will get you set up and using Prefect Cloud, following th
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
 2. [Create workspaces](#create-a-workspace) for your account.
-3. [Create an API token](#create-an-api-token) to authorize a local execution environment.
+3. [Create an API key](#create-an-api-key) to authorize a local execution environment.
 4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
 5. [Configure storage](#configure-storage).
 6. [Run a flow](#run-a-flow-with-cloud) and display the flow run in Prefect Cloud.
@@ -47,11 +47,11 @@ You can create an account with:
 
 ## Create a workspace
 
-If you register a new account, you'll be prompted to create a new workspace. Workspaces enable you to organize work, keeping workflows for different projects, teams, or clients in their own spaces. You multiple workspaces.
+If you register a new account, you'll be prompted to create a workspace.  
 
 ![Creating a new Prefect Cloud account.](/img/ui/cloud-new-login.png)
 
-Click **Create Workspace**. You'll be prompted to provide a name and description for your first workspace.
+Click **Create Workspace**. You'll be prompted to provide a name and description for your workspace.
 
 ![Creating a new workspace in the Cloud UI.](/img/ui/cloud-workspace-details.png)
 
@@ -69,11 +69,11 @@ Click the Prefect logo: this always returns to your workspace list. Then click o
 
 ![Viewing a workspace dashboard in the Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
-## Create an API token
+## Create an API key
 
-API tokens enable you to authenticate an a local environment to work with Prefect Cloud. See [Configuring Orion for Cloud](#configuring-orion-for-cloud) for details on how API keys are configured in your execution environment.
+API keys enable you to authenticate an a local environment to work with Prefect Cloud. See [Configuring Orion for Cloud](#configuring-orion-for-cloud) for details on how API keys are configured in your execution environment.
 
-To create an API token, click the account icon at the bottom-left corner of the UI, then click **Profile**. This displays your account profile.
+To create an API key, click the account icon at the bottom-left corner of the UI, then click **Profile**. This displays your account profile.
 
 ![Viewing an account profile in the Cloud UI.](/img/ui/cloud-edit-profile.png)
 
@@ -91,21 +91,34 @@ Your next step is to configure a local execution environment to use Cloud as the
 
 1. [Install Orion](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
-2. In that environment, use the Prefect CLI to configure the Orion API URL, substituting your account and workspace IDs where indicated. When you're in a Prefect Cloud workspace, you can copy the accounts and workspaces strings directly from the page URL.
+2. Use the Prefect CLI `prefect cloud login` command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
 
 ```bash
-$ prefect config set PREFECT_API_URL="https://api-beta.prefect.io/api/accounts/<ACCOUNT ID>/workspaces/<WORKSPACE ID>"
+$ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
-3. Use the Prefect CLI to configure your API key, using an API key.
+It will prompt you to choose a workspace if you haven't given one (you can specify a workspace with the `-w` or `--workspace` option).
 
-```bash
-$ prefect config set PREFECT_API_KEY="<API KEY>"
+<div class='termy'>
 ```
+$ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃              Select a Workspace: ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ > tprefectio/tp-workspace        │
+└──────────────────────────────────┘
+Successfully logged in and set workspace to 'tprefectio/tp-workspace' in profile:
+'default'.
+```
+</div>
+
+It then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current profile.
 
 Now you're ready to run flows locally and have the results displayed in the Cloud UI.
 
-In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect config` CLI commands to create settings profiles for different configuration. For example, you could have a profile configured to use the Cloud API URL and API key, and another profile for local development using a local Orion API server. See [Settings](/concepts/settings/) for details.
+The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
+
+In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a profile configured to use the Cloud API URL and API key, and another profile for local development using a local Orion API server. See [Settings](/concepts/settings/) for details.
 
 ## Configure storage 
 
