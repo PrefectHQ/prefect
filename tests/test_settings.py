@@ -134,7 +134,7 @@ class TestProfiles:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_KEY = "bar"
                 """
             )
@@ -146,10 +146,10 @@ class TestProfiles:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [default]
+                [profiles.default]
                 PREFECT_API_KEY = "foo"
 
-                [foo]
+                [profiles.foo]
                 PREFECT_API_KEY = "bar"
                 """
             )
@@ -159,28 +159,13 @@ class TestProfiles:
             "foo": {"PREFECT_API_KEY": "bar"},
         }
 
-    def test_write_profiles_includes_default(self, temporary_profiles_path):
+    def test_write_profiles_does_not_include_default(self, temporary_profiles_path):
+        """
+        Including the default has a tendency to bake in settings the user may not want, and
+        can prevent them from gaining new defaults.
+        """
         write_profiles({})
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [default]
-                """
-            ).lstrip()
-        )
-
-    def test_write_profiles_allows_default_override(self, temporary_profiles_path):
-        write_profiles({"default": {"PREFECT_API_KEY": "foo"}})
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [default]
-                PREFECT_API_KEY = "foo"
-                """
-            ).lstrip()
-        )
+        assert "profiles.default" not in temporary_profiles_path.read_text()
 
     def test_write_profiles_additional_profiles(self, temporary_profiles_path):
         write_profiles(
@@ -190,12 +175,12 @@ class TestProfiles:
             temporary_profiles_path.read_text()
             == textwrap.dedent(
                 """
-                [default]
+                active = "default"
 
-                [foo]
+                [profiles.foo]
                 PREFECT_API_KEY = "bar"
 
-                [foobar]
+                [profiles.foobar]
                 PREFECT_API_KEY = 1
                 """
             ).lstrip()
@@ -212,7 +197,7 @@ class TestProfiles:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_KEY = "bar"
                 PREFECT_DEBUG_MODE = 1
                 """
@@ -227,10 +212,10 @@ class TestProfiles:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_KEY = "bar"
 
-                [foo.nested]
+                [profiles.foo.nested]
                 """
             )
         )
@@ -241,7 +226,7 @@ class TestProfiles:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 test = "unknown-key"
                 """
             )
