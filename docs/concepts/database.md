@@ -13,6 +13,8 @@ tags:
 Orion employs a metadata database that persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
 
 - Flow and task state
+- Run history
+- Logs
 - Deployments
 - Flow and task run concurrency limits
 - Storage locations for flow and task results

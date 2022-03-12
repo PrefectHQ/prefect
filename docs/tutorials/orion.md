@@ -93,6 +93,7 @@ To stop an instance of the Orion API server, simply **CTRL+C** to end the proces
 Orion employs a [metadata database](/concepts/database/) that persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
 
 - Flow and task state
+- Run history and logs
 - Deployments
 - Flow and task run concurrency limits
 - Storage locations for flow and task results
