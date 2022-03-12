@@ -174,7 +174,7 @@ PREFECT_PROFILES_PATH = Setting(
 PREFECT_LOGGING_LEVEL = Setting(
     str,
     default="INFO",
-    description="""The default logging level for Prefect loggers. Defaults to 
+    description="""The default logging level for Prefect loggers. Defaults to
     "INFO" during normal operation. Is forced to "DEBUG" during debug mode.""",
     value_callback=debug_mode_log_level,
 )
@@ -566,22 +566,38 @@ def get_default_settings() -> Settings:
     return _DEFAULTS_CACHE
 
 
-# Profile input / output
+def get_active_profile(name_only: bool = False):
+    active_profile = load_profiles(active_only=True)
+    if name_only:
+        return list(active_profile.keys()).pop()
+    else:
+        return active_profile
 
-DEFAULT_PROFILES = {"default": {}}
+
+def set_active_profile(name: str):
+    pass
 
 
-def load_profiles() -> Dict[str, Dict[str, str]]:
+def load_profiles(active_only: bool = False) -> Dict[str, Dict[str, str]]:
     """
     Load all profiles from the profiles path.
     """
     path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
-    if not path.exists():
-        profiles = DEFAULT_PROFILES
-    else:
-        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
+    default_path = Path(__file__).parent.joinpath("profiles.toml")
+    default_profile_config = toml.loads(default_path.read_text())
+    active_profile = default_profile_config["active"]
+    profiles = default_profile_config["profiles"]
 
-    return profiles
+    # if user as a profiles.toml, load it
+    if path.exists():
+        user_profile_config = toml.loads(path.read_text())
+        profiles = {**profiles, **user_profile_config["profiles"]}
+        active_profile = user_profile_config.get("active") or active_profile
+
+    if active_only:
+        return {active_profile: profiles[active_profile]}
+    else:
+        return profiles
 
 
 def write_profiles(profiles: dict):
