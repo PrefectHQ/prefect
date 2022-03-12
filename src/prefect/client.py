@@ -49,6 +49,7 @@ from prefect.settings import (
     PREFECT_API_URL,
 )
 from prefect.utilities.asyncio import asyncnullcontext
+
 from prefect.utilities.httpx import PrefectHttpxClient
 
 if TYPE_CHECKING:
@@ -243,107 +244,12 @@ class OrionClient:
         """
         return self._client.base_url
 
-    async def post(
-        self, route: str, raise_for_status: bool = True, **kwargs
-    ) -> httpx.Response:
-        """
-        Send a POST request to the provided route.
-
-        Args:
-            route: the path to make the request to
-            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
-
-        Raises:
-            httpx.HTTPStatusError: if a non-200 status code is returned
-
-        Returns:
-            an `httpx.Response` object
-        """
-        response = await self._client.post(route, **kwargs)
-
-        if raise_for_status:
-            response.raise_for_status()
-
-        return response
-
-    async def patch(
-        self, route: str, raise_for_status: bool = True, **kwargs
-    ) -> httpx.Response:
-        """
-        Send a PATCH request to the provided route.
-
-        Args:
-            route: the path to make the request to
-            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
-
-        Raises:
-            httpx.HTTPStatusError: if a non-200 status code is returned
-
-        Returns:
-            an `httpx.Response` object
-        """
-        response = await self._client.patch(route, **kwargs)
-
-        if raise_for_status:
-            response.raise_for_status()
-
-        return response
-
-    async def delete(
-        self, route: str, raise_for_status: bool = True, **kwargs
-    ) -> httpx.Response:
-        """
-        Send a DELETE request to the provided route.
-
-        Args:
-            route: the path to make the request to
-            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
-
-        Raises:
-            httpx.HTTPStatusError: if a non-200 status code is returned
-
-        Returns:
-            an `httpx.Response` object
-        """
-        response = await self._client.delete(route, **kwargs)
-
-        if raise_for_status:
-            response.raise_for_status()
-
-        return response
-
-    async def get(
-        self,
-        route: str,
-        raise_for_status: bool = True,
-        **kwargs,
-    ) -> httpx.Response:
-        """
-        Send a GET request to the provided route.
-
-        Args:
-            route: the path to make the request to
-            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
-
-        Raises:
-            httpx.HTTPStatusError: if a non-200 status code is returned
-
-        Returns:
-            an `httpx.Response` object
-        """
-        response = await self._client.get(route, **kwargs)
-
-        if raise_for_status:
-            response.raise_for_status()
-
-        return response
-
     # API methods ----------------------------------------------------------------------
 
     async def api_healthcheck(self) -> bool:
         try:
             with anyio.fail_after(10):
-                await self.get("/health")
+                await self._client.get("/health")
                 return True
         except:
             return False
@@ -352,7 +258,7 @@ class OrionClient:
         """
         Send a GET request to /hello for testing purposes.
         """
-        return await self.get("/admin/hello")
+        return await self._client.get("/admin/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
@@ -368,7 +274,9 @@ class OrionClient:
             the ID of the flow in the backend
         """
         flow_data = schemas.actions.FlowCreate(name=flow.name)
-        response = await self.post("/flows/", json=flow_data.dict(json_compatible=True))
+        response = await self._client.post(
+            "/flows/", json=flow_data.dict(json_compatible=True)
+        )
 
         flow_id = response.json().get("id")
         if not flow_id:
@@ -387,7 +295,7 @@ class OrionClient:
         Returns:
             a [Flow model][prefect.orion.schemas.core.Flow] representation of the flow
         """
-        response = await self.get(f"/flows/{flow_id}")
+        response = await self._client.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
     async def read_flows(
@@ -433,7 +341,7 @@ class OrionClient:
             "offset": offset,
         }
 
-        response = await self.post(f"/flows/filter", json=body)
+        response = await self._client.post(f"/flows/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
 
     async def read_flow_by_name(
@@ -449,7 +357,7 @@ class OrionClient:
         Returns:
             a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
         """
-        response = await self.get(f"/flows/name/{flow_name}")
+        response = await self._client.get(f"/flows/name/{flow_name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def create_flow_run_from_deployment(
@@ -490,7 +398,7 @@ class OrionClient:
             flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
-        response = await self.post(
+        response = await self._client.post(
             f"/deployments/{deployment_id}/create_flow_run",
             json=flow_run_create.dict(json_compatible=True),
         )
@@ -550,7 +458,7 @@ class OrionClient:
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
-        response = await self.post("/flow_runs/", json=flow_run_create_json)
+        response = await self._client.post("/flow_runs/", json=flow_run_create_json)
         flow_run = schemas.core.FlowRun.parse_obj(response.json())
 
         # Restore the parameters to the local objects to retain expectations about
@@ -588,7 +496,7 @@ class OrionClient:
 
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
-        return await self.patch(
+        return await self._client.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
@@ -617,7 +525,7 @@ class OrionClient:
             tag=tag,
             concurrency_limit=concurrency_limit,
         )
-        response = await self.post(
+        response = await self._client.post(
             "/concurrency_limits/",
             json=concurrency_limit_create.dict(json_compatible=True),
         )
@@ -647,7 +555,7 @@ class OrionClient:
             the concurrency limit set on a specific tag
         """
         try:
-            response = await self.get(
+            response = await self._client.get(
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
@@ -685,7 +593,7 @@ class OrionClient:
             "offset": offset,
         }
 
-        response = await self.post("/concurrency_limits/filter", json=body)
+        response = await self._client.post("/concurrency_limits/filter", json=body)
         return pydantic.parse_obj_as(
             List[schemas.core.ConcurrencyLimit], response.json()
         )
@@ -706,7 +614,7 @@ class OrionClient:
 
         """
         try:
-            await self.delete(
+            await self._client.delete(
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
@@ -750,7 +658,7 @@ class OrionClient:
             ),
         ).dict(json_compatible=True)
         try:
-            response = await self.post("/work_queues/", json=data)
+            response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 409:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
@@ -775,7 +683,7 @@ class OrionClient:
         Returns:
             schemas.core.WorkQueue: a work queue API object
         """
-        response = await self.get(f"/work_queues/name/{name}")
+        response = await self._client.get(f"/work_queues/name/{name}")
         return schemas.core.WorkQueue.parse_obj(response.json())
 
     async def update_work_queue(self, id: UUID, **kwargs):
@@ -797,7 +705,7 @@ class OrionClient:
 
         data = WorkQueueUpdate(**kwargs).dict(json_compatible=True, exclude_unset=True)
         try:
-            await self.patch(f"/work_queues/{id}", json=data)
+            await self._client.patch(f"/work_queues/{id}", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -831,7 +739,7 @@ class OrionClient:
             json_data.update({"scheduled_before": scheduled_before.isoformat()})
 
         try:
-            response = await self.post(
+            response = await self._client.post(
                 f"/work_queues/{id}/get_runs",
                 json=json_data,
             )
@@ -860,7 +768,7 @@ class OrionClient:
             WorkQueue: an instantiated WorkQueue object
         """
         try:
-            response = await self.get(f"/work_queues/{id}")
+            response = await self._client.get(f"/work_queues/{id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -888,7 +796,7 @@ class OrionClient:
             "limit": limit,
             "offset": offset,
         }
-        response = await self.post(f"/work_queues/filter", json=body)
+        response = await self._client.post(f"/work_queues/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
 
     async def delete_work_queue_by_id(
@@ -906,7 +814,7 @@ class OrionClient:
             httpx.RequestError: If requests fails
         """
         try:
-            await self.delete(
+            await self._client.delete(
                 f"/work_queues/{id}",
             )
         except httpx.HTTPStatusError as e:
@@ -934,7 +842,7 @@ class OrionClient:
         )
 
         try:
-            response = await self.post(
+            response = await self._client.post(
                 "/blocks/",
                 json=payload,
             )
@@ -958,7 +866,7 @@ class OrionClient:
         Returns:
             A hydrated block or None.
         """
-        response = await self.post(
+        response = await self._client.post(
             f"/block_specs/filter", json={"block_spec_type": type}
         )
         return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
@@ -977,7 +885,7 @@ class OrionClient:
         Returns:
             A hydrated block or None.
         """
-        response = await self.get(f"/blocks/{block_id}")
+        response = await self._client.get(f"/blocks/{block_id}")
         return create_block_from_api_block(response.json())
 
     async def read_block_by_name(
@@ -1002,7 +910,7 @@ class OrionClient:
         Returns:
             A hydrated block or None.
         """
-        response = await self.get(
+        response = await self._client.get(
             f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
         )
         return create_block_from_api_block(response.json())
@@ -1027,7 +935,7 @@ class OrionClient:
         Returns:
             A list of blocks
         """
-        response = await self.post(
+        response = await self._client.post(
             f"/blocks/filter",
             json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
         )
@@ -1073,7 +981,7 @@ class OrionClient:
             flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
-        response = await self.post(
+        response = await self._client.post(
             "/deployments/", json=deployment_create.dict(json_compatible=True)
         )
         deployment_id = response.json().get("id")
@@ -1095,7 +1003,7 @@ class OrionClient:
         Returns:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
-        response = await self.get(f"/deployments/{deployment_id}")
+        response = await self._client.get(f"/deployments/{deployment_id}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployment_by_name(
@@ -1116,7 +1024,7 @@ class OrionClient:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
         try:
-            response = await self.get(f"/deployments/name/{name}")
+            response = await self._client.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1167,7 +1075,7 @@ class OrionClient:
             "limit": limit,
             "offset": offset,
         }
-        response = await self.post(f"/deployments/filter", json=body)
+        response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
@@ -1180,7 +1088,7 @@ class OrionClient:
         Returns:
             a [Flow Run model][prefect.orion.schemas.core.FlowRun] representation of the flow run
         """
-        response = await self.get(f"/flow_runs/{flow_run_id}")
+        response = await self._client.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
     async def read_flow_runs(
@@ -1229,7 +1137,7 @@ class OrionClient:
             "offset": offset,
         }
 
-        response = await self.post(f"/flow_runs/filter", json=body)
+        response = await self._client.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def get_default_storage_block(
@@ -1245,7 +1153,7 @@ class OrionClient:
         Returns:
             Optional[Block]:
         """
-        response = await self.post("/blocks/get_default_storage_block")
+        response = await self._client.post("/blocks/get_default_storage_block")
         if not response.content:
             return None
         if as_json:
@@ -1254,7 +1162,7 @@ class OrionClient:
 
     async def set_default_storage_block(self, block_id: UUID):
         try:
-            await self.post(f"/blocks/{block_id}/set_default_storage_block")
+            await self._client.post(f"/blocks/{block_id}/set_default_storage_block")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1262,7 +1170,7 @@ class OrionClient:
                 raise
 
     async def clear_default_storage_block(self):
-        await self.post(f"/blocks/clear_default_storage_block")
+        await self._client.post(f"/blocks/clear_default_storage_block")
 
     async def persist_data(
         self,
@@ -1381,7 +1289,7 @@ class OrionClient:
             state_data.data = None
             state_data_json = state_data.dict(json_compatible=True)
 
-        response = await self.post(
+        response = await self._client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=dict(state=state_data_json, force=force),
         )
@@ -1400,7 +1308,7 @@ class OrionClient:
             a list of [State model][prefect.orion.schemas.states.State] representation
                 of the flow run states
         """
-        response = await self.get(
+        response = await self._client.get(
             "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
@@ -1460,7 +1368,7 @@ class OrionClient:
             task_inputs=task_inputs or {},
         )
 
-        response = await self.post(
+        response = await self._client.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
         )
         return TaskRun.parse_obj(response.json())
@@ -1475,7 +1383,7 @@ class OrionClient:
         Returns:
             a [Task Run model][prefect.orion.schemas.core.TaskRun] representation of the task run
         """
-        response = await self.get(f"/task_runs/{task_run_id}")
+        response = await self._client.get(f"/task_runs/{task_run_id}")
         return schemas.core.TaskRun.parse_obj(response.json())
 
     async def read_task_runs(
@@ -1523,7 +1431,7 @@ class OrionClient:
             "limit": limit,
             "offset": offset,
         }
-        response = await self.post(f"/task_runs/filter", json=body)
+        response = await self._client.post(f"/task_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.TaskRun], response.json())
 
     async def propose_state(
@@ -1663,7 +1571,7 @@ class OrionClient:
             state_data.data = None
             state_data_json = state_data.dict(json_compatible=True)
 
-        response = await self.post(
+        response = await self._client.post(
             f"/task_runs/{task_run_id}/set_state",
             json=dict(state=state_data_json, force=force),
         )
@@ -1682,7 +1590,7 @@ class OrionClient:
             a list of [State model][prefect.orion.schemas.states.State] representation
                 of the task run states
         """
-        response = await self.get(
+        response = await self._client.get(
             "/task_run_states/", params=dict(task_run_id=task_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
@@ -1698,7 +1606,7 @@ class OrionClient:
             log.dict(json_compatible=True) if isinstance(log, LogCreate) else log
             for log in logs
         ]
-        await self.post(f"/logs/", json=serialized_logs)
+        await self._client.post(f"/logs/", json=serialized_logs)
 
     async def read_logs(
         self, log_filter: LogFilter = None, limit: int = None, offset: int = None
@@ -1712,7 +1620,7 @@ class OrionClient:
             "offset": offset,
         }
 
-        response = await self.post(f"/logs/filter", json=body)
+        response = await self._client.post(f"/logs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Log], response.json())
 
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
