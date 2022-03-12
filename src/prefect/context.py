@@ -386,6 +386,6 @@ def enter_global_profile():
     if GLOBAL_PROFILE_CM:
         return  # A global context already has been entered
 
-    name = os.environ.get("PREFECT_PROFILE", "default")
+    name = prefect.settings.get_active_profile(name_only=True)
     GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
     GLOBAL_PROFILE_CM.__enter__()
