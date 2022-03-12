@@ -89,9 +89,9 @@ Note that API keys cannot be revealed again in the UI after you generate them, s
 
 Your next step is to configure a local execution environment to use Cloud as the API server for local flow runs.
 
-1. [Install Orion](/getting-started/installation/) in the environment in which you want to execute flow runs.
+First, [Install Orion](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
-2. Use the Prefect CLI `prefect cloud login` command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
+Next, use the Prefect CLI `prefect cloud login` command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
 
 ```bash
 $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -99,8 +99,7 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 It will prompt you to choose a workspace if you haven't given one (you can specify a workspace with the `-w` or `--workspace` option).
 
-<div class='termy'>
-```
+```bash
 $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃              Select a Workspace: ┃
@@ -110,13 +109,23 @@ $ prefect cloud login --key xxx_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 Successfully logged in and set workspace to 'tprefectio/tp-workspace' in profile:
 'default'.
 ```
-</div>
 
 It then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current profile.
 
 Now you're ready to run flows locally and have the results displayed in the Cloud UI.
 
 The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
+
+### Manually configuring Cloud settings
+
+Note that you can also manually configure the settings to interact with Prefect Cloud using an account ID, workspace ID, and API key.
+
+```BASH
+$ prefect config set PREFECT_API_URL="https://beta.prefect.io/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+$ prefect config set PREFECT_API_KEY="[API-KEY]"
+```
+
+When you're in a Prefect Cloud workspace, you can copy the API URL directly from the page URL, or copy the entire command string from the **Workspace Details** page.
 
 In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a profile configured to use the Cloud API URL and API key, and another profile for local development using a local Orion API server. See [Settings](/concepts/settings/) for details.
 
