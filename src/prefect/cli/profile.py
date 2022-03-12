@@ -106,6 +106,19 @@ def create(
 
 
 @profile_app.command()
+def use(name: str):
+    """
+    Set the given profile to active.
+    """
+    profiles = prefect.settings.load_profiles()
+    if name not in profiles:
+        exit_with_error(f"Profle {name!r} not found.")
+
+    prefect.settings.set_active_profile(name)
+    exit_with_success(f"Profile {name!r} now active.")
+
+
+@profile_app.command()
 def delete(name: str):
     """
     Delete the given profile.
