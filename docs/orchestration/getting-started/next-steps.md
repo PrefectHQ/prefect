@@ -43,7 +43,7 @@ old version and register a new version using the new code.
 
 ## Execute a Flow Run
 
-As in the [previous section](./registerings-and-running-a-flow.md#execute-a-flow-run), you can execute a
+As in the [previous section](./registering-and-running-a-flow.md#execute-a-flow-run), you can execute a
 flow run using the "Quick Run" button in the UI. Make sure you still have your
 Agent running [from before](./registering-and-running-a-flow.md#start-an-agent).
 

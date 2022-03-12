@@ -39,7 +39,8 @@ def signal_from_state(state: state.State) -> Type["PrefectStateSignal"]:
 class ENDRUN(PrefectSignal):
     """
     An ENDRUN exception is used to indicate that _all_ state processing should
-    stop. The pipeline result should be the state contained in the exception.
+    stop for a given task. An ENDRUN exception with a Failed state will not retry
+    the task. The pipeline result should be the state contained in the exception.
 
     Args:
         - state (State): the state that should be used as the result of the Runner's run

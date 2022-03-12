@@ -1,5 +1,7 @@
 import pendulum
 import pytest
+import uuid
+import os
 import sys
 from unittest.mock import MagicMock, call
 from subprocess import CalledProcessError
@@ -14,11 +16,13 @@ from prefect.backend.execution import (
     generate_flow_run_environ,
     execute_flow_run_in_subprocess,
 )
-from prefect.backend import FlowRunView as FlowRunView
 from prefect.run_configs import UniversalRun
 from prefect.engine.state import Failed, Scheduled, Success, Running, Submitted
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.configuration import set_temporary_config
+
+
+CONFIG_TENANT_ID = str(uuid.uuid4())
 
 
 @pytest.fixture()
@@ -58,34 +62,43 @@ class TestExecuteFlowRunInSubprocess:
 
         return mocks
 
-    def test_creates_subprocess_correctly(self, cloud_mocks, mocks):
+    @pytest.mark.parametrize("include_local_env", [True, False])
+    def test_creates_subprocess_correctly(self, cloud_mocks, mocks, include_local_env):
         # Returned a scheduled flow run to start
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
         # Return a finished flow run after the first iteration
         cloud_mocks.FlowRunView().get_latest().state = Success()
 
-        execute_flow_run_in_subprocess("flow-run-id")
+        execute_flow_run_in_subprocess(
+            "flow-run-id", include_local_env=include_local_env
+        )
 
         # Should pass the correct flow run id to wait for
         mocks.wait_for_flow_run_start_time.assert_called_once_with("flow-run-id")
 
+        # Merge the starting env and the env generated for a flow run
+        base_env = os.environ.copy() if include_local_env else {}
+        generated_env = {
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "True",
+            "PREFECT__LOGGING__LEVEL": "INFO",
+            "PREFECT__LOGGING__FORMAT": "[%(asctime)s] %(levelname)s - %(name)s | %(message)s",
+            "PREFECT__LOGGING__DATEFMT": "%Y-%m-%d %H:%M:%S%z",
+            "PREFECT__BACKEND": "cloud",
+            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__CLOUD__TENANT_ID": "",
+            "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
+            "PREFECT__CLOUD__AUTH_TOKEN": cloud_mocks.Client().api_key,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
+            "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+        }
+        expected_env = {**base_env, **generated_env}
+
         # Calls the correct command w/ environment variables
         mocks.subprocess.run.assert_called_once_with(
             [sys.executable, "-m", "prefect", "execute", "flow-run"],
-            env={
-                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "True",
-                "PREFECT__LOGGING__LEVEL": "INFO",
-                "PREFECT__LOGGING__FORMAT": "[%(asctime)s] %(levelname)s - %(name)s | %(message)s",
-                "PREFECT__LOGGING__DATEFMT": "%Y-%m-%d %H:%M:%S%z",
-                "PREFECT__BACKEND": "cloud",
-                "PREFECT__CLOUD__API": "https://api.prefect.io",
-                "PREFECT__CLOUD__TENANT_ID": "",
-                "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
-                "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
-                "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
-                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            },
+            env=expected_env,
         )
 
         # Return code is checked
@@ -175,10 +188,10 @@ def test_generate_flow_run_environ():
             "cloud.send_flow_run_logs": "CONFIG_SEND_RUN_LOGS",
             "backend": "CONFIG_BACKEND",
             "cloud.api": "CONFIG_API",
-            "cloud.tenant_id": "CONFIG_TENANT_ID",
-            # Deprecated tokens are included if available but overriden by `run_api_key`
+            "cloud.tenant_id": CONFIG_TENANT_ID,
+            # Deprecated tokens are ignored _always_ since 1.0.0
             "cloud.agent.auth_token": "CONFIG_AUTH_TOKEN",
-            "cloud.auth_token": None,
+            "cloud.auth_token": "CONFIG_AUTH_TOKEN",
         }
     ):
         result = generate_flow_run_environ(
@@ -215,7 +228,7 @@ def test_generate_flow_run_environ():
         "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "CONFIG_SEND_RUN_LOGS",
         "PREFECT__BACKEND": "CONFIG_BACKEND",
         "PREFECT__CLOUD__API": "CONFIG_API",
-        "PREFECT__CLOUD__TENANT_ID": "CONFIG_TENANT_ID",
+        "PREFECT__CLOUD__TENANT_ID": CONFIG_TENANT_ID,
         # Overridden by run config
         "A": "RUN_CONFIG",
         "B": "RUN_CONFIG",
@@ -225,6 +238,7 @@ def test_generate_flow_run_environ():
     }
 
 
+@pytest.mark.flaky
 class TestWaitForFlowRunStartTime:
     @pytest.fixture()
     def timing_mocks(self, monkeypatch):
@@ -308,7 +322,6 @@ class TestWaitForFlowRunStartTime:
         # Did not sleep
         timing_mocks.sleep.assert_not_called()
 
-    @pytest.mark.flaky
     def test_task_run_is_scheduled_in_the_past(self, timing_mocks):
         timing_mocks.get_flow_run_scheduled_start_time.return_value = None
         timing_mocks.get_next_task_run_start_time.return_value = (

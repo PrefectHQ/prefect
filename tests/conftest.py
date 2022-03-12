@@ -176,12 +176,6 @@ def patch_posts(monkeypatch):
 
 
 @pytest.fixture()
-def runner_token(monkeypatch):
-    monkeypatch.setattr("prefect.agent.agent.Agent._verify_token", MagicMock())
-    monkeypatch.setattr("prefect.agent.agent.Agent._register_agent", MagicMock())
-
-
-@pytest.fixture()
 def cloud_api():
     with prefect.utilities.configuration.set_temporary_config(
         {"cloud.api": "https://api.prefect.io", "backend": "cloud"}
@@ -212,6 +206,17 @@ def backend(request):
 def running_with_backend():
     with prefect.context({"running_with_backend": True}):
         yield
+
+
+@pytest.fixture
+def config_with_api_key(cloud_api):
+    with prefect.utilities.configuration.set_temporary_config(
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": "fa68f96e-0c80-4e0d-9c2a-e11452f1d786",
+        }
+    ) as config:
+        yield config
 
 
 # ----------------

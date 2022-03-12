@@ -76,7 +76,7 @@ mutation {
 
 Basic and custom roles can be assigned in the Prefect UI to [users](https://cloud.prefect.io/team/members) and [service accounts](https://cloud.prefect.io/team/service-accounts). When inviting a new user to your team, you can specify a role to assign them.
 
-Roles can also be assigned programatically via the GraphQL API.
+Roles can also be assigned programmatically via the GraphQL API.
 
 ```graphql
 mutation {

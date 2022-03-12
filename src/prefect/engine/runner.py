@@ -1,6 +1,6 @@
 import collections.abc
 import functools
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import prefect
 from prefect.engine import signals
@@ -87,7 +87,6 @@ class Runner:
         ):
             raise TypeError("state_handlers should be iterable.")
         self.state_handlers = state_handlers or []
-        self.heartbeat_cmd = [""]  # type: List[str]
         self.logger = logging.get_logger(type(self).__name__)
 
     def __repr__(self) -> str:

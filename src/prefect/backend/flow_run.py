@@ -20,8 +20,6 @@ logger = get_logger("backend.flow_run")
 def stream_flow_run_logs(flow_run_id: str) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
-
-    EXPERIMENTAL: This interface is experimental and subject to change
     """
     for log in watch_flow_run(flow_run_id):
         level_name = logging.getLevelName(log.level)
@@ -43,8 +41,6 @@ def watch_flow_run(
 
     If both stream_states and stream_logs are `False` then this will just block until
     the flow run finishes.
-
-    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - flow_run_id: The flow run to watch
@@ -99,7 +95,7 @@ def watch_flow_run(
         if total_time_elapsed > 60 * 60 * 12:
             raise RuntimeError(
                 "`watch_flow_run` timed out after 12 hours of waiting for completion. "
-                "Your flow run is still in state: {flow_run.state}"
+                f"Your flow run is still in state: {flow_run.state}"
             )
 
         if (
@@ -143,11 +139,13 @@ def watch_flow_run(
 
         if stream_logs:
             # Display logs if asked and the flow is running
-            logs = flow_run.get_logs(start_time=last_log_timestamp)
+            logs = flow_run.get_logs(
+                start_time=last_log_timestamp, end_time=pendulum.now()
+            )
             messages += logs
             if logs:
                 # Set the last timestamp so the next query is scoped to logs we have
-                # not seen yet
+                # not seen yet`
                 last_log_timestamp = logs[-1].timestamp
 
         for flow_run_log in sorted(messages):
@@ -177,8 +175,6 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
     - There are N unhealthy agents with matching labels but no healthy agents matching
     - There are no healthy agents at all and no unhealthy agents with matching labels
     - There are healthy agents but no healthy or unhealthy agent has matching labels
-
-    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - labels: A set of labels; typically associated with a flow run
@@ -283,8 +279,6 @@ def check_for_compatible_agents(labels: Iterable[str], since_minutes: int = 1) -
 class FlowRunLog(NamedTuple):
     """
     Small wrapper for backend log objects
-
-    EXPERIMENTAL: This interface is experimental and subject to change
     """
 
     timestamp: pendulum.DateTime
@@ -330,8 +324,6 @@ class FlowRunView:
     backend API at the time it is created. However, each time a task run is retrieved
     the latest data for that task will be pulled since they are loaded lazily. Finished
     task runs will be cached in this object to reduce the amount of network IO.
-
-    EXPERIMENTAL: This interface is experimental and subject to change
 
     Args:
         - flow_run_id: The uuid of the flow run
@@ -428,22 +420,25 @@ class FlowRunView:
     def get_logs(
         self,
         start_time: pendulum.DateTime = None,
+        end_time: pendulum.DateTime = None,
     ) -> List["FlowRunLog"]:
         """
-        Get logs for this flow run from `start_time` to `self.updated_at` which is the
-        last time that the flow run was updated in the backend before this object was
-        created.
+        Get logs for this flow run from `start_time` to `end_time`.
 
         Args:
             - start_time (optional): A time to start the log query at, useful for
                 limiting the scope. If not provided, all logs up to `updated_at` are
                 retrieved.
+            - end_time (optional): A time to end the log query at. By default, this is
+                set to `self.updated_at` which is the last time that the flow run was
+                updated in the backend before this object was created.
 
         Returns:
             A list of `FlowRunLog` objects sorted by timestamp
         """
 
         client = prefect.Client()
+        end_time = end_time or self.updated_at
 
         logs_query = {
             with_args(
@@ -452,7 +447,7 @@ class FlowRunView:
                     "order_by": {EnumValue("timestamp"): EnumValue("asc")},
                     "where": {
                         "_and": [
-                            {"timestamp": {"_lte": self.updated_at.isoformat()}},
+                            {"timestamp": {"_lte": end_time.isoformat()}},
                             (
                                 {"timestamp": {"_gt": start_time.isoformat()}}
                                 if start_time
@@ -521,7 +516,10 @@ class FlowRunView:
 
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
-        run_config = RunConfigSchema().load(flow_run_data.pop("run_config"))
+        run_config_data = flow_run_data.pop("run_config")
+        run_config = (
+            RunConfigSchema().load(run_config_data) if run_config_data else None
+        )
 
         states_data = flow_run_data.pop("states", [])
         states = list(

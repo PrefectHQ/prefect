@@ -13,7 +13,7 @@
       />
     </form>
     <transition name="fade" mode="out-in">
-      <div v-if="showResults" class="results">
+      <div v-show="showResults" class="results">
         <div class="marvin" :class="{ small: query }">
           <img :src="'/assets/marvin.jpg'" alt="Marvin Picture" />
           <transition name="fade">
@@ -60,6 +60,7 @@
             <div class="hits">
               <div
                 v-for="r in group.hits"
+                :key="r.id"
                 class="result-item ripple"
                 @click="navigateToResult(r.url)"
                 @keyup.enter="navigateToResult(r.url)"

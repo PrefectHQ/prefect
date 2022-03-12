@@ -62,13 +62,13 @@ a few different tag options:
 | ---------------- | :----------------------: | -------------: |
 | latest           | most recent PyPi version |            3.7 |
 | master           |       master build       |            3.7 |
+| latest-python3.9 | most recent PyPi version |            3.9 |
 | latest-python3.8 | most recent PyPi version |            3.8 |
 | latest-python3.7 | most recent PyPi version |            3.7 |
-| latest-python3.6 | most recent PyPi version |            3.6 |
 | X.Y.Z            |          X.Y.Z           |            3.7 |
+| X.Y.Z-python3.9  |          X.Y.Z           |            3.9 |
 | X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
 | X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
-| X.Y.Z-python3.6  |          X.Y.Z           |            3.6 |
 | core             | most recent PyPi version |            3.8 |
 | core-X.Y.Z       |          X.Y.Z           |            3.8 |
 

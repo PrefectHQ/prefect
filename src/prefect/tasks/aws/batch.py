@@ -91,6 +91,7 @@ class BatchSubmit(Task):
                 **batch_kwargs,
             )
         except Exception as e:
+            self.logger.error("Failed to submit job", exc_info=True)
             raise FAIL(f"Failed to submit job '{job_name}' to AWS Batch.") from e
 
         if not response.get("jobId"):

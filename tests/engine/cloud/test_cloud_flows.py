@@ -83,7 +83,7 @@ def cloud_settings():
     with set_temporary_config(
         {
             "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "token",
+            "cloud.api_key": "api-key",
             "cloud.queue_interval": 0.1,
             "engine.flow_runner.default_class": "prefect.engine.cloud.CloudFlowRunner",
             "engine.task_runner.default_class": "prefect.engine.cloud.CloudTaskRunner",

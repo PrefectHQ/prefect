@@ -137,13 +137,10 @@ def test_task_with_error_has_helpful_messages(caplog):
     task_runner = TaskRunner(task=ErrorTask())
     state = task_runner.run()
     assert state.is_failed()
-    exc_repr = (
-        # Support py3.6 exception reprs
-        "ValueError('custom-error-message',)"
-        if sys.version_info < (3, 7)
-        else "ValueError('custom-error-message')"
+    assert (
+        state.message
+        == f"Error during execution of task: ValueError('custom-error-message')"
     )
-    assert state.message == f"Error during execution of task: {exc_repr}"
     assert "ValueError: custom-error-message" in caplog.text
     assert "Traceback" in caplog.text  # Traceback should be included
     assert (
@@ -179,6 +176,13 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     # second run should fail
     state = task_runner.run(state=state)
     assert isinstance(state, Failed)
+
+
+def test_task_with_max_retries_0_does_not_retry():
+    task = ErrorTask(max_retries=0, retry_delay=None)
+    task_runner = TaskRunner(task)
+    state = task_runner.run()
+    assert isinstance(state, Finished) and not isinstance(state, Retrying)
 
 
 def test_task_that_raises_retry_has_start_time_recognized():
@@ -2349,3 +2353,159 @@ def test_task_runner_logs_map_index_for_mapped_tasks(caplog):
         msg = line.split("INFO")[1]
         logged_map_index = msg[-1]
         assert msg.count(logged_map_index) == 2
+
+
+class TestTaskRunNames:
+    def test_task_runner_set_task_name(self):
+        task = Task(name="test", task_run_name="asdf")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "asdf"
+
+        task = Task(name="test", task_run_name="{map_index}")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        class Temp:
+            value = 100
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={"map_index": Temp()})
+            assert prefect.context.get("task_run_name") == "100"
+
+        task = Task(name="test", task_run_name=lambda **kwargs: "name")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "name"
+
+    def test_task_runner_sets_task_run_name_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        edge = Edge(Task(), Task(), key="input")
+        state = Success(result="my-value")
+        state = TaskRunner(task=test_task).run(upstream_states={edge: state})
+
+        assert state.result == "hello-my-value"
+
+    def test_mapped_task_run_name_set_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            data = [1, 2, 3]
+            test_task_key = test_task.map(data)
+
+        state = flow.run()
+        assert state.result[test_task_key].result == ["hello-1", "hello-2", "hello-3"]
+
+    def test_task_pipeline(self):
+        """
+        A simple pipeline
+        """
+
+        @prefect.task()
+        def add_1(x):
+            return x + 1
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            result = add_1(1).pipe(add_1).pipe(add_1).pipe(add_1)
+
+        state = flow.run()
+        assert state.result[result].result == 5
+
+    def test_task_pipeline_kwargs(self):
+        """
+        A simple pipeline with kwargs being passed in the pipe method
+        """
+        from datetime import datetime, timedelta
+        from prefect import Flow
+
+        @prefect.task()
+        def add_time(date: datetime, **kwargs) -> datetime:
+            delta = timedelta(**kwargs)
+            return date + delta
+
+        with Flow("test") as flow:
+            result = (
+                add_time(datetime.utcfromtimestamp(0), days=1)
+                .pipe(add_time, hours=1)
+                .pipe(add_time, minutes=1)
+            )
+
+            state = flow.run()
+            assert state.result[result].result == datetime(
+                year=1970, month=1, day=2, hour=1, minute=1
+            )
+
+    def test_task_pipeline_no_varargs(self):
+        """
+        Verify that we don't accept positional args beyond the implicitly piped argument in .pipe
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            print(dict(**kwargs))
+            return arg
+
+        with Flow("test") as flow:
+            with pytest.raises(TypeError):
+                accepts_anything("initial arg").pipe(
+                    accepts_anything, "some positional arg"
+                )
+
+    def test_task_pipeline_keyword_task(self):
+        """
+        Verify that passing task as a keyword argument works fine
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            return dict(**kwargs)
+
+        with Flow("test") as flow:
+            res = accepts_anything("initial arg").pipe(
+                accepts_anything, task="some kwarg"
+            )
+            state = flow.run()
+            assert state.result[res].result == dict(task="some kwarg")
+
+    def test_task_pipeline_keyword_self(self):
+        """
+        Verify that passing self as a keyword argument throws an error
+        """
+        from prefect import Flow
+
+        @prefect.task()
+        def accepts_anything(arg, **kwargs):
+            return dict(**kwargs)
+
+        with Flow("test") as flow:
+            with pytest.raises(ValueError):
+                res = accepts_anything("initial arg").pipe(
+                    accepts_anything, self="some kwarg"
+                )
+            state = flow.run()

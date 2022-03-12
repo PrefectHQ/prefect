@@ -21,8 +21,6 @@ class TaskRunView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created.
 
-    EXPERIMENTAL: This interface is experimental and subject to change
-
     Args:
         - task_run_id: The task run uuid
         - task_id: The uuid of the task associated with this task run

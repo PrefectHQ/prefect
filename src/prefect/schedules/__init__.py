@@ -6,4 +6,7 @@ from prefect.schedules.schedules import (
     Schedule,
     IntervalSchedule,
     CronSchedule,
+    RRuleSchedule,
 )
+
+__all__ = ["CronSchedule", "IntervalSchedule", "RRuleSchedule", "Schedule"]

@@ -25,7 +25,7 @@ pip install prefect[kubernetes]
 ::: tab Conda
 
 ```bash
-conda install -c conda-forge prefect kubernetes
+conda install -c conda-forge prefect python-kubernetes
 ```
 
 :::
@@ -177,7 +177,7 @@ The generated manifest can be piped to `kubectl apply`, or manually edited to
 further customize the deployment.
 
 ```bash
-prefect agent kubernetes install -t MY_TOKEN | kubectl apply --namespace=my-namespace -f -
+prefect agent kubernetes install -k API_KEY | kubectl apply --namespace=my-namespace -f -
 ```
 
 Once created, you should be able to see the agent deployment running in your
@@ -214,7 +214,7 @@ rules:
     resources: ['events', 'pods']
     verbs: ['*']
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   namespace: default

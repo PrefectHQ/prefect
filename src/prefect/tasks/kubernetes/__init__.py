@@ -46,3 +46,34 @@ except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.kubernetes` requires Prefect to be installed with the "kubernetes" extra.'
     ) from err
+
+__all__ = [
+    "ConnectGetNamespacedPodExec",
+    "CreateNamespacedDeployment",
+    "CreateNamespacedJob",
+    "CreateNamespacedPod",
+    "CreateNamespacedService",
+    "DeleteNamespacedDeployment",
+    "DeleteNamespacedJob",
+    "DeleteNamespacedPod",
+    "DeleteNamespacedService",
+    "KubernetesSecret",
+    "ListNamespacedDeployment",
+    "ListNamespacedJob",
+    "ListNamespacedPod",
+    "ListNamespacedService",
+    "PatchNamespacedDeployment",
+    "PatchNamespacedJob",
+    "PatchNamespacedPod",
+    "PatchNamespacedService",
+    "ReadNamespacedDeployment",
+    "ReadNamespacedJob",
+    "ReadNamespacedPod",
+    "ReadNamespacedPodLogs",
+    "ReadNamespacedService",
+    "ReplaceNamespacedDeployment",
+    "ReplaceNamespacedJob",
+    "ReplaceNamespacedPod",
+    "ReplaceNamespacedService",
+    "RunNamespacedJob",
+]

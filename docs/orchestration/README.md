@@ -11,40 +11,64 @@ sidebarDepth: 0
 
 When you want to run and monitor many flows, maintaining their state and inspecting their progress can be difficult without some extra tooling.
 
-Prefect Core's server and Prefect Cloud are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine with a rich GraphQL API to make orchestration of your flows easy.
+Prefect Cloud and the Prefect Server are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine with a rich GraphQL API to make orchestration of your flows easy.
 
 Prefect Core's server is an open source, lightweight version of our highly-available, production-ready product Prefect Cloud.
 
-Depending on your needs, you might want to try the open source server in Prefect Core, [sign up for our free Prefect Cloud Starter tier](https://cloud.prefect.io/), or [scale up to a bigger Prefect Cloud license](https://www.prefect.io/pricing/). All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
+Most users get the greatest benefit from signing up for the [free Prefect Cloud Starter tier](https://cloud.prefect.io/). 
 
+If your team needs support for additional users, automations, multi-tenant permissions, SSO, and other features, [scale up to a bigger Prefect Cloud license](https://www.prefect.io/pricing/). 
 
-##### Prefect Core server
+Prefect Core also includes an open source, locally hosted server.
 
-Prefect Core ships with an open-source backend and UI that automatically extends the Prefect Core engine with:
+All of your Prefect flows will work seamlessly on any of these backends, so you won't need to change any of your flow code to change between them.
 
-- a full GraphQL API
-- a complete UI for flows and jobs
-- automatic and asynchronous scheduling and alerting
+### Prefect Cloud
 
-Get started by running `prefect server start` and navigate to `http://localhost:8080`.
+Prefect Cloud is a fully hosted, production-ready backend for Prefect Core that provides enhanced features for flow orchestration and visibility, including:
 
-**Note:** Prefect Server requires both Docker and Docker Compose.
-
-##### Prefect Cloud
-
-Prefect Cloud is a fully hosted, production-ready backend for Prefect Core. If you've used Prefect Core's server, Prefect Cloud is a drop in replacement that provides some enhanced features, including:
-
-- permissions and authorization
-- performance enhancements that allow you to scale
-- agent monitoring
-- secure runtime secrets and parameters
-- team management
+- A hosted web UI for running and monitoring flows and jobs
+- Automatic and asynchronous scheduling and alerting
+- Permissions and authorization management
+- Performance enhancements that allow you to scale
+- Agent monitoring
+- Secure runtime secrets and parameters
+- Team management
 - SLAs
-- many more features...
+- A full GraphQL API
+- Many more features...
 
-As you read through these docs, when you see the <Badge text="Cloud"/> badge, you'll know if a feature is supported only in Prefect Cloud or not.
+In the Prefect documentation, the <Badge text="Cloud"/> badge indicates features supported only in Prefect Cloud.
 
-##### Architecture Overview
+To start monitoring and managing your flows in Prefect Cloud, [log in or sign up](https://universal.prefect.io) today.
+
+### Prefect Server
+
+Prefect Core ships with an open-source backend and UI that automatically extends the Prefect Core engine with a subset of the features provided by Prefect Cloud, including:
+
+- A local web UI for running and monitoring flows and jobs
+- A full GraphQL API
+- Automatic and asynchronous scheduling and alerting
+
+We recommend Prefect Server for local testing and environments with restricted access to cloud services.
+
+To use Prefect Server as the backend, run the following command to configure Prefect for local orchestration:
+
+```bash
+$ prefect backend server
+``` 
+
+Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
+
+To start the server, UI, and all required infrastructure, run:
+
+```bash
+$ prefect server start
+```
+
+When server is running, navigate to [`http://localhost:8080`](http://localhost:8080).
+
+## Architecture Overview
 
 Prefect's unique [hybrid execution model](https://medium.com/the-prefect-blog/the-prefect-hybrid-model-1b70c7fd296) keeps your code and data completely private while taking full advantage of our managed orchestration service.
 
@@ -52,15 +76,13 @@ Prefect's unique [hybrid execution model](https://medium.com/the-prefect-blog/th
     <img src="/prefect_architecture_overview.png" >
 </div>
 
-When you register a [Flow](https://docs.prefect.io/core/concepts/flows.html), your code is securely stored on your infrastructure. Flow metadata is sent to Prefect Cloud for scheduling and orchestration.
+When you register a [Flow](/core/concepts/flows.html), your code is securely stored on your infrastructure &mdash; your code never leaves your execution environment and is never sent to Prefect Cloud. Instead, Flow metadata is sent to Prefect Cloud for scheduling and orchestration.
 
-Prefect [Agents](https://docs.prefect.io/orchestration/agents/overview.html) run inside a user's architecture, and are responsible for starting and monitoring flow runs. Agents send requests to Prefect Cloud API to update flow run metadata.
+Prefect [Agents](/orchestration/agents/overview.html) run inside a user's architecture, and are responsible for starting and monitoring flow runs. Agents send requests to the Prefect Cloud API to update flow run metadata.
 
+Prefect Cloud's live updating [UI](/orchestration/ui/dashboard.html#overview) allows you to monitor flow execution in real time and leverage Prefect Cloud's extensive integration functionality.
 
-Prefect Cloud's live updating [UI](https://docs.prefect.io/orchestration/ui/dashboard.html#overview) allows you to monitor flow execution in real time and leverage Prefect Cloud's extensive integration functionality.
-
-
-We know one of these solutions will minimize your [negative engineering](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) burden, and get you back to the code you really want to write.
+We know one of these solutions will minimize your [negative engineering](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) burden and get you back to the code you really want to write.
 
 Happy engineering!
 

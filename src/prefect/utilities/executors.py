@@ -1,6 +1,8 @@
-import copy
 import cloudpickle
+import contextlib
+import copy
 import itertools
+import logging
 import multiprocessing
 import os
 import signal
@@ -10,13 +12,28 @@ import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
+from contextlib import contextmanager
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
+from queue import Empty
 
 import prefect
-from prefect.exceptions import TaskTimeoutSignal
+from prefect import config
+from prefect.client import Client
+from prefect.configuration import to_environment_variables
+from prefect.exceptions import TaskTimeoutSignal, PrefectSignal
 from prefect.utilities.logging import get_logger
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Union,
+    Sequence,
+    Mapping,
+    Iterator,
+)
 
 if TYPE_CHECKING:
     import prefect.engine.runner
@@ -27,6 +44,8 @@ if TYPE_CHECKING:
 
 
 StateList = Union["State", List["State"]]
+
+FLOWRUNNER_LOGGER = get_logger("FlowRunner")
 
 
 def run_with_heartbeat(
@@ -39,50 +58,150 @@ def run_with_heartbeat(
 
     @wraps(runner_method)
     def inner(
-        self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
+        self: "prefect.engine.cloud.CloudFlowRunner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
+
         try:
-            p = None
-            try:
-                if self._heartbeat():
-                    # we use Popen + a prefect CLI for a few reasons:
-                    # - using threads would interfere with the task; for example, a task
-                    #   which does not release the GIL would prevent the heartbeat thread from
-                    #   firing
-                    # - using multiprocessing.Process would release the GIL but a subprocess
-                    #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
-                    #   submit tasks to run within daemonic subprocesses
-                    current_env = dict(os.environ).copy()
-                    auth_token = prefect.context.config.cloud.get("auth_token")
-                    api_key = prefect.context.config.cloud.get("api_key")
-                    tenant_id = prefect.context.config.cloud.get("tenant_id")
-                    api_url = prefect.context.config.cloud.get("api")
-                    current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
-                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
-                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
-                    current_env.setdefault("PREFECT__CLOUD__API", api_url)
-                    clean_env = {k: v for k, v in current_env.items() if v is not None}
-                    p = subprocess.Popen(
-                        self.heartbeat_cmd,
-                        env=clean_env,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-            except Exception:
-                self.logger.exception(
-                    "Heartbeat failed to start.  This could result in a zombie run."
-                )
+            use_heartbeat = self._heartbeat()
+        except Exception:
+            use_heartbeat = False
+            logger = self.logger
+            logger.exception(
+                "Heartbeat process is misconfigured.  This could result in a zombie run.",
+                exc_info=True,
+            )
+
+        if not use_heartbeat or (prefect.context.config.cloud.heartbeat_mode == "off"):
+            configured_heartbeat = no_heartbeat()
+        elif prefect.context.config.cloud.heartbeat_mode == "thread":
+            configured_heartbeat = threaded_heartbeat(self.flow_run_id)
+        elif prefect.context.config.cloud.heartbeat_mode == "process":
+            configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
+        # because the threaded heartbeat mode is experimental and may change in the future,
+        # let's not catch configuration error with `else` -- stale configuration should break tests
+
+        with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
-        finally:
-            if p is not None:
-                exit_code = p.poll()
-                if exit_code is not None:
-                    msg = "Heartbeat process died with exit code {}".format(exit_code)
-                    self.logger.error(msg)
-                p.kill()
-                p.wait()
 
     return inner
+
+
+@contextlib.contextmanager
+def no_heartbeat() -> Iterator[None]:
+    # contextlib.nullcontext was introduced in 3.7
+    yield
+
+
+@contextlib.contextmanager
+def threaded_heartbeat(flow_run_id: str, num: int = None) -> Iterator[None]:
+    try:
+        HEARTBEAT_STOP_EVENT = threading.Event()
+        heartbeat = HeartbeatThread(HEARTBEAT_STOP_EVENT, flow_run_id, num=None)
+        heartbeat.start()
+        yield
+    finally:
+        HEARTBEAT_STOP_EVENT.set()
+
+
+@contextlib.contextmanager
+def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[None]:
+    p = None
+    try:
+        # we use Popen + a prefect CLI for a few reasons:
+        # - using threads would interfere with the task; for example, a task
+        #   which does not release the GIL would prevent the heartbeat thread from
+        #   firing
+        # - using multiprocessing.Process would release the GIL but a subprocess
+        #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
+        #   submit tasks to run within daemonic subprocesses
+        current_env = dict(os.environ).copy()
+        current_env.update(
+            to_environment_variables(
+                prefect.context.config,
+                include={
+                    "cloud.api_key",
+                    "cloud.tenant_id",
+                    "cloud.api",
+                },
+            )
+        )
+        clean_env = {k: v for k, v in current_env.items() if v is not None}
+        p = subprocess.Popen(
+            heartbeat_cmd,
+            env=clean_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        yield
+
+    except Exception:
+        logger.exception(
+            "Heartbeat process failed to start.  This could result in a zombie run."
+        )
+
+    finally:
+        if p is not None:
+            exit_code = p.poll()
+            if exit_code is not None:
+                logger.error(f"Heartbeat process died with exit code {exit_code}")
+            p.kill()
+            p.wait()
+
+
+class HeartbeatThread(threading.Thread):
+    def __init__(
+        self: "HeartbeatThread",
+        stop_event: "threading.Event",
+        flow_run_id: str,
+        num: int = None,
+    ) -> None:
+        threading.Thread.__init__(self)
+        # 'daemonizes' the thread, so it will terminate when all non-daemonized threads have finished
+        self.daemon = True
+        self.flow_run_id = flow_run_id
+        self.num = num
+        self.stop_event = stop_event
+
+    def run(self) -> None:
+        logger = get_logger("threaded_heartbeat")
+        client = Client()
+        iter_count = 0
+        with prefect.context(
+            {"flow_run_id": self.flow_run_id, "running_with_backend": True}
+        ):
+            with log_heartbeat_failure(logger):
+                while iter_count < (self.num or 1) and (
+                    self.stop_event.is_set() is False
+                ):
+                    send_heartbeat(self.flow_run_id, client, logger)
+                    iter_count += 1 if self.num else 0
+                    self.stop_event.wait(timeout=config.cloud.heartbeat_interval)
+
+
+def send_heartbeat(
+    flow_run_id: str, client: "prefect.client.Client", logger: "logging.Logger"
+) -> None:
+    try:  # Ignore (but log) client exceptions
+        client.update_flow_run_heartbeat(flow_run_id)
+    except Exception as exc:
+        logger.error(
+            f"Failed to send heartbeat with exception: {exc!r}",
+            exc_info=True,
+        )
+
+
+@contextmanager
+def log_heartbeat_failure(
+    logger: "logging.Logger",
+) -> Iterator[None]:
+    try:
+        yield
+    except BaseException as exc:
+        logger.error(
+            f"Heartbeat process encountered terminal exception: {exc!r}",
+            exc_info=True,
+        )
+        raise
 
 
 def run_with_thread_timeout(
@@ -180,6 +299,15 @@ def multiprocessing_safe_run_and_retrieve(
             logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
             logger.debug(f"{name}: Execution successful.")
+    except PrefectSignal as exc:
+        # We need to ensure PrefectSignals are captured and put in the
+        # queue correctly, otherwise no value is returned and
+        # the task runner assumes execution has timed out
+        return_val = exc
+        logger.error(
+            f"{name}: Encountered a PrefectSignal {type(exc).__name__}, "
+            f"returning details as a result..."
+        )
     except Exception as exc:
         return_val = exc
         logger.error(
@@ -188,7 +316,11 @@ def multiprocessing_safe_run_and_retrieve(
         )
 
     try:
+        logger.debug(
+            "%s: Pickling value of size %s...", name, sys.getsizeof(return_val, -1)
+        )  # Only calculate the size if debug logs are enabled
         pickled_val = cloudpickle.dumps(return_val)
+        logger.debug(f"{name}: Pickling successful!")
     except Exception as exc:
         err_msg = (
             f"Failed to pickle result of type {type(return_val).__name__!r} with "
@@ -220,7 +352,9 @@ def run_with_multiprocess_timeout(
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
+    Implemented by spawning a new multiprocess.Process() and using a queue to pass
+    the result back. The result is retrieved from the queue with a timeout.
 
     Args:
         - fn (callable): the function to execute
@@ -238,6 +372,7 @@ def run_with_multiprocess_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
+        - Exception: Any user errors within the subprocess will be pickled and reraised
         - AssertionError: if run from a daemonic process
         - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
@@ -265,24 +400,29 @@ def run_with_multiprocess_timeout(
     payload = cloudpickle.dumps(request)
 
     run_process = spawn_mp.Process(
-        target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
+        target=multiprocessing_safe_run_and_retrieve,
+        args=(queue, payload),
     )
     logger.debug(f"{name}: Sending execution to a new process...")
     run_process.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
-    run_process.join(timeout)
-    run_process.terminate()
 
-    # Handle the process result, if the queue is empty the function did not finish
-    # before the timeout
-    logger.debug(f"{name}: Execution process closed, collecting result...")
-    if not queue.empty():
-        result = cloudpickle.loads(queue.get())
+    # Pull the data from the queue. If empty, the function did not finish before
+    # the timeout
+    try:
+        pickled_result = queue.get(block=True, timeout=timeout)
+        logger.debug(f"{name}: Result received from subprocess, unpickling...")
+        result = cloudpickle.loads(pickled_result)
         if isinstance(result, Exception):
             raise result
         return result
-    else:
+    except Empty:
+        logger.debug(f"{name}: No result returned within the timeout period!")
         raise TaskTimeoutSignal(f"Execution timed out for {name}.")
+    finally:
+        # Do not let the process dangle
+        run_process.join(0.1)
+        run_process.terminate()
 
 
 def run_task_with_timeout(
@@ -558,10 +698,30 @@ def prepare_upstream_states_for_mapping(
     return map_upstream_states
 
 
+def _should_flatten(state: "State") -> bool:
+    return state.is_successful() and not state.is_skipped()
+
+
+def _can_flatten(state: "State") -> bool:
+    return hasattr(state.result, "__len__") and hasattr(state.result, "__getitem__")
+
+
 def _build_flattened_state(state: "State", index: int) -> "State":
     """Helper function for `flatten_upstream_state`"""
+    if not _should_flatten(state):
+        return state
+
     new_state = copy.copy(state)
-    new_state.result = state._result.from_value(state.result[index])  # type: ignore
+    if not _can_flatten(state):
+        message = (
+            "`flatten` was used on upstream task that did not return an iterable. "
+            "The value will be passed downstream unmodified."
+        )
+        FLOWRUNNER_LOGGER.warning(message)
+        new_state.result = state._result.from_value(state.result)  # type: ignore
+    else:
+        new_state.result = state._result.from_value(state.result[index])  # type: ignore
+
     return new_state
 
 
@@ -586,7 +746,10 @@ def flatten_mapped_children(
     executor: "prefect.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
-        [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]
+        [
+            executor.submit(lambda c: len(c._result.value) if _can_flatten(c) else 1, c)
+            for c in mapped_children
+        ]
     )
     new_states = []
 

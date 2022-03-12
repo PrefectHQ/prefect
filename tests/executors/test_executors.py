@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -18,17 +19,7 @@ from prefect.executors import (
     LocalDaskExecutor,
     LocalExecutor,
 )
-
-
-@pytest.mark.parametrize(
-    "cls_name", ["LocalExecutor", "LocalDaskExecutor", "DaskExecutor"]
-)
-def test_deprecated_executors(cls_name):
-    old_cls = getattr(prefect.engine.executors, cls_name)
-    new_cls = getattr(prefect.executors, cls_name)
-    with pytest.warns(UserWarning, match="has been moved to"):
-        obj = old_cls()
-    assert isinstance(obj, new_cls)
+from prefect.engine.signals import SUCCESS
 
 
 class TestBaseExecutor:
@@ -156,7 +147,7 @@ class TestLocalDaskExecutor:
         self, scheduler, num_workers
     ):
         from dask.system import CPU_COUNT
-        from multiprocessing.pool import Pool, ThreadPool
+        from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
         e = LocalDaskExecutor(scheduler, num_workers=num_workers)
         with e.start():
@@ -164,9 +155,13 @@ class TestLocalDaskExecutor:
                 assert e._pool is None
             else:
                 sol = num_workers or CPU_COUNT
-                kind = ThreadPool if scheduler == "threads" else Pool
+                kind = (
+                    ThreadPoolExecutor
+                    if scheduler == "threads"
+                    else ProcessPoolExecutor
+                )
+                assert e._pool._max_workers == sol
                 assert isinstance(e._pool, kind)
-                assert e._pool._processes == sol
         assert e._pool is None
 
     @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
@@ -211,6 +206,19 @@ class TestLocalDaskExecutor:
         # Defining "quickly" here as 4 seconds generally and 6 seconds on
         # Windows which tends to be a little slower
         assert (stop - start) < (6 if sys.platform == "win32" else 4)
+
+    def test_captures_prefect_signals(self):
+        e = LocalDaskExecutor()
+
+        @prefect.task(timeout=2)
+        def succeed():
+            raise SUCCESS()
+
+        with prefect.Flow("signal-test", executor=e) as flow:
+            succeed()
+
+        res = flow.run()
+        assert res.is_successful()
 
 
 class TestLocalExecutor:
@@ -328,6 +336,22 @@ class TestDaskExecutor:
                 for rec in caplog.records
             )
 
+    @pytest.mark.parametrize("disabled", [True, False])
+    def test_disable_cancellation_event(self, disabled):
+        executor = DaskExecutor(
+            cluster_kwargs={"processes": False}, disable_cancellation_event=disabled
+        )
+        with executor.start():
+
+            # Can run futures either way
+            res = executor.wait(executor.submit(lambda x: x + 1, 1))
+            assert res == 2
+
+            if disabled:
+                assert executor._should_run_event is None
+            else:
+                assert executor._should_run_event is not None
+
     def test_local_cluster_adapt(self):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
         called_with = None
@@ -374,6 +398,27 @@ class TestDaskExecutor:
         executor = DaskExecutor(debug=debug)
         level = logging.WARNING if debug else logging.CRITICAL
         assert executor.cluster_kwargs["silence_logs"] == level
+
+    def test_performance_report(self):
+        # should not error
+        assert DaskExecutor().performance_report == ""
+        assert (
+            DaskExecutor(
+                performance_report_path="not a readable path"
+            ).performance_report
+            == ""
+        )
+
+        with tempfile.TemporaryDirectory() as report_dir:
+            with open(f"{report_dir}/report.html", "w") as fp:
+                fp.write("very advanced report")
+
+            assert (
+                DaskExecutor(
+                    performance_report_path=f"{report_dir}/report.html"
+                ).performance_report
+                == "very advanced report"
+            )
 
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
@@ -424,6 +469,7 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_event is None
 
+    @pytest.mark.flaky
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
         with distributed.Client(

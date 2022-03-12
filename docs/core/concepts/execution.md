@@ -30,7 +30,7 @@ from prefect import task, Flow
 @task(name="Task A")
 def task_a():
     if random.random() > 0.5:
-        raise ValueError("Non-deterministic error has occured.")
+        raise ValueError("Non-deterministic error has occurred.")
 
 @task(name="Task B", trigger=all_successful)
 def task_b():

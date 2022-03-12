@@ -309,13 +309,15 @@ class ECSAgent(Agent):
                     "Cannot provide `task_definition_arn` when using `Docker` storage"
                 )
             taskdef_arn = run_config.task_definition_arn
+            resp = self.ecs_client.describe_task_definition(taskDefinition=taskdef_arn)
+            taskdef = resp["taskDefinition"]
             new_taskdef_arn = False
             self.logger.debug(
                 "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
             )
 
         # Get kwargs to pass to run_task
-        kwargs = self.get_run_task_kwargs(flow_run, run_config)
+        kwargs = self.get_run_task_kwargs(flow_run, run_config, taskdef)
 
         resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
 
@@ -358,9 +360,8 @@ class ECSAgent(Agent):
             taskdef = yaml.safe_load(template_bytes)
         else:
             taskdef = deepcopy(self.task_definition)
-
         slug = slugify.slugify(
-            flow_run.flow.name,
+            f"{flow_run.flow.name}-{flow_run.id}",
             max_length=255 - len("prefect-"),
             word_boundary=True,
             save_order=True,
@@ -403,15 +404,14 @@ class ECSAgent(Agent):
         if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
 
-        # Set executionRoleArn if configured
-        # Note that we set this in both the task definition and the
-        # run_task_kwargs since ECS requires this in the definition for FARGATE
-        # tasks, but we also want to still configure it for users that provide
-        # their own `task_definition_arn`.
-        if run_config.execution_role_arn:
-            taskdef["executionRoleArn"] = run_config.execution_role_arn
-        elif self.execution_role_arn:
-            taskdef["executionRoleArn"] = self.execution_role_arn
+        # If we're using Fargate, we need to explicitly set an executionRoleArn on the
+        # task definition. If one isn't present, then try to load it from the run_config
+        # and then the agent's default.
+        if "executionRoleArn" not in taskdef:
+            if run_config.execution_role_arn:
+                taskdef["executionRoleArn"] = run_config.execution_role_arn
+            elif self.execution_role_arn:
+                taskdef["executionRoleArn"] = self.execution_role_arn
 
         # Set requiresCompatibilities if not already set
         if "requiresCompatibilities" not in taskdef:
@@ -420,13 +420,14 @@ class ECSAgent(Agent):
         return taskdef
 
     def get_run_task_kwargs(
-        self, flow_run: GraphQLResult, run_config: ECSRun
+        self, flow_run: GraphQLResult, run_config: ECSRun, taskdef: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate kwargs to pass to `ECS.client.run_task` for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
             - run_config (ECSRun): The flow's run config
+            - taskdef (Dict): The ECS task definition used in ECS.client.run_task
 
         Returns:
             - dict: kwargs to pass to `ECS.client.run_task`
@@ -451,16 +452,25 @@ class ECSAgent(Agent):
             container = {"name": "flow"}
             container_overrides.append(container)
 
-        # Set taskRoleArn if configured
+        # Task roles and execution roles should be retrieved from the following sources,
+        # in order:
+        # - An ARN passed explicitly on run_config.
+        # - An ARN present on the task definition used for run_task. In this case, we
+        #   don't need to provide an override at all.
+        # - An ARN passed in to the ECSAgent when instantiated, either programmatically
+        #   or via the CLI.
         if run_config.task_role_arn:
             overrides["taskRoleArn"] = run_config.task_role_arn
+        elif taskdef.get("taskRoleArn"):
+            overrides["taskRoleArn"] = taskdef["taskRoleArn"]
         elif self.task_role_arn:
             overrides["taskRoleArn"] = self.task_role_arn
 
-        # Set executionRoleArn if configured
         if run_config.execution_role_arn:
             overrides["executionRoleArn"] = run_config.execution_role_arn
-        elif self.execution_role_arn:
+        elif taskdef.get("executionRoleArn"):
+            overrides["executionRoleArn"] = taskdef["executionRoleArn"]
+        elif self.execution_role_arn and not taskdef.get("executionRoleArn"):
             overrides["executionRoleArn"] = self.execution_role_arn
 
         # Set resource requirements, if provided
@@ -498,16 +508,9 @@ class ECSAgent(Agent):
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
                 "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    config.cloud.agent.get("auth_token")
-                    or self.flow_run_api_key
-                    or ""
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # Providing a tenant id is only necessary when authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else ""
@@ -515,6 +518,8 @@ class ECSAgent(Agent):
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                # Backwards compatibility variable for containers on Prefect <1.0.0
+                "PREFECT__CLOUD__AUTH_TOKEN": self.flow_run_api_key or "",
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]

@@ -158,9 +158,9 @@ class PandasSerializer(Serializer):
             saved as, e.g. "csv" or "parquet". Must match a type used
             in a `DataFrame.to_` method and a `pd.read_` function.
         - deserialize_kwargs (dict, optional): Keyword arguments to pass to the
-            serialization method.
-        - serialize_kwargs (dict, optional): Keyword arguments to pass to the
             deserialization method.
+        - serialize_kwargs (dict, optional): Keyword arguments to pass to the
+            serialization method.
     """
 
     def __init__(

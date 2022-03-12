@@ -1,12 +1,21 @@
-import six
 import time
-from typing import List, Dict
+from typing import Any, Dict, List, Union
+from enum import Enum
+from pydantic import parse_obj_as
 
+import six
+
+import prefect
 from prefect import Task
-from prefect.utilities.tasks import defaults_from_attrs
 from prefect.exceptions import PrefectException
-
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
+from prefect.tasks.databricks.models import (
+    AccessControlRequest,
+    AccessControlRequestForGroup,
+    AccessControlRequestForUser,
+    JobTaskSettings,
+)
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 def _deep_string_coerce(content, json_path="json"):
@@ -18,27 +27,31 @@ def _deep_string_coerce(content, json_path="json"):
     dict with only string values. This is because `render_template` will fail
     for numerical values.
     """
-    c = _deep_string_coerce
     if isinstance(content, six.string_types):
         return content
     elif isinstance(content, six.integer_types + (float,)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
+    elif content is None:
+        return content
     elif isinstance(content, (list, tuple)):
-        return [c(e, "{0}[{1}]".format(json_path, i)) for i, e in enumerate(content)]
+        return [
+            _deep_string_coerce(content=item, json_path=f"{json_path}[{i}]")
+            for i, item in enumerate(content)
+        ]
     elif isinstance(content, dict):
         return {
-            k: c(v, "{0}[{1}]".format(json_path, k)) for k, v in list(content.items())
+            key: _deep_string_coerce(content=value, json_path=f"{json_path}[{key}]")
+            for key, value in list(content.items())
         }
-    else:
-        param_type = type(content)
-        msg = "Type {0} used for parameter {1} is not a number or a string".format(
-            param_type, json_path
-        )
-        raise ValueError(msg)
+    elif isinstance(content, Enum):
+        return str(content.value)
+    raise ValueError(
+        f"Type {type(content)} used for parameter {json_path} is not a number or a string"
+    )
 
 
-def _handle_databricks_task_execution(task, hook, log):
+def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
     """
     Handles the Databricks + Prefect lifecycle logic for a Databricks task
 
@@ -46,16 +59,17 @@ def _handle_databricks_task_execution(task, hook, log):
         - task (prefect.Task) : Prefect task being handled
         - hook (prefect.tasks.databricks.databricks_hook.DatabricksHook): Databricks Hook
         - log (logger): Prefect logging instance
+        - submitted_run_id (str): run ID returned after submitting or running Databricks job
     """
 
-    log.info("Run submitted with run_id: %s", task.run_id)
-    run_page_url = hook.get_run_page_url(task.run_id)
+    log.info("Run submitted with run_id: %s", submitted_run_id)
+    run_page_url = hook.get_run_page_url(submitted_run_id)
 
     log.info("Run submitted with config : %s", task.json)
 
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
     while True:
-        run_state = hook.get_run_state(task.run_id)
+        run_state = hook.get_run_state(submitted_run_id)
         if run_state.is_terminal:
             if run_state.is_successful:
                 log.info("%s completed successfully.", task.name)
@@ -88,6 +102,10 @@ class DatabricksSubmitRun(Task):
     For example:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     json = {
         'new_cluster': {
         'spark_version': '2.1.0-db3-scala2.11',
@@ -98,9 +116,10 @@ class DatabricksSubmitRun(Task):
         },
     }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(json=json)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow("my flow") as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksSubmitRun(json=json)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -109,6 +128,10 @@ class DatabricksSubmitRun(Task):
     endpoint. In this method, your code would look like this:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     new_cluster = {
         'spark_version': '2.1.0-db3-scala2.11',
         'num_workers': 2
@@ -117,11 +140,12 @@ class DatabricksSubmitRun(Task):
         'notebook_path': '/Users/prefect@example.com/PrepareData',
     }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksSubmitRun(
-        new_cluster=new_cluster,
-        notebook_task=notebook_task)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow("my flow") as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksSubmitRun(
+            new_cluster=new_cluster,
+            notebook_task=notebook_task)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -132,10 +156,11 @@ class DatabricksSubmitRun(Task):
     be passed to the task like so:
 
     ```
+    from prefect import Flow
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksSubmitRun
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksSubmitRun(json=...)
         notebook_run(databricks_conn_secret=conn)
@@ -220,7 +245,7 @@ class DatabricksSubmitRun(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         self.databricks_conn_secret = databricks_conn_secret
@@ -236,15 +261,16 @@ class DatabricksSubmitRun(Task):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
 
-        self.run_id = None
-
         super().__init__(**kwargs)
 
-    def get_hook(self):
+    @staticmethod
+    def _get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
         return DatabricksHook(
-            self.databricks_conn_secret,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
         )
 
     @defaults_from_attrs(
@@ -346,9 +372,13 @@ class DatabricksSubmitRun(Task):
 
         if json:
             self.json = json
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
 
         # Initialize Databricks Connections
-        hook = self.get_hook()
+        hook = self._get_hook(
+            databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+        )
 
         if spark_jar_task is not None:
             self.json["spark_jar_task"] = spark_jar_task
@@ -371,27 +401,31 @@ class DatabricksSubmitRun(Task):
         self.json = _deep_string_coerce(self.json)
 
         # Submit the job
-        self.run_id = hook.submit_run(self.json)
-        _handle_databricks_task_execution(self, hook, self.logger)
+        submitted_run_id = hook.submit_run(self.json)
+        _handle_databricks_task_execution(self, hook, self.logger, submitted_run_id)
 
-        return self.run_id
+        return submitted_run_id
 
 
 class DatabricksRunNow(Task):
     """
     Runs an existing Spark job run to Databricks using the
-    `api/2.0/jobs/run-now
+    `api/2.1/jobs/run-now
     <https://docs.databricks.com/api/latest/jobs.html#run-now>`_
     API endpoint.
 
     There are two ways to instantiate this task.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the `api/2.0/jobs/run-now` endpoint and pass it directly
+    to call the `api/2.1/jobs/run-now` endpoint and pass it directly
     to our `DatabricksRunNow` task through the `json` parameter.
     For example:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     json = {
           "job_id": 42,
           "notebook_params": {
@@ -400,9 +434,10 @@ class DatabricksRunNow(Task):
           }
         }
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(json=json)
-    notebook_run(databricks_conn_secret=conn)
+    with Flow("my flow") as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksRunNow(json=json)
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     Another way to accomplish the same thing is to use the named parameters
@@ -411,6 +446,10 @@ class DatabricksRunNow(Task):
     endpoint. In this method, your code would look like this:
 
     ```
+    from prefect import Flow
+    from prefect.tasks.secrets import PrefectSecret
+    from prefect.tasks.databricks import DatabricksRunNow
+
     job_id=42
 
     notebook_params = {
@@ -424,14 +463,16 @@ class DatabricksRunNow(Task):
 
     jar_params = ["john doe","35"]
 
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    notebook_run = DatabricksRunNow(
-        notebook_params=notebook_params,
-        python_params=python_params,
-        spark_submit_params=spark_submit_params,
-        jar_params=jar_params
-    )
-    notebook_run(databricks_conn_secret=conn)
+
+    with Flow("my flow') as flow:
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        notebook_run = DatabricksRunNow(
+            notebook_params=notebook_params,
+            python_params=python_params,
+            spark_submit_params=spark_submit_params,
+            jar_params=jar_params
+        )
+        notebook_run(databricks_conn_secret=conn)
     ```
 
     In the case where both the json parameter **AND** the named parameters
@@ -442,10 +483,11 @@ class DatabricksRunNow(Task):
     be passed to the task like so:
 
     ```
+    from prefect import Flow
     from prefect.tasks.secrets import PrefectSecret
     from prefect.tasks.databricks import DatabricksRunNow
 
-    with Flow('my flow') as flow:
+    with Flow("my flow") as flow:
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         notebook_run = DatabricksRunNow(json=...)
         notebook_run(databricks_conn_secret=conn)
@@ -537,7 +579,7 @@ class DatabricksRunNow(Task):
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: float = 1,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         self.databricks_conn_secret = databricks_conn_secret
@@ -551,15 +593,16 @@ class DatabricksRunNow(Task):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
 
-        self.run_id = None
-
         super().__init__(**kwargs)
 
-    def get_hook(self):
+    @staticmethod
+    def _get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
         return DatabricksHook(
-            self.databricks_conn_secret,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
         )
 
     @defaults_from_attrs(
@@ -664,9 +707,15 @@ class DatabricksRunNow(Task):
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
-        hook = self.get_hook()
+        hook = self._get_hook(
+            databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+        )
 
         run_now_json = json or {}
+        # Necessary be cause `_handle_databricks_task_execution` reads
+        # `polling_periods_seconds` off of the task instance
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
 
         if job_id is not None:
             run_now_json["job_id"] = job_id
@@ -685,7 +734,351 @@ class DatabricksRunNow(Task):
         self.json = _deep_string_coerce(run_now_json)
 
         # Submit the job
-        self.run_id = hook.run_now(self.json)
-        _handle_databricks_task_execution(self, hook, self.logger)
+        submitted_run_id = hook.run_now(self.json)
+        _handle_databricks_task_execution(self, hook, self.logger, submitted_run_id)
 
-        return self.run_id
+        return submitted_run_id
+
+
+class DatabricksSubmitMultitaskRun(Task):
+    """
+    Creates and triggers a one-time run via the Databricks submit run API endpoint. Supports
+    the execution of multiple Databricks tasks within the Databricks job run. Note: Databricks
+    tasks are distinct from Prefect tasks. All tasks configured will run as a single Prefect task.
+
+    For more information about the arguments of this task, refer to the [Databricks
+    submit run API documentation]
+    (https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit)
+
+    Args:
+        - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
+            String. Structure must be a string of valid JSON. To use token based authentication, provide
+            the key `token` in the string for the connection and create the key `host`.
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+            OR
+            `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+            '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+        - tasks (List[JobTaskSettings]):" A list containing the Databricks task configuration. Should
+            contain configuration for at least one task.
+        - timeout_seconds (int, optional):  An optional timeout applied to each run of this job.
+            The default behavior is to have no timeout.
+        - run_name (str, optional): An optional name for the run.
+            The default value is "Job run created by Prefect flow run {flow_run_name}".
+        - idempotency_token (str, optional): An optional token that can be used to guarantee
+            the idempotency of job run requests. Defaults to the flow run ID.
+        - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
+        - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+            this run. By default the task will poll every 30 seconds.
+        - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+            unreachable. Its value must be greater than or equal to 1.
+        - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+            might be a floating point number).
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+
+    Examples:
+        Trigger an ad-hoc multitask run
+
+        ```
+        from prefect import Flow
+        from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
+        from prefect.tasks.databricks.models import (
+            AccessControlRequestForUser,
+            AutoScale,
+            AwsAttributes,
+            AwsAvailability,
+            CanManage,
+            JobTaskSettings,
+            Library,
+            NewCluster,
+            NotebookTask,
+            SparkJarTask,
+            TaskDependency,
+        )
+
+        submit_multitask_run = DatabricksSubmitMultitaskRun(
+            tasks=[
+                JobTaskSettings(
+                    task_key="Sessionize",
+                    description="Extracts session data from events",
+                    existing_cluster_id="0923-164208-meows279",
+                    spark_jar_task=SparkJarTask(
+                        main_class_name="com.databricks.Sessionize",
+                        parameters=["--data", "dbfs:/path/to/data.json"],
+                    ),
+                    libraries=[Library(jar="dbfs:/mnt/databricks/Sessionize.jar")],
+                    timeout_seconds=86400,
+                ),
+                JobTaskSettings(
+                    task_key="Orders_Ingest",
+                    description="Ingests order data",
+                    existing_cluster_id="0923-164208-meows279",
+                    spark_jar_task=SparkJarTask(
+                        main_class_name="com.databricks.OrdersIngest",
+                        parameters=["--data", "dbfs:/path/to/order-data.json"],
+                    ),
+                    libraries=[Library(jar="dbfs:/mnt/databricks/OrderIngest.jar")],
+                    timeout_seconds=86400,
+                ),
+                JobTaskSettings(
+                    task_key="Match",
+                    description="Matches orders with user sessions",
+                    depends_on=[
+                        TaskDependency(task_key="Orders_Ingest"),
+                        TaskDependency(task_key="Sessionize"),
+                    ],
+                    new_cluster=NewCluster(
+                        spark_version="7.3.x-scala2.12",
+                        node_type_id="i3.xlarge",
+                        spark_conf={"spark.speculation": True},
+                        aws_attributes=AwsAttributes(
+                            availability=AwsAvailability.SPOT, zone_id="us-west-2a"
+                        ),
+                        autoscale=AutoScale(min_workers=2, max_workers=16),
+                    ),
+                    notebook_task=NotebookTask(
+                        notebook_path="/Users/user.name@databricks.com/Match",
+                        base_parameters={"name": "John Doe", "age": "35"},
+                    ),
+                    timeout_seconds=86400,
+                ),
+            ],
+            run_name="A multitask job run",
+            timeout_seconds=86400,
+            access_control_list=[
+                AccessControlRequestForUser(
+                    user_name="jsmith@example.com", permission_level=CanManage.CAN_MANAGE
+                )
+            ],
+        )
+
+
+        with Flow("my flow") as f:
+            conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+            submit_multitask_run(databricks_conn_secret=conn)
+        ```
+    """
+
+    def __init__(
+        self,
+        databricks_conn_secret: dict = None,
+        tasks: List[JobTaskSettings] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        idempotency_token: str = None,
+        access_control_list: List[
+            Union[AccessControlRequestForUser, AccessControlRequestForGroup]
+        ] = None,
+        polling_period_seconds: int = 30,
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: float = 1,
+        **kwargs,
+    ):
+        self.databricks_conn_secret = databricks_conn_secret
+        self.tasks = tasks
+        self.run_name = run_name
+        self.timeout_seconds = timeout_seconds
+        self.idempotency_token = idempotency_token
+        self.access_control_list = access_control_list
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def convert_dict_to_kwargs(input: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Method to convert a dict that matches the structure of the Databricks API call into the required
+        object types for the task input
+
+        Args:
+            - input (Dict): A dictionary representing the input to the task
+
+        Returns:
+            - A dictionary with values that match the input types of the class
+
+        Example:
+        Use a JSON-like dict as input
+
+        ```
+        from prefect import Flow
+        from prefect.tasks.databricks import DatabricksSubmitMultitaskRun
+
+        submit_multitask_run = DatabricksSubmitMultitaskRun()
+
+        databricks_kwargs = DatabricksSubmitMultitaskRun.convert_dict_to_kwargs({
+            "tasks": [
+                {
+                    "task_key": "Sessionize",
+                    "description": "Extracts session data from events",
+                    "depends_on": [],
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.Sessionize",
+                        "parameters": ["--data", "dbfs:/path/to/data.json"],
+                    },
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
+                    "timeout_seconds": 86400,
+                },
+                {
+                    "task_key": "Orders_Ingest",
+                    "description": "Ingests order data",
+                    "depends_on": [],
+                    "existing_cluster_id": "0923-164208-meows279",
+                    "spark_jar_task": {
+                        "main_class_name": "com.databricks.OrdersIngest",
+                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
+                    },
+                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
+                    "timeout_seconds": 86400,
+                },
+                {
+                    "task_key": "Match",
+                    "description": "Matches orders with user sessions",
+                    "depends_on": [
+                        {"task_key": "Orders_Ingest"},
+                        {"task_key": "Sessionize"},
+                    ],
+                    "new_cluster": {
+                        "spark_version": "7.3.x-scala2.12",
+                        "node_type_id": "i3.xlarge",
+                        "spark_conf": {"spark.speculation": True},
+                        "aws_attributes": {
+                            "availability": "SPOT",
+                            "zone_id": "us-west-2a",
+                        },
+                        "autoscale": {"min_workers": 2, "max_workers": 16},
+                    },
+                    "notebook_task": {
+                        "notebook_path": "/Users/user.name@databricks.com/Match",
+                        "base_parameters": {"name": "John Doe", "age": "35"},
+                    },
+                    "timeout_seconds": 86400,
+                },
+            ],
+            "run_name": "A multitask job run",
+            "timeout_seconds": 86400,
+            "access_control_list": [
+                {
+                    "user_name": "jsmith@example.com",
+                    "permission_level": "CAN_MANAGE",
+                }
+            ],
+        })
+
+        with Flow("my flow") as f:
+            conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+            submit_multitask_run(**databricks_kwargs, databricks_conn_secret=conn)
+        ```
+        """
+        kwargs = {**input, "tasks": parse_obj_as(List[JobTaskSettings], input["tasks"])}
+
+        if input.get("access_control_list"):
+            kwargs["access_control_list"] = parse_obj_as(
+                List[AccessControlRequest],
+                input["access_control_list"],
+            )
+
+        return kwargs
+
+    @defaults_from_attrs(
+        "databricks_conn_secret",
+        "tasks",
+        "run_name",
+        "timeout_seconds",
+        "idempotency_token",
+        "access_control_list",
+        "polling_period_seconds",
+        "databricks_retry_limit",
+        "databricks_retry_delay",
+    )
+    def run(
+        self,
+        databricks_conn_secret: dict = None,
+        tasks: List[JobTaskSettings] = None,
+        run_name: str = None,
+        timeout_seconds: int = None,
+        idempotency_token: str = None,
+        access_control_list: List[AccessControlRequest] = None,
+        polling_period_seconds: int = None,
+        databricks_retry_limit: int = None,
+        databricks_retry_delay: float = None,
+    ):
+        """
+        Task run method. Any values passed here will overwrite the values used when initializing the
+        task.
+
+        Args:
+            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
+                Connection String. Structure must be a string of valid JSON. To use token based
+                authentication, provide the key `token` in the string for the connection and create
+                the key `host`. `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
+                OR
+                `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
+                '{"host": "abcdef.xyz", "token": "ghijklmn"}'`
+            - tasks (List[JobTaskSettings]):" A list containing the Databricks task configuration. Should
+                contain configuration for at least one task.
+            - timeout_seconds (int, optional):  An optional timeout applied to each run of this job.
+                The default behavior is to have no timeout.
+            - run_name (str, optional): An optional name for the run.
+                The default value is "Job run created by Prefect flow run {flow_run_name}".
+            - idempotency_token (str, optional): An optional token that can be used to guarantee
+                the idempotency of job run requests. Defaults to the flow run ID.
+            - access_control_list (List[AccessControlRequest]): List of permissions to set on the job.
+            - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
+                this run. By default the task will poll every 30 seconds.
+            - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
+                unreachable. Its value must be greater than or equal to 1.
+            - databricks_retry_delay (float, optional): Number of seconds to wait between retries (it
+                might be a floating point number).
+
+        Returns:
+            - run_id (str): Run id of the submitted run
+
+        """
+        if databricks_conn_secret is None or not isinstance(
+            databricks_conn_secret, dict
+        ):
+            raise ValueError(
+                "Databricks connection info must be supplied as a dictionary."
+            )
+        if tasks is None or len(tasks) < 1:
+            raise ValueError("Please supply at least one Databricks task to be run.")
+        run_name = (
+            run_name
+            or f"Job run created by Prefect flow run {prefect.context.flow_run_name}"
+        )
+        # Ensures that multiple job runs are not created on retries
+        idempotency_token = idempotency_token or prefect.context.flow_run_id
+
+        # Set polling_period_seconds on task because _handle_databricks_task_execution expects it
+        if polling_period_seconds:
+            self.polling_period_seconds = polling_period_seconds
+
+        databricks_client = DatabricksHook(
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
+
+        # Set json on task instance because _handle_databricks_task_execution expects it
+        self.json = _deep_string_coerce(
+            dict(
+                tasks=[task.dict() for task in tasks],
+                run_name=run_name,
+                timeout_seconds=timeout_seconds,
+                idempotency_token=idempotency_token,
+                access_control_list=[
+                    entry.dict() for entry in access_control_list or []
+                ],
+            )
+        )
+
+        submitted_run_id = databricks_client.submit_multi_task_run(self.json)
+        _handle_databricks_task_execution(
+            self, databricks_client, self.logger, submitted_run_id
+        )
+
+        return submitted_run_id

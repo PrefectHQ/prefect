@@ -71,6 +71,8 @@ Whenever the task's state changes, the handler will be called with the task itse
 For example, to send a notification whenever a task is retried:
 
 ```python
+from prefect.engine import state
+
 def notify_on_retry(task, old_state, new_state):
     if isinstance(new_state, state.Retrying):
         send_notification() # function that sends a notification

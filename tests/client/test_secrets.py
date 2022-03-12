@@ -51,7 +51,7 @@ def test_secret_value_depends_on_use_local_secrets(monkeypatch):
 
     secret = Secret(name="test")
     with set_temporary_config(
-        {"cloud.use_local_secrets": False, "cloud.auth_token": None}
+        {"cloud.use_local_secrets": False, "cloud.api_key": None}
     ):
         with prefect.context(secrets=dict()):
             with pytest.raises(ClientError):
@@ -65,7 +65,7 @@ def test_secrets_use_client(monkeypatch, cloud_api):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()
@@ -79,7 +79,7 @@ def test_cloud_secrets_use_context_first(monkeypatch):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
     ):
         with prefect.context(secrets={"the-key": "foo"}):
             my_secret = Secret(name="the-key")
@@ -94,7 +94,7 @@ def test_cloud_secrets_use_context_first_but_fallback_to_client(monkeypatch, clo
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
     ):
         with prefect.context(secrets={}):
             my_secret = Secret(name="the-key")
@@ -109,7 +109,7 @@ def test_cloud_secrets_remain_plain_dictionaries(monkeypatch, cloud_api):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()
@@ -128,7 +128,7 @@ def test_cloud_secrets_auto_load_json_strings(monkeypatch, cloud_api):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
     with set_temporary_config(
-        {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+        {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
     ):
         my_secret = Secret(name="the-key")
         val = my_secret.get()

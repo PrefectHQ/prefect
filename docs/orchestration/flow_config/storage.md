@@ -260,7 +260,7 @@ GCS Storage.
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
-This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages.
+This storage class uses underlying git protocol instead of specific client libraries (e.g. `PyGithub` for GitHub), superseding other git based storages.
 
 ```python
 from prefect import Flow
@@ -269,7 +269,7 @@ from prefect.storage import Git
 # using https by default
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="github.com",                     # repo host name
     git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
 )
@@ -278,9 +278,23 @@ storage = Git(
 # (environment must be configured for ssh access to repo)
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="github.com",                     # repo host name
     use_ssh=True                                # use ssh for cloning repo
+)
+```
+
+`Git` storage will attempt to build the correct git clone url based on the parameters provided. Users can override this logic and provide their git clone url directly.
+
+To use a custom git clone url, first create a Secret containing the url. Next, specify the name of the secret when creating your `Git` storage class.
+
+```python
+# example using Azure devops url
+# using a secret named 'MY_REPO_CLONE_URL' with value 'https://<username>:<personal_access_token>@dev.azure.com/<organization>/<project>/_git/<repo>'
+
+storage = Git(
+    flow_path="flows/my_flow.py",
+    git_clone_url_secret_name="MY_REPO_CLONE_URL" # use the value of this secret to clone the repository
 )
 ```
 
@@ -303,7 +317,7 @@ To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing yo
 ```
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="gitlab.com",                     # repo host name, which may be custom
     git_token_secret_name="MY_GIT_ACCESS_TOKEN",# name of Secret containing Deploy Token
     git_token_username="myuser"                 # username associated with the Deploy Token

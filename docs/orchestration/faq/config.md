@@ -1,6 +1,6 @@
 # Configuration Options
 
-A full list of configuation options can be seen in the Prefect [config.toml](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/config.toml). To update configuration settings you can update them in `./prefect/config.toml` or by setting [environment variables](/core/concepts/configuration.html#environment-variables). 
+A full list of configuration options can be seen in the Prefect [config.toml](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/config.toml). To update configuration settings you can update them in `./prefect/config.toml` or by setting [environment variables](/core/concepts/configuration.html#environment-variables).
 
 For more on configuration, you can also see the [Prefect Core configuration docs](/core/concepts/configuration.html).
 
@@ -20,7 +20,7 @@ PREFECT__SERVER__HOST
 PREFECT__SERVER__PORT
 ```
 
-## Running Prefect with a pre-exisiting postgres database
+## Running Prefect with a pre-existing postgres database
 If you are running Prefect Server and have a postgres instance set up elsewhere then providing a `server.database.connection_url` or `server.database.host` will allow you to connect to it:
 
 ```

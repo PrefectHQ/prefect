@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from prefect.tasks.exasol import (
@@ -6,6 +8,8 @@ from prefect.tasks.exasol import (
     ExasolFetch,
     ExasolImportFromIterable,
 )
+import prefect
+from prefect.utilities.configuration import set_temporary_config
 
 
 class TestExasolExecute:
@@ -22,6 +26,21 @@ class TestExasolExecute:
         task = ExasolExecute(dsn="test:12345")
         with pytest.raises(ValueError, match="A query string must be provided."):
             task.run(user="test", password="test")
+
+    @patch("prefect.tasks.exasol.exasol.pyexasol.connect", autospec=True)
+    def test_secrets(self, mock_exa):
+        task = ExasolExecute(
+            dsn_secret="DSN_SEC", user_secret="USR_SEC", password_secret="PWD_SEC"
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(DSN_SEC="server:1234", USR_SEC="user", PWD_SEC="pwd123")
+            ):
+                task.run(query="SELECT * FROM DUAL;")
+                mock_exa.assert_called_once_with(
+                    dsn="server:1234", user="user", password="pwd123", autocommit=False
+                )
 
 
 class TestExasolFetch:
@@ -52,6 +71,21 @@ class TestExasolFetch:
                 fetch="not a valid parameter",
             )
 
+    @patch("prefect.tasks.exasol.exasol.pyexasol.connect", autospec=True)
+    def test_secrets(self, mock_exa):
+        task = ExasolFetch(
+            dsn_secret="DSN_SEC", user_secret="USR_SEC", password_secret="PWD_SEC"
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(DSN_SEC="server:1234", USR_SEC="user", PWD_SEC="pwd123")
+            ):
+                task.run(query="SELECT * FROM DUAL;", fetch="one")
+                mock_exa.assert_called_once_with(
+                    dsn="server:1234", user="user", password="pwd123"
+                )
+
 
 class TestExasolImportFromIterable:
     def test_construction(self):
@@ -76,6 +110,23 @@ class TestExasolImportFromIterable:
         with pytest.raises(ValueError, match=r"Target table must be provided."):
             task.run(user="test", password="test", data=[(1, 2), (2, 3)])
 
+    @patch("prefect.tasks.exasol.exasol.pyexasol.connect", autospec=True)
+    def test_secrets(self, mock_exa):
+        task = ExasolImportFromIterable(
+            dsn_secret="DSN_SEC", user_secret="USR_SEC", password_secret="PWD_SEC"
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(DSN_SEC="server:1234", USR_SEC="user", PWD_SEC="pwd123")
+            ):
+                task.run(
+                    target_schema="TEST", target_table="A_TAB", data=[(1, 2), (2, 3)]
+                )
+                mock_exa.assert_called_once_with(
+                    dsn="server:1234", user="user", password="pwd123", autocommit=False
+                )
+
 
 class TestExasolExportToFile:
     def test_no_dsn(self):
@@ -91,3 +142,18 @@ class TestExasolExportToFile:
             ExasolExportToFile(dsn="test:12345").run(
                 user="test", password="test", destination="/some/path/file.csv"
             )
+
+    @patch("prefect.tasks.exasol.exasol.pyexasol.connect", autospec=True)
+    def test_secrets(self, mock_exa):
+        task = ExasolExportToFile(
+            dsn_secret="DSN_SEC", user_secret="USR_SEC", password_secret="PWD_SEC"
+        )
+
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(
+                secrets=dict(DSN_SEC="server:1234", USR_SEC="user", PWD_SEC="pwd123")
+            ):
+                task.run(query_or_table="TEST.A_TAB", destination="/some/path/file.csv")
+                mock_exa.assert_called_once_with(
+                    dsn="server:1234", user="user", password="pwd123"
+                )

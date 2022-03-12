@@ -13,8 +13,6 @@ class TenantView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created
 
-    EXPERIMENTAL: This interface is experimental and subject to change
-
     Args:
         - tenant_id: The uuid of the tenant
         - name: The name of the tenant

@@ -1,0 +1,12 @@
+name: my_chk
+config_version:
+module_name: great_expectations.checkpoint
+class_name: LegacyCheckpoint
+validation_operator_name: action_list_operator
+batches:
+  - batch_kwargs:
+      path: tests/tasks/great_expectations/data/yellow_tripdata_sample_2019-01.csv
+      datasource: data__dir
+      data_asset_name: yellow_tripdata_sample_2019-01
+    expectation_suite_names:
+      - taxi.demo

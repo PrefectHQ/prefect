@@ -2,11 +2,7 @@
 
 ## Basic installation
 
-Prefect requires Python 3.6+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
-
-:::warning Python 3.9
-Prefect support for Python 3.9 is experimental and extras are not expected to work yet as we wait for required packages to be updated.
-:::
+Prefect requires Python 3.7+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
 
 To install Prefect, run:
 
@@ -14,7 +10,7 @@ To install Prefect, run:
 ::: tab Pip
 
 ```bash
-$ pip install prefect
+pip install prefect
 ```
 
 :::
@@ -22,7 +18,7 @@ $ pip install prefect
 ::: tab Conda
 
 ```bash
-$ conda install -c conda-forge prefect
+conda install -c conda-forge prefect
 ```
 
 :::

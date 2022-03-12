@@ -5,6 +5,7 @@ import time
 import pytest
 
 import prefect
+import prefect.executors.dask
 from prefect.exceptions import PrefectSignal
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
@@ -14,6 +15,7 @@ from prefect.utilities.debug import raise_on_exception
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped, flatten, mapped
 from prefect.tasks.core.constants import Constant
+from prefect.engine.signals import SKIP, TRIGGERFAIL
 
 
 class AddTask(Task):
@@ -1127,7 +1129,7 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten([1]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_mapped()
         assert state.result[z].result == [2]
 
@@ -1139,7 +1141,7 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten([1]), y=flatten([[5]]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_mapped()
         assert state.result[z].result == [6]
 
@@ -1151,12 +1153,84 @@ class TestFlatMap:
         with Flow("test") as flow:
             z = a.map(x=flatten(1), y=flatten([[1]]))
 
-        state = flow.run()
+        state = flow.run(executor=executor)
         assert state.result[z].is_failed()
         assert (
             state.result[z].message
             == "At least one upstream state has an unmappable result."
         )
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_nested_signal_input(self, executor):
+        class NestTaskWithSignal(Task):
+            def run(self, x):
+                if x == 2:
+                    raise SKIP("Skip this task execution")
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithSignal()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run(executor=executor)
+        assert state.result[z].result == [2, None, 4]
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_nested_exception_input(self, executor):
+        class NestTaskWithException(Task):
+            def run(self, x):
+                if x == 2:
+                    raise ValueError("This task failed!")
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithException()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run(executor=executor)
+        result = state.result[z].result
+        assert len(result) == 3
+        assert (result[0], result[2]) == (2, 4)
+        assert isinstance(result[1], TRIGGERFAIL)
+
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_nested_noniterable_input(self, executor, caplog):
+        class NestTaskWithNonIterable(Task):
+            def run(self, x):
+                if x == 2:
+                    return x
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithNonIterable()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run(executor=executor)
+        if not isinstance(executor, prefect.executors.dask.DaskExecutor):
+            # When multiprocessing with Dask, caplog fails
+            assert any(
+                [
+                    "`flatten` was used on upstream task that did not return an iterable"
+                    in record.message
+                    for record in caplog.records
+                ]
+            ), "Warning is logged"
+        assert state.result[z].result == [2, 3, 4]
 
 
 def test_mapped_retries_regenerate_child_pipelines():

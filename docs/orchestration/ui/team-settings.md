@@ -1,6 +1,6 @@
 # Team Settings <Badge text="Cloud"/>
 
-Teams in Cloud allow you to share your work among users and to assign [roles](../concepts/roles.html). Each team member will also have their own (free) Cloud Developer account.
+Teams in Cloud allow you to share your work among users and to assign [roles](/orchestration/rbac/overview.html). Each team member will also have their own (free) Cloud Developer account.
 
 ## Switching Teams
 

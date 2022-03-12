@@ -31,7 +31,7 @@ class GitLab(Storage):
 
     - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
 
-    - Call `prefect register flow -f flow.py` to register this flow with GitLab storage.
+    - Call `prefect register -f flow.py` to register this flow with GitLab storage.
 
     Args:
         - repo (str): the project path (i.e., 'namespace/project') or ID
@@ -88,7 +88,7 @@ class GitLab(Storage):
         client = self._get_gitlab_client()
 
         try:
-            project = client.projects.get(quote_plus(self.repo))
+            project = client.projects.get(quote_plus(self.repo, safe="/"))
             contents = project.files.get(file_path=flow_location, ref=ref)
         except GitlabAuthenticationError:
             self.logger.error(
@@ -108,7 +108,7 @@ class GitLab(Storage):
 
     def add_flow(self, flow: "Flow") -> str:
         """
-        Method for storing a new flow as bytes in the local filesytem.
+        Method for storing a new flow as bytes in the local filesystem.
 
         Args:
             - flow (Flow): a Prefect Flow to add

@@ -5,13 +5,35 @@ Prefect Server can be deployed on a single node using [docker-compose](https://d
 The easiest way accomplish this is to use the built-in command in the Prefect CLI.
 Note that this requires both `docker-compose >= 1.18.0` and `docker` to be installed.
 
-```bash
-prefect server start
+By default, Prefect is configured to use Prefect Cloud as the backend. To use Prefect Server as the backend, run the following Prefect CLI command to configure Prefect for local orchestration:
+
 ```
+$ prefect backend server
+``` 
+
+Now you can start the server using the command:
+
+```bash
+$ prefect server start
+```
+
+
+::: warning Changes in Prefect 0.15.5
+To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
+
+```bash
+$ prefect server start --expose
+```
+
+
+This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
+:::
+
 
 Note that this command may take a bit to complete, as the various docker images are pulled. Once running,
 you should see some "Prefect Server" ASCII art along with the logs output from each service, and the UI should be available at
 [http://localhost:8080](http://localhost:8080).
+
 
 ::: tip Installing Docker
 We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
@@ -29,7 +51,7 @@ By default the UI will attempt to communicate with the Apollo endpoint at
 different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the UI
 to look at a different URL.
 
-You can set this directly in the UI on the Home page:
+You can set this directly from the browser. First click the **?** icon in the nav bar to access the help menu and then click **Getting Started**. In the **Connecting your Infrastructure** block, select the **Prefect Server** tab. Then you'll see this configuration option under **Connect the UI**: 
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
@@ -41,7 +63,38 @@ You can set this directly in the UI on the Home page:
   apollo_url="http://localhost:4200/graphql"
 ```
 
-Note: The second method will change the _default_ Apollo endpoint but can still be overidden by the UI setting.
+Note: The second method will change the _default_ Apollo endpoint but can still be overridden by the UI setting.
+
+### Virtual Machine
+
+If you are running prefect server on a virtual machine (VM), you may need to 
+configure the UI Endpoint Setting (`apollo_url`) just like you would in a server deploy.
+
+For example, if you access the UI at
+`http://IP_OF_VIRTUAL_MACHINE:8080`,
+you can open the *Network* tab of your browser's developer console and you will see
+that by default the UI makes requests to 
+`http://localhost:4200/graphql`
+
+If those requests are failing, simply configure the UI Endpoint Setting 
+(`apollo_url`) to point to
+`http://IP_OF_VIRTUAL_MACHINE/graphql:4200`
+
+
+### Vagrant
+
+If you are a running Prefect server inside a VM using vagrant, 
+the easiest way to get the UI working is to simply forward ports 8080 and 4200 
+from the host to the guest.  That way the default UI Endpoint Setting 
+(`apollo_url`) will work fine. 
+
+Add this to your Vagrantfile:
+
+```
+config.vm.network "forwarded_port", guest: 4200, host: 4200
+config.vm.network "forwarded_port", guest: 8080, host: 8080
+```
+
 
 ::: tip You don't need to host the UI yourself!
 Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
@@ -73,7 +126,7 @@ You can also configure Prefect Server to use an external Postgres instance.
 The simplest way to specify an external Postgres instance is passing in a command line argument:
 
 ```bash
-prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
+$ prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
 ```
 
 You can also configure the database url in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:

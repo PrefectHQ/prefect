@@ -84,7 +84,7 @@ A new task run is not created when a task is retried. A new state is added to th
 Before a Prefect task runs, it evaluates a "trigger function" to decide whether it should run at all. Triggers are functions that receive the states of any upstream tasks and return `True` if the task should run, or `False` (or raise an error) otherwise. If a task's trigger fails and does not raise a more specific error, the task will enter a `TriggerFailed` state, which is a more specific type of `Failed` state that indicates that the task failed to run, but because of its trigger function, not its own code.
 
 ::: tip Skips are treated as successes
-In Prefect, skipped tasks are treated as if they succeeded. This is because skips only take place if users want them to, so they represent the "successful" execution of a user's design. However, by default, skips also propogate: a task that follows a skipped task will also skip, unless it receives `skip_on_upstream_skip=False`.
+In Prefect, skipped tasks are treated as if they succeeded. This is because skips only take place if users want them to, so they represent the "successful" execution of a user's design. However, by default, skips also propagate: a task that follows a skipped task will also skip, unless it receives `skip_on_upstream_skip=False`.
 :::
 
 Built-in trigger functions include:
@@ -196,7 +196,7 @@ with Flow('Indexing Flow') as flow:
 This will automatically add a `GetItem` task to the flow that receives `x` as its input and attempts to perform `x['a']`. The result of that task (`1`) is stored as `y`.
 
 ::: warning Key validation
-Because Prefect flows are not executed at runtime, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
+Because Prefect flows are not executed when you create them, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
 :::
 
 ## Multiple Return Values

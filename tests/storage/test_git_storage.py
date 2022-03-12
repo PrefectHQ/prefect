@@ -1,11 +1,9 @@
 from unittest.mock import MagicMock
-from tempfile import TemporaryDirectory
 
 import pytest
 
 dulwich = pytest.importorskip("dulwich")
 
-import prefect
 from prefect import context, Flow
 from prefect.storage import Git
 
@@ -76,6 +74,29 @@ def test_create_git_storage_with_use_ssh_and_git_token_secret_name_logs_warning(
     )
 
 
+def test_create_git_storage_with_git_clone_url_secret_name_and_other_repo_params_logs_warning(
+    caplog,
+):
+    storage = Git(
+        flow_path="flow.py",
+        repo="test/repo",
+        git_clone_url_secret_name="MY_SECRET",
+    )
+
+    assert (
+        "Git storage initialized with a `git_clone_url_secret_name`. The value of this Secret will be used to clone the repository, ignoring"
+        in caplog.text
+    )
+
+
+def test_create_git_storage_without_repo_or_git_clone_url_secret_name_errors():
+    with pytest.raises(
+        ValueError,
+        match="Either `repo` or `git_clone_url_secret_name` must be provided",
+    ):
+        storage = Git(flow_path="flow.py")
+
+
 def test_create_git_storage_with_tag_and_branch_name_errors():
     with pytest.raises(ValueError):
         storage = Git(
@@ -91,6 +112,7 @@ def test_serialize_git_storage():
         flow_name="my-flow",
         git_token_secret_name="MY_TOKEN",
         git_token_username="my_user",
+        git_clone_url_secret_name="MY_GIT_URL",
         branch_name="my_branch",
         tag=None,
         commit=None,
@@ -107,6 +129,7 @@ def test_serialize_git_storage():
     assert serialized_storage["flow_name"] == "my-flow"
     assert serialized_storage["git_token_secret_name"] == "MY_TOKEN"
     assert serialized_storage["git_token_username"] == "my_user"
+    assert serialized_storage["git_clone_url_secret_name"] == "MY_GIT_URL"
     assert serialized_storage["branch_name"] == "my_branch"
     assert serialized_storage["tag"] == None
     assert serialized_storage["commit"] == None
@@ -137,7 +160,7 @@ def test_add_flow_to_git_already_added():
 
 
 @pytest.mark.parametrize(
-    "repo_host, repo, access_token_secret_name, access_token_secret, access_token_username, use_ssh, format_access_token, expected_git_clone_url",
+    "repo_host, repo, access_token_secret_name, access_token_secret, access_token_username, use_ssh, format_access_token, git_clone_url_secret_name, git_clone_url_secret, expected_git_clone_url",
     [
         # no access token secret provided
         (
@@ -148,6 +171,8 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             True,
+            None,
+            None,
             "https://@github.com/my/repo.git",
         ),
         # github + access token
@@ -159,6 +184,8 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             True,
+            None,
+            None,
             "https://user:MY_SECRET_TOKEN@github.com/user/repo.git",
         ),
         # github + access token + custom token username
@@ -170,6 +197,8 @@ def test_add_flow_to_git_already_added():
             "another_git_user",
             False,
             True,
+            None,
+            None,
             "https://another_git_user:MY_SECRET_TOKEN@github.com/user/repo.git",
         ),
         # bitbucket + access token
@@ -181,6 +210,8 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             True,
+            None,
+            None,
             "https://user:MY_SECRET_TOKEN@bitbucket.org/user/repo.git",
         ),
         # gitlab + access token
@@ -192,6 +223,8 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             True,
+            None,
+            None,
             "https://user:MY_SECRET_TOKEN@gitlab.com/user/repo.git",
         ),
         # unknown hostname + access token
@@ -203,6 +236,8 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             True,
+            None,
+            None,
             "https://user:MY_SECRET_TOKEN@randomsite.com/user/repo.git",
         ),
         # ssh
@@ -214,6 +249,8 @@ def test_add_flow_to_git_already_added():
             None,
             True,  # use ssh instead of https
             True,
+            None,
+            None,
             "git@github.com:user/repo.git",
         ),
         # skip access token formatting
@@ -225,7 +262,22 @@ def test_add_flow_to_git_already_added():
             None,
             False,
             False,  # skip access token formatting
+            None,
+            None,
             "https://MY_SECRET_TOKEN@github.com/user/repo.git",
+        ),
+        # provide git clone url secret name directly
+        (
+            None,
+            None,
+            None,
+            None,
+            None,
+            False,
+            True,
+            "GIT_CLONE_URL_SECRET",  # provide the url as a secret
+            "https://my-secret-url.com/repo.git",
+            "https://my-secret-url.com/repo.git",
         ),
     ],
 )
@@ -237,6 +289,8 @@ def test_get_git_clone_url(
     access_token_username,
     use_ssh,
     format_access_token,
+    git_clone_url_secret_name,
+    git_clone_url_secret,
     expected_git_clone_url,
 ):
     storage = Git(
@@ -245,10 +299,16 @@ def test_get_git_clone_url(
         repo_host=repo_host,
         git_token_secret_name=access_token_secret_name,
         git_token_username=access_token_username,
+        git_clone_url_secret_name=git_clone_url_secret_name,
         use_ssh=use_ssh,
         format_access_token=format_access_token,
     )
-    with context(secrets={access_token_secret_name: access_token_secret}):
+    with context(
+        secrets={
+            access_token_secret_name: access_token_secret,
+            git_clone_url_secret_name: git_clone_url_secret,
+        }
+    ):
         assert storage.git_clone_url == expected_git_clone_url
 
 

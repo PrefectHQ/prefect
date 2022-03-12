@@ -1,7 +1,6 @@
 import os
 import socket
 import sys
-import warnings
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 
@@ -109,7 +108,7 @@ class LocalAgent(Agent):
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
-        Deploy flow runs on your local machine as Docker containers
+        Deploy flow runs on your local machine as subprocesses
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
@@ -207,15 +206,9 @@ class LocalAgent(Agent):
             {
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    self.client._api_token
-                    or self.flow_run_api_key
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key,
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # Providing a tenant id is only necessary if authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else None
@@ -242,13 +235,12 @@ class LocalAgent(Agent):
         show_flow_logs: bool = False,
         key: str = None,
         tenant_id: str = None,
+        agent_config_id: str = None,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent. DEPRECATED. Use
-                `key` instead.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): a dictionary of environment variables and values that
@@ -262,6 +254,8 @@ class LocalAgent(Agent):
                 with Prefect Cloud
             - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
                 set, the default tenant associated with the API key will be used.
+            - agent_config_id (str, optional): An agent config id to link to for health
+                check automations
 
         Returns:
             - str: A string representation of the generated configuration file
@@ -295,11 +289,8 @@ class LocalAgent(Agent):
             add_opts += f"-k {key} "
         if tenant_id:
             add_opts += f"--tenant-id {tenant_id} "
-
-        # Tokens are deprecated
-        if token:
-            warnings.warn("API tokens are deprecated. Please switch to using API keys.")
-            add_opts += f"-t {token} "
+        if agent_config_id:
+            add_opts += f"--agent-config-id {agent_config_id}"
 
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf

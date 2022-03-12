@@ -4,28 +4,6 @@ For monitoring flow runs from the UI, see the [UI documentation on flow runs](..
 
 ## Python
 
-::: warning Experimental
-<div class="experimental-warning">
-<svg
-    aria-hidden="true"
-    focusable="false"
-    role="img"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 448 512"
-    >
-<path
-fill="#e90"
-d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-13.3 0-24 10.7-24 24v16c0 13.3 10.7 24 24 24h8v151L10.8 403.5C-18.5 450.6 15.3 512 70.9 512h306.2c55.7 0 89.4-61.5 60.1-108.5zM137.9 320l48.2-77.6c3.7-5.2 5.8-11.6 5.8-18.4V64h64v160c0 6.9 2.2 13.2 5.8 18.4l48.2 77.6h-172z"
->
-</path>
-</svg>
-
-<div>
-The functionality here is experimental, and may change between versions without notice. Use at your own risk.
-</div>
-</div>
-:::
-
 The Prefect Core library provides an object for inspecting flow runs without writing queries at `prefect.backend.FlowRunView`.
 
 ### Creating a `FlowRunView`
@@ -66,14 +44,28 @@ flow_run.state.message
 
 ### Getting flow run logs
 
-<!-- TODO after CLI merged -->
+Get a List of `FlowRunLog` from the flow run using `.get_logs()`:
+
+```python
+flow_run.get_logs()
+# [
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 00, 000000, tzinfo=Timezone('+00:00')), level=20, message='Submitted for execution: Task XXXXXXX'),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 01, 123456, tzinfo=Timezone('+00:00')), level=20, message="Beginning Flow run for 'radio_show'"),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 02, 234567, tzinfo=Timezone('+00:00')), level=20, message="Task 'series_one': Starting task run..."),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 42, 42, 424242, tzinfo=Timezone('+00:00')), level=20, message='It feels like I just had my brains smashed out by a slice of lemon wrapped round a large gold brick.'),
+#   FlowRunLog(timestamp=DateTime(1978, 04, 12, 22, 59, 59, 987654, tzinfo=Timezone('+00:00')), level=20, message="Task 'series_one': Finished task run for task with final state: 'Success'"),
+#   FlowRunLog(timestamp=DateTime(1978, 04, 12, 23, 00, 00, 000000, tzinfo=Timezone('+00:00')), level=20, message='Flow run SUCCESS: all reference tasks succeeded')
+# ]
+```
+
+Each `FlowRunLog` in the list contains a log message, along with the log level and timestamp.
 
 ### Getting flow metadata
 
 Metadata about the flow that the flow run was created for is accessible using `.get_flow_metadata()`
 
 ```python
-flow_run.get_flow_metdata()
+flow_run.get_flow_metadata()
 # FlowView(
 #   flow_id='8bdcf5b5-7598-49d1-a885-61612ca550de', 
 #   name='hello-world', 

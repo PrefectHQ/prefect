@@ -19,7 +19,6 @@ import box
 from click.exceptions import ClickException
 
 import prefect
-from prefect.utilities.storage import extract_flow_from_file
 from prefect.utilities.filesystems import read_bytes_from_path, parse_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
 from prefect.utilities.importtools import import_object
@@ -296,25 +295,20 @@ def prepare_flows(flows: "List[FlowLike]", labels: List[str] = None) -> None:
     for flow in flows:
         if isinstance(flow, dict):
             # Add any extra labels to the flow
-            if flow.get("environment"):
-                new_labels = set(flow["environment"].get("labels") or []).union(labels)
-                flow["environment"]["labels"] = sorted(new_labels)
-            else:
-                new_labels = set(flow["run_config"].get("labels") or []).union(labels)
-                flow["run_config"]["labels"] = sorted(new_labels)
+            new_labels = set(flow["run_config"].get("labels") or []).union(labels)
+            flow["run_config"]["labels"] = sorted(new_labels)
         else:
             # Set the default flow result if not specified
             if not flow.result:
                 flow.result = flow.storage.result
 
             # Add a `run_config` if not configured explicitly
-            if flow.run_config is None and flow.environment is None:
+            if flow.run_config is None:
                 flow.run_config = UniversalRun()
             # Add any extra labels to the flow (either specified via the CLI,
             # or from the storage object).
-            obj = flow.run_config or flow.environment
-            obj.labels.update(labels)
-            obj.labels.update(flow.storage.labels)
+            flow.run_config.labels.update(labels)
+            flow.run_config.labels.update(flow.storage.labels)
 
             # Add the flow to storage
             flow.storage.add_flow(flow)
@@ -762,26 +756,15 @@ REGISTER_EPILOG = """
     ),
     default=True,
 )
-@click.pass_context
 @handle_terminal_error
 def register(
-    ctx, project, paths, modules, json_paths, names, labels, force, watch, schedule
+    project, paths, modules, json_paths, names, labels, force, watch, schedule
 ):
     """Register one or more flows into a project.
 
     Flows with unchanged metadata will be skipped as registering again will only
     change the version number.
     """
-    # Since the old command was a subcommand of this, we have to do some
-    # mucking to smoothly deprecate it. Can be removed with `prefect register
-    # flow` is removed.
-    if ctx.invoked_subcommand is not None:
-        if any([project, paths, modules, names, labels, force]):
-            raise ClickException(
-                "Got unexpected extra argument (%s)" % ctx.invoked_subcommand
-            )
-        return
-
     if project is None:
         raise ClickException("Missing required option '--project'")
 
@@ -987,65 +970,3 @@ def build(paths, modules, names, labels, output, update):
     # Exit with appropriate status code
     if errored:
         raise TerminalError
-
-
-@register.command(hidden=True)
-@click.option(
-    "--file",
-    "-f",
-    required=True,
-    help="A file that contains a flow",
-    hidden=True,
-    default=None,
-    type=click.Path(exists=True),
-)
-@click.option(
-    "--name",
-    "-n",
-    required=False,
-    help="The `flow.name` to pull out of the file provided",
-    hidden=True,
-    default=None,
-)
-@click.option(
-    "--project",
-    "-p",
-    required=False,
-    help="The name of a Prefect project to register this flow",
-    hidden=True,
-    default=None,
-)
-@click.option(
-    "--label",
-    "-l",
-    required=False,
-    help="A label to set on the flow, extending any existing labels.",
-    hidden=True,
-    multiple=True,
-)
-@click.option(
-    "--skip-if-flow-metadata-unchanged",
-    is_flag=True,
-    help="Skips registration if flow metadata is unchanged",
-    hidden=True,
-)
-def flow(file, name, project, label, skip_if_flow_metadata_unchanged):
-    """Register a flow (DEPRECATED)"""
-    # Deprecated in 0.14.13
-    click.secho(
-        (
-            "Warning: `prefect register flow` is deprecated, please transition to "
-            "using `prefect register` instead."
-        ),
-        fg="yellow",
-    )
-    # Don't run extra `run` and `register` functions inside file
-    file_path = os.path.abspath(file)
-    with prefect.context({"loading_flow": True, "local_script_path": file_path}):
-        flow = extract_flow_from_file(file_path=file_path, flow_name=name)
-
-    idempotency_key = (
-        flow.serialized_hash() if skip_if_flow_metadata_unchanged else None
-    )
-
-    flow.register(project_name=project, labels=label, idempotency_key=idempotency_key)

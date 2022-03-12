@@ -74,7 +74,7 @@ class TestPrefectSecret:
 
         secret = PrefectSecret(name="test")
         with set_temporary_config(
-            {"cloud.use_local_secrets": False, "cloud.auth_token": None}
+            {"cloud.use_local_secrets": False, "cloud.api-key": None}
         ):
             with prefect.context(secrets=dict()):
                 with pytest.raises(ClientError):
@@ -87,7 +87,7 @@ class TestPrefectSecret:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+            {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
         ):
             my_secret = PrefectSecret(name="the-key")
             val = my_secret.run()
@@ -100,7 +100,7 @@ class TestPrefectSecret:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+            {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
         ):
             with prefect.context(secrets={"the-key": "foo"}):
                 my_secret = PrefectSecret(name="the-key")
@@ -114,7 +114,7 @@ class TestPrefectSecret:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+            {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
         ):
             with prefect.context(secrets={}):
                 my_secret = PrefectSecret(name="the-key")
@@ -128,7 +128,7 @@ class TestPrefectSecret:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+            {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
         ):
             my_secret = PrefectSecret(name="the-key")
             val = my_secret.run()
@@ -146,7 +146,7 @@ class TestPrefectSecret:
         session.return_value.post = post
         monkeypatch.setattr("requests.Session", session)
         with set_temporary_config(
-            {"cloud.auth_token": "secret_token", "cloud.use_local_secrets": False}
+            {"cloud.api_key": "api-key", "cloud.use_local_secrets": False}
         ):
             my_secret = PrefectSecret(name="the-key")
             val = my_secret.run()

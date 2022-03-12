@@ -16,17 +16,22 @@ class SQLiteQuery(Task):
         - query (str, optional): the optional _default_ query to execute at runtime;
             can also be provided as a keyword to `run`, which takes precedence over this default.
             Note that a query should consist of a _single SQL statement_.
+        - data (tuple, optional): values to use when `query` is a parametrized string. See
+            https://docs.python.org/3/library/sqlite3.html for more details.
         - **kwargs (optional): additional keyword arguments to pass to the
             standard Task initalization
     """
 
-    def __init__(self, db: str = None, query: str = None, **kwargs: Any):
+    def __init__(
+        self, db: str = None, query: str = None, data: tuple = (), **kwargs: Any
+    ):
         self.db = db
         self.query = query
+        self.data = data
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("db", "query")
-    def run(self, db: str = None, query: str = None):
+    @defaults_from_attrs("db", "query", "data")
+    def run(self, db: str = None, query: str = None, data: tuple = ()):
         """
         Args:
             - db (str, optional): the location of the database (.db) file;
@@ -34,17 +39,19 @@ class SQLiteQuery(Task):
             - query (str, optional): the optional query to execute at runtime;
                 if not provided, `self.query` will be used instead. Note that a
                 query should consist of a _single SQL statement_.
+            - data (tuple, optional): values to use when query is a parametrized string. See
+                https://docs.python.org/3/library/sqlite3.html for more details.
 
         Returns:
             - [Any]: the results of the query
         """
         db = cast(str, db)
         query = cast(str, query)
-        with closing(sql.connect(db)) as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(query)
-                out = cursor.fetchall()
-                conn.commit()
+        data = cast(tuple, data)
+        with closing(sql.connect(db)) as conn, closing(conn.cursor()) as cursor:
+            cursor.execute(query, data)
+            out = cursor.fetchall()
+            conn.commit()
         return out
 
 

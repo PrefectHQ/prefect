@@ -28,11 +28,11 @@ class BaseStateSchema(ObjectSchema):
     class Meta:
         object_class = state.State
 
-    context = fields.Dict(key=fields.Str(), values=JSONCompatible(), allow_none=True)
+    context = fields.Dict(keys=fields.Str(), values=JSONCompatible(), allow_none=True)
     message = fields.String(allow_none=True)
     _result = Nested(StateResultSchema, allow_none=False, value_selection_fn=get_safe)
     cached_inputs = fields.Dict(
-        key=fields.Str(),
+        keys=fields.Str(),
         values=Nested(StateResultSchema, value_selection_fn=get_safe),
         allow_none=True,
     )
@@ -123,7 +123,7 @@ class CachedSchema(SuccessSchema):
 
     cached_parameters = JSONCompatible(allow_none=True)
     cached_result_expiration = fields.DateTime(allow_none=True)
-    hashed_inputs = fields.Dict(key=fields.Str(), values=fields.Str(), allow_none=True)
+    hashed_inputs = fields.Dict(keys=fields.Str(), values=fields.Str(), allow_none=True)
 
 
 class MappedSchema(SuccessSchema):

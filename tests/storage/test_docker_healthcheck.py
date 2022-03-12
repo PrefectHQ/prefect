@@ -7,7 +7,6 @@ import pytest
 
 from prefect import Flow, Task, task
 from prefect.engine.results import LocalResult
-from prefect.environments import Environment
 from prefect.storage import _healthcheck as healthchecks
 from prefect.utilities.storage import flow_to_bytes_pickle
 
@@ -205,39 +204,3 @@ class TestResultCheck:
             result = down(upstream_tasks=[up])
 
         assert healthchecks.result_check([f]) is None
-
-
-class TestEnvironmentDependencyCheck:
-    def test_no_raise_on_normal_flow(self):
-        flow = Flow("THIS IS A TEST")
-
-        assert healthchecks.environment_dependency_check([flow]) is None
-
-    def test_no_raise_on_proper_imports(self):
-        class NewEnvironment(Environment):
-            @property
-            def dependencies(self) -> list:
-                return ["prefect"]
-
-        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
-
-        assert healthchecks.environment_dependency_check([flow]) is None
-
-    def test_no_raise_on_missing_dependencies_property(self):
-        class NewEnvironment(Environment):
-            pass
-
-        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
-
-        assert healthchecks.environment_dependency_check([flow]) is None
-
-    def test_raise_on_missing_imports(self, monkeypatch):
-        class NewEnvironment(Environment):
-            @property
-            def dependencies(self) -> list:
-                return ["TEST"]
-
-        flow = Flow("THIS IS A TEST", environment=NewEnvironment())
-
-        with pytest.raises(ModuleNotFoundError):
-            healthchecks.environment_dependency_check([flow])

@@ -13,9 +13,25 @@ try:
     )
     from prefect.tasks.aws.step_function import StepActivate
     from prefect.tasks.aws.secrets_manager import AWSSecretsManager
+    from prefect.tasks.aws.parameter_store_manager import AWSParametersManager
     from prefect.tasks.aws.batch import BatchSubmit
     from prefect.tasks.aws.client_waiter import AWSClientWait
 except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
     ) from err
+
+__all__ = [
+    "AWSClientWait",
+    "AWSSecretsManager",
+    "AWSParametersManager",
+    "BatchSubmit",
+    "LambdaCreate",
+    "LambdaDelete",
+    "LambdaInvoke",
+    "LambdaList",
+    "S3Download",
+    "S3List",
+    "S3Upload",
+    "StepActivate",
+]

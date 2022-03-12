@@ -24,6 +24,7 @@ from prefect.tasks.prefect import (
 @pytest.fixture
 def MockClient(monkeypatch):
     Client = MagicMock()
+    Client().get_cloud_url.return_value = "https://api.prefect.io/flow/run/url"
     monkeypatch.setattr("prefect.tasks.prefect.flow_run.Client", Client)
     return Client
 
@@ -80,7 +81,115 @@ class TestCreateFlowRun:
             context=None,
             run_config=None,
             scheduled_start_time=None,
+            idempotency_key=None,
         )
+
+    def test_creates_flow_run_with_idempotency_from_task_run_id_in_context(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        with prefect.context({"task_run_id": "test"}):
+            create_flow_run.run(flow_id="flow-id")
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=None,
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key="test",
+        )
+
+    def test_creates_flow_run_with_idempotency_from_map_index_in_context(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        with prefect.context({"task_run_id": "test", "map_index": 1}):
+            create_flow_run.run(flow_id="flow-id")
+
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=None,
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key="test-1",
+        )
+
+    def testcreates_flow_run_with_name_from_current_run_name(
+        self, MockFlowView, MockClient
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        MockFlowView.from_id.return_value.name = "child_flow_name"
+
+        with prefect.context({"flow_run_name": "parent_run_name"}):
+            create_flow_run.run(flow_id="flow-id")
+
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name="parent_run_name-child_flow_name",
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key=None,
+        )
+
+    def test_use_in_local_flow_run(self, MockFlowView, MockClient):
+        captured_context = None
+
+        def capture_context(*args, **kwargs):
+            nonlocal captured_context
+            captured_context = prefect.context.copy()
+
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        MockFlowView.from_id.return_value.name = "flow_name"
+        MockClient().create_flow_run.side_effect = capture_context
+
+        with prefect.Flow("test") as flow:
+            create_flow_run(flow_id="flow-id")
+
+        flow.run()
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=None,
+            run_name=captured_context["flow_run_name"] + "-flow_name",
+            labels=None,
+            context=None,
+            run_config=None,
+            scheduled_start_time=None,
+            idempotency_key=captured_context["task_run_id"],
+        )
+
+    def test_map_in_local_flow_run(self, MockFlowView, MockClient):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+
+        with prefect.Flow("test") as flow:
+            create_flow_run.map(
+                flow_id=prefect.unmapped("flow-id"), labels=["a", "b", "c"]
+            )
+
+        flow.run()
+
+        assert MockClient().create_flow_run.call_count == 3
+        seen_idempotency_keys = set()
+        for i, (expected_label, call) in enumerate(
+            zip(["a", "b", "c"], MockClient().create_flow_run.calls)
+        ):
+            # Label is mapped over
+            _, kwargs = call.args
+            assert kwargs["label"] == expected_label
+
+            # Idempotency keys are unique
+            assert kwargs["idempotency_key"] not in seen_idempotency_keys
+            seen_idempotency_keys.add(kwargs["idempotency_key"])
+
+            # Idempotency keys include map index
+            assert kwargs["idempotency_key"].endswith(f"-{i}")
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -104,12 +213,40 @@ class TestCreateFlowRun:
             context=kwargs.get("context"),
             run_config=kwargs.get("run_config"),
             scheduled_start_time=kwargs.get("scheduled_start_time"),
+            idempotency_key=None,
+        )
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"scheduled_start_time": pendulum.duration(days=1)},
+        ],
+    )
+    def test_creates_flow_in_future(
+        self, MockFlowView, MockClient, monkeypatch, kwargs
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        # Mocking the concept of "now" so we can have consistent assertions
+        now = pendulum.now("utc")
+        mock_now = MagicMock(return_value=now)
+        monkeypatch.setattr("prefect.client.client.pendulum.now", mock_now)
+        create_flow_run.run(flow_id="flow-id", **kwargs)
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=kwargs.get("parameters"),
+            run_name=kwargs.get("run_name"),
+            labels=kwargs.get("labels"),
+            context=kwargs.get("context"),
+            run_config=kwargs.get("run_config"),
+            scheduled_start_time=pendulum.now("utc")
+            + kwargs.get("scheduled_start_time"),
+            idempotency_key=None,
         )
 
     def test_generates_run_name_from_parent_and_child(self, MockFlowView, MockClient):
         MockFlowView.from_id.return_value.flow_id = "flow-id"
         MockFlowView.from_id.return_value.name = "child-name"
-        with prefect.context(flow_run_name="parent-run"):
+        with prefect.context(flow_run_name="parent-run", task_run_id="parent-task-run"):
             create_flow_run.run(flow_id="flow-id")
         MockClient().create_flow_run.assert_called_once_with(
             flow_id="flow-id",
@@ -119,6 +256,7 @@ class TestCreateFlowRun:
             context=None,
             run_config=None,
             scheduled_start_time=None,
+            idempotency_key="parent-task-run",
         )
 
     def test_returns_flow_run_idl(self, MockFlowView, MockClient):
@@ -130,9 +268,7 @@ class TestCreateFlowRun:
         MockClient().create_flow_run.return_value = "flow-run-id"
         MockClient().get_cloud_url.return_value = "fake-url"
         create_flow_run.run(flow_id="flow-id")
-        MockClient().get_cloud_url.assert_called_once_with(
-            "flow-run", "flow-run-id", as_user=False
-        )
+        MockClient().get_cloud_url.assert_called_once_with("flow-run", "flow-run-id")
         assert "Created flow run '<generated-name>': fake-url" in caplog.text
 
 
@@ -180,6 +316,40 @@ class TestWaitForFlowRun:
         result = wait_for_flow_run.run("flow-run-id")
         assert result == "fake-return-value"
 
+    def test_raises_failed_state(self, mock_watch_flow_run, MockFlowRunView):
+        MockFlowRunView.from_flow_run_id().get_latest().state = state.Failed(
+            message="foo"
+        )
+
+        with prefect.Flow("test") as flow:
+            ref = wait_for_flow_run("flow-run-id", raise_final_state=True)
+
+        flow_state = flow.run()
+        task_state = flow_state.result[ref]
+        assert task_state.is_failed()
+        assert task_state.message == 'flow-run-id finished in state <Failed: "foo">'
+        # The latest view is attached to the result
+        assert task_state.result == MockFlowRunView.from_flow_run_id().get_latest()
+
+        assert flow_state.is_failed()
+
+    def test_raises_success_state(self, mock_watch_flow_run, MockFlowRunView):
+        MockFlowRunView.from_flow_run_id().get_latest().state = state.Success(
+            message="foo"
+        )
+
+        with prefect.Flow("test") as flow:
+            ref = wait_for_flow_run("flow-run-id", raise_final_state=True)
+
+        flow_state = flow.run()
+        task_state = flow_state.result[ref]
+        assert task_state.is_successful()
+        assert task_state.message == 'flow-run-id finished in state <Success: "foo">'
+        # The latest view is attached to the result
+        assert task_state.result == MockFlowRunView.from_flow_run_id().get_latest()
+
+        assert flow_state.is_successful()
+
 
 class TestGetTaskRunResult:
     def test_requires_task_slug(self):
@@ -194,6 +364,7 @@ class TestGetTaskRunResult:
             ):
                 get_task_run_result.run(flow_run_id="id", task_slug="foo")
 
+    @pytest.mark.flaky
     def test_waits_for_flow_run_to_finish(self, MockFlowRunView, monkeypatch):
         # Create a fake flow run that is 'Running' then 'Finished'
         flow_run = MagicMock()
@@ -288,9 +459,7 @@ def client(monkeypatch):
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client)
     )
-    monkeypatch.setattr(
-        "prefect.artifacts.Client", MagicMock(return_value=cloud_client)
-    )
+    monkeypatch.setattr("prefect.Client", MagicMock(return_value=cloud_client))
     yield cloud_client
 
 
@@ -499,7 +668,7 @@ class TestStartFlowRunServer:
 
     def test_flow_run_task_poll_interval_too_short(self):
         with pytest.raises(ValueError):
-            task = StartFlowRun(
+            StartFlowRun(
                 flow_name="Test Flow",
                 project_name="Demo",
                 parameters={"test": "ing"},

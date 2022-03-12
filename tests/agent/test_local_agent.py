@@ -1,6 +1,7 @@
 import os
 import socket
 import sys
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -35,11 +36,8 @@ TEST_FLOW_RUN_DATA = GraphQLResult(
 
 
 @pytest.fixture(autouse=True)
-def mock_cloud_config(cloud_api):
-    with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
-    ):
-        yield
+def autouse_api_key_config(config_with_api_key):
+    yield config_with_api_key
 
 
 def test_local_agent_init():
@@ -54,14 +52,14 @@ def test_local_agent_deduplicates_labels():
     assert sorted(agent.labels) == sorted(DEFAULT_AGENT_LABELS)
 
 
-def test_local_agent_config_options():
+def test_local_agent_config_options(config_with_api_key):
     agent = LocalAgent(
         name="test",
         labels=["test_label"],
         import_paths=["test_path"],
     )
     assert agent.name == "test"
-    assert agent.client.get_auth_token() == "TEST_TOKEN"
+    assert agent.client.api_key == config_with_api_key.cloud.api_key
     assert agent.logger
     assert agent.log_to_cloud is True
     assert agent.processes == set()
@@ -86,7 +84,7 @@ def test_local_agent_uses_ip_if_dockerdesktop_hostname(monkeypatch):
     assert "IP" in agent.labels
 
 
-def test_populate_env_vars(monkeypatch, backend):
+def test_populate_env_vars(monkeypatch, backend, config_with_api_key):
     agent = LocalAgent()
 
     # The python path may be a single item and we want to ensure the correct separator
@@ -102,7 +100,8 @@ def test_populate_env_vars(monkeypatch, backend):
             "PYTHONPATH": os.getcwd() + os.pathsep + expected.get("PYTHONPATH", ""),
             "PREFECT__BACKEND": backend,
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
+            "PREFECT__CLOUD__API_KEY": config_with_api_key.cloud.api_key,
+            "PREFECT__CLOUD__TENANT_ID": config_with_api_key.cloud.tenant_id,
             "PREFECT__CLOUD__AGENT__LABELS": str(DEFAULT_AGENT_LABELS),
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CONTEXT__FLOW_ID": "foo",
@@ -125,51 +124,43 @@ def test_populate_env_vars_sets_log_to_cloud(flag):
     assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
 
 
-def test_environment_has_agent_token_from_config():
-    """Check that the API token is passed through from the config via environ"""
-
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = LocalAgent()
-        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
-
-    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
-
-
-@pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_config(tenant_id):
+def test_environment_has_api_key_from_config(config_with_api_key):
     """Check that the API key is passed through from the config via environ"""
 
-    with set_temporary_config(
-        {
-            "cloud.api_key": "TEST_KEY",
-            "cloud.tenant_id": tenant_id,
-            "cloud.agent.auth_token": None,
-        }
-    ):
+    agent = LocalAgent()
+    agent.client._get_auth_tenant = MagicMock(return_value="ID")
+    env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+
+    assert env["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+    assert env["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
+
+
+def test_environment_has_tenant_id_from_server(config_with_api_key):
+    tenant_id = uuid.uuid4()
+
+    with set_temporary_config({"cloud.tenant_id": None}):
         agent = LocalAgent()
-        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
         env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
-    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+    assert env["PREFECT__CLOUD__API_KEY"] == config_with_api_key.cloud.api_key
+    assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
 
-@pytest.mark.parametrize("tenant_id", ["ID", None])
-def test_environment_has_api_key_from_disk(monkeypatch, tenant_id):
+def test_environment_has_api_key_from_disk(monkeypatch):
     """Check that the API key is passed through from the on disk cache"""
+    tenant_id = str(uuid.uuid4())
+
     monkeypatch.setattr(
         "prefect.Client.load_auth_from_disk",
         MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
     )
-    with set_temporary_config({"cloud.agent.auth_token": None}):
+    with set_temporary_config({"cloud.tenant_id": None}):
         agent = LocalAgent()
-    agent.client._get_auth_tenant = MagicMock(return_value="ID")
-    env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
-    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
 
 def test_populate_env_vars_from_agent_config():
@@ -485,23 +476,6 @@ def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
     assert not agent.processes
 
 
-def test_generate_supervisor_conf_with_token():
-    # Covers deprecated token based auth
-    agent = LocalAgent()
-
-    conf = agent.generate_supervisor_conf(
-        token="token",
-        labels=["label"],
-        import_paths=["path"],
-        env_vars={"TESTKEY": "TESTVAL"},
-    )
-
-    assert "-t token" in conf
-    assert "-l label" in conf
-    assert "-p path" in conf
-    assert "-e TESTKEY=TESTVAL" in conf
-
-
 def test_generate_supervisor_conf_with_key():
     agent = LocalAgent()
 
@@ -518,20 +492,6 @@ def test_generate_supervisor_conf_with_key():
     assert "-l label" in conf
     assert "-p path" in conf
     assert "-e TESTKEY=TESTVAL" in conf
-
-
-def test_generate_supervisor_conf_with_token_and_key():
-    # Covers deprecated token based auth colliding with key based auth
-    agent = LocalAgent()
-
-    with pytest.raises(ValueError, match="Given both a API token and API key"):
-        agent.generate_supervisor_conf(
-            token="token",
-            key="key",
-            labels=["label"],
-            import_paths=["path"],
-            env_vars={"TESTKEY": "TESTVAL"},
-        )
 
 
 @pytest.mark.parametrize(

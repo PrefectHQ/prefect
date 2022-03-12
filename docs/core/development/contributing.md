@@ -44,7 +44,6 @@ the `changes/` directory. To add a new entry:
    headers:
     - `feature`
     - `enhancement`
-    - `server`
     - `task`
     - `fix`
     - `deprecation`

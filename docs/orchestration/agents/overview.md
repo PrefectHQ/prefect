@@ -29,6 +29,9 @@ platforms.
 - **Kubernetes**: The [Kubernetes Agent](./kubernetes.md) executes flow runs as
   [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/).
 
+- **GCP Vertex**: The [Vertex Agent](./vertex.md) executes flow runs as
+  [Vertex Custom Jobs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job).
+
 - **AWS ECS**: The [ECS Agent](./ecs.md) executes flow runs as [AWS ECS
   tasks](https://aws.amazon.com/ecs/) (on either ECS or Fargate).
 
@@ -216,4 +219,4 @@ $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 
 If enabled, the HTTP health check will be available via the `/api/health`
 route at the configured agent address. This route returns `200 OK` if the
-agent is running and health, and will error otherwise.
+agent is healthy, and will error otherwise.

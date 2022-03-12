@@ -50,12 +50,12 @@ This class represents a mapping of flow name to file paths contained in the git 
 ```python
 flow = Flow("my-flow")
 flow.storage = Bitbucket(
-    project="my.project", repo="my.repo", path="/flows/flow.py", ref="my-branch"
+    project="my.project", repo="my.repo", path="flows/flow.py", ref="my-branch"
 )
 
 ```
 
-- Push this `flow.py` file to the `my.repo` repository under `/flows/flow.py` inside "my.project"     project.
+- Push this `flow.py` file to the `my.repo` repository under `flows/flow.py` inside "my.project"     project.
 
 - Call `prefect register -f flow.py` to register this flow with Bitbucket storage.
 
@@ -77,11 +77,11 @@ This class represents a mapping of flow name to file paths contained in the git 
 
 ```python
 flow = Flow("my-flow")
-flow.storage = CodeCommit(repo="my/repo", path="/flows/flow.py")
+flow.storage = CodeCommit(repo="my/repo", path="flows/flow.py")
 
 ```
 
-- Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+- Push this `flow.py` file to the `my/repo` repository under `flows/flow.py`.
 
 - Call `prefect register -f flow.py` to register this flow with CodeCommit storage.
 
@@ -151,11 +151,11 @@ A typical workflow using this storage type might look like the following:
 
 ```python
 flow = Flow("my-flow")
-flow.storage = Git(repo="my/repo", flow_path="/flows/flow.py", repo_host="github.com")
+flow.storage = Git(repo="my/repo", flow_path="flows/flow.py", repo_host="github.com")
 
 ```
 
-- Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+- Push this `flow.py` file to the `my/repo` repository under `flows/flow.py`.
 
 - Call `prefect register -f flow.py` to register this flow with Git storage.
 
@@ -177,11 +177,11 @@ This class represents a mapping of flow name to file paths contained in the git 
 
 ```python
 flow = Flow("my-flow")
-flow.storage = GitHub(repo="my/repo", path="/flows/flow.py")
+flow.storage = GitHub(repo="my/repo", path="flows/flow.py")
 
 ```
 
-- Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+- Push this `flow.py` file to the `my/repo` repository under `flows/flow.py`.
 
 - Call `prefect register -f flow.py` to register this flow with GitHub storage.
 
@@ -204,13 +204,13 @@ This class represents a mapping of flow name to file paths contained in the git 
 ```python
 flow = Flow("my-flow")
 # Can also use `repo="123456"`
-flow.storage = GitLab(repo="my/repo", path="/flows/flow.py", ref="my-branch")
+flow.storage = GitLab(repo="my/repo", path="flows/flow.py", ref="my-branch")
 
 ```
 
-- Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
+- Push this `flow.py` file to the `my/repo` repository under `flows/flow.py`.
 
-- Call `prefect register flow -f flow.py` to register this flow with GitLab storage.
+- Call `prefect register flow -f flow.py --project 'my-prefect-project'` to register this flow with GitLab storage.
 
 **Args**:     <ul class="args"><li class="args">`repo (str)`: the project path (i.e., 'namespace/project') or ID     </li><li class="args">`host (str, optional)`: If using GitLab server, the server host. If not         specified, defaults to Gitlab cloud.     </li><li class="args">`path (str, optional)`: a path pointing to a flow file in the repo     </li><li class="args">`ref (str, optional)`: a commit SHA-1 value or branch name     </li><li class="args">`access_token_secret (str, optional)`: The name of a Prefect secret         that contains a GitLab access token to use when loading flows from         this storage.     </li><li class="args">`**kwargs (Any, optional)`: any additional `Storage` initialization options</li></ul>
 

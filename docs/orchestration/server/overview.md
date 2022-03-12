@@ -59,12 +59,12 @@ Because of [Prefect's innovative Hybrid Model](https://medium.com/the-prefect-bl
 Prefect Cloud supports users as a first-class concept, which allows for:
 - Permissioned access to the UI through [Auth0](https://auth0.com/)
 - [Customizable access controls](/orchestration/rbac/overview.html)
-- An authenticated GraphQL API that can only be accessed via special authorization tokens
+- An authenticated GraphQL API that can only be accessed via special API keys
 - A full team management experience
 
 ### API network accessibility and custom deployments
 
-Because Prefect Cloud's API is accessible from any location with access to `api.prefect.io`, it is much easier to customize your flow deployments and developer workflows without the hassle of maintaining a network endpoint. From registering flows with your favorite CI/CD tool to running multiple Agents across different clusters and machines, all you need to ensure is that your tools and services have an appropriately permissioned Cloud authorization token.
+Because Prefect Cloud's API is accessible from any location with access to `api.prefect.io`, it is much easier to customize your flow deployments and developer workflows without the hassle of maintaining a network endpoint. From registering flows with your favorite CI/CD tool to running multiple Agents across different clusters and machines, all you need to ensure is that your tools and services have an appropriately permissioned Cloud API key.
 
 ### Enterprise features
 
@@ -80,7 +80,7 @@ In addition to user roles and authorization, Prefect Cloud ships with many addit
 
 ### Scale & Performance
 
-Prefect Cloud was designed with scale and performance in mind.  Depending on the volume of work you routinely run, you will likely notice a stark difference between Server flow runs and Cloud flow runs.  In particular, we have observed that ~10-20 tasks running concurrently against a typical Server deployments could be as much as 3x faster when run with Cloud.  This difference is magnified as you scale up: once you are running ~50-100 tasks concurrently the difference in speed can be as large as 6x.  Ultimatey these differences boil down to API responsiveness, and consequently UI performance is also directly affected.
+Prefect Cloud was designed with scale and performance in mind.  Depending on the volume of work you routinely run, you will likely notice a stark difference between Server flow runs and Cloud flow runs.  In particular, we have observed that ~10-20 tasks running concurrently against a typical Server deployments could be as much as 3x faster when run with Cloud.  This difference is magnified as you scale up: once you are running ~50-100 tasks concurrently the difference in speed can be as large as 6x.  Ultimately these differences boil down to API responsiveness, and consequently UI performance is also directly affected.
 
 ### Support
 

@@ -73,15 +73,11 @@ def flow_run():
                 flow = storage.get_flow(flow_data.name)
 
             with prefect.context(secrets=secrets):
-                if flow_data.run_config is not None:
-                    runner_cls = get_default_flow_runner_class()
-                    runner_cls(flow=flow).run()
-                else:
-                    environment = flow.environment
-                    environment.setup(flow)
-                    environment.execute(flow)
+                runner_cls = get_default_flow_runner_class()
+                runner_cls(flow=flow).run()
+
         except Exception as exc:
-            msg = "Failed to load and execute Flow's environment: {}".format(repr(exc))
+            msg = "Failed to load and execute flow run: {}".format(repr(exc))
             state = prefect.engine.state.Failed(message=msg)
             client.set_flow_run_state(flow_run_id=flow_run_id, state=state)
             client.write_run_logs(

@@ -162,6 +162,22 @@ def test_merge_imperative_flow():
     assert state.result[c].result == 2
 
 
+def test_merge_imperative_flow_checkpoint_false():
+    flow = Flow("test")
+
+    cond = identity.copy().bind(True, flow=flow)
+    with case(cond, True):
+        a = inc.copy().bind(1, flow=flow)
+
+    with case(cond, False):
+        b = inc.copy().bind(2, flow=flow)
+
+    c = merge(a, b, flow=flow, checkpoint=False)
+
+    state = flow.run()
+    assert c.checkpoint == False
+
+
 def test_mapped_switch_and_merge():
     with Flow("iterated map") as flow:
         mapped_result = identity.copy().map(["a", "b", "c"])

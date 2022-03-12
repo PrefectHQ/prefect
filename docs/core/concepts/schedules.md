@@ -13,13 +13,15 @@ from prefect import task, Flow
 from datetime import timedelta
 from prefect.schedules import IntervalSchedule
 
+
 @task
 def say_hello():
     print("Hello, world!")
 
+
 schedule = IntervalSchedule(interval=timedelta(minutes=2))
 
-with Flow("Hello", schedule) as flow:
+with Flow("Hello", schedule=schedule) as flow:
     say_hello()
 
 flow.run()
@@ -37,11 +39,13 @@ Prefect `Schedules` have three components:
 
 These three components allow users to combine simple functions into complex behavior.
 
+Note that many examples here use the [Pendulum](https://pendulum.eustace.io/) Python package for easy datetime manipulation. Pendulum isn’t required, but it’s employed in many schedule use cases, such as start and end dates.
+
 ### Clocks
 
 #### Interval clocks
 
-The most basic Prefect clock is the `IntervalClock`. It takes an `interval` argument and emits events on a regular basis. An optional `start_date` can be provided, in which case the intervals will be relative to that date; an `end_date` can be provided as well.
+The most basic Prefect clock is the [`IntervalClock`](/api/latest/schedules/clocks.html#intervalclock). It takes an `interval` argument and emits events on a regular basis. An optional `start_date` can be provided, in which case the intervals will be relative to that date; an `end_date` can be provided as well.
 
 Prefect does not support sub-minute schedules.
 
@@ -56,12 +60,14 @@ schedule.next(5)
 ```
 
 ::: tip Time Zones
-Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock e.g.:
+Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock:
 
 ```python
+import pendulum
+
 schedules.clocks.IntervalClock(
     start_date=pendulum.datetime(2019, 1, 1, tz="America/New_York"),
-    interval=timedelta(days=1)
+    interval=timedelta(days=1),
 )
 ```
 
@@ -75,7 +81,7 @@ Note that this behavior is different from the `CronClock`.
 
 #### Cron clocks
 
-Clocks can also be generated from cron strings with Prefect's `CronClock`.
+Clocks can also be generated from cron strings with the Prefect [`CronClock`](/api/latest/schedules/clocks.html#cronclock).
 
 ```python
 from datetime import timedelta
@@ -88,28 +94,48 @@ schedule.next(5)
 ```
 
 ::: warning Daylight Saving Time
-If the `CronClock's` start time is provided with a DST-observing timezone, then the schedule will adjust itself. Cron's rules for DST are based on clock times, not intervals. This means that an hourly cron schedule will fire on every new clock hour, not every elapsed hour; for example, when clocks are set back this will result in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. Longer schedules, such as one that fires at 9am every morning, will automatically adjust for DST.
+If the `CronClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself. Cron's rules for DST are based on clock times, not intervals. This means that an hourly cron schedule will fire on every new clock hour, not every elapsed hour; for example, when clocks are set back this will result in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. Longer schedules, such as one that fires at 9am every morning, will automatically adjust for DST.
 
 Note that this behavior is different from the `IntervalClock`.
 :::
 
 #### Date clocks
 
-For more ad-hoc schedules, Prefect provides a `DatesClock` that only fires on specific, user-provided dates.
+For more ad-hoc schedules, Prefect provides a [`DatesClock`](/api/latest/schedules/clocks.html#datesclock) that only fires on specific, user-provided dates.
 
 ```python
-from datetime import timedelta
 import pendulum
 from prefect.schedules import Schedule
 from prefect.schedules.clocks import DatesClock
 
 schedule = Schedule(
-    clocks=[DatesClock([pendulum.now().add(days=1), pendulum.now().add(days=2)])])
+    clocks=[DatesClock([pendulum.now().add(days=1), pendulum.now().add(days=2)])]
+)
 
 schedule.next(2)
 ```
 
-#### Varying Parameter Values <Badge text="0.9.2+"/>
+#### Recurrence Rule Clocks
+
+The Prefect [`RRuleClock`](/api/latest/schedules/clocks.html#rruleclock) supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every minute. 
+
+`RRuleClock` uses the [dateutil rrule module](https://dateutil.readthedocs.io/en/stable/rrule.html) to specify iCal recurrence rules.
+
+For example, `RRuleClock` can specify a schedule recurring every day for a week:
+
+```python
+from dateutil.rrule import rrule, DAILY
+import pendulum
+from prefect.schedules import Schedule
+from prefect.schedules.clocks import RRuleClock
+
+start_date = pendulum.now().add(days=1)
+r_rule = rrule(freq=DAILY, count=7)
+
+schedule = Schedule(clocks=[RRuleClock(r_rule, start_date=start_date)])
+```
+
+#### Varying Parameter Values
 
 All clocks support an optional `parameter_defaults` argument that allows users to specify varying `Parameter` values for each flow run generated from this clock.  For example, suppose we have the following flow that logs the value of the `Parameter` that is passed to it:
 
@@ -117,10 +143,12 @@ All clocks support an optional `parameter_defaults` argument that allows users t
 import prefect
 from prefect import task, Flow, Parameter
 
+
 @task
 def log_param(p):
-    logger = prefect.context['logger']
-    logger.info("Received parameter value {}".format(p))
+    logger = prefect.context["logger"]
+    logger.info(f"Received parameter value {p}")
+
 
 p = Parameter("p", default=None, required=False)
 
@@ -136,17 +164,21 @@ from prefect.schedules import clocks, Schedule
 
 now = datetime.datetime.utcnow()
 
-clock1   = clocks.IntervalClock(start_date=now, 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 1"})
-clock2   = clocks.IntervalClock(start_date=now + datetime.timedelta(seconds=30), 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 2"})
+clock1 = clocks.IntervalClock(
+    start_date=now,
+    interval=datetime.timedelta(minutes=1),
+    parameter_defaults={"p": "CLOCK 1"},
+)
+clock2 = clocks.IntervalClock(
+    start_date=now + datetime.timedelta(seconds=30),
+    interval=datetime.timedelta(minutes=1),
+    parameter_defaults={"p": "CLOCK 2"},
+)
 
 # the full schedule
 schedule = Schedule(clocks=[clock1, clock2])
 
-flow.schedule = schedule # set the schedule on the Flow
+flow.schedule = schedule  # set the schedule on the Flow
 flow.run()
 ```
 
@@ -192,7 +224,7 @@ schedules.Schedule(
         filters.between_times(pendulum.time(15), pendulum.time(15)),
     ],
     # and not in January
-    not_filters=[filters.between_dates(1, 1, 1, 31)]
+    not_filters=[filters.between_dates(1, 1, 1, 31)],
 )
 ```
 
@@ -207,11 +239,9 @@ Adjustments allow schedules to modify dates that are emitted by clocks and pass 
 schedules.Schedule(
     # fire every day
     clocks=[clocks.IntervalClock(timedelta(days=1))],
-
     # filtered for month ends
     filters=[filters.is_month_end],
-
     # and run on the next weekday
-    adjustments=[adjustments.next_weekday]
-    )
+    adjustments=[adjustments.next_weekday],
+)
 ```

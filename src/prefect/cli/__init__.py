@@ -42,7 +42,7 @@ def cli():
         agent       Manage agents
         create      Create objects
         delete      Delete objects
-        execute     Execute a flow's environment
+        execute     Execute a flow run
         run         Run a flow
         register    Register flows with an API
         heartbeat   Send heartbeats for a run
@@ -130,3 +130,6 @@ def backend(api):
 
     backend_util.save_backend(api)
     click.secho("Backend switched to {}".format(api), fg="green")
+
+
+__all__ = ["backend_util"]

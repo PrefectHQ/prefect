@@ -13,6 +13,8 @@ class DockerRun(RunConfig):
         - labels (Iterable[str], optional): an iterable of labels to apply to this
             run config. Labels are string identifiers used by Prefect Agents
             for selecting valid flow runs when polling for work
+        - ports (Iterable[int], optional): an iterable of ports to pass to the
+            Docker Agent which are used to expose container ports.
         - host_config (dict, optional): A dictionary or runtime arguments to pass to
             the Docker Agent. See link below for options.
             https://docker-py.readthedocs.io/en/stable/api.html#docker.api.container.ContainerApiMixin.create_host_config
@@ -38,8 +40,10 @@ class DockerRun(RunConfig):
         image: str = None,
         env: dict = None,
         labels: Iterable[str] = None,
-        host_config: dict = None
+        ports: Iterable[int] = None,
+        host_config: dict = None,
     ) -> None:
         super().__init__(env=env, labels=labels)
         self.image = image
         self.host_config = host_config
+        self.ports = ports

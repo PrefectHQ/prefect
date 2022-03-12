@@ -8,9 +8,9 @@ import cloudpickle
 
 import prefect
 from prefect import Flow, Task
-from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.exceptions import FlowStorageError
+from prefect.run_configs import DockerRun, UniversalRun
 from prefect.utilities.storage import (
     get_flow_image,
     extract_flow_from_file,
@@ -23,17 +23,17 @@ from prefect.utilities.storage import (
 def test_get_flow_image_docker_storage():
     flow = Flow(
         "test",
-        environment=LocalEnvironment(),
+        run_config=UniversalRun(),
         storage=Docker(registry_url="test", image_name="name", image_tag="tag"),
     )
     image = get_flow_image(flow=flow)
     assert image == "test/name:tag"
 
 
-def test_get_flow_image_env_metadata():
+def test_get_flow_image_run_config():
     flow = Flow(
         "test",
-        environment=LocalEnvironment(metadata={"image": "repo/name:tag"}),
+        run_config=DockerRun(image="repo/name:tag"),
         storage=Local(),
     )
     image = get_flow_image(flow=flow)
@@ -43,7 +43,7 @@ def test_get_flow_image_env_metadata():
 def test_get_flow_image_raises_on_missing_info():
     flow = Flow(
         "test",
-        environment=LocalEnvironment(),
+        run_config=UniversalRun(),
         storage=Local(),
     )
     with pytest.raises(ValueError):

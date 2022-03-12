@@ -1,5 +1,0 @@
-fix:
-  - "Fix importerror typo in dropbox module - [#4855](https://github.com/PrefectHQ/prefect/pull/4855)"
-
-contributor:
-  - "[Jacob Dawang](https://github.com/jdawang)"

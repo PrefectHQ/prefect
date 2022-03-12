@@ -15,16 +15,6 @@ the task you weren't aware of!)
 
 Not to mention that we occasionally also send Prefect swag to some of our open source contributors!
 
-<script>
-import { Tweet } from 'vue-tweet-embed/dist'
-
-export default {
-    components: {Tweet}
-}
-</script>
-
-<Tweet id="1298298873878847490"></Tweet>
-
 ## Task Structure
 
 In order to build a task for the task library you need to define the task's `__init__` and `run`

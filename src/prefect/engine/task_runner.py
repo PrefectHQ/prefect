@@ -38,7 +38,6 @@ from prefect.engine.state import (
 )
 from prefect.utilities.executors import (
     RecursiveCall,
-    run_with_heartbeat,
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
@@ -686,13 +685,30 @@ class TaskRunner(Runner):
 
     def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
         """
-        Sets the name for this task run.
+        Sets the name for this task run and adds to `prefect.context`
 
         Args:
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+
         """
-        pass
+
+        task_run_name = self.task.task_run_name
+
+        if task_run_name:
+            raw_inputs = {k: r.value for k, r in task_inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}),
+                **prefect.context,
+                **raw_inputs,
+            }
+
+            if not isinstance(task_run_name, str):
+                task_run_name = task_run_name(**formatting_kwargs)
+            else:
+                task_run_name = task_run_name.format(**formatting_kwargs)
+
+            prefect.context.update({"task_run_name": task_run_name})
 
     @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
@@ -719,6 +735,10 @@ class TaskRunner(Runner):
                 **prefect.context,
                 **raw_inputs,
             }
+
+            # self can't be used as a formatting parameter because it would ruin all method calls such as
+            # result.exists() by providing two values of self
+            formatting_kwargs.pop("self", None)
 
             if not isinstance(target, str):
                 target = target(**formatting_kwargs)
@@ -815,7 +835,6 @@ class TaskRunner(Runner):
         new_state = Running(message="Starting task run.")
         return new_state
 
-    @run_with_heartbeat
     @call_state_handlers
     def get_task_run_state(self, state: State, inputs: Dict[str, Result]) -> State:
         """

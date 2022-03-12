@@ -6,7 +6,7 @@ from urllib.error import HTTPError
 import requests
 from requests.exceptions import HTTPError as RequestsHTTPError
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 import prefect
 from prefect.client import Secret
@@ -18,7 +18,8 @@ BITBUCKET_CLOUD_RETRY = Retry(
     total=10,
     backoff_factor=0.5,
     status_forcelist=[429],
-    method_whitelist=["HEAD", "GET", "OPTIONS"],
+    # typeshed is out of date with urllib3 and missing `allowed_methods`
+    allowed_methods=["HEAD", "GET", "OPTIONS"],  # type: ignore
 )
 
 if TYPE_CHECKING:

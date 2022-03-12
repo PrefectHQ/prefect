@@ -60,7 +60,7 @@ flow.register(
 :::
 
 
-Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
+Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](/orchestration/getting-started/set-up.html#authenticate-with-prefect-cloud). For more information on Flow registration see [here](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow).
 
 ### GraphQL <Badge text="GQL"/>
 
@@ -173,7 +173,7 @@ mutation {
 }
 ```
 
-### Toggle Version Locking
+### Toggle Version Locking <Badge text="Cloud"/>
 
 Prefect Cloud's _opt-in_ version locking mechanism enforces the assertion that your work runs once _and only once_. To enable version locking for a flow and its tasks, use the following GraphQL mutation:
 

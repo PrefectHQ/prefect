@@ -6,7 +6,7 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 ---
 
 <div class="hero">
-   <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
+   <img src="/assets/prefect-logo-gradient-navy.svg" width="500" style="max-width: 500px;">
    <p class="description">Don't Panic.</p>
     <div class="action">
         <router-link to="core/">
@@ -21,6 +21,10 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
         </router-link>
     </div>
 </div>
+
+We’re excited to announce that Prefect Core is officially Prefect 1.0! 
+
+For a smooth transition of your flows to this release, check out our [Upgrading to Prefect 1.0](/orchestration/faq/upgrading_1.0) guide and [Changelog](/api/latest/changelog/).
 
 <div class="features">
 <div class="feature">
@@ -54,7 +58,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack)!
+Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
 
 ### Hello, world! 👋
 

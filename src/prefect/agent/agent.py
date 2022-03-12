@@ -23,7 +23,6 @@ from prefect.run_configs import RunConfig, UniversalRun
 from prefect.serialization.state import StateSchema
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.context import context
-from prefect.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
@@ -128,10 +127,8 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = None,
     ) -> None:
-        # Load token for backwards compatibility
-        token = config.cloud.agent.get("auth_token")
         # Auth with an API key will be loaded from the config or disk by the Client
-        self.client = Client(api_server=config.cloud.api, api_token=token)
+        self.client = Client(api_server=config.cloud.api)
 
         self.agent_config_id = agent_config_id
         self._agent_config: Optional[dict] = None
@@ -758,17 +755,17 @@ class Agent:
 
     def _get_run_config(
         self, flow_run: GraphQLResult, run_config_cls: Type[RunConfig]
-    ) -> Optional[RunConfig]:
+    ) -> RunConfig:
         """
-        Get a run_config for the flow, if present.
+        Get a run_config for the flow, if present. The returned run config is always of
+        type `run_config_cls`
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object
             - run_config_cls (Callable): The expected run-config class
 
         Returns:
-            - RunConfig: The flow run's run-config. Returns None if an
-                environment-based flow.
+            - RunConfig: The flow run's run-config or an instance of `run_config_cls`
         """
         # If the flow is using a run_config, load it
         if getattr(flow_run, "run_config", None) is not None:
@@ -784,11 +781,9 @@ class Agent:
                 self.logger.error(msg)
                 raise TypeError(msg)
             return run_config
-        elif getattr(flow_run.flow, "environment", None) is None:
-            # No environment, use default run_config
-            return run_config_cls()
 
-        return None
+        # Otherwise, return the default run_config
+        return run_config_cls()
 
     def _safe_write_run_log(
         self, flow_run: GraphQLResult, message: str, level: str
@@ -815,28 +810,6 @@ class Agent:
             )
 
     # Backend API connection -----------------------------------------------------------
-
-    def _verify_token(self, token: str) -> None:
-        """
-        Checks whether a token with a `RUNNER` scope was provided
-
-        DEPRECATED: API Keys do not have different scope
-
-        Args:
-            - token (str): The provided agent token to verify
-        Raises:
-            - AuthorizationError: if token is empty or does not have a RUNNER role
-        """
-        if not token:
-            raise AuthorizationError("No agent API token provided.")
-
-        # Check if RUNNER role
-        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
-        if (
-            not result.data  # type: ignore
-            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
-        ):
-            raise AuthorizationError("Provided token does not have a RUNNER scope.")
 
     def _register_agent(self) -> str:
         """
@@ -886,25 +859,12 @@ class Agent:
         """
         Sets up the agent's connection to Cloud
 
-        - Verifies token with Cloud
         - Gets an agent_id and attaches it to the headers
         - Runs a test query to check for a good setup
 
         Raises:
             RuntimeError: On failed test query
         """
-
-        # Verify API tokens -- API keys do not need a type-check
-        if config.backend == "cloud" and not self.client.api_key:
-            self.logger.debug("Verifying authentication with Prefect Cloud...")
-            try:
-                self._verify_token(self.client.get_auth_token())
-                self.logger.debug("Authentication successful!")
-            except Exception as exc:
-                self.logger.error("Failed to verify authentication.")
-                raise RuntimeError(
-                    f"Error while contacting API at {config.cloud.api}",
-                ) from exc
 
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})

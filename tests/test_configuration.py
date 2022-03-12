@@ -138,9 +138,6 @@ def test_to_environment_variables_respects_prefix():
     assert env == {"FOO__KEY": "value"}
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 7), reason="One of the nested keys is a Box in Python 3.6"
-)
 def test_to_environment_variables_roundtrip(config, monkeypatch, test_config_file_path):
     keys = [".".join(k) for k in dict_to_flatdict(config)]
 

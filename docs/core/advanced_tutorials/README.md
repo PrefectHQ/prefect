@@ -5,7 +5,7 @@ sidebarDepth: 0
 # Contents
 
 These tutorials are intended to help the reader get acquainted with the many features of Prefect and its vocabulary. All code examples
-are locally executable in any Python version supported by Prefect (3.6+). Note that all features presented here are run without
+are locally executable in any Python version supported by Prefect (3.7+). Note that all features presented here are run without
 the Prefect server.
 
 ## [ETL](etl.md)

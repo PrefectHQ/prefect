@@ -82,6 +82,8 @@ class KafkaBatchConsume(Task):
                 closing the consumer
             - kafka_configs (dict, optional): a dict of kafka client configuration properties used
                 to construct the consumer.
+            - **kwargs (Any, optional): additional keyword arguments to pass to the standard Task
+                init method
         Returns:
             - List of consumed messages
         """

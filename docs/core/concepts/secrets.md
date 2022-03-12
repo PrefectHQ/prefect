@@ -68,7 +68,7 @@ For Cloud users, if the secret is not found in local context and `config.cloud.u
 
 ## Default Secrets
 
-A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets, all supported Prefect interactions with those services will be automatically configured.
+A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets in local context or environment variables, all supported Prefect interactions with those services will be automatically configured.
 
 The following is a list of the default names and contents of Prefect Secrets that, if set and declared, can be used to automatically authenticate your flow with the listed service:
 
@@ -78,8 +78,45 @@ The following is a list of the default names and contents of Prefect Secrets tha
 
 For example, when using local secrets, your Prefect installation can be configured to authenticate to AWS automatically by adding that specific `AWS_CREDENTIALS` key value pair into your secrets context like so:
 
-```
+```bash
 export PREFECT__CONTEXT__SECRETS__AWS_CREDENTIALS='{"ACCESS_KEY": "abcdef", "SECRET_ACCESS_KEY": "ghijklmn"}'
 ```
 
 Then all Prefect usages of AWS credentials will default to using the values in that dictionary.
+
+## External Secrets Engines
+
+### Hashicorp Vault
+
+The ability to integrate with an existing [Hashicorp Vault](https://www.vaultproject.io/) client to retrieve secrets is possible via the `VaultSecret` class.
+
+The `VaultSecret` class works similarly to the base `Secrets` class, with the addition of Vault connection credentials, supplied via a Prefect secret named `VAULT_CREDENTIALS`. With the supplied credentials a secret can be retrieved from the Vault instance using the `"<mount_point>/<path>"` of the remote secret.
+
+#### Vault Server
+
+The Vault server address is defined via an environment variable `VAULT_ADDR` as outlined in the [Vault documentation](https://www.vaultproject.io/docs/commands#vault_addr).
+The VaultSecret class supports both `VAULT_ADDR` and `vault_addr`.
+
+
+#### Authentication methods
+
+`VaultSecret` exposes a number of authentication mechanisms, made available in the order of precedence:
+
+1. [token](https://www.vaultproject.io/docs/auth/token): `{ 'VAULT_TOKEN: '<token>' }`
+
+2. [appRole](): `{ 'VAULT_ROLE_ID': '<role-id>', 'VAULT_SECRET_ID': '<secret-id>' }`
+
+3. [kubernetesRole](https://www.vaultproject.io/docs/auth/kubernetes): `{ 'VAULT_KUBE_AUTH_ROLE': '<>', 'VAULT_KUBE_AUTH_PATH': '<>' 'VAULT_KUBE_TOKEN_FILE': '<>' }`
+
+For example, given the `VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>" }'`, the value `"token"` will be used to autheticate against the Vault instance specified by the `VAULT_ADDR` using the token based authentication mechanism.
+
+```bash
+export VAULT_ADDR='http://vault.example.com'
+export PREFECT__CONTEXT__SECRETS__VAULT_CREDENTIALS='{"VAULT_TOKEN": "<token>"}'
+```
+
+```python
+from prefect.tasks.secrets.vault_secret import VaultSecret
+
+secret = VaultSecret("secret/test/path/to/secret").run()
+```

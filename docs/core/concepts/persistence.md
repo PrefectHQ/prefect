@@ -3,7 +3,7 @@
 Prefect provides a few ways to work with cached data between tasks or flows. In-memory caching of task **inputs** is automatically applied by the Prefect pipeline to optimize retries or other times when Prefect can anticipate rerunning the same task in the future. Users can also configure to cache the **output** of a prior run of a task and use it as the output of a future run of that task or even as the output of a run of a different task.
 
 Out of the box, Prefect Core does not persist cached data in a permanent fashion. All data, results, _and_ cached states are only stored in memory within the
-Python process running the flow. However, Prefect Core provides all of the necessary hooks for configuring your data to be persisted and retrieved from external locations. When combined with a compatible state persistence layer, such as Prefect Core's server or [Prefect Cloud](../../orchestration/faq.html#what-is-the-difference-between-prefect-core-and-prefect-cloud), this means flows can pick up exactly where they left off if the in-memory cache is lost.
+Python process running the flow. However, Prefect Core provides all of the necessary hooks for configuring your data to be persisted and retrieved from external locations. When combined with a compatible state persistence layer, such as Prefect Core's server or [Prefect Cloud](/orchestration/getting-started/set-up.html), this means flows can pick up exactly where they left off if the in-memory cache is lost.
 
 [[toc]]
 
@@ -46,7 +46,7 @@ Note that when running Prefect Core locally, your Tasks' cached states will be s
 
 ## Persisting Output
 
-Oftentimes it is useful to persist your task's data in an external location. You could always write this logic directly into the `Task` itself, but this can sometimes make testing difficult. Prefect offers a notion of task "checkpointing" that ensures that every time a task is successfully run, its return value is written to persistant storage based on the configuration in a [Result](results.md) object for the task. To configure your tasks for checkpointing, provide a `Result` matching the storage backend you want to the task's `result` kwarg and set `checkpoint=True` at task initialization:
+Oftentimes it is useful to persist your task's data in an external location. You could always write this logic directly into the `Task` itself, but this can sometimes make testing difficult. Prefect offers a notion of task "checkpointing" that ensures that every time a task is successfully run, its return value is written to persistent storage based on the configuration in a [Result](results.md) object for the task. To configure your tasks for checkpointing, provide a `Result` matching the storage backend you want to the task's `result` kwarg and set `checkpoint=True` at task initialization:
 
 ```python
 from prefect.engine.results import LocalResult

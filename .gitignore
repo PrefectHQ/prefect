@@ -156,3 +156,6 @@ credentials.csv
 *.pub
 *.rdp
 *_rsa
+
+# Great Expectations
+uncommitted/

@@ -357,7 +357,7 @@ class Task(metaclass=TaskMetaclass):
         )
         retry_delay = (
             retry_delay
-            if retry_delay is not None
+            if retry_delay is not None or not max_retries
             else prefect.config.tasks.defaults.retry_delay
         )
         timeout = (
@@ -372,7 +372,6 @@ class Task(metaclass=TaskMetaclass):
         if retry_delay is not None and not max_retries:
             raise ValueError(
                 "A `max_retries` argument greater than 0 must be provided if specifying "
-                "a retry delay."
                 "a retry delay."
             )
         # Make sure timeout is an integer in seconds
@@ -908,6 +907,23 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
+    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+        """
+        "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
+        equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
+        long chain of task calls.
+
+        Args:
+            - _prefect_task: The task to execute after this task.
+            - **kwargs: Additional keyword arguments to include as task arguments.
+
+        Returns:
+            - Task: A new task with the new arguments bound to it.
+        """
+        if "self" in kwargs:
+            raise ValueError('You cannot use the keyword argument "self" in .pipe.')
+        return _prefect_task(_prefect_self, **kwargs)
+
     # Serialization ------------------------------------------------------------
 
     def serialize(self) -> Dict[str, Any]:
@@ -1311,16 +1327,3 @@ EXTRA_CALL_PARAMETERS = [
     for p in inspect.Signature.from_callable(Task.__call__).parameters.values()
     if p.kind == inspect.Parameter.KEYWORD_ONLY
 ]
-
-
-# DEPRECATED - this is to allow backwards-compatible access to Parameters
-# https://github.com/PrefectHQ/prefect/pull/2758
-from .parameter import Parameter as _Parameter
-
-
-class Parameter(_Parameter):
-    def __new__(cls, *args, **kwargs):  # type: ignore
-        warnings.warn(
-            "`Parameter` has moved, please import as `prefect.Parameter`", stacklevel=2
-        )
-        return super().__new__(cls)
