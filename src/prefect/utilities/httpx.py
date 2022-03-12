@@ -41,7 +41,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         raise_for_status: bool = True,
     ) -> Response:
         """
-        Build and send a request. With prefect-specific error and retry handling.
+        Build and send a request with prefect-specific error and retry handling.
         """
         retry_count = 0
         request = self.build_request(
@@ -131,6 +131,45 @@ class PrefectHttpxClient(httpx.AsyncClient):
             """
             return await self.request(
                 "POST",
+                url,
+                content=content,
+                data=data,
+                files=files,
+                json=json,
+                params=params,
+                headers=headers,
+                cookies=cookies,
+                auth=auth,
+                follow_redirects=follow_redirects,
+                timeout=timeout,
+                extensions=extensions,
+                raise_for_status=raise_for_status,
+            )
+
+        async def put(
+            self,
+            url: URLTypes,
+            *,
+            content: RequestContent = None,
+            data: RequestData = None,
+            files: RequestFiles = None,
+            json: typing.Any = None,
+            params: QueryParamTypes = None,
+            headers: HeaderTypes = None,
+            cookies: CookieTypes = None,
+            auth: typing.Union[AuthTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+            follow_redirects: typing.Union[bool, UseClientDefault] = USE_CLIENT_DEFAULT,
+            timeout: typing.Union[TimeoutTypes, UseClientDefault] = USE_CLIENT_DEFAULT,
+            extensions: dict = None,
+            raise_for_status: bool = True,
+        ) -> Response:
+            """
+            Send a `PUT` request.
+
+            **Parameters**: See `httpx.request`.
+            """
+            return await self.request(
+                "PUT",
                 url,
                 content=content,
                 data=data,
