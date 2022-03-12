@@ -1,7 +1,9 @@
 import sys
-import pytest
 from unittest.mock import MagicMock
-from httpx import Response, Request
+
+import pytest
+from httpx import Request, Response
+
 from prefect.utilities.httpx import PrefectHttpxClient
 
 # AsyncMock has a new import path in Python 3.8+
