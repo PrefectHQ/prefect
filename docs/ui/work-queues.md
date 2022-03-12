@@ -29,7 +29,7 @@ For each work queue you'll see its:
 
 - Name
 - Status (for example, "active")
-- Tags (the work queue serves flows, tasks, and deployments with these tags)
+- Tags (the work queue serves flow runs with these tags)
 - Concurrency limit (the maximum number of flow runs that can be running concurrently on this queue)
 
 Click **Create Work Queue** to create a new work queue. You'll be able to specify the details for work served by this queue.
