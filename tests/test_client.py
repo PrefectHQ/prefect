@@ -742,14 +742,14 @@ class TestClientAPIKey:
     async def test_client_passes_api_key_as_auth_header(self, test_app):
         api_key = "validAPIkey"
         async with OrionClient(test_app, api_key=api_key) as client:
-            res = await client.get("/check_for_auth_header")
+            res = await client._client.get("/check_for_auth_header")
         assert res.status_code == 200
         assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
         async with OrionClient(test_app) as client:
             with pytest.raises(httpx.HTTPStatusError, match="403") as e:
-                await client.get("/check_for_auth_header")
+                await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
         with temporary_settings(PREFECT_API_KEY="test"):
