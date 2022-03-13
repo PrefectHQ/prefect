@@ -67,7 +67,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
             retry_after = response.headers.get("Retry-After")
             if retry_after:
-                retry_seconds = int(retry_after)
+                retry_seconds = float(retry_after)
             else:
                 retry_seconds = 2**retry_count  # default to exponential backoff
 
