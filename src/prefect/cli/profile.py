@@ -158,7 +158,11 @@ def rename(name: str, new_name: str):
 
 
 @profile_app.command()
-def inspect(name: str = None, show_defaults: bool = False, show_sources: bool = False):
+def inspect(
+    name: str = typer.Argument(None),
+    show_defaults: bool = False,
+    show_sources: bool = False,
+):
     """
     Display settings from a given profile; defaults to active.
     """
