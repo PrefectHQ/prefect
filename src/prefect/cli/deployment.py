@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import List
 
-import fastapi
-import httpx
 import pendulum
 import typer
 from rich.padding import Padding
@@ -21,7 +19,7 @@ from prefect.deployments import (
     deployment_specs_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import FlowScriptError
+from prefect.exceptions import FlowScriptError, ObjectNotFound
 from prefect.orion.schemas.filters import FlowFilter
 
 deployment_app = PrefectTyper(
@@ -62,11 +60,8 @@ async def inspect(name: str):
     async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Deployment {name!r} not found!")
-            else:
-                raise
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
 
     console.print(Pretty(deployment))
 
@@ -108,7 +103,10 @@ async def run(name: str):
     The flow run will not execute until an agent starts.
     """
     async with get_client() as client:
-        deployment = await client.read_deployment_by_name(name)
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
     console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
