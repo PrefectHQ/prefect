@@ -6,7 +6,7 @@ A development repo for Prefect 2.0 and Orion. Reference documentation can be fou
 
 ## Welcome!
 
-Prefect 2.0 is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](https://orion-docs.prefect.io/faq/#why-is-orion-a-technical-preview).
+Prefect 2.0 is powered by Orion, the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io).
 
 Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
