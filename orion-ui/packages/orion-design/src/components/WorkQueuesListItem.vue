@@ -1,7 +1,7 @@
 <template>
   <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
-      <BreadCrumbs :crumbs="crumbs" @click="openWorkQueuePanel(workQueue.id)" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openWorkQueuePanel(workQueue.id)" />
     </div>
 
     <div class="work-queues-list-item__status">
@@ -68,13 +68,11 @@
   grid-template-columns: 1fr min-content min-content;
   column-gap: var(--m-1);
   row-gap: 2px;
-  padding: var(--p-1) var(--p-2);
 }
 
 .work-queues-list-item__title {
   grid-area: title;
   text-align: left;
-  margin-top: calc(var(--m-1) * -1);
 }
 
 .work-queues-list-item__filters {
@@ -93,5 +91,6 @@
   grid-area: status;
   display: flex;
   gap: 2px;
+  flex-wrap: wrap;
 }
 </style>

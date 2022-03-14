@@ -1,9 +1,8 @@
-import { RouteGuardExecutioner } from '@prefecthq/orion-design'
+import { RouteGuardExecutioner, GlobalClosePanels } from '@prefecthq/orion-design'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import { DashboardDefaultFilters } from './guards/DashboardDefaultFilters'
 import { FlowRunDefaultFilters } from './guards/FlowRunDefaultFilters'
-import { GlobalClosePanels } from './guards/GlobalClosePanels'
 import { GlobalLoadFiltersFromRoute } from './guards/GlobalLoadFiltersFromRoute'
 
 const routes: RouteRecordRaw[] = [
@@ -23,6 +22,11 @@ const routes: RouteRecordRaw[] = [
     path: '/flows',
     name: 'Flows',
     component: () => import('../views/Flows.vue'),
+  },
+  {
+    path: '/work-queues',
+    name: 'Work Queues',
+    component: () => import('../views/WorkQueues.vue'),
   },
   {
     path: '/flow-run/:id',
