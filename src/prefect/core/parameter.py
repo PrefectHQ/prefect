@@ -136,14 +136,7 @@ class DateTimeParameter(Parameter):
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
-        if default is not None and default != no_default:
-            assert isinstance(default, str)
-            parsed_value = pendulum.parse(default).isoformat()
-        elif required:
-            parsed_value = no_default
-        else:
-            parsed_value = None
-        super().__init__(name=name, default=parsed_value, required=required, tags=tags)
+        super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
     def run(self) -> Any:
