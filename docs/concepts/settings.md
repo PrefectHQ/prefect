@@ -106,8 +106,8 @@ The `prefect profile` CLI commands enable you to create, review, and manage prof
 | Command | Description |
 | --- | --- |
 | create | Create a new profile. |
+| use | Switch the active profile. |
 | delete | Delete the given profile. |
-| get | Show settings in one or many profiles. |
 | inspect | Display settings from a given profile; defaults to active. |
 | ls | List profile names. |
 | rename | Change the name of a profile. |
@@ -119,11 +119,11 @@ $ prefect profile get
 [default]
 ```
 
- If you configured settings for the a profile, `prefect profile get` displays those settings:
+If you configured settings for a profile, `prefect profile inspect` displays those settings:
 
 ```bash
-$ prefect profile get
-[default]
+$ prefect profile inspect
+PREFECT_PROFILE = "default"
 PREFECT_API_KEY = "pnu_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 PREFECT_API_URL = "http://127.0.0.1:4200/api"
 ```
@@ -131,9 +131,9 @@ PREFECT_API_URL = "http://127.0.0.1:4200/api"
 You can pass the name of a profile to view its settings:
 
 ```bash
-$ prefect config view
-PREFECT_PROFILE="default"
-PREFECT_API_URL='http://localhost:4200/api' (from profile)
+$ prefect profile create test
+$ prefect profile inspect test
+PREFECT_PROFILE="test"
 ```
 
 ### Creating and removing profiles
@@ -294,13 +294,21 @@ PREFECT_TEST_MODE='False'
 
 ### Using profiles
 
-The profile `default` is used by default. To use another profile, set the environment variable `PREFECT_PROFILE` to the name of the profile:
+The profile `default` is used by default. There are several methods to switch to another profile.
+
+The recommended method is to use the `prefect profile use` command with the name of the profile:
+
+```bash
+$ prefect profile use foo
+```
+
+Alternatively, you may set the environment variable `PREFECT_PROFILE` to the name of the profile:
 
 ```bash
 $ export PREFECT_PROFILE=foo
 ```
 
-Or, specify the profile in the CLI command:
+Or, specify the profile in the CLI command for one-time usage:
 
 ```bash
 $ prefect --profile "foo" ...
