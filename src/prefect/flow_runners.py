@@ -676,14 +676,13 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Set the container to connect to the same API as the flow runner by default
 
         if PREFECT_API_URL:
+            api_url = PREFECT_API_URL.value()
 
             # Update local connections to use the docker internal host unless the
             # network mode is "host" where localhost is available
             if network_mode != "host":
-                api_url = (
-                    PREFECT_API_URL.value()
-                    .replace("localhost", "host.docker.internal")
-                    .replace("127.0.0.1", "host.docker.internal")
+                api_url = api_url.replace("localhost", "host.docker.internal").replace(
+                    "127.0.0.1", "host.docker.internal"
                 )
 
             env.setdefault("PREFECT_API_URL", api_url)
