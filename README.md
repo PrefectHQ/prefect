@@ -76,7 +76,7 @@ Learn more about Prefect's features and design by reading our in-depth [concept 
 
 ### Frequently asked questions
 
-Prefect Orion represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://orion-docs.prefect.io/faq).
+Prefect 2.0 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://orion-docs.prefect.io/faq).
 
 ### API reference
 
