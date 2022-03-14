@@ -1,6 +1,6 @@
 // duplicate imports are necessary for datefns tree shaking
 /* eslint-disable import/no-duplicates */
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatInTimeZone as dateFnsFormatInTimeZone } from 'date-fns-tz'
 import format from 'date-fns/format'
 import parse from 'date-fns/parse'
 
@@ -38,14 +38,18 @@ export function parseDate(input: string, reference: Date = new Date()): Date {
   return parse(input, dateFormat, reference)
 }
 
+export function formatInTimeZone(date: Date | string, format: string, timezone: string = localTimezone): string {
+  return dateFnsFormatInTimeZone(date, timezone, format)
+}
+
 export function formatDateTimeNumericInTimeZone(date: Date | string, timezone: string = localTimezone): string {
-  return formatInTimeZone(date, timezone, dateTimeNumericFormat)
+  return formatInTimeZone(date, dateTimeNumericFormat, timezone)
 }
 
 export function formatTimeNumericInTimeZone(date: Date | string, timezone: string = localTimezone): string {
-  return formatInTimeZone(date, timezone, timeNumericFormat)
+  return formatInTimeZone(date, timeNumericFormat, timezone)
 }
 
 export function formatDateInTimeZone(date: Date | string, timezone: string = localTimezone): string {
-  return formatInTimeZone(date, timezone, dateFormat)
+  return formatInTimeZone(date, dateFormat, timezone)
 }
