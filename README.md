@@ -2,7 +2,7 @@
 
 # Prefect 2.0
 
-A development repo for Prefect 2.0 and Orion. Reference documentation can be found at https://orion-docs.prefect.io/.
+A development repo for Prefect 2.0 and Orion. Documentation can be found at https://orion-docs.prefect.io/.
 
 ## Welcome!
 
