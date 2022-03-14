@@ -85,12 +85,22 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
     sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
     sort_by_created_key = lambda d: pendulum.now("utc") - d.created
 
+    from rich.table import Table
+    table = Table(
+        title="Deployments",
+    )
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("ID", style="cyan", no_wrap=True)
+
     for deployment in sorted(
         deployments, key=sort_by_created_key if by_created else sort_by_name_keys
     ):
-        console.print(
-            f"[blue]{flows[deployment.flow_id].name}/[bold]{deployment.name}[/][/]"
+        table.add_row(
+            f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
+            str(deployment.id)
         )
+
+    console.print(table)
 
 
 @deployment_app.command()
