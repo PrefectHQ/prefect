@@ -24,6 +24,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Flows.vue'),
   },
   {
+    path: '/work-queues',
+    name: 'Work Queues',
+    component: () => import('../views/WorkQueues.vue'),
+  },
+  {
     path: '/flow-run/:id',
     name: 'FlowRun',
     component: () => import('../views/FlowRun.vue'),
