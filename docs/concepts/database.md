@@ -8,9 +8,9 @@ tags:
     - PostgreSQL
 ---
 
-# Orion Metadata Database
+# Orion Database
 
-Orion employs a metadata database that persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
+The Orion database persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
 
 - Flow and task state
 - Run history
@@ -66,7 +66,7 @@ The above environment variable assumes that:
 - You use the default PostgreSQL port `5432`
 - Your PostgreSQL instance has a database called `orion`
 
-If you want to quickly start a PostgreSQL instance that can be used as your Orion backend database, you can use the following command that will start a Docker container running PostgreSQL:
+If you want to quickly start a PostgreSQL instance that can be used as your Orion database, you can use the following command that will start a Docker container running PostgreSQL:
 
 ```bash
 $ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
