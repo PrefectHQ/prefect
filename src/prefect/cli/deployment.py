@@ -9,6 +9,7 @@ import pendulum
 import typer
 from rich.padding import Padding
 from rich.pretty import Pretty
+from rich.table import Table
 from rich.traceback import Traceback
 
 from prefect.cli.base import PrefectTyper, app, console, exit_with_error
@@ -84,8 +85,6 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
     sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
     sort_by_created_key = lambda d: pendulum.now("utc") - d.created
-
-    from rich.table import Table
 
     table = Table(
         title="Deployments",
