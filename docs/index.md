@@ -37,7 +37,7 @@ For a deeper discussion about how and why Prefect Orion moved away from a relian
 
 ### Basic orchestration
 
-Decorate functions to automatically retry them on failure while providing complete visibility in the Prefect Orion UI.
+Decorate functions to automatically retry them on failure while providing complete visibility in the Prefect 2.0 UI.
 
 
 ```python hl_lines="1 6 13"
