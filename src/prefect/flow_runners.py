@@ -405,12 +405,14 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         docker_client = self._get_client()
 
+        network_mode = self._get_network_mode()
+
         container_settings = dict(
             image=self.image,
             network=self.networks[0] if self.networks else None,
-            network_mode=self._get_network_mode(),
+            network_mode=network_mode,
             command=self._get_start_command(flow_run),
-            environment=self._get_environment_variables(),
+            environment=self._get_environment_variables(network_mode),
             auto_remove=self.auto_remove,
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
@@ -668,12 +670,13 @@ class DockerFlowRunner(UniversalFlowRunner):
                 # Only supported by Docker v20.10.0+ which is our minimum recommend version
                 return {"host.docker.internal": "host-gateway"}
 
-    def _get_environment_variables(self):
+    def _get_environment_variables(self, network_mode):
         env = self.env.copy()
 
-        # Update local connections to use the docker host
+        # Update local connections to use the docker internal host unless the network
+        # mode is "host" where localhost is available
 
-        if PREFECT_API_URL:
+        if PREFECT_API_URL and network_mode != "host":
             api_url = (
                 PREFECT_API_URL.value()
                 .replace("localhost", "host.docker.internal")
