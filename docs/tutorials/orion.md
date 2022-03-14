@@ -28,7 +28,7 @@ Designing workflows with Prefect starts with a few basic building blocks that yo
 Creating and running _orchestrated_ workflows takes advantage of some additional Prefect Orion components. 
 
 - [Orion's API server](#orion-api-server) receives state information from workflows and provides flow run instructions for executing deployments.
-- [Orion's database](#orion-metadata-database) provides a persistent metadata store that holds flow and task run history.
+- [Orion's database](#orion-database) provides a persistent metadata store that holds flow and task run history.
 - [Orion's UI](#orion-ui-and-dashboard) provides a control plane for monitoring, configuring, analyzing, and even creating ad-hoc runs of your Prefect workflows.
 - Storage for flow and task data lets you configure a persistent store for flow code and flow and task results.
 - Work queues and agents bridge the server’s orchestration environment with a your execution environments, organizing work that agents can pick up to execute.
@@ -88,9 +88,9 @@ To stop an instance of the Orion API server, simply **CTRL+C** to end the proces
 
     If you create deployments that have schedules, the scheduled flow runs will only attempt to start if the Orion API server is running. The ephemeral API does not start scheduled flow runs.
 
-## Orion metadata database
+## Orion database
 
-Orion employs a [metadata database](/concepts/database/) that persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
+The Orion [database](/concepts/database/) persists data used by many features of Orion to orchestrate and track the state of your flow runs, including:
 
 - Flow and task state
 - Run history and logs
@@ -99,7 +99,7 @@ Orion employs a [metadata database](/concepts/database/) that persists data used
 - Storage locations for flow and task results
 - Work queue configuration and status
 
-Currently Orion supports the following databases for use as Orion's metadata database:
+Currently Prefect supports the following databases for use as Orion's database:
 
 - SQLite
 - PostgreSQL
@@ -108,11 +108,11 @@ A local SQLite database is the default for Orion, and a local SQLite database is
 
 PostgreSQL is good for connecting to external databases, but does require additional setup (such as Docker).
 
-Prefect Cloud provides its own hosted metadata database.
+Prefect Cloud provides its own hosted database.
 
 ### Configuring the Orion database
 
-Orion creates a SQLite metadata database, but you can configure your own database. 
+Orion creates a SQLite database, but you can configure your own database. 
 
 When you first install Orion, your database will be located at `~/.prefect/orion.db`. To configure this location, you can specify a connection URL with the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable:
 
@@ -127,7 +127,7 @@ $ prefect orion database reset
 
 This will completely clear all data and reapply the schema.
 
-See the [Database](/concepts/database/) documentation for further details on choosing and configuring the Orion metadata database.
+See the [Database](/concepts/database/) documentation for further details on choosing and configuring the Orion database.
 
 !!! danger "Migrations"
     Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview). This means many aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
