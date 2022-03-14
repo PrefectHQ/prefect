@@ -57,6 +57,9 @@ plugins:
             - src/prefect/
     - render_swagger
     - search
+    - gen-files:
+        scripts:
+            - docs/collections/generate_catalog.py
 nav:
     - Home: index.md
     - 'Getting Started':
@@ -93,6 +96,9 @@ nav:
         - ui/filters.md
         - ui/work-queues.md
         - ui/cloud.md
+    - Collections:
+        - Overview: collections/overview.md
+        - Collections Catalog: collections/catalog.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
