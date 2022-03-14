@@ -25,22 +25,6 @@ app.add_typer(profile_app)
 
 
 @profile_app.command()
-def get(names: List[str] = typer.Argument(None)):
-    """
-    Show settings in one or many profiles. Defaults to the current profile.
-    """
-    profiles = prefect.settings.load_profiles()
-    if not names:
-        profile = prefect.context.get_profile_context()
-        names = [profile.name]
-
-    display_profiles = {
-        name: values for name, values in profiles.items() if name in names
-    }
-    console.out(toml.dumps(display_profiles).strip())
-
-
-@profile_app.command()
 def ls():
     """
     List profile names.
@@ -158,7 +142,11 @@ def rename(name: str, new_name: str):
 
 
 @profile_app.command()
-def inspect(name: str = None, show_defaults: bool = False, show_sources: bool = False):
+def inspect(
+    name: str = typer.Argument(None),
+    show_defaults: bool = False,
+    show_sources: bool = False,
+):
     """
     Display settings from a given profile; defaults to active.
     """
