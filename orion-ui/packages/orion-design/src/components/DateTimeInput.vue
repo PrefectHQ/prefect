@@ -96,7 +96,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   width: auto;
-  z-index: 11;
+  z-index: var(--layer-datepicker);
   padding: var(--p-2);
 }
 
