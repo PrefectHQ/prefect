@@ -602,7 +602,7 @@ def load_profiles(
     # if user as a profiles.toml, load it
     if path.exists():
         user_profile_config = toml.loads(path.read_text())
-        profiles = {**profiles, **user_profile_config["profiles"]}
+        profiles = {**profiles, **user_profile_config.get("profiles", {})}
         active_profile = user_profile_config.get("active") or active_profile
 
     env_profile = os.getenv("PREFECT_PROFILE")
