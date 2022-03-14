@@ -169,7 +169,7 @@ class TestProfilesContext:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 f"""
-                [foo]
+                [profiles.foo]
                 PREFECT_HOME = "{home}"
                 """
             )
@@ -183,7 +183,7 @@ class TestProfilesContext:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_URL="test"
                 """
             )
@@ -204,7 +204,7 @@ class TestProfilesContext:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_URL = "test"
                 """
             )
@@ -227,10 +227,10 @@ class TestProfilesContext:
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
-                [foo]
+                [profiles.foo]
                 PREFECT_API_URL="foo"
 
-                [bar]
+                [profiles.bar]
                 PREFECT_API_URL="bar"
                 """
             )
@@ -271,8 +271,18 @@ class TestProfilesContext:
         profile.assert_called_once()
         profile().__enter__.assert_called_once()
 
-    def test_enter_global_profile_respects_name_env_variable(self, monkeypatch):
+    def test_enter_global_profile_respects_name_env_variable(
+        self, monkeypatch, temporary_profiles_path
+    ):
         profile = MagicMock()
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                f"""
+                [profiles.test]
+                PREFECT_API_KEY = "xxx"
+                """
+            )
+        )
         monkeypatch.setattr("prefect.context.profile", profile)
         monkeypatch.setattr("prefect.context.GLOBAL_PROFILE_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "test")

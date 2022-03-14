@@ -1,5 +1,5 @@
 <template>
-  <PanelSection class="deployment-parameters-panel-section" icon="map-pin-line" full>
+  <PanelSection class="deployment-parameters-panel-section" icon="settings-4-line" full>
     <template #heading>
       <div class="deployment-parameters-panel-section__heading">
         <span>Parameters</span>
@@ -16,7 +16,11 @@
     <template v-else>
       <template v-for="(value, key) in parameters" :key="key">
         <div class="deployment-parameters-panel-section__parameter">
-          <DetailsKeyValue :label="key" :value="value" stacked />
+          <DetailsKeyValue :label="key" stacked>
+            <template #value="{ emptyValue }">
+              {{ value ?? emptyValue }}
+            </template>
+          </DetailsKeyValue>
         </div>
       </template>
     </template>

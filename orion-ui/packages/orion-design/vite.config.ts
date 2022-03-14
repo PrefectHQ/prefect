@@ -45,6 +45,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
     css: {
       preprocessorOptions: {
         scss: {
+          charset: false,
           additionalData: `
           @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
           `,

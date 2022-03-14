@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref } from 'vue'
+  import { computed, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import FilterTags from '@/components/FilterTags.vue'
@@ -40,16 +40,16 @@
   import { toPluralString } from '@/utilities/strings'
 
   interface Props {
-  dismissable?: boolean
-  placeholder?: string
-}
+    dismissable?: boolean,
+    placeholder?: string,
+  }
 
-const props = withDefaults(defineProps<Props>(), {
-  dismissable: true,
-  placeholder: 'Search...'
-})
+  withDefaults(defineProps<Props>(), {
+    // eslint-disable-next-line vue/no-boolean-default
+    dismissable: true,
+    placeholder: 'Search...',
+  })
 
-  
 
   const filtersStore = useFiltersStore()
   const filterUrlService = new FilterUrlService(useRouter())

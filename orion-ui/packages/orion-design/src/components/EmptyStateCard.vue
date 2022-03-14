@@ -1,7 +1,7 @@
 <template>
   <m-card shadow="sm">
     <div class="empty-state-card">
-      <div class="empty-state-card__background-image" />
+      <div class="empty-state-card__background-image" :style="{ backgroundImage }" />
       <div class="empty-state-card__text">
         <h1 class="empty-state-card__letters">
           {{ header }}
@@ -17,15 +17,19 @@
           </router-link>
         </slot>
       </div>
-      <slot name="example">
-        <img :src="imagePath" alt="imageAltText" class="empty-state-card__card-image">
-      </slot>
+      <div class="empty-state-card__example">
+        <slot name="example">
+          <img :src="imagePath" :alt="imageAltText" class="empty-state-card__card-image">
+        </slot>
+      </div>
     </div>
   </m-card>
 </template>
 
 <script lang="ts">
-  import { defineComponent } from 'vue'
+  import { defineComponent, PropType } from 'vue'
+  import { RouteLocationRaw } from 'vue-router'
+  import CircleBackgroundSvg from '@/assets/circlesBackground.svg'
 
   export default defineComponent({
     name: 'EmptyStateCard',
@@ -47,7 +51,7 @@
       },
 
       link: {
-        type: String,
+        type: [Object, String] as PropType<RouteLocationRaw>,
         default: '',
       },
 
@@ -55,21 +59,34 @@
         type: String,
         default: '',
       },
+
+      imageAltText: {
+        type: String,
+        default: '',
+      },
+    },
+
+    data: function() {
+      return {
+        backgroundImage: `url(${CircleBackgroundSvg})`,
+      }
     },
   })
 </script>
 
 <style lang="scss">
 @use 'sass:map';
+
 .empty-state-card {
   display: flex;
   flex-direction: column;
   text-align: center;
   position: relative;
   overflow: hidden;
-  padding: 20px;
+  padding: var(--p-2);
+  gap: var(--m-3);
 
-@media only screen and (min-width: map.get($breakpoints, 'lg')) {
+  @media only screen and (min-width: map.get($breakpoints, 'lg')) {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
@@ -77,22 +94,31 @@
     padding: 0 80px;
   }
 
+  &__text,
+  &__example {
+    position: relative;
+    z-index: 2;
+  }
+
   &__text {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
+    align-items: center;
     position: relative;
-    z-index: 1000;
-    margin-bottom: 15px;
-
 
     @media only screen and (min-width: map.get($breakpoints, 'lg')) {
       text-align: left;
-      margin-right: 50px;
-      margin-bottom: 0;
       min-width: 250px;
       align-items: flex-start;
     }
+  }
+
+  &__example {
+    border-radius: 4px;
+    overflow: hidden;
+    filter: $drop-shadow-sm;
+    min-width: 500px;
   }
 
   &__letters {
@@ -111,7 +137,6 @@
   }
 
   &__background-image {
-    background-image: url("/images/circle.svg");
     background-size: contain;
     background-repeat: no-repeat;
     height: 1500px;
@@ -119,6 +144,7 @@
     top: -150px;
     left: 10vw;
     position: absolute;
+    z-index: 1;
     animation: empty-state-card-rotate 40s infinite linear;
 
     @media only screen and (min-width: map.get($breakpoints, 'md')) {
