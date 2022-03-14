@@ -93,11 +93,12 @@ def create(
         textwrap.dedent(
             f"""
             [green]Created profile {name!r}{from_blurb} at {loc}.[/green]
-            To use your profile, set an environment variable:
 
-                export PREFECT_PROFILE={name!r}
+            Switch to your new profile with:
 
-            or include the profile in your CLI commands:
+                prefect profile use {name!r}
+
+            Or, to use it for a single command, include the `-p` option:
 
                 prefect -p {name!r} config view
             """
