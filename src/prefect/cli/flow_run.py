@@ -67,7 +67,13 @@ async def ls(
             )
         }
 
-    table = Table("flow", "name", "id", "state", "when")
+    table = Table(title="Flow Runs")
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Flow", style="blue", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("State", no_wrap=True)
+    table.add_column("When", style="bold", no_wrap=True)
+
     for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
         flow = flows_by_id[flow_run.flow_id]
         timestamp = (
@@ -76,10 +82,10 @@ async def ls(
             else flow_run.state.timestamp
         )
         table.add_row(
-            f"[blue]{flow.name}[/]",
-            f"[bold blue]{flow_run.name}[/]",
-            f"[green]{flow_run.id}[/]",
-            f"[bold]{flow_run.state.type.value}[/]",
+            str(flow_run.id),
+            str(flow.name),
+            str(flow_run.name),
+            str(flow_run.state.type.value),
             pendulum.instance(timestamp).diff_for_humans(),
         )
 
