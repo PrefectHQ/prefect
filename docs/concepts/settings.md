@@ -300,6 +300,7 @@ The recommended method is to use the `prefect profile use` command with the name
 
 ```bash
 $ prefect profile use foo
+Profile 'test' now active.
 ```
 
 Alternatively, you may set the environment variable `PREFECT_PROFILE` to the name of the profile:
