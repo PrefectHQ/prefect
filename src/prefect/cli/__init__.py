@@ -8,6 +8,7 @@ import prefect.cli.flow_run
 import prefect.cli.orion
 import prefect.cli.config
 import prefect.cli.dev
+import prefect.cli.profile
 import prefect.cli.storage
 import prefect.cli.cloud
-import prefect.cli.work_queues
+import prefect.cli.work_queue
