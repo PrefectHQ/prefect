@@ -138,7 +138,7 @@ Begin by [installing Prefect 2.0](getting-started/installation.md) on your machi
 
 ### Concepts
 
-Learn more about Prefect Orion's features and design by reading our in-depth [concept docs](concepts/overview.md). These are intended to introduce the building blocks of Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
+Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](concepts/overview.md). These are intended to introduce the building blocks of Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
 
 ### Frequently asked questions
 
