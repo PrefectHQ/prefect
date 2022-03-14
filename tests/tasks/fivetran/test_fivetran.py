@@ -4,7 +4,7 @@ import responses
 import logging
 import os
 
-from prefect.task.fivetran import FivetranSyncTask
+from prefect.tasks.fivetran import FivetranSyncTask
 
 logging.basicConfig()
 log = logging.getLogger()
