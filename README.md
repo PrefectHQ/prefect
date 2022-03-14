@@ -84,7 +84,7 @@ Prefect Orion provides a number of programmatic workflow interfaces, each of whi
 
 ### Contributing
 
-See our [documentation on contributing to Prefect Orion](https://orion-docs.prefect.io/contributing/overview/).
+See our [documentation on contributing to Prefect 2.0](https://orion-docs.prefect.io/contributing/overview/).
 
 
 ## Join the community
