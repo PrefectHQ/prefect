@@ -166,6 +166,7 @@ async def read_flows(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
     offset: int = None,
     limit: int = None,
 ):
@@ -185,7 +186,7 @@ async def read_flows(
         List[db.Flow]: flows
     """
 
-    query = select(db.Flow).order_by(db.Flow.name)
+    query = select(db.Flow).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_flow_filters(
         query,
