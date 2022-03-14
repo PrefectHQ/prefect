@@ -25,7 +25,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 
 ### No DAGs required
 
-You don’t need to rewrite your entire workflow as a directed acyclic graph (DAG) to take advantage of Prefect Orion. DAGs represent a rigid, constrained, outdated framework for creating modern, dynamic data and computation workflows. 
+You don’t need to rewrite your entire workflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid, constrained, outdated framework for creating modern, dynamic data and computation workflows. 
 
 With Prefect Orion, you're not limited by the rigid requirements of DAGs. 
 
