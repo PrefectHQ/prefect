@@ -86,6 +86,7 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
     sort_by_created_key = lambda d: pendulum.now("utc") - d.created
 
     from rich.table import Table
+
     table = Table(
         title="Deployments",
     )
@@ -97,7 +98,7 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
     ):
         table.add_row(
             f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
-            str(deployment.id)
+            str(deployment.id),
         )
 
     console.print(table)

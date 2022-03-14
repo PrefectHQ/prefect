@@ -146,7 +146,11 @@ async def inspect(id: UUID):
 
 
 @work_app.command()
-async def ls(verbose: bool = typer.Option(False, "--verbose", "-v", help="Display more information.")):
+async def ls(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Display more information."
+    )
+):
     """
     View all work queues.
     """
