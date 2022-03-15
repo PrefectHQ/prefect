@@ -73,6 +73,9 @@
 <script lang="ts" setup>
   import {
     logsApi,
+    taskRunsApi,
+    getTaskRunKey,
+    TaskRunsApi,
     LogsRequestFilter,
     FlowRunLogs,
     Log,
@@ -82,7 +85,7 @@
   } from '@prefecthq/orion-design'
   import { subscribe } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-  import { computed, nextTick, ref, watch } from 'vue'
+  import { computed, nextTick, ref, watch, provide } from 'vue'
 
   const props = defineProps({
     flowRunId: {
@@ -126,6 +129,10 @@
   const subscription = subscribe(logsApi.getLogs.bind(logsApi), [filter], options)
   const logs = computed<Log[]>(() => subscription.response.value ?? [])
   const loading = computed<boolean>(() => subscription.loading.value ?? true)
+
+  const getTaskRun: TaskRunsApi['getTaskRun'] = (id: string) => taskRunsApi.getTaskRun(id)
+
+  provide(getTaskRunKey, getTaskRun)
 
   const clearFilters = () => {
     levelFilter.value = 0
