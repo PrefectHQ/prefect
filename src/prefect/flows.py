@@ -29,6 +29,7 @@ from typing_extensions import ParamSpec
 from prefect import State
 from prefect.exceptions import ParameterTypeError
 from prefect.logging import get_logger
+from prefect.orion.schemas.core import INVALID_CHARACTERS
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
@@ -90,9 +91,12 @@ class Flow(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        # names must be URL-compatible
-        if name and any(c in name for c in ["/", "%"]):
-            raise ValueError("Names can not contain '/' or '%'")
+        # Validate name if given
+        if name:
+            if any(c in name for c in INVALID_CHARACTERS):
+                raise ValueError(
+                    f"Name contains an invalid character {INVALID_CHARACTERS}."
+                )
 
         self.name = name or fn.__name__.replace("_", "-")
         task_runner = task_runner or ConcurrentTaskRunner()

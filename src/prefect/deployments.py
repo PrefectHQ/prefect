@@ -62,6 +62,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
 from prefect.flows import Flow
+from prefect.orion.schemas.core import INVALID_CHARACTERS
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -151,8 +152,10 @@ class DeploymentSpec(PrefectBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        if any(c in v for c in ["/", "%"]):
-            raise ValueError("Names can not contain '/' or '%'")
+        if any(c in v for c in INVALID_CHARACTERS):
+            raise ValueError(
+                f"Name contains an invalid character {INVALID_CHARACTERS}."
+            )
         return v
 
     class Config:
