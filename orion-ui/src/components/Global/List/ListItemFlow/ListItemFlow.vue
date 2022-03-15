@@ -60,7 +60,9 @@
   const crumbs = [{ text: props.item.name, to: window.location.href }]
   const injectedServices = useInjectedServices()
 
+  const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flows: FlowsFilter = {
+    ...runFilter.value,
     flows: {
       id: {
         any_: [props.item.id],
@@ -80,8 +82,8 @@
 
   const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
   const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
-
   const queries: Record<string, Query> = {
+   
     flow_run_history: Api.query({
       endpoint: Endpoints.flow_runs_history,
       body: flowRunHistoryFilter.value,

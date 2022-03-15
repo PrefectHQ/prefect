@@ -160,6 +160,12 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
+PREFECT_CLOUD_URL = Setting(
+    str,
+    default="https://api-beta.prefect.io/api",
+    description="""API URL for Prefect Cloud""",
+)
+
 PREFECT_API_REQUEST_TIMEOUT = Setting(
     float, default=30.0, description="""The default timeout for requests to the API"""
 )
