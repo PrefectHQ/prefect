@@ -765,6 +765,19 @@ class TestDockerFlowRunner:
         assert call_labels["bar"] == "BAR"
         assert "io.prefect.flow-run-id" in call_labels, "prefect labels still included"
 
+    async def test_uses_network_mode_setting(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "bridge"
+
     async def test_uses_env_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
@@ -778,7 +791,34 @@ class TestDockerFlowRunner:
         assert call_env["foo"] == "FOO"
         assert call_env["bar"] == "BAR"
 
-    async def test_replaces_localhost_api_with_dockerhost_when_using_bridge_network(
+    @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
+    async def test_network_mode_defaults_to_host_if_using_localhost_api(
+        self, mock_docker_client, flow_run, localhost
+    ):
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL=f"http://{localhost}/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "host"
+
+    async def test_network_mode_defaults_to_none_if_using_nonlocal_api(
+        self, mock_docker_client, flow_run
+    ):
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://foo/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == None
+
+    async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
     ):
 
@@ -792,7 +832,7 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    async def test_uses_localhost_api_when_using_host_network(
+    async def test_does_not_replace_localhost_api_when_using_host_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
     ):
 
