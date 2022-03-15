@@ -146,7 +146,11 @@ async def inspect(id: UUID):
 
 
 @work_app.command()
-async def ls():
+async def ls(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Display more information."
+    )
+):
     """
     View all work queues.
     """
@@ -156,7 +160,8 @@ async def ls():
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    table.add_column("Filter", style="magenta", no_wrap=True)
+    if verbose:
+        table.add_column("Filter", style="magenta", no_wrap=True)
 
     async with get_client() as client:
         queues = await client.read_work_queues()
@@ -164,14 +169,17 @@ async def ls():
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
     for queue in sorted(queues, key=sort_by_created_key):
-        table.add_row(
+
+        row = [
             str(queue.id),
             f"{queue.name} [red](**)" if queue.is_paused else queue.name,
             f"[red]{queue.concurrency_limit}"
             if queue.concurrency_limit
             else "[blue]None",
-            queue.filter.json(),
-        )
+        ]
+        if verbose:
+            row.append(queue.filter.json())
+        table.add_row(*row)
 
     console.print(table)
 
