@@ -83,7 +83,7 @@ class TestFlow:
         "name", ["my/flow", "my%flow", "my<flow", "my>flow", "my&flow"]
     )
     def test_invalid_name(self, name):
-        with pytest.raises(ValueError, match="Name contains invalid character"):
+        with pytest.raises(ValueError, match="Name contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
 
 
