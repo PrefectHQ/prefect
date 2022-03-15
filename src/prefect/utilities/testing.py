@@ -5,6 +5,7 @@ import os
 import sys
 import warnings
 from contextlib import contextmanager
+from tempfile import TemporaryDirectory
 
 import prefect.context
 import prefect.settings
@@ -82,3 +83,26 @@ def assert_does_not_warn():
             yield
         except Warning as warning:
             raise AssertionError(f"Warning was raised. {warning!r}") from warning
+
+
+@contextmanager
+def prefect_test_harness():
+    """
+    Temporarily run flows against a local SQLite database for testing.
+
+    Example:
+        >>> from prefect import flow
+        >>> @flow
+        >>> def my_flow():
+        >>>     return 'Done!'
+        >>> with prefect_test_harness():
+        >>>     assert my_flow() == 'Done!' # run against temporary db
+    """
+    # create temp directory for the testing database
+    with TemporaryDirectory() as temp_dir:
+        # ensure there is no api url configured
+        with temporary_settings(
+            PREFECT_API_URL="",
+            PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
+        ):
+            yield
