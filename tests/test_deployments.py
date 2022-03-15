@@ -80,9 +80,18 @@ class TestDeploymentSpec:
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
 
-    @pytest.mark.parametrize("name", ["my/deployment", "my%deployment"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/deployment",
+            r"my%deployment",
+            "my>deployment",
+            "my<deployment",
+            "my&deployment",
+        ],
+    )
     def test_invalid_name(self, name):
-        with pytest.raises(ValueError, match="(Names can not contain)"):
+        with pytest.raises(ValueError, match="Name contains an invalid character"):
             DeploymentSpec(name=name)
 
 
