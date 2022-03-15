@@ -168,7 +168,7 @@ async def ls():
     """View configured storage options."""
 
     table = Table(title="Configured Storage")
-    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("ID", style="cyan", justify="right", no_wrap=True)
     table.add_column("Storage Type", style="cyan")
     table.add_column("Storage Version", style="cyan")
     table.add_column("Name", style="green")
