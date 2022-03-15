@@ -4,7 +4,7 @@ Internal utilities for tests.
 import os
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from tempfile import TemporaryDirectory
 
 import prefect.context
@@ -108,16 +108,20 @@ def prefect_test_harness():
     """
     # create temp directory for the testing database
     with TemporaryDirectory() as temp_dir:
-        with temporary_database_config(
-            tmp_database_config=AioSqliteConfiguration(
-                connection_url=f"sqlite+aiosqlite:////{temp_dir}/orion.db"
+        with ExitStack() as stack:
+            stack.enter_context(
+                temporary_database_config(
+                    tmp_database_config=AioSqliteConfiguration(
+                        connection_url=f"sqlite+aiosqlite:////{temp_dir}/orion.db"
+                    )
+                )
             )
-        ):
-            with temporary_query_components(AioSqliteQueryComponents()):
-                with temporary_orm_config(AioSqliteORMConfiguration()):
-                    # ensure there is no api url configured
-                    with temporary_settings(
-                        PREFECT_API_URL="",
-                        PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
-                    ):
-                        yield
+            stack.enter_context(temporary_query_components(AioSqliteQueryComponents()))
+            stack.enter_context(temporary_orm_config(AioSqliteORMConfiguration()))
+            stack.enter_context(
+                temporary_settings(
+                    PREFECT_API_URL="",
+                    PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
+                )
+            )
+            yield
