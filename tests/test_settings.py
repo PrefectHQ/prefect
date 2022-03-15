@@ -79,6 +79,13 @@ def test_temporary_settings():
     assert PREFECT_TEST_MODE.value() is True, "Restores old profile"
 
 
+def test_temporary_settings_can_restore_to_defaults_defaults():
+    assert PREFECT_TEST_MODE.value() is True
+    with temporary_settings(PREFECT_LOGGING_LEVEL="ERROR"):
+        with temporary_settings(PREFECT_LOGGING_LEVEL=None):
+            assert PREFECT_LOGGING_LEVEL.value() == PREFECT_LOGGING_LEVEL.field.default
+
+
 def test_temporary_settings_restores_on_error():
     assert PREFECT_TEST_MODE.value() is True
 
