@@ -778,11 +778,13 @@ class TestDockerFlowRunner:
         assert call_env["foo"] == "FOO"
         assert call_env["bar"] == "BAR"
 
-    async def test_replaces_localhost_with_dockerhost_in_env(
+    async def test_replaces_localhost_api_with_dockerhost_when_using_bridge_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
     ):
 
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
         mock_docker_client.containers.create.assert_called_once()
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
         assert "PREFECT_API_URL" in call_env
@@ -790,7 +792,19 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    async def test_does_not_override_user_provided_host(
+    async def test_uses_localhost_api_when_using_host_network(
+        self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
+    ):
+
+        await DockerFlowRunner(network_mode="host").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "PREFECT_API_URL" in call_env
+        assert call_env["PREFECT_API_URL"] == hosted_orion_api
+
+    async def test_does_not_override_user_provided_api_host(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
 
