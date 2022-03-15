@@ -1,13 +1,13 @@
-import warnings
 import uuid
+import warnings
 
 import pytest
 
-from prefect.utilities.testing import assert_does_not_warn, prefect_test_harness
 from prefect import flow, task
 from prefect.client import get_client
 from prefect.orion import schemas
 from prefect.settings import PREFECT_API_URL, PREFECT_ORION_DATABASE_CONNECTION_URL
+from prefect.utilities.testing import assert_does_not_warn, prefect_test_harness
 
 
 def test_assert_does_not_warn_no_warning():
