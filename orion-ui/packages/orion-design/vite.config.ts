@@ -33,7 +33,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
         fileName,
       },
       rollupOptions: {
-        external: ['vue', 'vue-router', 'pinia'],
+        external: ['vue', 'vue-router', 'pinia', '@prefecthq/miter-design'],
         output: {
           exports: 'named',
           globals: {
@@ -45,6 +45,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
     css: {
       preprocessorOptions: {
         scss: {
+          charset: false,
           additionalData: `
           @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
           `,

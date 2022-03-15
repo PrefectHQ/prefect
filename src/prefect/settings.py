@@ -12,6 +12,8 @@ import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator
 
+from prefect.exceptions import MissingProfileError
+
 T = TypeVar("T")
 
 
@@ -160,7 +162,13 @@ PREFECT_API_KEY = Setting(
     Defaults to `None`.""",
 )
 
-PREFECT_CLIENT_REQUEST_TIMEOUT = Setting(
+PREFECT_CLOUD_URL = Setting(
+    str,
+    default="https://api-beta.prefect.io/api",
+    description="""API URL for Prefect Cloud""",
+)
+
+PREFECT_API_REQUEST_TIMEOUT = Setting(
     float, default=30.0, description="""The default timeout for requests to the API"""
 )
 
@@ -174,7 +182,7 @@ PREFECT_PROFILES_PATH = Setting(
 PREFECT_LOGGING_LEVEL = Setting(
     str,
     default="INFO",
-    description="""The default logging level for Prefect loggers. Defaults to 
+    description="""The default logging level for Prefect loggers. Defaults to
     "INFO" during normal operation. Is forced to "DEBUG" during debug mode.""",
     value_callback=debug_mode_log_level,
 )
@@ -296,13 +304,6 @@ PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
     connections. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_RUN_IN_APP = Setting(
-    bool,
-    default=False,
-    description="""If `True`, Orion services are started as part of the
-    webserver and run in the same event loop. Defaults to `False`.""",
-)
-
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
     float,
     default=60,
@@ -361,7 +362,7 @@ PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
     this often. Defaults to `5`.""",
 )
 
-PREFECT_ORION_SERVICES_MARK_LATE_AFTER = Setting(
+PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
     timedelta,
     default=timedelta(seconds=5),
     description="""The late runs service will mark runs as late after they
@@ -394,6 +395,23 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
+PREFECT_ORION_ANALYTICS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve.""",
+)
+
+PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the scheduling service in the Orion application. If disabled, you will need to run this service separately to schedule runs for deployments.",
+)
+
+PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
+)
 
 # Collect all defined settings
 
@@ -556,27 +574,61 @@ def get_default_settings() -> Settings:
     return _DEFAULTS_CACHE
 
 
-# Profile input / output
+def get_active_profile(name_only: bool = False):
+    active_profile = load_profiles(active_only=True)
+    if name_only:
+        return list(active_profile.keys()).pop()
+    else:
+        return active_profile
 
-DEFAULT_PROFILES = {"default": {}}
+
+def set_active_profile(name: str):
+    all_profiles = load_profiles(ignore_defaults=True)
+    return write_profiles(all_profiles, active_profile=name)
 
 
-def load_profiles() -> Dict[str, Dict[str, str]]:
+def load_profiles(
+    ignore_defaults: bool = False, active_only: bool = False
+) -> Dict[str, Dict[str, str]]:
     """
     Load all profiles from the profiles path.
     """
+    if all([ignore_defaults, active_only]):
+        raise ValueError("Only one of ignore_defaults and active_only can be True.")
+
     path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
-    if not path.exists():
-        profiles = DEFAULT_PROFILES
+
+    if not ignore_defaults:
+        default_path = Path(__file__).parent.joinpath("profiles.toml")
+        default_profile_config = toml.loads(default_path.read_text())
+        active_profile = default_profile_config["active"]
+        profiles = default_profile_config["profiles"]
     else:
-        profiles = {**DEFAULT_PROFILES, **toml.loads(path.read_text())}
+        profiles = {}
+        active_profile = None
 
-    return profiles
+    # if user as a profiles.toml, load it
+    if path.exists():
+        user_profile_config = toml.loads(path.read_text())
+        profiles = {**profiles, **user_profile_config.get("profiles", {})}
+        active_profile = user_profile_config.get("active") or active_profile
+
+    env_profile = os.getenv("PREFECT_PROFILE")
+    if env_profile:
+        active_profile = env_profile
+
+    if active_only:
+        if active_profile not in profiles:
+            raise MissingProfileError(f"Active profile {active_profile!r} not found.")
+
+        return {active_profile: profiles[active_profile]}
+    else:
+        return profiles
 
 
-def write_profiles(profiles: dict):
+def write_profiles(profiles: dict, active_profile: str = None):
     """
-    Writes all profiles to the profiles path.
+    Writes all non-default profiles to the profiles path.
 
     Existing data will be lost.
 
@@ -591,7 +643,13 @@ def write_profiles(profiles: dict):
                 f"Unknown setting(s) found in profile {profile!r}: {unknown_keys}"
             )
 
-    profiles = {**DEFAULT_PROFILES, **profiles}
+    profiles = {"profiles": profiles}
+
+    if active_profile is None:
+        # preserve current active profile
+        active_profile = get_active_profile(name_only=True)
+
+    profiles["active"] = active_profile
     return path.write_text(toml.dumps(profiles))
 
 
@@ -605,7 +663,7 @@ def load_profile(name: str) -> Dict[str, str]:
     profiles = load_profiles()
 
     if name not in profiles:
-        raise ValueError(f"Profile {name!r} not found.")
+        raise MissingProfileError(f"Profile {name!r} not found.")
 
     variables = profiles[name]
     for var, value in variables.items():

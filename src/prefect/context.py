@@ -302,7 +302,7 @@ def temporary_environ(
         overrides = set(old_env.keys()).intersection(variables.keys())
         if overrides and warn_on_override:
             warnings.warn(
-                f"Temporary environment is overriding key(s): {', '.join(overrides)}",
+                f"The following environment variables will be temporarily overwritten: {', '.join(overrides)}",
                 stacklevel=3,
             )
 
@@ -336,7 +336,6 @@ def profile(
 ):
     """
     Switch to a profile for the duration of this context.
-
 
     Profile contexts are confined to an async context in a single thread.
 
@@ -387,6 +386,6 @@ def enter_global_profile():
     if GLOBAL_PROFILE_CM:
         return  # A global context already has been entered
 
-    name = os.environ.get("PREFECT_PROFILE", "default")
+    name = prefect.settings.get_active_profile(name_only=True)
     GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
     GLOBAL_PROFILE_CM.__enter__()

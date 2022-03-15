@@ -3,7 +3,7 @@ name: Release prefect
 on:
   push:
     tags:
-      - "2.0a[0-9]+"
+      - "2.0b[0-9]+"
 
 jobs:
   build-release:
@@ -12,24 +12,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # Versioneer only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
 
-      - name: Read version from .nvmrc
-        run: echo "##[set-output name=NODE_VERSION;]$(cat .nvmrc)"
-        id: nvm
-
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: "${{ steps.nvm.outputs.NODE_VERSION }}"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - uses: actions/cache@v2
         with:
@@ -63,9 +60,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
 
     steps:
       # Not needed until we want multiarchecture builds
@@ -90,7 +88,7 @@ jobs:
             suffix=-python${{ matrix.python-version }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -123,7 +121,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -179,7 +177,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
