@@ -69,6 +69,21 @@ class TestMergeRunTaskKwargs:
             "enableECSManagedTags": False,
         }
 
+    def test_merge_run_task_kwargs_top_level_capacity_provider(self):
+        opt1 = {"cluster": "testing", "launchType": "FARGATE"}
+        opt2 = {
+            "cluster": "new",
+            "capacityProviderStrategy": [{"capacityProvider": "FARGATE_SPOT"}],
+        }
+        assert merge_run_task_kwargs(opt1, opt2) == {
+            "capacityProviderStrategy": [{"capacityProvider": "FARGATE_SPOT"}],
+            "cluster": "new",
+        }
+        assert merge_run_task_kwargs(opt2, opt1) == {
+            "launchType": "FARGATE",
+            "cluster": "testing",
+        }
+
     def test_merge_run_task_kwargs_overrides(self):
         opt1 = {"overrides": {"cpu": "1024", "memory": "2048"}}
         opt2 = {"overrides": {"cpu": "2048", "taskRoleArn": "testing"}}
@@ -330,6 +345,17 @@ class TestGenerateTaskDefinition:
         taskdef = self.generate_task_definition(ECSRun(), launch_type=launch_type)
         assert taskdef["requiresCompatibilities"] == [launch_type or "FARGATE"]
 
+    def test_generate_task_definition_requires_compatibilities_capacity_provider(
+        self, tmpdir
+    ):
+        path = str(tmpdir.join("kwargs.yaml"))
+        with open(path, "w") as f:
+            yaml.safe_dump(
+                {"capacityProviderStrategy": [{"capacityProvider", "FARGATE_SPOT"}]}, f
+            )
+        taskdef = self.generate_task_definition(ECSRun(), run_task_kwargs_path=path)
+        assert taskdef.get("requiresCompatibilities") == None
+
     @pytest.mark.parametrize(
         "on_run_config, on_agent, expected",
         [
@@ -342,6 +368,7 @@ class TestGenerateTaskDefinition:
     def test_get_task_run_kwargs_execution_role_arn(
         self, on_run_config, on_agent, expected
     ):
+
         taskdef = self.generate_task_definition(
             ECSRun(execution_role_arn=on_run_config), execution_role_arn=on_agent
         )
@@ -504,6 +531,45 @@ class TestGetRunTaskKwargs:
             ECSRun(task_role_arn=on_run_config), task_role_arn=on_agent
         )
         assert kwargs["overrides"].get("taskRoleArn") == expected
+
+    @pytest.mark.parametrize(
+        "on_run_config, on_agent, expected_run_config, expected_agent",
+        [
+            (
+                {"capacityProviderStrategy": [{"capacityProvider": "FARGATE_SPOT"}]},
+                "FARGATE",
+                [{"capacityProvider": "FARGATE_SPOT"}],
+                None,
+            ),
+            (
+                {"capacityProviderStrategy": [{"capacityProvider": "FARGATE_SPOT"}]},
+                "EC2",
+                [{"capacityProvider": "FARGATE_SPOT"}],
+                None,
+            ),
+        ],
+    )
+    def test_get_task_run_kwargs_capacity_provider_run_config(
+        self, on_run_config, on_agent, expected_run_config, expected_agent
+    ):
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(run_task_kwargs=on_run_config), launch_type=on_agent
+        )
+        assert kwargs.get("capacityProviderStrategy") == expected_run_config
+        assert kwargs.get("launchType") == expected_agent
+
+    def test_get_task_run_kwargs_capacity_provider_agent_config(self, tmpdir):
+        path = str(tmpdir.join("kwargs.yaml"))
+        with open(path, "w") as f:
+            yaml.safe_dump(
+                {"capacityProviderStrategy": [{"capacityProvider", "FARGATE_SPOT"}]}, f
+            )
+        kwargs = self.get_run_task_kwargs(
+            ECSRun(run_task_kwargs={"launchType": "EC2"}),
+            run_task_kwargs_path=path,
+        )
+        del kwargs["overrides"]
+        assert kwargs == {"launchType": "EC2"}
 
     @pytest.mark.parametrize(
         "on_run_config, on_agent, expected",
