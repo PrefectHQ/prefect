@@ -69,7 +69,7 @@
     ...countFilter.value,
     flow_runs: {
       expected_start_time: {
-        after_: subWeeks(new Date(), 1).toISOString(),
+        after_: subWeeks(startOfToday(), 1).toISOString(),
       },
     },
   }))
@@ -95,6 +95,10 @@
       dashboardRoute: route,
       ...injectedServices,
     })
+  }
+
+  function startOfToday(): number | Date {
+    throw new Error('Function not implemented.')
   }
 </script>
 
