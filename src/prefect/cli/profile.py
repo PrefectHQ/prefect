@@ -25,22 +25,6 @@ app.add_typer(profile_app)
 
 
 @profile_app.command()
-def get(names: List[str] = typer.Argument(None)):
-    """
-    Show settings in one or many profiles. Defaults to the current profile.
-    """
-    profiles = prefect.settings.load_profiles()
-    if not names:
-        profile = prefect.context.get_profile_context()
-        names = [profile.name]
-
-    display_profiles = {
-        name: values for name, values in profiles.items() if name in names
-    }
-    console.out(toml.dumps(display_profiles).strip())
-
-
-@profile_app.command()
 def ls():
     """
     List profile names.
@@ -93,16 +77,30 @@ def create(
         textwrap.dedent(
             f"""
             [green]Created profile {name!r}{from_blurb} at {loc}.[/green]
-            To use your profile, set an environment variable:
 
-                export PREFECT_PROFILE={name!r}
+            Switch to your new profile with:
 
-            or include the profile in your CLI commands:
+                prefect profile use {name!r}
+
+            Or, to use it for a single command, include the `-p` option:
 
                 prefect -p {name!r} config view
             """
         ).strip()
     )
+
+
+@profile_app.command()
+def use(name: str):
+    """
+    Set the given profile to active.
+    """
+    profiles = prefect.settings.load_profiles()
+    if name not in profiles:
+        exit_with_error(f"Profle {name!r} not found.")
+
+    prefect.settings.set_active_profile(name)
+    exit_with_success(f"Profile {name!r} now active.")
 
 
 @profile_app.command()
@@ -144,7 +142,11 @@ def rename(name: str, new_name: str):
 
 
 @profile_app.command()
-def inspect(name: str = None, show_defaults: bool = False, show_sources: bool = False):
+def inspect(
+    name: str = typer.Argument(None),
+    show_defaults: bool = False,
+    show_sources: bool = False,
+):
     """
     Display settings from a given profile; defaults to active.
     """
