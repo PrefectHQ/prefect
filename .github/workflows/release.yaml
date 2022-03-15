@@ -3,8 +3,9 @@ name: Release prefect
 on:
   push:
     tags:
-      - "2.0b[0-9]+"
-
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+rc[0-9]+"
+      - "[0-9]+.[0-9]+[ab][0-9]+"
 jobs:
   build-release:
     name: Build Python package
