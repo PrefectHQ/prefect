@@ -11,7 +11,7 @@ We recommend installing Orion using a Python virtual environment manager such as
 Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell:
 
 ```bash
-pip install -U "prefect>=2.0b"
+pip install --pre -U prefect
 ```
 
 To install a specific version, specify the version, such as:
