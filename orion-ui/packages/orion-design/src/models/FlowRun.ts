@@ -1,5 +1,5 @@
-import { StateType } from '@/models'
 import { IState } from '@/models/State'
+import { StateType } from '@/models/StateType'
 
 export interface IFlowRun {
   id: string,

@@ -83,3 +83,22 @@ class LogSort(AutoEnum):
             "TASK_RUN_ID_DESC": db.Log.task_run_id.desc(),
         }
         return sort_mapping[self.value]
+
+
+class FlowSort(AutoEnum):
+    """Defines flow sorting options."""
+
+    CREATED_DESC = AutoEnum.auto()
+    UPDATED_DESC = AutoEnum.auto()
+    NAME_ASC = AutoEnum.auto()
+    NAME_DESC = AutoEnum.auto()
+
+    def as_sql_sort(self, db: "OrionDBInterface") -> ColumnElement:
+        """Return an expression used to sort flow runs"""
+        sort_mapping = {
+            "CREATED_DESC": db.Flow.created.desc(),
+            "UPDATED_DESC": db.Flow.updated.desc(),
+            "NAME_ASC": db.Flow.name.asc(),
+            "NAME_DESC": db.Flow.name.desc(),
+        }
+        return sort_mapping[self.value]

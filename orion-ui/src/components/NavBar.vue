@@ -4,6 +4,14 @@
       <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg">
     </router-link>
 
+    <router-link to="/flows" class="nav-item">
+      <i class="pi pi-flow pi-2x" />
+    </router-link>
+
+    <router-link to="/work-queues" class="nav-item">
+      <i class="pi pi-robot-line pi-2x" />
+    </router-link>
+
     <router-link to="/settings" class="nav-item mt-auto ml-auto">
       <i class="pi pi-settings-3-line pi-2x" />
     </router-link>
@@ -31,7 +39,7 @@
   position: fixed;
   top: 0;
   width: 62px;
-  z-index: 10;
+  z-index: var(--layer-nav);
 
   .nav-item {
     // color: $red !important;

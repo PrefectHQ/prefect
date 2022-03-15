@@ -1,13 +1,15 @@
+import { FlowRunnerType } from '@/types/FlowRunnerType'
+
 export interface IWorkQueueFilter {
-  tags: string[] | null,
-  deploymentIds: string[] | null,
-  flowRunnerTypes: string[] | null,
+  tags: string[],
+  deploymentIds: string[],
+  flowRunnerTypes: FlowRunnerType[],
 }
 
 export class WorkQueueFilter implements IWorkQueueFilter {
-  public tags: string[] | null
-  public deploymentIds: string[] | null
-  public flowRunnerTypes: string[] | null
+  public tags: string[]
+  public deploymentIds: string[]
+  public flowRunnerTypes: FlowRunnerType[]
 
   public constructor(filter: IWorkQueueFilter) {
     this.tags = filter.tags

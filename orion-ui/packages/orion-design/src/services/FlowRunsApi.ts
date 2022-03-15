@@ -1,9 +1,17 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
-import { DateString } from '..'
-import { FlowRun, RunHistory, StateHistory, StateType, IFlowRunnerResponse, FlowRunGraph, IFlowRunGraphResponse } from '@/models'
+import { InjectionKey } from 'vue'
+import { FlowRun } from '@/models/FlowRun'
+import { FlowRunGraph } from '@/models/FlowRunGraph'
+import { IFlowRunGraphResponse } from '@/models/IFlowRunGraphResponse'
+import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { RunHistory } from '@/models/RunHistory'
+import { StateHistory } from '@/models/StateHistory'
+import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
 import { IStateResponse, statesApi } from '@/services/StatesApi'
+import { DateString } from '@/types/dates'
 import { State, StateName } from '@/types/states'
 
 export type IFlowRunResponse = {
@@ -124,8 +132,13 @@ export class FlowRunsApi extends Api {
   }
 
   protected mapFlowRunGraphResponse({ data }: AxiosResponse<IFlowRunGraphResponse[]>): FlowRunGraph[] {
-    return data.map(x => new FlowRunGraph({
+    return data.map((x: IFlowRunGraphResponse) => new FlowRunGraph({
       id: x.id,
+      expectedStartTime: x.expected_start_time ? new Date(x.expected_start_time) : null,
+      startTime: x.start_time ? new Date(x.start_time) : null,
+      endTime: x.end_time ? new Date(x.end_time) : null,
+      totalRunTime: x.total_run_time,
+      estimatedRunTime: x.estimated_run_time,
       upstreamDependencies: this.mapFlowRunGraphDependenciesResponse(x.upstream_dependencies),
       state: statesApi.mapStateResponse(x.state),
     }))
@@ -158,4 +171,6 @@ export class FlowRunsApi extends Api {
 
 }
 
-export const flowRunsApi = new FlowRunsApi()
+export const flowRunsApi = createActions(new FlowRunsApi())
+
+export const getFlowRunsCountKey: InjectionKey<FlowRunsApi['getFlowRunsCount']> = Symbol()

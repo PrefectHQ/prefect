@@ -1,6 +1,6 @@
 <template>
   <div class="filter-builder-value-date">
-    <m-select v-model="internalOperation" :options="operations" />
+    <m-select v-model="internalOperation" :options="operations" class="filter-builder-value-date__operation" />
     <template v-if="isDateFilter">
       <DateTimeInput v-model:value="date" label="Date" class="filter-builder-value-date__picker" />
     </template>
@@ -28,7 +28,8 @@
   import { Ref, computed, onMounted, watch } from 'vue'
   import DateTimeInput from '@/components/DateTimeInput.vue'
   import { FilterOperation, FilterType, FilterValue, FilterObject } from '@/types/filters'
-  import { isDateOperation, isRelativeDateOperation, toPluralString } from '@/utilities'
+  import { isDateOperation, isRelativeDateOperation } from '@/utilities/filters'
+  import { toPluralString } from '@/utilities/strings'
 
   const emit = defineEmits<{
     (event: 'update:type', value: FilterType): void,
@@ -128,10 +129,26 @@
 </script>
 
 <style lang="scss">
+@use 'sass:map';
+
 .filter-builder-value-date {
   display: flex;
   gap: var(--m-2);
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: stretch;
+
+  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
+    align-items: flex-end;
+    flex-direction: row;
+  }
+}
+
+.filter-builder-value-date__operation {
+  --select-max-width: 100% !important; // m-select specificity
+
+  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
+    --select-max-width: 350px !important;
+  }
 }
 
 .filter-builder-value-date__picker {
@@ -146,11 +163,11 @@
   min-width: 200px;
 }
 
-.filter-builder-value-date__number :deep(.number-input__container) {
+.filter-builder-value-date__number .number-input__container {
   height: 58px;
 }
 
-.filter-builder-value-date__number :deep(.number-input__spin-buttons) {
+.filter-builder-value-date__number .number-input__spin-buttons {
   display: flex;
   flex-direction: column;
   justify-content: center;

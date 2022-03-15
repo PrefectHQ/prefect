@@ -34,6 +34,10 @@
   import { getSearchesKey, searchApi } from '@/services/SearchApi'
   import { Filter } from '@/types/filters'
 
+  const emit = defineEmits<{
+    (event: 'close'): void,
+  }>()
+
   const getSearches = inject(getSearchesKey, searchApi.getSearches)
   const subscription = useSubscription(getSearches)
   const filters = computed(() => subscription.response.value ?? [])
@@ -43,6 +47,7 @@
 
   function apply(filters: Required<Filter>[]): void {
     filterUrlService.replaceAll(filters)
+    emit('close')
   }
 
   function remove(id: string): void {
@@ -51,7 +56,7 @@
         showToast('Search removed', 'success')
       })
       .catch(error => {
-        showToast('error', 'Error removing search')
+        showToast('Error removing search', 'error')
         console.error(error)
       })
       .finally(() => {
