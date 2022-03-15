@@ -346,3 +346,34 @@ This is a more advanced use case and will be covered in future tutorials.
     - [Flows](/concepts/flows/)
     - [Tasks](/concepts/tasks/)
     - [States](/concepts/states/)
+
+
+## Writing unit tests
+
+Now that you have all of these awesome flows, you probably want to test them!
+Prefect provides a simple context manager for unit tests that allows you to run flows and tasks against a temporary local SQLite database.
+
+```python
+from prefect import flow
+from prefect.utilities.testing import prefect_test_harness
+
+@flow
+def my_favorite_function():
+    print("This function doesn't do much")
+    return 42
+
+with prefect_test_harness():
+    # run the flow against a temporary testing database
+    assert my_favorite_function().result() == 42
+```
+
+For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your testing framework. For example, when using `pytest`:
+
+```python
+import pytest
+from prefect.utilities.testing import prefect_test_harness
+
+@pytest.fixture(autouse=True)
+def prefect_test_fixture():
+    with prefect_test_harness():
+        yield
