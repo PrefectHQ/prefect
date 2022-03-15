@@ -1,10 +1,9 @@
 <template>
   <m-input
     :value="formatted"
-    type="date"
     :label="label"
-    v-bind="$attrs"
-    @click="showPicker = !showPicker"
+    v-bind="{ type, ...$attrs }"
+    @click="open"
   />
 
   <teleport v-if="showPicker" to="[data-teleport-target='app']">
@@ -42,8 +41,9 @@
 </script>
 
 <script lang="ts" setup>
+  import { useMedia } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
-  import { formatDateTimeNumeric } from '@/utilities/dates'
+  import { formatDateTimeNumericInTimeZone, formatInTimeZone } from '@/utilities/dates'
 
   const props = defineProps<{
     label: string,
@@ -56,7 +56,29 @@
 
   const showPicker = ref(false)
   const tempValue = ref(props.value ?? new Date())
-  const formatted = computed(() => props.value ? formatDateTimeNumeric(props.value) : '')
+  const formatted = computed(() => {
+    if (props.value == null) {
+      return ''
+    }
+
+    if (isTouchMedia.value) {
+      return formatInTimeZone(props.value, "yyyy-MM-dd'T'hh:mm")
+    }
+
+    return formatDateTimeNumericInTimeZone(props.value)
+  })
+
+  const isTouchMedia = useMedia('(pointer: coarse), (hover: none)')
+
+  const type = computed(() => isTouchMedia.value ? 'datetime-local' : 'text')
+
+  function open(): void {
+    if (isTouchMedia.value) {
+      return
+    }
+
+    showPicker.value = !showPicker.value
+  }
 
   function applyTempValue(): void {
     emit('update:value', tempValue.value)
@@ -74,7 +96,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   width: auto;
-  z-index: 11;
+  z-index: var(--layer-datepicker);
   padding: var(--p-2);
 }
 

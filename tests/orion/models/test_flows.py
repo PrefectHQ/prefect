@@ -277,6 +277,17 @@ class TestReadFlows:
         )
         assert len(result) == 0
 
+    async def test_read_flows_applies_sort(self, flows, session):
+        read_flows = await models.flows.read_flows(
+            session=session, sort=schemas.sorting.FlowSort.NAME_ASC
+        )
+        assert read_flows[0].name == "my-flow-1"
+
+        read_flows_name_desc = await models.flows.read_flows(
+            session=session, sort=schemas.sorting.FlowSort.NAME_DESC
+        )
+        assert read_flows_name_desc[0].name == "my-flow-2"
+
 
 class TestDeleteFlow:
     async def test_delete_flow(self, session):

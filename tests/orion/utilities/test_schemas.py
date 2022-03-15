@@ -11,6 +11,7 @@ from prefect.orion.utilities.schemas import (
     PrefectBaseModel,
     pydantic_subclass,
 )
+from prefect.utilities.testing import assert_does_not_warn
 
 
 class TestExtraForbidden:
@@ -44,9 +45,8 @@ class TestPydanticSubclass:
         assert Child.__name__ == "Parent"
 
     def test_pydantic_does_not_issue_warning_when_creating_subclass(self):
-        with pytest.warns(None) as record:
+        with assert_does_not_warn():
             pydantic_subclass(self.Parent)
-        assert len(record) == 0
 
     def test_subclass_name(self):
         Child = pydantic_subclass(self.Parent, name="Child")

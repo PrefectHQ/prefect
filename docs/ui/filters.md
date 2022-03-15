@@ -77,24 +77,24 @@ String values are always applied as a contains filter, unless they are surrounde
 
 | Full | Short | Behavior |
 | --- | --- | --- |
-| deployment: | d: | Returns all deployments with names that contain the string. | 
-| deployment_tag: | dt: | Returns all deployments with all of the specified tags. |
-| flow: | f: | Returns all flows with names that contain the string. |
-| flow_run: | fr: | Returns all flow runs with names that contain the string. |
-| flow_run_after: | fra: | Returns all flow runs that started after or on a specific date or time. |
-| flow_run_before: | frb: | Returns all flow runs that started before or on a specific date or time. |
-| flow_run_newer: | frn: | Returns all flow runs that started after the relative period using h (hour), d (day), w (week), m (month), and y (year). |
-| flow_run_older: | fro: | Returns all flow runs that started before the relative period using h (hour), d (day), w (week), m (month), and y (year). |
-| flow_run_state: | frs: | Returns all flow runs with the specified states. |
-| flow_run_tag: | frt: | Returns all flow runs with all of the specified tags. |
-| flow_run_upcoming: | fru: | Returns all flow runs scheduled to start before the relative period using h (hour), d (day), w (week), m | (month), and y (year). |
-| flow_tag: | ft: | Returns all flows with all of the specified tags. |
-| tag: | t: | Returns all entities with the specified tags. |
-| task_run: | tr: | Returns all task runs with names that contain the string. |
-| task_run_after: | tra: | Returns all task runs that started after or on a specific date or time. |
-| task_run_before: | trb: | Returns all task runs that started before or on a specific date or time. |
-| task_run_newer: | trn: | Returns all task runs that started after the relative period using h (hour), d (day), w (week), m (month), and y (year). |
-| task_run_older: | tro: | Returns all task runs that started before the relative period using h (hour), d (day), w (week), m (month), and y (year). |
-| task_run_state: | trs: | Returns all task runs with the specified states. |
-| task_run_tag: | trt: | Returns all task runs with all of the specified tags. |
-| version: | v: | Returns all flow runs with the specified version. |
+| `deployment:` | `d:` | Returns all deployments with names that contain the string. | 
+| `deployment_tag:` | `dt:` | Returns all deployments with all of the specified tags. |
+| `flow:` | `f:` | Returns all flows with names that contain the string. |
+| `flow_run:` | `fr:` | Returns all flow runs with names that contain the string. |
+| `flow_run_after:` | `fra:` | Returns all flow runs that started after or on a specific date or time. |
+| `flow_run_before:` | `frb:` | Returns all flow runs that started before or on a specific date or time. |
+| `flow_run_newer:` | `frn:` | Returns all flow runs that started after the relative period using h (hour), d (day), w (week), m (month), and y (year). |
+| `flow_run_older:` | `fro:` | Returns all flow runs that started before the relative period using h (hour), d (day), w (week), m (month), and y (year). |
+| `flow_run_state:` | `frs:` | Returns all flow runs with the specified states. |
+| `flow_run_tag:` | `frt:` | Returns all flow runs with all of the specified tags. |
+| <span class="no-wrap">`flow_run_upcoming:`</span> | <span class="no-wrap">`fru:`</span> | Returns all flow runs scheduled to start before the relative period using h (hour), d (day), w (week), m | (month), and y (year). |
+| `flow_tag:` | `ft:` | Returns all flows with all of the specified tags. |
+| `tag:` | `t:` | Returns all entities with the specified tags. |
+| `task_run:` | `tr:` | Returns all task runs with names that contain the string. |
+| `task_run_after:` | `tra:` | Returns all task runs that started after or on a specific date or time. |
+| `task_run_before:` | `trb:` | Returns all task runs that started before or on a specific date or time. |
+| `task_run_newer:` | `trn:` | Returns all task runs that started after the relative period using h (hour), d (day), w (week), m (month), and y (year). |
+| `task_run_older:` | `tro:` | Returns all task runs that started before the relative period using h (hour), d (day), w (week), m (month), and y (year). |
+| `task_run_state:` | `trs:` | Returns all task runs with the specified states. |
+| `task_run_tag:` | `trt:` | Returns all task runs with all of the specified tags. |
+| `version:` | `v:` | Returns all flow runs with the specified version. |
