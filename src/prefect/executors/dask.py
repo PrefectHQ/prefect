@@ -228,11 +228,8 @@ class DaskExecutor(Executor):
 
                     with performance_report_context:
                         self.client = client
-                        try:
-                            self._pre_start_yield()
-                            yield
-                        finally:
-                            self._post_start_yield()
+                        yield
+                        self._post_start_yield()
             else:
                 assert callable(self.cluster_class)  # mypy
                 assert isinstance(self.cluster_kwargs, dict)  # mypy
@@ -252,11 +249,8 @@ class DaskExecutor(Executor):
                     with Client(cluster, **self.client_kwargs) as client:
                         with performance_report_context:
                             self.client = client
-                            try:
-                                self._pre_start_yield()
-                                yield
-                            finally:
-                                self._post_start_yield()
+                            yield
+                            self._post_start_yield()
         finally:
             self.client = None
 
@@ -311,23 +305,6 @@ class DaskExecutor(Executor):
                     pass
             if scheduler_comm is not None:
                 scheduler_comm.close_rpc()
-
-    def _pre_start_yield(self) -> None:
-        from distributed import Event
-
-        is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
-        if (
-            self.address is not None or is_inproc
-        ) and not self.disable_cancellation_event:
-            self._futures = weakref.WeakSet()
-            self._should_run_event = Event(
-                f"prefect-{uuid.uuid4().hex}", client=self.client
-            )
-            self._should_run_event.set()
-
-        self._watch_dask_events_task = asyncio.run_coroutine_threadsafe(
-            self._watch_dask_events(), self.client.loop.asyncio_loop  # type: ignore
-        )
 
     def _post_start_yield(self) -> None:
         from distributed import wait
