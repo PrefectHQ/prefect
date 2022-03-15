@@ -76,7 +76,7 @@ class PrefectTyper(typer.Typer):
         def wrapper(fn):
             if is_async_fn(fn):
                 fn = sync_compatible(fn)
-                fn = with_cli_exception_handling(fn)
+            fn = with_cli_exception_handling(fn)
             return command_decorator(fn)
 
         return wrapper
