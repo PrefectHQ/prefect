@@ -324,8 +324,12 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     Requires a Docker Engine to be connectable.
 
+
     Attributes:
         image: An optional string specifying the tag of a Docker image to use.
+        network_mode: Set the network mode for the created container. Defaults to 'host'
+            if a local API url is detected, otherwise the Docker default of 'bridge' is
+            used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
@@ -334,6 +338,15 @@ class DockerFlowRunner(UniversalFlowRunner):
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
         stream_output: If set, stream output from the container to local standard output.
+
+    ## Connecting to a locally hosted API
+
+    If using a local API URL, we will update the network mode default to 'host' to
+    enable connectivity. If the default network mode of 'bridge' is desired, we will
+    replace 'localhost' in the API URL with 'host.docker.internal' which will allow
+    connectivity if your API is bound to 0.0.0.0 or the Docker IP address. In either
+    case, the API URL can be provided as an environment variable to override inference.
+
     """
 
     typename: Literal["docker"] = "docker"

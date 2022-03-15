@@ -805,6 +805,21 @@ class TestDockerFlowRunner:
         )
         assert network_mode == "host"
 
+    async def test_network_mode_defaults_to_none_if_using_networks(
+        self, mock_docker_client, flow_run
+    ):
+        # Despite using localhost for the API, we will set the network mode to `None`
+        # because `networks` and `network_mode` cannot both be set.
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://localhost/test"),
+            networks=["test"],
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
     async def test_network_mode_defaults_to_none_if_using_nonlocal_api(
         self, mock_docker_client, flow_run
     ):
@@ -816,7 +831,7 @@ class TestDockerFlowRunner:
         network_mode = mock_docker_client.containers.create.call_args[1].get(
             "network_mode"
         )
-        assert network_mode == None
+        assert network_mode is None
 
     async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
