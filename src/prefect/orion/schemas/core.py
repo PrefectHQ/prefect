@@ -14,7 +14,7 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
-INVALID_CHARACTERS = ["/", "%"]
+INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 
 class Flow(ORMBaseModel):
