@@ -154,7 +154,7 @@ class DeploymentSpec(PrefectBaseModel):
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
             raise ValueError(
-                f"Name contains an invalid character {INVALID_CHARACTERS}."
+                f"Name contains an invalid character. Must not contain any of: {INVALID_CHARACTERS}."
             )
         return v
 
