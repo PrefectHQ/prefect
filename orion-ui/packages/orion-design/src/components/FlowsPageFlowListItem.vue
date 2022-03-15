@@ -18,7 +18,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { subWeeks } from 'date-fns'
+  import { subWeeks, startOfToday } from 'date-fns'
   import { computed, inject } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DeploymentPanel from '@/components/DeploymentPanel.vue'
@@ -69,7 +69,7 @@
     ...countFilter.value,
     flow_runs: {
       expected_start_time: {
-        after_: subWeeks(new Date(), 1).toISOString(),
+        after_: subWeeks(startOfToday(), 1).toISOString(),
       },
     },
   }))
