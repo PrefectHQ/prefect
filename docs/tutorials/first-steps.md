@@ -362,18 +362,26 @@ def my_favorite_function():
     print("This function doesn't do much")
     return 42
 
-with prefect_test_harness():
-    # run the flow against a temporary testing database
-    assert my_favorite_function().result() == 42
+def test_my_favorite_function():
+  with prefect_test_harness():
+      # run the flow against a temporary testing database
+      assert my_favorite_function().result() == 42
 ```
 
-For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your testing framework. For example, when using `pytest`:
+For more extensive testing, you can leverage `prefect_test_harness` as a fixture in your unit testing framework. For example, when using `pytest`:
 
 ```python
 import pytest
 from prefect.utilities.testing import prefect_test_harness
 
+from my_flows import my_favorite_function
+
 @pytest.fixture(autouse=True)
 def prefect_test_fixture():
     with prefect_test_harness():
         yield
+
+def test_my_favorite_function(prefect_test_fixture):
+    assert my_favorite_function().result() == 42
+
+```
