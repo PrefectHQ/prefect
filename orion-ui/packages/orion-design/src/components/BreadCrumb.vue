@@ -1,45 +1,49 @@
 <template>
-  <component
-    :is="crumb.to ? 'router-link' : 'span'"
-    v-skeleton="!crumb.text"
-    :to="crumb.to"
-    class="text-truncate bread-crumb"
-    :style="{ minWidth: !crumb.text ? '40px' : undefined }"
-  >
-    {{ crumb.text }}
-  </component>
+  <template v-if="crumb.loading">
+    <div class="bread-crumb--loading">
+      <span v-skeleton="true">
+        Loading...
+      </span>
+    </div>
+  </template>
+  <template v-else>
+    <component
+      :is="component"
+      class="bread-crumb"
+      :class="classes.crumb"
+      :to="crumb.to"
+    >
+      {{ crumb.text }}
+    </component>
+  </template>
 </template>
 
 <script lang="ts" setup>
+  import { computed } from 'vue'
   import { Crumb } from '@/models/Crumb'
 
-  defineProps<{ crumb: Crumb }>()
+  const props = defineProps<{ crumb: Crumb }>()
+
+  const showClickable = computed(() => typeof props.crumb.clickable === 'boolean' ? props.crumb.clickable : !!props.crumb.to)
+  const component = computed(() => showClickable.value && props.crumb.to ? 'router-link' : 'div')
+  const classes = computed(() => ({
+    crumb: {
+      'bread-crumb--clickable': showClickable.value,
+    },
+  }))
 </script>
 
 <style lang="scss">
-a {
-  text-decoration: none;
-
-  &:hover {
-    color: var(--primary);
-    text-decoration: underline;
-  }
-
-  &:active {
-    color: var(--primary-hover) !important;
-  }
+.bread-crumb--loading {
+  overflow: hidden;
 }
 
-.bread-crumb {
-  max-width: 50%;
-  min-height: 30px;
+.bread-crumb--clickable {
+  color: var(--primary);
 }
 
-.bread-crumb::after {
-  content: '\00a0/\00a0';
-}
-
-.bread-crumb:last-child::after {
-  display: none;
+.bread-crumb--clickable:hover,
+.bread-crumb--clickable:active {
+  cursor: pointer;
 }
 </style>
