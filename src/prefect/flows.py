@@ -95,7 +95,8 @@ class Flow(Generic[P, R]):
         if name:
             if any(c in name for c in INVALID_CHARACTERS):
                 raise ValueError(
-                    f"Name contains an invalid character. Must not contain any of: {INVALID_CHARACTERS}."
+                    f"Name {name!r} contains an invalid character. "
+                    f"Must not contain any of: {INVALID_CHARACTERS}."
                 )
 
         self.name = name or fn.__name__.replace("_", "-")

@@ -91,7 +91,7 @@ class TestDeploymentSpec:
         ],
     )
     def test_invalid_name(self, name):
-        with pytest.raises(ValueError, match="Name contains an invalid character"):
+        with pytest.raises(ValueError, match="contains an invalid character"):
             DeploymentSpec(name=name)
 
 

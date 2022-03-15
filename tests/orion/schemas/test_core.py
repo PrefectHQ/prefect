@@ -35,25 +35,17 @@ async def test_valid_names(name):
 
 @pytest.mark.parametrize("name", invalid_names)
 async def test_invalid_names(name):
-    with pytest.raises(
-        pydantic.ValidationError, match="(Name contains an invalid character)"
-    ):
+    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.Flow(name=name)
-    with pytest.raises(
-        pydantic.ValidationError, match="(Name contains an invalid character)"
-    ):
+    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.Deployment(
             name=name,
             flow_id=uuid4(),
             flow_data=schemas.data.DataDocument(encoding="x", blob=b"y"),
         )
-    with pytest.raises(
-        pydantic.ValidationError, match="(Name contains an invalid character)"
-    ):
+    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.BlockSpec(name=name, version="1.0")
-    with pytest.raises(
-        pydantic.ValidationError, match="(Name contains an invalid character)"
-    ):
+    with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.Block(name=name, block_spec_id=uuid4())
 
 
