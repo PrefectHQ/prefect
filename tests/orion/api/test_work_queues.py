@@ -64,7 +64,7 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
         response = await client.post("/work_queues/", json=dict(name=name))
         assert response.status_code == 422
-        assert b"Name contains an invalid character" in response.content
+        assert b"contains an invalid character" in response.content
 
 
 class TestUpdateWorkQueue:
