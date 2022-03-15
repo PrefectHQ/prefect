@@ -98,6 +98,14 @@ class MissingContextError(PrefectException, RuntimeError):
     pass
 
 
+class MissingProfileError(PrefectException, ValueError):
+    """
+    Raised when a profile name does not exist.
+    """
+
+    pass
+
+
 class ReservedArgumentError(PrefectException, TypeError):
     """
     Raised when a function used with Prefect has an argument with a name that is
