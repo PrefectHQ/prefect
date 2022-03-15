@@ -1,10 +1,17 @@
 <template>
-  <!-- todo: have this expect breadcrumbs when that component is done -->
   <div class="page-header">
-    <h1 class="page-header__title">
-      <i class="pi page-header__icon" :class="`pi-${icon}`" />
-      <slot />
-    </h1>
+    <template v-if="crumbs">
+      <OverflowWrapper>
+        <template #default="{ overflown }">
+          <BreadCrumbs :icon="icon" :crumbs="crumbs" class="page-header__bread-crumbs" :stacked="overflown" />
+        </template>
+      </OverflowWrapper>
+    </template>
+    <template v-else>
+      <h1 class="page-header__title">
+        <slot />
+      </h1>
+    </template>
     <div class="page-header__actions">
       <slot name="actions" />
     </div>
@@ -12,16 +19,15 @@
 </template>
 
 <script lang="ts" setup>
-  import { PropType } from 'vue'
+  import BreadCrumbs from '@/components/BreadCrumbs.vue'
+  import OverflowWrapper from '@/components/OverflowWrapper.vue'
+  import { Crumb } from '@/models/Crumb'
   import { Icon } from '@/types/icons'
 
-  defineProps({
-    icon: {
-      type: String as PropType<Icon>,
-      required: false,
-      default: null,
-    },
-  })
+  defineProps<{
+    icon?: Icon,
+    crumbs?: Crumb[],
+  }>()
 </script>
 
 <style lang="scss">
@@ -31,12 +37,5 @@
   justify-content: space-between;
   align-items: center;
   height: 62px;
-}
-
-.page-header__icon {
-  position: relative;
-  top: 0.1em;
-  color: var(--grey-40);
-  margin-right: var(--m-1);
 }
 </style>
