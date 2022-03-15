@@ -37,7 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { Filter, useFiltersStore, UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
+  import { Filter, useFiltersStore, UnionFilters, FlowRunsFilter, FiltersQueryService } from '@prefecthq/orion-design'
   import { FilterUrlService } from '@prefecthq/orion-design/services'
   import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
   import { computed } from 'vue'
@@ -70,14 +70,18 @@
     return new Date(props.item.end_time)
   })
 
+const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flow_runs_filter_body: UnionFilters = {
+    ...runFilter.value,
     sort: 'START_TIME_DESC',
     flow_runs: {
+      ...runFilter.value.flow_runs,
       id: {
         any_: [props.item.id],
       },
     },
     task_runs: {
+      ...runFilter.value.task_runs,
       subflow_runs: {
         exists_: false,
       },

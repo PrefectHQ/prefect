@@ -10,4 +10,5 @@ import prefect.cli.config
 import prefect.cli.dev
 import prefect.cli.profile
 import prefect.cli.storage
+import prefect.cli.cloud
 import prefect.cli.work_queue
