@@ -18,6 +18,7 @@ from prefect.cli.base import (
     exit_with_success,
 )
 from prefect.client import get_client
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 work_app = PrefectTyper(name="work-queue", help="Commands for work queue CRUD.")
 app.add_typer(work_app)
@@ -40,12 +41,15 @@ async def create(
     Create a work queue.
     """
     async with get_client() as client:
-        result = await client.create_work_queue(
-            name=name,
-            tags=tags or None,
-            deployment_ids=deployment_ids or None,
-            flow_runner_types=flow_runner_types or None,
-        )
+        try:
+            result = await client.create_work_queue(
+                name=name,
+                tags=tags or None,
+                deployment_ids=deployment_ids or None,
+                flow_runner_types=flow_runner_types or None,
+            )
+        except ObjectAlreadyExists:
+            exit_with_error(f"Work queue with name: {name!r} already exists.")
 
     console.print(Pretty(result))
 
@@ -59,15 +63,15 @@ async def set_concurrency_limit(
     Set a concurrency limit on a work queue.
     """
     async with get_client() as client:
-        result = await client.update_work_queue(
-            id=id,
-            concurrency_limit=limit,
-        )
+        try:
+            await client.update_work_queue(
+                id=id,
+                concurrency_limit=limit,
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Concurrency limit of {limit} set on work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Concurrency limit of {limit} set on work queue {id}")
 
 
 @work_app.command()
@@ -78,15 +82,15 @@ async def clear_concurrency_limit(
     Clear any concurrency limits from a work queue.
     """
     async with get_client() as client:
-        result = await client.update_work_queue(
-            id=id,
-            concurrency_limit=None,
-        )
+        try:
+            await client.update_work_queue(
+                id=id,
+                concurrency_limit=None,
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Concurrency limits removed on work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Concurrency limits removed on work queue {id}")
 
 
 @work_app.command()
@@ -97,15 +101,15 @@ async def pause(
     Pause a work queue.
     """
     async with get_client() as client:
-        result = await client.update_work_queue(
-            id=id,
-            is_paused=True,
-        )
+        try:
+            await client.update_work_queue(
+                id=id,
+                is_paused=True,
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Paused work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Paused work queue {id}")
 
 
 @work_app.command()
@@ -116,15 +120,15 @@ async def resume(
     Resume a paused work queue.
     """
     async with get_client() as client:
-        result = await client.update_work_queue(
-            id=id,
-            is_paused=False,
-        )
+        try:
+            await client.update_work_queue(
+                id=id,
+                is_paused=False,
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Resumed work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Resumed work queue {id}")
 
 
 @work_app.command()
@@ -133,13 +137,20 @@ async def inspect(id: UUID):
     Inspect a work queue by ID.
     """
     async with get_client() as client:
-        result = await client.read_work_queue(id=id)
+        try:
+            result = await client.read_work_queue(id=id)
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
     console.print(Pretty(result))
 
 
 @work_app.command()
-async def ls():
+async def ls(
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Display more information."
+    )
+):
     """
     View all work queues.
     """
@@ -149,7 +160,8 @@ async def ls():
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    table.add_column("Filter", style="magenta", no_wrap=True)
+    if verbose:
+        table.add_column("Filter", style="magenta", no_wrap=True)
 
     async with get_client() as client:
         queues = await client.read_work_queues()
@@ -157,14 +169,17 @@ async def ls():
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
     for queue in sorted(queues, key=sort_by_created_key):
-        table.add_row(
+
+        row = [
             str(queue.id),
             f"{queue.name} [red](**)" if queue.is_paused else queue.name,
             f"[red]{queue.concurrency_limit}"
             if queue.concurrency_limit
             else "[blue]None",
-            queue.filter.json(),
-        )
+        ]
+        if verbose:
+            row.append(queue.filter.json())
+        table.add_row(*row)
 
     console.print(table)
 
@@ -192,9 +207,12 @@ async def preview(
 
     window = pendulum.now("utc").add(hours=hours or 1)
     async with get_client() as client:
-        runs = await client.get_runs_in_work_queue(
-            id, limit=10, scheduled_before=window
-        )
+        try:
+            runs = await client.get_runs_in_work_queue(
+                id, limit=10, scheduled_before=window
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
@@ -224,9 +242,9 @@ async def delete(id: UUID):
     Delete a work queue by ID.
     """
     async with get_client() as client:
-        result = await client.delete_work_queue_by_id(id=id)
+        try:
+            await client.delete_work_queue_by_id(id=id)
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found with id {id}")
 
-    if result:
-        exit_with_success(f"Deleted work queue {id}")
-    else:
-        exit_with_error(f"No work queue found with id {id}")
+    exit_with_success(f"Deleted work queue {id}")

@@ -1,5 +1,7 @@
-import { IState, StateType, TaskInput } from '@/models'
 import { IEmpiricalPolicy } from '@/models/EmpiricalPolicy'
+import { IState } from '@/models/State'
+import { StateType } from '@/models/StateType'
+import { TaskInput } from '@/models/TaskInput'
 
 export interface ITaskRun {
   id: string,

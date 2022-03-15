@@ -3,7 +3,7 @@
     <template v-for="(log, index) in logs" :key="log.id">
       <template v-if="showDivider(index)">
         <div class="flow-run-logs__divider">
-          <span class="flow-run-logs__divider-time">{{ formatDate(log.timestamp) }}</span>
+          <span class="flow-run-logs__divider-time">{{ formatDateInTimeZone(log.timestamp) }}</span>
         </div>
       </template>
       <FlowRunLog :log="log" />
@@ -28,8 +28,8 @@
   import { isSameDay } from 'date-fns'
   import { computed, PropType } from 'vue'
   import FlowRunLog from '@/components/FlowRunLog.vue'
-  import { Log } from '@/models'
-  import { formatDate } from '@/utilities'
+  import { Log } from '@/models/Log'
+  import { formatDateInTimeZone } from '@/utilities/dates'
 
   const props = defineProps({
     logs: {
