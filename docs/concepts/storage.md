@@ -1,5 +1,5 @@
 ---
-description: 
+description: Prefect storage configuration enables you to set up local or remote data stores used for flow code, task results, and flow results.
 tags:
     - Orion
     - storage
@@ -7,15 +7,18 @@ tags:
     - database configuration
     - configuration
     - settings
+    - S3
+    - Azure Blob Storage
+    - Google Cloud Storage
 ---
 
 # Storage
 
 Storage lets you configure how flow code, task results, and flow results data are persisted.
 
-If no other storage is configured, Prefect uses the default temporary local storage.
+If no other storage is configured, Prefect uses the default Temporary Local Storage.
 
-Local storage works fine for many local flow and task run scenarios. However, to run flows using Docker or Kubernetes, you must set up remote storage.
+Local storage works fine for many local flow and task run scenarios. However, to run flows using Docker or Kubernetes, you must set up remote storage such as S3, Google Cloud Storage, or Azure Blob Storage. You can also configure a self-hosted key-value store for testing.
 
 Prefect Orion supports creating multiple storage configurations and switching between storage as needed.
 
