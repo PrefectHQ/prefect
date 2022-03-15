@@ -1,7 +1,7 @@
 <template>
   <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
-      <BreadCrumbs :crumbs="crumbs" @click="openWorkQueuePanel(workQueue.id)" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openWorkQueuePanel(workQueue.id)" />
     </div>
 
     <div class="work-queues-list-item__status">
