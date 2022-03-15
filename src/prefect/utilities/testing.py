@@ -9,6 +9,14 @@ from tempfile import TemporaryDirectory
 
 import prefect.context
 import prefect.settings
+from prefect.orion.database.configurations import AioSqliteConfiguration
+from prefect.orion.database.dependencies import (
+    temporary_database_config,
+    temporary_orm_config,
+    temporary_query_components,
+)
+from prefect.orion.database.orm_models import AioSqliteORMConfiguration
+from prefect.orion.database.query_components import AioSqliteQueryComponents
 
 
 def exceptions_equal(a, b):
@@ -100,9 +108,16 @@ def prefect_test_harness():
     """
     # create temp directory for the testing database
     with TemporaryDirectory() as temp_dir:
-        # ensure there is no api url configured
-        with temporary_settings(
-            PREFECT_API_URL="",
-            PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
+        with temporary_database_config(
+            tmp_database_config=AioSqliteConfiguration(
+                connection_url=f"sqlite+aiosqlite:////{temp_dir}/orion.db"
+            )
         ):
-            yield
+            with temporary_query_components(AioSqliteQueryComponents()):
+                with temporary_orm_config(AioSqliteORMConfiguration()):
+                    # ensure there is no api url configured
+                    with temporary_settings(
+                        PREFECT_API_URL="",
+                        PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
+                    ):
+                        yield
