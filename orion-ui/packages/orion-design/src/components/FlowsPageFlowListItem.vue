@@ -18,7 +18,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { subWeeks } from 'date-fns'
+  import { subWeeks, startOfToday } from 'date-fns'
   import { computed, inject } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DeploymentPanel from '@/components/DeploymentPanel.vue'
@@ -95,10 +95,6 @@
       dashboardRoute: route,
       ...injectedServices,
     })
-  }
-
-  function startOfToday(): number | Date {
-    throw new Error('Function not implemented.')
   }
 </script>
 
