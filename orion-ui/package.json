@@ -25,8 +25,6 @@
     "vue-router": "^4.0.14"
   },
   "devDependencies": {
-    "@babel/helper-compilation-targets": "^7.16.7",
-    "@babel/runtime": "^7.17.2",
     "@prefecthq/eslint-config": "1.0.15",
     "@types/d3": "^7.1.0",
     "@types/expect-puppeteer": "^4.4.7",
