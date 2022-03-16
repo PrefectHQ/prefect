@@ -13,10 +13,7 @@
           class="bread-crumbs__crumb"
           :class="classes.crumb(index)"
         >
-          <BreadCrumb
-            :crumb="crumb"
-            @click="handleCrumbClick(crumb)"
-          />
+          <BreadCrumb :crumb="crumb" />
         </component>
       </template>
     </div>
@@ -31,20 +28,13 @@
 
   const props = withDefaults(defineProps<{
     crumbs: Crumb[],
-    tag: string,
+    tag?: string,
     stacked?: boolean,
     icon?: Icon,
   }>(), {
     tag: 'h1',
-    // if unset, stacked based on window-size
-    // eslint-disable-next-line vue/no-boolean-default
-    stacked: undefined,
     icon: undefined,
   })
-
-  const emits = defineEmits<{
-    (event: 'click', value: Crumb): void,
-  }>()
 
   const classes = computed(() => ({
     crumb:(index: number) => ({
@@ -66,12 +56,6 @@
 
   function isLast(index: number): boolean {
     return index === props.crumbs.length - 1
-  }
-
-  function handleCrumbClick(crumb: Crumb | null): void {
-    if (crumb?.to || crumb?.clickable) {
-      emits('click', crumb)
-    }
   }
 </script>
 
@@ -100,7 +84,7 @@
   display: block;
 }
 
-.bread-crumbs__crumb--separate>:after {
+.bread-crumbs__crumb--separate > :after {
   color: var(--grey-80);
   content: '\00a0/\00a0';
 }

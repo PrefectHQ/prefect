@@ -1,7 +1,7 @@
 <template>
   <ListItem class="flows-page-flow-list-item">
     <div class="flows-page-flow-list-item__name">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
     </div>
 
     <div class="flows-page-flow-list-item__details">
@@ -40,7 +40,7 @@
   const route = inject(workspaceDashboardKey)!
   const injectedServices = useInjectedServices()
 
-  const crumbs: Crumb[] = [{ text: props.flow.name, clickable: true }]
+  const crumbs: Crumb[] = [{ text: props.flow.name, action: openFlowPanel }]
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
     {
       object: 'flow',

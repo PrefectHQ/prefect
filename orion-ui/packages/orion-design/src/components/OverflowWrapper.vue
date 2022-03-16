@@ -1,23 +1,25 @@
 <template>
   <div class="overflow-wrapper">
     <div ref="container" class="overflow-wrapper__test">
-      <slot :overflown="false" />
+      <slot :overflows="false" />
     </div>
-    <slot :overflown="overflown" />
+    <slot :overflows="overflows" />
   </div>
 </template>
 
 <script lang="ts" setup>
   import { onMounted, ref } from 'vue'
 
-  const overflown = ref(false)
+  const overflows = ref(false)
   const container = ref<HTMLElement>()
 
-  const observer = new ResizeObserver(([entry]) => {
-    const target = entry.target as HTMLElement
+  function setOverflows(): void {
+    if (container.value) {
+      overflows.value = container.value.offsetWidth < container.value.scrollWidth
+    }
+  }
 
-    overflown.value = target.offsetWidth < target.scrollWidth
-  })
+  const observer = new ResizeObserver(() => setOverflows())
 
   onMounted(() => {
     if (container.value) {
@@ -36,6 +38,5 @@
   height: 0;
   visibility: hidden;
   user-select: none;
-  overflow: hidden;
 }
 </style>
