@@ -1,7 +1,7 @@
 <template>
   <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openWorkQueuePanel(workQueue.id)" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
     </div>
 
     <div class="work-queues-list-item__status">
@@ -36,7 +36,7 @@
   const props = defineProps<{ workQueue: WorkQueue }>()
 
   const injectedServices = useInjectedServices()
-  const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, clickable: true }])
+  const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
@@ -48,7 +48,8 @@
     })
   }
 
-  function openWorkQueuePanel(workQueueId: string): void {
+  function openWorkQueuePanel(): void {
+    const workQueueId = props.workQueue.id
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {
