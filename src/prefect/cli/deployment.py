@@ -37,7 +37,10 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-def exception_traceback(exc):
+def exception_traceback(exc: Exception) -> str:
+    """
+    Convert an exception to a printable string with a traceback
+    """
     tb = traceback.TracebackException.from_exception(exc)
     return "".join(list(tb.format()))
 
