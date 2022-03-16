@@ -188,9 +188,7 @@
 </template>
 
 <script lang="ts" setup>
-  import type { UnionFilters } from '@prefecthq/orion-design'
-  import { TabSet } from '@prefecthq/orion-design/components'
-  import { toPluralString } from '@prefecthq/orion-design/utilities'
+  import { TabSet, toPluralString, UnionFilters } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
   import { useRoute, onBeforeRouteLeave } from 'vue-router'
   import MiniRadarView from './MiniRadar.vue'
