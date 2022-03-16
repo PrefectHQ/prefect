@@ -3,8 +3,7 @@
 </template>
 
 <script lang="ts">
-  import { ClassValue, isState, State, StateColors, StateIcons } from '@prefecthq/orion-design'
-  import { IconSize, getIconSizeClass } from '@prefecthq/orion-design/utilities'
+  import { ClassValue, isState, State, StateColors, StateIcons, IconSize, getIconSizeClass } from '@prefecthq/orion-design'
   import { StyleValue } from '@vue/runtime-dom'
   import { Vue, prop } from 'vue-class-component'
 

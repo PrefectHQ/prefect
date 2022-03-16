@@ -38,8 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import type { FlowRunsFilter } from '@prefecthq/orion-design'
-  import { media, toPluralString } from '@prefecthq/orion-design/utilities'
+  import { media, toPluralString, type FlowRunsFilter } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
