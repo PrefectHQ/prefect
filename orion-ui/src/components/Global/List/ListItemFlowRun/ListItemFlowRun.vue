@@ -37,9 +37,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { Filter, useFiltersStore, UnionFilters, FlowRunsFilter, FiltersQueryService } from '@prefecthq/orion-design'
-  import { FilterUrlService } from '@prefecthq/orion-design/services'
-  import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
+  import {
+    Filter,
+    useFiltersStore,
+    UnionFilters,
+    FlowRunsFilter,
+    FiltersQueryService,
+    FilterUrlService,
+    media,
+    toPluralString,
+    hasFilter
+  } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
@@ -70,7 +78,7 @@
     return new Date(props.item.end_time)
   })
 
-const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
+  const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flow_runs_filter_body: UnionFilters = {
     ...runFilter.value,
     sort: 'START_TIME_DESC',
