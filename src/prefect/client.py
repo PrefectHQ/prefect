@@ -1191,6 +1191,7 @@ class OrionClient:
                 "Using temporary local storage for results."
             )
             block = storage.TempStorageBlock()
+
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
