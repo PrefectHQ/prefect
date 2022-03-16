@@ -52,7 +52,7 @@ def set(variables: List[str]):
     for var, _ in parsed_variables:
         if var in os.environ:
             console.print(
-                f"[yellow]{var!r} is also set by an environment variable which will "
+                f"[yellow]{var} is also set by an environment variable which will "
                 f"override your config value. Run `unset {var}` to clear it."
             )
 
@@ -78,6 +78,12 @@ def unset(variables: List[str]):
 
     for var in variables:
         console.print(f"Unset variable {var!r}")
+
+        if var in os.environ:
+            console.print(
+                f"[yellow]{var} is also set by an environment variable. "
+                f"Use `unset {var}` to clear it."
+            )
 
     prefect.settings.write_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")

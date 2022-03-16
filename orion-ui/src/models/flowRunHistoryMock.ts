@@ -6,7 +6,7 @@ import FlowRunStateHistoryMock from './flowRunStateHistoryMock'
 import { fakerRandomArray } from '@/utilities/faker'
 
 export default class FlowRunHistoryMock extends FlowRunHistory {
-  constructor(flow: Partial<IFlowRunHistory> = {}) {
+  public constructor(flow: Partial<IFlowRunHistory> = {}) {
     const interval_start = flow.interval_start ?? faker.date.recent(7)
     const interval_end =
       flow.interval_end ?? faker.date.between(interval_start, new Date())
