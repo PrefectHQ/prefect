@@ -1,5 +1,5 @@
 <template>
-  <div class="page-header" :class="classes.container">
+  <div class="page-header">
     <template v-if="icon">
       <i class="pi page-header__icon" :class="`pi-${icon}`" />
     </template>
@@ -15,34 +15,31 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed } from 'vue'
   import { Icon } from '@/types/icons'
 
-  const props = defineProps<{
+  defineProps<{
     heading?: string,
     icon?: Icon,
   }>()
-
-  const classes = computed(() => ({
-    container: {
-      'page-header--with-icon':!!props.icon,
-    },
-  }))
 </script>
 
 <style lang="scss">
 .page-header {
   margin: var(--m-2) 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  display: flex;
   gap: var(--p-1);
-  justify-content: space-between;
   align-items: center;
   height: 62px;
   min-width: 0;
 }
 
-.page-header--with-icon {
-  grid-template-columns: minmax(0, 24px) minmax(0, 1fr) max-content;
+.page-header__icon {
+  flex-grow: 0;
+}
+
+.page-header__actions {
+  flex-grow: 0;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 </style>
