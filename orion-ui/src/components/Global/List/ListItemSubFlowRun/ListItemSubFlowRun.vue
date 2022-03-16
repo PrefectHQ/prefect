@@ -129,7 +129,7 @@
   })
 
   const duration = computed(() => {
-    if (state.value.type == 'PENDING' || state.value.type == 'SCHEDULED') {
+    if (props.item.state.type == 'PENDING' || props.item.state.type == 'SCHEDULED') {
       return '--'
     }
 
