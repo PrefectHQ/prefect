@@ -111,7 +111,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    storage: Optional[StorageBlock] = None
+    flow_storage: Optional[StorageBlock] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -191,23 +191,25 @@ class DeploymentSpec(PrefectBaseModel):
 
         # Determine the storage block
 
-        self.storage = self.storage or await client.get_default_storage_block()
+        self.flow_storage = (
+            self.flow_storage or await client.get_default_storage_block()
+        )
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
-            if not self.storage:
+            if not self.flow_storage:
                 warnings.warn(
                     f"{no_storage_message}. This deployment will only be usable from the current machine."
                 )
-                self.storage = LocalStorageBlock()
+                self.flow_storage = LocalStorageBlock()
         else:
             # All other flow runners require remote storage, ensure we've been given one
             flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
-            if not self.storage:
+            if not self.flow_storage:
                 raise SpecValidationError(
                     f"{no_storage_message} but {flow_runner_message}."
                 )
-            elif isinstance(self.storage, LocalStorageBlock):
+            elif isinstance(self.flow_storage, LocalStorageBlock):
                 raise SpecValidationError(
                     f"You have configured local storage but {flow_runner_message}."
                 )
@@ -232,10 +234,10 @@ class DeploymentSpec(PrefectBaseModel):
             flow_bytes = flow_file.read()
 
         # Write the flow to storage
-        storage_token = await self.storage.write(flow_bytes)
+        storage_token = await self.flow_storage.write(flow_bytes)
         flow_data = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": self.storage._block_id},
+            data={"data": storage_token, "block_id": self.flow_storage._block_id},
         )
 
         deployment_id = await client.create_deployment(
