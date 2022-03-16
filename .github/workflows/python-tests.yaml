@@ -1,0 +1,157 @@
+name: Python tests
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/python-tests.yaml
+      - "**/*.py"
+      - requirements.txt
+      - requirements-dev.txt
+  push:
+    branches:
+      - main
+
+jobs:
+  run-tests-sqlite:
+    name: Test with SQLite
+
+    strategy:
+      matrix:
+        python-version:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        os:
+          # TODO: Add windows to the test matrix once we support it
+          - ubuntu-latest
+        test-options:
+          - ""
+          - "--only-services"
+
+        include:
+          # Docker image builds are required for service tests
+          - test-options: "--only-services"
+            docker-images: true
+
+          # Run 3.7 tests with lower bound pins
+          - python-version: "3.7"
+            lower-bound-requirements: true
+
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        if: ${{ matrix.docker-images }}
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build test images
+        if: ${{ matrix.docker-images }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test Docker image
+        if: ${{ matrix.docker-images }}
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Pin requirements to lower bounds
+        if: ${{ matrix.lower-bound-requirements }}
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
+          pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
+
+      - name: Run tests
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        run: |
+          pytest tests -vv ${{ matrix.test-options }}
+
+  run-tests-postgres:
+    name: Test with Postgres
+
+    strategy:
+      matrix:
+        python-version:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+
+      fail-fast: false
+
+    # The windows test runner cannot run a postgres service so we can only
+    # test on ubuntu
+    runs-on: ubuntu-latest
+
+    # TODO: Consider moving this from a service into a normal docker command
+    #       so we can include it in the sqlite python test matrix instead of
+    #       maintaining a separate workflow
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: orion
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Run tests
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
+        run: |
+          pytest tests -vv

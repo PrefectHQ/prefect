@@ -4,35 +4,49 @@ import subprocess
 import sys
 import warnings
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import MagicMock
 
 import anyio
 import anyio.abc
 import coolname
+import httpx
+import kubernetes
+import kubernetes as k8s
+import pendulum
 import pydantic
 import pytest
 from docker.errors import ImageNotFound
 from docker.models.images import Image
+from kubernetes.config import ConfigException
 from typing_extensions import Literal
-from typing import NamedTuple
+from urllib3.exceptions import MaxRetryError
 
 import prefect
+from prefect.client import get_client
 from prefect.flow_runners import (
+    MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
     FlowRunner,
+    ImagePullPolicy,
+    KubernetesFlowRunner,
+    KubernetesImagePullPolicy,
+    KubernetesRestartPolicy,
     SubprocessFlowRunner,
     UniversalFlowRunner,
-    lookup_flow_runner,
-    register_flow_runner,
-    python_version_minor,
     get_prefect_image_name,
+    lookup_flow_runner,
+    python_version_minor,
+    register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.testing import AsyncMock
-from prefect.utilities.settings import temporary_settings
-
-from src.prefect.flow_runners import ImagePullPolicy
+from prefect.settings import PREFECT_API_URL
+from prefect.utilities.testing import (
+    AsyncMock,
+    assert_does_not_warn,
+    temporary_settings,
+)
 
 
 class VersionInfo(NamedTuple):
@@ -61,20 +75,25 @@ def venv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
-    subprocess.check_output([sys.executable, "-m", "venv", str(environment_path)])
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
+    subprocess.check_output(
+        [sys.executable, "-m", "venv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
@@ -88,20 +107,25 @@ def virtualenv_environment_path(tmp_path):
 
     environment_path = tmp_path / "test"
 
-    # Create the virtual environment
-    subprocess.check_output(["virtualenv", str(environment_path)])
+    # Create the virtual environment, include system site packages to avoid reinstalling
+    # prefect which takes ~40 seconds instead of ~4 seconds.
+    subprocess.check_output(
+        ["virtualenv", str(environment_path), "--system-site-packages"]
+    )
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            str(environment_path / "bin" / "python"),
-            "-m",
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # --system-site-packages makes this irreleveant, but we retain this in case we want
+    # to have a slower test in the future that uses a clean environment.
+    # subprocess.check_output(
+    #     [
+    #         str(environment_path / "bin" / "python"),
+    #         "-m",
+    #         "pip",
+    #         "install",
+    #         "-e",
+    #         f"{prefect.__root_path__}[dev]",
+    #     ]
+    # )
 
     return environment_path
 
@@ -116,36 +140,64 @@ def conda_environment_path(tmp_path):
     if not shutil.which("conda"):
         pytest.skip("`conda` is not installed.")
 
-    environment_path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    # Generate base creation command with the temporary path as the prefix for
+    # automatic cleanup
+    environment_path: Path = tmp_path / f"test-{coolname.generate_slug(2)}"
+    create_env_command = [
+        "conda",
+        "create",
+        "-y",
+        "--prefix",
+        str(environment_path),
+    ]
 
-    # Create the conda environment with a matching python version up to `minor`
-    # We cannot match up to `micro` because it is not always available in conda
-    v = sys.version_info
-    python_version = f"{v.major}.{v.minor}"
-    subprocess.check_output(
-        [
-            "conda",
-            "create",
-            "-y",
-            "--prefix",
-            str(environment_path),
-            f"python={python_version}",
-        ]
-    )
+    # Get the current conda environment so we can clone it for speedup
+    current_conda_env = os.environ.get("CONDA_PREFIX")
+    if current_conda_env:
+        create_env_command.extend(["--clone", current_conda_env])
+
+    else:
+        # Otherwise, specify a matching python version up to `minor`
+        # We cannot match up to `micro` because it is not always available in conda
+        v = sys.version_info
+        python_version = f"{v.major}.{v.minor}"
+        create_env_command.append(f"python={python_version}")
+
+    print(f"Creating conda environment at {environment_path}")
+    subprocess.check_output(create_env_command)
 
     # Install prefect within the virtual environment
-    subprocess.check_output(
-        [
-            "conda",
-            "run",
-            "--prefix",
-            str(environment_path),
-            "pip",
-            "install",
-            "-e",
-            f"{prefect.__root_path__}[dev]",
-        ]
-    )
+    # Developers using conda should have a matching environment from `--clone`.
+    if not current_conda_env:
+
+        # Link packages from the current installation instead of reinstalling
+        conda_site_packages = (
+            environment_path / "lib" / f"python{python_version}" / "site-packages"
+        )
+        local_site_packages = (
+            Path(sys.prefix) / "lib" / f"python{python_version}" / "site-packages"
+        )
+        print(f"Linking packages from {local_site_packages} -> {conda_site_packages}")
+        for local_pkg in local_site_packages.iterdir():
+            conda_pkg = conda_site_packages / local_pkg.name
+            if not conda_pkg.exists():
+                conda_pkg.symlink_to(local_pkg, target_is_directory=local_pkg.is_dir())
+
+        # Linking is takes ~10s while faster than reinstalling in the environment takes
+        # ~60s. This blurb is retained for the future as we may encounter issues with
+        # linking and prefer to do the slow but correct installation.
+        # subprocess.check_output(
+        #     [
+        #         "conda",
+        #         "run",
+        #         "--prefix",
+        #         str(environment_path),
+        #         "pip",
+        #         "install",
+        #         "-e",
+        #         f"{prefect.__root_path__}[dev]",
+        #     ]
+        # )
 
     return environment_path
 
@@ -210,9 +262,9 @@ async def prefect_settings_test_deployment(orion_client):
 
     @prefect.flow
     def my_flow():
-        import prefect
+        import prefect.settings
 
-        return prefect.settings
+        return prefect.settings.get_current_settings()
 
     flow_id = await orion_client.create_flow(my_flow)
 
@@ -526,6 +578,10 @@ class TestDockerFlowRunner:
         )
         return mock
 
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
+
     def test_runner_type(self):
         assert DockerFlowRunner().typename == "docker"
 
@@ -729,8 +785,8 @@ class TestDockerFlowRunner:
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
         mock_docker_client.containers.create.assert_called_once()
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
-        assert "PREFECT_ORION_HOST" in call_env
-        assert call_env["PREFECT_ORION_HOST"] == hosted_orion_api.replace(
+        assert "PREFECT_API_URL" in call_env
+        assert call_env["PREFECT_API_URL"] == hosted_orion_api.replace(
             "localhost", "host.docker.internal"
         )
 
@@ -739,11 +795,11 @@ class TestDockerFlowRunner:
     ):
 
         await DockerFlowRunner(
-            env={"PREFECT_ORION_HOST": "http://localhost/api"}
+            env={"PREFECT_API_URL": "http://localhost/api"}
         ).submit_flow_run(flow_run, MagicMock())
         mock_docker_client.containers.create.assert_called_once()
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
-        assert call_env.get("PREFECT_ORION_HOST") == "http://localhost/api"
+        assert call_env.get("PREFECT_API_URL") == "http://localhost/api"
 
     async def test_adds_docker_host_gateway_on_linux(
         self, mock_docker_client, flow_run, use_hosted_orion, monkeypatch
@@ -849,7 +905,7 @@ class TestDockerFlowRunner:
         assert not call_extra_hosts
 
     @pytest.mark.parametrize(
-        "explicit_orion_host",
+        "explicit_api_url",
         [
             None,
             "http://localhost/api",
@@ -862,7 +918,7 @@ class TestDockerFlowRunner:
         mock_docker_client,
         flow_run,
         use_hosted_orion,
-        explicit_orion_host,
+        explicit_api_url,
         monkeypatch,
     ):
         monkeypatch.setattr("sys.platform", "linux")
@@ -877,9 +933,7 @@ class TestDockerFlowRunner:
             ),
         ):
             await DockerFlowRunner(
-                env={"PREFECT_ORION_HOST": explicit_orion_host}
-                if explicit_orion_host
-                else {}
+                env={"PREFECT_API_URL": explicit_api_url} if explicit_api_url else {}
             ).submit_flow_run(flow_run, MagicMock())
 
         mock_docker_client.containers.create.assert_called_once()
@@ -888,7 +942,7 @@ class TestDockerFlowRunner:
         )
         assert not call_extra_hosts
 
-    async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_orion_host(
+    async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url(
         self,
         mock_docker_client,
         flow_run,
@@ -900,7 +954,7 @@ class TestDockerFlowRunner:
         # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
         with pytest.warns(None) as warnings:
             await DockerFlowRunner(
-                env={"PREFECT_ORION_HOST": "http://my-domain.test/api"}
+                env={"PREFECT_API_URL": "http://my-domain.test/api"}
             ).submit_flow_run(flow_run, MagicMock())
 
         assert len(warnings) == 0, "No warning should be raised"
@@ -922,11 +976,9 @@ class TestDockerFlowRunner:
         monkeypatch.setattr("sys.platform", platform)
         mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
-        with pytest.warns(None) as warnings:
+        with assert_does_not_warn():
             await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
         call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
             "extra_hosts"
@@ -967,9 +1019,48 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert runtime_settings.orion_host == hosted_orion_api.replace(
+        assert PREFECT_API_URL.value_from(runtime_settings) == hosted_orion_api.replace(
             "localhost", "host.docker.internal"
         )
+
+    @pytest.mark.service("docker")
+    @pytest.mark.skipif(
+        MIN_COMPAT_PREFECT_VERSION > prefect.__version__.split("+")[0],
+        reason=f"Expected breaking change in next version: {MIN_COMPAT_PREFECT_VERSION}",
+    )
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 10) and MIN_COMPAT_PREFECT_VERSION == "2.0a13",
+        reason="We did not publish a 3.10 image for 2.0a13",
+    )
+    async def test_execution_is_compatible_with_old_prefect_container_version(
+        self,
+        flow_run,
+        orion_client,
+        use_hosted_orion,
+        python_executable_test_deployment,
+    ):
+        """
+        This test confirms that the flow runner can properly start a flow run in a
+        container running an old version of Prefect. This tests for regression in the
+        path of "starting a flow run" as well as basic API communication.
+
+        When making a breaking change to the API, it's likely that no compatible image
+        will exist. If so, bump MIN_COMPAT_PREFECT_VERSION past the current prefect
+        version and this test will be skipped until a compatible image can be found.
+        """
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            python_executable_test_deployment
+        )
+
+        assert await DockerFlowRunner(
+            image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)
+        ).submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
 
     @pytest.mark.service("docker")
     async def test_executing_flow_run_has_rw_access_to_volumes(
@@ -1070,7 +1161,7 @@ class TestDockerFlowRunner:
             prefect_settings_test_deployment
         )
 
-        with temporary_settings(PREFECT_ORION_HOST="http://fail.test"):
+        with temporary_settings(PREFECT_API_URL="http://fail.test"):
             assert not await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
@@ -1110,6 +1201,513 @@ class TestDockerFlowRunner:
                 "have intentionally not built a new test image. Rebuild the image "
                 "with " + build_cmd
             )
+
+
+class TestKubernetesFlowRunner:
+    @pytest.fixture(autouse=True)
+    def skip_if_kubernetes_is_not_installed(self):
+        pytest.importorskip("kubernetes")
+
+    @pytest.fixture(autouse=True)
+    async def configure_remote_storage(self, set_up_kv_storage):
+        pass
+
+    @pytest.fixture
+    def mock_watch(self, monkeypatch):
+        kubernetes = pytest.importorskip("kubernetes")
+
+        mock = MagicMock()
+
+        monkeypatch.setattr("kubernetes.watch.Watch", MagicMock(return_value=mock))
+        return mock
+
+    @pytest.fixture
+    def mock_cluster_config(self, monkeypatch):
+        kubernetes = pytest.importorskip("kubernetes")
+        mock = MagicMock()
+
+        monkeypatch.setattr(
+            "kubernetes.config",
+            mock,
+        )
+        return mock
+
+    @pytest.fixture
+    def mock_k8s_client(self, monkeypatch, mock_cluster_config):
+        kubernetes = pytest.importorskip("kubernetes")
+
+        mock = MagicMock(spec=k8s.client.CoreV1Api)
+
+        monkeypatch.setattr("prefect.flow_runners.KubernetesFlowRunner.client", mock)
+        return mock
+
+    @pytest.fixture
+    def mock_k8s_batch_client(self, monkeypatch, mock_cluster_config):
+        kubernetes = pytest.importorskip("kubernetes")
+
+        mock = MagicMock(spec=k8s.client.BatchV1Api)
+
+        monkeypatch.setattr(
+            "prefect.flow_runners.KubernetesFlowRunner.batch_client", mock
+        )
+        return mock
+
+    @pytest.fixture
+    async def k8s_orion_client(self, k8s_hosted_orion):
+        kubernetes = pytest.importorskip("kubernetes")
+
+        async with get_client() as orion_client:
+            yield orion_client
+
+    @pytest.fixture
+    def k8s_hosted_orion(self):
+        """
+        Sets `PREFECT_API_URL` and to the k8s-hosted API endpoint.
+        """
+        kubernetes = pytest.importorskip("kubernetes")
+
+        # TODO: pytest flag to configure this URL
+        k8s_api_url = "http://localhost:4205/api"
+        with temporary_settings(PREFECT_API_URL=k8s_api_url):
+            yield k8s_api_url
+
+    @pytest.fixture
+    async def require_k8s_cluster(self, k8s_hosted_orion):
+        """
+        Skip any test that uses this fixture if a connection to a live
+        Kubernetes cluster is not available.
+        """
+        skip_message = "Could not reach live Kubernetes cluster."
+        try:
+            k8s.config.load_kube_config()
+        except ConfigException:
+            pytest.skip(skip_message)
+
+        try:
+            client = k8s.client.VersionApi(k8s.client.ApiClient())
+            client.get_code()
+        except MaxRetryError:
+            pytest.skip(skip_message)
+
+        # TODO: Check API server health
+        health_check = f"{k8s_hosted_orion}/health"
+        try:
+            async with httpx.AsyncClient() as http_client:
+                await http_client.get(health_check)
+        except httpx.ConnectError:
+            pytest.skip("Kubernetes-hosted Orion is unavailable.")
+
+    @staticmethod
+    def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
+        job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+        job_pod.status.phase = "Running"
+
+        job = MagicMock(spec=kubernetes.client.V1Job)
+        job.status.completion_time = pendulum.now("utc").timestamp()
+
+        return [{"object": job_pod}, {"object": job}]
+
+    def test_runner_type(restart_policy):
+        assert KubernetesFlowRunner().typename == "kubernetes"
+
+    async def test_creates_job(
+        self,
+        flow_run,
+        mock_k8s_batch_client,
+        mock_k8s_client,
+        mock_watch,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        flow_run.name = "My Flow"
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+        await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
+        mock_k8s_client.read_namespaced_pod_status.assert_called_once()
+        flow_id = str(flow_run.id)
+
+        expected_data = {
+            "metadata": {
+                f"generateName": "my-flow",
+                "namespace": "default",
+                "labels": {
+                    "io.prefect.flow-run-id": flow_id,
+                    "io.prefect.flow-run-name": "my-flow",
+                    "app": "orion",
+                },
+            },
+            "spec": {
+                "template": {
+                    "spec": {
+                        "restartPolicy": "Never",
+                        "containers": [
+                            {
+                                "name": "job",
+                                "image": get_prefect_image_name(),
+                                "command": [
+                                    "python",
+                                    "-m",
+                                    "prefect.engine",
+                                    flow_id,
+                                ],
+                                "env": [
+                                    {
+                                        "name": "PREFECT_API_URL",
+                                        "value": "http://orion:4200/api",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                },
+                "backoff_limit": 4,
+            },
+        }
+
+        mock_k8s_batch_client.create_namespaced_job.assert_called_with(
+            "default", expected_data
+        )
+
+        fake_status.started.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "run_name,job_name",
+        [
+            ("_flow_run", "flow-run"),
+            ("...flow_run", "flow-run"),
+            ("._-flow_run", "flow-run"),
+            ("9flow-run", "9flow-run"),
+            ("-flow.run", "flow-run"),
+            ("flow*run", "flow-run"),
+            ("flow9.-foo_bar^x", "flow9-foo-bar-x"),
+        ],
+    )
+    async def test_job_name_creates_valid_name(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        run_name,
+        job_name,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+        flow_run.name = run_name
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_name = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+            "metadata"
+        ]["generateName"]
+        assert call_name == job_name
+
+    async def test_job_name_falls_back_to_id(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        flow_run.name = " !@#$%"  # All invalid characters
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_name = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+            "metadata"
+        ]["generateName"]
+        assert call_name == str(flow_run.id)
+
+    async def test_uses_image_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(image="foo").submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        image = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["image"]
+        assert image == "foo"
+
+    async def test_uses_labels_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(labels={"foo": "FOO", "bar": "BAR"}).submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        labels = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+            "metadata"
+        ]["labels"]
+        assert labels["foo"] == "FOO"
+        assert labels["bar"] == "BAR"
+        assert (
+            "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
+        ), "prefect labels still included"
+
+    async def test_defaults_to_api_urlname(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["env"]
+        assert call_env == [
+            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"}
+        ]
+
+    async def test_does_not_override_user_provided_host(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(
+            env={"PREFECT_API_URL": "http://my-host:6666/api"}
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["env"]
+        assert call_env == [
+            {"name": "PREFECT_API_URL", "value": "http://my-host:6666/api"}
+        ]
+
+    async def test_includes_default_prefect_host_if_user_set_other_env_vars(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(env={"WATCH": 1}).submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["env"]
+        assert call_env == [
+            {"name": "WATCH", "value": "1"},
+            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
+        ]
+
+    async def test_defaults_to_unspecified_image_pull_policy(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_image_pull_policy = mock_k8s_batch_client.create_namespaced_job.call_args[
+            0
+        ][1]["spec"]["template"]["spec"]["containers"][0].get("imagePullPolicy")
+        assert call_image_pull_policy is None
+
+    async def test_uses_specified_image_pull_policy(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(
+            image_pull_policy=KubernetesImagePullPolicy.IF_NOT_PRESENT
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_image_pull_policy = mock_k8s_batch_client.create_namespaced_job.call_args[
+            0
+        ][1]["spec"]["template"]["spec"]["containers"][0].get("imagePullPolicy")
+        assert call_image_pull_policy == "IfNotPresent"
+
+    async def test_defaults_to_unspecified_restart_policy(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
+            1
+        ]["spec"]["template"]["spec"].get("imagePullPolicy")
+        assert call_restart_policy is None
+
+    async def test_uses_specified_restart_policy(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(
+            restart_policy=KubernetesRestartPolicy.ON_FAILURE
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
+            1
+        ]["spec"]["template"]["spec"].get("restartPolicy")
+        assert call_restart_policy == "OnFailure"
+
+    async def test_raises_on_submission_with_ephemeral_api(self, flow_run):
+        with pytest.raises(
+            RuntimeError,
+            match="cannot be used with an ephemeral server",
+        ):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_no_raise_on_submission_with_hosted_api(
+        self,
+        mock_cluster_config,
+        mock_k8s_batch_client,
+        mock_k8s_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_defaults_to_incluster_config(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_cluster_config,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        mock_cluster_config.incluster_config.load_incluster_config.assert_called_once()
+        assert not mock_cluster_config.load_kube_config.called
+
+    async def test_uses_cluster_config_if_not_in_cluster(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_cluster_config,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        mock_cluster_config.incluster_config.load_incluster_config.side_effect = (
+            ConfigException()
+        )
+
+        await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        mock_cluster_config.load_kube_config.assert_called_once()
+
+    @pytest.mark.service("kubernetes")
+    async def test_executing_flow_run_has_environment_variables(
+        self, k8s_orion_client, require_k8s_cluster
+    ):
+        """
+        Test KubernetesFlowRunner against an API server running in a live
+        k8s cluster.
+
+        NOTE: Before running this, you will need to do the following:
+            - Create an orion deployment: `prefect dev kubernetes-manifest | kubectl apply -f -`
+            - Forward port 4200 in the cluster to port 4205 locally: `kubectl port-forward deployment/orion 4205:4200`
+        """
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        # TODO: pytest flags to configure this URL
+        in_cluster_k8s_api_url = "http://orion:4200/api"
+
+        @prefect.flow
+        def my_flow():
+            import os
+
+            return os.environ
+
+        flow_id = await k8s_orion_client.create_flow(my_flow)
+
+        flow_data = DataDocument.encode("cloudpickle", my_flow)
+
+        deployment_id = await k8s_orion_client.create_deployment(
+            flow_id=flow_id,
+            name="k8s_test_deployment",
+            flow_data=flow_data,
+        )
+
+        flow_run = await k8s_orion_client.create_flow_run_from_deployment(deployment_id)
+
+        # When we submit the flow run, we need to use the Prefect URL that
+        # the job needs to reach the k8s-hosted API inside the cluster, not
+        # the URL that the tests used, which use a port forwarded to
+        # localhost.
+        assert await KubernetesFlowRunner(
+            env={
+                "TEST_FOO": "foo",
+                "PREFECT_API_URL": in_cluster_k8s_api_url,
+            }
+        ).submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        flow_run = await k8s_orion_client.read_flow_run(flow_run.id)
+        flow_run_environ = await k8s_orion_client.resolve_datadoc(
+            flow_run.state.result()
+        )
+        assert "TEST_FOO" in flow_run_environ
+        assert flow_run_environ["TEST_FOO"] == "foo"
 
 
 # The following tests are for configuration options and can test all relevant types

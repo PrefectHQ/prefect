@@ -5,9 +5,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { snakeCase } from '@/utilities/strings'
   import { computed } from 'vue'
-  import { logLevelLabel } from '../utilities'
+  import { logLevelLabel } from '@/utilities/logs'
+  import { snakeCase } from '@/utilities/strings'
 
   const props = defineProps({
     level: {
@@ -23,7 +23,7 @@
   })
 </script>
 
-<style lang="css">
+<style lang="scss">
 :root {
   --log-level-not-set: #8EA0AE;
   --log-level-info: #8EA0AE;

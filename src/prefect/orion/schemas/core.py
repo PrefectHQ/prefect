@@ -3,13 +3,15 @@ Full schemas of Orion API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from pydantic import Field, validator
 import coolname
+from pydantic import Field, validator
 from typing_extensions import Literal
-from prefect.orion import schemas
+
+import prefect.orion.database
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
@@ -314,12 +316,78 @@ class Deployment(ORMBaseModel):
     # flow: Flow = None
 
 
+class ConcurrencyLimit(ORMBaseModel):
+    """An ORM representation of a concurrency limit."""
+
+    tag: str = Field(..., description="A tag the concurrency limit is applied to.")
+    concurrency_limit: int = Field(..., description="The concurrency limit.")
+    active_slots: List[UUID] = Field(
+        default_factory=list,
+        description="A list of active run ids using a concurrency slot",
+    )
+
+
+class BlockSpec(ORMBaseModel):
+    """An ORM representation of a block spec."""
+
+    name: str = Field(..., description="The block spec's name")
+    version: str = Field(..., description="The block spec's version")
+    type: str = Field(None, description="The block spec's type")
+    fields: dict = Field(
+        default_factory=dict, description="The block spec's field schema"
+    )
+
+
+class Block(ORMBaseModel):
+    """An ORM representation of a block."""
+
+    name: str = Field(..., description="The block's name'")
+    data: dict = Field(default_factory=dict, description="The block's data")
+    block_spec_id: UUID = Field(..., description="A block spec ID")
+    block_spec: Optional[BlockSpec] = Field(
+        None, description="The associated block spec"
+    )
+
+    @classmethod
+    async def from_orm_model(
+        cls,
+        session,
+        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+    ):
+        return cls(
+            id=orm_block.id,
+            name=orm_block.name,
+            data=await orm_block.decrypt_data(session=session),
+            block_spec_id=orm_block.block_spec_id,
+            block_spec=orm_block.block_spec,
+        )
+
+
+class Configuration(ORMBaseModel):
+    """An ORM representation of account info."""
+
+    key: str = Field(..., description="Account info key")
+    value: dict = Field(..., description="Account info")
+
+
+class SavedSearchFilter(PrefectBaseModel):
+    """A filter for a saved search model"""
+
+    object: str = Field(..., description="The object over which to filter.")
+    property: str = Field(
+        ..., description="The property of the object on which to filter."
+    )
+    type: str = Field(..., description="TODO")
+    operation: str = Field(..., description="TODO")
+    value: str = Field(..., description="TODO")
+
+
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(..., description="The name of the saved search.")
-    filters: dict = Field(
-        default_factory=dict, description="The filter set for the saved search."
+    filters: List[SavedSearchFilter] = Field(
+        default_factory=list, description="The filter set for the saved search."
     )
 
 
@@ -335,6 +403,115 @@ class Log(ORMBaseModel):
     )
     task_run_id: Optional[UUID] = Field(
         None, description="The task run ID associated with the log."
+    )
+
+
+class QueueFilter(PrefectBaseModel):
+    """Filter criteria definition for a work queue."""
+
+    tags: Optional[List[str]] = Field(
+        None,
+        description="Only include flow runs with these tags in the work queue.",
+    )
+    deployment_ids: Optional[List[UUID]] = Field(
+        None,
+        description="Only include flow runs from these deployments in the work queue.",
+    )
+    flow_runner_types: Optional[List[str]] = Field(
+        None,
+        description="Only include flow runs with these flow runner types in the work queue.",
+    )
+
+    def get_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's flow runs.
+        """
+        return schemas.filters.FlowRunFilter(
+            tags=schemas.filters.FlowRunFilterTags(all_=self.tags),
+            deployment_id=schemas.filters.FlowRunFilterDeploymentId(
+                any_=self.deployment_ids,
+                is_null_=False,
+            ),
+            flow_runner_type=schemas.filters.FlowRunFilterFlowRunnerType(
+                any_=self.flow_runner_types,
+            ),
+        )
+
+    def get_scheduled_flow_run_filter(
+        self, scheduled_before: datetime.datetime
+    ) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's SCHEDULED flow runs.
+
+        Args:
+            scheduled_before: Create a FlowRunFilter that excludes runs scheduled before this date.
+
+        Returns:
+            Flow run filter that can be used to query the work queue for scheduled runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.SCHEDULED,
+                        ]
+                    )
+                ),
+                "next_scheduled_start_time": schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=scheduled_before
+                ),
+            }
+        )
+
+    def get_executing_flow_run_filter(self) -> "schemas.filters.FlowRunFilter":
+        """
+        Construct a flow run filter for the work queue's PENDING or RUNNING flow runs.
+        """
+        return self.get_flow_run_filter().copy(
+            update={
+                "state": schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[
+                            schemas.states.StateType.PENDING,
+                            schemas.states.StateType.RUNNING,
+                        ]
+                    )
+                )
+            }
+        )
+
+
+class WorkQueue(ORMBaseModel):
+    """An ORM representaiton of a work queue"""
+
+    filter: QueueFilter = Field(
+        default_factory=QueueFilter, description="Filter criteria for the work queue."
+    )
+    name: str = Field(..., description="The name of the work queue.")
+    description: Optional[str] = Field(
+        "", description="An optional description for the work queue."
+    )
+    is_paused: bool = Field(
+        False, description="Whether or not the work queue is paused."
+    )
+    concurrency_limit: Optional[int] = Field(
+        None, description="An optional concurrency limit for the work queue."
+    )
+
+
+class Agent(ORMBaseModel):
+    """An ORM representation of an agent"""
+
+    name: str = Field(
+        default_factory=lambda: coolname.generate_slug(2),
+        description="The name of the agent. If a name is not provided, it will be auto-generated.",
+    )
+    work_queue_id: UUID = Field(
+        ..., description="The work queue with which the agent is associated."
+    )
+    last_activity_time: Optional[datetime.datetime] = Field(
+        None, description="The last time this agent polled for work."
     )
 
 

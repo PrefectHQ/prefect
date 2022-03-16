@@ -18,7 +18,6 @@ if sys.version_info < (3, 9):
 else:
     from asyncio import to_thread as asyncio_to_thread
 
-
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/asyncio-policy.html#asyncio.ThreadedChildWatcher
     # `ThreadedChildWatcher` is the default child process watcher for Python 3.8+ but it
@@ -28,9 +27,9 @@ if sys.version_info < (3, 8):
     import asyncio
     import itertools
     import logging
-    import time
-    import threading
     import os
+    import threading
+    import time
     import warnings
 
     logger = logging.getLogger()

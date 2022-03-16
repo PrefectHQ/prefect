@@ -5,6 +5,21 @@ import inspect
 from contextlib import contextmanager
 from functools import wraps
 
+from prefect.orion.database.configurations import (
+    AioSqliteConfiguration,
+    AsyncPostgresConfiguration,
+)
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.database.orm_models import (
+    AioSqliteORMConfiguration,
+    AsyncPostgresORMConfiguration,
+)
+from prefect.orion.database.query_components import (
+    AioSqliteQueryComponents,
+    AsyncPostgresQueryComponents,
+)
+from prefect.orion.utilities.database import get_dialect
+from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
 MODELS_DEPENDENCIES = {
     "database_config": None,
@@ -14,22 +29,14 @@ MODELS_DEPENDENCIES = {
 
 
 def provide_database_interface():
-    from prefect.orion.database.interface import OrionDBInterface
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")
     orm = MODELS_DEPENDENCIES.get("orm")
+    dialect = get_dialect(connection_url)
 
     if database_config is None:
-        from prefect import settings
-        from prefect.orion.database.configurations import (
-            AsyncPostgresConfiguration,
-            AioSqliteConfiguration,
-        )
-        from prefect.orion.utilities.database import get_dialect
-
-        dialect = get_dialect()
-        connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
             database_config = AsyncPostgresConfiguration(connection_url=connection_url)
@@ -43,14 +50,6 @@ def provide_database_interface():
         MODELS_DEPENDENCIES["database_config"] = database_config
 
     if query_components is None:
-        from prefect.orion.database.query_components import (
-            AsyncPostgresQueryComponents,
-            AioSqliteQueryComponents,
-        )
-        from prefect.orion.utilities.database import get_dialect
-
-        dialect = get_dialect()
-
         if dialect.name == "postgresql":
             query_components = AsyncPostgresQueryComponents()
         elif dialect.name == "sqlite":
@@ -63,14 +62,6 @@ def provide_database_interface():
         MODELS_DEPENDENCIES["query_components"] = query_components
 
     if orm is None:
-        from prefect.orion.database.orm_models import (
-            AsyncPostgresORMConfiguration,
-            AioSqliteORMConfiguration,
-        )
-        from prefect.orion.utilities.database import get_dialect
-
-        dialect = get_dialect()
-
         if dialect.name == "postgresql":
             orm = AsyncPostgresORMConfiguration()
         elif dialect.name == "sqlite":

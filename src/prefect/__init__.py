@@ -1,34 +1,34 @@
-# Internal constants
-from . import _version
-import pathlib as _pathlib
-import os as _os
+# Setup version and path constants
 
-__version__ = _version.get_versions()["version"]
+from . import _version
+import pathlib
+
+__version_info__ = _version.get_versions()
+__version__ = __version_info__["version"]
+
 # The absolute path to this module
-__module_path__ = _pathlib.Path(__file__).parent
+__module_path__ = pathlib.Path(__file__).parent
 # The absolute path to the root of the repository
 __root_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
 __ui_static_path__ = __module_path__ / "orion" / "ui"
 
-del _version
-del _pathlib
+del _version, pathlib
 
-# Prepare settings and logging first
-from prefect.utilities.settings import settings
-from prefect.logging.configuration import setup_logging
-from prefect.logging.loggers import get_run_logger
+# User-facing API
+# For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
 
-if not _os.path.exists(settings.home):
-    _os.makedirs(settings.home, exist_ok=True)
-
-setup_logging(settings)
+from .orion.schemas.states import State
+from .logging import get_run_logger
+from .flows import flow
+from .tasks import task
+from .context import tags
+from .client import get_client
 
 # Import the serializers so they are registered
 import prefect.serializers
 
-# User-facing API
-from prefect.orion.schemas.states import State
-from prefect.flows import flow
-from prefect.tasks import task
-from prefect.context import tags
+# Initialize the process level profile at import time
+import prefect.context
+
+prefect.context.enter_global_profile()

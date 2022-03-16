@@ -1,14 +1,22 @@
-black
+flake8
 ipython
+jinja2
 mkdocs
+mkdocs-gen-files
 mkdocs-material
 mkdocstrings
-mypy 
-pytest
-pytest-asyncio >= 0.17
-pytkdocs >= 0.13.0
-flake8
-pytest-env
-requests
-virtualenv
 mock; python_version < '3.8'
+moto
+mypy
+pre-commit
+pytest
+pytest-asyncio >= 0.18.2
+pytest-env
+pytest-timeout
+pytkdocs >= 0.13.0
+pyyaml
+requests
+setuptools != 60.9.0; python_version < '3.8'
+virtualenv
+watchgod
+respx

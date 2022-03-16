@@ -15,20 +15,19 @@ from prefect.deployments import (
     load_flow_from_script,
 )
 from prefect.exceptions import (
-    ScriptError,
     MissingFlowError,
-    UnspecifiedFlowError,
+    ScriptError,
     SpecValidationError,
+    UnspecifiedFlowError,
 )
+from prefect.flow_runners import SubprocessFlowRunner
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
-from prefect.flow_runners import SubprocessFlowRunner
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.serializers import D
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
-
 
 TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
@@ -311,34 +310,6 @@ class TestLoadFlowFromDeployment:
     @pytest.fixture
     async def flow_id(self, flow_object, orion_client):
         return await orion_client.create_flow(flow_object)
-
-    async def test_load_file_flow_from_deployment(
-        self, flow_id, orion_client, tmp_path
-    ):
-        (tmp_path / "flow-script.py").write_text(
-            textwrap.dedent(
-                """
-                from prefect import flow
-
-                @flow
-                def foo():
-                    pass
-                """
-            )
-        )
-        deployment = Deployment(
-            name="test",
-            flow_id=flow_id,
-            flow_data=DataDocument(
-                encoding="file",
-                blob=str((tmp_path / "flow-script.py").absolute()).encode(),
-            ),
-        )
-        loaded_flow_object = await load_flow_from_deployment(
-            deployment, client=orion_client
-        )
-        assert isinstance(loaded_flow_object, Flow)
-        assert loaded_flow_object.name == "foo"
 
     async def test_load_pickled_flow_from_deployment(
         self, flow_object, flow_id, orion_client

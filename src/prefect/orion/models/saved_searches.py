@@ -8,7 +8,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -103,7 +103,7 @@ async def read_saved_searches(
     limit: int = None,
 ):
     """
-    Read SavedSearchs.
+    Read SavedSearches.
 
     Args:
         session (sa.orm.Session): A database session
@@ -111,7 +111,7 @@ async def read_saved_searches(
         limit(int): Query limit
 
     Returns:
-        List[db.SavedSearch]: SavedSearchs
+        List[db.SavedSearch]: SavedSearches
     """
 
     query = select(db.SavedSearch).order_by(db.SavedSearch.name)

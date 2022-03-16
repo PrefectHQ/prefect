@@ -1,19 +1,18 @@
-import sqlalchemy as sa
 import sqlite3
-import os
-from asyncio import current_task, get_event_loop, AbstractEventLoop
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_scoped_session,
-)
-
-from typing import Hashable, Tuple, Dict, AsyncGenerator
 from abc import ABC, abstractmethod
-from sqlalchemy.ext.asyncio import create_async_engine
+from asyncio import get_event_loop
 from functools import partial
+from typing import Hashable, Tuple
 
-from prefect import settings
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from typing_extensions import Literal
+
+from prefect.settings import (
+    PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT,
+    PREFECT_ORION_DATABASE_ECHO,
+    PREFECT_ORION_DATABASE_TIMEOUT,
+)
 from prefect.utilities.asyncio import add_event_loop_shutdown_callback
 
 
@@ -27,15 +26,17 @@ class BaseDatabaseConfiguration(ABC):
 
     def __init__(
         self,
-        connection_url: str = None,
+        connection_url: str,
         echo: bool = None,
         timeout: float = None,
+        connection_timeout: float = None,
     ):
-        self.connection_url = (
-            connection_url or settings.orion.database.connection_url.get_secret_value()
+        self.connection_url = connection_url
+        self.echo = echo or PREFECT_ORION_DATABASE_ECHO.value()
+        self.timeout = timeout or PREFECT_ORION_DATABASE_TIMEOUT.value()
+        self.connection_timeout = (
+            connection_timeout or PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT.value()
         )
-        self.echo = echo or settings.orion.database.echo
-        self.timeout = timeout
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -44,12 +45,7 @@ class BaseDatabaseConfiguration(ABC):
         return (self.__class__, self.connection_url)
 
     @abstractmethod
-    async def engine(
-        self,
-        connection_url: str = None,
-        echo: bool = None,
-        timeout: float = None,
-    ) -> sa.engine.Engine:
+    async def engine(self) -> sa.engine.Engine:
         """Returns a SqlAlchemy engine"""
 
     @abstractmethod
@@ -67,7 +63,7 @@ class BaseDatabaseConfiguration(ABC):
         """Drop the database"""
 
     @abstractmethod
-    def is_inmemory(self, engine):
+    def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
 
 
@@ -75,12 +71,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
     ENGINES = dict()
 
-    async def engine(
-        self,
-        connection_url: str = None,
-        echo: bool = None,
-        timeout: float = None,
-    ) -> sa.engine.Engine:
+    async def engine(self) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
         Args:
@@ -94,24 +85,29 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         Returns:
             sa.engine.Engine: a SQLAlchemy engine
         """
-        connection_url = connection_url or self.connection_url
-        echo = echo or self.echo
-        timeout = timeout or self.timeout
 
         loop = get_event_loop()
 
         cache_key = (
             loop,
-            connection_url,
-            echo,
-            timeout,
+            self.connection_url,
+            self.echo,
+            self.timeout,
         )
         if cache_key not in self.ENGINES:
 
             # apply database timeout
             kwargs = dict()
+            connect_args = dict()
+
             if self.timeout is not None:
-                kwargs["connect_args"] = dict(command_timeout=self.timeout)
+                connect_args["command_timeout"] = self.timeout
+
+            if self.connection_timeout is not None:
+                connect_args["timeout"] = self.connection_timeout
+
+            if connect_args:
+                kwargs["connect_args"] = connect_args
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
 
@@ -162,7 +158,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
         await connection.run_sync(base_metadata.drop_all)
 
-    def is_inmemory(self, engine):
+    def is_inmemory(self) -> Literal[False]:
         """Returns true if database is run in memory"""
 
         return False
@@ -173,12 +169,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
     ENGINES = dict()
     MIN_SQLITE_VERSION = (3, 24, 0)
 
-    async def engine(
-        self,
-        connection_url: str = None,
-        echo: bool = None,
-        timeout: float = None,
-    ) -> sa.engine.Engine:
+    async def engine(self) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
         Args:
@@ -200,31 +191,28 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
                 f"{sqlite3.sqlite_version}"
             )
 
-        connection_url = connection_url or self.connection_url
-        echo = echo or self.echo
-        timeout = timeout or self.timeout
         kwargs = {}
 
         loop = get_event_loop()
 
         cache_key = (
             loop,
-            connection_url,
-            echo,
-            timeout,
+            self.connection_url,
+            self.echo,
+            self.timeout,
         )
         if cache_key not in self.ENGINES:
 
             # apply database timeout
-            if timeout is not None:
-                kwargs["connect_args"] = dict(timeout=timeout)
+            if self.timeout is not None:
+                kwargs["connect_args"] = dict(timeout=self.timeout)
 
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
-            if ":memory:" in connection_url:
+            if ":memory:" in self.connection_url:
                 kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
-            engine = create_async_engine(connection_url, echo=echo, **kwargs)
+            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
             sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
 
             self.ENGINES[cache_key] = engine
@@ -293,11 +281,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
         await connection.run_sync(base_metadata.drop_all)
 
-    def is_inmemory(self, engine):
+    def is_inmemory(self):
         """Returns true if database is run in memory"""
 
-        return (
-            ":memory:" in engine.url.database
-            or "mode=memory" in engine.url.database
-            or not os.path.exists(engine.url.database)
-        )
+        return ":memory:" in self.connection_url or "mode=memory" in self.connection_url

@@ -1,6 +1,7 @@
+from dataclasses import dataclass
+
 import pydantic
 import pytest
-from dataclasses import dataclass
 
 from prefect.utilities.collections import (
     dict_to_flatdict,

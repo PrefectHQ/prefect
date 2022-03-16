@@ -1,6 +1,6 @@
 <template>
   <div>
-    <header class="d-flex align-center justify-space-between">
+    <header class="d-flex align-center justify-space-between mt-2">
       <span class="d-flex align-center">
         <i class="pi pi-settings-3-line pi-2x text--grey-40" />
         <h1 class="ml-1">Settings</h1>
@@ -12,7 +12,9 @@
     </header>
 
     <section class="mt-4">
-      <h3 class="font-weight-semibold my-1">Color theme</h3>
+      <h3 class="font-weight-semibold my-1">
+        Color theme
+      </h3>
       <StateColorModeSelector />
     </section>
 
@@ -47,7 +49,9 @@
     </section>
 
     <section class="my-4">
-      <h3 class="font-weight-semibold">Reset database</h3>
+      <h3 class="font-weight-semibold">
+        Reset database
+      </h3>
       <div class="d-flex align-end my-1 text--error">
         <i class="pi pi-error-warning-line pi-lg" />
         <span class="ml-1">
@@ -55,17 +59,17 @@
           Orion
         </span>
       </div>
-      <Button
+      <m-button
         v-if="!showResetSection"
         color="delete"
         height="36px"
         width="100px"
         class="mt-1"
-        @click="showResetSection = true"
         miter
+        @click="showResetSection = true"
       >
         Reset
-      </Button>
+      </m-button>
 
       <section v-if="showResetSection">
         <div> Are you sure you want to permanently delete your data? </div>
@@ -74,7 +78,7 @@
           proceed.
         </div>
 
-        <Input
+        <m-input
           v-model="resetDatabaseConfirmation"
           placeholder="CONFIRM"
           class="my-2"
@@ -82,7 +86,7 @@
         />
 
         <div>
-          <Button
+          <m-button
             color="delete"
             height="36px"
             :disabled="resetDatabaseConfirmation !== 'CONFIRM'"
@@ -90,9 +94,9 @@
             @click="resetDatabase"
           >
             Reset Database
-          </Button>
+          </m-button>
 
-          <Button
+          <m-button
             color="secondary"
             height="36px"
             width="100px"
@@ -101,7 +105,7 @@
             @click="showResetSection = false"
           >
             Cancel
-          </Button>
+          </m-button>
         </div>
       </section>
     </section>
@@ -109,92 +113,93 @@
 </template>
 
 <script lang="ts">
-import { Options, Vue } from 'vue-class-component'
-import StateColorModeSelector from '@/components/Settings/StateColorModeSelector.vue'
-import { Api, Endpoints, Query } from '@/plugins/api'
+  import { Options, Vue } from 'vue-class-component'
+  import StateColorModeSelector from '@/components/Settings/StateColorModeSelector.vue'
+  import { Api, Endpoints, Query } from '@/plugins/api'
 
-@Options({
-  components: { StateColorModeSelector }
-})
-export default class Settings extends Vue {
-  queries: { [key: string]: Query } = {
-    settings: Api.query({ endpoint: Endpoints.settings }),
-    version: Api.query({ endpoint: Endpoints.version })
-  }
+  @Options({
+    components: { StateColorModeSelector },
+  })
+  export default class Settings extends Vue {
+    queries: Record<string, Query> = {
+      settings: Api.query({ endpoint: Endpoints.settings }),
+      version: Api.query({ endpoint: Endpoints.version }),
+    }
 
-  resetDatabaseConfirmation: string = ''
-  showResetSection: boolean = false
+    resetDatabaseConfirmation: string = ''
+    showResetSection: boolean = false
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get settings(): { [key: string]: any } {
-    return this.queries.settings.response
-  }
-
-  get version(): string {
-    return this.queries.version.response
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  get settingsSections(): { [key: string]: any }[] {
-    if (!this.settings) return []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const settings: { [key: string]: any } = { ...this.settings, base: {} }
-    // Go one level down on orion section
-    Object.entries(settings).forEach(([key, value]) => {
-      if (this.objectCheck(value)) {
-        settings[key] = value
-      } else {
-        settings['base'][key] = value
-        delete settings[key]
+    get settings(): Record<string, any> {
+      return this.queries.settings.response
+    }
+
+    get version(): string {
+      return this.queries.version.response
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    get settingsSections(): Record<string, any>[] {
+      if (!this.settings) {
+        return []
       }
-    })
-    return this.flatten(Object.entries(settings)).sort(
-      (a: { key: string }, b: { key: string }) =>
-        a.key.toUpperCase().localeCompare(b.key.toUpperCase())
-    )
-  }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const settings: Record<string, any> = { ...this.settings, base: {} }
+      // Go one level down on orion section
+      Object.entries(settings).forEach(([key, value]) => {
+        if (this.objectCheck(value)) {
+          settings[key] = value
+        } else {
+          settings.base[key] = value
+          delete settings[key]
+        }
+      })
+      return this.flatten(Object.entries(settings)).sort(
+        (a: { key: string }, b: { key: string }) => a.key.toUpperCase().localeCompare(b.key.toUpperCase()),
+      )
+    }
 
-  async resetDatabase(): Promise<void> {
-    const query = await Api.query({
-      endpoint: Endpoints.database_clear,
-      body: { confirm: true }
-    }).fetch()
-    this.showToast({
-      type: query.error ? 'error' : 'success',
-      message: query.error ? query.error : 'Database reset'
-    })
-  }
+    async resetDatabase(): Promise<void> {
+      const query = await Api.query({
+        endpoint: Endpoints.database_clear,
+        body: { confirm: true },
+      }).fetch()
+      this.showToast({
+        type: query.error ? 'error' : 'success',
+        message: query.error ? query.error : 'Database reset',
+      })
+    }
 
-  showToast(options: { type: string; message: string }): void {
-    this.$toast({ ...options, timeout: 5000 })
-  }
+    showToast(options: { type: string, message: string }): void {
+      this.$toast({ ...options, timeout: 5000 })
+    }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
-  objectCheck(arg: any): boolean {
-    return arg && typeof arg == 'object' && !Array.isArray(arg)
-  }
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+    objectCheck(arg: any): boolean {
+      return arg && typeof arg == 'object' && !Array.isArray(arg)
+    }
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  flatten(arr: [string, any][]): { key: string; content: any }[] {
-    return arr.reduce((acc: { key: string; content: any }[], [key, value]) => {
-      const obj: { key: string; content: any } = {
-        key: key,
-        content: undefined
-      }
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    flatten(arr: [string, any][]): { key: string, content: any }[] {
+      return arr.reduce((acc: { key: string, content: any }[], [key, value]) => {
+        const obj: { key: string, content: any } = {
+          key: key,
+          content: undefined,
+        }
 
-      if (this.objectCheck(value)) {
-        obj.content = this.flatten(Object.entries(value))
-      } else {
-        obj.content = value
-      }
+        if (this.objectCheck(value)) {
+          obj.content = this.flatten(Object.entries(value))
+        } else {
+          obj.content = value
+        }
 
-      acc.push(obj)
+        acc.push(obj)
 
-      return acc
-    }, [])
-  }
+        return acc
+      }, [])
+    }
   /* eslint-enable @typescript-eslint/no-explicit-any */
-}
+  }
 </script>
 
 <style lang="scss" scoped>

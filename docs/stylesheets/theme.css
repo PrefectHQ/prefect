@@ -8,3 +8,7 @@
   padding-top: 16px;
   padding-bottom: 16px;
 }
+
+.md-banner {
+ --md-footer-bg-color: #1d252b;
+ }

@@ -14,13 +14,30 @@ class TestCreateSavedSearch:
         session,
         client,
     ):
+        filters = [
+            {
+                "object": "flow",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "foo",
+            },
+            {
+                "object": "flow_run",
+                "property": "name",
+                "type": "string",
+                "operation": "equals",
+                "value": "bar",
+            },
+        ]
 
-        data = SavedSearchCreate(
-            name="My SavedSearch",
-        ).dict(json_compatible=True)
+        data = SavedSearchCreate(name="My SavedSearch", filters=filters).dict(
+            json_compatible=True
+        )
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
+        assert response.json()["filters"] == filters
         saved_search_id = response.json()["id"]
 
         saved_search = await models.saved_searches.read_saved_search(
@@ -84,7 +101,7 @@ class TestReadSavedSearch:
         assert response.status_code == 404
 
 
-class TestReadSavedSearchs:
+class TestReadSavedSearches:
     @pytest.fixture
     async def saved_searches(self, session, flow, flow_function):
         await models.saved_searches.create_saved_search(

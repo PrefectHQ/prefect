@@ -1,11 +1,12 @@
 import pytest
+
 from prefect import flow
-from prefect.client import OrionClient
+from prefect.client import get_client
 
 
 @pytest.fixture
 async def orion_client():
-    async with OrionClient() as client:
+    async with get_client() as client:
         yield client
 
 

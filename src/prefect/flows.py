@@ -5,40 +5,41 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
-from functools import update_wrapper, partial
+from functools import partial, update_wrapper
 from typing import (
     Any,
     Awaitable,
     Callable,
     Coroutine,
-    TypeVar,
-    cast,
-    overload,
+    Dict,
     Generic,
     NoReturn,
-    Union,
     Type,
-    Dict,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
 
 import pydantic
+from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.exceptions import ParameterTypeError
+from prefect.logging import get_logger
 from prefect.orion.utilities.functions import parameter_schema
+from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
-from prefect.utilities.callables import (
-    get_call_parameters,
-    parameters_to_args_kwargs,
-)
+from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+
+logger = get_logger("flows")
 
 
 class Flow(Generic[P, R]):
@@ -60,7 +61,7 @@ class Flow(Generic[P, R]):
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         task_runner: An optional task runner to use for task execution within the flow;
-            if not provided, a `SequentialTaskRunner` will be instantiated.
+            if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -81,7 +82,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = SequentialTaskRunner,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -90,7 +91,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        task_runner = task_runner or SequentialTaskRunner()
+        task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
@@ -156,6 +157,27 @@ class Flow(Generic[P, R]):
             if k in model.__fields_set__ or model.__fields__[k].default_factory
         }
         return cast_parameters
+
+    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Convert parameters to a serializable form.
+
+        Uses FastAPI's `jsonable_encoder` to convert to JSON compatible objects without
+        converting everything directly to a string. This maintains basic types like
+        integers during API roundtrips.
+        """
+        serialized_parameters = {}
+        for key, value in parameters.items():
+            try:
+                serialized_parameters[key] = jsonable_encoder(value)
+            except TypeError:
+                logger.debug(
+                    f"Parameter {key!r} for flow {self.name!r} is of unserializable "
+                    f"type {type(value).__name__!r} and will not be stored "
+                    "in the backend."
+                )
+                serialized_parameters[key] = f"<{type(value).__name__}>"
+        return serialized_parameters
 
     @overload
     def __call__(
@@ -237,7 +259,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    task_runner: BaseTaskRunner = SequentialTaskRunner,
+    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -250,7 +272,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    task_runner: BaseTaskRunner = SequentialTaskRunner,
+    task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -269,7 +291,7 @@ def flow(
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         task_runner: An optional task runner to use for task execution within the flow; if
-            not provided, a `SequentialTaskRunner` will be instantiated.
+            not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for

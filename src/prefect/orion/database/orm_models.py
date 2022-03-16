@@ -1,26 +1,30 @@
 import datetime
 import uuid
 from abc import ABC, abstractmethod
-from typing import List, Union, Dict, Tuple, Hashable
-from coolname import generate_slug
+from pathlib import Path
+from typing import Dict, Hashable, List, Tuple, Union
 
 import pendulum
 import sqlalchemy as sa
+from coolname import generate_slug
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import declared_attr, declarative_mixin, as_declarative
-from prefect.orion.schemas import core, data, schedules, states
+from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+
+import prefect
+import prefect.orion.schemas as schemas
 from prefect.orion.utilities.database import (
-    UUID,
-    Timestamp,
-    now,
-    GenerateUUID,
-    camel_to_snake,
     JSON,
+    UUID,
+    GenerateUUID,
     Pydantic,
-    interval_add,
+    Timestamp,
+    camel_to_snake,
     date_diff,
+    interval_add,
+    now,
 )
+from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
 
 
 class ORMBase:
@@ -38,6 +42,9 @@ class ORMBase:
     #
     # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
     __mapper_args__ = {"eager_defaults": True}
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(id={self.id})"
 
     @declared_attr
     def __tablename__(cls):
@@ -92,7 +99,7 @@ class ORMFlow:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (sa.UniqueConstraint("name"), sa.Index("ix_flow__created", "created"))
 
 
 @declarative_mixin
@@ -108,7 +115,7 @@ class ORMFlowRunState:
         )
 
     type = sa.Column(
-        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
     )
     timestamp = sa.Column(
         Timestamp(),
@@ -119,12 +126,12 @@ class ORMFlowRunState:
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
     state_details = sa.Column(
-        Pydantic(states.StateDetails),
+        Pydantic(schemas.states.StateDetails),
         server_default="{}",
-        default=states.StateDetails,
+        default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(data.DataDocument), nullable=True)
+    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
 
     @declared_attr
     def flow_run(cls):
@@ -134,8 +141,8 @@ class ORMFlowRunState:
             foreign_keys=[cls.flow_run_id],
         )
 
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
+    def as_state(self) -> schemas.states.State:
+        return schemas.states.State.from_orm(self)
 
     @declared_attr
     def __table_args__(cls):
@@ -162,7 +169,7 @@ class ORMTaskRunState:
         )
 
     type = sa.Column(
-        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+        sa.Enum(schemas.states.StateType, name="state_type"), nullable=False, index=True
     )
     timestamp = sa.Column(
         Timestamp(),
@@ -173,12 +180,12 @@ class ORMTaskRunState:
     name = sa.Column(sa.String, nullable=False, index=True)
     message = sa.Column(sa.String)
     state_details = sa.Column(
-        Pydantic(states.StateDetails),
+        Pydantic(schemas.states.StateDetails),
         server_default="{}",
-        default=states.StateDetails,
+        default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(Pydantic(data.DataDocument), nullable=True)
+    data = sa.Column(Pydantic(schemas.data.DataDocument), nullable=True)
 
     @declared_attr
     def task_run(cls):
@@ -188,8 +195,8 @@ class ORMTaskRunState:
             foreign_keys=[cls.task_run_id],
         )
 
-    def as_state(self) -> states.State:
-        return states.State.from_orm(self)
+    def as_state(self) -> schemas.states.State:
+        return schemas.states.State.from_orm(self)
 
     @declared_attr
     def __table_args__(cls):
@@ -238,7 +245,7 @@ class ORMRun:
         nullable=False,
         index=True,
     )
-    state_type = sa.Column(sa.Enum(states.StateType, name="state_type"))
+    state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -256,7 +263,7 @@ class ORMRun:
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
-        if self.state and self.state_type == states.StateType.RUNNING:
+        if self.state and self.state_type == schemas.states.StateType.RUNNING:
             return self.total_run_time + (pendulum.now() - self.state.timestamp)
         else:
             return self.total_run_time
@@ -269,7 +276,7 @@ class ORMRun:
             sa.select(
                 sa.case(
                     (
-                        cls.state_type == states.StateType.RUNNING,
+                        cls.state_type == schemas.states.StateType.RUNNING,
                         interval_add(
                             cls.total_run_time,
                             date_diff(now(), state_table.c.timestamp),
@@ -299,7 +306,7 @@ class ORMRun:
             self.start_time is None
             and self.expected_start_time
             and self.expected_start_time < pendulum.now("UTC")
-            and self.state_type not in states.TERMINAL_STATES
+            and self.state_type not in schemas.states.TERMINAL_STATES
         ):
             return (pendulum.now("UTC") - self.expected_start_time).as_interval()
         else:
@@ -315,7 +322,7 @@ class ORMRun:
             (
                 sa.and_(
                     cls.start_time.is_(None),
-                    cls.state_type.not_in(states.TERMINAL_STATES),
+                    cls.state_type.not_in(schemas.states.TERMINAL_STATES),
                     cls.expected_start_time < now(),
                 ),
                 date_diff(now(), cls.expected_start_time),
@@ -350,13 +357,13 @@ class ORMFlowRun(ORMRun):
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    flow_runner_type = sa.Column(sa.String)
+    flow_runner_type = sa.Column(sa.String, index=True)
     flow_runner_config = sa.Column(JSON)
 
     @declared_attr
     def flow_runner(cls):
         return sa.orm.composite(
-            core.FlowRunnerSettings,
+            schemas.core.FlowRunnerSettings,
             cls.flow_runner_type,
             cls.flow_runner_config,
         )
@@ -508,14 +515,23 @@ class ORMTaskRun(ORMRun):
     cache_expiration = sa.Column(Timestamp())
     task_version = sa.Column(sa.String)
     empirical_policy = sa.Column(
-        Pydantic(core.TaskRunPolicy),
+        Pydantic(schemas.core.TaskRunPolicy),
         server_default="{}",
-        default=core.TaskRunPolicy,
+        default=schemas.core.TaskRunPolicy,
         nullable=False,
     )
     task_inputs = sa.Column(
         Pydantic(
-            Dict[str, List[Union[core.TaskRunResult, core.Parameter, core.Constant]]]
+            Dict[
+                str,
+                List[
+                    Union[
+                        schemas.core.TaskRunResult,
+                        schemas.core.Parameter,
+                        schemas.core.Constant,
+                    ]
+                ],
+            ]
         ),
         server_default="{}",
         default=dict,
@@ -642,13 +658,13 @@ class ORMDeployment:
             index=True,
         )
 
-    schedule = sa.Column(Pydantic(schedules.SCHEDULE_TYPES))
+    schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
     is_schedule_active = sa.Column(
         sa.Boolean, nullable=False, server_default="1", default=True
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    flow_data = sa.Column(Pydantic(data.DataDocument))
+    flow_data = sa.Column(Pydantic(schemas.data.DataDocument))
 
     flow_runner_type = sa.Column(sa.String)
     flow_runner_config = sa.Column(JSON)
@@ -656,7 +672,7 @@ class ORMDeployment:
     @declared_attr
     def flow_runner(cls):
         return sa.orm.composite(
-            core.FlowRunnerSettings,
+            schemas.core.FlowRunnerSettings,
             cls.flow_runner_type,
             cls.flow_runner_config,
         )
@@ -694,15 +710,153 @@ class ORMLog:
 
 
 @declarative_mixin
+class ORMConcurrencyLimit:
+    tag = sa.Column(sa.String, nullable=False, index=True)
+    concurrency_limit = sa.Column(sa.Integer, nullable=False)
+    active_slots = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("tag"),)
+
+
+@declarative_mixin
+class ORMBlockSpec:
+    name = sa.Column(sa.String, nullable=False)
+    version = sa.Column(sa.String, nullable=False)
+    type = sa.Column(sa.String, nullable=True, index=True)
+    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_block_spec__type", "type"),
+            sa.Index(
+                "uq_block_spec__name_version",
+                "name",
+                "version",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
+class ORMBlock:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+
+    @declared_attr
+    def block_spec_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_spec(cls):
+        return sa.orm.relationship("BlockSpec", lazy="joined")
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block__spec_id_name",
+                "block_spec_id",
+                "name",
+                unique=True,
+            ),
+        )
+
+    async def encrypt_data(self, session, data):
+        """
+        Store encrypted data on the ORM model
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        self.data = await encrypt_fernet(session, data)
+
+    async def decrypt_data(self, session):
+        """
+        Retrieve decrypted data from the ORM model.
+
+        Note: will only succeed if the caller has sufficient permission.
+        """
+        return await decrypt_fernet(session, self.data)
+
+
+@declarative_mixin
+class ORMConfiguration:
+    key = sa.Column(sa.String, nullable=False, index=True)
+    value = sa.Column(JSON, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
     name = sa.Column(sa.String, nullable=False)
     filters = sa.Column(
         JSON,
+        server_default="[]",
+        default=list,
+        nullable=False,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMWorkQueue:
+    """SQLAlchemy model of a work queue"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    filter = sa.Column(
+        Pydantic(schemas.core.QueueFilter),
         server_default="{}",
         default=dict,
         nullable=False,
+    )
+    description = sa.Column(sa.String, nullable=False, default="", server_default="")
+    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
+    concurrency_limit = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMAgent:
+    """SQLAlchemy model of an agent"""
+
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def work_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_queue.id"),
+            nullable=False,
+            index=True,
+        )
+
+    last_activity_time = sa.Column(
+        Timestamp(),
+        nullable=False,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
     )
 
     @declared_attr
@@ -729,8 +883,11 @@ class BaseORMConfiguration(ABC):
         deployment_mixin: deployment orm mixin, combined with Base orm class
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
+        concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_spec_mixin: block_spec orm mixin, combined with Base orm class
+        block_mixin: block orm mixin, combined with Base orm class
+        configuration_mixin: configuration orm mixin, combined with Base orm class
 
-    TODO - example
     """
 
     def __init__(
@@ -746,6 +903,12 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
+        block_mixin=ORMBlock,
+        configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -784,6 +947,12 @@ class BaseORMConfiguration(ABC):
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
+            concurrency_limit_mixin=concurrency_limit_mixin,
+            work_queue_mixin=work_queue_mixin,
+            agent_mixin=agent_mixin,
+            block_spec_mixin=block_spec_mixin,
+            block_mixin=block_mixin,
+            configuration_mixin=configuration_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -816,6 +985,12 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
+        concurrency_limit_mixin=ORMConcurrencyLimit,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
+        block_spec_mixin=ORMBlockSpec,
+        block_mixin=ORMBlock,
+        configuration_mixin=ORMConfiguration,
     ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
@@ -849,6 +1024,24 @@ class BaseORMConfiguration(ABC):
         class Log(log_mixin, self.Base):
             pass
 
+        class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
+            pass
+
+        class WorkQueue(work_queue_mixin, self.Base):
+            pass
+
+        class Agent(agent_mixin, self.Base):
+            pass
+
+        class BlockSpec(block_spec_mixin, self.Base):
+            pass
+
+        class Block(block_mixin, self.Base):
+            pass
+
+        class Configuration(configuration_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -858,10 +1051,17 @@ class BaseORMConfiguration(ABC):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
         self.Log = Log
+        self.ConcurrencyLimit = ConcurrencyLimit
+        self.WorkQueue = WorkQueue
+        self.Agent = Agent
+        self.BlockSpec = BlockSpec
+        self.Block = Block
+        self.Configuration = Configuration
 
+    @property
     @abstractmethod
-    def run_migrations(self):
-        """Run database migrations"""
+    def versions_dir(self):
+        """Directory containing migrations"""
         ...
 
     @property
@@ -870,9 +1070,19 @@ class BaseORMConfiguration(ABC):
         return [self.Deployment.flow_id, self.Deployment.name]
 
     @property
+    def concurrency_limit_unique_upsert_columns(self):
+        """Unique columns for upserting a ConcurrencyLimit"""
+        return [self.ConcurrencyLimit.tag]
+
+    @property
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
+
+    @property
+    def block_spec_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSpec"""
+        return [self.BlockSpec.name, self.BlockSpec.version]
 
     @property
     def flow_unique_upsert_columns(self):
@@ -897,12 +1107,26 @@ class BaseORMConfiguration(ABC):
 class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     """Postgres specific orm configuration"""
 
-    def run_migrations(self):
-        ...
+    @property
+    def versions_dir(self) -> Path:
+        """Directory containing migrations"""
+        return (
+            Path(prefect.orion.database.__file__).parent
+            / "migrations"
+            / "versions"
+            / "postgresql"
+        )
 
 
 class AioSqliteORMConfiguration(BaseORMConfiguration):
     """SQLite specific orm configuration"""
 
-    def run_migrations(self):
-        ...
+    @property
+    def versions_dir(self) -> Path:
+        """Directory containing migrations"""
+        return (
+            Path(prefect.orion.database.__file__).parent
+            / "migrations"
+            / "versions"
+            / "sqlite"
+        )
