@@ -51,25 +51,31 @@ def temporary_settings(**kwargs):
     """
     old_env = os.environ.copy()
 
-    # Cast to strings
-    variables = {key: str(value) for key, value in kwargs.items() if value is not None}
-    remove_variables = {key for key, value in kwargs.items() if value is None}
+    # Collect keys to set to new values
+    set_variables = {
+        # Cast values to strings
+        key: str(value)
+        for key, value in kwargs.items()
+        if value is not None
+    }
+    # Collect keys to restore to defaults
+    unset_variables = {key for key, value in kwargs.items() if value is None}
 
     try:
-        for key, value in variables.items():
+        for key, value in set_variables.items():
             os.environ[key] = value
-        for key in remove_variables:
+        for key in unset_variables:
             os.environ.pop(key, None)
 
         new_settings = prefect.settings.get_settings_from_env()
 
         with prefect.context.ProfileContext(
-            name="temporary", settings=new_settings, env=variables
+            name="temporary", settings=new_settings, env=set_variables
         ):
             yield new_settings
 
     finally:
-        for key in remove_variables.union(variables.keys()):
+        for key in unset_variables.union(set_variables.keys()):
             if old_env.get(key):
                 os.environ[key] = old_env[key]
             else:
