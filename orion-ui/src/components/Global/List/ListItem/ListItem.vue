@@ -8,13 +8,13 @@
 </template>
 
 <script lang="ts">
-import { prop, Vue } from 'vue-class-component'
+  import { prop, Vue } from 'vue-class-component'
 
-class Props {
-  icon = prop<string>({ default: null })
-}
+  class Props {
+    icon = prop<string>({ default: null })
+  }
 
-export default class ListItem extends Vue.with(Props) {}
+  export default class ListItem extends Vue.with(Props) {}
 </script>
 
 <style lang="scss">

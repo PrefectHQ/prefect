@@ -6,11 +6,9 @@ from typing import Any, Generic, Type, TypeVar
 
 from typing_extensions import Literal
 
-from prefect import settings
+import prefect.settings
 from prefect.orion.serializers import lookup_serializer
-from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -84,23 +82,3 @@ class DataDocument(PrefectBaseModel, Generic[D]):
 
     def __rich_repr__(self):
         yield "encoding", self.encoding
-
-
-class DataLocation(PrefectBaseModel):
-    """Represents the location of data stored in a file"""
-
-    name: str
-    # TODO: Consider using `FILE_SYSTEM_SCHEMES` which would need to be an Enum
-    scheme: Literal["file", "s3"] = "file"
-    base_path: str = "/tmp"
-
-
-def get_instance_data_location() -> DataLocation:
-    """
-    Return the current data location configured for this Orion instance
-    """
-    return DataLocation(
-        name=settings.orion.data.name,
-        base_path=settings.orion.data.base_path,
-        scheme=settings.orion.data.scheme.lower(),
-    )

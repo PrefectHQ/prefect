@@ -1,8 +1,8 @@
-import FlowRun, { IFlowRun } from './flowRun'
-import faker from 'faker'
-import { fakerRandomArray, fakerRandomState } from '@/utilities/faker'
 import addSeconds from 'date-fns/addSeconds'
+import faker from 'faker'
+import FlowRun, { IFlowRun } from './flowRun'
 import StateMock from './stateMock'
+import { fakerRandomArray, fakerRandomState } from '@/utilities/faker'
 
 function time(max = 100) {
   return faker.datatype.float({ min: 0.01, max, precision: 6 })
@@ -41,7 +41,7 @@ export default class FlowRunMock extends FlowRun {
       state: flow.state ?? new StateMock({ id: state_id, type: state_type }),
       tags: flow.tags ?? fakerRandomArray(5, () => faker.lorem.word()),
       task_run_count: flow.task_run_count ?? faker.datatype.number(10),
-      updated: flow.updated ?? updated
+      updated: flow.updated ?? updated,
     })
   }
 }

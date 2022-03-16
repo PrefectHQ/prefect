@@ -3,14 +3,14 @@ Routes for admin-level interactions with the Orion API.
 """
 
 import sqlalchemy as sa
-from sqlalchemy import orm
-from fastapi import Depends, status, Response, Body
+from fastapi import Body, Depends, Response, status
 
 import prefect
-from prefect.orion.utilities.server import OrionRouter
-from prefect.orion.api import dependencies
+import prefect.orion.api.dependencies as dependencies
+import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/admin", tags=["Admin"])
 
@@ -22,9 +22,9 @@ async def hello():
 
 
 @router.get("/settings")
-async def read_settings() -> prefect.utilities.settings.Settings:
+async def read_settings() -> prefect.settings.Settings:
     """Get the current Orion settings"""
-    return prefect.settings
+    return prefect.settings.get_current_settings()
 
 
 @router.get("/version")

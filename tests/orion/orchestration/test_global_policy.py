@@ -1,8 +1,9 @@
 import datetime
+
 import pendulum
 import pytest
 
-from prefect.orion.orchestration.rules import TERMINAL_STATES
+from prefect.orion import models
 from prefect.orion.orchestration.global_policy import (
     IncrementRunCount,
     IncrementRunTime,
@@ -14,8 +15,8 @@ from prefect.orion.orchestration.global_policy import (
     UpdateSubflowParentTask,
     UpdateSubflowStateDetails,
 )
-from prefect.orion.schemas import states, core
-from prefect.orion import models
+from prefect.orion.orchestration.rules import TERMINAL_STATES
+from prefect.orion.schemas import core, states
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])

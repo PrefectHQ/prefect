@@ -1,10 +1,9 @@
-import versioneer
 from setuptools import find_packages, setup
 
+import versioneer
 
 install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
-
 
 setup(
     # Package metadata

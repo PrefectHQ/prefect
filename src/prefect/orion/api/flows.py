@@ -4,15 +4,16 @@ Routes for interacting with flow objects.
 
 from typing import List
 from uuid import UUID
-from fastapi.param_functions import Body
 
 import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi.param_functions import Body
 
-from prefect import settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
+import prefect.settings
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/flows", tags=["Flows"])
@@ -107,14 +108,13 @@ async def read_flow(
 
 @router.post("/filter")
 async def read_flows(
-    limit: int = Body(
-        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
@@ -126,6 +126,7 @@ async def read_flows(
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
         deployment_filter=deployments,
+        sort=sort,
         offset=offset,
         limit=limit,
     )

@@ -2,11 +2,13 @@
 Utilities for working with Python callables.
 """
 import inspect
-import pydantic
 import json
-import cloudpickle
-from typing import Any, Callable, Dict, Tuple
 from functools import partial
+from typing import Any, Callable, Dict, Tuple
+
+import cloudpickle
+import pydantic
+
 from prefect.exceptions import ParameterTypeError
 
 
@@ -76,14 +78,3 @@ def _run_serialized_call(payload) -> bytes:
     fn, args, kwargs = cloudpickle.loads(payload)
     retval = fn(*args, **kwargs)
     return cloudpickle.dumps(retval)
-
-
-def assert_parameters_are_serializable(parameters: Dict[str, Any]):
-    for key, value in parameters.items():
-        try:
-            json.dumps(value, default=pydantic.json.pydantic_encoder)
-        except:
-            raise ParameterTypeError(
-                f"Flow parameters must be JSON serializable. Parameter {key!r} is "
-                f"of unserializable type {type(value).__name__!r}"
-            )

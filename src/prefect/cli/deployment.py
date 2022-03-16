@@ -4,24 +4,23 @@ Command line interface for working with deployments.
 import traceback
 from typing import List
 
-import fastapi
-import httpx
 import pendulum
-import typer
 from rich.pretty import Pretty
+from rich.table import Table
 
-from prefect.cli.base import app, console, exit_with_error
-from prefect.client import OrionClient
+from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.client import get_client
 from prefect.deployments import (
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import ScriptError, SpecValidationError
+from prefect.exceptions import ObjectNotFound, ScriptError, SpecValidationError
 from prefect.orion.schemas.filters import FlowFilter
-from prefect.utilities.asyncio import sync_compatible
 
-deployment_app = typer.Typer(name="deployment")
+deployment_app = PrefectTyper(
+    name="deployment", help="Commands for working with deployments."
+)
 app.add_typer(deployment_app)
 
 
@@ -38,10 +37,9 @@ def exception_traceback(exc):
 
 
 @deployment_app.command()
-@sync_compatible
 async def inspect(name: str):
     """
-    View details about a deployment
+    View details about a deployment.
 
     \b
     Example:
@@ -60,26 +58,22 @@ async def inspect(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         try:
             deployment = await client.read_deployment_by_name(name)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Deployment {name!r} not found!")
-            else:
-                raise
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
 
     deployment_json = deployment.dict(json_compatible=True)
     console.print(Pretty(deployment_json))
 
 
 @deployment_app.command()
-@sync_compatible
 async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
-    View all deployments or deployments for specific flows
+    View all deployments or deployments for specific flows.
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
         )
@@ -93,16 +87,24 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
     sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
     sort_by_created_key = lambda d: pendulum.now("utc") - d.created
 
+    table = Table(
+        title="Deployments",
+    )
+    table.add_column("Name", style="blue", no_wrap=True)
+    table.add_column("ID", style="cyan", no_wrap=True)
+
     for deployment in sorted(
         deployments, key=sort_by_created_key if by_created else sort_by_name_keys
     ):
-        console.print(
-            f"[blue]{flows[deployment.flow_id].name}/[bold]{deployment.name}[/][/]"
+        table.add_row(
+            f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
+            str(deployment.id),
         )
+
+    console.print(table)
 
 
 @deployment_app.command()
-@sync_compatible
 async def run(name: str):
     """
     Create a flow run for the given flow and deployment.
@@ -111,15 +113,17 @@ async def run(name: str):
 
     The flow run will not execute until an agent starts.
     """
-    async with OrionClient() as client:
-        deployment = await client.read_deployment_by_name(name)
+    async with get_client() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {name!r} not found!")
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
     console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()
-@sync_compatible
 async def execute(name: str):
     """
     Create and execute a local flow run for the given deployment.
@@ -131,7 +135,7 @@ async def execute(name: str):
     """
     assert_deployment_name_format(name)
 
-    async with OrionClient() as client:
+    async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
@@ -140,12 +144,11 @@ async def execute(name: str):
 
 
 @deployment_app.command()
-@sync_compatible
 async def create(path: str):
     """
-    Create or update a deployment from a file containing deployment specifications
+    Create or update a deployment from a file.
 
-    Deployments can be specified in Python or YAML
+    File must contain one or more deployment specifications in either Python or YAML
 
         \b
         ```python

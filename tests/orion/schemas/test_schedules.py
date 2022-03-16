@@ -1,9 +1,9 @@
 import time
-from dateutil import rrule
 from datetime import timedelta
 
 import pendulum
 import pytest
+from dateutil import rrule
 from pendulum import datetime, now
 from pydantic import ValidationError
 

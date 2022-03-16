@@ -3,17 +3,17 @@ State schemas.
 """
 
 import datetime
+import warnings
 from collections.abc import Iterable
-from typing import Generic, TypeVar, overload, Union
+from typing import Generic, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, validator, root_validator
+from pydantic import Field, root_validator, validator
 
-from prefect.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
-
+from prefect.utilities.enum import AutoEnum
 
 R = TypeVar("R")
 
@@ -127,12 +127,21 @@ class State(IDBaseModel, Generic[R]):
             ValueError("oh no!")
         """
         data = None
+
         if self.data:
+            if self.data.encoding == "blockstorage":
+                return self.data
             data = self.data.decode()
 
         if self.is_failed() and raise_on_failure:
             if isinstance(data, Exception):
                 raise data
+            elif isinstance(data, BaseException):
+                warnings.warn(
+                    f"State result is a {type(data).__name__!r} type and is not safe "
+                    "to re-raise, it will be returned instead."
+                )
+                return data
             elif isinstance(data, State):
                 data.result()
             elif isinstance(data, Iterable) and all(

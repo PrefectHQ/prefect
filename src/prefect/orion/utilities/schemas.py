@@ -11,7 +11,6 @@ from uuid import UUID, uuid4
 import pendulum
 from pydantic import BaseModel, Field
 
-
 T = TypeVar("T")
 
 

@@ -5,11 +5,12 @@ Orion supports both SQLite and Postgres. Many of these utilities
 allow Orion to seamlessly switch between the two.
 """
 
+import asyncio
 import datetime
 import json
 import re
 import uuid
-from typing import List
+from typing import List, Union
 
 import pendulum
 import pydantic
@@ -19,8 +20,6 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-
-from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
@@ -223,6 +222,8 @@ class now(FunctionElement):
 
     type = Timestamp()
     name = "now"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = True
 
 
 @compiles(now, "sqlite")
@@ -311,6 +312,8 @@ class interval_add(FunctionElement):
 
     type = sa.Interval()
     name = "interval_add"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, i1, i2):
         self.i1 = i1
@@ -361,6 +364,8 @@ class date_diff(FunctionElement):
 
     type = sa.Interval()
     name = "date_diff"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, d1, d2):
         self.d1 = d1
@@ -407,6 +412,8 @@ class json_contains(FunctionElement):
 
     type = BOOLEAN
     name = "json_contains"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, json_expr, values: List):
         self.json_expr = json_expr
@@ -458,6 +465,8 @@ class json_has_any_key(FunctionElement):
 
     type = BOOLEAN
     name = "json_has_any_key"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, json_expr, values: List):
         self.json_expr = json_expr
@@ -500,6 +509,8 @@ class json_has_all_keys(FunctionElement):
 
     type = BOOLEAN
     name = "json_has_all_keys"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, json_expr, values: List):
         self.json_expr = json_expr
@@ -537,36 +548,31 @@ def _json_has_all_keys_sqlite(element, compiler, **kwargs):
 
 
 def get_dialect(
-    session=None,
-    engine=None,
-    connection_url: str = None,
+    obj: Union[str, sa.orm.Session, sa.engine.Engine],
 ) -> sa.engine.Dialect:
     """
     Get the dialect of a session, engine, or connection url.
 
-    If none of the above is provided, dialect will be retrieved
-    from the Orion API database connection url.
-
-    Primary use case is figuring out whether the Orion API is
-    communicating with SQLite or Postgres.
+    Primary use case is figuring out whether the Orion API is communicating with
+    SQLite or Postgres.
 
     Example:
         ```python
+        import prefect.settings
         from prefect.orion.utilities.database import get_dialect
 
-        dialect = get_dialect()
+        dialect = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value())
         if dialect == "sqlite":
             print("Using SQLite!")
         else:
             print("Using Postgres!")
         ```
     """
-    if session is not None:
-        url = session.bind.url
-    elif engine is not None:
-        url = engine.url
+    if isinstance(obj, sa.orm.Session):
+        url = obj.bind.url
+    elif isinstance(obj, sa.engine.Engine):
+        url = obj.url
     else:
-        if connection_url is None:
-            connection_url = settings.orion.database.connection_url.get_secret_value()
-        url = sa.engine.url.make_url(connection_url)
+        url = sa.engine.url.make_url(obj)
+
     return url.get_dialect()

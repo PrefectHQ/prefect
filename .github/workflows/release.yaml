@@ -1,32 +1,32 @@
-name: Release
+name: Release prefect
 
 on:
   push:
     tags:
-      - "2.0a[0-9]+"
+      - "2.0b[0-9]+"
 
 jobs:
   build-release:
-    name: Build release
+    name: Build Python package
 
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # Versioneer only generates correct versions with a full fetch
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
 
-      - name: Set up Node 16.x
-        uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - uses: actions/cache@v2
         with:
@@ -34,12 +34,12 @@ jobs:
           # Load installed python packages from the cache
           key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
 
-      - name: Install packages
+      - name: Install python packages
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Build UI
+      - name: Build orion-ui
         run: |
           prefect dev build-ui
 
@@ -52,7 +52,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
   build-docker-images:
     name: Build Docker images
@@ -60,12 +60,12 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.7
-          - 3.8
-          - 3.9
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
 
     steps:
-
       # Not needed until we want multiarchecture builds
       # - name: Set up QEMU
       #   uses: docker/setup-qemu-action@v1
@@ -88,7 +88,7 @@ jobs:
             suffix=-python${{ matrix.python-version }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -96,8 +96,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          build-args:
-            PYTHON_VERSION=${{ matrix.python-version }}
+          build-args: PYTHON_VERSION=${{ matrix.python-version }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image.tar
@@ -117,12 +116,12 @@ jobs:
   publish-docs:
     name: Open PR to docs branch
     needs: [build-release, publish-test-release]
-    environment: 'prod'
+    environment: "prod"
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -161,23 +160,24 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
+          skip_existing: true
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
 
   publish-code:
     name: Open PR to prefecthq/prefect repo
-    environment: 'prod'
+    environment: "prod"
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -210,8 +210,8 @@ jobs:
           MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
   publish-release:
-    name: Publish release to PyPI
-    environment: 'prod'
+    name: Publish to PyPI
+    environment: "prod"
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
 
@@ -220,7 +220,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: built-package
-          path: './dist'
+          path: "./dist"
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@master
@@ -230,13 +230,12 @@ jobs:
           name: ci
 
   publish-docker-images:
-    name: Publish Docker images
+    name: Publish to DockerHub
     needs: [build-docker-images, build-release, publish-test-release]
-    environment: 'prod'
+    environment: "prod"
 
     runs-on: ubuntu-latest
     steps:
-
       - name: Download image artifacts for Python 3.7
         uses: actions/download-artifact@v2
         with:

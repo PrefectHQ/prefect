@@ -3,29 +3,42 @@ The agent is responsible for checking for flow runs that are ready to run and st
 their execution.
 """
 from typing import List, Optional
+from uuid import UUID
 
 import anyio
 import anyio.to_process
+import httpx
 import pendulum
 from anyio.abc import TaskGroup
+from fastapi import status
 
-from prefect import settings
-from prefect.client import OrionClient
+from prefect.client import OrionClient, get_client
 from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
+from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, State, StateType
-from prefect.logging import get_logger
+from prefect.orion.schemas.states import Failed, Pending, StateType
+from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
 class OrionAgent:
     def __init__(
         self,
-        prefetch_seconds: int = settings.agent.prefetch_seconds,
+        work_queue_id: UUID = None,
+        work_queue_name: str = None,
+        prefetch_seconds: int = None,
     ) -> None:
+        if not work_queue_id and not work_queue_name:
+            raise ValueError(
+                "Either work_queue_id or work_queue_name must be provided."
+            )
+        if work_queue_id and work_queue_name:
+            raise ValueError("Provide only one of work_queue_id and work_queue_name.")
+        self.work_queue_id = work_queue_id
+        self.work_queue_name = work_queue_name
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
@@ -33,30 +46,63 @@ class OrionAgent:
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
-    def flow_run_query_filter(self) -> FlowRunFilter:
-        return FlowRunFilter(
-            id=dict(not_any_=self.submitting_flow_run_ids),
-            state=dict(type=dict(any_=[StateType.SCHEDULED])),
-            next_scheduled_start_time=dict(
-                before_=pendulum.now("utc").add(seconds=self.prefetch_seconds)
-            ),
-            deployment_id=dict(is_null_=False),
-        )
+    async def work_queue_id_from_name(self) -> Optional[UUID]:
+        """
+        For agents that were provided a work_queue_name, rather than a work_queue_id,
+        this function will retrieve the work queue ID corresponding to that name.
+        If no matching queue is found, a warning is logged and `None` is returned.
+        """
+        if not self.work_queue_name:
+            raise ValueError("No work queue name provided.")
+        try:
+            work_queue = await self.client.read_work_queue_by_name(self.work_queue_name)
+            return work_queue.id
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                self.logger.warning(
+                    f"No work queue found named {self.work_queue_name!r}"
+                )
+                return None
+            else:
+                raise
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
         """
-        Queries for scheduled flow runs and submits them for execution in parallel
+        The principle method on agents. Queries for scheduled flow runs and submits them for execution in parallel.
         """
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
-        submittable_runs = await self.client.read_flow_runs(
-            sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
-            flow_run_filter=self.flow_run_query_filter(),
+        self.logger.debug("Checking for flow runs...")
+
+        before = pendulum.now("utc").add(
+            seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
+
+        # Use the work queue id or load one from the name
+        work_queue_id = self.work_queue_id or await self.work_queue_id_from_name()
+        if not work_queue_id:
+            return []
+
+        try:
+            submittable_runs = await self.client.get_runs_in_work_queue(
+                id=work_queue_id, limit=10, scheduled_before=before
+            )
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise ValueError(
+                    f"No work queue found with id '{work_queue_id}'"
+                ) from None
+            else:
+                raise
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
+
+            # don't resubmit a run
+            if flow_run.id in self.submitting_flow_run_ids:
+                continue
+
             self.submitting_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(
                 self.submit_run,
@@ -148,7 +194,7 @@ class OrionAgent:
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
-        self.client = OrionClient()
+        self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
 

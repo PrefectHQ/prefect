@@ -10,16 +10,17 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import models, schemas
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy, NullPolicy
-from prefect.orion.orchestration.core_policy import CoreTaskPolicy
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.orchestration.core_policy import CoreTaskPolicy, MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     OrchestrationResult,
     TaskOrchestrationContext,
 )
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db
@@ -111,7 +112,7 @@ async def _apply_task_run_filters(
     """
 
     if task_run_filter:
-        query = query.where(task_run_filter.as_sql_filter())
+        query = query.where(task_run_filter.as_sql_filter(db))
 
     if flow_filter or flow_run_filter or deployment_filter:
         exists_clause = select(db.FlowRun).where(
@@ -119,19 +120,19 @@ async def _apply_task_run_filters(
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
 
         if flow_filter:
             exists_clause = exists_clause.join(
                 db.Flow,
                 db.Flow.id == db.FlowRun.flow_id,
-            ).where(flow_filter.as_sql_filter())
+            ).where(flow_filter.as_sql_filter(db))
 
         if deployment_filter:
             exists_clause = exists_clause.join(
                 db.Deployment,
                 db.Deployment.id == db.FlowRun.deployment_id,
-            ).where(deployment_filter.as_sql_filter())
+            ).where(deployment_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
@@ -167,7 +168,7 @@ async def read_task_runs(
         List[db.TaskRun]: the task runs
     """
 
-    query = select(db.TaskRun).order_by(sort.as_sql_sort())
+    query = select(db.TaskRun).order_by(sort.as_sql_sort(db))
 
     query = await _apply_task_run_filters(
         query,
@@ -286,7 +287,7 @@ async def set_task_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     if force or task_policy is None:
-        task_policy = NullPolicy
+        task_policy = MinimalTaskPolicy
 
     orchestration_rules = task_policy.compile_transition_rules(*intended_transition)
     global_rules = GlobalTaskPolicy.compile_transition_rules(*intended_transition)

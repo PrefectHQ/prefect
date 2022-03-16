@@ -1,9 +1,10 @@
 import datetime
-import os
 
+from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
-from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.orion.database.orm_models import BaseORMConfiguration
+from prefect.orion.database.query_components import BaseQueryComponents
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 class DBSingleton(type):
@@ -47,38 +48,27 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-
-        engine = await self.database_config.engine()
-
-        async with engine.begin() as conn:
-            await self.database_config.create_db(conn, self.Base.metadata)
+        await self.run_migrations_upgrade()
 
     async def drop_db(self):
         """Drop the database"""
+        await self.run_migrations_downgrade()
 
-        engine = await self.database_config.engine()
+    async def run_migrations_upgrade(self):
+        """Run all upgrade migrations"""
+        await run_sync_in_worker_thread(alembic_upgrade)
 
-        async with engine.begin() as conn:
-            await self.database_config.drop_db(conn, self.Base.metadata)
+    async def run_migrations_downgrade(self):
+        """Run all downgrade migrations"""
+        await run_sync_in_worker_thread(alembic_downgrade)
 
-    def run_migrations(self):
-        """Run database migrations"""
-        self.orm.run_migrations()
-
-    async def engine(
-        self,
-        connection_url: str = None,
-        echo: bool = None,
-        timeout: float = None,
-    ):
+    async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
         """
-        engine = await self.database_config.engine(
-            connection_url=connection_url, echo=echo, timeout=timeout
-        )
+        engine = await self.database_config.engine()
 
-        if self.database_config.is_inmemory(engine):
+        if self.database_config.is_inmemory():
             async with engine.begin() as conn:
                 await self.database_config.create_db(conn, self.Base.metadata)
 
@@ -142,14 +132,54 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.Log
 
     @property
+    def ConcurrencyLimit(self):
+        """A concurrency model"""
+        return self.orm.ConcurrencyLimit
+
+    @property
+    def WorkQueue(self):
+        """A work queue model"""
+        return self.orm.WorkQueue
+
+    @property
+    def Agent(self):
+        """An agent model"""
+        return self.orm.Agent
+
+    @property
+    def BlockSpec(self):
+        """A block spec model"""
+        return self.orm.BlockSpec
+
+    @property
+    def Block(self):
+        """A block model"""
+        return self.orm.Block
+
+    @property
+    def Configuration(self):
+        """An configuration model"""
+        return self.orm.Configuration
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
 
     @property
+    def concurrency_limit_unique_upsert_columns(self):
+        """Unique columns for upserting a ConcurrencyLimit"""
+        return self.orm.concurrency_limit_unique_upsert_columns
+
+    @property
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return self.orm.flow_run_unique_upsert_columns
+
+    @property
+    def block_spec_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSpec"""
+        return self.orm.block_spec_unique_upsert_columns
 
     @property
     def flow_unique_upsert_columns(self):

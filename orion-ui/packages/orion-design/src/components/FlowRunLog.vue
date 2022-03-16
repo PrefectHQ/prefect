@@ -4,7 +4,6 @@
     <span v-tooltip="dateTime" class="flow-run-log__time" :class="classes.time">{{ time }}</span>
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
-        <!-- this has an api call which technically shouldn't be nested in orion-design components -->
         <TaskRunLink :task-id="log.taskRunId" />
       </div>
     </template>
@@ -16,14 +15,14 @@
 </template>
 
 <script lang="ts">
-  import CopyButton from '@/components/Global/CopyButton.vue'
-  import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
-  import { formatDateTimeNumeric, formatTimeNumeric } from '..'
-  import { Log } from '../models'
-  import { logLevelLabel } from '../utilities'
-  import LogLevelLabel from './LogLevelLabel.vue'
-  import TaskRunLink from './TaskRunLink.vue'
+  import CopyButton from '@/components/CopyButton.vue'
+  import LogLevelLabel from '@/components/LogLevelLabel.vue'
+  import TaskRunLink from '@/components/TaskRunLink.vue'
+  import { Log } from '@/models/Log'
+  import { formatDateTimeNumericInTimeZone, formatTimeNumericInTimeZone } from '@/utilities/dates'
+  import { logLevelLabel } from '@/utilities/logs'
+  import { snakeCase } from '@/utilities/strings'
 
   export default defineComponent({
     name: 'FlowRunLog',
@@ -49,11 +48,11 @@
       },
 
       time: function() {
-        return formatTimeNumeric(this.log.timestamp)
+        return formatTimeNumericInTimeZone(this.log.timestamp)
       },
 
       dateTime: function() {
-        return formatDateTimeNumeric(this.log.timestamp)
+        return formatDateTimeNumericInTimeZone(this.log.timestamp)
       },
     },
   })
@@ -86,8 +85,8 @@
   }
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
-    grid-template-areas: "task level time message";
-    grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr;
+    grid-template-areas: "level time message task";
+    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
     padding: 0 var(--p-2);
 
     + .flow-run-log {

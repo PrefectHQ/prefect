@@ -7,23 +7,20 @@ futures in nested data structures.
 from typing import (
     TYPE_CHECKING,
     Any,
-    Union,
-    Optional,
-    overload,
-    TypeVar,
-    Generic,
-    Callable,
-    cast,
     Awaitable,
+    Callable,
+    Generic,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
 )
-from typing_extensions import Literal
 
-
-import prefect
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import sync, A, Async, Sync, sync_compatible
+from prefect.utilities.asyncio import A, Async, Sync, sync
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
@@ -62,13 +59,31 @@ class PrefectFuture(Generic[R, A]):
         >>>     future = my_task()
         >>>     final_state = future.wait()
 
+        Wait N sconds for the task to complete
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     final_state = future.wait(0.1)
+        >>>     if final_state:
+        >>>         ... # Task done
+        >>>     else:
+        >>>         ... # Task not done yet
+
         Wait for a task to complete and retrieve its result
 
         >>> @flow
         >>> def my_flow():
         >>>     future = my_task()
-        >>>     state = future.wait()
-        >>>     result = state.result()
+        >>>     result = future.result()
+        >>>     assert result == "hello"
+
+        Wait N seconds for a task to complete and retrieve its result
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     result = future.result(timeout=5)
         >>>     assert result == "hello"
 
         Retrieve the state of a task without waiting for completion
@@ -143,6 +158,64 @@ class PrefectFuture(Generic[R, A]):
 
         self._final_state = await self._task_runner.wait(self, timeout)
         return self._final_state
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Sync]",
+        timeout: float = None,
+        raise_on_failure: bool = True,
+    ) -> R:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Sync]",
+        timeout: float = None,
+        raise_on_failure: bool = False,
+    ) -> Union[R, Exception]:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Async]",
+        timeout: float = None,
+        raise_on_failure: bool = True,
+    ) -> Awaitable[R]:
+        ...
+
+    @overload
+    def result(
+        self: "PrefectFuture[R, Async]",
+        timeout: float = None,
+        raise_on_failure: bool = False,
+    ) -> Awaitable[Union[R, Exception]]:
+        ...
+
+    def result(self, timeout: float = None, raise_on_failure: bool = True):
+        """
+        Wait for the run to finish and return the final state.
+
+        If the timeout is reached before the run reaches a final state, a `TimeoutError`
+        will be raised.
+
+        If `raise_on_failure` is `True` and the task run failed, the task run's
+        exception will be raised.
+        """
+        if self.asynchronous:
+            return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
+        else:
+            return sync(
+                self._result, timeout=timeout, raise_on_failure=raise_on_failure
+            )
+
+    async def _result(self, timeout: float = None, raise_on_failure: bool = True):
+        """
+        Async implementation of `result`
+        """
+        final_state = await self._wait(timeout=timeout)
+        if not final_state:
+            raise TimeoutError("Call timed out before task finished.")
+        return final_state.result(raise_on_failure=raise_on_failure)
 
     @overload
     def get_state(

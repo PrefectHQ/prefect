@@ -1,9 +1,9 @@
+import copy
 from statistics import mode
 from uuid import uuid4
-import copy
 
-import pytest
 import pendulum
+import pytest
 
 from prefect.orion import models, schemas
 
@@ -276,6 +276,17 @@ class TestReadFlows:
             deployment_filter=schemas.filters.DeploymentFilter(id=dict(any_=[uuid4()])),
         )
         assert len(result) == 0
+
+    async def test_read_flows_applies_sort(self, flows, session):
+        read_flows = await models.flows.read_flows(
+            session=session, sort=schemas.sorting.FlowSort.NAME_ASC
+        )
+        assert read_flows[0].name == "my-flow-1"
+
+        read_flows_name_desc = await models.flows.read_flows(
+            session=session, sort=schemas.sorting.FlowSort.NAME_DESC
+        )
+        assert read_flows_name_desc[0].name == "my-flow-2"
 
 
 class TestDeleteFlow:

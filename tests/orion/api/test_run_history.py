@@ -1,13 +1,13 @@
-import fastapi
-from typing import List
 from datetime import timedelta
+from typing import List
 
+import fastapi
 import pendulum
 import pydantic
 import pytest
 
 from prefect.orion import models
-from prefect.orion.schemas import core, states, responses
+from prefect.orion.schemas import core, responses, states
 from prefect.orion.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 7, 1)

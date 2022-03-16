@@ -1,14 +1,15 @@
-from uuid import uuid4
-from datetime import timedelta
-import pydantic
 import json
-from prefect.orion.schemas.data import DataDocument
+from datetime import timedelta
+from uuid import uuid4
+
 import pendulum
+import pydantic
 import pytest
 
-from prefect.client import OrionClient
+from prefect.client import get_client
 from prefect.orion import models
-from prefect.orion.schemas import core, filters, states, schedules
+from prefect.orion.schemas import core, filters, schedules, states
+from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -326,7 +327,7 @@ class TestCountFlowsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_python_client_filter(self, kwargs, expected):
-        async with OrionClient() as client:
+        async with get_client() as client:
             flows = await client.read_flows(**kwargs)
             assert len(flows) == expected
 
@@ -508,7 +509,7 @@ class TestCountFlowRunModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_python_client_filter(self, kwargs, expected):
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_runs = await client.read_flow_runs(**kwargs)
             assert len(flow_runs) == expected
 
@@ -666,7 +667,7 @@ class TestCountTaskRunsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_python_client_filter(self, kwargs, expected):
-        async with OrionClient() as client:
+        async with get_client() as client:
             task_runs = await client.read_task_runs(**kwargs)
             assert len(task_runs) == expected
 
@@ -805,7 +806,7 @@ class TestCountDeploymentModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_python_client_filter(self, kwargs, expected):
-        async with OrionClient() as client:
+        async with get_client() as client:
             deployments = await client.read_deployments(**kwargs)
             assert len(deployments) == expected
 

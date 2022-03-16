@@ -5,10 +5,9 @@ The base class for all Orion loop services.
 import asyncio
 
 import pendulum
-from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
-from prefect.orion.database.dependencies import inject_db
 from prefect.logging import get_logger
+from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
 
@@ -20,15 +19,12 @@ class LoopService:
     define the `run_once` coroutine to describe the behavior of the service on each loop.
     """
 
-    # the time between loops
-    loop_seconds: float = 60
-
-    # flag for whether the service should stop running
-    should_stop: bool = False
+    loop_seconds = 60
 
     def __init__(self, loop_seconds: float = None):
         if loop_seconds:
-            self.loop_seconds = loop_seconds
+            self.loop_seconds = loop_seconds  # seconds between runs
+        self.should_stop = False  # flag for whether the service should stop running
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 

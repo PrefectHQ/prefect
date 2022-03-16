@@ -1,16 +1,19 @@
 import datetime
+import inspect
 from itertools import repeat
 from unittest.mock import MagicMock
 
+import anyio
 import pytest
 
-from prefect import flow, tags, get_run_logger
+from prefect import flow, get_run_logger, tags
+from prefect.exceptions import ReservedArgumentError
+from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-from prefect.tasks import task, task_input_hash
+from prefect.tasks import Task, task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.exceptions import ReservedArgumentError
 
 
 def comparable_inputs(d):
@@ -70,7 +73,7 @@ class TestTaskCall:
         assert isinstance(task_state, State)
         assert task_state.result() == 1
 
-    def test_async_task_called_inside_sync_flow_raises_clear_error(self):
+    def test_async_task_called_inside_sync_flow(self):
         @task
         async def foo(x):
             return x
@@ -80,10 +83,9 @@ class TestTaskCall:
             return foo(1)
 
         state = bar()
-        with pytest.raises(
-            RuntimeError, match="Your task is async, but your flow is sync"
-        ):
-            state.result()
+        task_state = state.result()
+        assert task_state.is_completed()
+        assert task_state.result() == 1
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -186,6 +188,134 @@ class TestTaskCall:
         flow_state = test_flow()
         task_state = flow_state.result()
         assert task_state.result() == (1, 2, dict(x=3, y=4, z=5))
+
+
+class TestTaskFutures:
+    def test_tasks_return_futures(self):
+        @task
+        def foo():
+            return 1
+
+        @flow
+        def my_flow():
+            future = foo()
+            assert isinstance(future, PrefectFuture)
+
+        my_flow().result()
+
+    async def test_wait_gets_final_state(self, orion_client):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait()
+
+            assert state.is_completed()
+
+            # TODO: The ids are not equal here, why?
+            # task_run = await orion_client.read_task_run(state.state_details.task_run_id)
+            # assert task_run.state.dict(exclude={"data"}) == state.dict(exclude={"data"})
+
+        (await my_flow()).result()
+
+    async def test_wait_returns_none_with_timeout_exceeded(self):
+        @task
+        async def foo():
+            await anyio.sleep(0.1)
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait(0.01)
+            assert state is None
+
+        (await my_flow()).result()
+
+    async def test_wait_returns_final_state_with_timeout_not_exceeded(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            state = await future.wait(1)
+            assert state is not None
+            assert state.is_completed()
+
+        (await my_flow()).result()
+
+    async def test_result_raises_with_timeout_exceeded(self):
+        @task
+        async def foo():
+            await anyio.sleep(0.1)
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            with pytest.raises(TimeoutError):
+                await future.result(timeout=0.01)
+
+        (await my_flow()).result()
+
+    async def test_result_returns_data_with_timeout_not_exceeded(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result(timeout=1)
+            assert result == 1
+
+        (await my_flow()).result()
+
+    async def test_result_returns_data_without_timeout(self):
+        @task
+        async def foo():
+            return 1
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result()
+            assert result == 1
+
+        (await my_flow()).result()
+
+    async def test_result_raises_exception_from_task(self):
+        @task
+        async def foo():
+            raise ValueError("Test")
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            with pytest.raises(ValueError, match="Test"):
+                await future.result()
+            return True  # Ignore failed tasks
+
+        (await my_flow()).result()
+
+    async def test_result_returns_exception_from_task_if_asked(self):
+        @task
+        async def foo():
+            raise ValueError("Test")
+
+        @flow
+        async def my_flow():
+            future = await foo()
+            result = await future.result(raise_on_failure=False)
+            assert exceptions_equal(result, ValueError("Test"))
+            return True  # Ignore failed tasks
+
+        (await my_flow()).result()
 
 
 class TestTaskRetries:
@@ -314,13 +444,13 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo(1)
-            calls = repeat(foo(1), 5)
+            foo(1).wait()  # populate the cache
+            calls = [foo(i) for i in range(5)]
             return [call.wait() for call in calls]
 
         flow_state = bar()
         states = flow_state.result()
-        assert all(state.name == "Cached" for state in states)
+        assert all(state.name == "Cached" for state in states), states
 
     def test_cache_hits_between_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
@@ -483,6 +613,113 @@ class TestCacheFunctionBuiltins:
         assert third_state.name == "Cached"
         assert first_state.result() != second_state.result()
         assert first_state.result() == third_state.result() == 1
+
+    def test_task_input_hash_works_with_object_return_types(self):
+        """
+        This is a regression test for a weird bug where `task_input_hash` would always
+        use cloudpickle to generate the hash since we were passing in the raw function
+        which is not JSON serializable. In this case, the return value could affect
+        the pickle which would change the hash across runs. To fix this,
+        `task_input_hash` hashes the function before passing data to `hash_objects` so
+        the JSON serializer can be used.
+        """
+
+        class TestClass:
+            def __init__(self, x):
+                self.x = x
+
+            def __eq__(self, other) -> bool:
+                return type(self) == type(other) and self.x == other.x
+
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return TestClass(x)
+
+        @flow
+        def bar():
+            return foo(1).wait(), foo(2).wait(), foo(1).wait()
+
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result()
+
+    def test_task_input_hash_works_with_object_input_types(self):
+        class TestClass:
+            def __init__(self, x):
+                self.x = x
+
+            def __eq__(self, other) -> bool:
+                return type(self) == type(other) and self.x == other.x
+
+        @task(cache_key_fn=task_input_hash)
+        def foo(instance):
+            return instance.x
+
+        @flow
+        def bar():
+            return (
+                foo(TestClass(1)).wait(),
+                foo(TestClass(2)).wait(),
+                foo(TestClass(1)).wait(),
+            )
+
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert third_state.name == "Cached"
+
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result() == 1
+
+    def test_task_input_hash_depends_on_task_key_and_code(self):
+        @task(cache_key_fn=task_input_hash)
+        def foo(x):
+            return x
+
+        def foo_new_code(x):
+            return x + 1
+
+        def foo_same_code(x):
+            return x
+
+        @task(cache_key_fn=task_input_hash)
+        def bar(x):
+            return x
+
+        @flow
+        def my_flow():
+            first = foo(1).wait()
+            foo.fn = foo_same_code
+            second = foo(1).wait()
+            foo.fn = foo_new_code
+            third = foo(1).wait()
+            fourth = bar(1).wait()
+            fifth = bar(1).wait()
+            return first, second, third, fourth, fifth
+
+        flow_state = my_flow()
+        (
+            first_state,
+            second_state,
+            third_state,
+            fourth_state,
+            fifth_state,
+        ) = flow_state.result()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert third_state.name == "Completed"
+        assert fourth_state.name == "Completed"
+        assert fifth_state.name == "Cached"
+
+        assert first_state.result() == second_state.result() == 1
+        assert first_state.result() != third_state.result()
+        assert fourth_state.result() == fifth_state.result() == 1
 
 
 class TestTaskRunTags:
@@ -930,3 +1167,92 @@ class TestTaskRunLogs:
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
+
+
+class TestTaskWithOptions:
+    def test_with_options_allows_override_of_task_settings(self):
+        def first_cache_key_fn(*_):
+            return "first cache hit"
+
+        def second_cache_key_fn(*_):
+            return "second cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before with options",
+            tags=["tag1", "tag2"],
+            cache_key_fn=first_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(
+            name="Copied task",
+            description="A copied task",
+            tags=["tag3", "tag4"],
+            cache_key_fn=second_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=2),
+            retries=5,
+            retry_delay_seconds=10,
+        )
+
+        assert task_with_options.name == "Copied task"
+        assert task_with_options.description == "A copied task"
+        assert set(task_with_options.tags) == {"tag3", "tag4"}
+        assert task_with_options.cache_key_fn is second_cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=2)
+        assert task_with_options.retries == 5
+        assert task_with_options.retry_delay_seconds == 10
+
+    def test_with_options_uses_existing_settings_when_no_override(self):
+        def cache_key_fn(*_):
+            return "cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before with options",
+            tags=["tag1", "tag2"],
+            cache_key_fn=cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options()
+
+        assert task_with_options is not initial_task
+        assert task_with_options.name == "Initial task"
+        assert task_with_options.description == "Task before with options"
+        assert set(task_with_options.tags) == {"tag1", "tag2"}
+        assert task_with_options.tags is not initial_task.tags
+        assert task_with_options.cache_key_fn is cache_key_fn
+        assert task_with_options.cache_expiration == datetime.timedelta(days=1)
+        assert task_with_options.retries == 2
+        assert task_with_options.retry_delay_seconds == 5
+
+    def test_tags_are_copied_from_original_task(self):
+        "Ensure changes to the tags on the original task don't affect the new task"
+
+        @task(name="Initial task", tags=["tag1", "tag2"])
+        def initial_task():
+            pass
+
+        with_options_task = initial_task.with_options(name="With options task")
+        initial_task.tags.add("tag3")
+
+        assert initial_task.tags == {"tag1", "tag2", "tag3"}
+        assert with_options_task.tags == {"tag1", "tag2"}
+
+    def test_with_options_signature_aligns_with_task_signature(self):
+        task_params = dict(inspect.signature(task).parameters)
+        with_options_params = dict(inspect.signature(Task.with_options).parameters)
+        # `with_options` does not accept a new function
+        task_params.pop("__fn")
+        # `self` isn't in task decorator
+        with_options_params.pop("self")
+        assert task_params == with_options_params

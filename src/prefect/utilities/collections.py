@@ -25,8 +25,9 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
-import prefect
 
+import prefect
+from prefect.utilities.asyncio import gather
 
 T = TypeVar("T")
 KT = TypeVar("KT")
@@ -196,8 +197,13 @@ async def visit_collection(
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
     """
-    # package the provided arguments for recursive calls
-    recurse = partial(visit_collection, visit_fn=visit_fn, return_data=return_data)
+
+    def visit_nested(expr):
+        # Utility for a recursive call, preserving options.
+        # Returns a `partial` for use with `gather`.
+        return partial(
+            visit_collection, expr, visit_fn=visit_fn, return_data=return_data
+        )
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
@@ -208,16 +214,21 @@ async def visit_collection(
         return expr if return_data else None
 
     elif typ in (list, tuple, set):
-        result = [await recurse(o) for o in expr]
+        result = await gather(*[visit_nested(o) for o in expr])
         return typ(result) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
-        return typ(result) if return_data else None
+        keys, values = zip(*expr.items()) if expr else ([], [])
+        keys = await gather(*[visit_nested(k) for k in keys])
+        values = await gather(*[visit_nested(v) for v in values])
+        return typ(zip(keys, values)) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
-        result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
+        values = await gather(
+            *[visit_nested(getattr(expr, f.name)) for f in fields(expr)]
+        )
+        result = {field.name: value for field, value in zip(fields(expr), values)}
         return typ(**result) if return_data else None
 
     elif (
@@ -226,7 +237,10 @@ async def visit_collection(
         and not isinstance(expr, prefect.orion.schemas.states.State)
         and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
     ):
-        result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
+        values = await gather(
+            *[visit_nested(getattr(expr, field)) for field in expr.__fields__]
+        )
+        result = {field: value for field, value in zip(expr.__fields__, values)}
         return typ(**result) if return_data else None
 
     else:

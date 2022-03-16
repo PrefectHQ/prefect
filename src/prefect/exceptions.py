@@ -1,10 +1,12 @@
 """
 Prefect-specific exceptions.
 """
-from rich.traceback import Traceback
-import prefect
-from typing import Iterable
 from types import ModuleType, TracebackType
+from typing import Iterable
+
+from rich.traceback import Traceback
+
+import prefect
 
 
 def _trim_traceback(tb: TracebackType, remove_modules: Iterable[ModuleType]):
@@ -122,10 +124,47 @@ class ParameterTypeError(PrefectException):
     pass
 
 
+class ObjectNotFound(PrefectException):
+    """
+    Raised when the client receives a 404 (not found) from the API.
+    """
+
+    def __init__(self, http_exc: Exception, *args, **kwargs):
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
+class ObjectAlreadyExists(PrefectException):
+    """
+    Raised when the client receives a 409 (conflict) from the API.
+    """
+
+    def __init__(self, http_exc: Exception, *args, **kwargs):
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
 class UpstreamTaskError(PrefectException):
     """
     Raised when a task relies on the result of another task but that task is not
     'COMPLETE'
+    """
+
+    pass
+
+
+class MissingContextError(PrefectException, RuntimeError):
+    """
+    Raised when a method is called that requires a task or flow run context to be
+    active but one cannot be found.
+    """
+
+    pass
+
+
+class MissingProfileError(PrefectException, ValueError):
+    """
+    Raised when a profile name does not exist.
     """
 
     pass

@@ -8,7 +8,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -132,12 +132,12 @@ async def _apply_flow_filters(
     """
 
     if flow_filter:
-        query = query.where(flow_filter.as_sql_filter())
+        query = query.where(flow_filter.as_sql_filter(db))
 
     if deployment_filter:
         exists_clause = select(db.Deployment).where(
             db.Deployment.flow_id == db.Flow.id,
-            deployment_filter.as_sql_filter(),
+            deployment_filter.as_sql_filter(db),
         )
         query = query.where(exists_clause.exists())
 
@@ -145,13 +145,13 @@ async def _apply_flow_filters(
         exists_clause = select(db.FlowRun).where(db.FlowRun.flow_id == db.Flow.id)
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
 
         if task_run_filter:
             exists_clause = exists_clause.join(
                 db.TaskRun,
                 db.TaskRun.flow_run_id == db.FlowRun.id,
-            ).where(task_run_filter.as_sql_filter())
+            ).where(task_run_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
@@ -166,6 +166,7 @@ async def read_flows(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
     offset: int = None,
     limit: int = None,
 ):
@@ -185,7 +186,7 @@ async def read_flows(
         List[db.Flow]: flows
     """
 
-    query = select(db.Flow).order_by(db.Flow.name)
+    query = select(db.Flow).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_flow_filters(
         query,
