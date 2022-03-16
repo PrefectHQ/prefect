@@ -1,7 +1,7 @@
 <template>
   <StateBucketIntervalBarChart
     title="Run Time"
-    property="sum_estimated_run_time"
+    property="sumEstimatedRunTime"
     v-bind="{ filter }"
   >
     <template #popover-header>
