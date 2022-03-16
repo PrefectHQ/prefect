@@ -47,11 +47,12 @@ Examples:
 
 import pathlib
 import sys
+import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple
+from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple
 from uuid import UUID
 
 import fsspec
@@ -59,6 +60,7 @@ import yaml
 from pydantic import validator
 
 import prefect.orion.schemas as schemas
+from prefect.blocks.storage import LocalStorageBlock, StorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
@@ -67,7 +69,7 @@ from prefect.exceptions import (
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
 )
-from prefect.flow_runners import FlowRunner
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
 from prefect.flows import Flow
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -109,7 +111,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    push_location: str = None
+    storage: Optional[StorageBlock] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -185,23 +187,7 @@ class DeploymentSpec(PrefectBaseModel):
         if not self.name and self.flow_name:
             self.name = self.flow_name
 
-        # The push location may not be a local path
-
-        if self.push_location and is_local_path(self.push_location):
-            raise SpecValidationError(
-                f"`push_location` must be a remote path. Got {self.push_location!r}."
-            )
-
     # Methods --------------------------------------------------------------------------
-
-    def should_push(self):
-        """
-        We push if the location is set _or_ the location is unset but the source
-        location is a local path.
-        """
-        return (
-            not self.push_location and is_local_path(self.flow_location)
-        ) or self.push_location
 
     @sync_compatible
     @inject_client
@@ -213,19 +199,35 @@ class DeploymentSpec(PrefectBaseModel):
 
         flow_id = await client.create_flow(self.flow)
 
-        if self.should_push():
-            # Push to the server
-            with fsspec.open(self.flow_location, "rb") as flow_file:
-                flow_bytes = flow_file.read()
+        # Retrieve the storage block to use
+        storage = self.storage or await client.get_default_storage_block()
+        no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
-            if not self.push_location:
-                flow_data = await client.persist_data(flow_bytes)
-            else:
-                flow_data = DataDocument.encode(
-                    "file", flow_bytes, path=self.push_location
+        if isinstance(self.flow_runner, SubprocessFlowRunner):
+            if not storage:
+                warnings.warn(
+                    f"{no_storage_message}. This deployment will only be usable from the current machine."
                 )
         else:
-            flow_data = DataDocument(encoding="file", blob=self.flow_location.encode())
+            # All other flow runners require remote storage, ensure we've been given one
+            flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
+            if not storage:
+                raise RuntimeError(f"{no_storage_message} but {flow_runner_message}.")
+            elif isinstance(storage, LocalStorageBlock):
+                raise RuntimeError(
+                    f"You have configured local storage but {flow_runner_message}."
+                )
+
+        # Read the flow file
+        with fsspec.open(self.flow_location, "rb") as flow_file:
+            flow_bytes = flow_file.read()
+
+        # Write the flow to storage
+        storage_token = await storage.write(flow_bytes)
+        flow_data = DataDocument.encode(
+            encoding="blockstorage",
+            data={"data": storage_token, "block_id": storage._block_id},
+        )
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
