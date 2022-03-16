@@ -245,13 +245,13 @@ class OrionClient:
 
     # API methods ----------------------------------------------------------------------
 
-    async def api_healthcheck(self) -> bool:
+    async def api_healthcheck(self) -> Optional[Exception]:
         try:
             with anyio.fail_after(10):
                 await self._client.get("/health")
                 return True
-        except:
-            return False
+        except Exception as exc:
+            return exc
 
     async def hello(self) -> httpx.Response:
         """
