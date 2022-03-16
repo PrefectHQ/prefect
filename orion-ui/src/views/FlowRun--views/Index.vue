@@ -378,14 +378,6 @@
     return flowRun.value?.tags || []
   })
 
-  const taskRunsCount = computed(() => {
-    return queries.task_runs_count.response?.value || 0
-  })
-
-  const subFlowRunsCount = computed(() => {
-    return queries.sub_flow_runs_count.response?.value || 0
-  })
-
   const taskRuns = computed<TaskRun[]>(() => {
     return queries.task_runs.response?.value || []
   })
