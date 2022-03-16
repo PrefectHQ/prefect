@@ -18,6 +18,7 @@
 }
 
 .label-wrapper__super {
+  display: block;
   font-size: 13px;
   font-family: "input-sans";
   line-height: 18px;
