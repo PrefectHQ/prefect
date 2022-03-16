@@ -352,12 +352,15 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     ## Connecting to a locally hosted API
 
-    If using a local API URL, we will update the network mode default to 'host' to
-    enable connectivity. If the default network mode of 'bridge' is desired, we will
-    replace 'localhost' in the API URL with 'host.docker.internal' which will allow
-    connectivity if your API is bound to 0.0.0.0 or the Docker IP address. In either
-    case, the API URL can be provided as an environment variable to override inference.
+    If using a local API URL on Linux, we will update the network mode default to 'host'
+    to enable connectivity. If using another OS or an alternative network mode is used,
+    we will replace 'localhost' in the API URL with 'host.docker.internal'. Generally,
+    this will enable connectivity, but the API URL can be provided as an environment
+    variable to override inference in more complex use-cases.
 
+    Note, if using 'host.docker.internal' in the API URL on Linux, the API must be bound
+    to 0.0.0.0 or the Docker IP address to allow connectivity. On macOS, this is not
+    necessary and the API is connectable while bound to localhost.
     """
 
     typename: Literal["docker"] = "docker"
@@ -500,6 +503,11 @@ class DockerFlowRunner(UniversalFlowRunner):
         # User's value takes precedence; this may collide with the incompatible options
         # mentioned below.
         if self.network_mode:
+            if sys.platform != "linux" and self.network_mode == "host":
+                warnings.warn(
+                    f"{self.network_mode!r} network mode is not supported on platform "
+                    f"{sys.platform!r} and may not work as intended."
+                )
             return self.network_mode
 
         # Network mode is not compatible with networks or ports (we do not support ports
@@ -513,13 +521,17 @@ class DockerFlowRunner(UniversalFlowRunner):
         if api_url:
             try:
                 _, netloc, _, _, _, _ = urllib.parse.urlparse(api_url)
-            except:
+            except Exception as exc:
+                warnings.warn(
+                    f"Failed to parse host from API URL {api_url!r} with exception: "
+                    f"{exc}\nThe network mode will not be inferred."
+                )
                 return None
 
             host = netloc.split(":")[0]
 
-            # If using a locally hosted API, use a host network
-            if host == "127.0.0.1" or host == "localhost":
+            # If using a locally hosted API, use a host network on linux
+            if sys.platform == "linux" and (host == "127.0.0.1" or host == "localhost"):
                 return "host"
 
         # Default to unset
