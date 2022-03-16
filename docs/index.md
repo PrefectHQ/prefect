@@ -1,5 +1,5 @@
 
-![](./img/logos/prefect-orion-constellation-banner-light.png)
+![](./img/logos/prefect-2-logo-dark.png)
 
 #
 
