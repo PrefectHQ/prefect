@@ -1,8 +1,8 @@
-import { State, StateName } from '@/types/states'
+import { State } from '@/types/states'
 
 export type IStateHistory = {
   stateType: State,
-  stateName: StateName,
+  stateName: string,
   countRuns: number,
   sumEstimatedRunTime: number,
   sumEstimatedLateness: number,
@@ -10,7 +10,7 @@ export type IStateHistory = {
 
 export class StateHistory implements IStateHistory {
   public readonly stateType: State
-  public readonly stateName: StateName
+  public readonly stateName: string
   public readonly countRuns: number
   public readonly sumEstimatedRunTime: number
   public readonly sumEstimatedLateness: number
