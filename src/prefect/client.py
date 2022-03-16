@@ -249,7 +249,7 @@ class OrionClient:
         try:
             with anyio.fail_after(10):
                 await self._client.get("/health")
-                return True
+                return None
         except Exception as exc:
             return exc
 
