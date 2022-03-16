@@ -26,26 +26,23 @@
   </teleport>
 </template>
 
-<script lang="ts">
-  import { Vue, Options, prop } from 'vue-class-component'
+<script lang="ts" setup>
+  import { withDefaults } from 'vue'
 
-  class Props {
-    modelValue = prop<boolean>({ default: false, required: false })
-    showOverlay = prop<boolean>({
-      default: false,
-      required: false,
-      type: Boolean,
-    })
-    target = prop<string>({ default: '#app', required: false })
-  }
-
-  @Options({
-    emits: ['update:modelValue'],
+  withDefaults(defineProps<{
+    modelValue?: boolean,
+    showOverlay?: boolean,
+    target?: string,
+  }>(), {
+    target: '#app',
   })
-  export default class Drawer extends Vue.with(Props) {
-    close() {
-      this.$emit('update:modelValue', false)
-    }
+
+  const emit = defineEmits<{
+    (event: 'update:modelValue', value: boolean): void,
+  }>()
+
+  function close(): void {
+    emit('update:modelValue', false)
   }
 </script>
 
