@@ -214,7 +214,7 @@ async def create(path: str):
 
     for spec, src in specs.items():
         try:
-            spec.validate()
+            await spec.validate()
         except SpecValidationError as exc:
             console.print(
                 f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
@@ -229,14 +229,10 @@ async def create(path: str):
                 f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
             )
             source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
-            target = (
-                f"[green]{str(spec.push_location)!r}[/]"
-                if spec.push_location
-                else "server"
+            console.print(
+                f"Deploying {source} using {spec.storage._block_spec_name}..."
             )
-            if spec.should_push():
-                console.print(f"Pushing {source} to {target}...")
-            await spec.create_deployment()
+            await spec.create_deployment(validate=False)
         except Exception as exc:
             console.print(exception_traceback(exc))
             console.print(f"Failed to create deployment {stylized_name}", style="red")

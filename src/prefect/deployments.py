@@ -57,7 +57,7 @@ from uuid import UUID
 
 import fsspec
 import yaml
-from pydantic import validator
+from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock
@@ -69,7 +69,7 @@ from prefect.exceptions import (
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
 )
-from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner, UniversalFlowRunner
 from prefect.flows import Flow
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -115,7 +115,7 @@ class DeploymentSpec(PrefectBaseModel):
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
-    flow_runner: FlowRunner = None
+    flow_runner: FlowRunner = Field(default_factory=UniversalFlowRunner)
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -132,7 +132,9 @@ class DeploymentSpec(PrefectBaseModel):
             return abspath(value)
         return value
 
-    def validate(self):
+    @sync_compatible
+    @inject_client
+    async def validate(self, client: OrionClient):
 
         # Ensure either flow location or flow were provided
 
@@ -187,46 +189,53 @@ class DeploymentSpec(PrefectBaseModel):
         if not self.name and self.flow_name:
             self.name = self.flow_name
 
+        # Determine the storage block
+
+        self.storage = self.storage or await client.get_default_storage_block()
+        no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
+
+        if isinstance(self.flow_runner, SubprocessFlowRunner):
+            if not self.storage:
+                warnings.warn(
+                    f"{no_storage_message}. This deployment will only be usable from the current machine."
+                )
+                self.storage = LocalStorageBlock()
+        else:
+            # All other flow runners require remote storage, ensure we've been given one
+            flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
+            if not self.storage:
+                raise SpecValidationError(
+                    f"{no_storage_message} but {flow_runner_message}."
+                )
+            elif isinstance(self.storage, LocalStorageBlock):
+                raise SpecValidationError(
+                    f"You have configured local storage but {flow_runner_message}."
+                )
+
     # Methods --------------------------------------------------------------------------
 
     @sync_compatible
     @inject_client
-    async def create_deployment(self, client: OrionClient) -> UUID:
+    async def create_deployment(
+        self, client: OrionClient, validate: bool = True
+    ) -> UUID:
         """
         Create a deployment from the current specification.
         """
-        self.validate()
+        if validate:
+            await self.validate()
 
         flow_id = await client.create_flow(self.flow)
-
-        # Retrieve the storage block to use
-        storage = self.storage or await client.get_default_storage_block()
-        no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
-
-        if isinstance(self.flow_runner, SubprocessFlowRunner):
-            if not storage:
-                warnings.warn(
-                    f"{no_storage_message}. This deployment will only be usable from the current machine."
-                )
-        else:
-            # All other flow runners require remote storage, ensure we've been given one
-            flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
-            if not storage:
-                raise RuntimeError(f"{no_storage_message} but {flow_runner_message}.")
-            elif isinstance(storage, LocalStorageBlock):
-                raise RuntimeError(
-                    f"You have configured local storage but {flow_runner_message}."
-                )
 
         # Read the flow file
         with fsspec.open(self.flow_location, "rb") as flow_file:
             flow_bytes = flow_file.read()
 
         # Write the flow to storage
-        storage_token = await storage.write(flow_bytes)
+        storage_token = await self.storage.write(flow_bytes)
         flow_data = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": storage._block_id},
+            data={"data": storage_token, "block_id": self.storage._block_id},
         )
 
         deployment_id = await client.create_deployment(
