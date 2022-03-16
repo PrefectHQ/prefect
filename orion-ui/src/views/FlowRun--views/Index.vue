@@ -409,11 +409,15 @@
   ]
 
   const duration = computed(() => {
-    return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
-      ? '--'
-      : flowRun.value.total_run_time
-        ? secondsToApproximateString(flowRun.value.total_run_time)
-        : secondsToApproximateString(flowRun.value.estimated_run_time)
+    if (state.value.type == 'PENDING' || state.value.type == 'SCHEDULED') {
+      return '--'
+    }
+
+    if (flowRun.value.total_run_time) {
+      return secondsToApproximateString(flowRun.value.total_run_time)
+    }
+
+    return secondsToApproximateString(flowRun.value.estimated_run_time)
   })
 
   // This cleanup is necessary since the initial flow run query isn't
