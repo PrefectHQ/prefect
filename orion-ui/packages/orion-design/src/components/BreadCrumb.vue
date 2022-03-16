@@ -1,31 +1,42 @@
 <template>
-  <template v-if="crumb.loading">
-    <div class="bread-crumb--loading">
-      <span v-skeleton="true">
-        Loading...
-      </span>
-    </div>
-  </template>
-  <template v-else>
-    <component
-      :is="component"
-      class="bread-crumb"
-      :class="classes.crumb"
-      :to="crumb.to"
-    >
+  <component
+    :is="component"
+    class="bread-crumb"
+    :class="classes.crumb"
+    :to="to"
+    @click="callback"
+  >
+    <span v-if="crumb.loading" v-skeleton="true" class="bread-crumb__loading">
+      Loading...
+    </span>
+    <span v-else>
       {{ crumb.text }}
-    </component>
-  </template>
+    </span>
+  </component>
 </template>
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { Crumb } from '@/models/Crumb'
+  import { Crumb, crumbIsCallback, crumbIsRouting } from '@/models/Crumb'
 
   const props = defineProps<{ crumb: Crumb }>()
 
-  const showClickable = computed(() => typeof props.crumb.clickable === 'boolean' ? props.crumb.clickable : !!props.crumb.to)
-  const component = computed(() => showClickable.value && props.crumb.to ? 'router-link' : 'div')
+  const to = computed(() => {
+    return crumbIsRouting(props.crumb) ? props.crumb.action : undefined
+  })
+
+  const callback = computed(() => {
+    return crumbIsCallback(props.crumb) ? props.crumb.action : undefined
+  })
+
+  const showClickable = computed(() => {
+    return !!to.value || !!callback.value
+  })
+
+  const component = computed(() => {
+    return !props.crumb.loading && showClickable.value && !!to.value ? 'router-link' : 'span'
+  })
+
   const classes = computed(() => ({
     crumb: {
       'bread-crumb--clickable': showClickable.value,
@@ -34,10 +45,6 @@
 </script>
 
 <style lang="scss">
-.bread-crumb--loading {
-  overflow: hidden;
-}
-
 .bread-crumb--clickable {
   color: var(--primary);
 }
