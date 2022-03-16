@@ -8,7 +8,13 @@ import pendulum
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.cli.base import (
+    PrefectTyper,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.client import get_client
 from prefect.deployments import (
     deployment_specs_from_script,
@@ -137,10 +143,17 @@ async def execute(name: str):
 
     async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
+        console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
-    flow(**parameters)
+    console.print("Running flow...")
+    state = flow(**parameters)
+
+    if state.is_failed():
+        exit_with_error("Flow run failed!")
+    else:
+        exit_with_success("Flow run completed!")
 
 
 @deployment_app.command()
