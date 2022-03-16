@@ -124,7 +124,8 @@
     toPluralString,
     UnionFilters,
     FlowRunsHistoryFilter,
-    DeploymentsFilter
+    DeploymentsFilter,
+    ButtonCard
   } from '@prefecthq/orion-design'
   import { subscribe } from '@prefecthq/vue-compositions/src'
   import { computed, ref, ComputedRef } from 'vue'
