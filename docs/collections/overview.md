@@ -8,13 +8,13 @@ By using Prefect Collections, you can reduce the amount of boilerplate code that
 
 ## Usage
 
-To use a Prefect Collection, first install the collection via `pip`:
+To use a Prefect Collection, first install the collection via `pip`. As an example, to use `prefect-aws`:
 
 ```bash
 pip install prefect-aws
 ```
 
-The tasks and flows in that collection can then be imported and called within your flow:
+The AWS tasks and flows in that collection can then be imported and called within your flow:
 
 ```python
 from prefect import flow
@@ -38,7 +38,7 @@ def connect_to_database():
 
 ## Available Collections
 
-To see the list of available Prefect Collections and links to each collection's GiHub repository and documentation, please refer to the [Collection Catalog](catalog.md) in the Prefect documentation.
+To see the list of available Prefect Collections and links to each collection's GitHub repository and documentation, please refer to the [Collection Catalog](catalog.md) in the Prefect documentation.
 
 ## Contributing Collections
 
