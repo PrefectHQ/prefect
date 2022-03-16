@@ -12,8 +12,8 @@ import prefect
 def _trim_traceback(tb: TracebackType, remove_modules: Iterable[ModuleType]):
     strip_paths = [module.__file__ for module in remove_modules]
 
-    while any(
-        module_path in str(tb.tb_frame.f_globals["__file__"])
+    while tb and any(
+        module_path in str(tb.tb_frame.f_globals.get("__file__", ""))
         for module_path in strip_paths
     ):
         tb = tb.tb_next
