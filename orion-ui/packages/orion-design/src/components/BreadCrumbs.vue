@@ -73,7 +73,7 @@
 }
 
 .bread-crumbs__crumb {
-  vertical-align: bottom;
+  vertical-align: baseline;
 }
 
 .bread-crumbs__crumb--inline {
