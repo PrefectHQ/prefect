@@ -48,9 +48,7 @@ Orion is alpha software and we do not recommend Orion for production use at this
 
 ### How is Orion licensed?
 
-The Orion technical preview is licensed under the [Prefect Community License 1.0](https://www.prefect.io/legal/prefect-community-license), a highly permissive open-source license. The Prefect Community License places no restrictions on use except for distributing Prefect Orion as a service outside your organization. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
-
-As Orion matures, most or all of its components will be released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
+The Orion technical preview is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
 ## Features
 
@@ -163,7 +161,7 @@ Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. 
 
 Orion does not have any additional requirements besides those installed by `pip install prefect>=2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use PostgreSQL, users must provide the [connection string][prefect.utilities.settings.DatabaseSettings.connection_url] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
+To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
 
 ### What databases does Orion support?
 

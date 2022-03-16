@@ -5,12 +5,13 @@ Routes for interacting with log objects.
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Depends, Response, Body
+from fastapi import Body, Depends, Response
 from starlette import status
 
-from prefect import settings
-from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+import prefect.orion.api.dependencies as dependencies
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
+import prefect.settings
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/logs", tags=["Logs"])
@@ -29,9 +30,7 @@ async def create_logs(
 
 @router.post("/filter")
 async def read_logs(
-    limit: int = Body(
-        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
-    ),
+    limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,
     sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),

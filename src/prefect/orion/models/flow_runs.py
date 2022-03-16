@@ -4,27 +4,29 @@ Intended for internal use by the Orion API.
 """
 
 import contextlib
+import datetime
+from itertools import chain
+from typing import List, Optional
 from uuid import UUID
 
-from itertools import chain
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from typing import List, Optional
 
-from prefect.orion import models, schemas
-from prefect.orion.orchestration.core_policy import CoreFlowPolicy
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.orchestration.core_policy import CoreFlowPolicy, MinimalFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy, NullPolicy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.schemas.states import State
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 @inject_db
@@ -174,12 +176,12 @@ async def _apply_flow_run_filters(
     """
 
     if flow_run_filter:
-        query = query.where(flow_run_filter.as_sql_filter())
+        query = query.where(flow_run_filter.as_sql_filter(db))
 
     if deployment_filter:
         exists_clause = select(db.Deployment).where(
             db.Deployment.id == db.FlowRun.deployment_id,
-            deployment_filter.as_sql_filter(),
+            deployment_filter.as_sql_filter(db),
         )
         query = query.where(exists_clause.exists())
 
@@ -188,7 +190,7 @@ async def _apply_flow_run_filters(
         if flow_filter:
             exists_clause = select(db.Flow).where(
                 db.Flow.id == db.FlowRun.flow_id,
-                flow_filter.as_sql_filter(),
+                flow_filter.as_sql_filter(db),
             )
 
         if task_run_filter:
@@ -203,7 +205,7 @@ async def _apply_flow_run_filters(
                 )
             exists_clause = exists_clause.where(
                 db.FlowRun.id == db.TaskRun.flow_run_id,
-                task_run_filter.as_sql_filter(),
+                task_run_filter.as_sql_filter(db),
             )
 
         query = query.where(exists_clause.exists())
@@ -240,7 +242,7 @@ async def read_flow_runs(
         List[db.FlowRun]: flow runs
     """
 
-    query = select(db.FlowRun).order_by(sort.as_sql_sort())
+    query = select(db.FlowRun).order_by(sort.as_sql_sort(db))
 
     query = await _apply_flow_run_filters(
         query,
@@ -265,6 +267,11 @@ class DependencyResult(PrefectBaseModel):
     id: UUID
     upstream_dependencies: List[TaskRunResult]
     state: State
+    expected_start_time: Optional[datetime.datetime]
+    start_time: Optional[datetime.datetime]
+    end_time: Optional[datetime.datetime]
+    total_run_time: Optional[datetime.timedelta]
+    estimated_run_time: Optional[datetime.timedelta]
 
 
 async def read_task_run_dependencies(
@@ -296,6 +303,11 @@ async def read_task_run_dependencies(
                 "id": task_run.id,
                 "upstream_dependencies": inputs,
                 "state": task_run.state,
+                "expected_start_time": task_run.expected_start_time,
+                "start_time": task_run.start_time,
+                "end_time": task_run.end_time,
+                "total_run_time": task_run.total_run_time,
+                "estimated_run_time": task_run.estimated_run_time,
             }
         )
 
@@ -404,7 +416,7 @@ async def set_flow_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     if force or flow_policy is None:
-        flow_policy = NullPolicy
+        flow_policy = MinimalFlowPolicy
 
     orchestration_rules = flow_policy.compile_transition_rules(*intended_transition)
     global_rules = GlobalFlowPolicy.compile_transition_rules(*intended_transition)

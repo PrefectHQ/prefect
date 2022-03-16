@@ -7,7 +7,7 @@ from typing import List
 import sqlalchemy as sa
 from sqlalchemy import select
 
-from prefect.orion import schemas
+import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
@@ -53,10 +53,10 @@ async def read_logs(
     Returns:
         List[db.Log]: the matching logs
     """
-    query = select(db.Log).order_by(sort.as_sql_sort()).offset(offset).limit(limit)
+    query = select(db.Log).order_by(sort.as_sql_sort(db)).offset(offset).limit(limit)
 
     if log_filter:
-        query = query.where(log_filter.as_sql_filter())
+        query = query.where(log_filter.as_sql_filter(db))
 
     result = await session.execute(query)
     return result.scalars().unique().all()

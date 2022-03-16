@@ -11,24 +11,24 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import app, console, exit_with_error
-from prefect.client import OrionClient
+from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.client import get_client
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
-from prefect.utilities.asyncio import sync_compatible
 
-flow_run_app = typer.Typer(name="flow-run")
+flow_run_app = PrefectTyper(
+    name="flow-run", help="Commands for interacting with flow runs."
+)
 app.add_typer(flow_run_app)
 
 
 @flow_run_app.command()
-@sync_compatible
 async def inspect(id: UUID):
     """
-    View details about a flow run
+    View details about a flow run.
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         try:
             flow_run = await client.read_flow_run(id)
         except httpx.HTTPStatusError as exc:
@@ -41,7 +41,6 @@ async def inspect(id: UUID):
 
 
 @flow_run_app.command()
-@sync_compatible
 async def ls(
     flow_name: List[str] = None,
     limit: int = 15,
@@ -50,7 +49,7 @@ async def ls(
     """
     View recent flow runs or flow runs for specific flows
     """
-    async with OrionClient() as client:
+    async with get_client() as client:
         flow_runs = await client.read_flow_runs(
             flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None,
             flow_run_filter=(
@@ -68,7 +67,13 @@ async def ls(
             )
         }
 
-    table = Table("flow", "name", "id", "state", "when")
+    table = Table(title="Flow Runs")
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Flow", style="blue", no_wrap=True)
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("State", no_wrap=True)
+    table.add_column("When", style="bold", no_wrap=True)
+
     for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
         flow = flows_by_id[flow_run.flow_id]
         timestamp = (
@@ -77,10 +82,10 @@ async def ls(
             else flow_run.state.timestamp
         )
         table.add_row(
-            f"[blue]{flow.name}[/]",
-            f"[bold blue]{flow_run.name}[/]",
-            f"[green]{flow_run.id}[/]",
-            f"[bold]{flow_run.state.type.value}[/]",
+            str(flow_run.id),
+            str(flow.name),
+            str(flow_run.name),
+            str(flow_run.state.type.value),
             pendulum.instance(timestamp).diff_for_humans(),
         )
 

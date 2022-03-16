@@ -64,8 +64,8 @@ async def test_loop_service_loops_kwarg():
 
 async def test_loop_service_startup_shutdown():
     class Service(LoopService):
-        loop_seconds = 0
         state = []
+        loop_seconds = 0
 
         async def setup(self):
             self.state.append("setup")
@@ -87,7 +87,8 @@ async def test_early_stop():
     """Test that stop criterion is evaluated without waiting for loop_seconds"""
 
     class Service(LoopService):
-        loop_seconds = 1000
+        def __init__(self, loop_seconds: float = 1000):
+            super().__init__(loop_seconds)
 
         async def run_once(self):
             pass

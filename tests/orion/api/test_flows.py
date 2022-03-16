@@ -1,4 +1,4 @@
-from uuid import uuid4, UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import pydantic
@@ -216,6 +216,19 @@ class TestReadFlows:
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
+
+    async def test_read_flows_sort(self, flows, client):
+        response = await client.post(
+            "/flows/filter", json=dict(sort=schemas.sorting.FlowSort.NAME_ASC)
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["name"] == "my-flow-1"
+
+        response_desc = await client.post(
+            "/flows/filter", json=dict(sort=schemas.sorting.FlowSort.NAME_DESC)
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json()[0]["name"] == "my-flow-2"
 
     async def test_read_flows_returns_empty_list(self, client):
         response = await client.post("/flows/filter")

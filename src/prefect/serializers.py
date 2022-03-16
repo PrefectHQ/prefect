@@ -7,13 +7,14 @@ import base64
 import json
 import warnings
 from typing import Any
+from uuid import UUID
 
 import cloudpickle
 import pydantic
 
-from prefect.orion.serializers import register_serializer
+from prefect.client import get_client, inject_client
 from prefect.orion.schemas.data import DataDocument
-from prefect.client import OrionClient, inject_client
+from prefect.orion.serializers import register_serializer
 
 
 @register_serializer("json")
@@ -51,17 +52,12 @@ class PickleSerializer:
     """
     Serializes arbitrary objects using the pickle protocol.
 
-    Wraps `cloudpickle` to encode bytes in base64 for safe transmission and handle
-    objects that cannot be serialized without throwing an exception.
+    Wraps `cloudpickle` to encode bytes in base64 for safe transmission.
     """
 
     @staticmethod
     def dumps(data: Any) -> bytes:
-        try:
-            data_bytes = cloudpickle.dumps(data)
-        except Exception:
-            warnings.warn(f"Failed to pickle data of type {type(data)}", stacklevel=3)
-            data_bytes = cloudpickle.dumps(repr(data))
+        data_bytes = cloudpickle.dumps(data)
 
         return base64.encodebytes(data_bytes)
 
@@ -72,3 +68,30 @@ class PickleSerializer:
         #       more helpful errors for users.
         #       A TypeError("expected bytes-like object, not int") will be raised if
         #       a document is deserialized by Python 3.7 and serialized by 3.8+
+
+
+@register_serializer(encoding="blockstorage")
+class BlockStorageSerializer:
+    @staticmethod
+    def dumps(block_document: dict) -> bytes:
+        if block_document["block_id"]:
+            block_id = str(block_document["block_id"])
+        else:
+            block_id = None
+        block_document = {
+            "data": json.dumps(block_document["data"]),
+            "block_id": block_id,
+        }
+        return json.dumps(block_document).encode()
+
+    @staticmethod
+    def loads(blob: bytes) -> dict:
+        block_document = json.loads(blob.decode())
+        if block_document["block_id"]:
+            block_id = UUID(block_document["block_id"])
+        else:
+            block_id = None
+        return {
+            "data": json.loads(block_document["data"]),
+            "block_id": block_id,
+        }

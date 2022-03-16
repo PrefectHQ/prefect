@@ -1,17 +1,23 @@
 import os
 import subprocess
+import sys
 
 import anyio
 import httpx
 import pytest
 from httpx import ASGITransport
 
-from prefect.orion.api.server import app
-from prefect.utilities.settings import temporary_settings
+from prefect.orion.api.server import create_app
+from prefect.utilities.testing import temporary_settings
+
+
+@pytest.fixture()
+def app():
+    return create_app(ephemeral=True)
 
 
 @pytest.fixture
-async def client():
+async def client(app):
     """
     Yield a test client for testing the orion api
     """
@@ -21,7 +27,7 @@ async def client():
 
 
 @pytest.fixture
-async def client_without_exceptions():
+async def client_without_exceptions(app):
     """
     Yield a test client that does not raise app exceptions.
 
@@ -49,58 +55,64 @@ async def hosted_orion_api():
         The connection string
     """
 
-    env = os.environ.copy()
-    # Disable services so tests are not affected
-    env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = "False"
-
     # Will connect to the same database as normal test clients
-    async with await anyio.open_process(
+    process = await anyio.open_process(
         command=[
             "uvicorn",
-            "prefect.orion.api.server:app",
+            "--factory",
+            "prefect.orion.api.server:create_app",
             "--host",
             "0.0.0.0",  # required for access across networked docker containers in CI
             "--port",
             "2222",
             "--log-level",
-            "error",
+            "info",
         ],
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    ) as process:
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
 
-        api_url = "http://localhost:2222/api"
+    api_url = "http://localhost:2222/api"
 
+    try:
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
-            attempts = 0
             response = None
-            while attempts < 20:  # Wait for 2 seconds maximum
-                attempts += 1
-                try:
-                    response = await client.get(api_url + "/admin/hello")
-                except httpx.ConnectError:
-                    pass
-                else:
-                    if response.status_code == 200:
-                        break
-                await anyio.sleep(0.1)
+            with anyio.move_on_after(10):
+                while True:
+                    try:
+                        response = await client.get(api_url + "/admin/hello")
+                    except httpx.ConnectError:
+                        pass
+                    else:
+                        if response.status_code == 200:
+                            break
+                    await anyio.sleep(0.1)
             if response:
                 response.raise_for_status()
+            if not response:
+                raise RuntimeError(
+                    "Timed out while attempting to connect to hosted test Orion."
+                )
 
+        # Yield to the consuming tests
+        yield api_url
+
+    finally:
+        # Cleanup the process
         try:
-            yield api_url
-        finally:
-            if not process.returncode:
-                process.terminate()
+            process.terminate()
+            await process.aclose()
+        except Exception:
+            pass  # May already be terminated
+
+        await process.aclose()
 
 
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
     """
-    Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the test session's
-    hosted API endpoint.
+    Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
     """
-    with temporary_settings(PREFECT_ORION_HOST=hosted_orion_api):
+    with temporary_settings(PREFECT_API_URL=hosted_orion_api):
         yield hosted_orion_api

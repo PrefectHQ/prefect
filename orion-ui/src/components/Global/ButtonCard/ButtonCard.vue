@@ -1,6 +1,6 @@
 <template>
   <button class="button-card">
-    <Card
+    <m-card
       :shadow="shadow"
       :height="height"
       :width="width"
@@ -10,22 +10,22 @@
       <div class="button-card-content pa-1">
         <slot />
       </div>
-    </Card>
+    </m-card>
   </button>
 </template>
 
 <script lang="ts">
-import { Vue, prop, Options } from 'vue-class-component'
+  import { Vue, prop, Options } from 'vue-class-component'
 
-class Props {
-  height = prop<string>({ default: 'inherit' })
-  width = prop<string>({ default: 'inherit' })
-  shadow = prop<string>({ default: null })
-  miter = prop<boolean>({ default: false, type: Boolean })
-}
+  class Props {
+    height = prop<string>({ default: 'inherit' })
+    width = prop<string>({ default: 'inherit' })
+    shadow = prop<string>({ default: null })
+    miter = prop<boolean>({ default: false, type: Boolean })
+  }
 
-@Options({})
-export default class ButtonCard extends Vue.with(Props) {}
+  @Options({})
+  export default class ButtonCard extends Vue.with(Props) {}
 </script>
 
 <style lang="scss" scoped>

@@ -3,16 +3,16 @@ Utilities for interoperability with async functions and workers from various con
 """
 import inspect
 import warnings
+from contextlib import asynccontextmanager
 from contextvars import copy_context
 from functools import partial, wraps
-from typing import Any, Awaitable, Callable, TypeVar, Union
-from typing_extensions import Literal
-from contextlib import asynccontextmanager
-from uuid import uuid4
+from typing import Any, Awaitable, Callable, Coroutine, Dict, List, TypeVar, Union
+from uuid import UUID, uuid4
 
 import anyio
+import anyio.abc
 import sniffio
-from typing_extensions import ParamSpec, TypeGuard
+from typing_extensions import Literal, ParamSpec, TypeGuard
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -186,3 +186,86 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
 
     # Begin iterating so it will be cleaned up as an incomplete generator
     await EVENT_LOOP_GC_REFS[key].__anext__()
+
+
+class GatherIncomplete(RuntimeError):
+    """Used to indicate retrieving gather results before completion"""
+
+    pass
+
+
+class GatherTaskGroup(anyio.abc.TaskGroup):
+    """
+    A task group that gathers results.
+
+    AnyIO does not include support `gather`. This class extends the `TaskGroup`
+    interface to allow simple gathering.
+
+    See https://github.com/agronholm/anyio/issues/100
+
+    This class should be instantiated with `create_gather_task_group`.
+    """
+
+    def __init__(self, task_group: anyio.abc.TaskGroup):
+        self._results: Dict[UUID, Any] = {}
+        # The concrete task group implementation to use
+        self._task_group: anyio.abc.TaskGroup = task_group
+
+    async def _run_and_store(self, key, fn, args):
+        self._results[key] = await fn(*args)
+
+    def start_soon(self, fn, *args) -> UUID:
+        key = uuid4()
+        # Put a placeholder in-case the result is retrieved earlier
+        self._results[key] = GatherIncomplete
+        self._task_group.start_soon(self._run_and_store, key, fn, args)
+        return key
+
+    async def start(self, fn, *args):
+        """
+        Since `start` returns the result of `task_status.started()` but here we must
+        return the key instead, we just won't support this method for now.
+        """
+        raise RuntimeError("`GatherTaskGroup` does not support `start`.")
+
+    def get_result(self, key: UUID) -> Any:
+        result = self._results[key]
+        if result == GatherIncomplete:
+            raise GatherIncomplete(
+                "Task is not complete. "
+                "Results should not be retrieved until the task group exits."
+            )
+        return result
+
+    async def __aenter__(self):
+        await self._task_group.__aenter__()
+        return self
+
+    async def __aexit__(self, *tb):
+        try:
+            retval = await self._task_group.__aexit__(*tb)
+            return retval
+        finally:
+            del self._task_group
+
+
+def create_gather_task_group() -> GatherTaskGroup:
+    """Create a new task group that gathers results"""
+    # This function matches the AnyIO API which uses callables since the concrete
+    # task group class depends on the async library being used and cannot be
+    # determined until runtime
+    return GatherTaskGroup(anyio.create_task_group())
+
+
+async def gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> List[T]:
+    """
+    Run calls concurrently and gather their results.
+
+    Unlike `asyncio.gather` this expects to receieve _callables_ not _coroutines_.
+    This matches `anyio` semantics.
+    """
+    keys = []
+    async with create_gather_task_group() as tg:
+        for call in calls:
+            keys.append(tg.start_soon(call))
+    return [tg.get_result(key) for key in keys]

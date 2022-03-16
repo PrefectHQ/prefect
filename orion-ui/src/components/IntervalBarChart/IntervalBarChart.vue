@@ -1,7 +1,7 @@
 <template>
   <div ref="container" class="interval-bar-chart">
     <template v-if="items.length">
-      <svg class="interval-bar-chart__svg" :id="id" ref="chart"></svg>
+      <svg :id="id" ref="chart" class="interval-bar-chart__svg" />
 
       <div class="interval-bar-chart__median" />
 
@@ -11,10 +11,10 @@
             :style="calculateItemPosition(item)"
             v-bind="{ item, title }"
           >
-            <template v-slot:popover-header="scope">
+            <template #popover-header="scope">
               <slot name="popover-header" v-bind="scope" />
             </template>
-            <template v-slot:popover-content="scope">
+            <template #popover-content="scope">
               <slot name="popover-content" v-bind="scope" />
             </template>
           </IntervalBarChartItem>
@@ -32,102 +32,104 @@
 </template>
 
 <script lang="ts">
-import { Options, prop, mixins } from 'vue-class-component'
-import * as d3 from 'd3'
-import { D3Base } from '@/components/Visualizations/D3Base'
-import { IntervalBarChartItem as BarChartItem } from './Types/IntervalBarChartItem'
-import { CSSProperties } from '@vue/runtime-dom'
-import IntervalBarChartItem from './IntervalBarChartItem.vue'
+  import { CSSProperties } from '@vue/runtime-dom'
+  import * as d3 from 'd3'
+  import { Options, prop, mixins } from 'vue-class-component'
+  import IntervalBarChartItem from './IntervalBarChartItem.vue'
+  import { IntervalBarChartItem as BarChartItem } from './Types/IntervalBarChartItem'
+  import { D3Base } from '@/components/Visualizations/D3Base'
 
-class Props {
-  intervalStart = prop<Date>({ required: true })
-  intervalEnd = prop<Date>({ required: true })
-  items = prop<BarChartItem[]>({ required: true })
-  title = prop<string>({ default: 'Details' })
-}
-
-@Options({
-  components: {
-    IntervalBarChartItem
-  }
-})
-export default class IntervalBarChart extends mixins(D3Base).with(Props) {
-  xScale = d3.scaleTime()
-  yScale = d3.scaleLinear()
-
-  padding = {
-    top: 16,
-    bottom: 4,
-    middle: 0,
-    left: 0,
-    right: 0
+  class Props {
+    intervalStart = prop<Date>({ required: true })
+    intervalEnd = prop<Date>({ required: true })
+    items = prop<BarChartItem[]>({ required: true })
+    title = prop<string>({ default: 'Details' })
   }
 
-  get maxValue(): number {
-    const values = this.items.map((item) => item.value)
+  @Options({
+    components: {
+      IntervalBarChartItem,
+    },
+  })
+  export default class IntervalBarChart extends mixins(D3Base).with(Props) {
+    xScale = d3.scaleTime()
+    yScale = d3.scaleLinear()
 
-    return Math.max(...values)
-  }
+    padding = {
+      top: 16,
+      bottom: 4,
+      middle: 0,
+      left: 0,
+      right: 0,
+    }
 
-  get barWidth(): number {
-    return Math.floor(
-      Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
-    )
-  }
+    get maxValue(): number {
+      const values = this.items.map((item) => item.value)
 
-  get itemsWithValue(): BarChartItem[] {
-    return this.items.filter((item) => item.value)
-  }
+      return Math.max(...values)
+    }
 
-  createChart(): void {
-    this.svg = d3.select(`#${this.id}`)
+    get barWidth(): number {
+      return Math.floor(
+        Math.min(10, (this.width - this.paddingX) / this.items.length / 2),
+      )
+    }
 
-    this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
-  }
+    get itemsWithValue(): BarChartItem[] {
+      return this.items.filter((item) => item.value)
+    }
 
-  updateScales(): void {
-    // Generate x scale
-    const start = this.intervalStart
-    const end = this.intervalEnd
+    createChart(): void {
+      this.svg = d3.select(`#${this.id}`)
 
-    this.xScale
-      .domain([start, end])
-      .range([this.padding.left, this.width - this.paddingX])
+      this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
+    }
 
-    // Generate y scale
-    this.yScale
-      .domain([0, this.maxValue || 1])
-      .range([0, this.height - this.paddingY])
-  }
+    updateScales(): void {
+      // Generate x scale
+      const start = this.intervalStart
+      const end = this.intervalEnd
 
-  calculateItemPosition(item: BarChartItem): CSSProperties {
-    const height = this.yScale(item.value)
-    const top = this.height - this.padding.bottom - height
-    const left = this.xScale(item.interval_start) + this.padding.left
+      this.xScale
+        .domain([start, end])
+        .range([this.padding.left, this.width - this.paddingX])
 
-    return {
-      height: `${height}px`,
-      left: `${left}px`,
-      top: `${top}px`,
-      width: `${this.barWidth}px`
+      // Generate y scale
+      this.yScale
+        .domain([0, this.maxValue || 1])
+        .range([0, this.height - this.paddingY])
+    }
+
+    calculateItemPosition(item: BarChartItem): CSSProperties {
+      const height = this.yScale(item.value)
+      const top = this.height - this.padding.bottom - height
+      const left = this.xScale(item.interval_start) + this.padding.left
+
+      return {
+        height: `${height}px`,
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${this.barWidth}px`,
+      }
+    }
+
+    resize(): void {
+      this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
+      this.updateScales()
+    }
+
+    mounted(): void {
+      this.createChart()
+      this.updateScales()
+    }
+
+    beforeUpdate(): void {
+      if (!this.svg) {
+        this.createChart()
+      }
+      this.updateScales()
     }
   }
-
-  resize(): void {
-    this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
-    this.updateScales()
-  }
-
-  mounted(): void {
-    this.createChart()
-    this.updateScales()
-  }
-
-  beforeUpdate(): void {
-    if (!this.svg) this.createChart()
-    this.updateScales()
-  }
-}
 </script>
 
 <style lang="scss">

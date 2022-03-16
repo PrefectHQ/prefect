@@ -1,6 +1,7 @@
 import pytest
+
 from prefect.logging.handlers import OrionHandler
-from prefect.utilities.settings import temporary_settings
+from prefect.utilities.testing import temporary_settings
 
 
 @pytest.fixture(autouse=True)
@@ -11,9 +12,8 @@ def reset_orion_handler():
     stop the logging thread.
     """
     yield
-    if OrionHandler.worker:
-        OrionHandler.flush()
-        OrionHandler.worker = None
+    OrionHandler.flush()
+    OrionHandler.workers = {}
 
 
 @pytest.fixture(autouse=True)

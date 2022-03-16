@@ -58,6 +58,7 @@ import fsspec
 import yaml
 from pydantic import validator
 
+import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,

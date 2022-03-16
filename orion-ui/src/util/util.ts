@@ -4,20 +4,20 @@ const _y = 31536000, // Seconds in a year
   _m = 60, // Seconds in a minute
   _s = 1
 
-export const intervals: { [key: string]: number } = {
+export const intervals: Record<string, number> = {
   year: _y,
   day: _d,
   hour: _h,
   minute: _m,
-  second: _s
+  second: _s,
 }
 
-const aggregateSeconds = (s: number): { [key: string]: number } => {
+const aggregateSeconds = (s: number): Record<string, number> => {
   const years = Math.floor(s / _y)
-  const days = Math.floor((s % _y) / _d)
-  const hours = Math.floor(((s % _y) % _d) / _h)
-  const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
-  const seconds = Math.ceil((((s % _y) % _d) % _h) % _m)
+  const days = Math.floor(s % _y / _d)
+  const hours = Math.floor(s % _y % _d / _h)
+  const minutes = Math.floor(s % _y % _d % _h / _m)
+  const seconds = Math.ceil(s % _y % _d % _h % _m)
 
   return { years, days, hours, minutes, seconds }
 }
@@ -26,17 +26,17 @@ const intervalString = (
   type: string,
   s: number,
   showOnes: boolean = true,
-  showSpaces: boolean = true
+  showSpaces: boolean = true,
 ): string => {
   return (
-    (s === 1 && !showOnes ? '' : s) +
-    `${showSpaces ? ' ' : ''}${type}${s !== 1 && type.length > 1 ? 's' : ''}`
+    `${s === 1 && !showOnes ? '' : s
+    }${showSpaces ? ' ' : ''}${type}${s !== 1 && type.length > 1 ? 's' : ''}`
   )
 }
 
 export const secondsToString = (
   s: number,
-  showOnes: boolean = true
+  showOnes: boolean = true,
 ): string => {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(s)
   const _y = intervalString('year', years, showOnes)
@@ -46,17 +46,17 @@ export const secondsToString = (
   const _s = intervalString('second', seconds, showOnes)
 
   return (
-    (years ? _y + ' ' : '') +
-    (days ? _d + ' ' : '') +
-    (hours ? _h + ' ' : '') +
-    (minutes ? _m + ' ' : '') +
+    (years ? `${_y } ` : '') +
+    (days ? `${_d } ` : '') +
+    (hours ? `${_h } ` : '') +
+    (minutes ? `${_m } ` : '') +
     (seconds ? _s : '')
   )
 }
 
 export const secondsToApproximateString = (
   s: number,
-  showOnes: boolean = true
+  showOnes: boolean = true,
 ): string => {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(s)
   const _y = intervalString('y', years, showOnes, false)
@@ -72,25 +72,25 @@ export const secondsToApproximateString = (
       value = _y
       break
     case years > 0 && days > 0:
-      value = _y + ' ' + _d
+      value = `${_y } ${ _d}`
       break
     case days > 0 && hours == 0:
       value = _d
       break
     case days > 0 && hours > 0:
-      value = _d + ' ' + _h
+      value = `${_d } ${ _h}`
       break
     case hours > 0 && minutes == 0:
-      value = _h + ' ' + _m
+      value = `${_h } ${ _m}`
       break
     case hours > 0 && minutes > 0:
-      value = _h + ' ' + _m
+      value = `${_h } ${ _m}`
       break
     case minutes > 0 && seconds == 0:
       value = _m
       break
     case minutes > 0 && seconds > 0:
-      value = _m + ' ' + _s
+      value = `${_m } ${ _s}`
       break
     default:
       value = _s

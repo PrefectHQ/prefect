@@ -1,19 +1,21 @@
 import enum
 import time
 from typing import List
+from unittest.mock import MagicMock
 
 import anyio
 import pydantic
 import pytest
 
-from prefect import flow, tags, task, get_run_logger
-from prefect.client import OrionClient
-from prefect.engine import raise_failed_state
+import prefect.context
+from prefect import flow, get_run_logger, tags, task
+from prefect.client import get_client
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
+from prefect.states import raise_failed_state
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
 
@@ -107,11 +109,28 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
+
+    async def test_call_initializes_current_profile(self):
+        @flow
+        def foo():
+            pass
+
+        mock = MagicMock()
+
+        global_profile = prefect.context.get_profile_context()
+        with prefect.context.ProfileContext(
+            name="test", settings=global_profile.settings, env=global_profile.env
+        ) as profile:
+            object.__setattr__(profile, "initialize", mock)
+
+            foo()
+
+        mock.assert_called_once_with()
 
     async def test_async_call_creates_flow_run_and_runs(self):
         @flow(version="test")
@@ -123,7 +142,7 @@ class TestFlowCall:
         assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
-        async with OrionClient() as client:
+        async with get_client() as client:
             flow_run = await client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
@@ -154,20 +173,18 @@ class TestFlowCall:
 
         assert test_flow(1, 2, x=3, y=4, z=5).result() == (1, 2, dict(x=3, y=4, z=5))
 
-    def test_call_raises_on_incompatible_parameter_types(self):
+    def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
 
-        # No error until the state is unpacked
         state = foo(x="foo")
 
-        assert state.is_failed()
         with pytest.raises(
             ParameterTypeError,
             match="value is not a valid integer",
         ):
-            raise state.result()
+            state.result()
 
     def test_call_ignores_incompatible_parameter_types_if_asked(self):
         @flow(version="test", validate_parameters=False)
@@ -438,6 +455,42 @@ class TestSubflowRuns:
         child_state = parent_state.result()
         assert child_state.result().result() == 6
 
+    async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent(x):
+            subflow_state = child(x)
+            return subflow_state
+
+        parent_state = parent("foo")
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            parent_state.result()
+
+        child_state = parent_state.result(raise_on_failure=False)
+        flow_run = await orion_client.read_flow_run(
+            child_state.state_details.flow_run_id
+        )
+        assert flow_run.state.is_failed()
+        assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
+        self, orion_client
+    ):
+        @flow(validate_parameters=False)
+        def child(x: int):
+            return x
+
+        @flow
+        def parent(x):
+            subflow_state = child(x)
+            return subflow_state
+
+        assert parent("foo").result().result() == "foo"
+
     async def test_subflow_relationship_tracking(self, orion_client):
         @flow()
         def child(x, y):
@@ -561,7 +614,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(1)
+            time.sleep(2)
             canary_file.touch()
 
         t0 = time.perf_counter()
@@ -570,11 +623,11 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
         # doing so. The canary file _will_ be created.
-        time.sleep(1)
+        time.sleep(2)
         assert canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
@@ -707,19 +760,13 @@ class ParameterTestEnum(enum.Enum):
 
 
 class TestFlowParameterTypes:
-    def test_flow_parameters_cannot_be_unserialiable_types(self):
+    def test_flow_parameters_can_be_unserializable_types(self):
         @flow
         def my_flow(x):
             return x
 
-        with pytest.raises(
-            ParameterTypeError,
-            match=(
-                "Flow parameters must be JSON serializable. "
-                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
-            ),
-        ):
-            my_flow(ParameterTestClass())
+        data = ParameterTestClass()
+        assert my_flow(data).result() == data
 
     def test_flow_parameters_can_be_pydantic_types(self):
         @flow
@@ -740,28 +787,23 @@ class TestFlowParameterTypes:
 
         assert my_flow(data).result() == data
 
-    def test_subflow_parameters_cannot_be_unserialiable_types(self):
+    def test_subflow_parameters_can_be_unserializable_types(self):
+        data = ParameterTestClass()
+
         @flow
         def my_flow():
-            return my_subflow(ParameterTestClass())
+            return my_subflow(data).result()
 
         @flow
         def my_subflow(x):
             return x
 
-        with pytest.raises(
-            ParameterTypeError,
-            match=(
-                "Flow parameters must be JSON serializable. "
-                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
-            ),
-        ):
-            my_flow().result()
+        assert my_flow().result() == data
 
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
-            return my_subflow(ParameterTestModel(data=1))
+            return my_subflow(ParameterTestModel(data=1)).result()
 
         @flow
         def my_subflow(x):
@@ -769,10 +811,12 @@ class TestFlowParameterTypes:
 
         assert my_flow().result() == ParameterTestModel(data=1)
 
-    def test_subflow_parameters_from_future_cannot_be_unserialiable_types(self):
+    def test_subflow_parameters_from_future_can_be_unserializable_types(self):
+        data = ParameterTestClass()
+
         @flow
         def my_flow():
-            return my_subflow(identity(ParameterTestClass()))
+            return my_subflow(identity(data)).result()
 
         @task
         def identity(x):
@@ -782,14 +826,7 @@ class TestFlowParameterTypes:
         def my_subflow(x):
             return x
 
-        with pytest.raises(
-            ParameterTypeError,
-            match=(
-                "Flow parameters must be JSON serializable. "
-                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
-            ),
-        ):
-            my_flow().result()
+        assert my_flow().result() == data
 
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
@@ -954,10 +991,17 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         assert all([log.task_run_id is None for log in logs])
-        assert all([log.flow_run_id == flow_run_id for log in logs[:-1]])
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert "Hello world!" in log_messages, "Parent log message is present"
+        assert (
+            logs[log_messages.index("Hello world!")].flow_run_id == flow_run_id
+        ), "Parent log message has correct id"
+        assert "Hello smaller world!" in log_messages, "Child log message is present"
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        ), "Child log message has correct id"
 
     async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
         @task
@@ -982,8 +1026,11 @@ class TestSubflowRunLogs:
         subflow_run_id = state.result().state_details.flow_run_id
 
         logs = await orion_client.read_logs()
+        log_messages = [log.message for log in logs]
         task_run_logs = [log for log in logs if log.task_run_id is not None]
-        assert len(task_run_logs) == 1
-        assert task_run_logs[0].flow_run_id == subflow_run_id
-        assert logs[-1].message == "Hello smaller world!"
-        assert logs[-1].flow_run_id == subflow_run_id
+        assert all([log.flow_run_id == subflow_run_id for log in task_run_logs])
+        assert "Hello smaller world!" in log_messages
+        assert (
+            logs[log_messages.index("Hello smaller world!")].flow_run_id
+            == subflow_run_id
+        )

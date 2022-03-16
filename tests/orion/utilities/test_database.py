@@ -1,5 +1,5 @@
-import enum
 import datetime
+import enum
 from typing import List
 
 import pendulum
@@ -8,10 +8,10 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 
-from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.configurations import AioSqliteConfiguration
-from prefect.orion.database.query_components import AioSqliteQueryComponents
+from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import AioSqliteORMConfiguration
+from prefect.orion.database.query_components import AioSqliteQueryComponents
 from prefect.orion.utilities.database import (
     JSON,
     Pydantic,

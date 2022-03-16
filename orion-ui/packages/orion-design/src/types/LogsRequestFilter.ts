@@ -1,4 +1,4 @@
-import { ILogResponse } from '../services/LogsApi'
+import { ILogResponse } from '@/services/LogsApi'
 
 export type LogsRequestSort = `${Uppercase<keyof ILogResponse>}_${'ASC' | 'DSC'}`
 

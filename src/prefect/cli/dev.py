@@ -2,22 +2,46 @@
 Command line interface for working with Orion
 """
 import json
+import os
 import shutil
 import subprocess
-import os
+import textwrap
+import time
+from functools import partial
+from string import Template
 
 import anyio
-from functools import partial
 import typer
 
 import prefect
-from prefect.cli.base import app, console
-from prefect.cli.orion import start as start_orion
-from prefect.utilities.asyncio import sync_compatible
-from prefect.utilities.filesystem import tmpchdir
+from prefect.cli.agent import start as start_agent
+from prefect.cli.base import (
+    PrefectTyper,
+    SettingsOption,
+    app,
+    console,
+    exit_with_error,
+    exit_with_success,
+)
 from prefect.cli.orion import open_process_and_stream_output
+from prefect.flow_runners import get_prefect_image_name
+from prefect.orion.api.server import create_app
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_PORT,
+)
+from prefect.utilities.filesystem import tmpchdir
 
-dev_app = typer.Typer(name="dev")
+DEV_HELP = """
+Commands for development.
+
+Note that many of these commands require extra dependencies (such as npm and MkDocs) to function properly.
+"""
+dev_app = PrefectTyper(
+    name="dev", short_help="Commands for development.", help=DEV_HELP
+)
 app.add_typer(dev_app)
 
 
@@ -30,10 +54,7 @@ def build_docs(
 
     Note that this command only functions properly with an editable install.
     """
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app as orion_fastapi_app
-
-    schema = orion_fastapi_app.openapi()
+    schema = create_app(ephemeral=True).openapi()
 
     if not schema_path:
         schema_path = (
@@ -46,7 +67,16 @@ def build_docs(
     console.print(f"OpenAPI schema written to {schema_path}")
 
 
-@dev_app.command()
+BUILD_UI_HELP = f"""
+Installs dependencies and builds UI locally.
+
+The built UI will be located at {prefect.__root_path__ / "orion-ui"}
+
+Requires npm.
+"""
+
+
+@dev_app.command(help=BUILD_UI_HELP)
 def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
@@ -70,8 +100,10 @@ def build_ui():
 
 
 @dev_app.command()
-@sync_compatible
 async def ui():
+    """
+    Starts a hot-reloading development UI.
+    """
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             console.print("Installing npm packages...")
@@ -82,14 +114,219 @@ async def ui():
 
 
 @dev_app.command()
-@sync_compatible
-async def start(agent: bool = True):
+async def api(
+    host: str = SettingsOption(PREFECT_ORION_API_HOST),
+    port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    log_level: str = "DEBUG",
+    services: bool = True,
+):
     """
-    Starts a dev server for the UI with hot module replacement and the Orion Server (without the static UI).
+    Starts a hot-reloading development API.
+    """
+    server_env = os.environ.copy()
+    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_ORION_SERVICES_UI"] = "False"
 
-    Args:
-        agent: Whether or not the Orion Server should spin up an agent
+    command = [
+        "uvicorn",
+        "--factory",
+        "prefect.orion.api.server:create_app",
+        "--host",
+        str(host),
+        "--port",
+        str(port),
+        "--log-level",
+        log_level.lower(),
+        "--reload",
+        "--reload-dir",
+        str(prefect.__module_path__),
+    ]
+
+    console.print(f"Running: {' '.join(command)}")
+
+    await open_process_and_stream_output(command=command, env=server_env)
+
+
+@dev_app.command()
+async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
+    """
+    Starts a hot-reloading development agent process.
+    """
+    # Delayed import since this is only a 'dev' dependency
+    import watchgod
+
+    console.print("Creating hot-reloading agent process...")
+    await watchgod.arun_process(
+        prefect.__module_path__,
+        start_agent,
+        kwargs=dict(hide_welcome=False, api=api_url),
+    )
+
+
+@dev_app.command()
+async def start(
+    exclude_api: bool = typer.Option(False, "--no-api"),
+    exclude_ui: bool = typer.Option(False, "--no-ui"),
+    exclude_agent: bool = typer.Option(False, "--no-agent"),
+):
+    """
+    Starts a hot-reloading development server with API, UI, and agent processes.
+
+    Each service has an individual command if you wish to start them separately.
+    Each service can be excluded here as well.
     """
     async with anyio.create_task_group() as tg:
-        tg.start_soon(partial(start_orion, ui=False, agent=agent))
-        tg.start_soon(ui)
+        if not exclude_api:
+            tg.start_soon(
+                partial(
+                    api,
+                    host=PREFECT_ORION_API_HOST.value(),
+                    port=PREFECT_ORION_API_PORT.value(),
+                )
+            )
+        if not exclude_ui:
+            tg.start_soon(ui)
+        if not exclude_agent:
+            # Hook the agent to the hosted API if running
+            if not exclude_api:
+                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"
+            else:
+                host = PREFECT_API_URL.value()
+            tg.start_soon(agent, host)
+
+
+@dev_app.command()
+def build_image(platform: str = "amd64"):
+    """
+    Build a docker image for development.
+    """
+    tag = get_prefect_image_name()
+
+    # Here we use a subprocess instead of the docker-py client to easily stream output
+    # as it comes
+    try:
+        subprocess.check_call(
+            [
+                "docker",
+                "build",
+                str(prefect.__root_path__),
+                "--tag",
+                tag,
+                "--platform",
+                f"linux/{platform}",
+                "--build-arg",
+                "PREFECT_EXTRAS=[dev]",
+            ]
+        )
+    except subprocess.CalledProcessError:
+        exit_with_error("Failed to build image!")
+    else:
+        exit_with_success(f"Built image {tag!r} for {platform}")
+
+
+@dev_app.command()
+def container(bg: bool = False, name="prefect-dev", api: bool = True):
+    """
+    Run a docker container with local code mounted and installed.
+    """
+    import docker
+    from docker.models.containers import Container
+
+    client = docker.from_env()
+
+    containers = client.containers.list()
+    container_names = {container.name for container in containers}
+    if name in container_names:
+        exit_with_error(
+            f"Container {name!r} already exists. Specify a different name or stop "
+            "the existing container."
+        )
+
+    blocking_cmd = "prefect dev api" if api else "sleep infinity"
+    tag = get_prefect_image_name()
+
+    container: Container = client.containers.create(
+        image=tag,
+        command=[
+            "/bin/bash",
+            "-c",
+            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",
+        ],
+        name=name,
+        auto_remove=True,
+        working_dir="/opt/prefect/repo",
+        volumes=[f"{prefect.__root_path__}:/opt/prefect/repo"],
+        shm_size="4G",
+    )
+
+    print(f"Starting container for image {tag!r}...")
+    container.start()
+
+    print("Waiting for installation to complete", end="", flush=True)
+    try:
+        ready = False
+        while not ready:
+            print(".", end="", flush=True)
+            result = container.exec_run("test -f /READY")
+            ready = result.exit_code == 0
+            if not ready:
+                time.sleep(3)
+    except:
+        print("\nInterrupted. Stopping container...")
+        container.stop()
+        raise
+
+    print(
+        textwrap.dedent(
+            f"""
+            Container {container.name!r} is ready! To connect to the container, run:
+
+                docker exec -it {container.name} /bin/bash
+            """
+        )
+    )
+
+    if bg:
+        print(
+            textwrap.dedent(
+                f"""
+                The container will run forever. Stop the container with:
+
+                    docker stop {container.name}
+                """
+            )
+        )
+        # Exit without stopping
+        return
+
+    try:
+        print("Send a keyboard interrupt to exit...")
+        container.wait()
+    except KeyboardInterrupt:
+        pass  # Avoid showing "Abort"
+    finally:
+        print("\nStopping container...")
+        container.stop()
+
+
+@dev_app.command()
+def kubernetes_manifest():
+    """
+    Generates a Kubernetes manifest for development.
+
+    Example:
+        $ prefect dev kubernetes-manifest | kubectl apply -f -
+    """
+
+    template = Template(
+        (
+            prefect.__module_path__ / "cli" / "templates" / "kubernetes-dev.yaml"
+        ).read_text()
+    )
+    manifest = template.substitute(
+        {
+            "prefect_root_directory": prefect.__root_path__,
+            "image_name": get_prefect_image_name(),
+        }
+    )
+    print(manifest)

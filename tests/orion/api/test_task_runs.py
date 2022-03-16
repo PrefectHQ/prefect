@@ -1,10 +1,9 @@
 from uuid import uuid4
-import pendulum
 
+import pendulum
 import pytest
 
-from prefect.orion import models
-from prefect.orion import schemas
+from prefect.orion import models, schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import responses, states
 

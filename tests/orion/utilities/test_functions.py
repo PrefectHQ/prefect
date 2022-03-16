@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
-from packaging.version import Version
 import pydantic.version
+from packaging.version import Version
 
 from prefect.orion.utilities import functions
 

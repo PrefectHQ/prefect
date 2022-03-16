@@ -1,11 +1,9 @@
 # Prefect logging config file.
 #
-# Any config in this file can be set with an env var
-# `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+# Any item in this file can be overridden with an environment variable:
+#    `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
 #
-# Global logging settings values can be interpolated by setting `key: "{{key}}"`
-# (note the quotations and double curly brackets). Note that only keys available
-# under `prefect.settings.logging` will be interpolated.
+# Templated values can be used to insert values from the Prefect settings at runtime.
 
 version: 1
 disable_existing_loggers: False
@@ -37,43 +35,67 @@ formatters:
     # my_filter:
         # class: your_module.FilterClass
 
-
 handlers:
+
+    # The handlers we define here will output all logs they receieve by default
+    # but we include the `level` so it can be overridden by environment
+
     console:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: standard
 
     console_flow_runs:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: flow_runs
 
     console_task_runs:
+        level: 0
         class: logging.StreamHandler
-        level: "{{default_level}}"
         formatter: task_runs
 
     orion:
+        level: 0
         class: prefect.logging.handlers.OrionHandler
-        level: "{{default_level}}"
 
 loggers:
     prefect:
-        level: DEBUG
+        level: "${PREFECT_LOGGING_LEVEL}"
         handlers: [console]
         propagate: no
 
+    prefect.extra:
+        level: "${PREFECT_LOGGING_LEVEL}"
+        handlers: [orion, console]
+        propagate: no
+
     prefect.flow_runs:
-        level: DEBUG
+        level: NOTSET
         handlers: [orion, console_flow_runs]
         propagate: no
 
     prefect.task_runs:
-        level: DEBUG
+        level: NOTSET
         handlers: [orion, console_task_runs]
         propagate: no
 
-    root:
-        level: INFO
+    prefect.orion:
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+
+    uvicorn:
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
         handlers: [console]
+        propagate: no
+
+    fastapi:
+        level: "${PREFECT_LOGGING_SERVER_LEVEL}"
+        handlers: [console]
+        propagate: no
+
+# The root logger: any logger without propagation disabled sends to here as well
+root:
+    # By default, we display warning level logs from any library in the console
+    # to match Python's default behavior while formatting logs nicely
+    level: WARNING
+    handlers: [console]

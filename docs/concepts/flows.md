@@ -24,8 +24,6 @@ def my_flow():
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored in Orion on the flow run object. When creating flow runs from the Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
-Since flow parameters are stored in Orion, not all data types can be natively supported. See the [prefect.flows](/api-ref/prefect/flows/#prefect.flows.flow) API documentation for details on supported types.
-
 Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
 
 ```python
@@ -41,24 +39,25 @@ def model_validator(model: Model):
     print(model)
 ```
 
-!!! note "Type hints unify API types with Python"
-    Note that parameter values can be provided to a flow via API using the concept of a [deployment](/concepts/deployments/).  In general, the API only knows how to parse JSON-compatible entities, but type hints on your flow functions provide you a way of automatically coercing JSON provided values to their appropriate Python representation.  
-    
-    For example, to automatically convert something to a datetime:
+Note that parameter values can be provided to a flow via API using the concept of a [deployment](/concepts/deployments/). Flow run parameters sent to the API on flow calls are coerced to a serializable form. Type hints on your flow functions provide you a way of automatically coercing JSON provided values to their appropriate Python representation.  
 
-    ```python
-    from prefect import flow
-    from datetime import datetime
+For example, to automatically convert something to a datetime:
 
-    @flow
-    def what_day_is_it(date: datetime = None):
-        if date is None:
-            date = datetime.utcnow()
-        print(f"It was {date.strftime('%A')} on {date.isoformat()}")
+```python
+from prefect import flow
+from datetime import datetime
 
-    what_day_is_it("2021-01-01T02:00:19.180906")
-    # It was Friday on 2021-01-01T02:00:19.180906
-    ```
+@flow
+def what_day_is_it(date: datetime = None):
+    if date is None:
+        date = datetime.utcnow()
+    print(f"It was {date.strftime('%A')} on {date.isoformat()}")
+
+what_day_is_it("2021-01-01T02:00:19.180906")
+# It was Friday on 2021-01-01T02:00:19.180906
+```
+
+Parameters are validated before a flow is run. If a flow call receives invalid parameters, a flow run is created in a `Failed` state. If a flow run for a deployment receives invalid parameters, it will move from a `Pending` state to a `Failed` without entering a `Running` state.
 
 ## Final state determination
 

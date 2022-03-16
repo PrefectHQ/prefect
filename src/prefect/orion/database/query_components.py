@@ -1,9 +1,9 @@
 import datetime
+from abc import ABC, abstractmethod, abstractproperty
+from typing import Hashable, Tuple
+
 import pendulum
 import sqlalchemy as sa
-
-from typing import Hashable, Tuple
-from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.dialects import postgresql, sqlite
 
 

@@ -1,84 +1,141 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
-import { TaskRun } from '../models/TaskRun'
-import { StateType } from '../types/StateType'
-import { Api } from './Api'
-import { IStateResponse, States } from './StatesApi'
+import { InjectionKey } from 'vue'
+import { EmpiricalPolicy } from '@/models/EmpiricalPolicy'
+import { IEmpiricalPolicyResponse } from '@/models/IEmpiricalPolicyResponse'
+import { isConstantTaskInputResponse, isParameterTaskInputResponse, isTaskRunTaskInputResponse, ITaskInputResponse } from '@/models/ITaskInputResponse'
+import { StateType } from '@/models/StateType'
+import { ConstantTaskInput, ParameterTaskInput, TaskInput, TaskRunTaskInput } from '@/models/TaskInput'
+import { TaskRun } from '@/models/TaskRun'
+import { Api, Route } from '@/services/Api'
+import { UnionFilters } from '@/services/Filter'
+import { IStateResponse, statesApi } from '@/services/StatesApi'
+import { DateString } from '@/types/dates'
 
 export type ITaskRunResponse = {
   id: string,
-  flow_run_id: string,
-  cache_expiration: string,
-  cache_key: string,
   created: string,
-  dynamic_key: string,
-  empirical_policy: Record<string, unknown>,
-  estimated_run_time: number,
-  estimated_start_time_delta: number,
-  total_run_time: number,
-  expected_start_time: string,
-  next_scheduled_start_time: string | null,
-  run_count: number,
-  name: string,
-  task_inputs: Record<string, unknown>,
-  task_key: string,
-  task_version: string,
   updated: string,
-  start_time: string,
-  end_time: string,
-  state_id: string,
-  state_type: StateType,
-  state: IStateResponse,
-  duration: number,
-  subflow_runs: boolean,
-  tags: string[],
+  name: string | null,
+  flow_run_id: string,
+  task_key: string,
+  dynamic_key: string,
+  cache_key: string | null,
+  cache_expiration: DateString | null,
+  task_version: string | null,
+  empirical_policy: IEmpiricalPolicyResponse | null,
+  tags: string[] | null,
+  state_id: string | null,
+  task_inputs: Record<string, ITaskInputResponse[]> | null,
+  state_type: StateType | null,
+  run_count: number | null,
+  expected_start_time: DateString | null,
+  next_scheduled_start_time: DateString | null,
+  start_time: DateString | null,
+  end_time: DateString | null,
+  total_run_time: number | null,
+  estimated_run_time: number | null,
+  estimated_start_time_delta: number | null,
+  state: IStateResponse | null,
 }
 
 export class TaskRunsApi extends Api {
 
-  protected route: string = '/api/task_runs'
+  protected route: Route = '/task_runs'
 
   public getTaskRun(id: string): Promise<TaskRun> {
-    return this.get(`/${id}`).then(response => this.taskRunResponseMapper(response))
+    return this.get<ITaskRunResponse>(`/${id}`).then(response => this.mapTaskRunResponse(response))
   }
 
-  protected taskRunMapper(taskRun: ITaskRunResponse): TaskRun {
-    return new TaskRun({
-      id: taskRun.id,
-      flowRunId: taskRun.flow_run_id,
-      cacheExpiration: taskRun.cache_expiration,
-      cacheKey: taskRun.cache_key,
-      created: new Date(taskRun.created),
-      dynamicKey: taskRun.dynamic_key,
-      empiricalPolicy: taskRun.empirical_policy,
-      estimatedRunTime: taskRun.estimated_run_time,
-      estimatedStartTimeDelta: taskRun.estimated_start_time_delta,
-      totalRunTime: taskRun.total_run_time,
-      expectedStartTime: new Date(taskRun.expected_start_time),
-      nextScheduledStartTime: taskRun.next_scheduled_start_time,
-      runCount: taskRun.run_count,
-      name: taskRun.name,
-      taskInputs: taskRun.task_inputs,
-      taskKey: taskRun.task_key,
-      taskVersion: taskRun.task_version,
-      updated: new Date(taskRun.updated),
-      startTime: new Date(taskRun.start_time),
-      endTime: new Date(taskRun.end_time),
-      stateId: taskRun.state_id,
-      stateType: taskRun.state_type,
-      state: States.stateMapper(taskRun.state),
-      duration: taskRun.duration,
-      subflowRuns: taskRun.subflow_runs,
-      tags: taskRun.tags,
+  public getTaskRuns(filter: UnionFilters): Promise<TaskRun[]> {
+    return this.post<ITaskRunResponse[]>('/filter', filter).then(response => this.mapTaskRunsResponse(response))
+  }
+
+  public getTaskRunsCount(filter: UnionFilters): Promise<number> {
+    return this.post<number>('/count', filter).then(({ data }) => data)
+  }
+
+  protected mapEmpiricalPolicy(data: IEmpiricalPolicyResponse): EmpiricalPolicy {
+    return new EmpiricalPolicy({
+      maxRetries: data.max_retries,
+      retryDelaySeconds: data.retry_delay_seconds,
     })
   }
 
-  protected taskRunResponseMapper({ data }: AxiosResponse<ITaskRunResponse>): TaskRun {
-    return this.taskRunMapper(data)
+  protected mapTaskInputs(data: Record<string, ITaskInputResponse[]>): Record<string, TaskInput[]> {
+    const response = {} as Record<string, TaskInput[]>
+
+    return Object.entries(data).reduce<Record<string, TaskInput[]>>((mapped, [key, value]) => {
+      mapped[key] = value.map(x => this.mapTaskInput(x))
+
+      return mapped
+    }, response)
   }
 
-  protected taskRunsResponseMapper({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
-    return data.map(task => this.taskRunMapper(task))
+  protected mapTaskInput(data: ITaskInputResponse): TaskInput {
+    if (isConstantTaskInputResponse(data)) {
+      return new ConstantTaskInput({
+        inputType: data.input_type,
+        type: data.type,
+      })
+    }
+
+    if (isParameterTaskInputResponse(data)) {
+      return new ParameterTaskInput({
+        inputType: data.input_type,
+        name: data.name,
+      })
+    }
+
+    if (isTaskRunTaskInputResponse(data)) {
+      return new TaskRunTaskInput({
+        inputType: data.input_type,
+        id: data.id,
+      })
+    }
+
+    throw 'Invalid ITaskInputResponse'
   }
+
+  protected mapTaskRun(data: ITaskRunResponse): TaskRun {
+    return new TaskRun({
+      id: data.id,
+      flowRunId: data.flow_run_id,
+      cacheExpiration: data.cache_expiration,
+      cacheKey: data.cache_key,
+      created: new Date(data.created),
+      dynamicKey: data.dynamic_key,
+      empiricalPolicy: data.empirical_policy ? this.mapEmpiricalPolicy(data.empirical_policy) : null,
+      estimatedRunTime: data.estimated_run_time,
+      estimatedStartTimeDelta: data.estimated_start_time_delta,
+      totalRunTime: data.total_run_time,
+      expectedStartTime: data.expected_start_time ? new Date(data.expected_start_time) : null,
+      nextScheduledStartTime: data.next_scheduled_start_time,
+      runCount: data.run_count,
+      name: data.name,
+      taskInputs: data.task_inputs ? this.mapTaskInputs(data.task_inputs) : null,
+      taskKey: data.task_key,
+      taskVersion: data.task_version,
+      updated: new Date(data.updated),
+      startTime: data.start_time ? new Date(data.start_time) : null,
+      endTime: data.end_time ? new Date(data.end_time) : null,
+      stateId: data.state_id,
+      stateType: data.state_type,
+      state: data.state ? statesApi.mapStateResponse(data.state) : null,
+      tags: data.tags,
+    })
+  }
+
+  protected mapTaskRunResponse({ data }: AxiosResponse<ITaskRunResponse>): TaskRun {
+    return this.mapTaskRun(data)
+  }
+
+  protected mapTaskRunsResponse({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
+    return data.map(x => this.mapTaskRun(x))
+  }
+
 }
 
-export const TaskRuns = new TaskRunsApi()
+export const taskRunsApi = createActions(new TaskRunsApi())
+
+export const getTaskRunKey: InjectionKey<TaskRunsApi['getTaskRun']> = Symbol()

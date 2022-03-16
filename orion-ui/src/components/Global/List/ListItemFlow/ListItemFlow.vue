@@ -1,29 +1,26 @@
 <template>
   <ListItem class="list-item-flow" icon="pi-flow">
     <div class="list-item__title">
-      <h2>
-        {{ item.name }}
-      </h2>
+      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ flowRunCount.toLocaleString() }} flow
         {{ toPluralString('run', flowRunCount) }}
       </ButtonRounded>
 
-      <ButtonRounded class="mr-1" disabled>
+      <ButtonRounded class="mr-1" @click="filter">
         {{ taskRunCount.toLocaleString() }} task
         {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
-
     <div v-if="media.md" class="list-item-flow__chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
-        :interval-start="store.getters.start"
-        :interval-end="store.getters.end"
-        :interval-seconds="store.getters.baseInterval * 2"
+        :interval-start="start"
+        :interval-end="end"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
         disable-popovers
@@ -33,61 +30,116 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
-import { Flow } from '@/typings/objects'
-import { Buckets } from '@/typings/run_history'
-import { useStore } from 'vuex'
-import media from '@/utilities/media'
-import { toPluralString } from '@/utilities/strings'
+  import {
+    useFiltersStore,
+    FlowsFilter,
+    FilterUrlService,
+    FiltersQueryService,
+    media,
+    toPluralString,
+    showPanel,
+    FlowPanel,
+    useInjectedServices,
+    Flow,
+    Deployment,
+    DeploymentPanel
+  } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
+  import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+  import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+  import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+  import { Api, Query, Endpoints } from '@/plugins/api'
+  import { Buckets } from '@/typings/run_history'
 
-const store = useStore()
-const props = defineProps<{ item: Flow }>()
+  const props = defineProps<{ item: Flow }>()
 
-const flows: FlowsFilter = {
-  flows: {
-    id: {
-      any_: [props.item.id]
+  const filtersStore = useFiltersStore()
+  const router = useRouter()
+
+  const crumbs = [{ text: props.item.name, to: window.location.href }]
+  const injectedServices = useInjectedServices()
+
+  const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
+  const flows: FlowsFilter = {
+    ...runFilter.value,
+    flows: {
+      id: {
+        any_: [props.item.id],
+      },
+    },
+  }
+
+  const flowRunHistoryFilter = computed(() => {
+    const query = FiltersQueryService.flowHistoryQuery(filtersStore.all)
+
+    return {
+      ...query,
+      history_interval_seconds: query.history_interval_seconds * 2,
+      flows: flows.flows,
     }
-  }
-}
-
-const flowRunHistoryFilter = computed(() => {
-  return {
-    history_start: store.getters.start.toISOString(),
-    history_end: store.getters.end.toISOString(),
-    history_interval_seconds: store.getters.baseInterval * 2,
-    flows: flows.flows
-  }
-})
-
-const queries: { [key: string]: Query } = {
-  flow_run_history: Api.query({
-    endpoint: Endpoints.flow_runs_history,
-    body: flowRunHistoryFilter.value
-  }),
-  flow_run_count: Api.query({
-    endpoint: Endpoints.flow_runs_count,
-    body: flows
-  }),
-  task_run_count: Api.query({
-    endpoint: Endpoints.task_runs_count,
-    body: flows
   })
-}
 
-const flowRunCount = computed((): number => {
-  return queries.flow_run_count?.response?.value || 0
-})
+  const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
+  const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
+  const queries: Record<string, Query> = {
+   
+    flow_run_history: Api.query({
+      endpoint: Endpoints.flow_runs_history,
+      body: flowRunHistoryFilter.value,
+    }),
+    flow_run_count: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: flows,
+    }),
+    task_run_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: flows,
+    }),
+  }
 
-const taskRunCount = computed((): number => {
-  return queries.task_run_count?.response?.value || 0
-})
+  const flowRunCount = computed((): number => {
+    return queries.flow_run_count?.response?.value || 0
+  })
 
-const flowRunHistory = computed((): Buckets => {
-  return queries.flow_run_history?.response.value || []
-})
+  const taskRunCount = computed((): number => {
+    return queries.task_run_count?.response?.value || 0
+  })
+
+  const flowRunHistory = computed((): Buckets => {
+    return queries.flow_run_history?.response.value || []
+  })
+
+  function filter(): void {
+    const service = new FilterUrlService(router)
+
+    service.add({
+      object: 'flow',
+      property: 'name',
+      type: 'string',
+      operation: 'equals',
+      value: props.item.name,
+    })
+  }
+
+  const route = { name: 'Dashboard' }
+
+  function openFlowPanel(): void {
+    showPanel(FlowPanel, {
+      flow: props.item,
+      dashboardRoute: route,
+      openDeploymentPanel,
+      ...injectedServices,
+    })
+  }
+
+  function openDeploymentPanel(deployment: Deployment): void {
+    showPanel(DeploymentPanel, {
+      deployment,
+      dashboardRoute: route,
+      ...injectedServices,
+    })
+  }
 </script>
 
 <style lang="scss" scoped>

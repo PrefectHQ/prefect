@@ -4,11 +4,11 @@
     property="sum_estimated_lateness"
     v-bind="{ filter }"
   >
-    <template v-slot:popover-header>
+    <template #popover-header>
       <span>Flow Run Lateness</span>
     </template>
 
-    <template v-slot:popover-content="{ item, runs }">
+    <template #popover-content="{ item, runs }">
       <table class="table table--data">
         <tr>
           <td>Run count:</td>
@@ -38,17 +38,17 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { FlowRunsHistoryFilter } from '@/plugins/api'
-import { formatDateTimeNumeric } from '@/utilities/dates'
-import { secondsToApproximateString } from '@/util/util'
-import StateBucketIntervalBarChart from './StateBucketIntervalBarChart.vue'
+  import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
+  import StateBucketIntervalBarChart from './StateBucketIntervalBarChart.vue'
+  import { secondsToApproximateString } from '@/util/util'
+  import { formatDateTimeNumeric } from '@/utilities/dates'
 
-const props = defineProps<{
-  filter: FlowRunsHistoryFilter
-}>()
+  const props = defineProps<{
+    filter: FlowRunsHistoryFilter,
+  }>()
 
-const filter = computed(() => {
-  return props.filter
-})
+  const filter = computed(() => {
+    return props.filter
+  })
 </script>
