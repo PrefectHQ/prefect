@@ -236,7 +236,7 @@ async def create(path: str):
                 f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
                 style="red",
             )
-            continue
+            continue  # Attempt to create the next deployment
 
         stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
 
@@ -252,6 +252,6 @@ async def create(path: str):
         except Exception as exc:
             console.print(exception_traceback(exc))
             console.print(f"Failed to create deployment {stylized_name}", style="red")
-            continue
+            continue  # Attempt to create the next deployment
         else:
             console.print(f"Created deployment {stylized_name}")
