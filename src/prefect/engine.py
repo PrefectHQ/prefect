@@ -140,11 +140,11 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend, then enters the main flow run engine.
     """
-    can_connect = await client.api_healthcheck()
-    if not can_connect:
+    connect_error = await client.api_healthcheck()
+    if connect_error:
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
-        )
+        ) from connect_error
 
     state = Pending()
     if flow.should_validate_parameters:
@@ -652,12 +652,12 @@ async def begin_task_run(
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
 
-        can_connect = await client.api_healthcheck()
-        if not can_connect:
+        connect_error = await client.api_healthcheck()
+        if connect_error:
             raise RuntimeError(
                 f"Cannot orchestrate task run '{task_run.id}'. "
                 f"Failed to connect to API at {client.api_url}."
-            )
+            ) from connect_error
 
         return await orchestrate_task_run(
             task=task,
