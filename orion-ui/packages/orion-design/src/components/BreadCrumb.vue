@@ -6,11 +6,8 @@
     :to="to"
     @click="callback"
   >
-    <span v-if="crumb.loading" v-skeleton="true" class="bread-crumb__loading">
-      Loading...
-    </span>
-    <span v-else>
-      {{ crumb.text }}
+    <span v-skeleton="crumb.loading" :class="classes.inner">
+      {{ text }}
     </span>
   </component>
 </template>
@@ -37,9 +34,14 @@
     return !props.crumb.loading && showClickable.value && !!to.value ? 'router-link' : 'span'
   })
 
+  const text = computed(() => props.crumb.text ?? 'Loading...')
+
   const classes = computed(() => ({
     crumb: {
       'bread-crumb--clickable': showClickable.value,
+    },
+    inner: {
+      'bread-crumb__loading': props.crumb.loading,
     },
   }))
 </script>
