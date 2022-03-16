@@ -132,11 +132,15 @@
   }
 
   const duration = computed(() => {
-    return stateType.value == 'pending' || stateType.value == 'scheduled'
-      ? '--'
-      : props.item.total_run_time
-        ? secondsToApproximateString(props.item.total_run_time)
-        : secondsToApproximateString(props.item.estimated_run_time)
+    if (props.item.state.type == 'PENDING' || props.item.state.type == 'SCHEDULED') {
+      return '--'
+    }
+
+    if (props.item.total_run_time) {
+      return secondsToApproximateString(props.item.total_run_time)
+    }
+
+    return secondsToApproximateString(props.item.estimated_run_time)
   })
 
   const state = computed(() => {
@@ -170,7 +174,7 @@
     ]
   })
 
-  function filter() {
+  function filter(): void {
     const filterToAdd: Required<Filter> = {
       object: 'flow_run',
       property: 'name',
@@ -188,8 +192,6 @@
     service.add(filterToAdd)
   }
 </script>
-
-<style lang="scss" scoped></style>
 
 <style lang="scss" scoped>
 @use '@/styles/components/list-item--flow-run.scss';
