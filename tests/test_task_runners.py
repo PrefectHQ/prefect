@@ -23,9 +23,9 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
-    RayTaskRunner,
     SequentialTaskRunner,
 )
+from prefect.testing.pytestutils import parameterize_with_fixtures
 from prefect.utilities.testing import exceptions_equal
 
 if sys.version_info[1] >= 10:
@@ -104,30 +104,8 @@ def task_runner(request):
     yield request.getfixturevalue(request.param.__name__)
 
 
-def parameterize_with_task_runners(*values):
-    """
-    Generates a `pytest.mark.parametrize` instance for the `task_runner` indirect
-    fixture.
-
-    Passes marks from the fixtures to the parameter so we can indicate required services
-    on each task runner fixture.
-    """
-
-    def add_marks(item):
-        return pytest.param(
-            item, marks=[mark for mark in getattr(item, "pytestmark", [])]
-        )
-
-    values = [add_marks(value) for value in values]
-
-    return pytest.mark.parametrize(
-        "task_runner",
-        values,
-        indirect=True,
-    )
-
-
-parameterize_with_all_task_runners = parameterize_with_task_runners(
+parameterize_with_all_task_runners = parameterize_with_fixtures(
+    "task_runner",
     default_sequential_task_runner,
     default_concurrent_task_runner,
     # dask
@@ -138,7 +116,8 @@ parameterize_with_all_task_runners = parameterize_with_task_runners(
 )
 
 
-parameterize_with_parallel_task_runners = parameterize_with_task_runners(
+parameterize_with_parallel_task_runners = parameterize_with_fixtures(
+    "task_runner",
     default_concurrent_task_runner,
     # dask
     dask_task_runner_with_existing_cluster,
@@ -146,11 +125,12 @@ parameterize_with_parallel_task_runners = parameterize_with_task_runners(
 )
 
 
-parameterize_with_sequential_task_runners = parameterize_with_task_runners(
-    default_sequential_task_runner
+parameterize_with_sequential_task_runners = parameterize_with_fixtures(
+    "task_runner", default_sequential_task_runner
 )
 
-parameterize_with_all_task_runner_types = parameterize_with_task_runners(
+parameterize_with_all_task_runner_types = parameterize_with_fixtures(
+    "task_runner",
     default_sequential_task_runner,
     default_concurrent_task_runner,
     default_dask_task_runner,
@@ -322,10 +302,7 @@ class TestTaskRunnerParallelism:
             # CI machines are slow
             sleep_time += 1.5
 
-        if isinstance(runner, RayTaskRunner):
-            # Ray is slow
-            sleep_time += 1.5
-        elif isinstance(runner, ConcurrentTaskRunner):
+        if isinstance(runner, ConcurrentTaskRunner):
             # Account for thread overhead
             sleep_time += 0.5
 
@@ -586,7 +563,7 @@ async def test_wait_captures_exceptions_as_crashed_state(task_runner, exception)
         # or "Killed" workers while normal errors will result in a "RayTaskError" with
         # Ray or the raw error with Dask. We care more about the crash detection and
         # lack of re-raise here than the equality of the exception.
-        if not isinstance(task_runner, (DaskTaskRunner, RayTaskRunner)):
+        if not isinstance(task_runner, DaskTaskRunner):
             assert exceptions_equal(result, exception)
 
 
