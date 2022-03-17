@@ -216,7 +216,7 @@ async def create(path: str):
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
     console.print(
-        f"Loading deployment specifcations from {from_msg} at [green]{str(path)!r}[/]..."
+        f"Loading deployment specifications from {from_msg} at [green]{str(path)!r}[/]..."
     )
     try:
         specs = loader(path)
@@ -254,4 +254,11 @@ async def create(path: str):
             console.print(f"Failed to create deployment {stylized_name}", style="red")
             continue  # Attempt to create the next deployment
         else:
-            console.print(f"Created deployment {stylized_name}")
+            console.print(f"Created deployment {stylized_name}.")
+
+            # TODO: Check for an API url and link to the UI instead if a hosted API
+            #       exists
+            console.print(
+                "View your new deployment with: "
+                f"\n\n    prefect deployment inspect {stylized_name}"
+            )
