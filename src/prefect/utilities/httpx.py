@@ -37,7 +37,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2 ** retry_count  # default to exponential backoff
+                retry_seconds = 2**retry_count  # default to exponential backoff
 
             await anyio.sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
