@@ -1,4 +1,4 @@
-<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/4lgiSBlqqp7GH72CXvipnL/46e0fb4dabeb28e302427b6f6b95b4e7/prefect-orion-constellation-banner-light.png" width=1000></p>
+<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
 # Prefect 2.0
 
@@ -57,7 +57,7 @@ After running any running some flows, fire up the UI to gain insight into their 
 prefect orion start
 ```
 
-![](/docs/img/tutorials/hello-orion-dashboard.png)
+![](/docs/img/ui/orion-dashboard.png)
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](https://orion-docs.prefect.io/concepts/deployments).
 

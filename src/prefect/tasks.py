@@ -167,27 +167,21 @@ class Task(Generic[P, R]):
         retry_delay_seconds: Union[float, int] = 0,
     ):
         """
-        Method to create a new task with the specified options overrides.
+        Create a new task from the current object, updating provided options.
 
         Args:
-            name: An optional name for the task; if not provided, the name will be inferred
-                from the given function.
-            description: An optional string description for the task.
-            tags: An optional set of tags to be associated with runs of this task. These
-                tags are combined with any tags defined by a `prefect.tags` context at
-                task runtime.
-            cache_key_fn: An optional callable that, given the task run context and call
-                parameters, generates a string key; if the key matches a previous completed
-                state, that state result will be restored instead of running the task again.
-            cache_expiration: An optional amount of time indicating how long cached states
-                for this task should be restorable; if not provided, cached states will
-                never expire.
-            retries: An optional number of times to retry on task run failure
-            retry_delay_seconds: An optional number of seconds to wait before retrying the
+            name: A new name for the task.
+            description: A new description for the task.
+            tags: A new set of tags for the task. If given, existing tags are ignored,
+                not merged.
+            cache_key_fn: A new cache key function for the task.
+            cache_expiration: A new cache expiration time for the task.
+            retries: A new number of times to retry on task run failure.
+            retry_delay_seconds: A new number of seconds to wait before retrying the
                 task after failure. This is only applicable if `retries` is nonzero.
 
         Returns:
-            A new callable `Task` object which, when called, will submit the task for execution.
+            A new `Task` instance.
 
         Examples:
 
