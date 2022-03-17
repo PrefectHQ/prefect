@@ -66,7 +66,6 @@ async def test_prefect_httpx_client_retries_429s_up_to_five_times():
     response = await client.post(
         url="fake.url/fake/route",
         data={"evenmorefake": "data"},
-        raise_for_status=False,
     )
 
     assert response.status_code == 429
