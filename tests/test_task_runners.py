@@ -92,6 +92,15 @@ def task_runner(request):
     yield request.getfixturevalue(request.param.__name__)
 
 
+from prefect.utilities.testing import TaskRunnerTests
+
+
+class TestSequentialTaskRunner(TaskRunnerTests):
+    @pytest.fixture
+    def task_runner(self):
+        yield SequentialTaskRunner()
+
+
 parameterize_with_all_task_runners = parameterize_with_fixtures(
     "task_runner",
     default_sequential_task_runner,
