@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import warnings
 from pathlib import Path
 from types import ModuleType
@@ -334,8 +335,12 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     Requires a Docker Engine to be connectable.
 
+
     Attributes:
         image: An optional string specifying the tag of a Docker image to use.
+        network_mode: Set the network mode for the created container. Defaults to 'host'
+            if a local API url is detected, otherwise the Docker default of 'bridge' is
+            used. If 'networks' is set, this cannot be set.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
@@ -344,6 +349,18 @@ class DockerFlowRunner(UniversalFlowRunner):
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
         stream_output: If set, stream output from the container to local standard output.
+
+    ## Connecting to a locally hosted API
+
+    If using a local API URL on Linux, we will update the network mode default to 'host'
+    to enable connectivity. If using another OS or an alternative network mode is used,
+    we will replace 'localhost' in the API URL with 'host.docker.internal'. Generally,
+    this will enable connectivity, but the API URL can be provided as an environment
+    variable to override inference in more complex use-cases.
+
+    Note, if using 'host.docker.internal' in the API URL on Linux, the API must be bound
+    to 0.0.0.0 or the Docker IP address to allow connectivity. On macOS, this is not
+    necessary and the API is connectable while bound to localhost.
     """
 
     typename: Literal["docker"] = "docker"
@@ -351,6 +368,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     image: str = Field(default_factory=get_prefect_image_name)
     image_pull_policy: ImagePullPolicy = None
     networks: List[str] = Field(default_factory=list)
+    network_mode: str = None
     labels: Dict[str, str] = None
     auto_remove: bool = False
     volumes: List[str] = Field(default_factory=list)
@@ -414,11 +432,14 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         docker_client = self._get_client()
 
+        network_mode = self._get_network_mode()
+
         container_settings = dict(
             image=self.image,
             network=self.networks[0] if self.networks else None,
+            network_mode=network_mode,
             command=self._get_start_command(flow_run),
-            environment=self._get_environment_variables(),
+            environment=self._get_environment_variables(network_mode),
             auto_remove=self.auto_remove,
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
@@ -477,6 +498,44 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return ImagePullPolicy.ALWAYS
             return ImagePullPolicy.IF_NOT_PRESENT
         return self.image_pull_policy
+
+    def _get_network_mode(self) -> Optional[str]:
+        # User's value takes precedence; this may collide with the incompatible options
+        # mentioned below.
+        if self.network_mode:
+            if sys.platform != "linux" and self.network_mode == "host":
+                warnings.warn(
+                    f"{self.network_mode!r} network mode is not supported on platform "
+                    f"{sys.platform!r} and may not work as intended."
+                )
+            return self.network_mode
+
+        # Network mode is not compatible with networks or ports (we do not support ports
+        # yet though)
+        if self.networks:
+            return None
+
+        # Check for a local API connection
+        api_url = self.env.get("PREFECT_API_URL", PREFECT_API_URL.value())
+
+        if api_url:
+            try:
+                _, netloc, _, _, _, _ = urllib.parse.urlparse(api_url)
+            except Exception as exc:
+                warnings.warn(
+                    f"Failed to parse host from API URL {api_url!r} with exception: "
+                    f"{exc}\nThe network mode will not be inferred."
+                )
+                return None
+
+            host = netloc.split(":")[0]
+
+            # If using a locally hosted API, use a host network on linux
+            if sys.platform == "linux" and (host == "127.0.0.1" or host == "localhost"):
+                return "host"
+
+        # Default to unset
+        return None
 
     def _should_pull_image(self, docker_client: "DockerClient") -> bool:
         """
@@ -647,17 +706,20 @@ class DockerFlowRunner(UniversalFlowRunner):
                 # Only supported by Docker v20.10.0+ which is our minimum recommend version
                 return {"host.docker.internal": "host-gateway"}
 
-    def _get_environment_variables(self):
+    def _get_environment_variables(self, network_mode):
         env = self.env.copy()
 
-        # Update local connections to use the docker host
+        # Set the container to connect to the same API as the flow runner by default
 
         if PREFECT_API_URL:
-            api_url = (
-                PREFECT_API_URL.value()
-                .replace("localhost", "host.docker.internal")
-                .replace("127.0.0.1", "host.docker.internal")
-            )
+            api_url = PREFECT_API_URL.value()
+
+            # Update local connections to use the docker internal host unless the
+            # network mode is "host" where localhost is available
+            if network_mode != "host":
+                api_url = api_url.replace("localhost", "host.docker.internal").replace(
+                    "127.0.0.1", "host.docker.internal"
+                )
 
             env.setdefault("PREFECT_API_URL", api_url)
 
