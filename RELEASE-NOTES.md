@@ -1,5 +1,15 @@
 # Orion Release Notes
 
+
+## 2.0b2
+
+Fixes some bugs with the 2.0b1 release:
+
+- The CLI no longer displays tracebacks on sucessful exit
+- Returning pandas objects from tasks does not error
+- Flows are listed correctly in the UI dashboard
+
+
 ## 2.0b1
 
 We are excited to introduce this branch as [Prefect 2.0](https://www.prefect.io/blog/introducing-prefect-2-0/), powered by [Orion, our second-generation orchestration engine](https://www.prefect.io/blog/announcing-prefect-orion/)! We will continue to develop Prefect 2.0 on this branch. Both the Orion engine and Prefect 2.0 as a whole will remain under active development in beta for the next several months, with a number of major features yet to come.
