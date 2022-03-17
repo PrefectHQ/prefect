@@ -13,8 +13,6 @@ if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
 }
 
 // Global components
-import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
-import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
@@ -46,8 +44,6 @@ document.body.classList.add(colorMode)
 const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
 
 app.component('ButtonCard', ButtonCard)
-app.component('BreadCrumb', BreadCrumb)
-app.component('BreadCrumbs', BreadCrumbs)
 app.component('ButtonRounded', ButtonRounded)
 app.component('Drawer', Drawer)
 app.component('List', List)
