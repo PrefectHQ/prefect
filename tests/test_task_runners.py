@@ -11,9 +11,6 @@ import distributed
 import pytest
 
 import prefect
-
-# Import the local 'tests' module to pickle to ray workers
-import tests
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.futures import PrefectFuture
@@ -27,11 +24,6 @@ from prefect.task_runners import (
 )
 from prefect.testing.pytestutils import parameterize_with_fixtures
 from prefect.utilities.testing import exceptions_equal
-
-if sys.version_info[1] >= 10:
-    RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
-else:
-    RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
 
 
 @pytest.fixture
