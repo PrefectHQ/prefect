@@ -2,19 +2,7 @@ import typing
 
 import anyio
 import httpx
-from httpx._client import USE_CLIENT_DEFAULT, UseClientDefault
 from httpx._models import Response
-from httpx._types import (
-    AuthTypes,
-    CookieTypes,
-    HeaderTypes,
-    QueryParamTypes,
-    RequestContent,
-    RequestData,
-    RequestFiles,
-    TimeoutTypes,
-    URLTypes,
-)
 
 from prefect.settings import PREFECT_API_REQUEST_TIMEOUT
 
