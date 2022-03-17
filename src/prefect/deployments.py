@@ -60,7 +60,7 @@ import yaml
 from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
-from prefect.blocks.storage import LocalStorageBlock, StorageBlock
+from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
@@ -191,6 +191,9 @@ class DeploymentSpec(PrefectBaseModel):
 
         # Determine the storage block
 
+        # TODO: Some of these checks may be retained in the future, but will use block
+        # capabilities instead of types to check for compatibility with flow runners
+
         self.flow_storage = (
             self.flow_storage or await client.get_default_storage_block()
         )
@@ -209,7 +212,7 @@ class DeploymentSpec(PrefectBaseModel):
                 raise SpecValidationError(
                     f"{no_storage_message} but {flow_runner_message}."
                 )
-            elif isinstance(self.flow_storage, LocalStorageBlock):
+            elif isinstance(self.flow_storage, (LocalStorageBlock, TempStorageBlock)):
                 raise SpecValidationError(
                     f"You have configured local storage but {flow_runner_message}."
                 )
@@ -483,6 +486,11 @@ def _register_spec(spec: DeploymentSpec) -> None:
         return
 
     # Retrieve information about the definition of the spec
+    # This goes back two frames to where the spec was defined
+    #   - This function (current frame)
+    #   - DeploymentSpec.__init__
+    #   - DeploymentSpec definition
+
     frame = sys._getframe().f_back.f_back
 
     # Replace the existing spec with the new one if they collide
