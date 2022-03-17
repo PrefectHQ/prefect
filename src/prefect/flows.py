@@ -140,12 +140,11 @@ class Flow(Generic[P, R]):
             name: A new name for the flow.
             version: A new version for the flow.
             description: A new description for the flow.
-            tags: A new set of tags for the flow. If given, existing tags are ignored,
-                not merged.
             task_runner: A new task runner for the flow.
             timeout_seconds: A new number of seconds to fail the flow after if still
                 running.
-            validate_parameters: A new setting for toggling parameter validation.
+            validate_parameters: A new value indicating if flow calls should validate
+                given parameters.
 
         Returns:
             A new `Flow` instance.
@@ -179,11 +178,13 @@ class Flow(Generic[P, R]):
             description=description or self.description,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
-            timeout_seconds=timeout_seconds or self.timeout_seconds,
+            timeout_seconds=(
+                timeout_seconds if timeout_seconds is not None else self.timeout_seconds
+            ),
             validate_parameters=(
                 validate_parameters
                 if validate_parameters is not None
-                else self.validate_parameters
+                else self.should_validate_parameters
             ),
         )
 
