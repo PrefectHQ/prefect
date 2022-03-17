@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.58",
+    "version": "0.1.60",
     "private": false,
     "keywords": [
         "prefect",
@@ -63,8 +63,6 @@
         "d3": "^7.0.0"
     },
     "devDependencies": {
-        "@babel/helper-compilation-targets": "^7.16.3",
-        "@babel/runtime": "^7.16.3",
         "@prefecthq/eslint-config": "1.0.14",
         "@types/d3": "^7.0.0",
         "@types/expect-puppeteer": "^4.4.7",
@@ -84,9 +82,9 @@
         "vue-tsc": "^0.30.1"
     },
     "peerDependencies": {
+        "@prefecthq/miter-design": "^0.1.30",
         "pinia": "2.0.11",
         "vue": "^3.0.5",
-        "vue-router": "^4.0.12",
-        "@prefecthq/miter-design": "^0.1.30"
+        "vue-router": "^4.0.12"
     }
 }
