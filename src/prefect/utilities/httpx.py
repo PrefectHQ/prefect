@@ -10,12 +10,15 @@ from prefect.settings import PREFECT_API_REQUEST_TIMEOUT
 class PrefectHttpxClient(httpx.AsyncClient):
     RETRY_MAX = 5
 
+    async def _httpx_send(self, *args, **kwargs) -> Response:
+        return await super().send(*args, **kwargs)
+
     async def send(self, *args, **kwargs) -> Response:
         """
         Build and send a request with prefect-specific error and retry handling.
         """
         retry_count = 0
-        response = await super().send(*args, **kwargs)
+        response = await self._httpx_send(*args, **kwargs)
 
         while response.status_code == 429 and retry_count < self.RETRY_MAX:
             retry_count += 1
@@ -28,7 +31,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 retry_seconds = 2**retry_count  # default to exponential backoff
 
             await anyio.sleep(retry_seconds)
-            response = await super().send(*args, **kwargs)
+            response = await self._httpx_send(*args, **kwargs)
 
         response.raise_for_status()
 
