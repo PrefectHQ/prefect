@@ -78,6 +78,7 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A
+from prefect.utilities.enum import AutoEnum, auto
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
 
@@ -85,10 +86,21 @@ T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
 
 
+class TaskConcurrencyType(AutoEnum):
+    SEQUENTIAL = auto()
+    CONCURRENT = auto()
+    PARALLEL = auto()
+
+
 class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger(f"task_runner.{self.name}")
         self._started: bool = False
+
+    @abc.abstractmethod
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        pass
 
     @property
     def name(self):
@@ -178,6 +190,10 @@ class SequentialTaskRunner(BaseTaskRunner):
     def __init__(self) -> None:
         super().__init__()
         self._results: Dict[UUID, State] = {}
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.SEQUENTIAL
 
     async def submit(
         self,
@@ -321,6 +337,14 @@ class DaskTaskRunner(BaseTaskRunner):
 
         super().__init__()
 
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return (
+            TaskConcurrencyType.PARALLEL
+            if self.cluster_kwargs.get("processes")
+            else TaskConcurrencyType.CONCURRENT
+        )
+
     async def submit(
         self,
         task_run: TaskRun,
@@ -454,6 +478,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._results: Dict[UUID, Any] = {}
         self._task_run_ids: Set[UUID] = set()
         super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.CONCURRENT
 
     async def submit(
         self,
