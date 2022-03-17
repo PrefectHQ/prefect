@@ -46,94 +46,6 @@ def dask_task_runner_with_existing_cluster():
             yield DaskTaskRunner(address=address)
 
 
-@pytest.fixture(scope="module")
-@pytest.mark.service("ray")
-def machine_ray_instance():
-    """
-    Starts a ray instance for the current machine
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    subprocess.check_call(
-        ["ray", "start", "--head", "--include-dashboard", "False"],
-        cwd=str(prefect.__root_path__),
-    )
-    try:
-        yield "ray://127.0.0.1:10001"
-    finally:
-        subprocess.run(["ray", "stop"])
-
-
-@pytest.fixture
-@pytest.mark.service("ray")
-def ray_task_runner_with_existing_cluster(
-    machine_ray_instance,
-    use_hosted_orion,
-    hosted_orion_api,
-):
-    """
-    Generate a ray task runner that's connected to a ray instance running in a separate
-    process.
-
-    This tests connection via `ray://` which is a client-based connection.
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    yield RayTaskRunner(
-        address=machine_ray_instance,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
-    )
-
-
-@pytest.fixture(scope="module")
-@pytest.mark.service("ray")
-def inprocess_ray_cluster():
-    """
-    Starts a ray cluster in-process
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-    cluster_utils = pytest.importorskip("ray.cluster_utils")
-
-    cluster = cluster_utils.Cluster(initialize_head=True)
-    try:
-        cluster.add_node()  # We need to add a second node for parallelism
-        yield cluster
-    finally:
-        cluster.shutdown()
-
-
-@pytest.fixture
-@pytest.mark.service("ray")
-def ray_task_runner_with_inprocess_cluster(
-    inprocess_ray_cluster,
-    use_hosted_orion,
-    hosted_orion_api,
-):
-    """
-    Generate a ray task runner that's connected to an in-process cluster.
-
-    This tests connection via 'localhost' which is not a client-based connection.
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    yield RayTaskRunner(
-        address=inprocess_ray_cluster.address,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
-    )
-
-
 @pytest.fixture
 @pytest.mark.service("dask")
 def dask_task_runner_with_process_pool():
@@ -180,14 +92,6 @@ def default_concurrent_task_runner():
 
 
 @pytest.fixture
-@pytest.mark.service("ray")
-def default_ray_task_runner():
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    yield RayTaskRunner()
-
-
-@pytest.fixture
 def task_runner(request):
     """
     An indirect fixture that expects to receive a pytest fixture that yields a task
@@ -226,10 +130,6 @@ def parameterize_with_task_runners(*values):
 parameterize_with_all_task_runners = parameterize_with_task_runners(
     default_sequential_task_runner,
     default_concurrent_task_runner,
-    # ray
-    default_ray_task_runner,
-    ray_task_runner_with_existing_cluster,
-    ray_task_runner_with_inprocess_cluster,
     # dask
     default_dask_task_runner,
     dask_task_runner_with_existing_cluster,
@@ -240,9 +140,6 @@ parameterize_with_all_task_runners = parameterize_with_task_runners(
 
 parameterize_with_parallel_task_runners = parameterize_with_task_runners(
     default_concurrent_task_runner,
-    # ray
-    default_ray_task_runner,
-    ray_task_runner_with_existing_cluster,
     # dask
     dask_task_runner_with_existing_cluster,
     default_dask_task_runner,
@@ -256,7 +153,6 @@ parameterize_with_sequential_task_runners = parameterize_with_task_runners(
 parameterize_with_all_task_runner_types = parameterize_with_task_runners(
     default_sequential_task_runner,
     default_concurrent_task_runner,
-    default_ray_task_runner,
     default_dask_task_runner,
 )
 
