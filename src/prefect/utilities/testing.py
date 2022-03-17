@@ -6,6 +6,8 @@ import sys
 import warnings
 from contextlib import contextmanager
 
+import pytest
+
 import prefect.context
 import prefect.settings
 
@@ -82,3 +84,43 @@ def assert_does_not_warn():
             yield
         except Warning as warning:
             raise AssertionError(f"Warning was raised. {warning!r}") from warning
+
+
+def parameterize_with_fixtures(name: str, *values):
+    """
+    Create a parameterized fixture from a collection of fixtures.
+
+    Generates a `pytest.mark.parametrize` instance from a collection of fixtures.
+
+    Passes marks from the fixtures to the parameter.
+
+    Example:
+
+        >>> @pytest.fixture
+        >>> @pytest.mark.foo
+        >>> def foo():
+        >>>     return "foo"
+        >>>
+        >>>
+        >>> @pytest.fixture
+        >>> @pytest.mark.bar
+        >>> def bar():
+        >>>     return "bar"
+        >>>
+        >>> @parameterize_indirect("foobar", foo, bar)
+        >>> def test_foo_or_bar(foobar)
+        >>>     assert foobar == "foo" or foobar == "bar"
+    """
+
+    def add_marks(item):
+        return pytest.param(
+            item, marks=[mark for mark in getattr(item, "pytestmark", [])]
+        )
+
+    values = [add_marks(value) for value in values]
+
+    return pytest.mark.parametrize(
+        name,
+        values,
+        indirect=True,
+    )

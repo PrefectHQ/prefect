@@ -1,7 +1,5 @@
-import subprocess
 import sys
 import time
-from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -10,7 +8,6 @@ import cloudpickle
 import distributed
 import pytest
 
-import prefect
 from prefect import flow, task
 from prefect.context import get_run_context
 from prefect.futures import PrefectFuture
@@ -22,8 +19,7 @@ from prefect.task_runners import (
     DaskTaskRunner,
     SequentialTaskRunner,
 )
-from prefect.testing.pytestutils import parameterize_with_fixtures
-from prefect.utilities.testing import exceptions_equal
+from prefect.utilities.testing import exceptions_equal, parameterize_with_fixtures
 
 
 @pytest.fixture
