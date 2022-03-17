@@ -1,45 +1,58 @@
 <template>
   <component
-    :is="crumb.to ? 'router-link' : 'span'"
-    v-skeleton="!crumb.text"
-    :to="crumb.to"
-    class="text-truncate bread-crumb"
-    :style="{ minWidth: !crumb.text ? '40px' : undefined }"
+    :is="component"
+    class="bread-crumb"
+    :class="classes.crumb"
+    :to="to"
+    @click="callback"
   >
-    {{ crumb.text }}
+    <span v-skeleton="crumb.loading" :class="classes.inner">
+      {{ text }}
+    </span>
   </component>
 </template>
 
 <script lang="ts" setup>
-  import { Crumb } from '@/models/Crumb'
+  import { computed } from 'vue'
+  import { Crumb, crumbIsCallback, crumbIsRouting } from '@/models/Crumb'
 
-  defineProps<{ crumb: Crumb }>()
+  const props = defineProps<{ crumb: Crumb }>()
+
+  const to = computed(() => {
+    return crumbIsRouting(props.crumb) ? props.crumb.action : undefined
+  })
+
+  const callback = computed(() => {
+    return crumbIsCallback(props.crumb) ? props.crumb.action : undefined
+  })
+
+  const showClickable = computed(() => {
+    return !!to.value || !!callback.value
+  })
+
+  const component = computed(() => {
+    return !props.crumb.loading && showClickable.value && !!to.value ? 'router-link' : 'span'
+  })
+
+  const text = computed(() => props.crumb.text ?? 'Loading...')
+
+  const classes = computed(() => ({
+    crumb: {
+      'bread-crumb--clickable': showClickable.value,
+    },
+    inner: {
+      'bread-crumb__loading': props.crumb.loading,
+    },
+  }))
 </script>
 
 <style lang="scss">
-a {
-  text-decoration: none;
-
-  &:hover {
-    color: var(--primary);
-    text-decoration: underline;
-  }
-
-  &:active {
-    color: var(--primary-hover) !important;
-  }
+.bread-crumb--clickable {
+  color: var(--primary);
 }
 
-.bread-crumb {
-  max-width: 50%;
-  min-height: 30px;
-}
-
-.bread-crumb::after {
-  content: '\00a0/\00a0';
-}
-
-.bread-crumb:last-child::after {
-  display: none;
+.bread-crumb--clickable:hover,
+.bread-crumb--clickable:active {
+  cursor: pointer;
 }
 </style>
