@@ -43,6 +43,17 @@ export function secondsToString(input: number, showOnes = true): string {
   return [year, day, hour, minute, second].map(x => x ? x : '').join(' ')
 }
 
+export function secondsToShorterString(input: number, showOnes = true): string {
+  const { years, days, hours, minutes, seconds } = aggregateSeconds(input) 
+  const year = years ? intervalStringIntervalType('year', years, showOnes) : ''
+  const day = days ? intervalStringIntervalType('day', days, showOnes) : ''
+  const hour = hours ? intervalStringIntervalType('hour', hours, showOnes) : ''
+  const minute = minutes ? intervalStringIntervalType('minute', minutes, showOnes) : ''
+  const second = seconds ? intervalStringIntervalType('second', seconds, showOnes) : ''
+
+  return [year, day, hour, minute, second].map(x => x ? x : '').join(' ')
+}
+
 export function secondsToApproximateString(input: number, showOnes = true): string {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(input)
   const year = intervalStringSecondsIntervalTypeShort('y', years, showOnes)
