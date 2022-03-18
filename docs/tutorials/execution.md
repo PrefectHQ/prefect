@@ -45,7 +45,7 @@ When you run this flow you should see the terminal output randomly switching bet
 
     This means that the only way to _force_ dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-task-runner/).
+Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-ray-task-runners/#running-parallel-tasks-with-dask).
 
 ## Asynchronous Execution
 
