@@ -39,8 +39,6 @@ $ prefect orion database reset -y
 
 This will completely clear all data and reapply the schema.
 
-!!! danger "Migrations"
-    Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview). This means many aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
 
 ## Configuring the database
 
