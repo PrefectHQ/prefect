@@ -82,13 +82,6 @@ When we run this flow, we find that the coroutines that were gathered yield cont
 
 Asynchronous task execution is currently supported with all task runners.
 
-!!! warning "Asynchronous tasks within synchronous flows"
-    Asynchronous tasks cannot be run within synchronous flows.  Combining asynchronous tasks with synchronous flows results in:
-    ```
-    RuntimeError: Your task is async, but your flow is synchronous. 
-    Async tasks may only be called from async flows.
-    ```
-
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
