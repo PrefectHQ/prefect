@@ -9,9 +9,9 @@ Oftentimes we want our tasks to run in parallel or even on different machines fo
 !!! note "Running flows in parallel requires no configuration"
     Note that task runners only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
 
-Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`SequentialTaskRunner`][prefect.task_runners.SequentialTaskRunner] that blocks and runs tasks in sequence as they are called.  For many situations, this is perfectly acceptable.
+Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`ConcurrentTaskRunner`][prefect.task_runners.ConcurrentTaskRunner], which will run your tasks concurrently.
 
-If, however, we want our tasks to run in parallel (or asynchronously) then we need to consider alternative approaches. 
+If, however, we want our tasks to run in parallel (or sequentially) then we need to consider alternative approaches. 
 
 ## Parallel Execution
 
