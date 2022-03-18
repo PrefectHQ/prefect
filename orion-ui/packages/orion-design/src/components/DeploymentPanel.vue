@@ -65,7 +65,7 @@
     value: props.deployment.name,
   }))
 
-const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
+const blob = computed(()=>JSON.parse(props.deployment?.flowData?.blob))
 
 
 const saving = ref(false)
