@@ -179,7 +179,7 @@ nav:
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
-        - Orion REST API: api-ref/rest-api.md
+        - Prefect REST API: api-ref/rest-api.md
     - Contributing: 
         - Overview: contributing/overview.md
         - Style: contributing/style.md
