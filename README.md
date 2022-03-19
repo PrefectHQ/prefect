@@ -16,13 +16,13 @@ Read the docs, run the code, or host the UI. Join thousands of community members
 
 **"Don't Panic"**
 
-Prefect 2.0 and Orion are under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
+Prefect 2.0 and Orion are beta software under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 
 ---
 
 ## Hello, Orion!
 
-Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules.
+Powered by Orion, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules.
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
 
@@ -72,7 +72,7 @@ Begin by [installing Prefect](https://orion-docs.prefect.io/getting-started/inst
 
 ### Concepts
 
-Learn more about Prefect's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
+Learn more about Prefect's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 ### Frequently asked questions
 
@@ -80,7 +80,7 @@ Prefect 2.0 represents a fundamentally new way of building and orchestrating dat
 
 ### API reference
 
-Prefect Orion provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://orion-docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://orion-docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
 ### Contributing
 
