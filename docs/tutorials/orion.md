@@ -129,9 +129,6 @@ This will completely clear all data and reapply the schema.
 
 See the [Database](/concepts/database/) documentation for further details on choosing and configuring the Orion database.
 
-!!! danger "Migrations"
-    Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview). This means many aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
-
 ## Orion UI and dashboard
 
 The Orion [UI and dashboard](/ui/overview/) comes prepackaged with the API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
