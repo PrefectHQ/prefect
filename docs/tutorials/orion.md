@@ -45,7 +45,7 @@ Orion's ephemeral API keeps track of the state of your Prefect flow and task run
 
 When you run an Orion API server instance, the Orion orchestration engine can run scheduled flow deployments, execute ad hoc flow runs, and lets you configure and manage work queues &mdash; on top of monitoring the state of your flows and tasks.
 
-If you execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefect's orchestration-as-a-service platform provides all the capabilities of Orion in a hosted manner.
+If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefect's orchestration-as-a-service platform provides all the capabilities of Orion in a hosted manner.
 
 ### Running the Orion server
 
@@ -128,9 +128,6 @@ $ prefect orion database reset
 This will completely clear all data and reapply the schema.
 
 See the [Database](/concepts/database/) documentation for further details on choosing and configuring the Orion database.
-
-!!! danger "Migrations"
-    Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview). This means many aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
 
 ## Orion UI and dashboard
 
