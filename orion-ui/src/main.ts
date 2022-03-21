@@ -7,12 +7,6 @@ import api from './plugins/api'
 import router from './router'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
-if (VITE_PREFECT_USE_MIRAGEJS()) {
-  const { startServer } = await import('./server')
-
-  startServer()
-}
-
 // Global components
 import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
@@ -42,23 +36,33 @@ const defaultClass = 'default-color-mode'
 const colorMode = storedMode ? `${storedMode }-color-mode` : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
+async function start(): Promise<void> {
+  if (VITE_PREFECT_USE_MIRAGEJS()) {
+    const { startServer } = await import('./server')
 
-app.component('ButtonCard', ButtonCard)
-app.component('ButtonRounded', ButtonRounded)
-app.component('Drawer', Drawer)
-app.component('List', List)
-app.component('ListItem', ListItem)
-app.component('ListItemDeployment', ListItemDeployment)
-app.component('ListItemFlow', ListItemFlow)
-app.component('ListItemFlowRun', ListItemFlowRun)
-app.component('ListItemSubFlowRun', ListItemSubFlowRun)
-app.component('ListItemTaskRun', ListItemTaskRun)
-app.component('ResultsList', ResultsList)
-app.component('Row', Row)
-app.component('RadarNode', RadarNode)
-app.component('RadarFlowRunNode', RadarFlowRunNode)
-app.component('RadarOverflowNode', RadarOverflowNode)
-app.component('StateIcon', StateIcon)
+    startServer()
+  }
 
-app.mount('#app')
+  const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
+
+  app.component('ButtonCard', ButtonCard)
+  app.component('ButtonRounded', ButtonRounded)
+  app.component('Drawer', Drawer)
+  app.component('List', List)
+  app.component('ListItem', ListItem)
+  app.component('ListItemDeployment', ListItemDeployment)
+  app.component('ListItemFlow', ListItemFlow)
+  app.component('ListItemFlowRun', ListItemFlowRun)
+  app.component('ListItemSubFlowRun', ListItemSubFlowRun)
+  app.component('ListItemTaskRun', ListItemTaskRun)
+  app.component('ResultsList', ResultsList)
+  app.component('Row', Row)
+  app.component('RadarNode', RadarNode)
+  app.component('RadarFlowRunNode', RadarFlowRunNode)
+  app.component('RadarOverflowNode', RadarOverflowNode)
+  app.component('StateIcon', StateIcon)
+
+  app.mount('#app')
+}
+
+start()
