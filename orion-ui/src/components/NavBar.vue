@@ -4,21 +4,16 @@
       <img class="nav-bar__logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
     </router-link>
 
-    <router-link
-      to="/flows"
-      class="nav-bar__item"
-      :class="{ 'nav-bar__item--active': '/flows' === route?.path }"
-    >
-      <i class="nav-bar__icon pi pi-flow" />
-    </router-link>
-
-    <router-link
-      to="/work-queues"
-      class="nav-bar__item"
-      :class="{ 'nav-bar__item--active': '/work-queues' === route?.path }"
-    >
-      <i class="nav-bar__icon pi pi-robot-line" />
-    </router-link>
+    <template v-for="(route, index) in routes" :key="index">
+      <router-link
+        v-tooltip:right="route.name"
+        :to="route.path"
+        class="nav-bar__item"
+        :class="{ 'nav-bar__item--active': route.name === currentRoute.name }"
+      >
+        <i :class="`nav-bar__icon pi pi-${route.icon}`" />
+      </router-link>
+    </template>
 
     <router-link to="/settings" class="nav-bar__item mt-auto ml-auto">
       <i class="nav-bar__icon pi pi-settings-3-line" />
@@ -27,8 +22,24 @@
 </template>
 
 <script lang="ts" setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-const route = useRoute()
+const currentRoute = useRoute()
+
+const routes = computed(() => {
+  return [
+    {
+      icon: 'flow',
+      name: 'Flows',
+      path: '/flows',
+    },
+    {
+      icon: 'robot-line',
+      name: 'Work Queues',
+      path: '/work-queues',
+    },
+  ]
+})
 </script>
 
 <style lang="scss" scoped>
