@@ -4,14 +4,18 @@
       <img class="nav-bar__logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
     </router-link>
 
-    <router-link to="/flows" class="nav-bar__item" :class="{ 'nav-bar__item--active': true }">
+    <router-link
+      to="/flows"
+      class="nav-bar__item"
+      :class="{ 'nav-bar__item--active': '/flows' === route?.path }"
+    >
       <i class="nav-bar__icon pi pi-flow" />
     </router-link>
 
     <router-link
       to="/work-queues"
       class="nav-bar__item"
-      :class="{ 'nav-bar__item--active': false }"
+      :class="{ 'nav-bar__item--active': '/work-queues' === route?.path }"
     >
       <i class="nav-bar__icon pi pi-robot-line" />
     </router-link>
@@ -22,10 +26,9 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Vue } from 'vue-class-component'
-
-export default class NavBar extends Vue { }
+<script lang="ts" setup>
+import { useRoute } from 'vue-router'
+const route = useRoute()
 </script>
 
 <style lang="scss" scoped>
