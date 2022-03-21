@@ -70,7 +70,6 @@ const routes = computed(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: width 150ms ease-in-out 150ms;
 }
 
 .nav-bar__item:not(:last-child) {
@@ -92,10 +91,6 @@ const routes = computed(() => {
     flex-direction: row;
     max-width: unset;
     width: 100vw;
-
-    .nav-bar__item {
-      transition: width 150ms ease-in-out 150ms;
-    }
   }
 }
 </style>
