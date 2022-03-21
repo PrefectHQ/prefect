@@ -13,6 +13,7 @@
   import { computed } from 'vue'
   import ColorSchemeSelectOption from '@/components/ColorSchemeSelectOption.vue'
   import { colorModes, ColorMode, colorMode, setColorMode } from '@/services/ColorMode'
+
   const selectedColorMode = computed({
     get() {
       return colorMode.value
