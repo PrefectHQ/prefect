@@ -5,8 +5,9 @@ import App from './App.vue'
 import './registerServiceWorker'
 import api from './plugins/api'
 import router from './router'
+import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
-if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
+if (VITE_PREFECT_USE_MIRAGEJS()) {
   const { startServer } = await import('./server')
 
   startServer()
