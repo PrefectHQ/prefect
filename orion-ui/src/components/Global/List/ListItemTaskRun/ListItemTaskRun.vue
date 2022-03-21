@@ -19,9 +19,8 @@
 </template>
 
 <script lang="ts" setup>
-  import type { FlowRunsFilter } from '@prefecthq/orion-design'
+  import { FlowRunsFilter, BreadCrumbs, Crumb } from '@prefecthq/orion-design'
   import { computed } from 'vue'
-  import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
   import { Api, Query, Endpoints } from '@/plugins/api'
@@ -72,17 +71,19 @@
   })
 
   const duration = computed(() => {
-    return stateType.value == 'pending' || stateType.value == 'scheduled'
-      ? '--'
-      : props.item.total_run_time
-        ? secondsToApproximateString(props.item.total_run_time)
-        : secondsToApproximateString(props.item.estimated_run_time)
+    if (stateType.value == 'pending' || stateType.value == 'scheduled') {
+      return '--'
+    }
+
+    return props.item.total_run_time
+      ? secondsToApproximateString(props.item.total_run_time)
+      : secondsToApproximateString(props.item.estimated_run_time)
   })
 
-  const crumbs = computed(() => {
+  const crumbs = computed<Crumb[]>(() => {
     return [
       { text: flow.value?.name },
-      { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
+      { text: flowRun.value?.name, action: `/flow-run/${flowRun.value?.id}` },
       { text: props.item.name },
     ]
   })
