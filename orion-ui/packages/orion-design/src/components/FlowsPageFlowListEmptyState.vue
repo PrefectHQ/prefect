@@ -3,7 +3,7 @@
     header="Create a flow to get started"
     description="Flows are the most basic Prefect object. They are containers for workflow logic and allow users to interact with and reason about the state of their workflows."
   >
-    <template v-show="displayDocsButton">
+    <template v-if="hideDocsButton">
       <a href="https://orion-docs.prefect.io/concepts/flows/" target="_blank">
         <m-button color="primary" miter icon="pi-add-line">
           View Docs
@@ -29,9 +29,9 @@
   import { mocker } from '@/services/Mocker'
 
   defineProps({
-      displayDocsButton: {
+      hideDocsButton: {
         type: Boolean,
-        default: true
+        default: false
     },
   })
 
