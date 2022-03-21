@@ -9,9 +9,9 @@ Oftentimes we want our tasks to run in parallel or even on different machines fo
 !!! note "Running flows in parallel requires no configuration"
     Note that task runners only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
 
-Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`SequentialTaskRunner`][prefect.task_runners.SequentialTaskRunner] that blocks and runs tasks in sequence as they are called.  For many situations, this is perfectly acceptable.
+Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`ConcurrentTaskRunner`][prefect.task_runners.ConcurrentTaskRunner], which will run your tasks concurrently.
 
-If, however, we want our tasks to run in parallel (or asynchronously) then we need to consider alternative approaches. 
+If, however, we want our tasks to run in parallel (or sequentially) then we need to consider alternative approaches. 
 
 ## Parallel Execution
 
@@ -45,7 +45,7 @@ When you run this flow you should see the terminal output randomly switching bet
 
     This means that the only way to _force_ dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-task-runner/).
+Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-ray-task-runners/#running-parallel-tasks-with-dask).
 
 ## Asynchronous Execution
 
@@ -81,13 +81,6 @@ When we run this flow, we find that the coroutines that were gathered yield cont
 </div>
 
 Asynchronous task execution is currently supported with all task runners.
-
-!!! warning "Asynchronous tasks within synchronous flows"
-    Asynchronous tasks cannot be run within synchronous flows.  Combining asynchronous tasks with synchronous flows results in:
-    ```
-    RuntimeError: Your task is async, but your flow is synchronous. 
-    Async tasks may only be called from async flows.
-    ```
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
