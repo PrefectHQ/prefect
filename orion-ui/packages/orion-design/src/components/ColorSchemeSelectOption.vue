@@ -34,7 +34,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .color-scheme-select-option {
   display: flex;
   justify-content: space-between;
