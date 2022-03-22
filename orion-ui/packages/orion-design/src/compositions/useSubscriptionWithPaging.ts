@@ -56,7 +56,8 @@ export function useSubscriptionWithPaging<T extends UnionFiltersAction>(
     const argsToWatch = watchableArgs(args)
 
     watch(argsToWatch, () => {
-      pages.value = 1
+      pages.value = 0
+      subscriptions.forEach(subscription => subscription.unsubscribe())
       subscriptions.splice(0)
 
       loadMore()
