@@ -1,5 +1,5 @@
 <template>
-  <component :is="tabSetComponent" class="list-tab-set" :tabs="tabs">
+  <component :is="tabSetType" class="list-tab-set" :tabs="tabs">
     <template #after-tab="{ tab }">
       <template v-if="tab.key !== 'logs'">
         <span class="list-tab-set__tab-count">{{ tab.count.toLocaleString() }}</span>
@@ -21,30 +21,21 @@
 </template>
 
 <script lang="ts" setup>
-  import { PropType } from 'vue'
+  import { computed, PropType } from 'vue'
   import RouterTabSet from '@/components/RouterTabSet.vue'
   import TabSet from '@/components/TabSet.vue'
+  import { isRouterTab, ListRouterTab, ListTab } from '@/types/tabs'
   import { toPluralString } from '@/utilities/strings'
 
-  type TabSetProps = InstanceType<typeof TabSet>['$props']
-  type RouterTabSetProps = InstanceType<typeof RouterTabSet>['$props']
-
-  type Tab = (TabSetProps | RouterTabSetProps)['tabs'][number] & {
-    count: number,
-  }
-
-  defineProps({
+  const props = defineProps({
     tabs: {
-      type: Array as PropType<Readonly<Tab[]>>,
+      type: Array as PropType<Readonly<(ListTab[] | ListRouterTab[])>>,
       required: true,
-      validator:(value: Tab[]) => value.length > 0,
-    },
-    tabSetComponent: {
-      type: Object as PropType<InstanceType<typeof RouterTabSet> | InstanceType<typeof TabSet>>,
-      required: false,
-      default: TabSet,
+      validator:(value: Readonly<(ListTab[] | ListRouterTab[])>) => value.length > 0,
     },
   })
+
+  const tabSetType = computed(() => props.tabs.every(isRouterTab) ? RouterTabSet : TabSet)
 </script>
 
 <style lang="scss">
