@@ -27,7 +27,7 @@ __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2 = (
     "https://{apiDomain}/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
 )
 
-USER_AGENT_HEADER = {"user-agent": "prefect-{v}".format(v=prefect.__version__)}
+USER_AGENT_HEADER = {"user-agent": f"prefect-{prefect.__version__}"}
 
 
 class DbtCloudBaseException(Exception):
@@ -169,10 +169,7 @@ def wait_for_job_run(
 
 
 def list_run_artifact_links(
-    account_id: int,
-    run_id: int,
-    token: str,
-    domain: str = None,
+    account_id: int, run_id: int, token: str, domain: str = None,
 ) -> List[Tuple[str, str]]:
     """
     Lists URLs that can be used to download artifacts from a dbt run

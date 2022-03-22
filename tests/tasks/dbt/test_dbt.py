@@ -1,17 +1,16 @@
 import os
 import sys
-from prefect.tasks.dbt.dbt_cloud_utils import TriggerDbtCloudRunFailed
 
+import pytest
 import responses
 from responses import matchers
-import pytest
 
-import prefect
 from prefect import Flow
-from prefect.engine.signals import FAIL
-from prefect.tasks.dbt import DbtShellTask, DbtCloudRunJob
-
-USER_AGENT_HEADER = {"user-agent": "prefect-{v}".format(v=prefect.__version__)}
+from prefect.tasks.dbt import DbtCloudRunJob, DbtShellTask
+from prefect.tasks.dbt.dbt_cloud_utils import (
+    USER_AGENT_HEADER,
+    TriggerDbtCloudRunFailed,
+)
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="DbtShellTask currently not supported on Windows"
