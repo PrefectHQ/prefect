@@ -1,7 +1,6 @@
 <template>
   <div class="work-queues">
-    <PageHeader icon="robot-line">
-      <span>Work Queues</span>
+    <PageHeader icon="robot-line" heading="Work Queues">
       <template v-if="workQueues.length" #actions>
         <WorkQueueCreateButton />
       </template>

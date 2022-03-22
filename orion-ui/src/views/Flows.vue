@@ -1,8 +1,6 @@
 <template>
   <div class="flows">
-    <PageHeader icon="flow">
-      Flows
-    </PageHeader>
+    <PageHeader icon="flow" heading="Flows" />
 
     <m-loader class="flows__loader" :loading="loading" />
 
