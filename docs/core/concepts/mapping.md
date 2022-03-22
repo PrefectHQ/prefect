@@ -1,6 +1,6 @@
 # Mapping
 
-Prefect introduces a flexible map/reduce model for dynamically executing parallel tasks.
+Prefect introduces a flexible map/reduce model for dynamically executing parallel tasks (parallel in the sense of independent data handling for each task, not parallelized simultaneous execution).
 
 Classic "map/reduce" is a powerful two-stage programming model that can be used to distribute and parallelize work (the "map" phase) before collecting and processing all the results (the "reduce" phase).
 
