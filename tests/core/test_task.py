@@ -852,4 +852,4 @@ def test_task_call_with_self_succeeds():
 
     with Flow("test") as flow:
         seconds_task(initial)
-        assert flow.run().is_successful()
+    assert flow.run().is_successful()
