@@ -1,4 +1,5 @@
 export * from './Api'
+export * from './ColorMode'
 export * from './DeploymentsApi'
 export * from './Filter'
 export * from './FilterDescriptionService'

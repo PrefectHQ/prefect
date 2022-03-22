@@ -1,7 +1,7 @@
 <template>
   <ListItem class="list-item--deployment" icon="pi-map-pin-line">
     <div class="list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openDeploymentPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
       <div
         class="
           tag-container
@@ -126,7 +126,7 @@
 
 <script lang="ts">
   /* eslint-disable */
-  import { media, showPanel, DeploymentPanel, useInjectedServices, DeploymentsApi } from '@prefecthq/orion-design'
+  import { media, showPanel, DeploymentPanel, useInjectedServices, deploymentsApi, BreadCrumbs, Crumb } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
   import Drawer from '@/components/Global/Drawer/Drawer.vue'
@@ -140,7 +140,7 @@
   }
 
   @Options({
-    components: { ListItem, Drawer },
+    components: { ListItem, Drawer, BreadCrumbs },
     watch: {
       parametersDrawerActive() {
         this.search = ''
@@ -161,13 +161,12 @@
     scheduleActive: boolean = this.item.is_schedule_active
     creatingRun: boolean = false
     media = media
-    crumbs = [{ text: this.item.name, to: window.location.href }]
+    crumbs: Crumb[] = [{ text: this.item.name, action: () => this.openDeploymentPanel() }]
     injectedServices = useInjectedServices()
-    deploymentsApi = new DeploymentsApi()
 
     openDeploymentPanel(): void {
       showPanel(DeploymentPanel, {
-        deployment: this.deploymentsApi.mapDeployment(this.item as any),
+        deployment: deploymentsApi.mapDeployment(this.item as any),
         dashboardRoute: { name: 'Dashboard' },
         ...this.injectedServices,
       })
