@@ -19,7 +19,7 @@
         </m-input>
         <TagsInput v-model:tags="tags" />
       </div>
-      <FlowsPageFlowList :flows="flows" />
+      <FlowsPageFlowList :flows="flows" @bottom="loadMoreFlows" />
     </template>
   </div>
 </template>
@@ -33,7 +33,8 @@
     flowsApi,
     workspaceDashboardKey,
     FlowsPageFlowListEmptyState,
-    Require
+    Require,
+    useSubscriptionWithPaging
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
@@ -71,11 +72,15 @@
   }
 
   const countFlowsSubscription = useSubscription(flowsApi.getFlowsCount, [{}], subscriptionOptions)
-  const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
-
-  const flows = computed(() => flowsSubscription.response.value ?? [])
+  const flowsSubscription = useSubscriptionWithPaging(flowsApi.getFlows, [filter], subscriptionOptions)
+  const flows = computed(() => flowsSubscription.response)
   const empty = computed(() => countFlowsSubscription.response.value === 0)
-  const loading = computed(() => countFlowsSubscription.response.value === undefined || flowsSubscription.response.value === undefined)
+  const loading = computed(() => countFlowsSubscription.response.value === undefined)
+
+  function loadMoreFlows(): void {
+    console.log('loadMoreFlows')
+    flowsSubscription.loadMore()
+  }
 </script>
 
 <style lang="scss" scoped>
