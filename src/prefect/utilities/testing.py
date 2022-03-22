@@ -48,6 +48,8 @@ def temporary_settings(**kwargs):
     This will _not_ mutate values that have been already been accessed at module
     load time.
 
+    Values set to `None` will be restored to the default value.
+
     This function should only be used for testing.
 
     Example:
@@ -58,22 +60,31 @@ def temporary_settings(**kwargs):
     """
     old_env = os.environ.copy()
 
-    # Cast to strings
-    variables = {key: str(value) for key, value in kwargs.items()}
+    # Collect keys to set to new values
+    set_variables = {
+        # Cast values to strings
+        key: str(value)
+        for key, value in kwargs.items()
+        if value is not None
+    }
+    # Collect keys to restore to defaults
+    unset_variables = {key for key, value in kwargs.items() if value is None}
 
     try:
-        for key in variables:
-            os.environ[key] = str(variables[key])
+        for key, value in set_variables.items():
+            os.environ[key] = value
+        for key in unset_variables:
+            os.environ.pop(key, None)
 
         new_settings = prefect.settings.get_settings_from_env()
 
         with prefect.context.ProfileContext(
-            name="temporary", settings=new_settings, env=variables
+            name="temporary", settings=new_settings, env=set_variables
         ):
             yield new_settings
 
     finally:
-        for key in variables:
+        for key in unset_variables.union(set_variables.keys()):
             if old_env.get(key):
                 os.environ[key] = old_env[key]
             else:
