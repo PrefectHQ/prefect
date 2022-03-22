@@ -10,34 +10,23 @@
   import { computed, PropType } from 'vue'
   import { useRouter } from 'vue-router'
   import TabSet from '@/components/TabSet.vue'
-
-  type Route = {
-    name: string,
-    hash?: string,
-  }
-  type Tab = {
-    title: string,
-    key: string,
-    route: Route,
-    icon?: string,
-    class?: string,
-  }
+  import { RouterTab } from '@/types/tabs'
 
   const props = defineProps({
     tabs: {
-      type: Array as PropType<Readonly<Tab[]>>,
+      type: Array as PropType<Readonly<RouterTab[]>>,
       required: true,
-      validator:(value: Tab[]) => value.length > 0,
+      validator:(value: RouterTab[]) => value.length > 0,
     },
   })
 
   const router = useRouter()
 
-  const getRouteKey = (route: Route): string => {
+  const getRouteKey = (route: RouterTab['route']): string => {
     return `${route.name}${route.hash ?? ''}`
   }
 
-  const getTabByRouteKey = (routeKey: string | null): Tab => {
+  const getTabByRouteKey = (routeKey: string | null): RouterTab => {
     const [defaultTab] = props.tabs
     if (!routeKey) {
       return defaultTab
@@ -46,7 +35,7 @@
     return props.tabs.find(({ route }) => getRouteKey(route) === routeKey) ?? defaultTab
   }
 
-  const getTabByKey = (key: string | undefined): Tab => {
+  const getTabByKey = (key: string | undefined): RouterTab => {
     const [defaultTab] = props.tabs
     if (!key) {
       return defaultTab
@@ -73,7 +62,7 @@
     return getRouteKey({ name: router.currentRoute.value.name, hash })
   })
 
-  const selectedTab = computed<Tab>(() => {
+  const selectedTab = computed<RouterTab>(() => {
     return getTabByRouteKey(currentRouteRouteKey.value)
   })
 

@@ -39,6 +39,7 @@ export { default as FlowsPageFlowListEmptyState } from './FlowsPageFlowListEmpty
 export { default as FlowsPageFlowListItem } from './FlowsPageFlowListItem.vue'
 export { default as LabelWrapper } from './LabelWrapper.vue'
 export { default as ListItem } from './ListItem.vue'
+export { default as ListTabSet } from './ListTabSet.vue'
 export { default as LogLevelLabel } from './LogLevelLabel.vue'
 export { default as OverflowWrapper } from './OverflowWrapper.vue'
 export { default as PageHeader } from './PageHeader.vue'
