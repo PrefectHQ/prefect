@@ -131,7 +131,7 @@ def prefect_test_harness():
             stack.enter_context(temporary_orm_config(AioSqliteORMConfiguration()))
             stack.enter_context(
                 temporary_settings(
-                    PREFECT_API_URL="",
+                    PREFECT_API_URL=None,
                     PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
                 )
             )
