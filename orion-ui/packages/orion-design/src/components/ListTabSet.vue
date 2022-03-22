@@ -1,14 +1,14 @@
 <template>
   <component :is="tabSetType" class="list-tab-set" :tabs="tabs">
     <template #after-tab="{ tab }">
-      <template v-if="tab.key !== 'logs'">
+      <template v-if="tab.count !== null">
         <span class="list-tab-set__tab-count">{{ tab.count.toLocaleString() }}</span>
       </template>
     </template>
 
     <template #before-tab-content="{ selectedTab }">
       <div class="list-tab-set__list-count">
-        <template v-if="selectedTab.count">
+        <template v-if="selectedTab.count !== null">
           <span>{{ selectedTab.count.toLocaleString() }} {{ toPluralString('Result', selectedTab.count) }}</span>
         </template>
       </div>
