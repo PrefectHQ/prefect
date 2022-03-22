@@ -52,7 +52,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple, Union
 from uuid import UUID
 
 import fsspec
@@ -69,7 +69,12 @@ from prefect.exceptions import (
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
 )
-from prefect.flow_runners import FlowRunner, SubprocessFlowRunner, UniversalFlowRunner
+from prefect.flow_runners import (
+    FlowRunner,
+    FlowRunnerSettings,
+    SubprocessFlowRunner,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -115,7 +120,9 @@ class DeploymentSpec(PrefectBaseModel):
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
-    flow_runner: FlowRunner = Field(default_factory=UniversalFlowRunner)
+    flow_runner: Union[FlowRunner, FlowRunnerSettings] = Field(
+        default_factory=UniversalFlowRunner
+    )
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -188,6 +195,11 @@ class DeploymentSpec(PrefectBaseModel):
 
         if not self.name and self.flow_name:
             self.name = self.flow_name
+
+        # Convert flow runner settings to concrete instances
+
+        if isinstance(self.flow_runner, FlowRunnerSettings):
+            self.flow_runner = FlowRunner.from_settings(self.flow_runner)
 
         # Determine the storage block
 
