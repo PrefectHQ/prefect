@@ -38,13 +38,13 @@ export function useSubscriptionWithPaging<T extends UnionFiltersAction>(
       return
     }
 
-    pages.value++
-
     const offset = (unwrappedFilters.offset ?? limit) * pages.value
     const subscriptionFilters = [{ ...unwrappedFilters, offset, limit }] as Parameters<T>
     const subscription = useSubscription<T>(action, subscriptionFilters, options)
 
     subscriptions.push(reactive(subscription))
+
+    pages.value++
   }
 
   if (
