@@ -78,7 +78,6 @@
   const loading = computed(() => countFlowsSubscription.response.value === undefined)
 
   function loadMoreFlows(): void {
-    console.log('loadMoreFlows')
     flowsSubscription.loadMore()
   }
 </script>
