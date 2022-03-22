@@ -185,7 +185,12 @@ def temporary_database_interface(
     tmp_orm_config: BaseORMConfiguration = None,
 ):
     """
-    Temporarily override the orion database interface.
+    Temporarily override the Orion database interface.
+
+    Any interface components that are not explicitly provided will be
+    cleared and inferred from the Orion database connection string
+    dialect.
+
     When the context is closed, the existing database interface will
     be restored.
 
