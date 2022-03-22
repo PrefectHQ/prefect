@@ -34,10 +34,10 @@ MODELS_DEPENDENCIES = {
 
 def provide_database_interface() -> OrionDBInterface:
     """
-    Get the current orion database interface.
+    Get the current Orion database interface.
 
     If components of the interface are not set, defaults will be inferred
-    based on the dialect of the connection url.
+    based on the dialect of the connection URL.
     """
     connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
 
@@ -162,12 +162,12 @@ def temporary_query_components(tmp_queries: BaseQueryComponents):
 @contextmanager
 def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
     """
-    Temporarily override the Orion orm configuration.
+    Temporarily override the Orion ORM configuration.
     When the context is closed, the existing orm configuration will
     be restored.
 
     Args:
-        tmp_orm_config: Orion orm configuration to inject.
+        tmp_orm_config: Orion ORM configuration to inject.
 
     """
     starting_orm_config = MODELS_DEPENDENCIES["orm"]
@@ -196,7 +196,7 @@ def temporary_database_interface(
 
     Args:
         tmp_database_config: An optional Orion database configuration to inject.
-        tmp_orm_config: An optional Orion orm configuration to inject.
+        tmp_orm_config: An optional Orion ORM configuration to inject.
         tmp_queries: Optional Orion query components to inject.
 
     """
