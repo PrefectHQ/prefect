@@ -21,18 +21,14 @@ jobs:
       - name: Set up Python 3.8
         uses: actions/setup-python@v3
         with:
-          python-version: 3.8
+          python-version: "3.8"
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
 
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
-
-      - uses: actions/cache@v3
-        with:
-          path: ${{ env.pythonLocation }}
-          # Load installed python packages from the cache
-          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
 
       - name: Install python packages
         run: |
