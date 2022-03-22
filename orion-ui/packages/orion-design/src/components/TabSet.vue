@@ -32,13 +32,7 @@
 
 <script lang="ts" setup>
   import { computed, PropType } from 'vue'
-
-  type Tab = {
-    title: string,
-    key: string,
-    icon?: string,
-    class?: string,
-  }
+  import { Tab } from '@/types/tabs'
 
   const props = defineProps({
     tabs: {
