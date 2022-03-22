@@ -1,9 +1,11 @@
 <template>
   <div class="flows-list">
     <m-card shadow="sm">
-      <template v-for="flow in flows" :key="flow.id">
-        <FlowsPageFlowListItem :flow="flow" />
-      </template>
+      <VirtualScroller :items="flows" @bottom="emit('bottom')">
+        <template #default="{ item }">
+          <FlowsPageFlowListItem :flow="item" />
+        </template>
+      </VirtualScroller>
     </m-card>
     <template v-if="empty">
       <div class="text-center my-8">
@@ -15,11 +17,16 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
+  import VirtualScroller from './VirtualScroller.vue'
   import FlowsPageFlowListItem from '@/components/FlowsPageFlowListItem.vue'
   import { Flow } from '@/models/Flow'
 
   const props = defineProps<{
     flows: Flow[],
+  }>()
+
+  const emit = defineEmits<{
+    (event: 'bottom'): void,
   }>()
 
   const empty = computed(() => props.flows.length === 0)
