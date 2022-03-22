@@ -1,7 +1,7 @@
 <template>
   <div class="flows-list">
     <m-card shadow="sm">
-      <VirtualScroller :items="flows" @bottom="emit('bottom')">
+      <VirtualScroller :items="flows" :item-estimate-height="70" @bottom="emit('bottom')">
         <template #default="{ item }">
           <FlowsPageFlowListItem :flow="item" />
         </template>
