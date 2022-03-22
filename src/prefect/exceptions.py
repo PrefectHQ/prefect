@@ -2,14 +2,30 @@
 Prefect-specific exceptions.
 """
 from types import ModuleType, TracebackType
-from typing import Iterable
+from typing import Iterable, Optional
 
 from rich.traceback import Traceback
 
 import prefect
 
 
-def _trim_traceback(tb: TracebackType, remove_modules: Iterable[ModuleType]):
+def _trim_traceback(
+    tb: TracebackType, remove_modules: Iterable[ModuleType]
+) -> Optional[TracebackType]:
+    """
+    Utility to remove frames from specific modules from a traceback.
+
+    Only frames from the front of the traceback are removed. Once a traceback frame
+    is reached that does not originate from `remove_modules`, it is returned.
+
+    Args:
+        tb: The traceback to trim.
+        remove_modules: An iterable of module objects to remove.
+
+    Returns:
+        A traceback, or `None` if all traceback frames originate from an excluded module
+
+    """
     strip_paths = [module.__file__ for module in remove_modules]
 
     while tb and any(
