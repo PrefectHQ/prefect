@@ -4,8 +4,7 @@
     :label="label"
     v-bind="{ type, ...$attrs }"
     @click="open"
-    @focusin="open"
-    @focusout="open"
+    @keypress.space.self="open"
   />
 
   <teleport v-if="showPicker" to="[data-teleport-target='app']">
