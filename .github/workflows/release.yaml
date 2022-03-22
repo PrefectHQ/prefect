@@ -28,7 +28,7 @@ jobs:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ${{ env.pythonLocation }}
           # Load installed python packages from the cache
