@@ -1,20 +1,8 @@
 import { createActions } from '@prefecthq/vue-compositions'
 import { InjectionKey } from 'vue'
+import { SavedSearchResponse } from '@/models/SavedSearchResponse'
 import { Api, Route } from '@/services/Api'
 import { Filter } from '@/types/filters'
-
-export type SavedSearchRequest = {
-  name: string,
-  filters: Required<Filter>[],
-}
-
-export type SavedSearchResponse = {
-  id: string,
-  created: string,
-  updated: string,
-  name: string,
-  filters: Required<Filter>[],
-}
 
 export class SearchApi extends Api {
 
