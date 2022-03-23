@@ -189,5 +189,4 @@ class TestFileStorageBlock:
 
 def test_local_storage_block_home_basepath():
     local_storage_block = storage.LocalStorageBlock(storage_path="~/.prefect")
-    basepath = local_storage_block.basepath()
-    assert str(basepath) == os.path.expanduser("~/.prefect")
+    assert "~" not in str(local_storage_block.basepath())
