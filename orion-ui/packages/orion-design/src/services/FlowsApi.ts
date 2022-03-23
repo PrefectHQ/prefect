@@ -2,16 +2,9 @@ import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { Flow } from '@/models/Flow'
+import { IFlowResponse } from '@/models/IFlowResponse'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
-
-export type IFlowResponse = {
-  created: string,
-  id: string,
-  name: string,
-  tags: string[],
-  updated: string,
-}
 
 export class FlowsApi extends Api {
 
