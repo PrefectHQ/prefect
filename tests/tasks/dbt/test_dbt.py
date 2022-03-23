@@ -443,3 +443,7 @@ def test_dbt_cloud_run_job_trigger_job_with_wait_custom():
                 f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
             ],
         }
+
+
+def test_user_agent():
+    assert "prefect" in USER_AGENT_HEADER["user-agent"]
