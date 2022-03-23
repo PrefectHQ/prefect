@@ -6,10 +6,10 @@ from typing import Any, Optional, Union
 import cloudpickle
 
 
-def stable_hash(*args: Union[str, bytes, int]) -> str:
+def stable_hash(*args: Union[str, bytes]) -> str:
     """Given some arguments, produces a stable 64-bit hash of their contents.
 
-    Supports bytes, ints, and strings. Integers and strings will be UTF-8 encoded.
+    Supports bytes and strings. Strings will be UTF-8 encoded.
 
     Args:
         *args: Items to include in the hash.
@@ -21,13 +21,6 @@ def stable_hash(*args: Union[str, bytes, int]) -> str:
     for a in args:
         if isinstance(a, str):
             a = a.encode()
-        elif isinstance(a, int):
-            # Converting an integer to true byte representations with `to_bytes`
-            # will fail for large numbers without computing a length. Instead, we encode
-            # the string representation of the number and prepend it with a byte that
-            # makes it invalid UTF-8. 0x80 is a UTF-8 continuation byte and is not valid
-            # at the start of a character.
-            a = bytes([0x80]) + str(a).encode()
         h.update(a)
     return h.hexdigest()
 
