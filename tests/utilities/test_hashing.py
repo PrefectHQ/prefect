@@ -15,12 +15,19 @@ from prefect.utilities.hashing import file_hash, stable_hash, to_qualified_name
         (("hello", "goodbye"), "441add4718519b71e42d329a834d6d5e"),
         (("hello", b"goodbye"), "441add4718519b71e42d329a834d6d5e"),
         (("goodbye", "hello"), "c04d8ccb6b9368703e62be93358094f9"),
-        ((1,), "93b885adfe0da089cdf634904fd59f71"),
-        (("hello", 1, b"goodbye"), "1ac272fb6705dfebcd4d5dcd4d4633ff"),
+        ((1,), "c4ca4238a0b923820dcc509a6f75849b"),
+        ((1,), "c4ca4238a0b923820dcc509a6f75849b"),
+        (("hello", 1, b"goodbye"), "b8d8305e159cc6c943606eaf6abb7459"),
+        (("hello", "1", b"goodbye"), "b8d8305e159cc6c943606eaf6abb7459"),
     ],
 )
 def test_stable_hash(inputs, expected):
     assert stable_hash(*inputs) == expected
+
+
+def test_stable_hash_handles_large_ints_without_overflow():
+    # Does not throw an error
+    stable_hash(2**32 + 1)
 
 
 def my_fn():
