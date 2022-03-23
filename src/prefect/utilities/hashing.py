@@ -22,7 +22,7 @@ def stable_hash(*args: Union[str, bytes, int]) -> str:
         if isinstance(a, str):
             a = a.encode()
         elif isinstance(a, int):
-            # Converting an integert to true byte representations with `to_bytes`
+            # Converting an integer to true byte representations with `to_bytes`
             # risks failure with large numbers. Instead, we just encode the string
             # representation of the number
             a = str(a).encode()
