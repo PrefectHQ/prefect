@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from prefect.blocks.storage import FileStorageBlock
+from prefect.blocks.storage import FileStorageBlock, LocalStorageBlock
 from prefect.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
@@ -21,7 +21,14 @@ from prefect.exceptions import (
     SpecValidationError,
     UnspecifiedFlowError,
 )
-from prefect.flow_runners import SubprocessFlowRunner
+from prefect.flow_runners import (
+    DockerFlowRunner,
+    FlowRunner,
+    FlowRunnerSettings,
+    KubernetesFlowRunner,
+    SubprocessFlowRunner,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
 from prefect.orion.schemas.data import DataDocument
@@ -34,13 +41,26 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 
 @pytest.fixture
-async def tmp_file_storage_block(tmp_path, orion_client, session):
-    # Workaround until `read_block_spec_by_name_and_version` is exposed on client
-    from prefect.orion.models.block_specs import read_block_spec_by_name_and_version
+async def tmp_remote_storage_block(tmp_path, orion_client):
 
     block = FileStorageBlock(base_path=str(tmp_path))
-    block_spec = await read_block_spec_by_name_and_version(
-        session, block._block_spec_name, block._block_spec_version
+
+    block_spec = await orion_client.read_block_spec_by_name(
+        block._block_spec_name, block._block_spec_version
+    )
+
+    block_id = await orion_client.create_block(
+        block, block_spec_id=block_spec.id, name="test"
+    )
+    return block_id
+
+
+@pytest.fixture
+async def tmp_local_storage_block(tmp_path, orion_client):
+
+    block = LocalStorageBlock(storage_path=str(tmp_path))
+    block_spec = await orion_client.read_block_spec_by_name(
+        block._block_spec_name, block._block_spec_version
     )
     block_id = await orion_client.create_block(
         block, block_spec_id=block_spec.id, name="test"
@@ -48,42 +68,43 @@ async def tmp_file_storage_block(tmp_path, orion_client, session):
     return block_id
 
 
-class TestDeploymentSpec:
-    @pytest.fixture(autouse=True)
-    async def default_storage(self, orion_client, tmp_file_storage_block):
-        # A "remote" default storage is required for the default flow runner type
-        await orion_client.set_default_storage_block(tmp_file_storage_block)
+@pytest.fixture
+async def remote_default_storage(orion_client, tmp_remote_storage_block):
+    # A "remote" default storage is required for the default flow runner type
+    await orion_client.set_default_storage_block(tmp_remote_storage_block)
 
-    async def test_infers_flow_location_from_flow(self):
+
+class TestDeploymentSpec:
+    async def test_infers_flow_location_from_flow(self, remote_default_storage):
         spec = DeploymentSpec(flow=hello_world_flow)
         await spec.validate()
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
-    async def test_flow_location_is_coerced_to_string(self):
+    async def test_flow_location_is_coerced_to_string(self, remote_default_storage):
         spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
         await spec.validate()
         assert type(spec.flow_location) is str
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
-    def test_flow_location_is_absolute(self):
+    def test_flow_location_is_absolute(self, remote_default_storage):
         spec = DeploymentSpec(
             flow_location=(TEST_FILES_DIR / "single_flow.py").relative_to(os.getcwd()),
         )
         assert spec.flow_location == str((TEST_FILES_DIR / "single_flow.py").absolute())
 
-    async def test_infers_flow_name_from_flow(self):
+    async def test_infers_flow_name_from_flow(self, remote_default_storage):
         spec = DeploymentSpec(flow=hello_world_flow)
         await spec.validate()
         assert spec.flow_name == "hello-world"
 
-    async def test_checks_for_flow_name_consistency(self):
+    async def test_checks_for_flow_name_consistency(self, remote_default_storage):
         spec = DeploymentSpec(flow=hello_world_flow, flow_name="other-name")
         with pytest.raises(
             SpecValidationError, match="`flow.name` and `flow_name` must match"
         ):
             await spec.validate()
 
-    async def test_loads_flow_and_name_from_location(self):
+    async def test_loads_flow_and_name_from_location(self, remote_default_storage):
         spec = DeploymentSpec(
             name="test", flow_location=TEST_FILES_DIR / "single_flow.py"
         )
@@ -94,7 +115,7 @@ class TestDeploymentSpec:
         assert spec.flow.name == "hello-world"
         assert spec.flow_name == "hello-world"
 
-    async def test_loads_flow_from_location_by_name(self):
+    async def test_loads_flow_from_location_by_name(self, remote_default_storage):
         spec = DeploymentSpec(
             name="test",
             flow_location=TEST_FILES_DIR / "multiple_flows.py",
@@ -106,6 +127,244 @@ class TestDeploymentSpec:
         assert isinstance(spec.flow, Flow)
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
+
+    async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo)
+        await spec.validate()
+        assert spec.name == "foo" == spec.flow.name
+
+    async def test_converts_flow_runner_settings_to_flow_runner(
+        self, remote_default_storage
+    ):
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(
+            flow=foo,
+            flow_runner=FlowRunnerSettings(
+                type="subprocess", config={"env": {"test": "test"}}
+            ),
+        )
+        await spec.validate()
+        assert isinstance(spec.flow_runner, SubprocessFlowRunner)
+        assert spec.flow_runner.typename == "subprocess"
+        assert spec.flow_runner.env == {"test": "test"}
+
+    async def test_does_not_allow_base_flow_runner_type(self, remote_default_storage):
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(
+            flow=foo,
+            flow_runner=FlowRunner(typename="test"),
+        )
+        with pytest.raises(SpecValidationError, match="The base.*type cannot be used"):
+            await spec.validate()
+
+    async def test_does_not_allow_default_flow_runner_without_storage(
+        self, orion_client
+    ):
+        await orion_client.clear_default_storage_block()
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo)
+        with pytest.raises(
+            SpecValidationError, match="have not configured default storage"
+        ):
+            await spec.validate()
+
+    @pytest.mark.parametrize(
+        "flow_runner",
+        [UniversalFlowRunner(), DockerFlowRunner(), KubernetesFlowRunner()],
+    )
+    async def test_does_not_allow_remote_flow_runner_without_storage(
+        self, orion_client, flow_runner
+    ):
+        await orion_client.clear_default_storage_block()
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        with pytest.raises(
+            SpecValidationError, match="have not configured default storage"
+        ):
+            await spec.validate()
+
+    @pytest.mark.parametrize(
+        "flow_runner",
+        [
+            UniversalFlowRunner(),
+            SubprocessFlowRunner(),
+            DockerFlowRunner(),
+            KubernetesFlowRunner(),
+        ],
+    )
+    async def test_allows_any_flow_runner_with_remote_default_storage(
+        self,
+        orion_client,
+        flow_runner,
+        remote_default_storage,
+    ):
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        await spec.validate()
+        assert spec.flow_storage == (await orion_client.get_default_storage_block())
+
+    @pytest.mark.parametrize(
+        "flow_runner",
+        [
+            UniversalFlowRunner(),
+            DockerFlowRunner(),
+            KubernetesFlowRunner(),
+        ],
+    )
+    async def test_does_not_allow_remote_flow_runner_with_local_default_storage(
+        self,
+        orion_client,
+        flow_runner,
+        tmp_local_storage_block,
+    ):
+        await orion_client.set_default_storage_block(tmp_local_storage_block)
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+
+        with pytest.raises(
+            SpecValidationError,
+            match="have configured local storage but.*requires remote storage",
+        ):
+            await spec.validate()
+
+    @pytest.mark.parametrize("flow_runner", [SubprocessFlowRunner()])
+    async def test_allows_local_flow_runner_with_local_storage(
+        self,
+        orion_client,
+        flow_runner,
+        tmp_local_storage_block,
+    ):
+        await orion_client.set_default_storage_block(tmp_local_storage_block)
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        await spec.validate()
+
+    @pytest.mark.parametrize(
+        "flow_runner",
+        [
+            UniversalFlowRunner(),
+            SubprocessFlowRunner(),
+            DockerFlowRunner(),
+            KubernetesFlowRunner(),
+        ],
+    )
+    async def test_allows_any_flow_runner_with_explicit_remote_storage(
+        self, orion_client, flow_runner, tmp_remote_storage_block
+    ):
+        await orion_client.clear_default_storage_block()
+        block = await orion_client.read_block(tmp_remote_storage_block)
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner, flow_storage=block)
+        await spec.validate()
+        assert spec.flow_storage == block
+
+
+class TestCreateDeploymentFromSpec:
+    async def test_create_deployment_with_unregistered_storage(
+        self, orion_client, tmp_path
+    ):
+        block = FileStorageBlock(base_path=str(tmp_path))
+
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
+
+    async def test_create_deployment_with_registered_storage(
+        self, orion_client, tmp_remote_storage_block
+    ):
+        block = await orion_client.read_block(tmp_remote_storage_block)
+
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
+
+    async def test_create_deployment_with_default_storage(
+        self, orion_client, remote_default_storage
+    ):
+        spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
+
+    async def test_create_deployment_respects_name(
+        self, orion_client, remote_default_storage
+    ):
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py", name="test"
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        deployment = await orion_client.read_deployment(deployment_id)
+        assert deployment.name == "test"
+
+    async def test_create_deployment_respects_flow_runner(
+        self, orion_client, remote_default_storage
+    ):
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            flow_runner=SubprocessFlowRunner(env={"test": "test"}),
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        deployment = await orion_client.read_deployment(deployment_id)
+        assert deployment.flow_runner == spec.flow_runner.to_settings()
 
 
 class TestLoadFlowFromScript:
@@ -149,9 +408,8 @@ class TestLoadFlowFromScript:
 
 class TestDeploymentSpecFromFile:
     @pytest.fixture(autouse=True)
-    async def default_storage(self, orion_client, tmp_file_storage_block):
-        # A "remote" default storage is required for the default flow runner type
-        await orion_client.set_default_storage_block(tmp_file_storage_block)
+    async def autouse_storage(self, remote_default_storage):
+        pass
 
     async def test_spec_inline_with_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "inline_deployment.py")
