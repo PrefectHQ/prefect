@@ -1,4 +1,4 @@
-import { Filter } from '@/types/filters/server-types'
+import { Filter } from '@/types/filters'
 
 export type SavedSearchRequest = {
   name: string,
