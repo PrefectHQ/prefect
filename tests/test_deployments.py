@@ -266,7 +266,26 @@ class TestDeploymentSpec:
             pass
 
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
-        await spec.validate()
+        with pytest.warns(match="only be usable from the current machine"):
+            await spec.validate()
+
+    @pytest.mark.parametrize("flow_runner", [SubprocessFlowRunner()])
+    async def test_allows_local_flow_runner_with_no_storage(
+        self,
+        orion_client,
+        flow_runner,
+        tmp_local_storage_block,
+    ):
+        await orion_client.set_default_storage_block(tmp_local_storage_block)
+
+        @flow
+        def foo():
+            pass
+
+        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        with pytest.warns(match="only be usable from the current machine"):
+            await spec.validate()
+        assert isinstance(spec.flow_storage, LocalStorageBlock)
 
     @pytest.mark.parametrize(
         "flow_runner",
