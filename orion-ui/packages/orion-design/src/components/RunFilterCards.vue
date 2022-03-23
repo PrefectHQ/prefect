@@ -76,9 +76,9 @@
     },
   }))
 
-  const failedFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [failedFlowRunsFilter, context])
-  const lateFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [lateFlowRunsFilter, context])
-  const scheduledFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [scheduledFlowRunsFilter, context])
+  const failedFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [failedFlowRunsFilter])
+  const lateFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [lateFlowRunsFilter])
+  const scheduledFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [scheduledFlowRunsFilter])
   const defaultCountValue = '--'
 
   const filters = computed<PreMadeFilter[]>(() => [
