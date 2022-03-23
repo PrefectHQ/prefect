@@ -185,3 +185,9 @@ class TestFileStorageBlock:
 
         assert key1 == key2
         assert mtime2 == mtime1, "Should not write contents again"
+
+
+def test_local_storage_block_home_basepath():
+    local_storage_block = storage.LocalStorageBlock(storage_path="~/.prefect")
+    basepath = local_storage_block.basepath()
+    assert basepath == os.path.expanduser("~/.prefect")
