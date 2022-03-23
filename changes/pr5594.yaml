@@ -1,0 +1,5 @@
+fix:
+  - 'Use context.logger when calling task.logger - [#5594](https://github.com/PrefectHQ/prefect/pull/5594)'
+
+contributor:
+  - '[Emre Akgün](https://github.com/Fraznist)'

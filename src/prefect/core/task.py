@@ -342,8 +342,6 @@ class Task(metaclass=TaskMetaclass):
         self.name = name or type(self).__name__
         self.slug = slug
 
-        self.logger = logging.get_logger(self.name)
-
         # avoid silently iterating over a string
         if isinstance(tags, str):
             raise TypeError("Tags should be a set of tags, not a string.")
@@ -455,6 +453,10 @@ class Task(metaclass=TaskMetaclass):
         if "_unused_task_tracker" in prefect.context:
             if not isinstance(self, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(self)
+
+    @instance_property
+    def logger(self) -> logging.logging.Logger:
+        return prefect.context.get("logger")
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)
