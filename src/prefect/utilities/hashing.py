@@ -7,22 +7,25 @@ import cloudpickle
 
 
 def stable_hash(*args: Union[str, bytes, int]) -> str:
-    """Given some arguments, produces a stable 64-bit hash
-    of their contents.
+    """Given some arguments, produces a stable 64-bit hash of their contents.
+
+    Supports bytes, ints, and strings. Integers and strings will be UTF-8 encoded.
 
     Args:
-        *args (Union[str, bytes, int]): items to include in the hash. Integers
-            will be converted to bytes and strings will be utf-8 encoded.
+        *args: Items to include in the hash.
 
     Returns:
-        str: a hash of the items
+        A hex hash.
     """
     h = hashlib.md5()
     for a in args:
         if isinstance(a, str):
             a = a.encode()
         elif isinstance(a, int):
-            a = bytes(a)
+            # Converting an integert to true byte representations with `to_bytes`
+            # risks failure with large numbers. Instead, we just encode the string
+            # representation of the number
+            a = str(a).encode()
         h.update(a)
     return h.hexdigest()
 
