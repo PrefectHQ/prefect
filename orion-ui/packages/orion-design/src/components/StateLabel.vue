@@ -14,7 +14,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .state-label {
   display: inline-block;
   font-family: barlow;
