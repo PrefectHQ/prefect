@@ -2,36 +2,12 @@ import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { PaginatedFilter } from '.'
+import { IWorkQueueFilterResponse } from '@/models/IWorkQueueFilterResponse'
+import { IWorkQueueRequest } from '@/models/IWorkQueueRequest'
+import { IWorkQueueResponse } from '@/models/IWorkQueueResponse'
 import { WorkQueue } from '@/models/WorkQueue'
 import { WorkQueueFilter } from '@/models/WorkQueueFilter'
 import { Api, Route } from '@/services/Api'
-import { DateString } from '@/types/dates'
-import { FlowRunnerType } from '@/types/FlowRunnerType'
-
-export type IWorkQueueResponse = {
-  id: string,
-  created: DateString,
-  updated: DateString,
-  name: string,
-  filter: IWorkQueueFilterResponse,
-  description: string | null,
-  is_paused: boolean | null,
-  concurrency_limit: number | null,
-}
-
-export type IWorkQueueRequest = Partial<{
-  name: string | null,
-  filter: IWorkQueueFilterResponse | null,
-  description: string | null,
-  is_paused: boolean | null,
-  concurrency_limit: number | null,
-}>
-
-export type IWorkQueueFilterResponse = {
-  tags: string[] | null,
-  deployment_ids: string[] | null,
-  flow_runner_types: FlowRunnerType[] | null,
-}
 
 export class WorkQueuesApi extends Api {
 
