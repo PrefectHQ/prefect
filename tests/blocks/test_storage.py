@@ -188,5 +188,12 @@ class TestFileStorageBlock:
 
 
 def test_local_storage_block_expands_home_directories():
-    local_storage_block = storage.LocalStorageBlock(storage_path="~/.prefect")
-    assert "~" not in str(local_storage_block.basepath())
+    storage_path = "~/.prefect"
+    local_storage_block = storage.LocalStorageBlock(storage_path=storage_path)
+    # The path includes ~ still in the block's settings so that it is portable across systems
+    assert "~" in str(local_storage_block.storage_path)
+    basepath = str(local_storage_block.basepath())
+    # The ~ has been expanded 
+    assert "~" not in basepath
+    # The path is expanded correctly
+    assert basepath == os.path.expanduser(storage_path)
