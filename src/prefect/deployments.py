@@ -228,11 +228,16 @@ class DeploymentSpec(PrefectBaseModel):
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
+            local_machine_message = (
+                "this deployment will only be usable from the current machine."
+            )
             if not self.flow_storage:
-                warnings.warn(
-                    f"{no_storage_message}. This deployment will only be usable from the current machine."
-                )
+                warnings.warn(f"{no_storage_message}, {local_machine_message}")
                 self.flow_storage = LocalStorageBlock()
+            elif isinstance(self.flow_storage, (LocalStorageBlock, TempStorageBlock)):
+                warnings.warn(
+                    f"You have configured local storage, {local_machine_message}."
+                )
         else:
             # All other flow runners require remote storage, ensure we've been given one
             flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
