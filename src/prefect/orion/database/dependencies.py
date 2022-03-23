@@ -2,21 +2,25 @@
 Injected database interface dependencies
 """
 import inspect
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from functools import wraps
+from typing import Callable
 
 from prefect.orion.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
+    BaseDatabaseConfiguration,
 )
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
+    BaseORMConfiguration,
 )
 from prefect.orion.database.query_components import (
     AioSqliteQueryComponents,
     AsyncPostgresQueryComponents,
+    BaseQueryComponents,
 )
 from prefect.orion.utilities.database import get_dialect
 from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
@@ -28,7 +32,13 @@ MODELS_DEPENDENCIES = {
 }
 
 
-def provide_database_interface():
+def provide_database_interface() -> OrionDBInterface:
+    """
+    Get the current Orion database interface.
+
+    If components of the interface are not set, defaults will be inferred
+    based on the dialect of the connection URL.
+    """
     connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
@@ -80,7 +90,7 @@ def provide_database_interface():
     )
 
 
-def inject_db(fn):
+def inject_db(fn: Callable) -> Callable:
     """
     Decorator that provides a database interface to a function.
 
@@ -112,7 +122,16 @@ def inject_db(fn):
 
 
 @contextmanager
-def temporary_database_config(tmp_database_config):
+def temporary_database_config(tmp_database_config: BaseDatabaseConfiguration):
+    """
+    Temporarily override the Orion database configuration.
+    When the context is closed, the existing database configuration will
+    be restored.
+
+    Args:
+        tmp_database_config: Orion database configuration to inject.
+
+    """
     starting_config = MODELS_DEPENDENCIES["database_config"]
     try:
         MODELS_DEPENDENCIES["database_config"] = tmp_database_config
@@ -122,7 +141,16 @@ def temporary_database_config(tmp_database_config):
 
 
 @contextmanager
-def temporary_query_components(tmp_queries):
+def temporary_query_components(tmp_queries: BaseQueryComponents):
+    """
+    Temporarily override the Orion database query components.
+    When the context is closed, the existing query components will
+    be restored.
+
+    Args:
+        tmp_queries: Orion query components to inject.
+
+    """
     starting_queries = MODELS_DEPENDENCIES["query_components"]
     try:
         MODELS_DEPENDENCIES["query_components"] = tmp_queries
@@ -132,7 +160,16 @@ def temporary_query_components(tmp_queries):
 
 
 @contextmanager
-def temporary_orm_config(tmp_orm_config):
+def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
+    """
+    Temporarily override the Orion ORM configuration.
+    When the context is closed, the existing orm configuration will
+    be restored.
+
+    Args:
+        tmp_orm_config: Orion ORM configuration to inject.
+
+    """
     starting_orm_config = MODELS_DEPENDENCIES["orm"]
     try:
         MODELS_DEPENDENCIES["orm"] = tmp_orm_config
@@ -141,16 +178,47 @@ def temporary_orm_config(tmp_orm_config):
         MODELS_DEPENDENCIES["orm"] = starting_orm_config
 
 
-def set_database_config(database_config):
-    """Set Orion database configuration"""
+@contextmanager
+def temporary_database_interface(
+    tmp_database_config: BaseDatabaseConfiguration = None,
+    tmp_queries: BaseQueryComponents = None,
+    tmp_orm_config: BaseORMConfiguration = None,
+):
+    """
+    Temporarily override the Orion database interface.
+
+    Any interface components that are not explicitly provided will be
+    cleared and inferred from the Orion database connection string
+    dialect.
+
+    When the context is closed, the existing database interface will
+    be restored.
+
+    Args:
+        tmp_database_config: An optional Orion database configuration to inject.
+        tmp_orm_config: An optional Orion ORM configuration to inject.
+        tmp_queries: Optional Orion query components to inject.
+
+    """
+    with ExitStack() as stack:
+        stack.enter_context(
+            temporary_database_config(tmp_database_config=tmp_database_config)
+        )
+        stack.enter_context(temporary_query_components(tmp_queries=tmp_queries))
+        stack.enter_context(temporary_orm_config(tmp_orm_config=tmp_orm_config))
+        yield
+
+
+def set_database_config(database_config: BaseDatabaseConfiguration):
+    """Set Orion database configuration."""
     MODELS_DEPENDENCIES["database_config"] = database_config
 
 
-def set_query_components(query_components):
-    """Set Orion query components"""
+def set_query_components(query_components: BaseQueryComponents):
+    """Set Orion query components."""
     MODELS_DEPENDENCIES["query_components"] = query_components
 
 
-def set_orm_config(orm_config):
-    """Set Orion orm configuration"""
+def set_orm_config(orm_config: BaseORMConfiguration):
+    """Set Orion orm configuration."""
     MODELS_DEPENDENCIES["orm"] = orm_config
