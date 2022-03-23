@@ -27,7 +27,9 @@ def test_stable_hash(inputs, expected):
 
 def test_stable_hash_handles_large_ints_without_overflow():
     # Does not throw an error
-    stable_hash(2**32 + 1)
+    large_integer = 1 << 32  # add 32 bits to a 1-bit integer
+    assert large_integer.bit_length() == 33
+    stable_hash(large_integer)
 
 
 def my_fn():
