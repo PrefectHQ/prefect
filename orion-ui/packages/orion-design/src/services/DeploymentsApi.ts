@@ -5,38 +5,15 @@ import { Deployment } from '@/models/Deployment'
 import { Flow } from '@/models/Flow'
 import { FlowData } from '@/models/FlowData'
 import { FlowRunner } from '@/models/FlowRunner'
+import { ICreateFlowRunRequest } from '@/models/ICreateFlowRunRequest'
+import { IDeploymentResponse } from '@/models/IDeploymentResponse'
 import { IFlowDataResponse } from '@/models/IFlowDataResponse'
+import { IFlowResponse } from '@/models/IFlowResponse'
 import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
 import { IScheduleResponse, isCronScheduleResponse, isIntervalScheduleResponse, isRRuleScheduleResponse } from '@/models/IScheduleResponse'
 import { CronSchedule, IntervalSchedule, RRuleSchedule, Schedule } from '@/models/Schedule'
-import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
-import { IFlowResponse } from '@/services/FlowsApi'
-import { DateString } from '@/types/dates'
-
-export type IDeploymentResponse = {
-  id: string,
-  created: DateString,
-  updated: DateString,
-  name: string,
-  flow_id: string,
-  flow_data: IFlowDataResponse,
-  schedule: IScheduleResponse | null,
-  is_schedule_active: boolean | null,
-  parameters: Record<string, string>,
-  tags: string[] | null,
-  flow_runner: IFlowRunnerResponse,
-}
-
-// this type is incomplete
-// https://orion-docs.prefect.io/api-ref/rest-api/#/Deployments/create_flow_run_from_deployment_deployments__id__create_flow_run_post
-export type ICreateFlowRunRequest = {
-  state: {
-    type: StateType,
-    message: string,
-  },
-}
 
 export class DeploymentsApi extends Api {
 
