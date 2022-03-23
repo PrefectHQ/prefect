@@ -178,6 +178,14 @@ class DeploymentSpec(PrefectBaseModel):
         if self.flow_location and is_local_path(self.flow_location):
             self.flow_location = abspath(str(self.flow_location))
 
+        # Ensure the flow location is set
+
+        if not self.flow_location:
+            raise SpecValidationError(
+                "Failed to determine the location of your flow. "
+                "Provide the path to your flow code with `flow_location`."
+            )
+
         # Infer flow name from flow
 
         if self.flow and not self.flow_name:
@@ -200,6 +208,14 @@ class DeploymentSpec(PrefectBaseModel):
 
         if isinstance(self.flow_runner, FlowRunnerSettings):
             self.flow_runner = FlowRunner.from_settings(self.flow_runner)
+
+        # Do not allow the abstract flow runner type
+
+        if type(self.flow_runner) is FlowRunner:
+            raise SpecValidationError(
+                "The base `FlowRunner` type cannot be used. Provide a flow runner "
+                "implementation or flow runner settings instead."
+            )
 
         # Determine the storage block
 
@@ -247,6 +263,20 @@ class DeploymentSpec(PrefectBaseModel):
         # Read the flow file
         with fsspec.open(self.flow_location, "rb") as flow_file:
             flow_bytes = flow_file.read()
+
+        # Ensure the storage is a registered block for later retrieval
+
+        if not self.flow_storage._block_id:
+            block_spec = await client.read_block_spec_by_name(
+                self.flow_storage._block_spec_name,
+                self.flow_storage._block_spec_version,
+            )
+
+            self.flow_storage._block_id = await client.create_block(
+                self.flow_storage,
+                block_spec_id=block_spec.id,
+                name=f"{self.flow_name}-{self.name}",
+            )
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)
