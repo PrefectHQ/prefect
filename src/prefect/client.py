@@ -852,6 +852,21 @@ class OrionClient:
                 raise
         return UUID(response.json().get("id"))
 
+    async def read_block_spec_by_name(
+        self, name: str, version: str
+    ) -> schemas.core.BlockSpec:
+        """
+        Look up a block spec by name and version
+        """
+        try:
+            response = await self._client.get(f"block_specs/{name}/versions/{version}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return schemas.core.BlockSpec.parse_obj(response.json())
+
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
         """
         Read all block specs with the given type
