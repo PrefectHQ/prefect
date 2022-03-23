@@ -58,6 +58,17 @@ FLOW_RUN_DATA_2 = {
     "updated": pendulum.now().isoformat(),
     "run_config": UniversalRun().serialize(),
 }
+FLOW_RUN_DATA_NULL_STATE = {
+    "id": "id-null",
+    "name": "name-null",
+    "flow_id": "flow_id-null",
+    "serialized_state": None,
+    "parameters": {},
+    "context": {},
+    "labels": [],
+    "updated": pendulum.now().isoformat(),
+    "run_config": UniversalRun().serialize(),
+}
 
 TASK_RUN_DATA_FINISHED = {
     "id": "task-run-id-1",
@@ -174,6 +185,11 @@ def test_flow_run_view_from_returns_instance(patch_post, from_method):
         assert state.message == "past-state"
     # There are no cached tasks
     assert flow_run._cached_task_runs == {}
+
+
+def test_flow_run_view_from_flow_run_data_fills_empty_state_with_pending():
+    flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_NULL_STATE)
+    assert flow_run.state.is_pending()
 
 
 def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
