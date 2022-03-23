@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
+from prefect.blocks.storage import FileStorageBlock
 from prefect.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
@@ -32,7 +33,27 @@ from .deployment_test_files.single_flow import hello_world as hello_world_flow
 TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 
+@pytest.fixture
+async def tmp_file_storage_block(tmp_path, orion_client, session):
+    # Workaround until `read_block_spec_by_name_and_version` is exposed on client
+    from prefect.orion.models.block_specs import read_block_spec_by_name_and_version
+
+    block = FileStorageBlock(base_path=str(tmp_path))
+    block_spec = await read_block_spec_by_name_and_version(
+        session, block._block_spec_name, block._block_spec_version
+    )
+    block_id = await orion_client.create_block(
+        block, block_spec_id=block_spec.id, name="test"
+    )
+    return block_id
+
+
 class TestDeploymentSpec:
+    @pytest.fixture(autouse=True)
+    async def default_storage(self, orion_client, tmp_file_storage_block):
+        # A "remote" default storage is required for the default flow runner type
+        await orion_client.set_default_storage_block(tmp_file_storage_block)
+
     async def test_infers_flow_location_from_flow(self):
         spec = DeploymentSpec(flow=hello_world_flow)
         await spec.validate()
@@ -127,6 +148,11 @@ class TestLoadFlowFromScript:
 
 
 class TestDeploymentSpecFromFile:
+    @pytest.fixture(autouse=True)
+    async def default_storage(self, orion_client, tmp_file_storage_block):
+        # A "remote" default storage is required for the default flow runner type
+        await orion_client.set_default_storage_block(tmp_file_storage_block)
+
     async def test_spec_inline_with_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "inline_deployment.py")
         assert len(specs) == 1
