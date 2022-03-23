@@ -187,6 +187,6 @@ class TestFileStorageBlock:
         assert mtime2 == mtime1, "Should not write contents again"
 
 
-def test_local_storage_block_home_basepath():
+def test_local_storage_block_expands_home_directories():
     local_storage_block = storage.LocalStorageBlock(storage_path="~/.prefect")
     assert "~" not in str(local_storage_block.basepath())
