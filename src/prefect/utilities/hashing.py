@@ -23,9 +23,11 @@ def stable_hash(*args: Union[str, bytes, int]) -> str:
             a = a.encode()
         elif isinstance(a, int):
             # Converting an integer to true byte representations with `to_bytes`
-            # risks failure with large numbers. Instead, we just encode the string
-            # representation of the number
-            a = str(a).encode()
+            # will fail for large numbers without computing a length. Instead, we encode
+            # the string representation of the number and prepend it with a byte that
+            # makes it invalid UTF-8. 0x80 is a UTF-8 continuation byte and is not valid
+            # at the start of a character.
+            a = bytes([0x80]) + str(a).encode()
         h.update(a)
     return h.hexdigest()
 
