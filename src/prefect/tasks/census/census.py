@@ -19,8 +19,24 @@ class CensusSyncTask(Task):
     trigger section on the configuration page in the `api_trigger` param to set a default sync.
 
     Args:
-        - api_trigger (str, optional): default sync to trigger, if none is specified in `run`
-        - **kwargs (dict, optional): additional kwargs to pass to the base Task constructor
+        - api_trigger (str, optional): Default sync to trigger, if none is specified in `run`. The API
+            trigger URL for a sync can be found on sync's configuration page
+            (https://app.getcensus.com/syncs/{sync_id}/configuration) under Sync Triggers > API.
+        - **kwargs (dict, optional): Additional kwargs to pass to the base Task constructor.
+
+    Example:
+        Trigger a Census sync with an `api_trigger` stored in a Prefect secret:
+        ```python
+        from prefect import Flow
+        from prefect.tasks.census import CensusSyncTask
+        from prefect.tasks.secrets import PrefectSecret
+
+        sync_census = CensusSyncTask()
+
+        with Flow("Run Census Sync") as flow:
+            api_trigger = PrefectSecret('CENSUS_API_TRIGGER')
+            results = sync_census(api_trigger=api_trigger)
+        ```
     """
 
     def __init__(self, api_trigger=None, **kwargs):
@@ -41,26 +57,27 @@ class CensusSyncTask(Task):
         when it receives an error status code from the trigger API call.
 
         Args:
-            - api_trigger (str): if not specified in run, it will pull from the default for the
-                CensusSyncTask constructor. Keyword argument.
-            - poll_status_every_n_seconds (int, optional): this task polls the Census API for the sync's
+            - api_trigger (str): Ff not specified in run, it will pull from the default for the
+                CensusSyncTask constructor. The API trigger URL for a sync can be found on sync's
+                configuration page (https://app.getcensus.com/syncs/{sync_id}/configuration) under
+                Sync Triggers > API.
+            - poll_status_every_n_seconds (int, optional): This task polls the Census API for the sync's
                 status. If provided, this value will override the default polling time of
                 60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
 
         Returns:
-            - dict: dictionary of statistics returned by Census on the specified sync, structure below.
-
-        Structure:
-            ```python
-            {
-                'error_message': None / str,
-                'records_failed': int / None,
-                'records_invalid': int / None,
-                'records_processed': int / None,
-                'records_updated': int / None,
-                'status': 'completed'/'working'/'failed'
-            }
-            ```
+            - dict: Dictionary of statistics returned by Census on the specified sync in
+                following structure:
+                ```python
+                {
+                    'error_message': None / str,
+                    'records_failed': int / None,
+                    'records_invalid': int / None,
+                    'records_processed': int / None,
+                    'records_updated': int / None,
+                    'status': 'completed'/'working'/'failed'
+                }
+                ```
         """
 
         if not api_trigger:
@@ -116,17 +133,17 @@ class CensusSyncTask(Task):
     @staticmethod
     def check_invalid_api(api_trigger: str):
         """
-        Makes sure the url for the api trigger matches the Census format specified below. If it does
-        not, it will raise a ValueError before returning.
+        Makes sure the URL for the API trigger matches the Census format specified below. If it does
+        not, it will raise a ValueError.
 
         Format of api_trigger:
-            - "https://bearer:secret-token:s3cr3t@app.getcensus.com/api/v1/syncs/123/trigger"
+            - https://bearer:secret-token:{secret}@app.getcensus.com/api/v1/syncs/{sync_id}/trigger
 
         Args:
-            - api_trigger (str): if specified in the constructor, will call this validation there
+            - api_trigger (str): If specified in the constructor, will call this validation there
 
         Returns:
-            - confirmed_pattern (Match Object: https://docs.python.org/3/library/re.html#match-objects)
+            - confirmed_pattern (Match Object - https://docs.python.org/3/library/re.html#match-objects)
         """
         pattern = r"https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
         url_pattern = re.compile(pattern)

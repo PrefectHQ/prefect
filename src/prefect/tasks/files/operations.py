@@ -216,7 +216,8 @@ class Glob(Task):
         if not path:
             raise ValueError("No `path` provided.")
 
-        globpath = Path(path).joinpath(pattern)
-        self.logger.debug(f"Glob path: {globpath}")
+        path = Path(path)
+
+        self.logger.debug("Glob path: %s", path.joinpath(pattern))
 
         return list(path.glob(pattern))

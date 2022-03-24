@@ -1,5 +1,5 @@
 <p align="center">
-   <img src="https://images.ctfassets.net/gm98wzqotmnx/3Ufcb7yYqcXBDlAhJ30gce/c237bb3254190795b30bf734f3cbc1d4/prefect-logo-full-gradient.svg" width="500" style="max-width: 500px;">
+   <img src="https://www.prefect.io/assets/img/prefect-logo-gradient-navy.0cb04f87.svg" width="500" style="max-width: 500px;">
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
+Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
 
 ### Welcome to Workflows
 
@@ -130,7 +130,7 @@ The Prefect task library is a constantly growing list of pre-defined tasks that 
   </tr>
   <tr>
     <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/azure_ml.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/azureml.html">Azure ML</a></td>
-    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/census.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
+    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/census.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
     <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/cubejs.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/cubejs.html">CubeJS</a></td>
     <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/databricks.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
     <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/dbt.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/dbt.html">dbt</a></td>

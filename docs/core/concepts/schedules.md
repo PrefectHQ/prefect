@@ -13,13 +13,15 @@ from prefect import task, Flow
 from datetime import timedelta
 from prefect.schedules import IntervalSchedule
 
+
 @task
 def say_hello():
     print("Hello, world!")
 
+
 schedule = IntervalSchedule(interval=timedelta(minutes=2))
 
-with Flow("Hello", schedule) as flow:
+with Flow("Hello", schedule=schedule) as flow:
     say_hello()
 
 flow.run()
@@ -65,7 +67,7 @@ import pendulum
 
 schedules.clocks.IntervalClock(
     start_date=pendulum.datetime(2019, 1, 1, tz="America/New_York"),
-    interval=timedelta(days=1)
+    interval=timedelta(days=1),
 )
 ```
 
@@ -107,7 +109,8 @@ from prefect.schedules import Schedule
 from prefect.schedules.clocks import DatesClock
 
 schedule = Schedule(
-    clocks=[DatesClock([pendulum.now().add(days=1), pendulum.now().add(days=2)])])
+    clocks=[DatesClock([pendulum.now().add(days=1), pendulum.now().add(days=2)])]
+)
 
 schedule.next(2)
 ```
@@ -140,10 +143,12 @@ All clocks support an optional `parameter_defaults` argument that allows users t
 import prefect
 from prefect import task, Flow, Parameter
 
+
 @task
 def log_param(p):
-    logger = prefect.context['logger']
-    logger.info("Received parameter value {}".format(p))
+    logger = prefect.context["logger"]
+    logger.info(f"Received parameter value {p}")
+
 
 p = Parameter("p", default=None, required=False)
 
@@ -159,17 +164,21 @@ from prefect.schedules import clocks, Schedule
 
 now = datetime.datetime.utcnow()
 
-clock1   = clocks.IntervalClock(start_date=now, 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 1"})
-clock2   = clocks.IntervalClock(start_date=now + datetime.timedelta(seconds=30), 
-                                interval=datetime.timedelta(minutes=1), 
-                                parameter_defaults={"p": "CLOCK 2"})
+clock1 = clocks.IntervalClock(
+    start_date=now,
+    interval=datetime.timedelta(minutes=1),
+    parameter_defaults={"p": "CLOCK 1"},
+)
+clock2 = clocks.IntervalClock(
+    start_date=now + datetime.timedelta(seconds=30),
+    interval=datetime.timedelta(minutes=1),
+    parameter_defaults={"p": "CLOCK 2"},
+)
 
 # the full schedule
 schedule = Schedule(clocks=[clock1, clock2])
 
-flow.schedule = schedule # set the schedule on the Flow
+flow.schedule = schedule  # set the schedule on the Flow
 flow.run()
 ```
 
@@ -215,7 +224,7 @@ schedules.Schedule(
         filters.between_times(pendulum.time(15), pendulum.time(15)),
     ],
     # and not in January
-    not_filters=[filters.between_dates(1, 1, 1, 31)]
+    not_filters=[filters.between_dates(1, 1, 1, 31)],
 )
 ```
 
@@ -230,11 +239,9 @@ Adjustments allow schedules to modify dates that are emitted by clocks and pass 
 schedules.Schedule(
     # fire every day
     clocks=[clocks.IntervalClock(timedelta(days=1))],
-
     # filtered for month ends
     filters=[filters.is_month_end],
-
     # and run on the next weekday
-    adjustments=[adjustments.next_weekday]
-    )
+    adjustments=[adjustments.next_weekday],
+)
 ```

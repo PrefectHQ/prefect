@@ -1,12 +1,52 @@
 # Changelog
 
-## 1.0.0
+## 1.1.0 <Badge text="beta" type="success" />
+
+Released on March 10, 2022.
+
+### Features
+
+- Add `.pipe` operator to `prefect.Task` for functional chaining - [#5507](https://github.com/PrefectHQ/prefect/pull/5507)
+- Add Kubernetes authentication support to `VaultSecret` - [#5412](https://github.com/PrefectHQ/prefect/pull/5412)
+
+### Enhancement
+
+- Allow tasks to consume `self` as an argument - [#5508](https://github.com/PrefectHQ/prefect/pull/5508)
+- Improve the default idempotency key for `create_flow_run` task when mapping during a local flow run - [#5443](https://github.com/PrefectHQ/prefect/pulls/5443)
+
+### Fixes
+
+- Fix the broken URL displayed in `entrypoint.sh` - [#5490](https://github.com/PrefectHQ/prefect/pull/5490)
+- Fix zombie processes created by Hasura container during `prefect server start` - [#5476](https://github.com/PrefectHQ/prefect/pull/5479)
+
+### Task Library
+
+- Add Airbyte configuration export task - [#5410](https://github.com/PrefectHQ/prefect/pull/5410)
+- Update `Glob` task to accept a string path - [#5499](https://github.com/PrefectHQ/prefect/pull/54990)
+- Fix pod logging while using `RunNamespacedJob` - [#5514](https://github.com/PrefectHQ/prefect/pull/5514)
+- Add `include_generated_sql` option to `CubeJSQueryTask` - [#5471](https://github.com/PrefectHQ/prefect/pull/5471)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Andrew Klimovski](https://github.com/klimbot)
+- [Brett Polivka](https://github.com/polivbr)
+- [Jamie Dick](https://github.com/jamiedick)
+- [Michael Milton](https://github.com/multimeric)
+- [Paul Gierz](https://github.com/pgierz)
+- [VincentAntoine](https://github.com/VincentAntoine)
+- [pseudoyim](https://github.com/pseudoyim)
+
+## 1.0.0 <Badge text="beta" type="success" />
+
+Released on February 23, 2022.
 
 ### Highlights
 
 - Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
-- Python 3.6 is no longer supported. Use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
+- Python 3.6 is no longer supported; use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
 - Flow `Environment`s have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)
+- We have a new [Discourse community](https://discourse.prefect.io/) to encourage lasting discussions.
 
 ### Breaking Changes
 
@@ -18,7 +58,7 @@
 - Executors can no longer be imported from `prefect.engine.executors`; use `prefect.executors` instead. - [#3798](https://github.com/PrefectHQ/prefect/pull/3798)
 - `Parameter` is not importable from `prefect.core.tasks` anymore; use `prefect.Parameter` instead.
 - Exceptions are no longer importable from `prefect.utilities.exceptions`; use `prefect.exceptions` instead. - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)
-- `Client.login_to_tenant` has been renamed to `Client.switch_tenant`
+- `Client.login_to_tenant` has been renamed to `Client.switch_tenant`.
 <!-- cli changes -->
 - The `prefect register flow` command has been removed; use `prefect register` instead. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
 - The `prefect run flow` command has been removed; use `prefect run` instead. - [#4463](https://github.com/PrefectHQ/prefect/pull/4463)
@@ -26,7 +66,50 @@
 - `prefect auth login` no longer accepts authentication tokens. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 - `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 <!-- config changes -->
-- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
+
+### Enhancements
+
+- Update `LocalDaskExecutor` to use new Python futures feature. - [#5046](https://github.com/PrefectHQ/prefect/issues/5046)
+- Add a `State.__sizeof__` implementation to include the size of its result for better scheduling. - [#5304](https://github.com/PrefectHQ/prefect/pull/5304)
+- Allow the cancellation event check to be disabled in the `DaskExecutor`. - [#5443](https://github.com/PrefectHQ/prefect/issues/5443)
+- Update `Flow.visualize()` to allow change in orientation. - [#5472](https://github.com/PrefectHQ/prefect/pull/5472)
+- Allow ECS task definition role ARNs to override ECS agent defaults. - [#5366](https://github.com/PrefectHQ/prefect/pull/5366)
+
+### Task Library
+
+- Add `DatabricksGetJobID` to retreive Databricks job IDs with a given name. - [#5438](https://github.com/PrefectHQ/prefect/issues/5438)
+- Add `AWSParametersManager` task to retrieve value from AWS Systems Manager Parameter Store. - [#5439](https://github.com/PrefectHQ/prefect/issues/5439)
+- Update `SpacyNLP` task to support `spacy` version >= 3.0. - [#5358](https://github.com/PrefectHQ/prefect/issues/5358)
+- Add `exclude` parameter to `SpacyNLP` task. - [#5402](https://github.com/PrefectHQ/prefect/pull/5402)
+- Update the `AWSSecretsManager` task to parse non key-value type secrets. - [#5451](https://github.com/PrefectHQ/prefect/issues/5451)
+- Update the `DatabricksRunNow` task to use the Databricks 2.1 jobs API. - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+- Add `ge_checkpoint` and `checkpoint_kwargs` parameters to `RunGreatExpectationsValidation` to allow runtime configuration of checkpoint runs. - [#5404](https://github.com/PrefectHQ/prefect/pull/5404)
+- Add support for overwriting existing blobs when using Azure `BlobStorageUpload` task. - [#5437](https://github.com/PrefectHQ/prefect/pull/5437)
+- Add `Neo4jRunCypherQueryTask` task for running Cypher queries against Neo4j databases. - [#5418](https://github.com/PrefectHQ/prefect/pull/5418)
+- Add `DatabricksSubmitMultitaskRun` task to run Databricks jobs with multiple Databricks tasks.  - [#5395](https://github.com/PrefectHQ/prefect/pull/5395/)
+
+### Fixes
+
+- Add support to `prefect.flatten` for non-iterable upstreams, including exceptions and signals. - [#4084](https://github.com/PrefectHQ/prefect/issues/4084)
+- While building Docker images for storage, `rm=True` is used as default, which deletes intermediate containers. - [#5384](https://github.com/PrefectHQ/prefect/issues/5384)
+- Use `__all__` to declare Prefect's public API for Pyright. - [#5293](https://github.com/PrefectHQ/prefect/pull/5293)
+- Fix usage of `sys.getsizeof` to restore support for PyPy. - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
+- Fix issues with log size estimates from [#5316](https://github.com/PrefectHQ/prefect/pull/5316). - [#5390](https://github.com/PrefectHQ/prefect/issues/5390)
+
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Aneesh Makala](https://github.com/makalaaneesh)
+- [Connor Martin](https://github.com/cjmartian)
+- [Gebing](https://github.com/gebing)
+- [Julio Faracco](https://github.com/jcfaracco)
+- [Kevin Mullins](https://github.com/zyzil)
+- [Mathijs Miermans](https://github.com/mmiermans)
+- [Oliver Mannion](https://github.com/tekumara)
+- [Raymond Yu](https://github.com/raymonds-backyard)
+
 
 ## 0.15.13 <Badge text="beta" type="success" />
 

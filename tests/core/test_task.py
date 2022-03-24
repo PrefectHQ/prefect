@@ -825,3 +825,31 @@ def test_task_called_outside_flow_context_raises_helpful_error(use_function_task
         "If you're trying to run this task outside of a Flow context, "
         f"you need to call {run_call}" in str(exc_info)
     )
+
+
+def test_result_pipe():
+    t = prefect.task(lambda x, foo: x + 1)
+
+    with prefect.Flow("test"):
+        # A task created using .pipe should be identical to one created by using __call__
+        assert vars(t(1, foo="bar")) == vars(t.pipe(t, foo="bar"))
+
+
+def test_task_call_with_self_succeeds():
+    import dataclasses
+
+    @dataclasses.dataclass
+    class TestClass:
+        count: int
+
+        def increment(self):
+            self.count = self.count + 1
+
+    seconds_task = task(
+        TestClass.increment, target="{{task_slug}}_{{map_index}}", result=LocalResult()
+    )
+    initial = TestClass(count=0)
+
+    with Flow("test") as flow:
+        seconds_task(initial)
+        assert flow.run().is_successful()

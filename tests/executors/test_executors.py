@@ -336,6 +336,22 @@ class TestDaskExecutor:
                 for rec in caplog.records
             )
 
+    @pytest.mark.parametrize("disabled", [True, False])
+    def test_disable_cancellation_event(self, disabled):
+        executor = DaskExecutor(
+            cluster_kwargs={"processes": False}, disable_cancellation_event=disabled
+        )
+        with executor.start():
+
+            # Can run futures either way
+            res = executor.wait(executor.submit(lambda x: x + 1, 1))
+            assert res == 2
+
+            if disabled:
+                assert executor._should_run_event is None
+            else:
+                assert executor._should_run_event is not None
+
     def test_local_cluster_adapt(self):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
         called_with = None
@@ -453,6 +469,7 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_event is None
 
+    @pytest.mark.flaky
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
         with distributed.Client(

@@ -196,7 +196,7 @@ with Flow('Indexing Flow') as flow:
 This will automatically add a `GetItem` task to the flow that receives `x` as its input and attempts to perform `x['a']`. The result of that task (`1`) is stored as `y`.
 
 ::: warning Key validation
-Because Prefect flows are not executed at runtime, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
+Because Prefect flows are not executed when you create them, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
 :::
 
 ## Multiple Return Values

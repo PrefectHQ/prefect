@@ -25,7 +25,7 @@ pip install prefect[kubernetes]
 ::: tab Conda
 
 ```bash
-conda install -c conda-forge prefect kubernetes
+conda install -c conda-forge prefect python-kubernetes
 ```
 
 :::

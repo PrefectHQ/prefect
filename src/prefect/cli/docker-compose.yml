@@ -1,5 +1,6 @@
-version: "3.5"
+version: "3.7"
 # Features driving version requirement
+# - init                          3.7
 # - networks.name                 3.5
 # - healthcheck.start_period      2.3
 # - healthcheck                   2.1
@@ -34,6 +35,7 @@ services:
   # Hasura: automatically generates a GraphQL schema from Postgres, provides most of the 'query' API
   hasura:
     image: "hasura/graphql-engine:v2.1.1"
+    init: true
     ports:
       - "127.0.0.1:${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"

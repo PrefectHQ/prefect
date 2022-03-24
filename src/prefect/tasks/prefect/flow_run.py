@@ -103,7 +103,8 @@ def create_flow_run(
         - idempotency_key: a unique idempotency key for scheduling the
             flow run. Duplicate flow runs with the same idempotency key will only create
             a single flow run. This is useful for ensuring that only one run is created
-            if this task is retried. If not provided, defaults to the active `task_run_id`.
+            if this task is retried. If not provided, defaults to the active task run
+            id and its map index.
 
     Returns:
         str: The UUID of the created flow run
@@ -141,7 +142,12 @@ def create_flow_run(
     logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
     if idempotency_key is None:
-        idempotency_key = prefect.context.get("task_run_id", None)
+        # Generate a default key, if the context is missing this data just fall through
+        # to `None`
+        idempotency_key = prefect.context.get("task_run_id")
+        map_index = prefect.context.get("map_index")
+        if idempotency_key and map_index is not None:
+            idempotency_key += f"-{map_index}"
 
     if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
         scheduled_start_time = pendulum.now("utc") + scheduled_start_time
@@ -287,9 +293,8 @@ class StartFlowRun(Task):
     Args:
         - flow_name (str, optional): the name of the flow to schedule; this value may also be
             provided at run time
-        - project_name (str, optional): if running with Cloud as a backend, this is the project
-            in which the flow is located; this value may also be provided at runtime. If
-            running with Prefect Core's server as the backend, this should not be provided.
+        - project_name (str, optional): the name of the project in which the flow is located;
+            this value may also be provided at runtime.
         - parameters (dict, optional): the parameters to pass to the flow run being scheduled;
             this value may also be provided at run time
         - run_config (RunConfig, optional): a run-config to use for this flow
@@ -375,9 +380,8 @@ class StartFlowRun(Task):
         Args:
             - flow_name (str, optional): the name of the flow to schedule; if not provided,
                 this method will use the flow name provided at initialization
-            - project_name (str, optional): the Cloud project in which the flow is located; if
-                not provided, this method will use the project provided at initialization. If
-                running with Prefect Core's server as the backend, this should not be provided.
+            - project_name (str, optional): the project in which the flow is located; if
+                not provided, this method will use the project provided at initialization.
             - parameters (dict, optional): the parameters to pass to the flow run being
                 scheduled; if not provided, this method will use the parameters provided at
                 initialization

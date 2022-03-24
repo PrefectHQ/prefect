@@ -57,12 +57,16 @@ def consistency_check(obj, obj_name):
     items = get_call_signature(obj)
     actual_args = {(a if isinstance(a, str) else a[0]) for a in items}
 
-    undocumented = actual_args.difference(doc_args)
+    undocumented = {
+        a for a in actual_args.difference(doc_args) if not a.startswith("_")
+    }
     # If the sig contains **kwargs, any keyword is valid
     if any(k.startswith("**") for k in actual_args):
         non_existent = {}
     else:
-        non_existent = doc_args.difference(actual_args)
+        non_existent = {
+            a for a in doc_args.difference(actual_args) if not a.startswith("_")
+        }
 
     if undocumented:
         undoc_args = ", ".join(undocumented)

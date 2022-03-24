@@ -123,7 +123,4 @@ data_docs_sites:
     site_index_builder:
       class_name: DefaultSiteIndexBuilder
 
-anonymous_usage_statistics:
-  data_context_id: 7fc932eb-f469-44aa-a0f9-1bad66cb8a87
-  enabled: true
 notebooks:

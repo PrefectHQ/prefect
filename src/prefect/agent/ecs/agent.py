@@ -38,6 +38,14 @@ def merge_run_task_kwargs(opts1: dict, opts2: dict) -> dict:
 
     out = deepcopy(opts1)
 
+    # if opts2 contains keys for capacityProviderStrategy and LaunchType delete launchType
+    if "capacityProviderStrategy" in opts2 and "launchType" in out:
+        del out["launchType"]
+
+    # if opts2 contains keys for launchType delete capacityProviderStrategy
+    if "capacityProviderStrategy" in out and "launchType" in opts2:
+        del out["capacityProviderStrategy"]
+
     # Everything except 'overrides' merge directly
     for k, v in opts2.items():
         if k != "overrides":
@@ -168,7 +176,7 @@ class ECSAgent(Agent):
         from prefect.utilities.aws import get_boto_client
 
         self.cluster = cluster
-        self.launch_type = launch_type.upper() if launch_type else "FARGATE"
+        self.launch_type = launch_type
         self.task_role_arn = task_role_arn
         self.execution_role_arn = execution_role_arn
 
@@ -224,6 +232,12 @@ class ECSAgent(Agent):
         else:
             self.run_task_kwargs = {}
 
+        if not self.run_task_kwargs.get("capacityProviderStrategy"):
+            self.launch_type = launch_type.upper() if launch_type else "FARGATE"
+
+            self.logger.debug(
+                "No launch type or capacity provider given. Setting launch type to FARGATE.",
+            )
         # If running on fargate, auto-configure `networkConfiguration` for the
         # user if they didn't configure it themselves.
         if self.launch_type == "FARGATE" and not self.run_task_kwargs.get(
@@ -309,13 +323,15 @@ class ECSAgent(Agent):
                     "Cannot provide `task_definition_arn` when using `Docker` storage"
                 )
             taskdef_arn = run_config.task_definition_arn
+            resp = self.ecs_client.describe_task_definition(taskDefinition=taskdef_arn)
+            taskdef = resp["taskDefinition"]
             new_taskdef_arn = False
             self.logger.debug(
                 "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
             )
 
         # Get kwargs to pass to run_task
-        kwargs = self.get_run_task_kwargs(flow_run, run_config)
+        kwargs = self.get_run_task_kwargs(flow_run, run_config, taskdef)
 
         resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
 
@@ -358,7 +374,6 @@ class ECSAgent(Agent):
             taskdef = yaml.safe_load(template_bytes)
         else:
             taskdef = deepcopy(self.task_definition)
-
         slug = slugify.slugify(
             f"{flow_run.flow.name}-{flow_run.id}",
             max_length=255 - len("prefect-"),
@@ -403,37 +418,40 @@ class ECSAgent(Agent):
         if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
 
-        # Set executionRoleArn if configured
-        # Note that we set this in both the task definition and the
-        # run_task_kwargs since ECS requires this in the definition for FARGATE
-        # tasks, but we also want to still configure it for users that provide
-        # their own `task_definition_arn`.
-        if run_config.execution_role_arn:
-            taskdef["executionRoleArn"] = run_config.execution_role_arn
-        elif self.execution_role_arn:
-            taskdef["executionRoleArn"] = self.execution_role_arn
+        # If we're using Fargate, we need to explicitly set an executionRoleArn on the
+        # task definition. If one isn't present, then try to load it from the run_config
+        # and then the agent's default.
+        if "executionRoleArn" not in taskdef:
+            if run_config.execution_role_arn:
+                taskdef["executionRoleArn"] = run_config.execution_role_arn
+            elif self.execution_role_arn:
+                taskdef["executionRoleArn"] = self.execution_role_arn
 
-        # Set requiresCompatibilities if not already set
-        if "requiresCompatibilities" not in taskdef:
+        # Set requiresCompatibilities if not already set if self.launch_type is set
+        if "requiresCompatibilities" not in taskdef and self.launch_type:
             taskdef["requiresCompatibilities"] = [self.launch_type]
 
         return taskdef
 
     def get_run_task_kwargs(
-        self, flow_run: GraphQLResult, run_config: ECSRun
+        self, flow_run: GraphQLResult, run_config: ECSRun, taskdef: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate kwargs to pass to `ECS.client.run_task` for a flow run
 
         Args:
             - flow_run (GraphQLResult): A flow run object
             - run_config (ECSRun): The flow's run config
+            - taskdef (Dict): The ECS task definition used in ECS.client.run_task
 
         Returns:
             - dict: kwargs to pass to `ECS.client.run_task`
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        out["launchType"] = self.launch_type
+        # Use launchType only if capacity provider is not specified
+        if not out.get("capacityProviderStrategy"):
+            out["launchType"] = self.launch_type
+
         if self.cluster:
             out["cluster"] = self.cluster
 
@@ -451,16 +469,25 @@ class ECSAgent(Agent):
             container = {"name": "flow"}
             container_overrides.append(container)
 
-        # Set taskRoleArn if configured
+        # Task roles and execution roles should be retrieved from the following sources,
+        # in order:
+        # - An ARN passed explicitly on run_config.
+        # - An ARN present on the task definition used for run_task. In this case, we
+        #   don't need to provide an override at all.
+        # - An ARN passed in to the ECSAgent when instantiated, either programmatically
+        #   or via the CLI.
         if run_config.task_role_arn:
             overrides["taskRoleArn"] = run_config.task_role_arn
+        elif taskdef.get("taskRoleArn"):
+            overrides["taskRoleArn"] = taskdef["taskRoleArn"]
         elif self.task_role_arn:
             overrides["taskRoleArn"] = self.task_role_arn
 
-        # Set executionRoleArn if configured
         if run_config.execution_role_arn:
             overrides["executionRoleArn"] = run_config.execution_role_arn
-        elif self.execution_role_arn:
+        elif taskdef.get("executionRoleArn"):
+            overrides["executionRoleArn"] = taskdef["executionRoleArn"]
+        elif self.execution_role_arn and not taskdef.get("executionRoleArn"):
             overrides["executionRoleArn"] = self.execution_role_arn
 
         # Set resource requirements, if provided

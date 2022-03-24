@@ -13,3 +13,4 @@
 - [Using script based flow storage](script-based.html)
 - [Pause for Approval](pause-for-approval.html)
 - [Naming task runs based on inputs](task-run-names.html)
+- [Using the functional pipe operator](piping.html)

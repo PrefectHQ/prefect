@@ -161,7 +161,7 @@ class TestGlob:
         with pytest.raises(ValueError, match="No `path` provided"):
             ld.run()
 
-    def test_list_dir(self, tmp_path: pathlib.Path):
+    def test_list_dir_path(self, tmp_path: pathlib.Path):
         dir = tmp_path / "source"
         dir.mkdir(exist_ok=True)
         file = dir / "testfile"
@@ -170,7 +170,19 @@ class TestGlob:
         ld = Glob(path=dir)
         res = ld.run()
 
-        assert res[0] == Path(str(file))
+        assert res[0] == file
+        assert isinstance(res[0], Path)
+
+    def test_list_dir_str(self, tmp_path: pathlib.Path):
+        dir = tmp_path / "source"
+        dir.mkdir(exist_ok=True)
+        file = dir / "testfile"
+        file.write_text("test")
+
+        ld = Glob(path=str(dir))
+        res = ld.run()
+
+        assert res[0] == file
         assert isinstance(res[0], Path)
 
     def test_list_dir_recursive(self, tmp_path: pathlib.Path):
@@ -189,8 +201,8 @@ class TestGlob:
         ld = Glob(path=parent_dir, pattern="**/*")
         res = ld.run()
 
-        assert Path(str(file1)) in res
-        assert Path(str(file2)) in res
+        assert file1 in res
+        assert file2 in res
         assert len(res) == 4
 
     def test_glob_pattern(self, tmp_path: pathlib.Path):
@@ -205,4 +217,4 @@ class TestGlob:
         res = ld.run()
 
         assert len(res) == 1
-        assert res[0] == Path(str(file2))
+        assert res[0] == file2
