@@ -1,0 +1,5 @@
+fix:
+  - 'Allows the Prefect Client to retry up to 5 times for read-based errors - [#5600](https://github.com/PrefectHQ/prefect/pull/5600)'
+
+contributor:
+  - '[Jason Bertman](https://github.com/jbertman)'
