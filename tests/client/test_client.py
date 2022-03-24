@@ -260,6 +260,7 @@ def test_client_requests_use_retries(monkeypatch):
     Retry.assert_called_once_with(
         total=6,
         backoff_factor=1,
+        read=5,
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
     )
