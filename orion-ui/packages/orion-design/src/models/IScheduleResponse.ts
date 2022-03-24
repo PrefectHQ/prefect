@@ -18,16 +18,13 @@ export type IIntervalScheduleResponse = {
 }
 
 export function isRRuleScheduleResponse(schedule: IScheduleResponse): schedule is IRRuleScheduleResponse {
-  // eslint-disable-next-line no-prototype-builtins
-  return schedule.hasOwnProperty('rrule')
+  return !!(schedule as IRRuleScheduleResponse).rrule
 }
 
 export function isCronScheduleResponse(schedule: IScheduleResponse): schedule is ICronScheduleResponse {
-  // eslint-disable-next-line no-prototype-builtins
-  return schedule.hasOwnProperty('cron')
+  return !!(schedule as ICronScheduleResponse).cron
 }
 
 export function isIntervalScheduleResponse(schedule: IScheduleResponse): schedule is IIntervalScheduleResponse {
-  // eslint-disable-next-line no-prototype-builtins
-  return schedule.hasOwnProperty('interval')
+  return !!(schedule as IIntervalScheduleResponse).interval
 }
