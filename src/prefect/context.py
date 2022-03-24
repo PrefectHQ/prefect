@@ -221,7 +221,7 @@ def tags(*new_tags: str) -> Set[str]:
         >>>     with tags("c", "d"):
         >>>         with tags("e", "f") as current_tags:
         >>>              print(current_tags)
-        >>> with tags("a", b"):
+        >>> with tags("a", "b"):
         >>>     my_flow()
         {"a", "b", "c", "d", "e", "f"}
     """
