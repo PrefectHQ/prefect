@@ -17,15 +17,15 @@
 </template>
 
 <script lang="ts" setup>
-  import ButtonCard from '@/components/ButtonCard.vue'
-  import { StateType } from '@/models/StateType'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import ButtonCard from '@/components/ButtonCard.vue'
   import { useFilter } from '@/compositions/useFilter'
-  import { useSubscription } from '@/compositions/useSubscription'
+  import { useInjectedServices } from '@/compositions/useInjectedServices'
+  import { StateType } from '@/models/StateType'
   import { UnionFilters } from '@/services/Filter'
   import { FilterUrlService } from '@/services/FilterUrlService'
-  import { useInjectedServices } from '@/compositions/useInjectedServices'
 
   type PreMadeFilter = {
     label: string,
