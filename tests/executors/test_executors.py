@@ -469,7 +469,7 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_event is None
 
-    @pytest.mark.flaky
+    @pytest.mark.flaky()
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
         with distributed.Client(
@@ -483,6 +483,8 @@ class TestDaskExecutor:
                 client.cluster.scale(1)
                 while len(client.scheduler_info()["workers"]) > 1:
                     time.sleep(0.1)
+
+            time.sleep(0.5)
 
         assert any("Worker %s added" == rec.msg for rec in caplog.records)
         assert any("Worker %s removed" == rec.msg for rec in caplog.records)
