@@ -201,7 +201,7 @@
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
     grid-template-areas: 'level time message task';
-    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
+    grid-template-columns: [level] 65px [time] 108px [message] 1fr [task] 140px;
   }
 }
 
