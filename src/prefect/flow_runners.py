@@ -45,7 +45,7 @@ from typing_extensions import Literal
 import prefect
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
@@ -102,6 +102,18 @@ def get_prefect_image_name(
     )
 
     return f"prefecthq/prefect:{tag}"
+
+
+def base_flow_run_environment() -> Dict[str, str]:
+    """
+    Generate a dictionary of environment variables for a flow run job.
+
+    Note that `PREFECT_API_URL` is often required as well, but is not included here as
+    the value often needs replacement for networking purposes.
+    """
+    SETTINGS = {PREFECT_API_KEY}
+
+    return {setting.name: setting.value() for setting in SETTINGS}
 
 
 class FlowRunner(BaseModel):
@@ -281,8 +293,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     def _generate_command_and_environment(
         self, flow_run_id: UUID
     ) -> Tuple[Sequence[str], Dict[str, str]]:
-        # Copy the base environment
-        env = os.environ.copy()
+        # Include the base environment and current process environment
+        env = {**base_flow_run_environment(), **os.environ}
 
         # Set up defaults
         command = []
@@ -707,7 +719,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return {"host.docker.internal": "host-gateway"}
 
     def _get_environment_variables(self, network_mode):
-        env = self.env.copy()
+        env = {**base_flow_run_environment(), **self.env}
 
         # Set the container to connect to the same API as the flow runner by default
 
@@ -940,7 +952,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         return labels
 
     def _get_environment_variables(self):
-        env = self.env.copy()
+        env = {**base_flow_run_environment(), **self.env}
         env.setdefault("PREFECT_API_URL", "http://orion:4200/api")
         return env
 
