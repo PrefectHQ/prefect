@@ -9,6 +9,7 @@ from prefect.tasks.fivetran import FivetranSyncTask
 logging.basicConfig()
 log = logging.getLogger()
 
+
 class TestFivetran:
     def test_required_params(self):
         """
@@ -16,7 +17,9 @@ class TestFivetran:
         """
 
         # raises Value error if connector_id is not provided
-        with pytest.raises(ValueError, match="Value for parameter `connector_id` must be provided."):
+        with pytest.raises(
+            ValueError, match="Value for parameter `connector_id` must be provided."
+        ):
             FivetranSyncTask().run(
                 api_key="test",
                 api_secret="test",
@@ -24,28 +27,33 @@ class TestFivetran:
             )
 
         # raises Value error if api_key is not provided
-        with pytest.raises(TypeError, match="run() missing 1 required positional argument: 'api_key'"):
+        with pytest.raises(
+            TypeError, match="run() missing 1 required positional argument: 'api_key'"
+        ):
             FivetranSyncTask().run(
                 connector_id="test",
                 api_secret="test",
                 schedule_type="auto",
             )
         # raises Value error if api_secret is not provided
-        with pytest.raises(TypeError, match="run() missing 1 required positional argument: 'api_secret'"):
+        with pytest.raises(
+            TypeError,
+            match="run() missing 1 required positional argument: 'api_secret'",
+        ):
             FivetranSyncTask().run(
-                connector_id="test",
-                api_key="test",
-                schedule_type="auto,"
-            ) 
+                connector_id="test", api_key="test", schedule_type="auto,"
+            )
         # raises Value error if schedule_type is not "manual" or "auto"
-        with pytest.raises(ValueError, match='schedule_type must be either "manual" or "auto"'):
+        with pytest.raises(
+            ValueError, match='schedule_type must be either "manual" or "auto"'
+        ):
             FivetranSyncTask().run(
                 connector_id="test",
                 api_key="test",
                 api_secret="test",
                 schedule_type="test",
             )
-   
+
     @pytest.mark.skipif(
         os.getenv("FIVETRAN_TEST_API_KEY") is None,
         reason="You need a Fivetran API Key and API Secret to perform an actual Fivetran test",
@@ -74,4 +82,4 @@ class TestFivetran:
             schedule_type="auto",
         )
 
-        assert isinstance(result, dict) 
+        assert isinstance(result, dict)
