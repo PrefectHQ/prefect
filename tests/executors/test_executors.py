@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import uuid
+import re
 
 import cloudpickle
 import dask
@@ -484,10 +485,8 @@ class TestDaskExecutor:
                 while len(client.scheduler_info()["workers"]) > 1:
                     time.sleep(0.1)
 
-            time.sleep(0.5)
-
-        assert any("Worker %s added" == rec.msg for rec in caplog.records)
-        assert any("Worker %s removed" == rec.msg for rec in caplog.records)
+        assert any(re.match("Worker .+ added", rec.msg) for rec in caplog.records)
+        assert any(re.match("Worker .+ removed", rec.msg) for rec in caplog.records)
 
     @pytest.mark.parametrize("kind", ["external", "inproc"])
     @pytest.mark.flaky
