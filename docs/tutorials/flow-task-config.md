@@ -223,7 +223,7 @@ Metadata such as this allows for a full reconstruction of what happened with you
 
 You can define a cache key function using the `cache_key_fn` argument on a task. 
 
-### Task input cache
+### Task input hash
 
 One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again. 
 
@@ -255,10 +255,13 @@ But if you change the argument passed to the task (here we used "Trillian" inste
 11:52:09.553 | INFO    | prefect.engine - Created flow run 'attentive-turaco' for flow 'hello-flow'
 11:52:09.553 | INFO    | Flow run 'attentive-turaco' - Using task runner 'ConcurrentTaskRunner'
 11:52:09.761 | INFO    | Flow run 'attentive-turaco' - Created task run 'hello_task-e97fb216-0' for task 'hello_task'
-Saying hello Marvin
+
+<span style="font-weight: bold;">Saying hello Marvin</span>
+
 11:52:10.798 | INFO    | Task run 'hello_task-e97fb216-0' - Finished in state Completed(None)
 11:52:12.004 | INFO    | Flow run 'attentive-turaco' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result='hello Marvin', task_run_id=90dcb0d6-ae5b-4ad2-bb74-92e58626850b)], flow_run_id=8af63f45-b50c-46ef-b59e-ec19897421cd)
+
 >>> hello_flow("Marvin")
 11:52:17.512 | INFO    | prefect.engine - Created flow run 'taupe-grasshopper' for flow 'hello-flow'
 11:52:17.512 | INFO    | Flow run 'taupe-grasshopper' - Using task runner 'ConcurrentTaskRunner'
@@ -266,11 +269,14 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 11:52:18.316 | INFO    | Task run 'hello_task-e97fb216-1' - Finished in state Cached(None, type=COMPLETED)
 11:52:19.429 | INFO    | Flow run 'taupe-grasshopper' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result='hello Marvin', task_run_id=79bb8dd6-f640-4bc2-b1fd-ec6ee84a8974)], flow_run_id=757bd56e-6ee3-44dc-a9fe-ada4b4cefe13)
+
 >>> hello_flow("Trillian")
 11:53:06.637 | INFO    | prefect.engine - Created flow run 'imposing-stork' for flow 'hello-flow'
 11:53:06.637 | INFO    | Flow run 'imposing-stork' - Using task runner 'ConcurrentTaskRunner'
 11:53:06.846 | INFO    | Flow run 'imposing-stork' - Created task run 'hello_task-e97fb216-3' for task 'hello_task'
-Saying hello Trillian
+
+<span style="font-weight: bold;">Saying hello Trillian</span>
+
 11:53:07.787 | INFO    | Task run 'hello_task-e97fb216-3' - Finished in state Completed(None)
 11:53:09.027 | INFO    | Flow run 'imposing-stork' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result='hello Trillian', task_run_id=20d269b5-fccd-4804-9806-5e13ebd0685b)], flow_run_id=22b9b3a5-08df-40f0-8334-475c6446c4ff)
@@ -311,7 +317,7 @@ def test_caching(nums):
     cached_task(nums)
 ```
 
-Notice that if we call `test_caching()` with the value "[2,2]", the long running operation only runs once. And the task still doesn't run if we call it with the value "[1,3]" &mdash; both 2+2 and 1+3 return the same cache key string, "4".
+Notice that if we call `test_caching()` with the value `[2,2]`, the long running operation only runs once. And the task still doesn't run if we call it with the value `[1,3]` &mdash; both 2+2 and 1+3 return the same cache key string, "4".
 
 But if you then call `test_caching([2,3])`, which results in the cache key string "5", `cached_task()` runs.
 
@@ -322,10 +328,13 @@ But if you then call `test_caching([2,3])`, which results in the cache key strin
 13:52:52.072 | INFO    | Flow run 'saffron-lemur' - Using task runner 'ConcurrentTaskRunner'
 13:52:52.293 | INFO    | Flow run 'saffron-lemur' - Created task run 'cached_task-64beb460-0' for task 'cached_task'
 {'nums': [2, 2]}
-running an expensive operation
+
+<span style="font-weight: bold;">running an expensive operation</span>
+
 13:52:55.724 | INFO    | Task run 'cached_task-64beb460-0' - Finished in state Completed(None)
 13:52:56.135 | INFO    | Flow run 'saffron-lemur' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result=4, task_run_id=6233c853-f711-4843-a256-4cfdf2b25d15)], flow_run_id=c0cd85aa-4893-4c81-9efd-7c6531466ea1)
+
 >>> test_caching([2,2])
 13:53:12.169 | INFO    | prefect.engine - Created flow run 'pristine-chicken' for flow 'test-caching'
 13:53:12.169 | INFO    | Flow run 'pristine-chicken' - Using task runner 'ConcurrentTaskRunner'
@@ -334,6 +343,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 13:53:12.556 | INFO    | Task run 'cached_task-64beb460-1' - Finished in state Cached(None, type=COMPLETED)
 13:53:12.959 | INFO    | Flow run 'pristine-chicken' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result=4, task_run_id=f4925f7f-f8de-4434-9943-1d08c23f2994)], flow_run_id=46d0d0ac-defb-4dbd-a086-2b89f24250f5)
+
 >>> test_caching([1,3])
 13:53:20.765 | INFO    | prefect.engine - Created flow run 'holistic-loon' for flow 'test-caching'
 13:53:20.766 | INFO    | Flow run 'holistic-loon' - Using task runner 'ConcurrentTaskRunner'
@@ -342,12 +352,15 @@ Completed(message='All states completed.', type=COMPLETED, result=[Cached(messag
 13:53:21.160 | INFO    | Task run 'cached_task-64beb460-2' - Finished in state Cached(None, type=COMPLETED)
 13:53:21.520 | INFO    | Flow run 'holistic-loon' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result=4, task_run_id=ac43e614-4ffe-4798-af5b-40ab7b419914)], flow_run_id=bbb7117c-e362-474e-aa16-8aa88290ab11)
+
 >>> test_caching([2,3])
 13:53:26.145 | INFO    | prefect.engine - Created flow run 'chestnut-jackal' for flow 'test-caching'
 13:53:26.146 | INFO    | Flow run 'chestnut-jackal' - Using task runner 'ConcurrentTaskRunner'
 13:53:26.343 | INFO    | Flow run 'chestnut-jackal' - Created task run 'cached_task-64beb460-3' for task 'cached_task'
 {'nums': [2, 3]}
-running an expensive operation
+
+<span style="font-weight: bold;">running an expensive operation</span>
+
 13:53:29.715 | INFO    | Task run 'cached_task-64beb460-3' - Finished in state Completed(None)
 13:53:30.070 | INFO    | Flow run 'chestnut-jackal' - Finished in state Completed('All states completed.')
 Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result=5, task_run_id=95673be8-4d7c-49e2-90f2-880369efadd9)], flow_run_id=c136a29a-6fed-49d9-841a-0b54249a0f0e)
