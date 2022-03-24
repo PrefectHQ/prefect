@@ -1,44 +1,35 @@
 import { profiles } from '@/profiles'
 
-type AnyProfile = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  toDestination: (source: any) => any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  toSource: (destination: any) => any,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyProfile = Profile<any, any>
+type SourceType<T extends AnyProfile> = ReturnType<T['toSource']>
+type DestinationType<T extends AnyProfile> = ReturnType<T['toDestination']>
+
+function mapToDestination<T extends AnyProfile>(profile: T, source: SourceType<T>[]): DestinationType<T>[] {
+  return source.map(x => profile.toDestination(x))
 }
 
-export class Translate<T extends Record<string, AnyProfile>> {
-  private readonly profiles: T
-
-  public constructor(profiles: T) {
-    this.profiles = profiles
-  }
-
-  public toDestination<K extends keyof T>(key: K, ...[source]: Parameters<T[K]['toDestination']>): ReturnType<T[K]['toDestination']> {
-    const toDestination = this.profiles[key].toDestination.bind(this, source)
-
-    return toDestination()
-  }
-
-  public toSource<K extends keyof T>(key: K, ...[destination]: Parameters<T[K]['toSource']>): ReturnType<T[K]['toSource']> {
-    const toSource = this.profiles[key].toSource.bind(this, destination)
-
-    return toSource()
-  }
+function mapToSource<T extends AnyProfile>(profile: T, destination: DestinationType<T>[]): SourceType<T>[] {
+  return destination.map(x => profile.toSource(x))
 }
 
-export const translate = new Translate(profiles)
+export function translate<K extends keyof typeof profiles>(key: K): typeof profiles[K] & {
+  mapToDestination: (source: SourceType<typeof profiles[K]>[]) => DestinationType<typeof profiles[K]>[],
+  mapToSource: (destination: DestinationType<typeof profiles[K]>[]) => SourceType<typeof profiles[K]>[],
+} {
+  const profile = profiles[key]
+
+  return {
+    ...profile,
+    mapToDestination: (source: SourceType<typeof profile>[]) => mapToDestination(profile, source),
+    mapToSource: (destination: DestinationType<typeof profile>[]) => mapToSource(profile, destination),
+  }
+}
 
 export type Profile<Source, Destination> = {
   toDestination: (source: Source) => Destination,
   toSource: (destination: Destination) => Source,
 }
-
-// todo: gotta fix (this as typeof translate).toSource()
-
-// todo: new syntax?
-// translate('IFlow:Flow').toSource(destination)
-// translate('IFlow:Flow').toDestination(source)
 
 // todo: map arrays?
 // translate('IFlow[]:Flow[]').toSource(destination)
