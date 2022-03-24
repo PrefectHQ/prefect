@@ -1,0 +1,102 @@
+{
+    "vue-compoent": {
+        "scope": "vue",
+        "prefix": "vuecomp",
+        "body": [
+            "<template>",
+            "  $1",
+            "</template>",
+            "",
+            "<script lang=\"ts\" setup></script>",
+            "",
+            "<style lang=\"scss\" scoped></style>"
+        ],
+        "description": "Create an empty Vue component"
+    },
+    "template": {
+        "scope": "vue",
+        "prefix": "template",
+        "body": [
+            "<template>",
+            "  $1",
+            "</template>"
+        ],
+        "description": "Create <template> block"
+    },
+    "script": {
+        "scope": "vue",
+        "prefix": "script",
+        "body": [
+            "<script lang=\"ts\">",
+            "import { defineComponent } from 'vue';",
+            "",
+            "export default defineComponent({",
+            "  name: '$1',",
+            "  expose: [],",
+            "  $2",
+            "});",
+            "</script>"
+        ],
+        "description": "Create <script> block"
+    },
+    "script setup": {
+        "scope": "vue",
+        "prefix": "script setup",
+        "body": [
+            "<script lang=\"ts\" setup>",
+            "defineProps<{ $1 }>();",
+            "</script>"
+        ],
+        "description": "Create <script setup> + <script> blocks"
+    },
+    "style": {
+        "scope": "vue",
+        "prefix": "style",
+        "body": [
+            "<style lang=\"scss\" scoped>",
+            "$1",
+            "</style>"
+        ],
+        "description": "Create <style> block"
+    },
+    "v-for": {
+        "scope": "html",
+        "prefix": "v-for",
+        "body": [
+            "<template v-for=\"$1 in $2\">",
+            "  $3",
+            "</template>"
+        ],
+        "description": "Create html tag with v-for"
+    },
+    "v-if": {
+        "scope": "html",
+        "prefix": "v-if",
+        "body": [
+            "<template v-if=\"$1\">",
+            "  $2",
+            "</template>"
+        ],
+        "description": "Create html tag with v-if"
+    },
+    "v-else-if": {
+        "scope": "html",
+        "prefix": "v-else-if",
+        "body": [
+            "<template v-else-if=\"$1\">",
+            "  $2",
+            "</template>"
+        ],
+        "description": "Create html tag with v-else-if"
+    },
+    "v-else": {
+        "scope": "html",
+        "prefix": "v-else",
+        "body": [
+            "<template v-else>",
+            "  $2",
+            "</template>"
+        ],
+        "description": "Create html tag with v-else"
+    }
+}
