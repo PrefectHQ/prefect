@@ -359,7 +359,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 You can create, list, and remove concurrency limits by using Prefect CLI `concurrency-limit` commands.
 
 ```bash
-$ prefect concurrency_limit [command] [arguments]
+$ prefect concurrency-limit [command] [arguments]
 ```
 
 | Command | Description |
@@ -372,13 +372,13 @@ $ prefect concurrency_limit [command] [arguments]
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency_limit create small_instance 10
+$ prefect concurrency-limit create small_instance 10
 ```
 
 To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
-$ prefect concurrency_limit delete small_instance
+$ prefect concurrency-limit delete small_instance
 ```
 
 #### Python client
