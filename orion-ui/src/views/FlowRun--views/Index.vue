@@ -130,11 +130,25 @@
     </m-card>
   </div>
 
-  <ListTabSet v-model:value="resultsTab" :tabs="tabs" class="mt-3">
+  <TabSet v-model:value="resultsTab" :tabs="tabs" class="mt-3">
+    <template #after-tab="{ tab }">
+      <span v-if="hasCount(tab.key)" class="flow-run__tab-badge caption">
+        {{ getCount(tab.key).toLocaleString() }}
+      </span>
+    </template>
+
+    <template #before-tab-content="{ selectedTab }">
+      <div class="font--secondary caption my-2" style="min-height: 17px">
+        <span v-if="hasCount(selectedTab.key) && getCount(selectedTab.key) > 0">
+          {{ getCount(selectedTab.key).toLocaleString() }} {{ toPluralString('Result', getCount(selectedTab.key)) }}
+        </span>
+      </div>
+    </template>
+
     <template #task_runs="{ tab }">
       <section class="results-section">
         <ResultsList
-          v-if="tab.count > 0"
+          v-if="getCount(tab.key) > 0"
           key="task_runs"
           :filter="taskRunsFilter"
           component="ListItemTaskRun"
@@ -150,7 +164,7 @@
     <template #sub_flow_runs="{ tab }">
       <section class="results-section">
         <ResultsList
-          v-if="tab.count > 0"
+          v-if="getCount(tab.key) > 0"
           key="sub_flow_runs"
           :filter="subFlowRunsFilter"
           component="ListItemSubFlowRun"
@@ -168,13 +182,15 @@
         <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
       </section>
     </template>
-  </ListTabSet>
+  </TabSet>
 
   <hr class="results-hr mt-3">
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, ListTabSet, ListTab, States } from '@prefecthq/orion-design'
+  import type { UnionFilters } from '@prefecthq/orion-design'
+  import { TabSet } from '@prefecthq/orion-design/components'
+  import { toPluralString } from '@prefecthq/orion-design/utilities'
   import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
   import { useRoute, onBeforeRouteLeave } from 'vue-router'
   import MiniRadarView from './MiniRadar.vue'
@@ -313,6 +329,21 @@
     }),
   }
 
+  function hasCount(key: Tab): boolean {
+    return typeof countMap.value[key as Tab] === 'number'
+  }
+
+  const getCount = (key: Tab): number => {
+    return countMap.value[key as Tab] ?? 0
+  }
+
+  const countMap = computed<Record<Tab, number | undefined>>(() => ({
+    task_runs: queries.task_runs_count.response?.value,
+    sub_flow_runs: queries.sub_flow_runs_count.response?.value,
+    // dummy because there is no count query for logs. And not taking the time to refactor results count right now
+    logs: undefined,
+  }))
+
   const deployment = computed<Deployment>(() => {
     return queries.deployment.response?.value || {}
   })
@@ -342,46 +373,49 @@
   })
 
   const running = computed<boolean>(() => {
-    return state.value.type == States.RUNNING
+    return state.value.type == 'RUNNING'
   })
 
   const tags = computed(() => {
     return flowRun.value?.tags || []
   })
 
+  const taskRunsCount = computed(() => {
+    return queries.task_runs_count.response?.value || 0
+  })
+
+  const subFlowRunsCount = computed(() => {
+    return queries.sub_flow_runs_count.response?.value || 0
+  })
+
   const taskRuns = computed<TaskRun[]>(() => {
     return queries.task_runs.response?.value || []
   })
 
-  const tabs = computed<ListTab[]>(() => [
+  const tabs = [
     {
       title: 'Task Runs',
       key: 'task_runs',
       icon: 'pi-task',
-      count: queries.task_runs_count.response?.value ?? 0,
     },
     {
       title: 'Subflow Runs',
       key: 'sub_flow_runs',
       icon: 'pi-flow-run',
-      count: queries.sub_flow_runs_count.response?.value ?? 0,
     },
     {
       title: 'Logs',
       key: 'logs',
       icon: 'pi-logs-fill',
-      count: null,
     },
-  ])
+  ]
 
   const duration = computed(() => {
-    if ([States.PENDING, States.SCHEDULED].includes(state.value.type)) {
-      return '--'
-    }
-
-    return flowRun.value.total_run_time
-      ? secondsToApproximateString(flowRun.value.total_run_time)
-      : secondsToApproximateString(flowRun.value.estimated_run_time)
+    return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
+      ? '--'
+      : flowRun.value.total_run_time
+        ? secondsToApproximateString(flowRun.value.total_run_time)
+        : secondsToApproximateString(flowRun.value.estimated_run_time)
   })
 
   // This cleanup is necessary since the initial flow run query isn't
@@ -433,7 +467,22 @@
 
 <style lang="scss">
 @use '@/styles/views/flow-run/index.scss';
-
+.flow-run__tab-badge {
+    background-color: #fff;
+    border-radius: 16px;
+    font-weight: 400;
+    padding: 0 8px;
+    min-width: 24px;
+    transition: 150ms all;
+}
+.tab-set__tab--active {
+    background-color: var(--primary);
+    color: #fff;
+    .flow-run__tab-badge {
+        background-color: var(--primary);
+        color: #fff;
+    }
+}
 .results-section {
   display: flex;
   align-items: stretch;
