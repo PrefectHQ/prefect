@@ -244,7 +244,7 @@ class TaskRunnerTests(ABC):
         tmp_file.touch()
         return tmp_file
 
-    def test_sync_tasks_run_sequentially_with_sequential_task_runners(
+    def test_sync_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
     ):
         if task_runner.concurreny_type != TaskConcurrencyType.SEQUENTIAL:
@@ -270,7 +270,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    def test_sync_tasks_run_concurrently_with_parallel_task_runners(
+    def test_sync_tasks_run_concurrently_with_nonsequential_concurrency_type(
         self, task_runner, tmp_file
     ):
         if task_runner.concurreny_type == TaskConcurrencyType.SEQUENTIAL:
@@ -297,7 +297,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "foo"
 
-    async def test_async_tasks_run_sequentially_with_sequential_task_runners(
+    async def test_async_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
     ):
         if task_runner.concurreny_type != TaskConcurrencyType.SEQUENTIAL:
@@ -323,7 +323,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    async def test_async_tasks_run_concurrently_with_parallel_task_runners(
+    async def test_async_tasks_run_concurrently_with_nonsequential_concurrency_type(
         self, task_runner, tmp_file
     ):
         if task_runner.concurreny_type == TaskConcurrencyType.SEQUENTIAL:
@@ -349,7 +349,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "foo"
 
-    async def test_async_tasks_run_concurrently_with_task_group_with_all_task_runners(
+    async def test_async_tasks_run_concurrently_with_task_group_with_all_concurrency_types(
         self, task_runner, tmp_file
     ):
         @task
@@ -371,7 +371,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "foo"
 
-    def test_sync_subflows_run_sequentially_with_all_task_runners(
+    def test_sync_subflows_run_sequentially_with_all_concurrency_types(
         self, task_runner, tmp_file
     ):
         @flow
@@ -392,7 +392,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    async def test_async_subflows_run_sequentially_with_all_task_runners(
+    async def test_async_subflows_run_sequentially_with_all_concurrency_types(
         self, task_runner, tmp_file
     ):
         @flow
@@ -413,7 +413,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "bar"
 
-    async def test_async_subflows_run_concurrently_with_task_group_with_all_task_runners(
+    async def test_async_subflows_run_concurrently_with_task_group_with_all_concurrency_types(
         self, task_runner, tmp_file
     ):
         @flow
