@@ -192,7 +192,7 @@ class TaskRunnerTests(ABC):
     """
 
     @pytest.fixture
-    @abstactmethod
+    @abstractmethod
     def task_runner(self) -> BaseTaskRunner:
         pass
 
