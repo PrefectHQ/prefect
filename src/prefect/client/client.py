@@ -633,6 +633,7 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
+            read=5,
             status_forcelist=[500, 502, 503, 504],
             # typeshed is out of date with urllib3 and missing `allowed_methods`
             allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
