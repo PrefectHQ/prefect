@@ -13,6 +13,7 @@ import { stateProfile } from './State'
 import { stateDetailsProfile } from './StateDetails'
 import { stateHistoryProfile } from './StateHistory'
 import { taskInputProfile, taskInputsProfile } from './TaskInput'
+import { taskRunProfile } from './TaskRun'
 import { workQueueProfile } from './WorkQueue'
 import { workQueueFilterProfile } from './WorkQueueFilter'
 
@@ -33,6 +34,7 @@ export const profiles = {
   'IStateHistoryResponse:StateHistory': stateHistoryProfile,
   'ITaskInputResponse:TaskInput': taskInputProfile,
   'ITaskInputResponseRecord:TaskInputRecord': taskInputsProfile,
+  'ITaskRunResponse:TaskRun': taskRunProfile,
   'IWorkQueueResponse:WorkQueue': workQueueProfile,
   'IWorkQueueFilterResponse:WorkQueueFilter': workQueueFilterProfile,
 }
