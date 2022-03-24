@@ -5,13 +5,45 @@ import os
 import sys
 import warnings
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
+from tempfile import TemporaryDirectory
 
 import pytest
 
 import prefect.context
 import prefect.settings
+from prefect.orion.database.dependencies import temporary_database_interface
 from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
+
+
+@contextmanager
+def prefect_test_harness():
+    """
+    Temporarily run flows against a local SQLite database for testing.
+
+    Example:
+        >>> from prefect import flow
+        >>> @flow
+        >>> def my_flow():
+        >>>     return 'Done!'
+        >>> with prefect_test_harness():
+        >>>     assert my_flow() == 'Done!' # run against temporary db
+    """
+    # create temp directory for the testing database
+    with TemporaryDirectory() as temp_dir:
+        with ExitStack() as stack:
+            # temporarily override any database interface components
+            stack.enter_context(temporary_database_interface())
+            # set the connection url to our temp database
+            # make sure PREFECT_API_URL is not set, otherwise
+            # actual API requests will be made
+            stack.enter_context(
+                temporary_settings(
+                    PREFECT_API_URL=None,
+                    PREFECT_ORION_DATABASE_CONNECTION_URL=f"sqlite+aiosqlite:////{temp_dir}/orion.db",
+                )
+            )
+            yield
 
 
 def exceptions_equal(a, b):
@@ -43,6 +75,8 @@ def temporary_settings(**kwargs):
     This will _not_ mutate values that have been already been accessed at module
     load time.
 
+    Values set to `None` will be restored to the default value.
+
     This function should only be used for testing.
 
     Example:
@@ -53,22 +87,31 @@ def temporary_settings(**kwargs):
     """
     old_env = os.environ.copy()
 
-    # Cast to strings
-    variables = {key: str(value) for key, value in kwargs.items()}
+    # Collect keys to set to new values
+    set_variables = {
+        # Cast values to strings
+        key: str(value)
+        for key, value in kwargs.items()
+        if value is not None
+    }
+    # Collect keys to restore to defaults
+    unset_variables = {key for key, value in kwargs.items() if value is None}
 
     try:
-        for key in variables:
-            os.environ[key] = str(variables[key])
+        for key, value in set_variables.items():
+            os.environ[key] = value
+        for key in unset_variables:
+            os.environ.pop(key, None)
 
         new_settings = prefect.settings.get_settings_from_env()
 
         with prefect.context.ProfileContext(
-            name="temporary", settings=new_settings, env=variables
+            name="temporary", settings=new_settings, env=set_variables
         ):
             yield new_settings
 
     finally:
-        for key in variables:
+        for key in unset_variables.union(set_variables.keys()):
             if old_env.get(key):
                 os.environ[key] = old_env[key]
             else:
@@ -149,14 +192,9 @@ class TaskRunnerTests(ABC):
     """
 
     @pytest.fixture
+    @abstactmethod
     def task_runner(self) -> BaseTaskRunner:
-        """
-        Yield a task runner to run tests with
-        """
-        if getattr(self, "parameterized_task_runner", None):
-            yield self.parameterized_task_runner
-        else:
-            raise NotImplementedError("You must provide a `task_runner` fixture.")
+        pass
 
     def get_sleep_time(self) -> float:
         """
