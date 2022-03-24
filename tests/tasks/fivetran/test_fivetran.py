@@ -24,14 +24,14 @@ class TestFivetran:
             )
 
         # raises Value error if api_key is not provided
-        with pytest.raises(ValueError, match="Value for parameter `api_key` must be provided."):
+        with pytest.raises(TypeError, match="run() missing 1 required positional argument: 'api_key'"):
             FivetranSyncTask().run(
                 connector_id="test",
                 api_secret="test",
                 schedule_type="auto",
             )
         # raises Value error if api_secret is not provided
-        with pytest.raises(ValueError, match="Value for parameter `api_secret` must be provided."):
+        with pytest.raises(TypeError, match="run() missing 1 required positional argument: 'api_secret'"):
             FivetranSyncTask().run(
                 connector_id="test",
                 api_key="test",
