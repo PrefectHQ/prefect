@@ -230,7 +230,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
 
     def get_result(self, key: UUID) -> Any:
         result = self._results[key]
-        if result == GatherIncomplete:
+        if result is GatherIncomplete:
             raise GatherIncomplete(
                 "Task is not complete. "
                 "Results should not be retrieved until the task group exits."

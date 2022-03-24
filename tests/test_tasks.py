@@ -1249,10 +1249,12 @@ class TestTaskWithOptions:
         assert with_options_task.tags == {"tag1", "tag2"}
 
     def test_with_options_signature_aligns_with_task_signature(self):
-        task_params = dict(inspect.signature(task).parameters)
-        with_options_params = dict(inspect.signature(Task.with_options).parameters)
+        task_params = set(inspect.signature(task).parameters.keys())
+        with_options_params = set(
+            inspect.signature(Task.with_options).parameters.keys()
+        )
         # `with_options` does not accept a new function
-        task_params.pop("__fn")
+        task_params.remove("__fn")
         # `self` isn't in task decorator
-        with_options_params.pop("self")
+        with_options_params.remove("self")
         assert task_params == with_options_params

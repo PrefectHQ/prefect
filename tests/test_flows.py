@@ -1,4 +1,5 @@
 import enum
+import inspect
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -16,6 +17,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
+from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
 
@@ -96,6 +98,73 @@ class TestDecorator:
         my_flow = flow(file_hash)
 
         assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
+
+
+class TestFlowWithOptions:
+    def test_with_options_allows_override_of_flow_settings(self):
+        @flow(
+            name="Initial flow",
+            description="Flow before with options",
+            task_runner=ConcurrentTaskRunner,
+            timeout_seconds=10,
+            validate_parameters=True,
+        )
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(
+            name="Copied flow",
+            description="A copied flow",
+            task_runner=SequentialTaskRunner,
+            timeout_seconds=5,
+            validate_parameters=False,
+        )
+
+        assert flow_with_options.name == "Copied flow"
+        assert flow_with_options.description == "A copied flow"
+        assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
+        assert flow_with_options.timeout_seconds == 5
+        assert flow_with_options.should_validate_parameters is False
+
+    def test_with_options_uses_existing_settings_when_no_override(self):
+        @flow(
+            name="Initial flow",
+            description="Flow before with options",
+            task_runner=SequentialTaskRunner,
+            timeout_seconds=10,
+            validate_parameters=True,
+        )
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options()
+
+        assert flow_with_options is not initial_flow
+        assert flow_with_options.name == "Initial flow"
+        assert flow_with_options.description == "Flow before with options"
+        assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
+        assert flow_with_options.timeout_seconds == 10
+        assert flow_with_options.should_validate_parameters is True
+
+    def test_with_options_can_unset_timeout_seconds_with_zero(self):
+        @flow(timeout_seconds=1)
+        def initial_flow():
+            pass
+
+        flow_with_options = initial_flow.with_options(timeout_seconds=0)
+        assert flow_with_options.timeout_seconds is None
+
+    def test_with_options_signature_aligns_with_flow_signature(self):
+        flow_params = set(inspect.signature(flow).parameters.keys())
+        with_options_params = set(
+            inspect.signature(Flow.with_options).parameters.keys()
+        )
+        # `with_options` does not accept a new function
+        flow_params.remove("__fn")
+        # `self` isn't in flow decorator
+        with_options_params.remove("self")
+
+        assert flow_params == with_options_params
 
 
 class TestFlowCall:
