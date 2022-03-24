@@ -26,6 +26,8 @@
   import { StateType } from '@/models/StateType'
   import { UnionFilters } from '@/services/Filter'
   import { FilterUrlService } from '@/services/FilterUrlService'
+  import { States } from '@/types/states'
+
 
   type PreMadeFilter = {
     label: string,
@@ -44,7 +46,7 @@
       ...filter.value.flow_runs,
       state: {
         type: {
-          any_: ['FAILED'],
+          any_: [States.FAILED],
         },
       },
     },
@@ -83,19 +85,19 @@
     {
       label: 'Failed Runs',
       count: failedFlowRunsSubscription.response.value ?? defaultCountValue,
-      type: 'FAILED',
+      type: States.FAILED,
       name: 'Failed',
     },
     {
       label: 'Late Runs',
       count: lateFlowRunsSubscription.response.value ?? defaultCountValue,
-      type: 'SCHEDULED',
+      type: States.SCHEDULED,
       name: 'Late',
     },
     {
       label: 'Upcoming Runs',
       count: scheduledFlowRunsSubscription.response.value ?? defaultCountValue,
-      type: 'SCHEDULED',
+      type: States.SCHEDULED,
       name: 'Scheduled',
     },
   ])
