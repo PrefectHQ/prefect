@@ -97,8 +97,8 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
         self.logger = get_logger(f"task_runner.{self.name}")
         self._started: bool = False
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def concurrency_type(self) -> TaskConcurrencyType:
         pass
 
