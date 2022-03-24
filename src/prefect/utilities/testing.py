@@ -109,7 +109,7 @@ def parameterize_with_fixtures(name: str, *values):
         >>> def bar():
         >>>     return "bar"
         >>>
-        >>> @parameterize_indirect("foobar", foo, bar)
+        >>> @parameterize_with_fixtures("foobar", foo, bar)
         >>> def test_foo_or_bar(foobar)
         >>>     assert foobar == "foo" or foobar == "bar"
     """
@@ -148,13 +148,15 @@ class TaskRunnerTests(ABC):
     Implementations must define a `task_runner` fixture.
     """
 
-    @abstractmethod
     @pytest.fixture
     def task_runner(self) -> BaseTaskRunner:
         """
         Yield a task runner to run tests with
         """
-        pass
+        if getattr(self, "parameterized_task_runner", None):
+            yield self.parameterized_task_runner
+        else:
+            raise NotImplementedError("You must provide a `task_runner` fixture.")
 
     def get_sleep_time(self) -> float:
         """
@@ -162,7 +164,7 @@ class TaskRunnerTests(ABC):
         """
         return 0.5
 
-    async def test_successful_flow_run(task_runner):
+    async def test_successful_flow_run(self, task_runner):
         @task
         def task_a():
             return "a"
@@ -190,7 +192,7 @@ class TaskRunnerTests(ABC):
             "bc",
         )
 
-    def test_failing_flow_run(task_runner):
+    def test_failing_flow_run(self, task_runner):
         @task
         def task_a():
             raise RuntimeError("This task fails!")
@@ -247,14 +249,14 @@ class TaskRunnerTests(ABC):
     def test_sync_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
     ):
-        if task_runner.concurreny_type != TaskConcurrencyType.SEQUENTIAL:
+        if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurreny_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task runners."
             )
 
         @task
         def foo():
-            time.sleep(self.get_sleep_time(task_runner))
+            time.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @task
@@ -273,15 +275,15 @@ class TaskRunnerTests(ABC):
     def test_sync_tasks_run_concurrently_with_nonsequential_concurrency_type(
         self, task_runner, tmp_file
     ):
-        if task_runner.concurreny_type == TaskConcurrencyType.SEQUENTIAL:
+        if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurreny_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task runners."
             )
 
         @task
         def foo():
             # This test is prone to flaking
-            time.sleep(self.get_sleep_time(task_runner) + 0.5)
+            time.sleep(self.get_sleep_time() + 0.5)
             tmp_file.write_text("foo")
 
         @task
@@ -300,14 +302,14 @@ class TaskRunnerTests(ABC):
     async def test_async_tasks_run_sequentially_with_sequential_concurrency_type(
         self, task_runner, tmp_file
     ):
-        if task_runner.concurreny_type != TaskConcurrencyType.SEQUENTIAL:
+        if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurreny_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task runners."
             )
 
         @task
         async def foo():
-            await anyio.sleep(self.get_sleep_time(task_runner))
+            await anyio.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @task
@@ -326,14 +328,14 @@ class TaskRunnerTests(ABC):
     async def test_async_tasks_run_concurrently_with_nonsequential_concurrency_type(
         self, task_runner, tmp_file
     ):
-        if task_runner.concurreny_type == TaskConcurrencyType.SEQUENTIAL:
+        if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurreny_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task runners."
             )
 
         @task
         async def foo():
-            await anyio.sleep(self.get_sleep_time(task_runner))
+            await anyio.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @task
@@ -354,7 +356,7 @@ class TaskRunnerTests(ABC):
     ):
         @task
         async def foo():
-            await anyio.sleep(self.get_sleep_time(task_runner))
+            await anyio.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @task
@@ -376,7 +378,7 @@ class TaskRunnerTests(ABC):
     ):
         @flow
         def foo():
-            time.sleep(self.get_sleep_time(task_runner))
+            time.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @flow
@@ -397,7 +399,7 @@ class TaskRunnerTests(ABC):
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.get_sleep_time(task_runner))
+            await anyio.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @flow
@@ -418,7 +420,7 @@ class TaskRunnerTests(ABC):
     ):
         @flow
         async def foo():
-            await anyio.sleep(self.get_sleep_time(task_runner))
+            await anyio.sleep(self.get_sleep_time())
             tmp_file.write_text("foo")
 
         @flow
@@ -435,7 +437,7 @@ class TaskRunnerTests(ABC):
 
         assert tmp_file.read_text() == "foo"
 
-    async def test_is_pickleable_after_start(task_runner):
+    async def test_is_pickleable_after_start(self, task_runner):
         """
         The task_runner must be picklable as it is attached to `PrefectFuture` objects
         """
@@ -444,7 +446,7 @@ class TaskRunnerTests(ABC):
             unpickled = cloudpickle.loads(pickled)
             assert isinstance(unpickled, type(task_runner))
 
-    async def test_submit_and_wait(task_runner):
+    async def test_submit_and_wait(self, task_runner):
         task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
 
         async def fake_orchestrate_task_run(example_kwarg):
@@ -469,7 +471,9 @@ class TaskRunnerTests(ABC):
             assert state.result() == 1
 
     @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
-    async def test_wait_captures_exceptions_as_crashed_state(task_runner, exception):
+    async def test_wait_captures_exceptions_as_crashed_state(
+        self, task_runner, exception
+    ):
         task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
 
         async def fake_orchestrate_task_run():
