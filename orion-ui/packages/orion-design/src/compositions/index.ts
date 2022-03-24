@@ -1,7 +1,6 @@
 export * from './useFilter'
 export * from './useInjectedServices'
 export * from './useIntersectionObserver'
-export * from './useRouteContext'
 export * from './useRouteParam'
 export * from './useSubscription'
 export * from './useSubscriptionWithPaging'

@@ -22,7 +22,6 @@
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { useFilter } from '@/compositions/useFilter'
-  import { useRouteContext } from '@/compositions/useRouteContext'
   import { useSubscription } from '@/compositions/useSubscription'
   import { UnionFilters } from '@/services/Filter'
   import { FilterUrlService } from '@/services/FilterUrlService'
@@ -37,7 +36,6 @@
 
   const filter = useFilter()
   const router = useRouter()
-  const context = useRouteContext()
   const injectedServices = useInjectedServices()
 
   const failedFlowRunsFilter = computed<UnionFilters>(() => ({
