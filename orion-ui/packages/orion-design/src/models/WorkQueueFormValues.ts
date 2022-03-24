@@ -1,5 +1,5 @@
+import { IWorkQueueRequest } from '@/models/IWorkQueueRequest'
 import { WorkQueue } from '@/models/WorkQueue'
-import { IWorkQueueRequest } from '@/services/WorkQueuesApi'
 import { FlowRunnerType } from '@/types/FlowRunnerType'
 
 export class WorkQueueFormValues {
