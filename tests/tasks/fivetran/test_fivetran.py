@@ -85,7 +85,7 @@ class TestFivetran:
         assert isinstance(result, dict)
         
 @pytest.fixture
-def fivetran_connector_api_response_success():
+def fivetran_connector_running_response_success():
 
     response = {
         "code": "Success",
@@ -121,4 +121,43 @@ def fivetran_connector_api_response_success():
         },
     }
 
+    return response
+
+@pytest.fixture
+def fivetran_connector_completed_response_success():
+
+    response = {
+        "code": "Success",
+        "data": {
+            "id": "test_connector",
+            "group_id": "test_group",
+            "service": "google_sheets",
+            "service_version": 1,
+            "schema": "test.prefect",
+            "connected_by": "test_user",
+            "created_at": "2021-02-04T18:00:31.027537Z",
+            "succeeded_at": "2022-03-25T00:10:59.724443Z",
+            "failed_at": "2021-12-30T03:06:49.080988Z",
+            "paused": False,
+            "pause_after_trial": False,
+            "sync_frequency": 1440,
+            "schedule_type": "manual",
+            "status": {
+                "setup_state": "connected",
+                "schema_status": "ready", 
+                "sync_state": "scheduled", 
+                "update_state": "on_schedule",
+                "is_historical_sync": False,
+                "tasks": [],
+                "warnings": []
+            },
+            "config": {
+                "sheet_id": "https://docs.google.com/spreadsheets/d/testurl",
+                "named_range": "fivetran_test_range",
+                "authorization_method": "User OAuth",
+                "last_synced_changes__utc_": "2022-03-25 00:10"
+            },
+        },
+    }
+    
     return response
