@@ -80,7 +80,7 @@
     formatDateTimeNumeric
     , CopyButton
   } from '@prefecthq/orion-design'
-  import { subscribe } from '@prefecthq/vue-compositions'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, nextTick, ref, watch } from 'vue'
 
@@ -123,11 +123,11 @@
   const options: SubscriptionOptions = {
     interval: props.running ? 5000 : undefined,
   }
-  const subscription = subscribe(logsApi.getLogs.bind(logsApi), [filter], options)
+  const subscription = useSubscription(logsApi.getLogs.bind(logsApi), [filter], options)
   const logs = computed<Log[]>(() => subscription.response.value ?? [])
   const loading = computed<boolean>(() => subscription.loading.value ?? true)
 
-  const clearFilters = () => {
+  const clearFilters = (): void => {
     levelFilter.value = 0
   }
 
