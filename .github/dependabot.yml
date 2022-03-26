@@ -9,7 +9,7 @@ updates:
   - package-ecosystem: "npm"
     directory: '/orion-ui/'
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   - package-ecosystem: "github-actions"
     directory: "/"
