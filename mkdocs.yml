@@ -76,6 +76,7 @@ nav:
             - tutorials/virtual-environments.md
             - tutorials/docker-flow-runner.md
             - tutorials/kubernetes-flow-runner.md
+            - tutorials/testing.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -179,7 +180,7 @@ nav:
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
-        - Orion REST API: api-ref/rest-api.md
+        - Prefect REST API: api-ref/rest-api.md
     - Contributing: 
         - Overview: contributing/overview.md
         - Style: contributing/style.md
