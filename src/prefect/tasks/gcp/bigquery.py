@@ -5,7 +5,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from prefect.core import Task
-from prefect.engine.signals import SUCCESS, FAIL
+from prefect.engine.signals import FAIL, SUCCESS
 from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 

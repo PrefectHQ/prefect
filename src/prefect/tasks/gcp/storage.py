@@ -1,17 +1,16 @@
-import uuid
-from typing import Tuple, Union
 import io
+import uuid
 from time import sleep
+from typing import Tuple, Union
 
+from google.cloud import storage
 from google.cloud.exceptions import NotFound
 
 from prefect import context
 from prefect.core import Task
+from prefect.engine.signals import FAIL
 from prefect.utilities.gcp import get_storage_client
 from prefect.utilities.tasks import defaults_from_attrs
-
-from google.cloud import storage
-from prefect.engine.signals import FAIL
 
 
 class GCSBaseTask(Task):
