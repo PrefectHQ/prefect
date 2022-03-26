@@ -298,11 +298,11 @@ class GCSUpload(GCSBaseTask):
             gcs_blob.content_encoding = content_encoding
 
         # Upload
-        if type(data) == str:
+        if isinstance(data, str):
             gcs_blob.upload_from_string(data, timeout=request_timeout)
-        elif type(data) == bytes:
+        elif isinstance(data, bytes):
             gcs_blob.upload_from_file(io.BytesIO(data), timeout=request_timeout)
-        elif type(data) == io.BytesIO:
+        elif isinstance(data, io.BytesIO):
             gcs_blob.upload_from_file(data, timeout=request_timeout)
         else:
             raise TypeError(
@@ -329,6 +329,8 @@ class GCSCopy(GCSBaseTask):
         - request_timeout (Union[float, Tuple[float, float]], optional): default number of
             seconds the transport should wait for the server response.
             Can also be passed as a tuple (connect_timeout, read_timeout).
+        - create_bucket (bool, optional): boolean specifying whether to create the dest_bucket
+            if it does not exist, otherwise an Exception is raised. Defaults to `False`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
 
@@ -345,6 +347,7 @@ class GCSCopy(GCSBaseTask):
         dest_bucket: str = None,
         dest_blob: str = None,
         project: str = None,
+        create_bucket: bool = False,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs,
     ):
@@ -352,6 +355,7 @@ class GCSCopy(GCSBaseTask):
         self.source_blob = source_blob
         self.dest_bucket = dest_bucket
         self.dest_blob = dest_blob
+        self.create_bucket = create_bucket
 
         super().__init__(project=project, request_timeout=request_timeout, **kwargs)
 
@@ -361,6 +365,7 @@ class GCSCopy(GCSBaseTask):
         "dest_bucket",
         "dest_blob",
         "project",
+        "create_bucket",
         "request_timeout",
     )
     def run(
@@ -371,6 +376,7 @@ class GCSCopy(GCSBaseTask):
         dest_blob: str = None,
         project: str = None,
         credentials: dict = None,
+        create_bucket: bool = False,
         request_timeout: Union[float, Tuple[float, float]] = 60,
     ) -> str:
         """
@@ -391,6 +397,8 @@ class GCSCopy(GCSBaseTask):
                 You should provide these at runtime with an upstream Secret task.  If not
                 provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
                 will use default Google client logic.
+            - create_bucket (bool, optional): boolean specifying whether to create the dest_bucket
+                if it does not exist, otherwise an Exception is raised. Defaults to `False`.
             - request_timeout (Union[float, Tuple[float, float]], optional): the number of
                 seconds the transport should wait for the server response.
                 Can also be passed as a tuple (connect_timeout, read_timeout).
@@ -415,7 +423,9 @@ class GCSCopy(GCSBaseTask):
         source_bucket_obj = client.get_bucket(source_bucket)
         source_blob_obj = source_bucket_obj.blob(source_blob)
         # get dest bucket
-        dest_bucket_obj = client.get_bucket(dest_bucket)
+        dest_bucket_obj = self._retrieve_bucket(
+            client=client, bucket=dest_bucket, create_bucket=create_bucket
+        )
         # copy from source blob to dest bucket
         source_bucket_obj.copy_blob(
             blob=source_blob_obj,
@@ -475,7 +485,6 @@ class GCSBlobExists(GCSBaseTask):
         "bucket_name",
         "blob",
         "project",
-        "request_timeout",
         "wait_seconds",
         "fail_if_not_found",
     )
@@ -487,7 +496,6 @@ class GCSBlobExists(GCSBaseTask):
         wait_seconds: int = 0,
         fail_if_not_found: bool = True,
         credentials: dict = None,
-        request_timeout: Union[float, Tuple[float, float]] = 60,
     ) -> str:
         """
         Run method for this Task. Invoked by _calling_ this Task after initialization
@@ -509,9 +517,6 @@ class GCSBlobExists(GCSBaseTask):
                 You should provide these at runtime with an upstream Secret task.  If not
                 provided, Prefect will first check `context` for `GCP_CREDENTIALS` and lastly
                 will use default Google client logic.
-            - request_timeout (Union[float, Tuple[float, float]], optional): the number of
-                seconds the transport should wait for the server response.
-                Can also be passed as a tuple (connect_timeout, read_timeout).
 
         Returns:
             - bool: the object exists
