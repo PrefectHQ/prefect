@@ -388,6 +388,9 @@ class CloudFlowRunner(FlowRunner):
             scheduled_start_time=flow_run_info.scheduled_start_time,
             project_name=flow_run_info.project.name,
             project_id=flow_run_info.project.id,
+            tenant_id=flow_run_info.tenant_id,
+            flow_group_name=flow_run_info.flow_group.name,
+            flow_group_id=flow_run_info.flow_group.id,
         )
 
         tasks = {slug: t for t, slug in self.flow.slugs.items()}

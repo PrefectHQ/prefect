@@ -71,6 +71,10 @@ class ProjectInfo(NamedTuple):
     name: str
 
 
+class FlowGroupInfo(NamedTuple):
+    id: str
+    name: str
+
 class FlowRunInfoResult(NamedTuple):
     # TODO: Deprecate this result in favor of `prefect.backend.FlowRun`
     id: str
@@ -83,6 +87,7 @@ class FlowRunInfoResult(NamedTuple):
     scheduled_start_time: datetime.datetime
     state: "prefect.engine.state.State"
     task_runs: List[TaskRunInfoResult]
+    tenant_id: str
 
 
 class Client:
@@ -1233,7 +1238,11 @@ class Client:
                         "version": True,
                         "serialized_state": True,
                     },
-                    "flow": {"project": {"name": True, "id": True}},
+                    "flow": {
+                        "project": {"name": True, "id": True},
+                        "flow_group": {"name": True, "id": True}
+                    },
+                    "tenant_id": True,
                 }
             }
         }
@@ -1262,10 +1271,14 @@ class Client:
             project=ProjectInfo(
                 id=result.flow.project.id, name=result.flow.project.name
             ),
+            flow_group=FlowGroupInfo(
+                id=result.flow.flow_group.id, name=result.flow.flow_group.name
+            ),
             parameters=(
                 {} if result.parameters is None else result.parameters.to_dict()
             ),
             context=({} if result.context is None else result.context.to_dict()),
+            tenant_id=result.tenant_id,
         )
 
     def update_flow_run_heartbeat(self, flow_run_id: str) -> None:
