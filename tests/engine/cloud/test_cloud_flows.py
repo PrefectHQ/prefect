@@ -11,6 +11,7 @@ from prefect.client.client import (
     Client,
     FlowRunInfoResult,
     ProjectInfo,
+    FlowGroupInfo,
     TaskRunInfoResult,
 )
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
@@ -149,6 +150,7 @@ class MockedCloudClient(MagicMock):
             flow_id=flow_run.flow_id,
             name=flow_run.name,
             project=ProjectInfo(id="my-project-id", name="my-project-name"),
+            flow_group=FlowGroupInfo(id="my-flow-group-id", name="my-flow-group-name"),
             parameters={},
             context=None,
             version=flow_run.version,

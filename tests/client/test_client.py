@@ -1076,7 +1076,10 @@ def test_get_flow_run_info(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
-            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
+            "flow": {
+                "project": {"id": "my-project-id", "name": "my-project-name"},
+                "flow_group": {"id": "my-flow-group-id", "name": "my-flow-group-name"},
+            },
             "version": 0,
             "parameters": {"a": 1},
             "context": None,
@@ -1131,6 +1134,8 @@ def test_get_flow_run_info(patch_post):
     assert result.version == 0
     assert result.project.name == "my-project-name"
     assert result.project.id == "my-project-id"
+    assert result.flow_group.name == "my-flow-group-name"
+    assert result.flow_group.id == "my-flow-group-id"
     assert result.parameters == {"a": 1}
     assert result.context == {}
 
@@ -1141,7 +1146,10 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
-            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
+            "flow": {
+                "project": {"id": "my-project-id", "name": "my-project-name"},
+                "flow_group": {"id": "my-flow-group-id", "name": "my-flow-group-name"},
+            },
             "version": 0,
             "parameters": {"x": {"deep": {"nested": 5}}},
             "context": {"my_val": "test"},
@@ -1196,6 +1204,8 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     assert result.version == 0
     assert result.project.name == "my-project-name"
     assert result.project.id == "my-project-id"
+    assert result.flow_group.name == "my-flow-group-name"
+    assert result.flow_group.id == "my-flow-group-id"
     assert isinstance(result.parameters, dict)
     assert result.parameters["x"]["deep"]["nested"] == 5
     # ensures all sub-dictionaries are actually dictionaries

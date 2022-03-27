@@ -242,7 +242,7 @@ def test_flow_runner_prioritizes_kwarg_states_over_db_states(
 
 
 def test_flow_runner_initializes_context_from_cloud(monkeypatch):
-    from prefect.client.client import FlowRunInfoResult, ProjectInfo
+    from prefect.client.client import FlowRunInfoResult, ProjectInfo, FlowGroupInfo
 
     flow = prefect.Flow(name="test")
     scheduled_start_time = pendulum.parse("19860920")
@@ -256,6 +256,7 @@ def test_flow_runner_initializes_context_from_cloud(monkeypatch):
             state=Pending(),
             scheduled_start_time=scheduled_start_time,
             project=ProjectInfo(id="my-project-id", name="my-project-name"),
+            flow_group=FlowGroupInfo(id="my-flow-group-id", name="my-flow-group-name"),
             parameters={"p1": 1, "p2": 2},
             context={"c1": 1, "c2": 2},
         )
@@ -281,7 +282,8 @@ def test_flow_runner_initializes_context_from_cloud(monkeypatch):
     assert res.context["scheduled_start_time"] == scheduled_start_time
     assert res.context["project_name"] == "my-project-name"
     assert res.context["project_id"] == "my-project-id"
-
+    assert res.context["flow_group_name"] == "my-flow-group-name"
+    assert res.context["flow_group_id"] == "my-flow-group-id"
     # Explicitly provided parameters override those in cloud
     assert res.context["parameters"] == {"p1": 1, "p2": "two", "p3": 3}
     # Explicitly provided context overridden by cloud
