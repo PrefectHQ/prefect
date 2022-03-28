@@ -13,7 +13,7 @@
       <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(deployment.created)" stacked />
       <DetailsKeyValue label="Schedule" :value="schedule" stacked />
       <DetailsKeyValue label="Flow storage type" :value="deployment.flowData.encoding" stacked />
-      <DetailsKeyValue class="pr-2" label="Storage Details" :value="blob.data" stacked />
+      <DetailsKeyValue label="Storage Details" :value="blob.data" stacked />
       <DetailsKeyValue label="Block ID" :value="blob.block_id" stacked />
       <DetailsKeyValue label="Flow runner" :value="deployment.flowRunner?.type" stacked />
       <DetailsKeyValue label="Tags" stacked>
