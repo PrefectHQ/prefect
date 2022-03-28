@@ -21,7 +21,7 @@
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import ButtonCard from '@/components/ButtonCard.vue'
-  import { useFilter } from '@/compositions/useFilter'
+  import { useFilterQuery } from '@/compositions/useFilterQuery'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { StateType } from '@/models/StateType'
   import { UnionFilters } from '@/services/Filter'
@@ -36,7 +36,7 @@
     name: string,
   }
 
-  const filter = useFilter()
+  const filter = useFilterQuery()
   const router = useRouter()
   const injectedServices = useInjectedServices()
 
