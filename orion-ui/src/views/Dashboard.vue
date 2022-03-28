@@ -120,7 +120,7 @@
   import { StateType } from '@prefecthq/orion-design/models'
   import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
   import { toPluralString } from '@prefecthq/orion-design/utilities'
-  import { subscribe } from '@prefecthq/vue-compositions/src'
+  import { useSubscription } from '@prefecthq/vue-compositions/src'
   import { computed, ref, ComputedRef } from 'vue'
   import { useRouter } from 'vue-router'
   import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
@@ -132,7 +132,7 @@
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
@@ -141,7 +141,7 @@
 
   const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expectedStartTime)
 
-  const lastFlowRunSubscription = subscribe(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
