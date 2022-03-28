@@ -3,7 +3,7 @@ import { UnionFilters } from '@/services/Filter'
 import { FiltersQueryService } from '@/services/FiltersQueryService'
 import { useFiltersStore } from '@/stores/filters'
 
-export function useFilter(): Ref<UnionFilters> {
+export function useFilterQuery(): Ref<UnionFilters> {
   const filtersStore = useFiltersStore()
 
   return computed<UnionFilters>(() => {
