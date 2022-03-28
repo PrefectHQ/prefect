@@ -515,7 +515,7 @@ class TestTaskCaching:
     def test_cache_key_fn_receives_resolved_futures(self):
         def check_args(context, params):
             assert params["x"] == "something"
-            assert len(params) == "something"
+            assert len(params) == 1
             return params["x"]
 
         @task
