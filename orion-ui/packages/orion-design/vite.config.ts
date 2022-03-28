@@ -33,7 +33,7 @@ export default defineConfig(({ mode }: { mode: string }) => {
         fileName,
       },
       rollupOptions: {
-        external: ['vue', 'vue-router', 'pinia', '@prefecthq/miter-design'],
+        external: ['vue', 'vue-router', 'pinia', '@prefecthq/miter-design', '@prefecthq/vue-compositions'],
         output: {
           exports: 'named',
           globals: {
