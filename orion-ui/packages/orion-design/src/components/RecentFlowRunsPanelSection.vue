@@ -11,7 +11,7 @@
 
     <div class="recent-flow-runs-panel-section__counts">
       <template v-for="(subscription, type) in subscriptions" :key="type">
-        <FilterButtonCard :route="dashboardRoute" :count="subscription?.response.value" :label="type" :filters="typeFilter(type)" />
+        <FilterButtonCard :route="dashboardRoute" :count="subscription?.response" :label="type" :filters="typeFilter(type)" />
       </template>
     </div>
   </PanelSection>
