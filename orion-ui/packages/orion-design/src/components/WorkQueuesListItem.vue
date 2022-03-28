@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
