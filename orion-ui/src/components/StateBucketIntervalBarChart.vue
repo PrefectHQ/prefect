@@ -25,7 +25,7 @@
 
 <script lang="ts" setup>
   import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
-  import { subscribe } from '@prefecthq/vue-compositions'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import IntervalBarChartCard from './IntervalBarChart/IntervalBarChartCard.vue'
   import { IntervalBarChartItem } from './IntervalBarChart/Types/IntervalBarChartItem'
@@ -41,7 +41,7 @@
     property: KeysMatching<FlowRunStateHistory, number>,
   }>()
 
-  const history = subscribe(FlowRunsApi.History, [props.filter], {
+  const history = useSubscription(FlowRunsApi.History, [props.filter], {
     interval: 30000,
   })
 
