@@ -71,9 +71,9 @@
   const countFlowsSubscription = useSubscription(flowsApi.getFlowsCount, [{}], subscriptionOptions)
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
 
-  const flows = computed(() => flowsSubscription.response.value ?? [])
-  const empty = computed(() => countFlowsSubscription.response.value === 0)
-  const loading = computed(() => countFlowsSubscription.response.value === undefined || flowsSubscription.response.value === undefined)
+  const flows = computed(() => flowsSubscription.response ?? [])
+  const empty = computed(() => countFlowsSubscription.response === 0)
+  const loading = computed(() => countFlowsSubscription.response === undefined || flowsSubscription.response === undefined)
 </script>
 
 <style lang="scss" scoped>

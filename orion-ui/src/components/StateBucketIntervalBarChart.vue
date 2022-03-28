@@ -55,7 +55,7 @@
   })
 
   const items = computed<IntervalBarChartItem<FlowRunHistory>[]>(() => {
-    const buckets: FlowRunHistory[] = history.response.value || []
+    const buckets: FlowRunHistory[] = history.response || []
     const items = buckets.map(historyToChartItem)
     const filteredItems = items.filter((item) => item.value)
 

@@ -32,6 +32,6 @@
   const workQueuesSubscription = useSubscription(workQueuesApi.getWorkQueues, [{}])
   provide(workQueuesListSubscriptionKey, workQueuesSubscription)
 
-  const workQueues = computed(() => workQueuesSubscription.response.value ?? [])
-  const loading = computed(() => workQueuesSubscription.response.value === undefined)
+  const workQueues = computed(() => workQueuesSubscription.response ?? [])
+  const loading = computed(() => workQueuesSubscription.response === undefined)
 </script>
