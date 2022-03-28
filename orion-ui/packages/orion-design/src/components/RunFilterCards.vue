@@ -84,19 +84,19 @@
   const filters = computed<PreMadeFilter[]>(() => [
     {
       label: 'Failed Runs',
-      count: failedFlowRunsSubscription.response.value ?? defaultCountValue,
+      count: failedFlowRunsSubscription.response ?? defaultCountValue,
       type: States.FAILED,
       name: 'Failed',
     },
     {
       label: 'Late Runs',
-      count: lateFlowRunsSubscription.response.value ?? defaultCountValue,
+      count: lateFlowRunsSubscription.response ?? defaultCountValue,
       type: States.SCHEDULED,
       name: 'Late',
     },
     {
       label: 'Upcoming Runs',
-      count: scheduledFlowRunsSubscription.response.value ?? defaultCountValue,
+      count: scheduledFlowRunsSubscription.response ?? defaultCountValue,
       type: States.SCHEDULED,
       name: 'Scheduled',
     },
