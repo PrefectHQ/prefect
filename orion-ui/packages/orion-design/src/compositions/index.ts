@@ -1,3 +1,3 @@
 export * from './useInjectedServices'
 export * from './useIntersectionObserver'
-export * from './useSubscriptionWithPaging'
+export * from './useUnionFiltersSubscription'

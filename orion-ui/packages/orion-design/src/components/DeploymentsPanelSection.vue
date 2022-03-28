@@ -51,11 +51,11 @@
   const filter = computed(() => props.filter)
 
   const deploymentsCountSubscription = useSubscription(props.getDeploymentsCount, [filter])
-  const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
+  const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
 
   const deploymentsSubscription = useSubscription(props.getDeployments, [filter])
-  const deployments = computed(() => deploymentsSubscription.response.value ?? [])
-  const noDeployments = computed(() => deploymentsSubscription.response.value?.length === 0)
+  const deployments = computed(() => deploymentsSubscription.response ?? [])
+  const noDeployments = computed(() => deploymentsSubscription.response?.length === 0)
 
   function run(deployment: Deployment): void {
     props.createDeploymentFlowRun(deployment.id, {

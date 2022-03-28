@@ -50,13 +50,13 @@
 
     <template v-if="internalValue.id">
       <DeleteSection label="Work Queue" @remove="emit('remove', internalValue.id!)" />
-      </template>
-      </div>
+    </template>
+  </div>
 </template>
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
   import DeleteSection from '@/components/DeleteSection.vue'
   import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
@@ -73,13 +73,12 @@
 
   const emit = defineEmits<{
     (event: 'update:workQueue', value: WorkQueueFormValues): void,
-    (event: 'remove', value: string): void
+    (event: 'remove', value: string): void,
   }>()
 
- 
 
   const deploymentsSubscription = useSubscription(props.getDeployments, [{}])
-  const deployments = computed(() => deploymentsSubscription.response.value ?? [])
+  const deployments = computed(() => deploymentsSubscription.response ?? [])
 
   const internalValue = computed({
     get() {
@@ -153,6 +152,4 @@
     white-space: normal;
   }
 }
-
-
 </style>
