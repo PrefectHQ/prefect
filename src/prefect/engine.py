@@ -707,30 +707,32 @@ async def orchestrate_task_run(
         client=client,
     )
 
-    cache_key = (
-        task.cache_key_fn(task_run_context, parameters) if task.cache_key_fn else None
-    )
-
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await client.propose_state(
+        return await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
-    else:
-        # Transition from `PENDING` -> `RUNNING`
-        state = await client.propose_state(
-            Running(state_details=StateDetails(cache_key=cache_key)),
-            task_run_id=task_run.id,
-        )
+
+    # Generate the cache key to attach to proposed states
+    cache_key = (
+        task.cache_key_fn(task_run_context, resolved_parameters)
+        if task.cache_key_fn
+        else None
+    )
+
+    # Transition from `PENDING` -> `RUNNING`
+    state = await client.propose_state(
+        Running(state_details=StateDetails(cache_key=cache_key)),
+        task_run_id=task_run.id,
+    )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-
         try:
             args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
