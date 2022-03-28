@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1
+
+### Task Library
+
+- Add additional Fivetran runtime parameters and task testing - [#5403](https://github.com/PrefectHQ/prefect/pull/5403)
+
+### Contributors
+
+- [Nick Acosta](https://github.com/PubChimps)
+
 ## 1.1.0 <Badge text="beta" type="success" />
 
 Released on March 10, 2022.
