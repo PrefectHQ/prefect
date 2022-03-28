@@ -40,9 +40,9 @@
 
   const getSearches = inject(getSearchesKey, searchApi.getSearches)
   const subscription = useSubscription(getSearches)
-  const filters = computed(() => subscription.response.value ?? [])
+  const filters = computed(() => subscription.response ?? [])
   const empty = computed(() => filters.value.length === 0)
-  const loading = computed(() => subscription.loading.value)
+  const loading = computed(() => subscription.loading)
   const filterUrlService = new FilterUrlService(useRouter())
 
   function apply(filters: Required<Filter>[]): void {
