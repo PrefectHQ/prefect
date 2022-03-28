@@ -4,6 +4,7 @@ Futures represent the execution of a task and allow retrieval of the task run's 
 This module contains the definition for futures as well as utilities for resolving
 futures in nested data structures.
 """
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -259,6 +260,15 @@ class PrefectFuture(Generic[R, A]):
 
     def __repr__(self) -> str:
         return f"PrefectFuture({self.task_run.name!r})"
+
+    def __bool__(self) -> bool:
+        warnings.warn(
+            "A 'PrefectFuture' resulting from a 'Task' object was passed to an 'if' statement; "
+            "if the actual underlying data (not 'PrefectFuture') was desired for "
+            "the condition, retrieve the result of the task run with `result()`, "
+            "e.g. `if task_obj().result()`"
+        )
+        return True
 
 
 async def resolve_futures_to_data(
