@@ -23,9 +23,9 @@
   })
 
   const subscription = useSubscription(getTaskRun, [props.taskId])
-  const loaded = computed(() => subscription.response.value !== undefined)
-  const taskRunName = computed(() => subscription.response.value?.name)
-  const taskRunStateType = computed(() => subscription.response.value?.stateType)
+  const loaded = computed(() => subscription.response !== undefined)
+  const taskRunName = computed(() => subscription.response?.name)
+  const taskRunStateType = computed(() => subscription.response?.stateType)
 </script>
 
 <style lang="scss">
