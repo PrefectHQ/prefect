@@ -145,32 +145,29 @@ class TestRuntimeValidation:
             task.run([1, 2, 3])
 
 
-class TestBaseTask:
-    def test_retrieve_bucket(self):
-        buckets = {"existing_bucket": "existing_bucket"}
+def test_retrieve_bucket():
+    buckets = {"existing_bucket": "existing_bucket"}
 
-        @staticmethod
-        def get_bucket_mock(bucket):
-            if bucket not in buckets:
-                raise NotFound("Testing...")
-            else:
-                return buckets[bucket]
+    def get_bucket_mock(bucket):
+        if bucket not in buckets:
+            raise NotFound("Testing...")
+        else:
+            return buckets[bucket]
 
-        @staticmethod
-        def create_bucket_mock(bucket):
-            if bucket not in buckets:
-                buckets[bucket] = []
-            return bucket
+    def create_bucket_mock(bucket):
+        if bucket not in buckets:
+            buckets[bucket] = []
+        return bucket
 
-        client_mock = MagicMock()
-        client_mock.get_bucket.side_effect = get_bucket_mock
-        client_mock.create_bucket.side_effect = create_bucket_mock
+    client_mock = MagicMock()
+    client_mock.get_bucket.side_effect = get_bucket_mock
+    client_mock.create_bucket.side_effect = create_bucket_mock
 
-        gcs_base_task = GCSBaseTask()
-        assert gcs_base_task._retrieve_bucket(
-            client_mock, "existing_bucket", False) == "existing_bucket"
-        with pytest.raises(NotFound, match="Testing..."):
-            gcs_base_task._retrieve_bucket(
-                client_mock, "non_existing_bucket", False)
-        assert gcs_base_task._retrieve_bucket(
-            client_mock, "non_existing_bucket", True) == "non_existing_bucket"
+    gcs_base_task = GCSBaseTask()
+    assert gcs_base_task._retrieve_bucket(
+        client_mock, "existing_bucket", False) == "existing_bucket"
+    with pytest.raises(NotFound, match="Testing..."):
+        gcs_base_task._retrieve_bucket(
+            client_mock, "non_existing_bucket", False)
+    assert gcs_base_task._retrieve_bucket(
+        client_mock, "non_existing_bucket", True) == "non_existing_bucket"
