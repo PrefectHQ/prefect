@@ -31,6 +31,7 @@
   import WorkQueueEditPanel from '@/components/WorkQueueEditPanel.vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
   import WorkQueuePanel from '@/components/WorkQueuePanel.vue'
+  import { isExistingHandleError } from '@/models/ExistingHandleError'
   import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
@@ -88,8 +89,12 @@
       exitPanel()
       openWorkQueuePanel(workQueue.id)
     } catch (err) {
+      if (isExistingHandleError(err)) {
+        showToast(err.response.data.detail, 'error')
+      } else {
+        showToast('Error with creating work queue', 'error')
+      }
       console.warn('error with creating work queue', err)
-      showToast('Error with creating work queue', 'error')
     } finally {
       saving.value = false
     }
