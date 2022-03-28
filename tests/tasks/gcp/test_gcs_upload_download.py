@@ -5,7 +5,8 @@ from google.cloud.exceptions import NotFound
 
 import prefect
 import prefect.utilities.gcp
-from prefect.tasks.gcp import GCSDownload, GCSUpload, GCSBaseTask
+from prefect.tasks.gcp import GCSDownload, GCSUpload
+from prefect.tasks.gcp.storage import GCSBaseTask
 from prefect.utilities.configuration import set_temporary_config
 
 
