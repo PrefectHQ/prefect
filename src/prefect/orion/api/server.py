@@ -49,9 +49,9 @@ class SPAStaticFiles(StaticFiles):
             api_url = None
             if settings.PREFECT_ORION_API_HOST is not None:
                 if settings.PREFECT_ORION_API_PORT is not None:
-                    api_url = f"{settings.PREFECT_ORION_API_HOST}:{settings.PREFECT_ORION_API_PORT}"
+                    api_url = f"http://{settings.PREFECT_ORION_API_HOST}:{settings.PREFECT_ORION_API_PORT}/api"
                 else:
-                    api_url = f"{settings.PREFECT_ORION_API_HOST}"
+                    api_url = f"http://{settings.PREFECT_ORION_API_HOST}/api"
 
             response = JSONResponse(
                 status_code=status.HTTP_200_OK,
