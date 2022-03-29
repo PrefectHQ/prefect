@@ -34,17 +34,6 @@ function intervalStringSecondsIntervalTypeShort(type: IntervalTypesShort, second
 
 export function secondsToString(input: number, showOnes = true): string {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(input)
-  const year = intervalStringIntervalType('year', years, showOnes)
-  const day = intervalStringIntervalType('day', days, showOnes)
-  const hour = intervalStringIntervalType('hour', hours, showOnes)
-  const minute = intervalStringIntervalType('minute', minutes, showOnes)
-  const second = intervalStringIntervalType('second', seconds, showOnes)
-
-  return [year, day, hour, minute, second].map(x => x ? x : '').join(' ')
-}
-
-export function secondsToShorterString(input: number, showOnes = true): string {
-  const { years, days, hours, minutes, seconds } = aggregateSeconds(input) 
   const year = years ? intervalStringIntervalType('year', years, showOnes) : ''
   const day = days ? intervalStringIntervalType('day', days, showOnes) : ''
   const hour = hours ? intervalStringIntervalType('hour', hours, showOnes) : ''
