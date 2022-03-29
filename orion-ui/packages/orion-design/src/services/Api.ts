@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ApiRouteParams } from '@/models/ApiRouteParams'
+import { Settings } from '@/services/Settings'
 import { Require } from '@/types/utilities'
 
 export type Route = string | ((params?: ApiRouteParams) => string)
@@ -11,7 +12,7 @@ export abstract class Api {
   // https://github.com/PrefectHQ/orion/issues/667
   protected server: string = 'http://127.0.0.1:4200/api'
 
-  private _config: AxiosRequestConfig | null = null
+  private readonly _config: AxiosRequestConfig | null = null
   private _instance: AxiosInstance | null = null
   private _params: ApiRouteParams | undefined = undefined
 
@@ -23,28 +24,28 @@ export abstract class Api {
     }
   }
 
-  protected get instance(): AxiosInstance {
+  protected instance(): AxiosInstance {
     if (this._instance) {
       return this._instance
     }
 
-    return this._instance = axios.create(this.config)
+    return this._instance = axios.create(this.config())
   }
 
-  protected get config(): AxiosRequestConfig {
+  protected config(): AxiosRequestConfig {
     if (this._config) {
       return this._config
     }
 
-    return this._config = {
-      baseURL: this.server,
+    return {
+      baseURL: this.defaultApiUrl(),
     }
   }
 
   protected request<T = any, R = AxiosResponse<T>>(config: Require<AxiosRequestConfig, 'url' | 'method'>): Promise<R> {
     const urlWithRoute = this.withRoute(config.url, this._params)
     const configWithRoute = { ...config, url: urlWithRoute }
-    const response: Promise<R> = this.instance.request(configWithRoute)
+    const response: Promise<R> = this.instance().request(configWithRoute)
 
     this._params = undefined
 
@@ -95,6 +96,10 @@ export abstract class Api {
     const route = this.getRoute(params)
 
     return `${route}${url}`
+  }
+
+  private defaultApiUrl(): string {
+    return Settings.apiUrl
   }
 
 }
