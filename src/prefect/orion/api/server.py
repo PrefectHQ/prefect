@@ -42,6 +42,7 @@ class SPAStaticFiles(StaticFiles):
     # since in-app routing is handled by a single html file.
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
+        print(path)
 
         if 'api_url' in path:
             settings = prefect.settings.get_current_settings()
