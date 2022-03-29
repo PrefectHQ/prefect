@@ -8,7 +8,7 @@ from functools import partial
 from typing import Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
-from fastapi import Depends, FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status, APIRouter
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,8 +42,21 @@ class SPAStaticFiles(StaticFiles):
     # since in-app routing is handled by a single html file.
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
+
+        if 'api_url' in path:
+            settings = prefect.settings.get_current_settings()
+            response = JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content=jsonable_encoder(
+                    {
+                        "api_url": settings.PREFECT_API_URL
+                    }
+                )
+            )
+
         if response.status_code == 404:
             response = await super().get_response("./index.html", scope)
+
         return response
 
 
