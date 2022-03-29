@@ -47,7 +47,7 @@
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { showToast } from '@/utilities/toasts'
   import { exitPanel } from '@/utilities/panels'
-  import { secondsToShorterString } from '@/utilities/seconds'
+  import { secondsToString } from '@/utilities/seconds'
 
   const props = defineProps<{
     deployment: Deployment,
@@ -73,7 +73,7 @@
     const { schedule } = props.deployment
 
     if (schedule instanceof IntervalSchedule) {
-      return `Every ${secondsToShorterString(schedule.interval)}`
+      return `Every ${secondsToString(schedule.interval)}`
     }
 
     if (schedule instanceof CronSchedule) {
