@@ -49,7 +49,7 @@ class SPAStaticFiles(StaticFiles):
                 status_code=status.HTTP_200_OK,
                 content=jsonable_encoder(
                     {
-                        "api_url": settings.PREFECT_API_URL
+                        "api_url": f"{settings.PREFECT_ORION_API_HOST}:{settings.PREFECT_ORION_API_PORT}"
                     }
                 )
             )
