@@ -11,6 +11,7 @@ from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed
 from prefect.tasks import task
+from prefect.utilities.testing import assert_does_not_warn
 
 mock_client = MagicMock(spec=OrionClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]
@@ -146,6 +147,5 @@ def test_raise_warning_futures_in_condition():
     with pytest.warns(UserWarning, match=match):
         elif_flow()
 
-    with pytest.warns(None) as records:
+    with assert_does_not_warn():
         if_result_flow()
-        assert len(records) == 0
