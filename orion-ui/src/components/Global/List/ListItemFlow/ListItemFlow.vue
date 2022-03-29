@@ -1,7 +1,7 @@
 <template>
   <ListItem class="list-item-flow" icon="pi-flow">
     <div class="list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
@@ -31,6 +31,8 @@
 
 <script lang="ts" setup>
   import {
+    BreadCrumbs,
+    Crumb,
     useFiltersStore,
     FlowsFilter,
     FilterUrlService,
@@ -57,7 +59,7 @@
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const crumbs = [{ text: props.item.name, to: window.location.href }]
+  const crumbs: Crumb[] = [{ text: props.item.name, action: openFlowPanel }]
   const injectedServices = useInjectedServices()
 
   const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
@@ -83,7 +85,6 @@
   const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
   const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
   const queries: Record<string, Query> = {
-   
     flow_run_history: Api.query({
       endpoint: Endpoints.flow_runs_history,
       body: flowRunHistoryFilter.value,

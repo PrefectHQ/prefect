@@ -39,8 +39,6 @@ $ prefect orion database reset -y
 
 This will completely clear all data and reapply the schema.
 
-!!! danger "Migrations"
-    Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview). This means many aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
 
 ## Configuring the database
 
@@ -74,7 +72,7 @@ $ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 543
 
 The above command:
 
-- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect Orion
+- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.0
 - Starts a container with the name `orion_postgres`
 - Creates a database `orion` with a user `postgres` and `yourTopSecretPassword` password
 - Mounts the PostgreSQL data to a Docker volume called `oriondb` to provide persistence if you ever have to restart or rebuild that container

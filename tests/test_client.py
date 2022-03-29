@@ -23,7 +23,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
-from prefect.utilities.testing import AsyncMock, temporary_settings
+from prefect.utilities.testing import AsyncMock, exceptions_equal, temporary_settings
 
 
 class TestGetClient:
@@ -214,7 +214,14 @@ async def test_hello(orion_client):
 
 
 async def test_healthcheck(orion_client):
-    assert await orion_client.api_healthcheck()
+    assert await orion_client.api_healthcheck() is None
+
+
+async def test_healthcheck_failure(orion_client, monkeypatch):
+    monkeypatch.setattr(
+        orion_client._client, "get", AsyncMock(side_effect=ValueError("test"))
+    )
+    assert exceptions_equal(await orion_client.api_healthcheck(), ValueError("test"))
 
 
 async def test_create_then_read_flow(orion_client):

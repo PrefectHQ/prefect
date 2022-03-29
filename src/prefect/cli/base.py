@@ -13,6 +13,7 @@ import pendulum
 import rich.console
 import typer
 import typer.core
+from click.exceptions import ClickException
 
 import prefect
 import prefect.context
@@ -56,6 +57,8 @@ def with_cli_exception_handling(fn):
     def wrapper(*args, **kwargs):
         try:
             return fn(*args, **kwargs)
+        except (typer.Exit, typer.Abort, ClickException):
+            raise  # Do not capture click or typer exceptions
         except MissingProfileError as exc:
             exit_with_error(exc)
         except Exception:

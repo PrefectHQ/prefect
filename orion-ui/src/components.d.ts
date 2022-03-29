@@ -1,5 +1,4 @@
-import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
-import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
+import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import DeploymentListItem from '@/components/Global/DeploymentListItem/DeploymentListItem.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import FlowListItem from '@/components/Global/FlowListItem/FlowListItem.vue'
@@ -15,8 +14,7 @@ import TaskRunListItem from '@/components/Global/TaskRunListItem/TaskRunListItem
 declare module 'vue' {
   export interface GlobalComponents {
     Row: typeof Row,
-    BreadCrumb: typeof BreadCrumb,
-    BreadCrumbs: typeof BreadCrumbs,
+    ButtonCard: typeof ButtonCard,
     RoundedButton: typeof RoundedButton,
     Drawer: typeof Drawer,
     List: typeof List,

@@ -38,7 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { media, toPluralString, type FlowRunsFilter } from '@prefecthq/orion-design'
+  import { BreadCrumbs, Crumb, FlowRunsFilter, media, toPluralString } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
@@ -140,10 +140,10 @@
     return secondsToApproximateString(props.item.estimated_run_time)
   })
 
-  const crumbs = computed(() => {
+  const crumbs = computed<Crumb[]>(() => {
     return [
       { text: flow.value?.name },
-      { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
+      { text: flowRun.value?.name, action: `/flow-run/${flowRun.value?.id}` },
       { text: props.item.name },
     ]
   })

@@ -37,20 +37,9 @@
 </template>
 
 <script lang="ts" setup>
-  import {
-    Filter,
-    useFiltersStore,
-    UnionFilters,
-    FlowRunsFilter,
-    FiltersQueryService,
-    FilterUrlService,
-    media,
-    toPluralString,
-    hasFilter
-  } from '@prefecthq/orion-design'
+  import { Filter, FilterUrlService, useFiltersStore, UnionFilters, FlowRunsFilter, FiltersQueryService, BreadCrumbs, Crumb, media, toPluralString, hasFilter } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
-  import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
   import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
@@ -167,10 +156,10 @@
     return queries.task_run_history?.response.value || []
   })
 
-  const crumbs = computed(() => {
+  const crumbs = computed<Crumb[]>(() => {
     return [
       { text: flow.value?.name },
-      { text: props.item.name, to: `/flow-run/${props.item.id}` },
+      { text: props.item.name, action: `/flow-run/${props.item.id}` },
     ]
   })
 

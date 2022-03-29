@@ -245,13 +245,19 @@ class OrionClient:
 
     # API methods ----------------------------------------------------------------------
 
-    async def api_healthcheck(self) -> bool:
+    async def api_healthcheck(self) -> Optional[Exception]:
+        """
+        Attempts to connect to the API and returns the encountered exception if not
+        successful.
+
+        If successful, returns `None`.
+        """
         try:
             with anyio.fail_after(10):
                 await self._client.get("/health")
-                return True
-        except:
-            return False
+                return None
+        except Exception as exc:
+            return exc
 
     async def hello(self) -> httpx.Response:
         """
@@ -852,6 +858,21 @@ class OrionClient:
                 raise
         return UUID(response.json().get("id"))
 
+    async def read_block_spec_by_name(
+        self, name: str, version: str
+    ) -> schemas.core.BlockSpec:
+        """
+        Look up a block spec by name and version
+        """
+        try:
+            response = await self._client.get(f"block_specs/{name}/versions/{version}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return schemas.core.BlockSpec.parse_obj(response.json())
+
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
         """
         Read all block specs with the given type
@@ -1191,6 +1212,7 @@ class OrionClient:
                 "Using temporary local storage for results."
             )
             block = storage.TempStorageBlock()
+
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",

@@ -1,7 +1,7 @@
 <template>
   <ListItem class="work-queues-list-item">
     <div class="work-queues-list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openWorkQueuePanel(workQueue.id)" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
     </div>
 
     <div class="work-queues-list-item__status">
@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
@@ -29,13 +29,14 @@
   import WorkQueuePanel from '@/components/WorkQueuePanel.vue'
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { useInjectedServices } from '@/compositions/useInjectedServices'
+  import { Crumb } from '@/models/Crumb'
   import { WorkQueue } from '@/models/WorkQueue'
   import { showPanel } from '@/utilities/panels'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
   const injectedServices = useInjectedServices()
-  const crumbs = computed(() => [{ text: props.workQueue.name, to: `#${props.workQueue.id}` }])
+  const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
@@ -47,7 +48,8 @@
     })
   }
 
-  function openWorkQueuePanel(workQueueId: string): void {
+  function openWorkQueuePanel(): void {
+    const workQueueId = props.workQueue.id
     const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {

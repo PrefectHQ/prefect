@@ -190,6 +190,30 @@ async def deployment(session, flow, flow_function):
     return deployment
 
 
+@pytest.fixture
+async def block_spec(session):
+    block_spec = await models.block_specs.create_block_spec(
+        session=session,
+        block_spec=schemas.core.BlockSpec(
+            name="x",
+            version="1.0",
+            type="abc",
+        ),
+    )
+    await session.commit()
+    return block_spec
+
+
+@pytest.fixture
+async def block(session, block_spec):
+    block = await models.blocks.create_block(
+        session=session,
+        block=schemas.core.Block(block_spec_id=block_spec.id, name="Block 1"),
+    )
+    await session.commit()
+    return block
+
+
 async def commit_task_run_state(
     session, task_run, state_type: states.StateType, state_details=None
 ):

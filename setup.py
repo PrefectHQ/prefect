@@ -33,4 +33,16 @@ setup(
     python_requires=">=3.7",
     install_requires=install_requires,
     extras_require={"dev": dev_requires},
+    classifiers=[
+        "Natural Language :: English",
+        "Intended Audience :: Developers",
+        "Intended Audience :: System Administrators",
+        "License :: OSI Approved :: Apache Software License",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Topic :: Software Development :: Libraries",
+    ],
 )

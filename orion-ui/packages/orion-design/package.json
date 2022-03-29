@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.58",
+    "version": "0.1.65",
     "private": false,
     "keywords": [
         "prefect",
@@ -57,7 +57,6 @@
     ],
     "types": "./dist/index.d.ts",
     "dependencies": {
-        "@prefecthq/vue-compositions": "0.1.18",
         "axios": "^0.24.0",
         "core-js": "^3.6.5",
         "d3": "^7.0.0"
@@ -83,6 +82,7 @@
     },
     "peerDependencies": {
         "@prefecthq/miter-design": "^0.1.30",
+        "@prefecthq/vue-compositions": "0.1.20",
         "pinia": "2.0.11",
         "vue": "^3.0.5",
         "vue-router": "^4.0.12"

@@ -2,7 +2,7 @@ import sys
 from unittest.mock import MagicMock
 
 import pytest
-from httpx import Request, Response
+from httpx import HTTPStatusError, Request, Response
 
 from prefect.utilities.httpx import PrefectHttpxClient
 
@@ -17,7 +17,7 @@ else:
 
 async def test_prefect_httpx_client_retries_429s():
     client = PrefectHttpxClient()
-    client.send = AsyncMock()
+    client._httpx_send = AsyncMock()
     retry_response = Response(
         429,
         headers={"Retry-After": "0"},
@@ -27,7 +27,7 @@ async def test_prefect_httpx_client_retries_429s():
         200,
         request=Request("a test request", "fake.url/fake/route"),
     )
-    client.send.side_effect = [
+    client._httpx_send.side_effect = [
         retry_response,
         retry_response,
         retry_response,
@@ -38,12 +38,12 @@ async def test_prefect_httpx_client_retries_429s():
         url="fake.url/fake/route", data={"evenmorefake": "data"}
     )
     assert response.status_code == 200
-    client.send.call_count == 5
+    client._httpx_send.call_count == 5
 
 
 async def test_prefect_httpx_client_retries_429s_up_to_five_times():
     client = PrefectHttpxClient()
-    client.send = AsyncMock()
+    client._httpx_send = AsyncMock()
     retry_response = Response(
         429,
         headers={"Retry-After": "0"},
@@ -53,7 +53,7 @@ async def test_prefect_httpx_client_retries_429s_up_to_five_times():
         200,
         request=Request("a test request", "fake.url/fake/route"),
     )
-    client.send.side_effect = [
+    client._httpx_send.side_effect = [
         retry_response,
         retry_response,
         retry_response,
@@ -63,11 +63,10 @@ async def test_prefect_httpx_client_retries_429s_up_to_five_times():
         success_response,
     ]
 
-    response = await client.post(
-        url="fake.url/fake/route",
-        data={"evenmorefake": "data"},
-        raise_for_status=False,
-    )
+    with pytest.raises(HTTPStatusError, match="429"):
+        response = await client.post(
+            url="fake.url/fake/route",
+            data={"evenmorefake": "data"},
+        )
 
-    assert response.status_code == 429
-    client.send.call_count == 5
+    client._httpx_send.call_count == 5
