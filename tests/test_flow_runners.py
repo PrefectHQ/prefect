@@ -765,6 +765,19 @@ class TestDockerFlowRunner:
         assert call_labels["bar"] == "BAR"
         assert "io.prefect.flow-run-id" in call_labels, "prefect labels still included"
 
+    async def test_uses_network_mode_setting(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "bridge"
+
     async def test_uses_env_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
@@ -778,11 +791,93 @@ class TestDockerFlowRunner:
         assert call_env["foo"] == "FOO"
         assert call_env["bar"] == "BAR"
 
-    async def test_replaces_localhost_with_dockerhost_in_env(
+    @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
+    async def test_network_mode_defaults_to_host_if_using_localhost_api_on_linux(
+        self, mock_docker_client, flow_run, localhost, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "linux")
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL=f"http://{localhost}/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "host"
+
+    async def test_network_mode_defaults_to_none_if_using_networks(
+        self, mock_docker_client, flow_run
+    ):
+        # Despite using localhost for the API, we will set the network mode to `None`
+        # because `networks` and `network_mode` cannot both be set.
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://localhost/test"),
+            networks=["test"],
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_using_nonlocal_api(
+        self, mock_docker_client, flow_run
+    ):
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://foo/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_not_on_linux(
+        self, mock_docker_client, flow_run, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://localhost/test")
+        ).submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
+        self, mock_docker_client, flow_run, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        # It is hard to actually get urlparse to fail, so we'll just raise an error
+        # manually
+        monkeypatch.setattr(
+            "urllib.parse.urlparse", MagicMock(side_effect=ValueError("test"))
+        )
+
+        with pytest.warns(UserWarning, match="Failed to parse host"):
+            await DockerFlowRunner(env=dict(PREFECT_API_URL="foo")).submit_flow_run(
+                flow_run, MagicMock()
+            )
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
     ):
 
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
         mock_docker_client.containers.create.assert_called_once()
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
         assert "PREFECT_API_URL" in call_env
@@ -790,7 +885,51 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    async def test_does_not_override_user_provided_host(
+    async def test_does_not_replace_localhost_api_when_using_host_network(
+        self,
+        mock_docker_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+        monkeypatch,
+    ):
+        # We will warn if setting 'host' network mode on non-linux platforms
+        monkeypatch.setattr("sys.platform", "linux")
+
+        await DockerFlowRunner(network_mode="host").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "PREFECT_API_URL" in call_env
+        assert call_env["PREFECT_API_URL"] == hosted_orion_api
+
+    async def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
+        self,
+        mock_docker_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        with assert_does_not_warn():
+            runner = DockerFlowRunner(network_mode="host")
+
+        with pytest.warns(
+            UserWarning,
+            match="'host' network mode is not supported on platform 'darwin'",
+        ):
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "host", "The setting is passed to dockerpy still"
+
+    async def test_does_not_override_user_provided_api_host(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
 
@@ -951,13 +1090,11 @@ class TestDockerFlowRunner:
         monkeypatch.setattr("sys.platform", "linux")
         mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
-        with pytest.warns(None) as warnings:
+        with assert_does_not_warn():
             await DockerFlowRunner(
                 env={"PREFECT_API_URL": "http://my-domain.test/api"}
             ).submit_flow_run(flow_run, MagicMock())
 
-        assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
         call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
             "extra_hosts"
@@ -1019,8 +1156,12 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert PREFECT_API_URL.value_from(runtime_settings) == hosted_orion_api.replace(
-            "localhost", "host.docker.internal"
+
+        runtime_api_url = PREFECT_API_URL.value_from(runtime_settings)
+        assert runtime_api_url == (
+            hosted_orion_api
+            if sys.platform == "linux"
+            else hosted_orion_api.replace("localhost", "host.docker.internal")
         )
 
     @pytest.mark.service("docker")

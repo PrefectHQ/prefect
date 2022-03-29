@@ -50,12 +50,18 @@
   const itemRefs = shallowRef<Record<string, Element>>({})
 
   const filter_ = computed(() => {
-    return {
+    const value: FilterBody = {
       ...props.filter,
       limit: limit.value,
       offset: offset.value,
       sort: 'EXPECTED_START_TIME_DESC',
     }
+
+    if (props.endpoint === 'flows') {
+      value.sort = 'NAME_ASC'
+    }
+
+    return value
   })
 
   const queries: { query: Query, watcher: WatchStopHandle }[] = []

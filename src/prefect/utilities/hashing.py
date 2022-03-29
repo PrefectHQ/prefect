@@ -6,23 +6,21 @@ from typing import Any, Optional, Union
 import cloudpickle
 
 
-def stable_hash(*args: Union[str, bytes, int]) -> str:
-    """Given some arguments, produces a stable 64-bit hash
-    of their contents.
+def stable_hash(*args: Union[str, bytes]) -> str:
+    """Given some arguments, produces a stable 64-bit hash of their contents.
+
+    Supports bytes and strings. Strings will be UTF-8 encoded.
 
     Args:
-        *args (Union[str, bytes, int]): items to include in the hash. Integers
-            will be converted to bytes and strings will be utf-8 encoded.
+        *args: Items to include in the hash.
 
     Returns:
-        str: a hash of the items
+        A hex hash.
     """
     h = hashlib.md5()
     for a in args:
         if isinstance(a, str):
             a = a.encode()
-        elif isinstance(a, int):
-            a = bytes(a)
         h.update(a)
     return h.hexdigest()
 
