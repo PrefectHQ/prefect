@@ -35,14 +35,16 @@ class TestAzureResult:
         assert result.value == 3
 
     def test_azure_init_connection_string(self, azure_client):
-        result = AzureResult(container="bob", connection_string="con1")
+        result = AzureResult(container="bob", connection_string="con1;AccountKey=abc")
         result.initialize_service()
-        azure_client.assert_called_with(conn_str="con1")
+        azure_client.assert_called_with(conn_str="con1;AccountKey=abc", credential=None)
 
-        with prefect.context({"secrets": {"test": "con2"}}):
+        with prefect.context({"secrets": {"test": "con2;AccountKey=abc"}}):
             result = AzureResult(container="bob", connection_string_secret="test")
             result.initialize_service()
-            azure_client.assert_called_with(conn_str="con2")
+            azure_client.assert_called_with(
+                conn_str="con2;AccountKey=abc", credential=None
+            )
 
     def test_azure_writes_to_blob_using_rendered_template_name(self, monkeypatch):
         client = MagicMock(upload_blob=MagicMock())
