@@ -1,4 +1,5 @@
 from distutils.version import LooseVersion
+import os
 
 from prefect.utilities.graphql import GraphQLResult
 
@@ -31,6 +32,7 @@ def get_flow_image(flow_run: GraphQLResult, default: str = None) -> str:
     # Precedence:
     # - Image on docker storage
     # - Image on run_config
+    # - Image from environment variable JOB_IMAGE
     # - Provided default
     # - `prefecthq/prefect` for flow's core version
 
@@ -41,6 +43,10 @@ def get_flow_image(flow_run: GraphQLResult, default: str = None) -> str:
         run_config = RunConfigSchema().load(flow_run.run_config)
         if getattr(run_config, "image", None) is not None:
             return run_config.image
+
+    job_image = os.getenv("JOB_IMAGE", None)
+    if job_image is not None:
+        return job_image
 
     if default is not None:
         return default

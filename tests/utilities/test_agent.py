@@ -1,3 +1,5 @@
+import os
+from unittest import mock
 import pytest
 
 from prefect.storage import Docker, Local
@@ -67,6 +69,27 @@ def test_get_flow_image_run_config_image_on_RunConfig():
         }
     )
     image = get_flow_image(flow_run)
+    assert image == "myfancyimage"
+
+
+@pytest.mark.parametrize("image", ["myfancyimage", None])
+def test_get_flow_image_run_config_image_on_environ(monkeypatch, image):
+    monkeypatch.setenv("JOB_IMAGE", "myfancyimage")
+
+    flow_run = GraphQLResult(
+        {
+            "flow": GraphQLResult(
+                {
+                    "storage": Local().serialize(),
+                    "id": "id",
+                }
+            ),
+            "run_config": KubernetesRun(image=image).serialize(),
+            "id": "id",
+        }
+    )
+    image = get_flow_image(flow_run)
+
     assert image == "myfancyimage"
 
 

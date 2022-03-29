@@ -41,6 +41,8 @@ spec:
               value: ""
             - name: JOB_CPU_LIMIT
               value: ""
+            - name: JOB_IMAGE
+              value: ""
             - name: IMAGE_PULL_POLICY
               value: ""
             - name: SERVICE_ACCOUNT_NAME
