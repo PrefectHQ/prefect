@@ -140,11 +140,11 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend, then enters the main flow run engine.
     """
-    can_connect = await client.api_healthcheck()
-    if not can_connect:
+    connect_error = await client.api_healthcheck()
+    if connect_error:
         raise RuntimeError(
             f"Cannot create flow run. Failed to reach API at {client.api_url}."
-        )
+        ) from connect_error
 
     state = Pending()
     if flow.should_validate_parameters:
@@ -652,12 +652,12 @@ async def begin_task_run(
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
 
-        can_connect = await client.api_healthcheck()
-        if not can_connect:
+        connect_error = await client.api_healthcheck()
+        if connect_error:
             raise RuntimeError(
                 f"Cannot orchestrate task run '{task_run.id}'. "
                 f"Failed to connect to API at {client.api_url}."
-            )
+            ) from connect_error
 
         return await orchestrate_task_run(
             task=task,
@@ -707,30 +707,32 @@ async def orchestrate_task_run(
         client=client,
     )
 
-    cache_key = (
-        task.cache_key_fn(task_run_context, parameters) if task.cache_key_fn else None
-    )
-
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await client.propose_state(
+        return await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
-    else:
-        # Transition from `PENDING` -> `RUNNING`
-        state = await client.propose_state(
-            Running(state_details=StateDetails(cache_key=cache_key)),
-            task_run_id=task_run.id,
-        )
+
+    # Generate the cache key to attach to proposed states
+    cache_key = (
+        task.cache_key_fn(task_run_context, resolved_parameters)
+        if task.cache_key_fn
+        else None
+    )
+
+    # Transition from `PENDING` -> `RUNNING`
+    state = await client.propose_state(
+        Running(state_details=StateDetails(cache_key=cache_key)),
+        task_run_id=task_run.id,
+    )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-
         try:
             args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 

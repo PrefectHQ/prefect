@@ -512,6 +512,32 @@ class TestTaskCaching:
         assert third_state.result() == "something"
         assert fourth_state.result() == "something"
 
+    def test_cache_key_fn_receives_resolved_futures(self):
+        def check_args(context, params):
+            assert params["x"] == "something"
+            assert len(params) == 1
+            return params["x"]
+
+        @task
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=check_args)
+        def bar(x):
+            return x
+
+        @flow
+        def my_flow():
+            future = foo("something")
+            return bar(future).wait(), bar(future).wait()
+
+        first_state, second_state = my_flow().result()
+        assert first_state.name == "Completed"
+        assert first_state.result() == "something"
+
+        assert second_state.name == "Cached"
+        assert second_state.result() == "something"
+
     def test_cache_key_fn_arg_inputs_are_stable(self):
         def stringed_inputs(context, args):
             return str(args)
@@ -1249,10 +1275,12 @@ class TestTaskWithOptions:
         assert with_options_task.tags == {"tag1", "tag2"}
 
     def test_with_options_signature_aligns_with_task_signature(self):
-        task_params = dict(inspect.signature(task).parameters)
-        with_options_params = dict(inspect.signature(Task.with_options).parameters)
+        task_params = set(inspect.signature(task).parameters.keys())
+        with_options_params = set(
+            inspect.signature(Task.with_options).parameters.keys()
+        )
         # `with_options` does not accept a new function
-        task_params.pop("__fn")
+        task_params.remove("__fn")
         # `self` isn't in task decorator
-        with_options_params.pop("self")
+        with_options_params.remove("self")
         assert task_params == with_options_params
