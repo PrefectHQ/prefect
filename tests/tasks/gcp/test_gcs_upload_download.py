@@ -164,10 +164,13 @@ def test_retrieve_bucket():
     client_mock.create_bucket.side_effect = create_bucket_mock
 
     gcs_base_task = GCSBaseTask()
-    assert gcs_base_task._retrieve_bucket(
-        client_mock, "existing_bucket", False) == "existing_bucket"
+    assert (
+        gcs_base_task._retrieve_bucket(client_mock, "existing_bucket", False)
+        == "existing_bucket"
+    )
     with pytest.raises(NotFound, match="Testing..."):
-        gcs_base_task._retrieve_bucket(
-            client_mock, "non_existing_bucket", False)
-    assert gcs_base_task._retrieve_bucket(
-        client_mock, "non_existing_bucket", True) == "non_existing_bucket"
+        gcs_base_task._retrieve_bucket(client_mock, "non_existing_bucket", False)
+    assert (
+        gcs_base_task._retrieve_bucket(client_mock, "non_existing_bucket", True)
+        == "non_existing_bucket"
+    )
