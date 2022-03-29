@@ -15,11 +15,7 @@
     "sourceMap": true,
     "baseUrl": ".",
     "types": [
-      "@types/jest",
       "@types/d3",
-      "@types/puppeteer",
-      "@types/jest-environment-puppeteer",
-      "@types/expect-puppeteer"
     ],
     "typeRoots": [
       "./typings"
