@@ -8,9 +8,8 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vue-tsc & vite build --watch",
-        "build": "vue-tsc",
-        "postbuild2": "node scripts/fix-types.js",
+        "dev": "vue-tsc --watch & vite build --watch",
+        "build": "vue-tsc && vite build",
         "lint:fix": "eslint src --fix --debug"
     },
     "main": "./dist/orion-design.umd.js",
@@ -25,11 +24,10 @@
     "files": [
         "dist"
     ],
-    "types": "./dist/index.d.ts",
+    "types": "./dist/types/index.d.ts",
     "dependencies": {
         "axios": "^0.24.0",
-        "core-js": "^3.6.5",
-        "d3": "^7.0.0"
+        "core-js": "^3.6.5"
     },
     "devDependencies": {
         "@prefecthq/eslint-config": "1.0.14",
