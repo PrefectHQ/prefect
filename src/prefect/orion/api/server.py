@@ -42,7 +42,6 @@ class SPAStaticFiles(StaticFiles):
     # since in-app routing is handled by a single html file.
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        print(path)
 
         if 'api_url' in path:
             settings = prefect.settings.get_current_settings()
@@ -215,9 +214,6 @@ def create_app(
         ephemeral: If set, the application will be treated as ephemeral. The UI
             and services will be disabled.
     """
-    print("!!" * 50)
-    print("CRAIG YOU SHOULD SEE THIS MESSAGE IN THE OUTPUT!!!")
-    print("!!" * 50)
     settings = settings or prefect.settings.get_current_settings()
     cache_key = (settings, ephemeral)
 
