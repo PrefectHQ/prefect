@@ -188,9 +188,7 @@
 </template>
 
 <script lang="ts" setup>
-  import type { UnionFilters } from '@prefecthq/orion-design'
-  import { TabSet } from '@prefecthq/orion-design/components'
-  import { toPluralString } from '@prefecthq/orion-design/utilities'
+  import { TabSet, toPluralString, UnionFilters } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
   import { useRoute, onBeforeRouteLeave } from 'vue-router'
   import MiniRadarView from './MiniRadar.vue'
@@ -380,14 +378,6 @@
     return flowRun.value?.tags || []
   })
 
-  const taskRunsCount = computed(() => {
-    return queries.task_runs_count.response?.value || 0
-  })
-
-  const subFlowRunsCount = computed(() => {
-    return queries.sub_flow_runs_count.response?.value || 0
-  })
-
   const taskRuns = computed<TaskRun[]>(() => {
     return queries.task_runs.response?.value || []
   })
@@ -411,11 +401,15 @@
   ]
 
   const duration = computed(() => {
-    return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
-      ? '--'
-      : flowRun.value.total_run_time
-        ? secondsToApproximateString(flowRun.value.total_run_time)
-        : secondsToApproximateString(flowRun.value.estimated_run_time)
+    if (state.value.type == 'PENDING' || state.value.type == 'SCHEDULED') {
+      return '--'
+    }
+
+    if (flowRun.value.total_run_time) {
+      return secondsToApproximateString(flowRun.value.total_run_time)
+    }
+
+    return secondsToApproximateString(flowRun.value.estimated_run_time)
   })
 
   // This cleanup is necessary since the initial flow run query isn't
