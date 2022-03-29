@@ -52,7 +52,7 @@ class AzureResult(Result):
         if not connection_string and self.connection_string_secret:
             connection_string = Secret(self.connection_string_secret).get()
 
-        if any(
+        if connection_string is None or any(
             x in connection_string for x in ["AccountKey=", "SharedAccessSignature="]
         ):
             credential = None
