@@ -12,7 +12,7 @@ type Settings = {
 
 export class SettingsApi {
   public get(): Promise<Settings> {
-    return axios.get<SettingsResponse>('/api_url', {
+    return axios.get<SettingsResponse>('/api_settings', {
       baseURL: MODE() === 'development' ? 'http://127.0.0.1:4200' : window.location.origin,
     }).then(response => mapSettingsResponse(response))
   }
