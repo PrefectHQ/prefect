@@ -43,7 +43,10 @@ def test_serialize_azure_storage():
     [
         ("SECRET_NAME", "conn_string_value_one"),
         ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
-        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_three;AccountKey=abcdef"),
+        (
+            "AZURE_STORAGE_CONNECTION_STRING",
+            "conn_string_value_three;AccountKey=abcdef",
+        ),
     ],
 )
 def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
