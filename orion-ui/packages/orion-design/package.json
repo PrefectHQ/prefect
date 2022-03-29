@@ -63,6 +63,7 @@
     },
     "devDependencies": {
         "@prefecthq/eslint-config": "1.0.14",
+        "@prefecthq/vue-compositions": "0.1.20",
         "@types/d3": "^7.0.0",
         "@types/expect-puppeteer": "^4.4.7",
         "@types/jest": "^27.4.0",
@@ -82,7 +83,6 @@
     },
     "peerDependencies": {
         "@prefecthq/miter-design": "^0.1.30",
-        "@prefecthq/vue-compositions": "0.1.20",
         "pinia": "2.0.11",
         "vue": "^3.0.5",
         "vue-router": "^4.0.12"
