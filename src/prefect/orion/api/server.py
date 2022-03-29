@@ -46,6 +46,7 @@ class SPAStaticFiles(StaticFiles):
         if 'api_url' in path:
             settings = prefect.settings.get_current_settings()
 
+            api_url = None
             if settings.PREFECT_ORION_API_HOST is not None:
                 if settings.PREFECT_ORION_API_PORT is not None:
                     api_url = f"{settings.PREFECT_ORION_API_HOST}:{settings.PREFECT_ORION_API_PORT}"
