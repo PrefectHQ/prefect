@@ -181,9 +181,9 @@ class Azure(Storage):
             # if no key is given in connection string use an instance of a 
             # DefaultAzureCredential from azure.identity which checks for any of
             # Service Principal, Managed Identity, AzureCLI, ...
-            from azure.identity import DefaultAzureCredential			
+            import azure.identity
             self.logger.debug("Authenticate BlobServiceClient using DefaultAzureCredential")
-            credential = DefaultAzureCredential()
+            credential = azure.identity.DefaultAzureCredential()
         return azure.storage.blob.BlobServiceClient.from_connection_string(
             conn_str=connection_string, credential=credential
         )

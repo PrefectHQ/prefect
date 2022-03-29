@@ -55,9 +55,9 @@ class AzureResult(Result):
         if any(x in connection_string for x in ["AccountKey=", "SharedAccessSignature="]):
 		    credential = None
 		else:
-            from azure.identity import DefaultAzureCredential
+            import azure.identity
             self.logger.debug("Authenticate BlobServiceClient using DefaultAzureCredential")
-            credential = DefaultAzureCredential()
+            credential = azure.identity.DefaultAzureCredential()
         self._service = azure.storage.blob.BlobServiceClient.from_connection_string(
             conn_str=connection_string, credential=credential
         )

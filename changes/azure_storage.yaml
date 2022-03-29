@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds support for Service principal and manages identities for Flow and Resul Storage - [#tbd](https://github.com/eedokl/prefect/tree/eedokl-azure-storage)"
+
+contributor:
+  - "[eedokl](https://github.com/eedokl)"

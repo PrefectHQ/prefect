@@ -43,12 +43,15 @@ def test_serialize_azure_storage():
     [
         ("SECRET_NAME", "conn_string_value_one"),
         ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_three;AccountKey=abcdef"),
     ],
 )
 def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
     connection = MagicMock()
     azure = MagicMock(from_connection_string=connection)
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
+    credential = MagicMock()
+    monkeypatch.setattr("azure.identity.DefaultAzureCredential", credential)
 
     with context(secrets={secret_name: secret_arg}):
         storage = Azure(container="test", connection_string_secret=secret_name)

@@ -17,6 +17,8 @@ class TestAzureResult:
         connection = MagicMock()
         azure = MagicMock(from_connection_string=connection)
         monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
+        credential = MagicMock()
+        monkeypatch.setattr("azure.identity.DefaultAzureCredential", credential)
         yield connection
 
     def test_azure_init(self, azure_client):
