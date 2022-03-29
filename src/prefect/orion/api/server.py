@@ -43,7 +43,7 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
 
-        if 'api_url' in path:
+        if 'api-settings' in path:
             settings = prefect.settings.get_current_settings()
 
             api_url = None
