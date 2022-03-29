@@ -111,7 +111,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 ## GitHub
 
-[GitHub Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
+[GitHub Storage](/api/latest/storage.html#github) is a storage option that reads flows from a GitHub repository as .py files at runtime.
 
 For a detailed look on how to use GitHub storage visit the [Using script based storage](/core/idioms/script-based.html) idiom.
 
@@ -121,7 +121,7 @@ GitHub storage uses a [personal access token](https://help.github.com/en/github/
 
 ## GitLab
 
-[GitLab Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
+[GitLab Storage](/api/latest/storage.html#github) is a storage option that reads flows from a GitHub repository as .py files at runtime.
 
 Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to GitLab as well.
 
@@ -135,7 +135,7 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 ## Bitbucket
 
-[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
+[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a storage option that reads flows from a GitHub repository as .py files at runtime.
 
 Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
@@ -153,7 +153,7 @@ Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each r
 
 ## CodeCommit
 
-[CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
+[CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that reads flows from a GitHub repository as .py files at runtime.
 
 :::tip AWS Credentials
 CodeCommit uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
