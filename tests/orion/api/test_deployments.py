@@ -485,17 +485,35 @@ class TestReadDeployments:
 
 class TestDeleteDeployment:
     async def test_delete_deployment(self, session, client, deployment):
-        # schedule some runs
-        await client.post(f"/deployments/{deployment.id}/schedule")
-
-        # make sure autoscheduled flow runs are created
-        n_runs = await models.flow_runs.count_flow_runs(
-            session,
-            flow_run_filter=schemas.filters.FlowRunFilter(
-                deployment_id={"any_": [deployment.id]}
+        # schedule both an autoscheduled and manually scheduled flow run
+        # for this deployment id, these should be deleted when the deployment is deleted
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                flow_version="1.0",
+                auto_scheduled=False,
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC"),
+                    message="Flow run scheduled",
+                ),
             ),
         )
-        assert n_runs > 0
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                flow_version="1.0",
+                auto_scheduled=True,
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC"),
+                    message="Flow run scheduled",
+                ),
+            ),
+        )
+        await session.commit()
 
         # delete the deployment
         response = await client.delete(f"/deployments/{deployment.id}")
