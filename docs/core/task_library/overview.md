@@ -74,10 +74,10 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"></
     <td><img src="/logos/sqlite.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sqlite.html">SQLite</a></td>
   </tr>
   <tr>
+    <td><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/assets/verified_logo.png"><img src="https://raw.githubusercontent.com/PrefectHQ/prefect/master/docs/.vuepress/public/logos/transform.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/transform.html">Transform</a></td>
     <td><img src="/logos/trello.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/trello.html">Trello</a></td>
     <td><img src="/logos/tlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/twitter.html">Twitter</a></td>
     <td><img src="/logos/zendesk.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/zendesk.html">Zendesk</a></td>
-    <td></td>
     <td></td>
   </tr>
 </table>
