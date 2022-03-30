@@ -134,7 +134,7 @@
   import { Api, Endpoints } from '@/plugins/api'
   import { Deployment } from '@/typings/objects'
   import { secondsToString } from '@/util/util'
-import { deploymentsApi } from '@/services/DeploymentsApi'
+  import { deploymentsApi } from '@/services/DeploymentsApi'
 
   class Props {
     item = prop<Deployment>({ required: true })
