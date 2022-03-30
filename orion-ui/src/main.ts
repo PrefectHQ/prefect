@@ -1,12 +1,10 @@
 import MiterDesign from '@prefecthq/miter-design'
-import { Settings } from '@prefecthq/orion-design'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
 import api from './plugins/api'
 import router from './router'
-import { settingsApi } from './services/settingsApi'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
 // Global components
@@ -38,10 +36,6 @@ const colorMode = storedMode ? `${storedMode }-color-mode` : defaultClass
 document.body.classList.add(colorMode)
 
 async function start(): Promise<void> {
-
-  const { apiUrl } = await settingsApi.get()
-
-  Settings.apiUrl = apiUrl
 
   if (VITE_PREFECT_USE_MIRAGEJS()) {
     const { startServer } = await import('./server')
