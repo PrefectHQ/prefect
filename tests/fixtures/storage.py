@@ -102,12 +102,15 @@ async def run_storage_server():
         # Yield to the consuming tests
         yield
 
-    finally:
-        # Terminate the process
-        process.terminate()
-        # Ensure any remaining communication occurs — otherwise the process can be left
-        # running
         process.communicate()
+
+    finally:
+        while process.returncode is None:
+            # Terminate the process
+            process.terminate()
+            # Ensure any remaining communication occurs — otherwise the process can be left
+            # running
+            process.communicate()
 
 
 @pytest.fixture
