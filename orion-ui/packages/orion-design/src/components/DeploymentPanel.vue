@@ -19,7 +19,7 @@
       <DetailsKeyValue label="Tags" stacked>
         <m-tags :tags="deployment.tags" />
       </DetailsKeyValue>
-      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
+      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, flowRunsApi }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
       <DeleteSection label="Deployment" @remove="remove" />
     </div>
@@ -35,24 +35,24 @@
 <script lang="ts" setup>
   import { computed, ref } from 'vue'
   import { RouteLocationRaw } from 'vue-router'
-  import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
   import DeleteSection from '@/components/DeleteSection.vue'
+  import DeploymentParametersPanelSection from '@/components/DeploymentParametersPanelSection.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import RecentFlowRunsPanelSection from '@/components/RecentFlowRunsPanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { CronSchedule, IntervalSchedule, RRuleSchedule } from '@/models/Schedule'
+  import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
-  import { DeploymentsApi } from '@/services/DeploymentsApi'
-  import { showToast } from '@/utilities/toasts'
   import { exitPanel } from '@/utilities/panels'
   import { secondsToString } from '@/utilities/seconds'
+  import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     deployment: Deployment,
-    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
-    deleteDeployment: DeploymentsApi['deleteDeployment']
+    deploymentsApi: DeploymentsApi,
+    flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
 
@@ -66,9 +66,8 @@
   }))
 
   const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
-
-
   const saving = ref(false)
+  
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
@@ -86,12 +85,12 @@
 
     return null
   })
-  
+
 
   async function remove(): Promise<void> {
     try {
       saving.value = true
-      await props.deleteDeployment(props.deployment.id)
+      await props.deploymentsApi.deleteDeployment(props.deployment.id)
       showToast('Deleted Deployment', 'success')
       exitPanel()
     } catch (err) {

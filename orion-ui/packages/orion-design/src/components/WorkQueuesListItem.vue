@@ -39,7 +39,7 @@
   const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
-    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
+    const workQueueSubscription = useSubscription(injectedServices.workQueuesApi.getWorkQueue, [workQueue.id])
 
     showPanel(WorkQueueEditPanel, {
       workQueue,
@@ -50,7 +50,7 @@
 
   function openWorkQueuePanel(): void {
     const workQueueId = props.workQueue.id
-    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
+    const workQueueSubscription = useSubscription(injectedServices.workQueuesApi.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {
       workQueueId,
