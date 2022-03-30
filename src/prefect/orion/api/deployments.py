@@ -153,6 +153,11 @@ async def delete_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
 
+    # if the delete succeeded, delete any future scheduled runs that were auto-scheduled
+    await models.deployments.delete_auto_scheduled_runs_for_deployment(
+        session=session, deployment_id=deployment_id
+    )
+
 
 @router.post("/{id}/schedule")
 async def schedule_deployment(
@@ -216,12 +221,9 @@ async def set_schedule_inactive(
     await session.flush()
 
     # delete any future scheduled runs that were auto-scheduled
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
+    await models.deployments.delete_auto_scheduled_runs_for_deployment(
+        session=session, deployment_id=deployment.id
     )
-    await session.execute(delete_query)
 
 
 @router.post("/{id}/create_flow_run")

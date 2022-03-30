@@ -484,24 +484,35 @@ class TestReadDeployments:
 
 
 class TestDeleteDeployment:
-    async def test_delete_deployment(self, client, flow, flow_function):
-        # first create a deployment to delete
+    async def test_delete_deployment(self, session, client, deployment):
+        # schedule some runs
+        await client.post(f"/deployments/{deployment.id}/schedule")
 
-        data = DeploymentCreate(
-            name="My Deployment",
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
-            flow_id=flow.id,
-        ).dict(json_compatible=True)
-        response = await client.post("/deployments/", json=data)
-        deployment_id = response.json()["id"]
+        # make sure autoscheduled flow runs are created
+        n_runs = await models.flow_runs.count_flow_runs(
+            session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                deployment_id={"any_": [deployment.id]}
+            ),
+        )
+        assert n_runs > 0
 
         # delete the deployment
-        response = await client.delete(f"/deployments/{deployment_id}")
+        response = await client.delete(f"/deployments/{deployment.id}")
         assert response.status_code == 204
 
         # make sure it's deleted
-        response = await client.get(f"/deployments/{deployment_id}")
+        response = await client.get(f"/deployments/{deployment.id}")
         assert response.status_code == 404
+
+        # make sure autoscheduled flow runs are deleted
+        n_runs = await models.flow_runs.count_flow_runs(
+            session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                deployment_id={"any_": [deployment.id]}
+            ),
+        )
+        assert n_runs == 0
 
     async def test_delete_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/deployments/{uuid4()}")

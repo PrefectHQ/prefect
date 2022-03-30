@@ -456,3 +456,23 @@ async def _insert_scheduled_flow_runs(
         await session.execute(stmt)
 
     return inserted_flow_run_ids
+
+
+@inject_db
+async def delete_auto_scheduled_runs_for_deployment(
+    session: sa.orm.Session, deployment_id: UUID, db: OrionDBInterface
+) -> None:
+    """
+    Delete all outstanding scheduled runs for a deployment id
+
+    Args:
+        session: A database session
+        deployment_id: a deployment id
+    """
+    # delete any future scheduled runs that were auto-scheduled
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
