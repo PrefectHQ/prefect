@@ -292,11 +292,6 @@ async def begin_flow_run(
             result_storage=result_storage,
         )
 
-        await client.propose_state(
-            state=terminal_state,
-            flow_run_id=flow_run.id,
-        )
-
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
 
