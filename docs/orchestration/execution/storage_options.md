@@ -10,14 +10,14 @@ Prefect includes a variety of `Storage` options for saving flows.
 
 As of Prefect version `0.9.0` every storage option except for `Docker` and `GitHub` will automatically have a result handler attached that will write results to the corresponding platform. For example, this means that if you register a flow with the Prefect API using the `S3` storage option then the flow's results will also be written to the same S3 bucket through the use of the [S3 Result](/api/latest/engine/results.html#s3result).
 
-Version `0.12.0` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
+Version `0.12.0` introduced a new way to store flows using the various cloud storage options (S3, GCS, and Azure) and then, in turn, run them using agents that orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
 
-Version `0.12.5` introduces script-based storage for all storage options. For more information see the
+Version `0.12.5` introduced script-based storage for all storage options. For more information see the
 [Using script based flow storage idiom](/core/idioms/script-based.html).
 
 ## Local
 
-[Local Storage](/api/latest/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.
+[Local Storage](/api/latest/storage.html#local) is the default `Storage` option for all flows. This stores the flow as bytes in the local filesystem, which means it can only be run by a [local agent](/orchestration/agents/local.html) running on the same machine.
 
 ```python
 from prefect import Flow
@@ -32,12 +32,12 @@ The flow is now available under `~/.prefect/flows/local-flow.prefect`.
 
 ::: tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
-the hostname of the machine from which it was registered; this prevents agents
+the hostname of the machine from which it was registered. This prevents agents
 not running on the same machine from attempting to run this flow.
 :::
 
 ::: tip Flow Results
-In more recent releases of Core your flow will default to using a `LocalResult` for persisting any task results in the same file location.
+In more recent releases of Prefect Core, your flow will default to using a `LocalResult` for persisting any task results in the same file location.
 :::
 
 ## Azure Blob Storage

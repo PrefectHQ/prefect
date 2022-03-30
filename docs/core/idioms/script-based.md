@@ -2,15 +2,15 @@
 
 As of Prefect version `0.12.5` all storage options support storing flows as
 source files instead of pickled objects. This means that flow code can change
-in between (or even during) runs without needing to be reregistered. As long as
+in between (or even during) runs without needing to be re-registered. As long as
 the structure of the flow itself does not change, only the task content, then a
 Prefect API backend will be able to execute the flow. This is a useful storage
 mechanism especially for testing, debugging, CI/CD processes, and more!
 
 ### Enable script storage
 
-Some storage classes (e.g. `GitHub`, `GitLab`, `Bitbucket`, ...) only support
-script based storage. All other classes require you to opt-in by passing
+Some storage classes (for example, `GitHub`, `GitLab`, `Bitbucket`, and `CodeCommit`) only support
+script-based storage. All other classes require you to opt-in by passing
 `stored_as_script=True` to the storage class constructor.
 
 ### Example script based workflow
@@ -29,9 +29,9 @@ repository with the following structure:
 
 ```
 repo
-    README.md
+└── README.md
     flows/
-        my_flow.py
+    └── my_flow.py
 ```
 
 First, compose your flow file and give the flow `GitHub` storage:
@@ -140,7 +140,7 @@ flow.storage = Docker(
 )
 ```
 
-To store flows as files in Docker storage three kwargs needs to be set if you are using Prefect's default
+To store flows as files in Docker storage, three kwargs needs to be set if you are using Prefect's default
 Docker storage build step:
 
 - `path`: the path that the file is stored in the Docker image
