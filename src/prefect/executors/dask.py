@@ -268,8 +268,8 @@ class DaskExecutor(Executor):
             - op (str): Either "add" or "remove"
             - message (dict): Information about the event that the scheduler has sent
         """
+        print("on_worker_status_changed", op, message)
         if op == "add":
-            print(message)
             for worker in message.get("workers", ()):
                 self.logger.debug("Worker %s added", worker)
         elif op == "remove":
