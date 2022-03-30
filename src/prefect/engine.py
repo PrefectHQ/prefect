@@ -501,7 +501,7 @@ async def orchestrate_flow_run(
             await client.persist_data(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
-            if state.data
+            if state.data is not None
             else None
         ),
     )
@@ -801,7 +801,7 @@ async def orchestrate_task_run(
                     terminal_state.data.json().encode(),
                     block=task_run_context.result_storage,
                 )
-                if state.data
+                if state.data is not None
                 else None
             ),
         )
