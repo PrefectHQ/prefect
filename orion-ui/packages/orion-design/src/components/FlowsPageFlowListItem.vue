@@ -114,11 +114,6 @@
   @media only screen and (min-width: map.get($breakpoints, 'xs')) {
     grid-template-columns: 1fr 130px;
     grid-template-areas: 'name    recent'
-                         'details details';
-  }
-
-  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
-    grid-template-areas: 'name    recent'
                          'details recent';
   }
 }
