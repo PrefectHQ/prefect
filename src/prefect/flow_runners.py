@@ -467,6 +467,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Start the container
         container.start()
 
+        docker_client.close()
+
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
