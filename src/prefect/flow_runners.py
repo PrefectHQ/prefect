@@ -615,6 +615,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
         result = container.wait()
+        docker_client.close()
         return result.get("StatusCode") == 0
 
     @property
@@ -637,7 +638,18 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_client(self):
         try:
-            docker_client = self._docker.from_env()
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = self._docker.from_env()
+
         except self._docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
