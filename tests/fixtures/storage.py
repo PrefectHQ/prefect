@@ -103,13 +103,11 @@ async def run_storage_server():
         yield
 
     finally:
-        # Cleanup the process
-        try:
-            process.terminate()
-            await process.aclose()
-            process.kill()
-        except Exception:
-            pass  # May already be terminated
+        # Terminate the process
+        process.terminate()
+        # Ensure any remaining communication occurs — otherwise the process can be left
+        # running
+        process.communicate()
 
 
 @pytest.fixture
