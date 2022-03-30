@@ -141,6 +141,7 @@ async def count_deployments(
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a deployment by id.
@@ -153,10 +154,12 @@ async def delete_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
 
-    # if the delete succeeded, delete any future scheduled runs that were auto-scheduled
-    await models.deployments.delete_auto_scheduled_runs_for_deployment(
-        session=session, deployment_id=deployment_id
+    # if the delete succeeded, delete any scheduled runs
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
     )
+    await session.execute(delete_query)
 
 
 @router.post("/{id}/schedule")
@@ -221,9 +224,12 @@ async def set_schedule_inactive(
     await session.flush()
 
     # delete any future scheduled runs that were auto-scheduled
-    await models.deployments.delete_auto_scheduled_runs_for_deployment(
-        session=session, deployment_id=deployment.id
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment.id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
     )
+    await session.execute(delete_query)
 
 
 @router.post("/{id}/create_flow_run")
