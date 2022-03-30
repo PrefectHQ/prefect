@@ -1531,7 +1531,10 @@ class OrionClient:
             )
             await anyio.sleep(response.details.delay_seconds)
             return await self.propose_state(
-                state, task_run_id=task_run_id, flow_run_id=flow_run_id
+                state,
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                backend_state_data=backend_state_data,
             )
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
