@@ -46,8 +46,8 @@ theme:
         accent: blue
     custom_dir: docs/overrides
 plugins:
-    - autorefs
-    - mkdocstrings:
+    autorefs: {}
+    mkdocstrings:
         custom_templates: docs/templates
         handlers:
             python:
@@ -59,9 +59,9 @@ plugins:
                     heading_level: 1
         watch:
             - src/prefect/
-    - render_swagger
-    - search
-    - gen-files:
+    render_swagger: {}
+    search: {}
+    gen-files:
         scripts:
             - docs/collections/generate_catalog.py
 nav:
