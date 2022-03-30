@@ -33,8 +33,8 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks import storage
 from prefect.blocks.core import Block, create_block_from_api_block
+from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -1193,8 +1193,7 @@ class OrionClient:
         await self._client.post(f"/blocks/clear_default_storage_block")
 
     async def persist_data(
-        self,
-        data: bytes,
+        self, data: bytes, block: StorageBlock = None
     ) -> DataDocument:
         """
         Persist data in orion and return the orion data document
@@ -1205,13 +1204,12 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-        block = await self.get_default_storage_block()
+        block = block or await self.get_default_storage_block()
         if not block:
-            warnings.warn(
-                "No default storage has been set on the server. "
-                "Using temporary local storage for results."
+            raise ValueError(
+                "No storage block was provided and no default storage block is set "
+                "on the server. Set a default or provide a block to use."
             )
-            block = storage.TempStorageBlock()
 
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
@@ -1239,7 +1237,7 @@ class OrionClient:
         if block_id is not None:
             storage_block = await self.read_block(block_id)
         else:
-            storage_block = storage.TempStorageBlock()
+            storage_block = TempStorageBlock()
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
