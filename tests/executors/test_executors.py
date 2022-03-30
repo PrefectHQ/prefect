@@ -478,7 +478,7 @@ class TestDaskExecutor:
         ) as client:
             executor = DaskExecutor(address=client.scheduler.address)
             with executor.start():
-                time.sleep(1)
+                time.sleep(0.1)
                 client.cluster.scale(4)
                 while len(client.scheduler_info()["workers"]) < 4:
                     time.sleep(0.1)
