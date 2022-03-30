@@ -1329,7 +1329,7 @@ class TestDockerFlowRunner:
                 "available. Build the image with " + build_cmd
             )
 
-        output = client.containers.run(tag, "prefect version")
+        output = client.containers.run(tag, "prefect --version")
         container_version = output.decode().strip()
         test_run_version = prefect.__version__
 
