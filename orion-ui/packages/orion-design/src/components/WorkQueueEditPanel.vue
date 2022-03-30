@@ -10,7 +10,7 @@
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
-        :deployments-api="deploymentsApi"
+        :get-deployments="getDeployments"
         @remove="remove"
       />
     </section>
@@ -41,8 +41,9 @@
     workQueue: WorkQueue,
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
-    deploymentsApi: DeploymentsApi,
-    workQueuesApi: WorkQueuesApi,
+    getDeployments: DeploymentsApi['getDeployments'],
+    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
+    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
   }>()
 
   const saving = ref(false)
@@ -51,7 +52,7 @@
   async function update(): Promise<void> {
     try {
       saving.value = true
-      await props.workQueuesApi.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
+      await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
       await props.workQueueSubscription.refresh()
       props.workQueuesListSubscription.refresh()
       showToast('Updated Work Queue', 'success')
@@ -67,7 +68,7 @@
   async function remove(id: string): Promise<void> {
     try {
       saving.value = true
-      await props.workQueuesApi.deleteWorkQueue(id)
+      await props.deleteWorkQueue(id)
       props.workQueuesListSubscription.refresh()
       showToast('Deleted Work Queue', 'success')
       exitPanel()
