@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
+import os
 
 import click
+
+from click_repl import repl as _repl
+from prompt_toolkit.history import FileHistory
 
 import prefect
 from prefect.utilities import backend as backend_util
@@ -78,6 +82,24 @@ cli.add_command(_kv)
 
 
 # Miscellaneous Commands
+
+
+@cli.command()
+def repl():
+    """
+    Start a REPL
+    """
+    banner = f"""
+Welcome to Prefect REPL
+version : {prefect.__version__}
+    """
+
+    prompt_kwargs = {
+        "history": FileHistory(os.path.expanduser("~/.prefect/repl-history")),
+    }
+
+    click.echo(banner)
+    _repl(click.get_current_context(), prompt_kwargs=prompt_kwargs)
 
 
 @cli.command(hidden=True)
