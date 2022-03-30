@@ -277,7 +277,7 @@ async def begin_flow_run(
         if not result_storage:
             logger.warning(
                 "No default storage is configured on the server. Results from this "
-                "flow run will be stored in a temporary directoy in its runtime "
+                "flow run will be stored in a temporary directory in its runtime "
                 "environment."
             )
             result_storage = TempStorageBlock()
