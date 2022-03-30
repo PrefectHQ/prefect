@@ -7,6 +7,7 @@ on:
       - "**/*.py"
       - requirements.txt
       - requirements-dev.txt
+      - setup.cfg
   push:
     branches:
       - main
