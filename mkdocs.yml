@@ -64,6 +64,7 @@ plugins:
     - gen-files:
         scripts:
             - docs/collections/generate_catalog.py
+    - social
 nav:
     - Home: index.md
     - 'Getting Started':
