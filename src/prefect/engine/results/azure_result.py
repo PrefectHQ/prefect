@@ -57,6 +57,9 @@ class AzureResult(Result):
         ):
             credential = None
         else:
+            # if no key is given in connection string use an instance of a
+            # DefaultAzureCredential from azure.identity which checks for any of
+            # Service Principal, Managed Identity, AzureCLI, ...
             import azure.identity
 
             self.logger.debug(

@@ -17,7 +17,7 @@ class TestAzureResult:
         connection = MagicMock()
         azure = MagicMock(from_connection_string=connection)
         monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
-        credential = MagicMock()
+        credential = MagicMock(return_value="mocked!")
         monkeypatch.setattr("azure.identity.DefaultAzureCredential", credential)
         yield connection
 
@@ -45,6 +45,16 @@ class TestAzureResult:
             azure_client.assert_called_with(
                 conn_str="con2;AccountKey=abc", credential=None
             )
+
+    def test_azure_init_connection_string_without_key(self, azure_client):
+        result = AzureResult(container="bob", connection_string="con1")
+        result.initialize_service()
+        azure_client.assert_called_with(conn_str="con1", credential="mocked!")
+
+        with prefect.context({"secrets": {"test": "con2"}}):
+            result = AzureResult(container="bob", connection_string_secret="test")
+            result.initialize_service()
+            azure_client.assert_called_with(conn_str="con2", credential="mocked!")
 
     def test_azure_writes_to_blob_using_rendered_template_name(self, monkeypatch):
         client = MagicMock(upload_blob=MagicMock())
