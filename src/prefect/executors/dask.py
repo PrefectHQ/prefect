@@ -281,6 +281,7 @@ class DaskExecutor(Executor):
         from distributed.core import rpc
 
         try:
+            print("setting up dask events watch")
             scheduler_comm = rpc(
                 self.client.scheduler.address,  # type: ignore
                 connection_args=self.client.security.get_connection_args("client"),  # type: ignore
@@ -291,8 +292,10 @@ class DaskExecutor(Executor):
             comm = await asyncio.shield(scheduler_comm.live_comm())
             await comm.write({"op": "subscribe_worker_status"})
             _ = await comm.read()
+            print("starting to watch dask events")
             while True:
                 try:
+                    print("reading dask events")
                     msgs = await comm.read()
                 except OSError:
                     break
