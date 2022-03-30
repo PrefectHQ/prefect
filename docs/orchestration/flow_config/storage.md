@@ -398,7 +398,7 @@ instance.
 
 ### Bitbucket
 
-[Bitbucket Storage](/api/latest/storage.html#github) is a
+[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a
 storage option that uploads flows to a Bitbucket repository as `.py` files.
 
 ```python

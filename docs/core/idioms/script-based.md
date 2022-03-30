@@ -98,7 +98,7 @@ use that code.
 
 ::: warning Flow Structure
 If you change any of the structure of your flow such as task names, rearrange task order, etc. then you
-will need to reregister that flow.
+will need to re-register that flow.
 :::
 
 ::: tip GitLab users
