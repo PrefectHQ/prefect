@@ -21,7 +21,7 @@ class LoopService:
 
     loop_seconds = 60
 
-    def __init__(self, loop_seconds: float = None):
+    def __init__(self, loop_seconds: float = None, stop_event=None):
         if loop_seconds:
             self.loop_seconds = loop_seconds  # seconds between runs
         self.should_stop = False  # flag for whether the service should stop running
