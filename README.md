@@ -2,11 +2,11 @@
 
 # Prefect 2.0
 
-A development repo for Prefect 2.0 and Orion. Documentation can be found at https://orion-docs.prefect.io/.
+A development repo for Prefect 2.0. Documentation can be found at https://orion-docs.prefect.io/.
 
 ## Welcome!
 
-Prefect 2.0 is powered by Orion, the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io).
+Prefect 2.0 is the second-generation workflow orchestration platform from [Prefect](https://www.prefect.io).
 
 Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
@@ -22,11 +22,9 @@ Prefect 2.0 and Orion are beta software under active development and may change 
 
 ## Hello, Orion!
 
-Powered by Orion, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules.
+Powered by the Orion engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
-
-Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.
 
 ```python
 from prefect import flow, task
