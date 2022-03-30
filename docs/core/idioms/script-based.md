@@ -109,6 +109,20 @@ pip install 'prefect[gitlab]'
 ```
 
 You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
+
+```python
+from prefect import task, Flow
+from prefect.storage import GitLab
+
+...
+
+flow.storage = GitLab(
+    repo="org/repo",                            # name of repo
+    path="flows/my_flow.py",                    # location of flow file in repo
+    access_token_secret="GITLAB_ACCESS_TOKEN"   # name of personal access token secret
+)
+```
+
 :::
 
 :::tip Bitbucket users
@@ -121,6 +135,11 @@ pip install 'prefect[bitbucket]'
 Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bitbucket` and use the `BITBUCKET_ACCESS_TOKEN` secret.  However, Bitbucket requires an additional argument: `project`.  The `flow.storage` in the above example would be declared as follows for Bitbucket storage:
 
 ```python
+from prefect import task, Flow
+from prefect.storage import Bitbucket
+
+...
+
 flow.storage = Bitbucket(
     project="project",                              # name of project that repo resides in
     repo="org/repo",                                # name of repo
