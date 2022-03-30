@@ -1274,7 +1274,7 @@ class OrionClient:
         flow_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
-        orion_doc: schemas.data.DataDocument = None,
+        backend_state_data: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a flow run.
@@ -1284,7 +1284,7 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            orion_doc: an optional orion data document representing the state's data,
+            backend_state_data: an optional data document representing the state's data,
                 if provided it will override `state.data`
 
         Returns:
@@ -1295,7 +1295,7 @@ class OrionClient:
             type=state.type,
             name=state.name,
             message=state.message,
-            data=orion_doc or state.data,
+            data=backend_state_data or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.flow_run_id = flow_run_id
@@ -1456,6 +1456,7 @@ class OrionClient:
     async def propose_state(
         self,
         state: schemas.states.State,
+        backend_state_data: DataDocument = None,
         task_run_id: UUID = None,
         flow_run_id: UUID = None,
     ) -> schemas.states.State:
@@ -1477,6 +1478,10 @@ class OrionClient:
 
         Args:
             state: a new state for the task or flow run
+            backend_state_data: an optional document to store with the state in the
+                database instead of its local data field. This allows the original
+                state object to be retained while storing a pointer to persisted data
+                in the database.
             task_run_id: an optional task run id, used when proposing task run states
             flow_run_id: an optional flow run id, used when proposing flow run states
 
@@ -1494,20 +1499,14 @@ class OrionClient:
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
-        orion_doc = None
-        # Exchange the user data document for an orion data document
-        if state.data:
-            # persist data reference in Orion
-            orion_doc = await self.persist_data(state.data.json().encode())
-
         # Attempt to set the state
         if task_run_id:
             response = await self.set_task_run_state(
-                task_run_id, state, orion_doc=orion_doc
+                task_run_id, state, backend_state_data=backend_state_data
             )
         elif flow_run_id:
             response = await self.set_flow_run_state(
-                flow_run_id, state, orion_doc=orion_doc
+                flow_run_id, state, backend_state_data=backend_state_data
             )
         else:
             raise ValueError(
@@ -1556,7 +1555,7 @@ class OrionClient:
         task_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
-        orion_doc: schemas.data.DataDocument = None,
+        backend_state_data: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a task run.
@@ -1566,7 +1565,7 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            orion_doc: an optional orion data document representing the state's data,
+            backend_state_data: an optional orion data document representing the state's data,
                 if provided it will override `state.data`
 
         Returns:
@@ -1577,7 +1576,7 @@ class OrionClient:
             name=state.name,
             type=state.type,
             message=state.message,
-            data=orion_doc or state.data,
+            data=backend_state_data or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.task_run_id = task_run_id
