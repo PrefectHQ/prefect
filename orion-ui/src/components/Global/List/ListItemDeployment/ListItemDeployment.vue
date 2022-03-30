@@ -126,7 +126,7 @@
 
 <script lang="ts">
   /* eslint-disable */
-  import { media, showPanel, DeploymentPanel, useInjectedServices, BreadCrumbs, Crumb } from '@prefecthq/orion-design'
+  import { media, showPanel, DeploymentPanel, useInjectedServices, deploymentsApi, BreadCrumbs, Crumb } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
   import Drawer from '@/components/Global/Drawer/Drawer.vue'
@@ -134,7 +134,6 @@
   import { Api, Endpoints } from '@/plugins/api'
   import { Deployment } from '@/typings/objects'
   import { secondsToString } from '@/util/util'
-import { deploymentsApi } from '@/services/DeploymentsApi'
 
   class Props {
     item = prop<Deployment>({ required: true })
