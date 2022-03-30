@@ -33,7 +33,7 @@ from prefect.utilities.testing import AsyncMock, exceptions_equal
 
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, flow_run, monkeypatch
+        self, orion_client, flow_run, monkeypatch, local_storage_block
     ):
         @task
         def foo():
@@ -70,6 +70,7 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
+            result_storage=local_storage_block,
             client=orion_client,
         )
 
@@ -78,7 +79,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, monkeypatch
+        self, orion_client, flow_run, monkeypatch, local_storage_block
     ):
         @task
         def foo():
@@ -103,6 +104,7 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             parameters={},
             wait_for=None,
+            result_storage=local_storage_block,
             client=orion_client,
         )
 
@@ -111,7 +113,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, monkeypatch, orion_client, flow_run
+        self, monkeypatch, orion_client, flow_run, local_storage_block
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -149,18 +151,14 @@ class TestOrchestrateTaskRun:
         monkeypatch.setattr("anyio.sleep", sleep)
 
         # Actually run the task
-        with TaskRunContext(
-            task_run=task_run,
+        state = await orchestrate_task_run(
             task=flaky_function,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_storage=local_storage_block,
             client=orion_client,
-        ):
-            state = await orchestrate_task_run(
-                task=flaky_function,
-                task_run=task_run,
-                parameters={},
-                wait_for=None,
-                client=orion_client,
-            )
+        )
 
         # Check for a proper final result
         assert state.result() == 1
@@ -187,7 +185,7 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
-        self, orion_client, flow_run, upstream_task_state
+        self, orion_client, flow_run, upstream_task_state, local_storage_block
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -228,6 +226,7 @@ class TestOrchestrateTaskRun:
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
             wait_for=None,
+            result_storage=local_storage_block,
             client=orion_client,
         )
 
@@ -246,7 +245,7 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_states_in_parameters_can_be_incomplete(
-        self, orion_client, flow_run, upstream_task_state
+        self, orion_client, flow_run, upstream_task_state, local_storage_block
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -270,6 +269,7 @@ class TestOrchestrateTaskRun:
             # Nest the future in a collection to ensure that it is found
             parameters={"x": upstream_task_state},
             wait_for=None,
+            result_storage=local_storage_block,
             client=orion_client,
         )
 
@@ -281,7 +281,9 @@ class TestOrchestrateTaskRun:
 
 
 class TestOrchestrateFlowRun:
-    async def test_waits_until_scheduled_start_time(self, orion_client, monkeypatch):
+    async def test_waits_until_scheduled_start_time(
+        self, orion_client, monkeypatch, local_storage_block
+    ):
         @flow
         def foo():
             return 1
@@ -317,6 +319,7 @@ class TestOrchestrateFlowRun:
             parameters={},
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
+            result_storage=local_storage_block,
             client=orion_client,
         )
 
@@ -324,7 +327,7 @@ class TestOrchestrateFlowRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, monkeypatch
+        self, orion_client, monkeypatch, local_storage_block
     ):
         @flow
         def foo():
@@ -350,6 +353,7 @@ class TestOrchestrateFlowRun:
                 parameters={},
                 task_runner=SequentialTaskRunner(),
                 sync_portal=None,
+                result_storage=local_storage_block,
                 client=orion_client,
             )
 
