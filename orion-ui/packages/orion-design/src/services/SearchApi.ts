@@ -1,11 +1,12 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { InjectionKey } from 'vue'
 import { SavedSearchResponse } from '@/models/SavedSearchResponse'
-import { Api, ApiRoute } from '@/services/Api'
+import { Api, Route } from '@/services/Api'
 import { Filter } from '@/types/filters'
 
 export class SearchApi extends Api {
 
-  protected route: ApiRoute = '/saved_searches'
+  protected route: Route = '/saved_searches'
 
   public createSearch(name: string, filters: Filter[]): Promise<SavedSearchResponse> {
     return this.put<SavedSearchResponse>('/', {
@@ -27,4 +28,7 @@ export class SearchApi extends Api {
   }
 }
 
-export const searchApiKey: InjectionKey<SearchApi> = Symbol()
+export const searchApi = createActions(new SearchApi())
+
+export const getSearchesKey: InjectionKey<SearchApi['getSearches']> = Symbol()
+export const createSearchKey: InjectionKey<SearchApi['createSearch']> = Symbol()

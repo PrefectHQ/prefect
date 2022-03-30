@@ -1,6 +1,6 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
-import { InjectionKey } from 'vue'
-import { ApiRoute } from '.'
+import { Route } from '.'
 import { ILogResponse } from '@/models/ILogResponse'
 import { Log } from '@/models/Log'
 import { Api } from '@/services/Api'
@@ -8,7 +8,7 @@ import { LogsRequestFilter } from '@/types/LogsRequestFilter'
 
 export class LogsApi extends Api {
 
-  protected route: ApiRoute = '/logs'
+  protected route: Route = '/logs'
 
   public getLogs(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post('/filter', filter).then(response => this.logsResponseMapper(response))
@@ -34,4 +34,4 @@ export class LogsApi extends Api {
 
 }
 
-export const logsApiKey: InjectionKey<LogsApi> = Symbol()
+export const logsApi = createActions(new LogsApi())

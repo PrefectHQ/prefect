@@ -38,12 +38,11 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed, inject, ref } from 'vue'
   import FilterTags from '@/components/FilterTags.vue'
-  import { searchApiKey } from '@/services/SearchApi'
+  import { searchApi, createSearchKey, getSearchesKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
-  import { requiredInject } from '@/utilities/inject'
   import { omit } from '@/utilities/object'
 
   const emit = defineEmits<{
@@ -55,15 +54,16 @@
   const loading = ref(false)
   const disabled = computed(() => loading.value || name.value.length === 0)
 
-  const searchApi = requiredInject(searchApiKey)
-  const searchesSubscription = useSubscription(searchApi.getSearches)
+  const createSearch = inject(createSearchKey, searchApi.createSearch)
+  const getSearches = inject(getSearchesKey, searchApi.getSearches)
+  const searchesSubscription = useSubscription(getSearches)
 
   function save(): void {
     loading.value = true
 
     const payload = filtersStore.all.map(filter => omit(filter, ['id'])) as Filter[]
 
-    searchApi.createSearch(name.value, payload)
+    createSearch(name.value, payload)
       .then(() => {
         showToast('Saved search', 'success')
 

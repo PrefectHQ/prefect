@@ -76,9 +76,9 @@
     },
   }))
 
-  const failedFlowRunsSubscription = useSubscription(injectedServices.flowRunsApi.getFlowRunsCount, [failedFlowRunsFilter])
-  const lateFlowRunsSubscription = useSubscription(injectedServices.flowRunsApi.getFlowRunsCount, [lateFlowRunsFilter])
-  const scheduledFlowRunsSubscription = useSubscription(injectedServices.flowRunsApi.getFlowRunsCount, [scheduledFlowRunsFilter])
+  const failedFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [failedFlowRunsFilter])
+  const lateFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [lateFlowRunsFilter])
+  const scheduledFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [scheduledFlowRunsFilter])
   const defaultCountValue = '--'
 
   const filters = computed<PreMadeFilter[]>(() => [
