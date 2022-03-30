@@ -120,6 +120,7 @@
     StateType,
     FiltersQueryService,
     FilterUrlService,
+    flowRunsApi,
     toPluralString,
     UnionFilters,
     FlowRunsHistoryFilter,
@@ -134,12 +135,11 @@
   import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
 
   import { Api, Endpoints, Query } from '@/plugins/api'
-  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
+  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
@@ -148,7 +148,7 @@
 
   const historyStart = computed(() => firstFlowRunSubscription.response?.[0]?.expectedStartTime)
 
-  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
+  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
