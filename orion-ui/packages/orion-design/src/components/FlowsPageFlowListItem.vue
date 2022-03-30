@@ -116,11 +116,6 @@
     grid-template-areas: 'name    recent'
                          'details recent';
   }
-
-  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
-    grid-template-areas: 'name    recent'
-                         'details recent';
-  }
 }
 
 .flows-page-flow-list-item__name {
