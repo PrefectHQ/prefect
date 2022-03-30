@@ -1,3 +1,4 @@
+import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { Deployment } from '@/models/Deployment'
@@ -11,12 +12,12 @@ import { IFlowResponse } from '@/models/IFlowResponse'
 import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
 import { IScheduleResponse, isCronScheduleResponse, isIntervalScheduleResponse, isRRuleScheduleResponse } from '@/models/IScheduleResponse'
 import { CronSchedule, IntervalSchedule, RRuleSchedule, Schedule } from '@/models/Schedule'
-import { Api, ApiRoute } from '@/services/Api'
+import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 
 export class DeploymentsApi extends Api {
 
-  protected override route: ApiRoute = '/deployments'
+  protected route: Route = '/deployments'
 
   public getDeployment(deploymentId: string): Promise<Deployment> {
     return this.get<IDeploymentResponse>(`/${deploymentId}`).then(response => this.mapDeploymentResponse(response))
@@ -124,4 +125,9 @@ export class DeploymentsApi extends Api {
 
 }
 
-export const deploymentsApiKey: InjectionKey<DeploymentsApi> = Symbol()
+export const deploymentsApi = createActions(new DeploymentsApi())
+
+export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
+export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
+export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()
+export const deleteDeploymentKey: InjectionKey<DeploymentsApi['deleteDeployment']> = Symbol()

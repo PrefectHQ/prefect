@@ -28,19 +28,18 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, inject } from 'vue'
   import { useRouter } from 'vue-router'
   import { FilterUrlService } from '@/services/FilterUrlService'
-  import { searchApiKey } from '@/services/SearchApi'
+  import { getSearchesKey, searchApi } from '@/services/SearchApi'
   import { Filter } from '@/types/filters'
-  import { requiredInject } from '@/utilities/inject'
 
   const emit = defineEmits<{
     (event: 'close'): void,
   }>()
 
-  const searchApi = requiredInject(searchApiKey)
-  const subscription = useSubscription(searchApi.getSearches)
+  const getSearches = inject(getSearchesKey, searchApi.getSearches)
+  const subscription = useSubscription(getSearches)
   const filters = computed(() => subscription.response ?? [])
   const empty = computed(() => filters.value.length === 0)
   const loading = computed(() => subscription.loading)

@@ -68,7 +68,7 @@
 
   const props = defineProps<{
     values: WorkQueueFormValues,
-    deploymentsApi: DeploymentsApi,
+    getDeployments: DeploymentsApi['getDeployments'],
   }>()
 
   const emit = defineEmits<{
@@ -77,7 +77,7 @@
   }>()
 
 
-  const deploymentsSubscription = useSubscription(props.deploymentsApi.getDeployments, [{}])
+  const deploymentsSubscription = useSubscription(props.getDeployments, [{}])
   const deployments = computed(() => deploymentsSubscription.response ?? [])
 
   const internalValue = computed({

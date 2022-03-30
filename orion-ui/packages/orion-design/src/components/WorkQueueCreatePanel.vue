@@ -10,7 +10,7 @@
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
-        :deployments-api="deploymentsApi"
+        :get-deployments="getDeployments"
       />
     </section>
 
@@ -42,41 +42,48 @@
 
   const props = defineProps<{
     workQueuesListSubscription: WorkQueuesListSubscription,
-    workQueuesApi: WorkQueuesApi,
-    deploymentsApi: DeploymentsApi,
+    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
+    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
+    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
+    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
+    getWorkQueue: WorkQueuesApi['getWorkQueue'],
+    getDeployments: DeploymentsApi['getDeployments'],
+    createWorkQueue: WorkQueuesApi['createWorkQueue'],
   }>()
 
   const saving = ref(false)
   const workQueueFormValues = ref(new WorkQueueFormValues())
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
-    const workQueueSubscription = useSubscription(props.workQueuesApi.getWorkQueue, [workQueue.id])
+    const workQueueSubscription = useSubscription(props.getWorkQueue, [workQueue.id])
 
     showPanel(WorkQueueEditPanel, {
       workQueue,
       workQueueSubscription,
       workQueuesListSubscription: props.workQueuesListSubscription,
-      workQueuesApi: props.workQueuesApi,
-      deploymentsApi: props.deploymentsApi,
+      getDeployments: props.getDeployments,
+      updateWorkQueue: props.updateWorkQueue,
+      deleteWorkQueue: props.deleteWorkQueue,
     })
   }
 
   function openWorkQueuePanel(workQueueId: string): void {
-    const workQueueSubscription = useSubscription(props.workQueuesApi.getWorkQueue, [workQueueId])
+    const workQueueSubscription = useSubscription(props.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {
       workQueueId,
       workQueueSubscription,
       openWorkQueueEditPanel,
       workQueuesListSubscription: props.workQueuesListSubscription,
-      workQueuesApi: props.workQueuesApi,
+      pauseWorkQueue: props.pauseWorkQueue,
+      resumeWorkQueue: props.resumeWorkQueue,
     })
   }
 
   async function createWorkQueue(): Promise<void> {
     try {
       saving.value = true
-      const workQueue = await props.workQueuesApi.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
+      const workQueue = await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
       props.workQueuesListSubscription.refresh()
       showToast('Created Work Queue', 'success')
       exitPanel()
