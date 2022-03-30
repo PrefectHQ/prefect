@@ -1241,7 +1241,7 @@ class OrionClient:
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
-        self, obj: Any, encoder: str = "cloudpickle"
+        self, obj: Any, encoder: str = "cloudpickle", storage_block: StorageBlock = None
     ) -> DataDocument:
         """
         Persist an object in orion and return the orion data document
@@ -1254,7 +1254,7 @@ class OrionClient:
             Data document pointing to persisted data.
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
-        return await self.persist_data(datadoc.json().encode())
+        return await self.persist_data(datadoc.json().encode(), block=storage_block)
 
     async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
         """
