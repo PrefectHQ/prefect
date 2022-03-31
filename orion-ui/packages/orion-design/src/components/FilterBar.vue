@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
   import FiltersMenu from '@/components/FiltersMenu.vue'
   import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
   import FiltersSearch  from '@/components/FiltersSearch.vue'
@@ -52,7 +52,6 @@
   import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { isSame } from '@/utilities/arrays'
-  import { requiredInject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
@@ -67,7 +66,7 @@
   const placeholderText = computed(()=> props.disabled ? '' : 'Search...')
 
   const filtersStore = useFiltersStore()
-  const searchApi = requiredInject(searchApiKey)
+  const searchApi = inject(searchApiKey)!
   const searchesSubscription = useSubscription(searchApi.getSearches)
   const savedSearches = computed(() => searchesSubscription.response ?? [])
 

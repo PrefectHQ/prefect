@@ -38,12 +38,11 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed, inject, ref } from 'vue'
   import FilterTags from '@/components/FilterTags.vue'
   import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
-  import { requiredInject } from '@/utilities/inject'
   import { omit } from '@/utilities/object'
 
   const emit = defineEmits<{
@@ -55,7 +54,7 @@
   const loading = ref(false)
   const disabled = computed(() => loading.value || name.value.length === 0)
 
-  const searchApi = requiredInject(searchApiKey)
+  const searchApi = inject(searchApiKey)!
   const searchesSubscription = useSubscription(searchApi.getSearches)
 
   function save(): void {

@@ -5,15 +5,22 @@
 </template>
 
 <script lang="ts" setup>
+  import { inject } from 'vue'
   import WorkQueueCreatePanel from '@/components/WorkQueueCreatePanel.vue'
-  import { useInjectedServices } from '@/compositions/useInjectedServices'
+  import { deploymentsApiKey } from '@/services/DeploymentsApi'
+  import { workQueuesApiKey } from '@/services/WorkQueuesApi'
   import { showPanel } from '@/utilities/panels'
+  import { workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
-  const injectedServices = useInjectedServices()
+  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)!
+  const deploymentsApi = inject(deploymentsApiKey)!
+  const workQueuesApi = inject(workQueuesApiKey)!
 
   function openCreateWorkQueuePanel(): void {
     showPanel(WorkQueueCreatePanel, {
-      ...injectedServices,
+      workQueuesListSubscription,
+      deploymentsApi,
+      workQueuesApi,
     })
   }
 </script>
