@@ -53,7 +53,7 @@ class AzureResult(Result):
             connection_string = Secret(self.connection_string_secret).get()
 
         if connection_string is None:
-            raise Exception(
+            raise ValueError(
                 "Azure connection string not provided. Set either directly with connection_string"
                 " or via Prefect Secret using connection_string_secret parameter."
             )

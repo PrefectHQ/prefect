@@ -34,6 +34,11 @@ class TestAzureResult:
         result = AzureResult(container="bob", connection_string="conn", value=3)
         assert result.value == 3
 
+    def test_azure_init_without_connection_string(self, azure_client):
+        result = AzureResult(container="bob", connection_string=None)
+        with pytest.raises(ValueError):
+            result.initialize_service()
+
     def test_azure_init_connection_string(self, azure_client):
         result = AzureResult(container="bob", connection_string="con1;AccountKey=abc")
         result.initialize_service()
