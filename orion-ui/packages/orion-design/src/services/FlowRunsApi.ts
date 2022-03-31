@@ -125,4 +125,4 @@ export class FlowRunsApi extends Api {
 
 }
 
-export const flowRunsApiKey: InjectionKey<FlowRunsApi> = Symbol()
+export const flowRunsApiKey: InjectionKey<FlowRunsApi> = Symbol('flowRunsApiKey')

@@ -124,4 +124,4 @@ export class DeploymentsApi extends Api {
 
 }
 
-export const deploymentsApiKey: InjectionKey<DeploymentsApi> = Symbol()
+export const deploymentsApiKey: InjectionKey<DeploymentsApi> = Symbol('deploymentsApiKey')

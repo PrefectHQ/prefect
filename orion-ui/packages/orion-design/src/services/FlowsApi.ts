@@ -41,4 +41,4 @@ export class FlowsApi extends Api {
 
 }
 
-export const flowsApiKey: InjectionKey<FlowsApi> = Symbol()
+export const flowsApiKey: InjectionKey<FlowsApi> = Symbol('flowsApiKey')

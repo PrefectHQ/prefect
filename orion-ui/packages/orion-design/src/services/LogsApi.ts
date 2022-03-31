@@ -34,4 +34,4 @@ export class LogsApi extends Api {
 
 }
 
-export const logsApiKey: InjectionKey<LogsApi> = Symbol()
+export const logsApiKey: InjectionKey<LogsApi> = Symbol('logsApiKey')

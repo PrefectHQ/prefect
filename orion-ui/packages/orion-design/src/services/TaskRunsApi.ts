@@ -107,4 +107,4 @@ export class TaskRunsApi extends Api {
 
 }
 
-export const taskRunsApiKey: InjectionKey<TaskRunsApi> = Symbol()
+export const taskRunsApiKey: InjectionKey<TaskRunsApi> = Symbol('taskRunsApiKey')
