@@ -1,4 +1,5 @@
 site_name: Prefect 2.0
+site_url: https://orion-docs.prefect.io
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/orion/docs/
 extra_css:
@@ -40,7 +41,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-mark-solid-white.svg
+    logo: img/logos/prefect-2.0-logo-mark-white.png
     palette:
         primary: blue
         accent: blue
