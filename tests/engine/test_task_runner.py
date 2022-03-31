@@ -2491,10 +2491,10 @@ class TestTaskRunNames:
                 .pipe(add_time, minutes=1)
             )
 
-            state = flow.run()
-            assert state.result[result].result == datetime(
-                year=1970, month=1, day=2, hour=1, minute=1
-            )
+        state = flow.run()
+        assert state.result[result].result == datetime(
+            year=1970, month=1, day=2, hour=1, minute=1
+        )
 
     def test_task_pipeline_no_varargs(self):
         """
@@ -2527,8 +2527,8 @@ class TestTaskRunNames:
             res = accepts_anything("initial arg").pipe(
                 accepts_anything, task="some kwarg"
             )
-            state = flow.run()
-            assert state.result[res].result == dict(task="some kwarg")
+        state = flow.run()
+        assert state.result[res].result == dict(task="some kwarg")
 
     def test_task_pipeline_keyword_self(self):
         """
@@ -2545,4 +2545,4 @@ class TestTaskRunNames:
                 res = accepts_anything("initial arg").pipe(
                     accepts_anything, self="some kwarg"
                 )
-            state = flow.run()
+        state = flow.run()

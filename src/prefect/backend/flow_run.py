@@ -7,7 +7,7 @@ import pendulum
 import prefect
 from prefect.backend.flow import FlowView
 from prefect.backend.task_run import TaskRunView
-from prefect.engine.state import State
+from prefect.engine.state import Pending, State
 from prefect.run_configs import RunConfig
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.graphql import EnumValue, with_args
@@ -515,7 +515,12 @@ class FlowRunView:
         flow_run_data = flow_run_data.copy()  # Avoid mutating the input object
 
         flow_run_id = flow_run_data.pop("id")
-        state = State.deserialize(flow_run_data.pop("serialized_state"))
+        serialized_state = flow_run_data.pop("serialized_state")
+        state = (
+            State.deserialize(serialized_state)
+            if serialized_state  # Flow run may not have initialized its state yet
+            else Pending(message="A state for this flow run is not yet available.")
+        )
         run_config_data = flow_run_data.pop("run_config")
         run_config = (
             RunConfigSchema().load(run_config_data) if run_config_data else None
