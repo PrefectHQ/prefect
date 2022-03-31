@@ -12,7 +12,7 @@ if sys.version_info < (3, 9):
     import functools
 
     async def asyncio_to_thread(fn, *args, **kwargs):
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
 
 else:
