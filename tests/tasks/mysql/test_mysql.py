@@ -41,7 +41,7 @@ class TestMySQLFetch:
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
             ValueError,
-            match="The 'fetch' parameter must be one of the following - \('one', 'many', 'all'\)",
+            match=r"The 'fetch' parameter must be one of the following - \('one', 'many', 'all'\)",
         ):
             task.run(query="SELECT * FROM some_table", fetch="not a valid parameter")
 
@@ -71,7 +71,7 @@ class TestMySQLFetch:
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
             TypeError,
-            match=f"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got {cursor_type}",
+            match=rf"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got {cursor_type}",
         ):
             task.run(query="SELECT * FROM some_table", cursor_type=cursor_type)
 
@@ -79,7 +79,7 @@ class TestMySQLFetch:
         task = MySQLFetch(db_name="test", user="test", password="test", host="test")
         with pytest.raises(
             TypeError,
-            match=f"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got \['cursor'\]",
+            match=rf"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got \['cursor'\]",
         ):
             task.run(query="SELECT * FROM some_table", cursor_type=["cursor"])
 
