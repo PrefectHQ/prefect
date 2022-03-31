@@ -114,12 +114,19 @@
 </template>
 
 <script lang="ts" setup>
-  import type { UnionFilters, FlowRunsHistoryFilter, DeploymentsFilter } from '@prefecthq/orion-design'
-  import { Filter, useFiltersStore, hasFilter } from '@prefecthq/orion-design'
-  import { RouterTabSet } from '@prefecthq/orion-design/components'
-  import { StateType } from '@prefecthq/orion-design/models'
-  import { FiltersQueryService, FilterUrlService, flowRunsApi } from '@prefecthq/orion-design/services'
-  import { toPluralString } from '@prefecthq/orion-design/utilities'
+  import {
+    useFiltersStore,
+    RouterTabSet,
+    StateType,
+    FiltersQueryService,
+    FilterUrlService,
+    flowRunsApi,
+    toPluralString,
+    UnionFilters,
+    FlowRunsHistoryFilter,
+    DeploymentsFilter,
+    ButtonCard
+  } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions/src'
   import { computed, ref, ComputedRef } from 'vue'
   import { useRouter } from 'vue-router'
@@ -139,7 +146,7 @@
     },
   ])
 
-  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expectedStartTime)
+  const historyStart = computed(() => firstFlowRunSubscription.response?.[0]?.expectedStartTime)
 
   const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
     {
@@ -148,7 +155,7 @@
     },
   ])
 
-  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expectedStartTime)
+  const historyEnd = computed(() => lastFlowRunSubscription.response?.[0]?.expectedStartTime)
 
   const filter = computed<UnionFilters>(() => {
     return FiltersQueryService.query(filtersStore.all)

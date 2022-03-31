@@ -94,9 +94,12 @@ class MarkLateRuns(LoopService):
                 db.FlowRun.state_id == db.FlowRunState.id,
             )
             .where(
-                # the next scheduled start time is in the past
-                db.FlowRun.next_scheduled_start_time
-                < date_add(now(), self.mark_late_after),
+                # The next scheduled start time is in the past, including the mark late
+                # after buffer
+                (
+                    db.FlowRun.next_scheduled_start_time
+                    <= date_add(now(), -1 * self.mark_late_after)
+                ),
                 db.FlowRunState.type == states.StateType.SCHEDULED,
                 db.FlowRunState.name == "Scheduled",
             )

@@ -91,8 +91,8 @@
 
   const saving = ref(false)
 
-  const loading = computed(() => props.workQueueSubscription.loading.value && props.workQueueSubscription.response.value === undefined)
-  const workQueue = computed(() => props.workQueueSubscription.response.value ?? null)
+  const loading = computed(() => props.workQueueSubscription.loading && props.workQueueSubscription.response === undefined)
+  const workQueue = computed(() => props.workQueueSubscription.response ?? null)
   const concurrencyLimit = computed(() => workQueue.value?.concurrencyLimit ? workQueue.value.concurrencyLimit.toLocaleString() : 'No Limit')
   const createdDate = computed(() => workQueue.value?.created ? workQueue.value.created.toISOString() : null)
 

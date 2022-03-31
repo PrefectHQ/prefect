@@ -124,8 +124,8 @@
     interval: props.running ? 5000 : undefined,
   }
   const subscription = useSubscription(logsApi.getLogs.bind(logsApi), [filter], options)
-  const logs = computed<Log[]>(() => subscription.response.value ?? [])
-  const loading = computed<boolean>(() => subscription.loading.value ?? true)
+  const logs = computed<Log[]>(() => subscription.response ?? [])
+  const loading = computed<boolean>(() => subscription.loading ?? true)
 
   const clearFilters = (): void => {
     levelFilter.value = 0
@@ -164,7 +164,7 @@
   )
 
   watch(
-    () => subscription.response.value,
+    () => subscription.response,
     () => updateScrollPosition(),
   )
 </script>
