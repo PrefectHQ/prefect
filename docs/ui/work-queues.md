@@ -5,7 +5,7 @@ tags:
     - UI
     - deployments
     - flow runs
-    - Cloud
+    - Prefect Cloud
     - work queues
     - agents
     - tags
