@@ -894,13 +894,20 @@ def test_run_logger_fails_outside_context():
         get_run_logger()
 
 
-async def test_run_logger_with_explicit_context(orion_client, flow_run):
+async def test_run_logger_with_explicit_context(
+    orion_client, flow_run, local_storage_block
+):
     @task
     def foo():
         pass
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
-    context = TaskRunContext(task=foo, task_run=task_run, client=orion_client)
+    context = TaskRunContext(
+        task=foo,
+        task_run=task_run,
+        client=orion_client,
+        result_storage=local_storage_block,
+    )
 
     logger = get_run_logger(context)
 
@@ -916,7 +923,7 @@ async def test_run_logger_with_explicit_context(orion_client, flow_run):
 
 
 async def test_run_logger_with_explicit_context_overrides_existing(
-    orion_client, flow_run
+    orion_client, flow_run, local_storage_block
 ):
     @task
     def foo():
@@ -928,7 +935,12 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
     # Use `bar` instead of `foo` in context
-    context = TaskRunContext(task=bar, task_run=task_run, client=orion_client)
+    context = TaskRunContext(
+        task=bar,
+        task_run=task_run,
+        client=orion_client,
+        result_storage=local_storage_block,
+    )
 
     logger = get_run_logger(context)
     assert logger.extra["task_name"] == bar.name
