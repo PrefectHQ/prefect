@@ -1317,7 +1317,17 @@ class TestDockerFlowRunner:
         import docker.client
         import docker.errors
 
-        client = docker.client.from_env()
+        with warnings.catch_warnings():
+            # Silence warnings due to use of deprecated methods within dockerpy
+            # See https://github.com/docker/docker-py/pull/2931
+            warnings.filterwarnings(
+                "ignore",
+                message="distutils Version classes are deprecated.*",
+                category=DeprecationWarning,
+            )
+
+            client = docker.client.from_env()
+
         tag = get_prefect_image_name()
         build_cmd = f"`docker build {prefect.__root_path__} -t {tag!r}`"
 
@@ -1342,6 +1352,8 @@ class TestDockerFlowRunner:
                 "have intentionally not built a new test image. Rebuild the image "
                 "with " + build_cmd
             )
+
+        client.close()
 
 
 class TestKubernetesFlowRunner:
