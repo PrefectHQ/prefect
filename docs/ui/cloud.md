@@ -3,7 +3,7 @@ description: Learn about using Prefect Cloud, including account creation and run
 tags:
     - UI
     - dashboard
-    - Cloud
+    - Prefect Cloud
     - accounts
     - teams
     - workspaces
