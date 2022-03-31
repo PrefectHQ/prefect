@@ -1,10 +1,10 @@
-import Subscription from '@prefecthq/vue-compositions/src/subscribe/subscription'
+import { UseSubscription } from '@prefecthq/vue-compositions/src/subscribe/types'
 import { InjectionKey } from 'vue'
 import { WorkQueuesApi } from '@/services/WorkQueuesApi'
 
 
-export type WorkQueueSubscription = Subscription<WorkQueuesApi['getWorkQueue']>
-export type WorkQueuesListSubscription = Subscription<WorkQueuesApi['getWorkQueues']>
+export type WorkQueueSubscription = UseSubscription<WorkQueuesApi['getWorkQueue']>
+export type WorkQueuesListSubscription = UseSubscription<WorkQueuesApi['getWorkQueues']>
 
 
 export const workQueueSubscriptionKey: InjectionKey<WorkQueueSubscription> = Symbol()

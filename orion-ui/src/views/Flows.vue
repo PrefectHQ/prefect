@@ -75,6 +75,10 @@
   const empty = computed(() => countFlowsSubscription.response.value === 0)
   const loading = computed(() => countFlowsSubscription.response.value === undefined)
 
+  const flows = computed(() => flowsSubscription.response ?? [])
+  const empty = computed(() => countFlowsSubscription.response === 0)
+  const loading = computed(() => countFlowsSubscription.response === undefined || flowsSubscription.response === undefined)
+  
   function loadMoreFlows(): void {
     flowsSubscription.loadMore()
   }
