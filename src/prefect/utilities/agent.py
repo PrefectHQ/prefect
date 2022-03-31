@@ -1,4 +1,4 @@
-from distutils.version import LooseVersion
+from packaging.version import parse
 
 from prefect.utilities.graphql import GraphQLResult
 
@@ -65,7 +65,7 @@ def get_flow_run_command(flow_run: GraphQLResult) -> str:
     """
     core_version = getattr(flow_run.flow, "core_version", None) or "0.0.0"
 
-    if LooseVersion(core_version) < LooseVersion("0.13.0"):
+    if parse(core_version) < parse("0.13.0"):
         return "prefect execute cloud-flow"
 
     return "prefect execute flow-run"

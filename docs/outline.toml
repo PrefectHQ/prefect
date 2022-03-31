@@ -784,3 +784,9 @@ classes = ["ZendeskTicketsIncrementalExportTask"]
 title = "Neo4j Tasks"
 module = "prefect.tasks.neo4j"
 classes = ["Neo4jRunCypherQueryTask"]
+
+[pages.tasks.Transform]
+title = "Transform Tasks"
+module = "prefect.tasks.transform"
+classes = ["TransformCreateMaterialization"]
+verified_task = true

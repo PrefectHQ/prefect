@@ -1211,6 +1211,19 @@ class Flow:
         Returns:
             - State: the state of the flow after its final run
         """
+        if hasattr(self, "_ctx"):
+            raise RuntimeError(
+                "Don't call `flow.run()` from within a `Flow` context manager.\n\n"
+                "Do:\n\n"
+                "  with Flow(...) as flow:\n"
+                "      ...\n"
+                "  flow.run(...)\n\n"
+                "Don't:\n\n"
+                "  with Flow(...) as flow:\n"
+                "      ...\n"
+                "      flow.run(...)"
+            )
+
         if prefect.context.get("loading_flow", False):
             warnings.warn(
                 "Attempting to call `flow.run` during execution of flow file will lead to "
