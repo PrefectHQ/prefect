@@ -1,5 +1,5 @@
 ---
-description: Using filters to customize the display of flows and tasks.
+description: Use filters to customize the display of flows and tasks in the Prefect UI.
 tags:
     - Orion
     - UI
