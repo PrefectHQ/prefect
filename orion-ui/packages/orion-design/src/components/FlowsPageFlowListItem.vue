@@ -76,10 +76,10 @@
   }))
 
   const recentFlowRunsCountSubscription = useSubscription(injectedServices.getFlowRunsCount, [recentFlowRunsCountFilter])
-  const recentFlowRunsCount = computed(() => recentFlowRunsCountSubscription.response.value ?? 0)
+  const recentFlowRunsCount = computed(() => recentFlowRunsCountSubscription.response ?? 0)
 
   const deploymentsCountSubscription = useSubscription(injectedServices.getDeploymentsCount, [countFilter])
-  const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
+  const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
 
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
@@ -113,11 +113,6 @@
 
   @media only screen and (min-width: map.get($breakpoints, 'xs')) {
     grid-template-columns: 1fr 130px;
-    grid-template-areas: 'name    recent'
-                         'details details';
-  }
-
-  @media only screen and (min-width: map.get($breakpoints, 'sm')) {
     grid-template-areas: 'name    recent'
                          'details recent';
   }
