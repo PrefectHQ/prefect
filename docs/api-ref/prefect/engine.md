@@ -1,5 +1,5 @@
 ---
-description: Python API for client-side execution and orchestration of flows and tasks.
+description: Prefect Python API for client-side execution and orchestration of flows and tasks.
 tags:
     - Python API
     - flow runs

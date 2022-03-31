@@ -1,5 +1,5 @@
 ---
-description: Python API for Prefect-specific exceptions.
+description: Prefect Python API for Prefect-specific exceptions.
 tags:
     - Python API
     - exceptions

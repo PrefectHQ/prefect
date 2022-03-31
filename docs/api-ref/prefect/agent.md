@@ -1,5 +1,5 @@
 ---
-description: Python API for Prefect agents.
+description: Prefect Python API for agents.
 tags:
     - Python API
     - agents
