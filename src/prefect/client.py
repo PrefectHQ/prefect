@@ -33,8 +33,8 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks import storage
 from prefect.blocks.core import Block, create_block_from_api_block
+from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -858,6 +858,21 @@ class OrionClient:
                 raise
         return UUID(response.json().get("id"))
 
+    async def read_block_spec_by_name(
+        self, name: str, version: str
+    ) -> schemas.core.BlockSpec:
+        """
+        Look up a block spec by name and version
+        """
+        try:
+            response = await self._client.get(f"block_specs/{name}/versions/{version}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return schemas.core.BlockSpec.parse_obj(response.json())
+
     async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
         """
         Read all block specs with the given type
@@ -1178,8 +1193,7 @@ class OrionClient:
         await self._client.post(f"/blocks/clear_default_storage_block")
 
     async def persist_data(
-        self,
-        data: bytes,
+        self, data: bytes, block: StorageBlock = None
     ) -> DataDocument:
         """
         Persist data in orion and return the orion data document
@@ -1190,13 +1204,13 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-        block = await self.get_default_storage_block()
+        block = block or await self.get_default_storage_block()
         if not block:
-            warnings.warn(
-                "No default storage has been set on the server. "
-                "Using temporary local storage for results."
+            raise ValueError(
+                "No storage block was provided and no default storage block is set "
+                "on the server. Set a default or provide a block to use."
             )
-            block = storage.TempStorageBlock()
+
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
@@ -1223,11 +1237,11 @@ class OrionClient:
         if block_id is not None:
             storage_block = await self.read_block(block_id)
         else:
-            storage_block = storage.TempStorageBlock()
+            storage_block = TempStorageBlock()
         return await storage_block.read(embedded_datadoc)
 
     async def persist_object(
-        self, obj: Any, encoder: str = "cloudpickle"
+        self, obj: Any, encoder: str = "cloudpickle", storage_block: StorageBlock = None
     ) -> DataDocument:
         """
         Persist an object in orion and return the orion data document
@@ -1240,7 +1254,7 @@ class OrionClient:
             Data document pointing to persisted data.
         """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
-        return await self.persist_data(datadoc.json().encode())
+        return await self.persist_data(datadoc.json().encode(), block=storage_block)
 
     async def retrieve_object(self, storage_datadoc: DataDocument) -> Any:
         """
@@ -1260,7 +1274,7 @@ class OrionClient:
         flow_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
-        orion_doc: schemas.data.DataDocument = None,
+        backend_state_data: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a flow run.
@@ -1270,7 +1284,7 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            orion_doc: an optional orion data document representing the state's data,
+            backend_state_data: an optional data document representing the state's data,
                 if provided it will override `state.data`
 
         Returns:
@@ -1281,7 +1295,7 @@ class OrionClient:
             type=state.type,
             name=state.name,
             message=state.message,
-            data=orion_doc or state.data,
+            data=backend_state_data or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.flow_run_id = flow_run_id
@@ -1442,6 +1456,7 @@ class OrionClient:
     async def propose_state(
         self,
         state: schemas.states.State,
+        backend_state_data: DataDocument = None,
         task_run_id: UUID = None,
         flow_run_id: UUID = None,
     ) -> schemas.states.State:
@@ -1463,6 +1478,10 @@ class OrionClient:
 
         Args:
             state: a new state for the task or flow run
+            backend_state_data: an optional document to store with the state in the
+                database instead of its local data field. This allows the original
+                state object to be retained while storing a pointer to persisted data
+                in the database.
             task_run_id: an optional task run id, used when proposing task run states
             flow_run_id: an optional flow run id, used when proposing flow run states
 
@@ -1480,20 +1499,14 @@ class OrionClient:
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
-        orion_doc = None
-        # Exchange the user data document for an orion data document
-        if state.data:
-            # persist data reference in Orion
-            orion_doc = await self.persist_data(state.data.json().encode())
-
         # Attempt to set the state
         if task_run_id:
             response = await self.set_task_run_state(
-                task_run_id, state, orion_doc=orion_doc
+                task_run_id, state, backend_state_data=backend_state_data
             )
         elif flow_run_id:
             response = await self.set_flow_run_state(
-                flow_run_id, state, orion_doc=orion_doc
+                flow_run_id, state, backend_state_data=backend_state_data
             )
         else:
             raise ValueError(
@@ -1518,7 +1531,10 @@ class OrionClient:
             )
             await anyio.sleep(response.details.delay_seconds)
             return await self.propose_state(
-                state, task_run_id=task_run_id, flow_run_id=flow_run_id
+                state,
+                task_run_id=task_run_id,
+                flow_run_id=flow_run_id,
+                backend_state_data=backend_state_data,
             )
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
@@ -1542,7 +1558,7 @@ class OrionClient:
         task_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
-        orion_doc: schemas.data.DataDocument = None,
+        backend_state_data: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         """
         Set the state of a task run.
@@ -1552,7 +1568,7 @@ class OrionClient:
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Orion API to accept the state
-            orion_doc: an optional orion data document representing the state's data,
+            backend_state_data: an optional orion data document representing the state's data,
                 if provided it will override `state.data`
 
         Returns:
@@ -1563,7 +1579,7 @@ class OrionClient:
             name=state.name,
             type=state.type,
             message=state.message,
-            data=orion_doc or state.data,
+            data=backend_state_data or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.task_run_id = task_run_id

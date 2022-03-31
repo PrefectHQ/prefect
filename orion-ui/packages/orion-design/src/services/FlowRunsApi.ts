@@ -4,59 +4,14 @@ import { InjectionKey } from 'vue'
 import { FlowRun } from '@/models/FlowRun'
 import { FlowRunGraph } from '@/models/FlowRunGraph'
 import { IFlowRunGraphResponse } from '@/models/IFlowRunGraphResponse'
-import { IFlowRunnerResponse } from '@/models/IFlowRunnerResponse'
+import { IFlowRunHistoryResponse } from '@/models/IFlowRunHistoryResponse'
+import { IFlowRunResponse } from '@/models/IFlowRunResponse'
+import { IStateHistoryResponse } from '@/models/IStateHistoryResponse'
 import { RunHistory } from '@/models/RunHistory'
 import { StateHistory } from '@/models/StateHistory'
-import { StateType } from '@/models/StateType'
 import { Api, Route } from '@/services/Api'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
-import { IStateResponse, statesApi } from '@/services/StatesApi'
-import { DateString } from '@/types/dates'
-import { State, StateName } from '@/types/states'
-
-export type IFlowRunResponse = {
-  id: string,
-  created: DateString,
-  updated: DateString,
-  name: string | null,
-  flow_id: string,
-  state_id: string | null,
-  deployment_id: string | null,
-  flow_version: string | null,
-  parameters: unknown,
-  idempotency_key: string | null,
-  context: unknown,
-  empirical_policy: unknown,
-  empirical_config: unknown,
-  tags: string[] | null,
-  parent_task_run_id: string | null,
-  state_type: StateType | null,
-  run_count: number | null,
-  expected_start_time: DateString | null,
-  next_scheduled_start_time: DateString | null,
-  start_time: DateString | null,
-  end_time: DateString | null,
-  total_run_time: number | null,
-  estimated_run_time: number | null,
-  estimated_start_time_delta: number | null,
-  auto_scheduled: boolean | null,
-  flow_runner: IFlowRunnerResponse | null,
-  state: IStateResponse | null,
-}
-
-export type IStateHistoryResponse = {
-  state_type: State,
-  state_name: StateName,
-  count_runs: number,
-  sum_estimated_run_time: number,
-  sum_estimated_lateness: number,
-}
-
-export type IFlowRunHistoryResponse = {
-  interval_start: Date,
-  interval_end: Date,
-  states: IStateHistoryResponse[],
-}
+import { statesApi } from '@/services/StatesApi'
 
 export class FlowRunsApi extends Api {
 

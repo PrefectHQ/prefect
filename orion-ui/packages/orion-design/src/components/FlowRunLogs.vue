@@ -68,7 +68,6 @@
   justify-content: center;
   position: sticky;
   top: 0;
-  margin: 0 var(--m-2);
   background: #fff;
 
   &:after {
