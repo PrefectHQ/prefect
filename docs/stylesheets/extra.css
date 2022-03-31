@@ -2,6 +2,10 @@
 
 /* Code block background and highlight */
 :root > * {
+    /* theme */ 
+    --md-primary-fg-color: #115AF4;
+    --md-primary-fg-color--light: #115AF4;
+    --md-primary-fg-color--dark:  #115AF4;   
     /* code blocks */
     --md-code-hl-color: #eeeeee;
     --md-code-bg-color: #f3f3f3;

@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.65",
+    "version": "0.1.66",
     "private": false,
     "keywords": [
         "prefect",
@@ -57,13 +57,13 @@
     ],
     "types": "./dist/index.d.ts",
     "dependencies": {
-        "@prefecthq/vue-compositions": "0.1.18",
         "axios": "^0.24.0",
         "core-js": "^3.6.5",
         "d3": "^7.0.0"
     },
     "devDependencies": {
         "@prefecthq/eslint-config": "1.0.14",
+        "@prefecthq/vue-compositions": "0.1.20",
         "@types/d3": "^7.0.0",
         "@types/expect-puppeteer": "^4.4.7",
         "@types/jest": "^27.4.0",

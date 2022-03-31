@@ -13,6 +13,8 @@
       <DetailsKeyValue label="Created Date" :value="formatDateTimeNumericInTimeZone(deployment.created)" stacked />
       <DetailsKeyValue label="Schedule" :value="schedule" stacked />
       <DetailsKeyValue label="Flow storage type" :value="deployment.flowData.encoding" stacked />
+      <DetailsKeyValue label="Storage Details" :value="blob.data" stacked />
+      <DetailsKeyValue label="Block ID" :value="blob.block_id" stacked />
       <DetailsKeyValue label="Flow runner" :value="deployment.flowRunner?.type" stacked />
       <DetailsKeyValue label="Tags" stacked>
         <m-tags :tags="deployment.tags" />
@@ -63,7 +65,10 @@
     value: props.deployment.name,
   }))
 
-const saving = ref(false)
+  const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
+
+
+  const saving = ref(false)
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
