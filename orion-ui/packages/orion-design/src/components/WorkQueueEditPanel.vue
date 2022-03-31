@@ -2,7 +2,7 @@
   <m-panel class="work-queue-edit-panel">
     <template #title>
       <i class="pi pi-robot-line pi-1x" />
-      <span class="ml-1">New Work Queue</span>
+      <span class="ml-1">Edit Work Queue</span>
     </template>
 
     <m-loader :loading="saving" class="work-queue-edit-panel__loader" />

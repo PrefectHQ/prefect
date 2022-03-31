@@ -68,7 +68,7 @@
   const filtersStore = useFiltersStore()
   const getSearches = inject(getSearchesKey, searchApi.getSearches)
   const searchesSubscription = useSubscription(getSearches)
-  const savedSearches = computed(() => searchesSubscription.response.value ?? [])
+  const savedSearches = computed(() => searchesSubscription.response ?? [])
 
   const usingSavedSearch = computed(() => {
     const stringFilters = FilterService.stringify(filtersStore.all)
