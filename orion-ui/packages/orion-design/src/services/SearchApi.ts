@@ -27,4 +27,4 @@ export class SearchApi extends Api {
   }
 }
 
-export const searchApiKey: InjectionKey<SearchApi> = Symbol()
+export const searchApiKey: InjectionKey<SearchApi> = Symbol('searchApiKey')

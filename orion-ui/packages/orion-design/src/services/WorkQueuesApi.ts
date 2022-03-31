@@ -71,4 +71,4 @@ export class WorkQueuesApi extends Api {
 
 }
 
-export const workQueuesApiKey: InjectionKey<WorkQueuesApi> = Symbol()
+export const workQueuesApiKey: InjectionKey<WorkQueuesApi> = Symbol('workQueuesApiKey')
