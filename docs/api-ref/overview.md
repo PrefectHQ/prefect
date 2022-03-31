@@ -2,7 +2,7 @@
 description: Prefect APIs enable you to interact programmatically with flows, deployments, the Orion API, and Prefect Cloud.
 tags:
     - API
-    - Orion
+    - Orion API
     - Prefect Cloud
     - REST API
     - development

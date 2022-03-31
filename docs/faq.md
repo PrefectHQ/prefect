@@ -1,7 +1,8 @@
 ---
 description: Answers to frequently asked questions about Prefect 2.0.
 tags:
-    - faq
+    - FAQ
+    - questions
     - license
     - Orion
     - databases
