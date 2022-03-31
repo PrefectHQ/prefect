@@ -43,16 +43,6 @@
 
     <div v-if="media.sm" class="ml-auto d-flex align-middle nowrap">
       <m-toggle v-if="false" v-model="scheduleActive" />
-
-      <m-button
-        outlined
-        height="36px"
-        width="160px"
-        class="mr-1 text--grey-80"
-        @click="parametersDrawerActive = true"
-      >
-        View Parameters
-      </m-button>
       <m-button
         outlined
         miter
