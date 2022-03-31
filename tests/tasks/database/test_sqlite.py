@@ -46,6 +46,9 @@ class TestSQLiteScript:
 
 
 def test_sqlite_create_insert_select():
+    """
+    Tests both SQLiteQuery and SQLiteScript
+    """
     script = """
         CREATE TABLE IF NOT EXISTS book(
             title,
