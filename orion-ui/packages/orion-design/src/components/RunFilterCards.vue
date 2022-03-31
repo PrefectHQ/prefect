@@ -18,7 +18,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import ButtonCard from '@/components/ButtonCard.vue'
   import { useFilterQuery } from '@/compositions/useFilterQuery'
@@ -27,6 +27,7 @@
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { flowRunsApiKey } from '@/services/FlowRunsApi'
   import { States } from '@/types/states'
+  import { inject } from '@/utilities/inject'
 
 
   type PreMadeFilter = {
@@ -75,7 +76,7 @@
     },
   }))
 
-  const flowRunsApi = inject(flowRunsApiKey)!
+  const flowRunsApi = inject(flowRunsApiKey)
   const failedFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [failedFlowRunsFilter])
   const lateFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [lateFlowRunsFilter])
   const scheduledFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [scheduledFlowRunsFilter])

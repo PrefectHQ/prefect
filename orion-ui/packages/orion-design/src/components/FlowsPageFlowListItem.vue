@@ -19,7 +19,7 @@
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { subWeeks, startOfToday } from 'date-fns'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DeploymentPanel from '@/components/DeploymentPanel.vue'
   import FilterCountButton from '@/components/FilterCountButton.vue'
@@ -33,12 +33,13 @@
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApiKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
 
   const props = defineProps<{ flow: Flow }>()
 
-  const route = inject(workspaceDashboardKey)!
+  const route = inject(workspaceDashboardKey)
 
   const crumbs: Crumb[] = [{ text: props.flow.name, action: openFlowPanel }]
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
@@ -75,8 +76,8 @@
     },
   }))
 
-  const flowRunsApi = inject(flowRunsApiKey)!
-  const deploymentsApi = inject(deploymentsApiKey)!
+  const flowRunsApi = inject(flowRunsApiKey)
+  const deploymentsApi = inject(deploymentsApiKey)
   const recentFlowRunsCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [recentFlowRunsCountFilter])
   const recentFlowRunsCount = computed(() => recentFlowRunsCountSubscription.response ?? 0)
 
