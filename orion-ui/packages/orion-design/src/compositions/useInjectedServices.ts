@@ -2,7 +2,7 @@ import { inject } from 'vue'
 import { createDeploymentFlowRunKey, DeploymentsApi, deploymentsApi, getDeploymentsCountKey, getDeploymentsKey, deleteDeploymentKey } from '@/services/DeploymentsApi'
 import { FlowRunsApi, flowRunsApi, getFlowRunsCountKey } from '@/services/FlowRunsApi'
 import { workQueuesApi, getWorkQueueKey, pauseWorkQueueKey, resumeWorkQueueKey, createWorkQueueKey, updateWorkQueueKey, deleteWorkQueueKey, WorkQueuesApi } from '@/services/WorkQueuesApi'
-import { WorkQueuesListSubscription, workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
+import { WorkQueuesListSubscription, workQueuesListSubscriptionKey, flowsListSubscriptionKey, FlowsListSubscription, DeploymentsListSubscription, deploymentsListSubscriptionKey } from '@/utilities/subscriptions'
 
 
 export type InjectedServices = {
@@ -17,8 +17,9 @@ export type InjectedServices = {
   getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
   createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
   getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
-  deleteDeployment: DeploymentsApi['deleteDeployment']
-
+  deleteDeployment: DeploymentsApi['deleteDeployment'],
+  flowsListSubscription: FlowsListSubscription,
+  deploymentsListSubscription: DeploymentsListSubscription,
 }
 
 export function useInjectedServices(): InjectedServices {
@@ -34,6 +35,8 @@ export function useInjectedServices(): InjectedServices {
   const getDeploymentsCount = inject(getDeploymentsCountKey, deploymentsApi.getDeploymentsCount)
   const createDeploymentFlowRun = inject(createDeploymentFlowRunKey, deploymentsApi.createDeploymentFlowRun)
   const getFlowRunsCount = inject(getFlowRunsCountKey, flowRunsApi.getFlowRunsCount)
+  const flowsListSubscription = inject(flowsListSubscriptionKey, null)!
+  const deploymentsListSubscription = inject(deploymentsListSubscriptionKey, null)!
 
   return {
     workQueuesListSubscription,
@@ -48,5 +51,7 @@ export function useInjectedServices(): InjectedServices {
     getDeploymentsCount,
     createDeploymentFlowRun,
     getFlowRunsCount,
+    flowsListSubscription,
+    deploymentsListSubscription,
   }
 }
