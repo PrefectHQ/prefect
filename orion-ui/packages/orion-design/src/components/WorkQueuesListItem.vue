@@ -21,7 +21,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import ListItem from '@/components/ListItem.vue'
@@ -32,6 +32,7 @@
   import { WorkQueue } from '@/models/WorkQueue'
   import { deploymentsApiKey } from '@/services/DeploymentsApi'
   import { workQueuesApiKey } from '@/services/WorkQueuesApi'
+  import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
   import { workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
@@ -40,9 +41,9 @@
   const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
 
-  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)!
-  const deploymentsApi = inject(deploymentsApiKey)!
-  const workQueuesApi = inject(workQueuesApiKey)!
+  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)
+  const deploymentsApi = inject(deploymentsApiKey)
+  const workQueuesApi = inject(workQueuesApiKey)
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
     const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueue.id])
