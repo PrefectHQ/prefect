@@ -431,7 +431,7 @@ class TestTaskRunnerParallelism:
             sleep_time += 1.5
         elif isinstance(runner, ConcurrentTaskRunner):
             # Account for thread overhead
-            sleep_time += 0.5
+            sleep_time += 1
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
@@ -469,12 +469,12 @@ class TestTaskRunnerParallelism:
 
     @parameterize_with_parallel_task_runners
     def test_sync_tasks_run_concurrently_with_parallel_task_runners(
-        self, task_runner, tmp_file
+        self, task_runner, tmp_file, tmp_path
     ):
         @task
         def foo():
-            # This test is prone to flaking
-            time.sleep(self.get_sleep_time(task_runner) + 1)
+            time.sleep(self.get_sleep_time(task_runner))
+            tmp_path.write_text("perform an IO operation")
             tmp_file.write_text("foo")
 
         @task
