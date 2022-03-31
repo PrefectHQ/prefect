@@ -473,8 +473,10 @@ class TestTaskRunnerParallelism:
     ):
         @task
         def foo():
+            # Sleeping should yield to other threads
             time.sleep(self.get_sleep_time(task_runner))
-            tmp_path.write_text("perform an IO operation")
+            # Perform an extra yield in case the bar thread was not ready
+            time.sleep(0)
             tmp_file.write_text("foo")
 
         @task
