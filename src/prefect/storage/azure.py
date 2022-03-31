@@ -175,7 +175,7 @@ class Azure(Storage):
         import azure.storage.blob
 
         connection_string = self.connection_string
-        if connection_string is None or any(
+        if any(
             x in connection_string for x in ["AccountKey=", "SharedAccessSignature="]
         ):
             credential = None
