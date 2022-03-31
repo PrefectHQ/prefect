@@ -470,7 +470,6 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_event is None
 
-
     @pytest.mark.flaky()
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
