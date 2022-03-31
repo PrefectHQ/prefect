@@ -217,7 +217,7 @@ class AirbyteConnectionTask(Task):
                 return job_id, job_created_at
             elif response.status_code == 404:
                 # connection_id not found
-                self.logger.warn(
+                self.logger.warning(
                     f"Connection {connection_id} not found, please double "
                     f"check the connection_id ..."
                 )

@@ -385,7 +385,7 @@ def test_heartbeat_is_daemonic_by_default(monkeypatch):
     monkeypatch.setattr("prefect.utilities.executors.Client", Client)
     stop_event = threading.Event()
     heartbeat = HeartbeatThread(stop_event, "no-flow-run-id")
-    assert heartbeat.isDaemon()
+    assert heartbeat.daemon
 
 
 def test_heartbeat_sends_signals_to_client(monkeypatch):
