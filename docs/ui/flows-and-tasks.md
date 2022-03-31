@@ -8,7 +8,7 @@ tags:
     - flow runs
     - deployments
     - logging
-    - Cloud
+    - Prefect Cloud
 ---
 
 # Flows and Tasks

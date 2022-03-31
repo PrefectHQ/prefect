@@ -1,5 +1,5 @@
 ---
-description: Learn how to configure and use flow runners, which responsible for creating and monitoring infrastructure for flow runs associated with deployments.
+description: Prefect flow runners are responsible for creating and monitoring the infrastructure for flow runs associated with deployments.
 tags:
     - orchestration
     - flow runners

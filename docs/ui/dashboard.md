@@ -4,7 +4,7 @@ tags:
     - Orion
     - UI
     - dashboard
-    - Cloud
+    - Prefect Cloud
 ---
 
 # Dashboard
