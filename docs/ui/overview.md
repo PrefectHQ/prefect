@@ -1,5 +1,5 @@
 ---
-description: Accessing and configuring the Prefect Orion UI.
+description: Learn how to access and configure the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI

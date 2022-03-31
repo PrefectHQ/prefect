@@ -1,5 +1,5 @@
 ---
-description: An overview of the Prefect Orion UI dashboard.
+description: Learn about the Prefect 2.0 and Prefect Cloud UI and dashboard.
 tags:
     - Orion
     - UI
