@@ -1,3 +1,13 @@
+---
+description: Prefect Collections provide pre-built tasks and flows that help you build workflows quickly.
+tags:
+    - tasks
+    - flows
+    - collections
+    - task library
+    - contributing
+---
+
 # Prefect Collections
 
 Prefect Collections are groupings of pre-built tasks and flows used to quickly build data flows with Prefect. 
