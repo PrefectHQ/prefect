@@ -1,5 +1,5 @@
 ---
-description: Python API defining the base workflow class and decorator.
+description: Prefect Python API defining the base workflow class and decorator.
 tags:
     - Python API
     - flows

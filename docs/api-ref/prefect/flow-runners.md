@@ -1,5 +1,5 @@
 ---
-description: Python API for Prefect flow runners.
+description: Prefect Python API for flow runners.
 tags:
     - Python API
     - flow runners

@@ -1,5 +1,5 @@
 ---
-description: Python API for Prefect task runners.
+description: Prefect Python API for task runners.
 tags:
     - Python API
     - tasks

@@ -1,5 +1,5 @@
 ---
-description: Python API for configuring and managing settings.
+description: Prefect Python API for configuring and managing settings.
 tags:
     - Python API
     - settings

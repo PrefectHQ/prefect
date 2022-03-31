@@ -1,5 +1,5 @@
 ---
-description: Python API for JSON and cloudpickle serializers.
+description: Prefect Python API for JSON and cloudpickle serializers.
 tags:
     - Python API
     - serializers
