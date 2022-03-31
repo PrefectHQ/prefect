@@ -539,4 +539,3 @@ class GCSBlobExists(GCSBaseTask):
         if fail_if_not_found and not blob_exists:
             raise FAIL(message="Blob not found")
         return blob_exists
-
