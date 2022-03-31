@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
   import FiltersMenu from '@/components/FiltersMenu.vue'
   import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
   import FiltersSearch  from '@/components/FiltersSearch.vue'
@@ -52,6 +52,7 @@
   import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { isSame } from '@/utilities/arrays'
+  import { inject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'

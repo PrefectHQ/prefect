@@ -9,11 +9,12 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import StateTypeIcon from '@/components/StateTypeIcon.vue'
   import { taskRunsApiKey } from '@/services/TaskRunsApi'
+  import { inject } from '@/utilities/inject'
 
-  const taskRunsApi = inject(taskRunsApiKey)!
+  const taskRunsApi = inject(taskRunsApiKey)
 
   const props = defineProps({
     taskId: {
