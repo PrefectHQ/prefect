@@ -468,7 +468,7 @@ def test_k8s_agent_manage_jobs_handles_missing_flow_runs(
     agent.heartbeat()
 
     assert (
-        f"Job {job_mock.name!r} is for flow run 'fr' which does not exist. It will be ignored."
+        "Job 'my_job' is for flow run 'fr' which does not exist. It will be ignored."
         in caplog.messages
     )
 
