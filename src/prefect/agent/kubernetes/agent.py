@@ -190,7 +190,7 @@ class KubernetesAgent(Agent):
                         flow_run_state = self.client.get_flow_run_state(flow_run_id)
                     except ObjectNotFoundError:
                         self.logger.warning(
-                            f"Job {job.name!r} is for flow run {flow_run_id!r} "
+                            f"Job {job.metadata.name!r} is for flow run {flow_run_id!r} "
                             "which does not exist. It will be ignored."
                         )
                         continue

@@ -122,6 +122,8 @@ class DateTimeParameter(Parameter):
 
     Args:
         - name (str): the Parameter name.
+        - default (any, optional): A default value for the parameter. Must be a JSON-Serializable type,
+            and must be parseable by pendulum.
         - required (bool, optional): If True, the Parameter is required. Otherwise, it
             is optional and will return `None` if no value is provided.
         - tags ([str], optional): A list of tags for this parameter
@@ -130,10 +132,10 @@ class DateTimeParameter(Parameter):
     def __init__(
         self,
         name: str,
+        default: JSONSerializableParameterValue = no_default,
         required: bool = True,
         tags: Iterable[str] = None,
     ) -> None:
-        default = no_default if required else None
         super().__init__(name=name, default=default, required=required, tags=tags)
         self.result = PrefectResult(serializer=DateTimeSerializer())
 
