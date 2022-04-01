@@ -154,7 +154,7 @@ class TestCreateTask:
 
     def test_create_task_with_retry_on(self):
         t1 = Task()
-        assert t1.retry_on is None
+        assert t1.retry_on == set([])
 
         with pytest.raises(ValueError, match=" `max_retries` must be provided"):
             Task(retry_on={RuntimeError})
