@@ -1,6 +1,5 @@
 import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import DeploymentListItem from '@/components/Global/DeploymentListItem/DeploymentListItem.vue'
-import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import FlowListItem from '@/components/Global/FlowListItem/FlowListItem.vue'
 import FlowRunListItem from '@/components/Global/FlowRunListItem/FlowRunListItem.vue'
 import List from '@/components/Global/List/List.vue'
@@ -16,7 +15,6 @@ declare module 'vue' {
     Row: typeof Row,
     ButtonCard: typeof ButtonCard,
     RoundedButton: typeof RoundedButton,
-    Drawer: typeof Drawer,
     List: typeof List,
     ListItem: typeof ListItem,
     DeploymentListItem: typeof DeploymentListItem,
