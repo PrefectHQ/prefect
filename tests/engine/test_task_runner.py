@@ -205,7 +205,7 @@ def test_task_that_fails_retries_if_a_retry_on_type():
 
 
 def test_task_that_fails_retries_if_a_retry_on_non_iterable_type():
-    err_task = ErrorTask(retry_on={IOError}, max_retries=2, retry_delay=timedelta(0))
+    err_task = ErrorTask(retry_on=ValueError, max_retries=2, retry_delay=timedelta(0))
     task_runner = TaskRunner(task=err_task)
 
     state = task_runner.run()
