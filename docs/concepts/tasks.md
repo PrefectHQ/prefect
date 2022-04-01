@@ -202,6 +202,8 @@ def cached_task():
     return 42
 ```
 
+See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
+
 ## Using results from tasks
 
 By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
