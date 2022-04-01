@@ -85,8 +85,7 @@
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
     openWorkQueueEditPanel: (workQueue: WorkQueue) => void,
-    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
-    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
+    workQueuesApi: WorkQueuesApi,
   }>()
 
   const saving = ref(false)
@@ -98,7 +97,7 @@
 
   async function pause(): Promise<void> {
     saving.value = true
-    await props.pauseWorkQueue(props.workQueueId)
+    await props.workQueuesApi.pauseWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()
@@ -108,7 +107,7 @@
 
   async function resume(): Promise<void> {
     saving.value = true
-    await props.resumeWorkQueue(props.workQueueId)
+    await props.workQueuesApi.resumeWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()
