@@ -2,7 +2,7 @@
 import { Constructor, Api, ApiServer } from '@prefecthq/orion-design'
 import { ApiSettings } from '../services/apiSettings'
 
-const defaultApiUrl = 'http://127.0.0.1/api'
+const defaultApiUrl = 'http://127.0.0.1:4200/api'
 
 export function ApiRoute<T extends Constructor<Api>>(Base: T): T {
   return class ApiRoute extends Base {
