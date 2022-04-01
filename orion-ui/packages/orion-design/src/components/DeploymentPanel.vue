@@ -47,10 +47,14 @@
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
   import { exitPanel } from '@/utilities/panels'
   import { secondsToString } from '@/utilities/seconds'
+  import { FlowsListSubscription, DeploymentsListSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
+
 
   const props = defineProps<{
     deployment: Deployment,
+    flowsListSubscription?: FlowsListSubscription,
+    deploymentsListSubscription?: DeploymentsListSubscription,
     deploymentsApi: DeploymentsApi,
     flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
@@ -67,7 +71,7 @@
 
   const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
   const saving = ref(false)
-  
+
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
@@ -92,6 +96,13 @@
       saving.value = true
       await props.deploymentsApi.deleteDeployment(props.deployment.id)
       showToast('Deleted Deployment', 'success')
+
+      if (props.flowsListSubscription) {
+        props.flowsListSubscription.refresh()
+      }
+      if (props.deploymentsListSubscription) {
+        props.deploymentsListSubscription.refresh()
+      }
       exitPanel()
     } catch (err) {
       console.warn('error deleting deployment', err)
