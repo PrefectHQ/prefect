@@ -8,7 +8,7 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vue-tsc --watch & tsc-alias --watch & vite build --watch",
+        "dev": "vue-tsc -w & tsc-alias -w & vite build -w",
         "build": "vue-tsc && tsc-alias && vite build",
         "lint:fix": "eslint src --fix --debug"
     },
