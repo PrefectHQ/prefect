@@ -18,6 +18,7 @@ from typing import (
     Optional,
     Union,
     Tuple,
+    Type,
 )
 from collections import defaultdict
 
@@ -315,6 +316,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
+        retry_on: Iterable[Type[Exception]] = None,
         timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
@@ -368,6 +370,28 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
             )
+        if retry_on and not max_retries > 0:
+            raise ValueError(
+                "A numer of `max_retries` must be provided if `retry_on` is set."
+            )
+        if retry_on:
+            try:
+                retry_on = set(retry_on)
+            except TypeError as exc:
+                raise TypeError(
+                    "Unexpected type for `retry_on`. "
+                    "Expected an iterable of exception types."
+                ) from exc
+            for v in retry_on:
+                if not isinstance(v, type):
+                    raise TypeError(
+                        f"Invalid `retry_on` value {v!r}. "
+                        f"Expected an exception type but got an instance of {type(v).__name__}"
+                    )
+                if not issubclass(v, Exception):
+                    raise TypeError(
+                        "Invalid `retry_on` value {v!r}. Expected an exception subclass."
+                    )
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
             raise ValueError(
@@ -390,6 +414,7 @@ class Task(metaclass=TaskMetaclass):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
+        self.retry_on = retry_on
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.skip_on_upstream_skip = skip_on_upstream_skip
