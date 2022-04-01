@@ -73,7 +73,7 @@ extras = {
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
     "jira": ["jira >= 2.0.0"],
-    "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7"],
+    "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7", "ipykernel >= 6.9.2"],
     "kafka": ["confluent-kafka >= 1.7.0"],
     "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
