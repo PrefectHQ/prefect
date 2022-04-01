@@ -16,6 +16,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Set,
     Union,
     Tuple,
     Type,
@@ -319,7 +320,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        retry_on: Union[Type[Exception], Iterable[Type[Exception]]] = None,
+        retry_on: Optional[Union[Type[Exception], Iterable[Type[Exception]]]] = None,
         timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
@@ -377,6 +378,8 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A number of `max_retries` must be provided if `retry_on` is set."
             )
+
+        self.retry_on: Optional[Set[Type[Exception]]]
         if retry_on:
             if not isinstance(retry_on, Iterable):
                 self.retry_on = {retry_on}
@@ -393,7 +396,7 @@ class Task(metaclass=TaskMetaclass):
                         f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
                     )
         else:
-            self.retry_on = set([])
+            self.retry_on = None
 
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
