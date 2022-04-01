@@ -4,8 +4,8 @@
       <VirtualScroller :items="flows" :item-estimate-height="70" @bottom="emit('bottom')">
         <template #default="{ item }">
           <FlowsPageFlowListItem :flow="item">
-            <template #list-item-filters>
-              <slot name="list-filters" />
+            <template #flow-filters>
+              <slot name="flow-filters" />
             </template>
           </FlowsPageFlowListItem>
         </template>
