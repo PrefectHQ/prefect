@@ -19,7 +19,7 @@
       <DetailsKeyValue label="Tags" stacked>
         <m-tags :tags="deployment.tags" />
       </DetailsKeyValue>
-      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
+      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, flowRunsApi }" />
       <DeploymentParametersPanelSection :parameters="deployment.parameters" />
       <DeleteSection label="Deployment" @remove="remove" />
     </div>
@@ -54,9 +54,9 @@
   const props = defineProps<{
     deployment: Deployment,
     flowsListSubscription?: FlowsListSubscription,
-    deploymentsListSubscription?: DeploymentsListSubscription,
-    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
-    deleteDeployment: DeploymentsApi['deleteDeployment'],
+    deploymentsListSubscription?: DeploymentsListSubscription
+    deploymentsApi: DeploymentsApi,
+    flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
   }>()
 
@@ -70,9 +70,8 @@
   }))
 
   const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
-
-
   const saving = ref(false)
+  
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
@@ -95,7 +94,7 @@
   async function remove(): Promise<void> {
     try {
       saving.value = true
-      await props.deleteDeployment(props.deployment.id)
+      await props.deploymentsApi.deleteDeployment(props.deployment.id)
       showToast('Deleted Deployment', 'success')
 
       if (props.flowsListSubscription) {
