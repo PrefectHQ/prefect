@@ -1,3 +1,12 @@
+---
+description: Prefect settings let you customize your workflow environment, including working with remote Prefect servers and Prefect Cloud.
+tags:
+    - configuration
+    - settings
+    - environment variables
+    - profiles
+---
+
 # Settings
 
 Prefect's settings are [well-documented][prefect.settings.Settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
