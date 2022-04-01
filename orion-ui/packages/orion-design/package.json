@@ -8,8 +8,8 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vue-tsc --watch & vite build --watch",
-        "build": "vue-tsc && vite build",
+        "dev": "vue-tsc --watch & tsc-alias --watch & vite build --watch",
+        "build": "vue-tsc && tsc-alias && vite build",
         "lint:fix": "eslint src --fix --debug"
     },
     "main": "./dist/orion-design.umd.js",
