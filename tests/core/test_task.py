@@ -159,9 +159,6 @@ class TestCreateTask:
         with pytest.raises(ValueError, match=" `max_retries` must be provided"):
             Task(retry_on={RuntimeError})
 
-        with pytest.raises(TypeError, match="an iterable of exception types"):
-            Task(retry_on=RuntimeError, max_retries=2, retry_delay=timedelta(seconds=1))
-
         with pytest.raises(
             TypeError, match="exception type but got an instance of str"
         ):
@@ -173,6 +170,13 @@ class TestCreateTask:
             retry_delay=timedelta(seconds=1),
         )
         assert t2.retry_on == {RuntimeError, ValueError}
+
+        t3 = Task(
+            retry_on=IOError,
+            max_retries=2,
+            retry_delay=timedelta(seconds=1),
+        )
+        assert t3.retry_on == {IOError}
 
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):

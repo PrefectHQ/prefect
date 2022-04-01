@@ -319,7 +319,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        retry_on: Iterable[Type[Exception]] = None,
+        retry_on: Union[Type[Exception], Iterable[Type[Exception]]] = None,
         timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
@@ -378,13 +378,8 @@ class Task(metaclass=TaskMetaclass):
                 "A number of `max_retries` must be provided if `retry_on` is set."
             )
         if retry_on:
-            try:
-                retry_on = set(retry_on)
-            except TypeError as exc:
-                raise TypeError(
-                    "Unexpected type for `retry_on`. "
-                    "Expected an iterable of exception types."
-                ) from exc
+            if not isinstance(retry_on, Iterable):
+                retry_on = {retry_on}
             for v in retry_on:
                 if not isinstance(v, type):
                     raise TypeError(
