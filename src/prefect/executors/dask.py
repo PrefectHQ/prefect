@@ -325,7 +325,6 @@ class DaskExecutor(Executor):
 
     def _pre_start_yield(self) -> None:
         from distributed import Event
-        from distributed.deploy.local import LocalCluster
 
         is_inproc = self.client.scheduler.address.startswith("inproc")  # type: ignore
         if (
