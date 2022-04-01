@@ -1,7 +1,7 @@
 <template>
   <StateBucketIntervalBarChart
     title="Lateness"
-    property="sum_estimated_lateness"
+    property="sumEstimatedLateness"
     v-bind="{ filter }"
   >
     <template #popover-header>

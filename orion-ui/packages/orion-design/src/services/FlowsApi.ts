@@ -1,14 +1,13 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { Flow } from '@/models/Flow'
 import { IFlowResponse } from '@/models/IFlowResponse'
-import { Api, Route } from '@/services/Api'
+import { Api, ApiRoute } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 
 export class FlowsApi extends Api {
 
-  protected route: Route = '/flows'
+  protected route: ApiRoute = '/flows'
 
   public getFlow(id: string): Promise<Flow> {
     return this.get<IFlowResponse>(`/${id}`).then(response => this.mapFlowResponse(response))
@@ -42,6 +41,4 @@ export class FlowsApi extends Api {
 
 }
 
-export const flowsApi = createActions(new FlowsApi())
-
-export const getFlowsKey: InjectionKey<FlowsApi['getFlows']> = Symbol()
+export const flowsApiKey: InjectionKey<FlowsApi> = Symbol('flowsApiKey')
