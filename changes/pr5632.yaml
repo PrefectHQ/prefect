@@ -1,0 +1,3 @@
+task:
+  - 'Split out the azureml-sdk dependency from azure into azureml key in setup.py - [#5632](https://github.com/PrefectHQ/prefect/pull/5632)'
+
