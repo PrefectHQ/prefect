@@ -30,24 +30,27 @@
       </DetailsKeyValue>
     </div>
 
-    <div class="mb-2">
-      <DetailsKeyValue label="Tags" stacked>
-        <TagsInput v-model:tags="internalValue.filter.tags" />
-      </DetailsKeyValue>
-    </div>
+    <LabelWrapper label="Filters" class="mt-4 mb-2">
+      <ValidationMessage class="work-queue-form__validation-warning" :errors="filterErrors" />
 
-    <div class="mb-2">
-      <DetailsKeyValue label="Flow Runner Types" stacked>
-        <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" />
-      </DetailsKeyValue>
-    </div>
+      <div class="mb-2">
+        <DetailsKeyValue label="Tags" stacked>
+          <TagsInput v-model:tags="internalValue.filter.tags" />
+        </DetailsKeyValue>
+      </div>
 
-    <div class="mb-2">
-      <DetailsKeyValue label="Select Deployment(s)" stacked>
-        <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
-      </DetailsKeyValue>
-    </div>
+      <div class="mb-2">
+        <DetailsKeyValue label="Flow Runner Types" stacked>
+          <FlowRunnerTypeMultiSelect v-model:selectedFlowRunnerTypes="internalValue.filter.flowRunnerTypes" />
+        </DetailsKeyValue>
+      </div>
 
+      <div class="mb-2">
+        <DetailsKeyValue label="Select Deployment(s)" stacked>
+          <DeploymentsMultiSelect v-model:selectedDeploymentIds="internalValue.filter.deploymentIds" :deployments="deployments" />
+        </DetailsKeyValue>
+      </div>
+    </LabelWrapper>
     <template v-if="internalValue.id">
       <DeleteSection label="Work Queue" @remove="emit('remove', internalValue.id!)" />
     </template>
@@ -61,6 +64,7 @@
   import DeploymentsMultiSelect from '@/components/DeploymentsMultiSelect.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
   import FlowRunnerTypeMultiSelect from '@/components/FlowRunnerTypeMultiSelect.vue'
+  import LabelWrapper from '@/components/LabelWrapper.vue'
   import TagsInput from '@/components/TagsInput.vue'
   import ValidationMessage from '@/components/ValidationMessage.vue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
@@ -119,6 +123,14 @@
     return errors
   })
 
+  const filterErrors = computed(() => {
+    const { tags, deploymentIds, flowRunnerTypes } = internalValue.value.filter
+    if (!tags.length  && !deploymentIds.length  && !flowRunnerTypes.length) {
+      return ['Work Queues without filters collect all scheduled runs for all deployments.']
+    }
+    return []
+  })
+
   const isActive = computed({
     get() {
       return !internalValue.value.isPaused
@@ -151,5 +163,10 @@
     resize: vertical;
     white-space: normal;
   }
+}
+
+.work-queue-form__validation-warning {
+  color: var(--log-level-warning);
+  font-weight: bold;
 }
 </style>
