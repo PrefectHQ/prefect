@@ -1,5 +1,5 @@
 ---
-description: Learn how to run flows as Kubernetes Jobs using the KubernetesFlowRunner.
+description: Learn how to run Prefect flows as Kubernetes Jobs using the Kubernetes flow runner.
 tags:
     - Kubernetes
     - orchestration

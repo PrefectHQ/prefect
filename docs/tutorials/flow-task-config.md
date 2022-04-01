@@ -1,5 +1,5 @@
 ---
-description: Configuration for flows and tasks.
+description: Explore the configuration available for Prefect flows and tasks.
 tags:
     - tutorial
     - configuration
