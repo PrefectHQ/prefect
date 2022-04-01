@@ -1,6 +1,6 @@
 
 import { Constructor, Api, ApiServer } from '@prefecthq/orion-design'
-import { ApiSettings } from '../services/apiSettings'
+import { ApiSettings } from '@/services/apiSettings'
 
 const defaultApiUrl = 'http://127.0.0.1:4200/api'
 
