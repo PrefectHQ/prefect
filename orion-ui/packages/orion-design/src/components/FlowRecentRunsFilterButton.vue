@@ -1,5 +1,5 @@
 <template>
-  <FilterCountButton class="flows-page-flow-list-item__recent" :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
+  <FilterCountButton :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
 </template>
 
 
