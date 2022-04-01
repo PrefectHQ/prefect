@@ -11,8 +11,9 @@
       </m-tag>
       <m-tags class="flows-page-flow-list-item__tags" :tags="flow.tags" />
     </div>
-
-    <FilterCountButton class="flows-page-flow-list-item__recent" :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
+    <slot name="list-item-filters">
+      <FilterCountButton :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
+    </slot>
   </ListItem>
 </template>
 
