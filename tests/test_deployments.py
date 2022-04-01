@@ -559,12 +559,14 @@ class TestLoadFlowFromDeployment:
         assert flow_object == loaded_flow_object
 
     async def test_load_persisted_flow_pickle_from_deployment(
-        self, flow_object, flow_id, orion_client
+        self, flow_object, flow_id, orion_client, local_storage_block
     ):
         deployment = Deployment(
             name="test",
             flow_id=flow_id,
-            flow_data=await orion_client.persist_object(flow_object),
+            flow_data=await orion_client.persist_object(
+                flow_object, storage_block=local_storage_block
+            ),
         )
         loaded_flow_object = await load_flow_from_deployment(
             deployment, client=orion_client
@@ -573,7 +575,7 @@ class TestLoadFlowFromDeployment:
         assert flow_object.name == loaded_flow_object.name
 
     async def test_load_persisted_flow_script_from_deployment(
-        self, flow_object, flow_id, orion_client
+        self, flow_object, flow_id, orion_client, local_storage_block
     ):
         deployment = Deployment(
             name="test",
@@ -589,6 +591,7 @@ class TestLoadFlowFromDeployment:
                     """
                 ),
                 encoder="text",
+                storage_block=local_storage_block,
             ),
         )
         loaded_flow_object = await load_flow_from_deployment(
@@ -597,13 +600,16 @@ class TestLoadFlowFromDeployment:
         assert isinstance(loaded_flow_object, Flow)
         assert flow_object.name == loaded_flow_object.name
 
-    async def test_load_bad_flow_script_from_deployment(self, flow_id, orion_client):
+    async def test_load_bad_flow_script_from_deployment(
+        self, flow_id, orion_client, local_storage_block
+    ):
         deployment = Deployment(
             name="test",
             flow_id=flow_id,
             flow_data=await orion_client.persist_object(
                 "test",
                 encoder="text",
+                storage_block=local_storage_block,
             ),
         )
         with pytest.raises(ScriptError):
