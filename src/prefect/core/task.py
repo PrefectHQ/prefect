@@ -392,6 +392,8 @@ class Task(metaclass=TaskMetaclass):
                     raise TypeError(
                         f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
                     )
+        else:
+            self.retry_on = None
 
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
