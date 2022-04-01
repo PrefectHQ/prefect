@@ -145,6 +145,12 @@
       </div>
     </template>
 
+    <template #logs>
+      <section class="flow-run__tab-content">
+        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
+      </section>
+    </template>
+
     <template #task_runs="{ tab }">
       <section class="results-section">
         <ResultsList
@@ -174,12 +180,6 @@
         <div v-else class="text-center my-8">
           <h2>No results found</h2>
         </div>
-      </section>
-    </template>
-
-    <template #logs>
-      <section class="flow-run__tab-content">
-        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
       </section>
     </template>
   </TabSet>
@@ -384,6 +384,11 @@
 
   const tabs = [
     {
+      title: 'Logs',
+      key: 'logs',
+      icon: 'pi-logs-fill',
+    },
+    {
       title: 'Task Runs',
       key: 'task_runs',
       icon: 'pi-task',
@@ -392,11 +397,6 @@
       title: 'Subflow Runs',
       key: 'sub_flow_runs',
       icon: 'pi-flow-run',
-    },
-    {
-      title: 'Logs',
-      key: 'logs',
-      icon: 'pi-logs-fill',
     },
   ]
 

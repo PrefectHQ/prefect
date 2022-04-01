@@ -20,9 +20,17 @@ export type ColorModeClass = `${ColorMode}-color-mode`
 export const colorMode = ref<ColorMode>(getColorMode())
 
 function getColorMode(): ColorMode {
-  const fromLocalStorage = localStorage.getItem(storageKey) as ColorMode | undefined
+  const defaultMode = 'default'
 
-  return fromLocalStorage ?? 'default'
+  try {
+    const fromLocalStorage = localStorage.getItem(storageKey) as ColorMode | undefined
+
+    return fromLocalStorage ?? 'default'
+  } catch (err) {
+    console.warn(err)
+  }
+
+  return defaultMode
 }
 
 export function setColorMode(value: ColorMode): void {
