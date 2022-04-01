@@ -3,7 +3,11 @@
     <m-card shadow="sm">
       <VirtualScroller :items="flows" :item-estimate-height="70" @bottom="emit('bottom')">
         <template #default="{ item }">
-          <FlowsPageFlowListItem :flow="item" />
+          <FlowsPageFlowListItem :flow="item">
+            <template #list-item-filters>
+              <slot name="list-filters" />
+            </template>
+          </FlowsPageFlowListItem>
         </template>
       </VirtualScroller>
     </m-card>
