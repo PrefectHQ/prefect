@@ -1,0 +1,2 @@
+fix:
+  - "Fix issue where adaptive Dask clusters failed to replace workers - [#5549](https://github.com/PrefectHQ/prefect/issues/5549)"
