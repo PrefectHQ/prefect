@@ -53,8 +53,8 @@
 
   const props = defineProps<{
     deployment: Deployment,
-    flowsListSubscription: FlowsListSubscription,
-    deploymentsListSubscription: DeploymentsListSubscription,
+    flowsListSubscription?: FlowsListSubscription,
+    deploymentsListSubscription?: DeploymentsListSubscription,
     getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
     deleteDeployment: DeploymentsApi['deleteDeployment'],
     dashboardRoute: Exclude<RouteLocationRaw, string>,
