@@ -9,7 +9,6 @@ import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
 // Global components
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
-import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue'
@@ -36,7 +35,6 @@ const colorMode = storedMode ? `${storedMode }-color-mode` : defaultClass
 document.body.classList.add(colorMode)
 
 async function start(): Promise<void> {
-
   if (VITE_PREFECT_USE_MIRAGEJS()) {
     const { startServer } = await import('./server')
 
@@ -46,7 +44,6 @@ async function start(): Promise<void> {
   const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
 
   app.component('ButtonRounded', ButtonRounded)
-  app.component('Drawer', Drawer)
   app.component('List', List)
   app.component('ListItem', ListItem)
   app.component('ListItemDeployment', ListItemDeployment)
