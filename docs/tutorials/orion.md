@@ -1,5 +1,5 @@
 ---
-description: A brief overview of the components provided by the Orion orchestration engine and API.
+description: Learn about the Prefect Orion orchestration engine and API.
 tags:
     - Orion
     - work queues

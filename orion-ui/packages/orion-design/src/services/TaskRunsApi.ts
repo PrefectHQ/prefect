@@ -1,4 +1,3 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { EmpiricalPolicy } from '@/models/EmpiricalPolicy'
@@ -7,13 +6,13 @@ import { isConstantTaskInputResponse, isParameterTaskInputResponse, isTaskRunTas
 import { ITaskRunResponse } from '@/models/ITaskRunResponse'
 import { ConstantTaskInput, ParameterTaskInput, TaskInput, TaskRunTaskInput } from '@/models/TaskInput'
 import { TaskRun } from '@/models/TaskRun'
-import { Api, Route } from '@/services/Api'
+import { Api, ApiRoute } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { statesApi } from '@/services/StatesApi'
 
 export class TaskRunsApi extends Api {
 
-  protected route: Route = '/task_runs'
+  protected route: ApiRoute = '/task_runs'
 
   public getTaskRun(id: string): Promise<TaskRun> {
     return this.get<ITaskRunResponse>(`/${id}`).then(response => this.mapTaskRunResponse(response))
@@ -108,6 +107,4 @@ export class TaskRunsApi extends Api {
 
 }
 
-export const taskRunsApi = createActions(new TaskRunsApi())
-
-export const getTaskRunKey: InjectionKey<TaskRunsApi['getTaskRun']> = Symbol()
+export const taskRunsApiKey: InjectionKey<TaskRunsApi> = Symbol('taskRunsApiKey')

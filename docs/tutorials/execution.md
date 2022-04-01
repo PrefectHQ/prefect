@@ -1,3 +1,15 @@
+---
+description: Learn the basics of Prefect task runners and task execution within a flow.
+tags:
+    - tutorial
+    - tasks
+    - task runners
+    - sequential execution
+    - parallel execution
+    - asynchronous execution
+    - async
+---
+
 # Flow execution
 
 Prefect allows you to configure many aspects of how your flows and tasks run - here we review execution configuration _within a single flow run_.  For topics such as scheduling and flow deployment configuration see the tutorial on [Deployments](/tutorials/deployments/).

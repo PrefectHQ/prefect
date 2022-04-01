@@ -32,6 +32,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
         ]
 
