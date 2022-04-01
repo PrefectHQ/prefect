@@ -126,7 +126,7 @@
 
 <script lang="ts">
   /* eslint-disable */
-  import { media, showPanel, DeploymentPanel, useInjectedServices, BreadCrumbs, Crumb } from '@prefecthq/orion-design'
+  import { media, showPanel, DeploymentPanel, BreadCrumbs, Crumb, DeploymentsApi, FlowRunsApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
   import Drawer from '@/components/Global/Drawer/Drawer.vue'
@@ -134,7 +134,8 @@
   import { Api, Endpoints } from '@/plugins/api'
   import { Deployment } from '@/typings/objects'
   import { secondsToString } from '@/util/util'
-  import { deploymentsApi } from '@/services/DeploymentsApi'
+  import { deploymentsApi } from '@/services/deploymentsApi'
+  import { flowRunsApi } from '@/services/flowRunsApi'
 
   class Props {
     item = prop<Deployment>({ required: true })
@@ -163,13 +164,13 @@
     creatingRun: boolean = false
     media = media
     crumbs: Crumb[] = [{ text: this.item.name, action: () => this.openDeploymentPanel() }]
-    injectedServices = useInjectedServices()
 
     openDeploymentPanel(): void {
       showPanel(DeploymentPanel, {
         deployment: deploymentsApi.mapDeployment(this.item as any),
         dashboardRoute: { name: 'Dashboard' },
-        ...this.injectedServices,
+        deploymentsApi: deploymentsApi as DeploymentsApi,
+        flowRunsApi: flowRunsApi as FlowRunsApi,
       })
     }
 
