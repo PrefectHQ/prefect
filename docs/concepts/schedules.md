@@ -1,3 +1,16 @@
+---
+description: Prefect lets you schedule when to automatically create new flow runs.
+tags:
+    - Orion
+    - flows
+    - flow runs
+    - deployments
+    - schedules
+    - cron
+    - RRule
+    - iCal
+---
+
 # Schedules
 
 Schedules tell the Orion server how to automatically create new flow runs on a specified cadence.
