@@ -1,24 +1,25 @@
 <template>
-  <FilterCountButton :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
+  <FilterCountButton class="flows-page-flow-list-item__recent" :count="recentFlowRunsCount" label="Recent Run" :route="route" :filters="recentFlowRunsFilters" />
 </template>
+
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { subWeeks, startOfToday } from 'date-fns'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import FilterCountButton from '@/components/FilterCountButton.vue'
-  import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { Flow } from '@/models/Flow'
   import { workspaceDashboardKey } from '@/router/routes'
   import { UnionFilters } from '@/services/Filter'
+  import { flowRunsApiKey } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
 
 
   const props = defineProps<{ flow: Flow }>()
 
-  const route = inject(workspaceDashboardKey)!
-  const injectedServices = useInjectedServices()
-
+  const flowRunsApi = inject(flowRunsApiKey)
+  const route = inject(workspaceDashboardKey)
   const recentFlowRunsFilters = computed<Required<Filter>[]>(() => [
     {
       object: 'flow',
@@ -53,6 +54,6 @@
     },
   }))
 
-  const recentFlowRunsCountSubscription = useSubscription(injectedServices.getFlowRunsCount, [recentFlowRunsCountFilter])
+  const recentFlowRunsCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [recentFlowRunsCountFilter])
   const recentFlowRunsCount = computed(() => recentFlowRunsCountSubscription.response ?? 0)
 </script>
