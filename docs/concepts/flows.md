@@ -1,3 +1,13 @@
+---
+description: Prefect flows are the foundational containers for workflow logic
+tags:
+    - Orion
+    - flows
+    - subflows
+    - parameters
+    - states
+---
+
 # Flows
 
 Flows are the most basic Prefect object. They are containers for workflow logic and allow users to interact with and reason about the state of their workflows. They are the only abstraction that can be interacted with, displayed, and run without needing to reference any other aspect of the Prefect engine.

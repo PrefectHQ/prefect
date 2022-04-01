@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.66",
+    "version": "0.1.67",
     "private": false,
     "keywords": [
         "prefect",
@@ -31,6 +31,7 @@
     },
     "devDependencies": {
         "@prefecthq/eslint-config": "1.0.14",
+        "@prefecthq/vue-compositions": "0.1.21",
         "@types/node": "^15.14.1",
         "@vitejs/plugin-vue": "^1.2.5",
         "date-fns": "^2.25.0",
@@ -44,7 +45,6 @@
     },
     "peerDependencies": {
         "@prefecthq/miter-design": "^0.1.30",
-        "@prefecthq/vue-compositions": "0.1.20",
         "pinia": "2.0.11",
         "vue": "^3.0.5",
         "vue-router": "^4.0.12"

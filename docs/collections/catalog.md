@@ -1,3 +1,12 @@
+---
+description: Check out the pre-built tasks and flows in the Prefect Collections library.
+tags:
+    - tasks
+    - flows
+    - collections
+    - task library
+---
+
 # Prefect Collections Catalog
 
 Below you can find a list of all available Prefect Collections.
