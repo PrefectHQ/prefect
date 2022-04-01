@@ -379,7 +379,7 @@ class Task(metaclass=TaskMetaclass):
                 "A number of `max_retries` must be provided if `retry_on` is set."
             )
 
-        self.retry_on: Optional[Set[Type[Exception]]]
+        self.retry_on: Optional[Set[Type[Exception]]] = None
         if retry_on:
             if not isinstance(retry_on, Iterable):
                 self.retry_on = {retry_on}
@@ -395,8 +395,6 @@ class Task(metaclass=TaskMetaclass):
                     raise TypeError(
                         f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
                     )
-        else:
-            self.retry_on = None
 
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
