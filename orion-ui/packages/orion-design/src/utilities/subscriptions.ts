@@ -7,5 +7,5 @@ export type WorkQueueSubscription = UseSubscription<WorkQueuesApi['getWorkQueue'
 export type WorkQueuesListSubscription = UseSubscription<WorkQueuesApi['getWorkQueues']>
 
 
-export const workQueueSubscriptionKey: InjectionKey<WorkQueueSubscription> = Symbol()
-export const workQueuesListSubscriptionKey: InjectionKey<WorkQueuesListSubscription> = Symbol()
+export const workQueueSubscriptionKey: InjectionKey<WorkQueueSubscription> = Symbol('workQueueSubscriptionKey')
+export const workQueuesListSubscriptionKey: InjectionKey<WorkQueuesListSubscription> = Symbol('workQueuesListSubscriptionKey')
