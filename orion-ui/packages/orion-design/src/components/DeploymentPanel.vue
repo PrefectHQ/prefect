@@ -54,7 +54,7 @@
   const props = defineProps<{
     deployment: Deployment,
     flowsListSubscription?: FlowsListSubscription,
-    deploymentsListSubscription?: DeploymentsListSubscription
+    deploymentsListSubscription?: DeploymentsListSubscription,
     deploymentsApi: DeploymentsApi,
     flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
@@ -71,7 +71,7 @@
 
   const blob = computed(()=>JSON.parse(props.deployment.flowData.blob))
   const saving = ref(false)
-  
+
   const schedule = computed(() => {
     const { schedule } = props.deployment
 
