@@ -24,11 +24,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowRunsHistoryFilter, KeysMatching, RunHistory, StateHistory, flowRunsApi } from '@prefecthq/orion-design'
+  import { FlowRunsHistoryFilter, KeysMatching, RunHistory, StateHistory } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import IntervalBarChartCard from './IntervalBarChart/IntervalBarChartCard.vue'
   import { IntervalBarChartItem } from './IntervalBarChart/Types/IntervalBarChartItem'
+  import { flowRunsApi } from '@/services/flowRunsApi'
   import { secondsToApproximateString } from '@/util/util'
 
   const props = defineProps<{
