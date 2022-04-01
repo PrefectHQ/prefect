@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Set,
     Mapping,
     Optional,
     Union,
@@ -241,9 +242,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - retry_on (Iterable[Type[Exception]], optional): A set of exception types that will allow
+        - retry_on (Union[Exception, Iterable[Type[Exception]]], optional): Exception types that will allow
             retry behavior to occur. If not set, all exceptions will allow retries. If set, retries
-            will only occur if the exception is a subtype of one of the provided exception types.
+            will only occur if the exception is a subtype of the exception types provided.
         - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
             resolution is not supported, even when passing in a timedelta.
@@ -379,8 +380,10 @@ class Task(metaclass=TaskMetaclass):
             )
         if retry_on:
             if not isinstance(retry_on, Iterable):
-                retry_on = {retry_on}
-            for v in retry_on:
+                self.retry_on = {retry_on}
+            else:
+                self.retry_on = set(retry_on)
+            for v in self.retry_on:
                 if not isinstance(v, type):
                     raise TypeError(
                         f"Invalid `retry_on` value {v!r}. "
@@ -390,6 +393,7 @@ class Task(metaclass=TaskMetaclass):
                     raise TypeError(
                         f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
                     )
+
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
             raise ValueError(
@@ -412,7 +416,6 @@ class Task(metaclass=TaskMetaclass):
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
-        self.retry_on = retry_on
 
         self.trigger = trigger or prefect.triggers.all_successful
         self.skip_on_upstream_skip = skip_on_upstream_skip
