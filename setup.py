@@ -50,9 +50,9 @@ extras = {
     "azure": [
         "azure-core >= 1.10.0",
         "azure-storage-blob >= 12.1.0",
-        "azureml-sdk >= 1.0.6",
         "azure-cosmos >= 3.1.1",
     ],
+    "azureml": ["azureml-sdk"],
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,

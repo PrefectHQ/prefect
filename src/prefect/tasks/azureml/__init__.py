@@ -18,7 +18,7 @@ try:
 
 except ImportError as err:
     raise ImportError(
-        'Using `prefect.tasks.azureml` requires Prefect to be installed with the "azure" extra.'
+        'Using `prefect.tasks.azureml` requires Prefect to be installed with the "azureml" extra.'
     ) from err
 
 __all__ = [
