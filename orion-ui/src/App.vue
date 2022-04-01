@@ -11,23 +11,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { FilterBar, deploymentsApiKey, flowRunsApiKey, taskRunsApiKey, searchApiKey, workQueuesApiKey, flowsApiKey } from '@prefecthq/orion-design'
-  import { computed, provide } from 'vue'
+  import { FilterBar } from '@prefecthq/orion-design'
+  import { computed } from 'vue'
   import { useRoute } from 'vue-router'
   import NavBar from '@/components/NavBar.vue'
-  import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
-  import { flowsApi } from '@/services/flowsApi'
-  import { searchApi } from '@/services/searchApi'
-  import { taskRunsApi } from '@/services/taskRunsApi'
-  import { workQueuesApi } from '@/services/workQueuesApi'
-
-  provide(deploymentsApiKey, deploymentsApi)
-  provide(flowsApiKey, flowsApi)
-  provide(flowRunsApiKey, flowRunsApi)
-  provide(taskRunsApiKey, taskRunsApi)
-  provide(searchApiKey, searchApi)
-  provide(workQueuesApiKey, workQueuesApi)
 
   const route = useRoute()
 
