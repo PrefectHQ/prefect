@@ -241,6 +241,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
+        - retry_on (Iterable[Type[Exception]], optional): A set of exception types that will allow
+            retry behavior to occur. If not set, all exceptions will allow retries. If set, retries
+            will only occur if the exception is a subtype of one of the provided exception types.
         - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
             resolution is not supported, even when passing in a timedelta.
