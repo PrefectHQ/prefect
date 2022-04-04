@@ -2662,6 +2662,12 @@ class TestFlowRunMethod:
         f.run()
         assert REPORTED_START_TIMES == start_times
 
+    def test_flow_dot_run_errors_if_in_flow_context(self):
+        with pytest.raises(RuntimeError) as exc:
+            with Flow("test") as flow:
+                flow.run()
+        assert "`flow.run()` from within a `Flow` context manager" in str(exc.value)
+
 
 class TestFlowDiagnostics:
     def test_flow_diagnostics(self, monkeypatch):

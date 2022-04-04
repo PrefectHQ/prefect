@@ -48,16 +48,30 @@ class SQLiteQuery(Task):
         db = cast(str, db)
         query = cast(str, query)
         data = cast(tuple, data)
-        with closing(sql.connect(db)) as conn, closing(conn.cursor()) as cursor:
-            cursor.execute(query, data)
-            out = cursor.fetchall()
-            conn.commit()
+
+        if db is None:
+            raise ValueError("The db must be specified")
+
+        if query is None:
+            raise ValueError("The query string must be specified")
+
+        if "?" in query and not data:
+            raise ValueError(
+                "The data inputs must be specified as a tuple if query "
+                "contains parametrized values '?'"
+            )
+
+        with closing(sql.connect(db)) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(query, data)
+                out = cursor.fetchall()
         return out
 
 
 class SQLiteScript(Task):
     """
-    Task for executing a SQL script against a sqlite3 database.
+    Task for executing a SQL script against a sqlite3 database; does not
+    return any values, but useful for creating tables and inserting values into the tables.
 
     Args:
         - db (str, optional): the location of the database (.db) file
@@ -81,7 +95,12 @@ class SQLiteScript(Task):
             - script (str, optional): the optional script to execute at runtime;
                 if not provided, `self.script` will be used instead.
         """
+        if db is None:
+            raise ValueError("The db must be specified")
+
+        if script is None:
+            raise ValueError("The query script string must be specified")
+
         with closing(sql.connect(db)) as conn:
             with closing(conn.cursor()) as cursor:
                 cursor.executescript(script)
-                conn.commit()

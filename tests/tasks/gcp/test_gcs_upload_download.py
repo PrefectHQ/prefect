@@ -6,6 +6,7 @@ from google.cloud.exceptions import NotFound
 import prefect
 import prefect.utilities.gcp
 from prefect.tasks.gcp import GCSDownload, GCSUpload
+from prefect.tasks.gcp.storage import GCSBaseTask
 from prefect.utilities.configuration import set_temporary_config
 
 
@@ -142,3 +143,34 @@ class TestRuntimeValidation:
             TypeError, match="data must be str, bytes or BytesIO: got .* instead"
         ):
             task.run([1, 2, 3])
+
+
+def test_retrieve_bucket():
+    buckets = {"existing_bucket": "existing_bucket"}
+
+    def get_bucket_mock(bucket):
+        if bucket not in buckets:
+            raise NotFound("Testing...")
+        else:
+            return buckets[bucket]
+
+    def create_bucket_mock(bucket):
+        if bucket not in buckets:
+            buckets[bucket] = []
+        return bucket
+
+    client_mock = MagicMock()
+    client_mock.get_bucket.side_effect = get_bucket_mock
+    client_mock.create_bucket.side_effect = create_bucket_mock
+
+    gcs_base_task = GCSBaseTask()
+    assert (
+        gcs_base_task._retrieve_bucket(client_mock, "existing_bucket", False)
+        == "existing_bucket"
+    )
+    with pytest.raises(NotFound, match="Testing..."):
+        gcs_base_task._retrieve_bucket(client_mock, "non_existing_bucket", False)
+    assert (
+        gcs_base_task._retrieve_bucket(client_mock, "non_existing_bucket", True)
+        == "non_existing_bucket"
+    )
