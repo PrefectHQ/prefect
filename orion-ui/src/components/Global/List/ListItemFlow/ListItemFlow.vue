@@ -41,10 +41,11 @@
     toPluralString,
     showPanel,
     FlowPanel,
-    useInjectedServices,
     Flow,
     Deployment,
-    DeploymentPanel
+    DeploymentPanel,
+    DeploymentsApi,
+    FlowRunsApi
   } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -52,6 +53,8 @@
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
   import { Api, Query, Endpoints } from '@/plugins/api'
+  import { deploymentsApi } from '@/services/deploymentsApi'
+  import { flowRunsApi } from '@/services/flowRunsApi'
   import { Buckets } from '@/typings/run_history'
 
   const props = defineProps<{ item: Flow }>()
@@ -60,7 +63,6 @@
   const router = useRouter()
 
   const crumbs: Crumb[] = [{ text: props.item.name, action: openFlowPanel }]
-  const injectedServices = useInjectedServices()
 
   const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flows: FlowsFilter = {
@@ -130,7 +132,8 @@
       flow: props.item,
       dashboardRoute: route,
       openDeploymentPanel,
-      ...injectedServices,
+      deploymentsApi: deploymentsApi as DeploymentsApi,
+      flowRunsApi: flowRunsApi as FlowRunsApi,
     })
   }
 
@@ -138,7 +141,8 @@
     showPanel(DeploymentPanel, {
       deployment,
       dashboardRoute: route,
-      ...injectedServices,
+      deploymentsApi: deploymentsApi as DeploymentsApi,
+      flowRunsApi: flowRunsApi as FlowRunsApi,
     })
   }
 </script>
