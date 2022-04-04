@@ -72,17 +72,17 @@
 
 <script lang="ts" setup>
   import {
-    logsApi,
     LogsRequestFilter,
     FlowRunLogs,
     Log,
     logLevelLabel,
-    formatDateTimeNumeric
-    , CopyButton
+    formatDateTimeNumeric,
+    CopyButton
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, nextTick, ref, watch } from 'vue'
+  import { logsApi } from '@/services/logsApi'
 
   const props = defineProps({
     flowRunId: {
@@ -123,7 +123,7 @@
   const options: SubscriptionOptions = {
     interval: props.running ? 5000 : undefined,
   }
-  const subscription = useSubscription(logsApi.getLogs.bind(logsApi), [filter], options)
+  const subscription = useSubscription(logsApi.getLogs, [filter], options)
   const logs = computed<Log[]>(() => subscription.response ?? [])
   const loading = computed<boolean>(() => subscription.loading ?? true)
 
