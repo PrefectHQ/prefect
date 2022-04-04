@@ -336,7 +336,14 @@ class DaskTaskRunner(BaseTaskRunner):
                 "The task runner must be started before submitting work."
             )
 
-        self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
+        task = run_kwargs["task"]
+
+        self._dask_futures[task_run.id] = self._client.submit(
+            run_fn,
+            key=f"{task.name}-{task_run.id.hex}",
+            pure=False,
+            **run_kwargs,
+        )
 
         return PrefectFuture(
             task_run=task_run, task_runner=self, asynchronous=asynchronous
