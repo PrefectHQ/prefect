@@ -28,13 +28,13 @@
     FlowsPageFlowList,
     PageHeader,
     UnionFilters,
-    flowsApi,
     workspaceDashboardKey,
     FlowsPageFlowListEmptyState,
     Require
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
+  import { flowsApi } from '@/services/flowsApi'
 
   // todo: create a routes object with methods like nebula has
   provide(workspaceDashboardKey, {
