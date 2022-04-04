@@ -1,19 +1,35 @@
 {
-    "extends": "../../tsconfig.json",
-    "include": [
-        "src",
-        "../../src/typings"
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "esModuleInterop": true,
+    "importHelpers": true,
+    "jsx": "preserve",
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "scripthost"
     ],
-    "exclude": ["node_modules"],
-    "compilerOptions": {
-        "declaration": true,
-        "emitDeclarationOnly": true,
-        "outFile": "dist/index.d.ts",
-        "baseUrl": ".",
-        "paths": {
-          "@/*": [
-            "./src/*"
-          ]
-        },
-    }
+    "module": "esnext",
+    "moduleResolution": "node",
+    "outDir": "./dist/types/",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "esnext"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue"
+  ]
 }
