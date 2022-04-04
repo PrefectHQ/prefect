@@ -120,10 +120,10 @@ nav:
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.logging': api-ref/prefect/logging.md
-            - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md
+            - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Blocks':
                 - 'prefect.blocks.core': api-ref/prefect/blocks/core.md
