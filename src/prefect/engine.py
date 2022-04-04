@@ -679,14 +679,17 @@ async def begin_task_run(
                 f"Failed to connect to API at {client.api_url}."
             ) from connect_error
 
-        return await orchestrate_task_run(
-            task=task,
-            task_run=task_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            result_storage=result_storage,
-            client=client,
-        )
+        try:
+            return await orchestrate_task_run(
+                task=task,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                result_storage=result_storage,
+                client=client,
+            )
+        except Abort as exc:
+            return exc
 
 
 async def orchestrate_task_run(
