@@ -61,7 +61,7 @@ def machine_ray_instance():
     try:
         yield "ray://127.0.0.1:10001"
     finally:
-        subprocess.run(["ray", "stop"])
+        subprocess.check_call(["ray", "stop"])
 
 
 @pytest.fixture
