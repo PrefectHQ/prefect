@@ -1,13 +1,16 @@
 import os
 import sys
-from prefect.tasks.dbt.dbt_cloud_utils import TriggerDbtCloudRunFailed
 
-import responses
 import pytest
+import responses
+from responses import matchers
 
 from prefect import Flow
-from prefect.engine.signals import FAIL
-from prefect.tasks.dbt import DbtShellTask, DbtCloudRunJob
+from prefect.tasks.dbt import DbtCloudRunJob, DbtShellTask
+from prefect.tasks.dbt.dbt_cloud_utils import (
+    USER_AGENT_HEADER,
+    TriggerDbtCloudRunFailed,
+)
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="DbtShellTask currently not supported on Windows"
@@ -253,180 +256,194 @@ def test_dbt_cloud_run_job_raises_value_error_with_missing_token():
     assert "token cannot be None." in str(exc)
 
 
-@responses.activate
 def test_dbt_cloud_run_job_raises_failure():
     account_id = 1234
     job_id = 1234
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=123,
-    )
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=123,
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    run_job = DbtCloudRunJob(
-        cause="foo", account_id=account_id, job_id=job_id, token="foo"
-    )
-    with pytest.raises(TriggerDbtCloudRunFailed):
-        run_job.run()
+        run_job = DbtCloudRunJob(
+            cause="foo", account_id=account_id, job_id=job_id, token="foo"
+        )
+        with pytest.raises(TriggerDbtCloudRunFailed):
+            run_job.run()
 
 
-@responses.activate
 def test_dbt_cloud_run_corp_job_raises_failure():
     account_id = 1234
     job_id = 1234
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=123,
-    )
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=123,
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    run_job = DbtCloudRunJob(
-        cause="foo",
-        account_id=account_id,
-        job_id=job_id,
-        token="foo",
-        domain="cloud.corp.getdbt.com",
-    )
-    with pytest.raises(TriggerDbtCloudRunFailed):
-        run_job.run()
+        run_job = DbtCloudRunJob(
+            cause="foo",
+            account_id=account_id,
+            job_id=job_id,
+            token="foo",
+            domain="cloud.corp.getdbt.com",
+        )
+        with pytest.raises(TriggerDbtCloudRunFailed):
+            run_job.run()
 
 
-@responses.activate
 def test_dbt_cloud_run_job_trigger_job():
     account_id = 1234
     job_id = 1234
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=200,
+            json={"data": {"foo": "bar"}},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=200,
-        json={"data": {"foo": "bar"}},
-    )
+        run_job = DbtCloudRunJob(
+            cause="foo", account_id=account_id, job_id=job_id, token="foo"
+        )
+        r = run_job.run()
 
-    run_job = DbtCloudRunJob(
-        cause="foo", account_id=account_id, job_id=job_id, token="foo"
-    )
-    r = run_job.run()
-
-    assert r == {"foo": "bar"}
+        assert r == {"foo": "bar"}
 
 
-@responses.activate
 def test_dbt_cloud_run_job_trigger_job_custom_domain():
     account_id = 1234
     job_id = 1234
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=200,
+            json={"data": {"foo": "bar"}},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=200,
-        json={"data": {"foo": "bar"}},
-    )
+        run_job = DbtCloudRunJob(
+            cause="foo",
+            account_id=account_id,
+            job_id=job_id,
+            token="foo",
+            domain="cloud.corp.getdbt.com",
+        )
+        r = run_job.run()
 
-    run_job = DbtCloudRunJob(
-        cause="foo",
-        account_id=account_id,
-        job_id=job_id,
-        token="foo",
-        domain="cloud.corp.getdbt.com",
-    )
-    r = run_job.run()
-
-    assert r == {"foo": "bar"}
+        assert r == {"foo": "bar"}
 
 
-@responses.activate
 def test_dbt_cloud_run_job_trigger_job_with_wait():
     account_id = 1234
     job_id = 1234
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=200,
+            json={"data": {"id": 1}},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=200,
-        json={"data": {"id": 1}},
-    )
+        rsps.add(
+            responses.GET,
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
+            status=200,
+            json={
+                "data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}
+            },
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.GET,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
-        status=200,
-        json={"data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}},
-    )
+        rsps.add(
+            responses.GET,
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
+            status=200,
+            json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.GET,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
-        status=200,
-        json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
-    )
+        run_job = DbtCloudRunJob(
+            cause="foo",
+            account_id=account_id,
+            job_id=job_id,
+            token="foo",
+            wait_for_job_run_completion=True,
+        )
+        r = run_job.run()
 
-    run_job = DbtCloudRunJob(
-        cause="foo",
-        account_id=account_id,
-        job_id=job_id,
-        token="foo",
-        wait_for_job_run_completion=True,
-    )
-    r = run_job.run()
-
-    assert r == {
-        "id": 1,
-        "status": 10,
-        "finished_at": "2019-08-24T14:15:22Z",
-        "artifact_urls": [
-            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
-            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
-            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
-        ],
-    }
+        assert r == {
+            "id": 1,
+            "status": 10,
+            "finished_at": "2019-08-24T14:15:22Z",
+            "artifact_urls": [
+                f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
+                f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
+                f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
+            ],
+        }
 
 
-@responses.activate
 def test_dbt_cloud_run_job_trigger_job_with_wait_custom():
     account_id = 1234
     job_id = 1234
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+            status=200,
+            json={"data": {"id": 1}},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.POST,
-        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-        status=200,
-        json={"data": {"id": 1}},
-    )
+        rsps.add(
+            responses.GET,
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
+            status=200,
+            json={
+                "data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}
+            },
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.GET,
-        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
-        status=200,
-        json={"data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}},
-    )
+        rsps.add(
+            responses.GET,
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
+            status=200,
+            json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
+            match=[matchers.header_matcher(USER_AGENT_HEADER)],
+        )
 
-    responses.add(
-        responses.GET,
-        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
-        status=200,
-        json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
-    )
+        run_job = DbtCloudRunJob(
+            cause="foo",
+            account_id=account_id,
+            job_id=job_id,
+            token="foo",
+            wait_for_job_run_completion=True,
+            domain="cloud.corp.getdbt.com",
+        )
+        r = run_job.run()
 
-    run_job = DbtCloudRunJob(
-        cause="foo",
-        account_id=account_id,
-        job_id=job_id,
-        token="foo",
-        wait_for_job_run_completion=True,
-        domain="cloud.corp.getdbt.com",
-    )
-    r = run_job.run()
+        assert r == {
+            "id": 1,
+            "status": 10,
+            "finished_at": "2019-08-24T14:15:22Z",
+            "artifact_urls": [
+                f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
+                f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
+                f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
+            ],
+        }
 
-    assert r == {
-        "id": 1,
-        "status": 10,
-        "finished_at": "2019-08-24T14:15:22Z",
-        "artifact_urls": [
-            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
-            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
-            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
-        ],
-    }
+
+def test_user_agent():
+    assert "prefect" in USER_AGENT_HEADER["user-agent"]

@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import uuid
+import re
 
 import cloudpickle
 import dask
@@ -469,7 +470,7 @@ class TestDaskExecutor:
             assert post._futures is None
             assert post._should_run_event is None
 
-    @pytest.mark.flaky
+    @pytest.mark.flaky()
     def test_executor_logs_worker_events(self, caplog):
         caplog.set_level(logging.DEBUG, logger="prefect")
         with distributed.Client(
@@ -477,6 +478,10 @@ class TestDaskExecutor:
         ) as client:
             executor = DaskExecutor(address=client.scheduler.address)
             with executor.start():
+                assert executor.watch_worker_status is None
+                assert executor._watch_dask_events_task is not None
+
+                time.sleep(0.1)
                 client.cluster.scale(4)
                 while len(client.scheduler_info()["workers"]) < 4:
                     time.sleep(0.1)
@@ -484,8 +489,44 @@ class TestDaskExecutor:
                 while len(client.scheduler_info()["workers"]) > 1:
                     time.sleep(0.1)
 
-        assert any("Worker %s added" == rec.msg for rec in caplog.records)
-        assert any("Worker %s removed" == rec.msg for rec in caplog.records)
+        assert any(re.match("Worker .+ added", rec.msg) for rec in caplog.records)
+        assert any(re.match("Worker .+ removed", rec.msg) for rec in caplog.records)
+
+    def test_executor_disables_watch_worker_events_with_false(self):
+        with distributed.Client(
+            n_workers=1, processes=False, set_as_default=False
+        ) as client:
+            executor = DaskExecutor(
+                address=client.scheduler.address, watch_worker_status=False
+            )
+            with executor.start():
+                assert executor.watch_worker_status is False
+                assert executor._watch_dask_events_task is None
+
+    def test_executor_disables_watch_worker_events_with_adapt(self):
+        with distributed.Client(
+            n_workers=1, processes=False, set_as_default=False
+        ) as client:
+            executor = DaskExecutor(
+                address=client.scheduler.address,
+                adapt_kwargs={"maximum": 4},
+            )
+            with executor.start():
+                assert executor.watch_worker_status is None
+                assert executor._watch_dask_events_task is None
+
+    def test_executor_enables_watch_worker_events_with_true(self):
+        with distributed.Client(
+            n_workers=1, processes=False, set_as_default=False
+        ) as client:
+            executor = DaskExecutor(
+                address=client.scheduler.address,
+                watch_worker_status=True,
+                adapt_kwargs={"maximum": 4},
+            )
+            with executor.start():
+                assert executor.watch_worker_status is True
+                assert executor._watch_dask_events_task is not None
 
     @pytest.mark.parametrize("kind", ["external", "inproc"])
     @pytest.mark.flaky

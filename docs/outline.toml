@@ -464,6 +464,7 @@ classes = [
         "BigQueryLoadGoogleCloudStorage",
         "BigQueryLoadFile"
         ]
+verified_task = true
 
 [pages.tasks.great_expectations]
 title = "Great Expectations Task"
@@ -581,6 +582,7 @@ classes = ["SpacyNLP", "SpacyTagger", "SpacyParser", "SpacyNER", "SpacyComponent
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
 classes = ["SQLiteQuery", "SQLiteScript"]
+verified_task = true
 
 [pages.tasks.function]
 title = "Function Tasks"
@@ -783,3 +785,9 @@ classes = ["ZendeskTicketsIncrementalExportTask"]
 title = "Neo4j Tasks"
 module = "prefect.tasks.neo4j"
 classes = ["Neo4jRunCypherQueryTask"]
+
+[pages.tasks.Transform]
+title = "Transform Tasks"
+module = "prefect.tasks.transform"
+classes = ["TransformCreateMaterialization"]
+verified_task = true

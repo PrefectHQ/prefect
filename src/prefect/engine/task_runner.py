@@ -993,6 +993,26 @@ class TaskRunner(Runner):
             - State: the state of the task after running the check
         """
         if state.is_failed():
+
+            # Check if the exception is an instance of any of the retry_on types and
+            # do not retry if it is not
+            if (
+                self.task.retry_on
+                and state.result is not None
+                and not any(
+                    isinstance(state.result, retry_on_type)
+                    for retry_on_type in self.task.retry_on
+                )
+            ):
+                self.logger.info(
+                    "Task '{name}': Skipping retry. Exception of type {exc_type!r} is "
+                    "not an instance of the retry on exception types.".format(
+                        name=prefect.context.get("task_full_name", self.task.name),
+                        exc_type=type(state.result).__name__,
+                    )
+                )
+                return state
+
             run_count = prefect.context.get("task_run_count", 1)
             loop_result = None
             state_context = None
