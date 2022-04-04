@@ -12,7 +12,7 @@
       <m-tags class="flows-page-flow-list-item__tags" :tags="flow.tags" />
     </div>
 
-    <slot name="flow-filters">
+    <slot :flow-id="flow.id" name="flow-filters">
       <FlowRecentRunsFilterButton class="flows-page-flow-list-item__recent" :flow="flow" />
     </slot>
   </ListItem>
