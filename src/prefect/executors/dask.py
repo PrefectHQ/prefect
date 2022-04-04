@@ -104,6 +104,14 @@ class DaskExecutor(Executor):
             can cause strain on the scheduler as each task needs to retrieve a client
             to check the status of the cancellation event. If set to `False`, we will
             skip this check.
+        - watch_worker_status (bool, optional): By default, Prefect subscribes to Dask
+            worker events and logs when a worker is added or removed. This provides a
+            hook for users to extend behavior on worker changes. This setting is `None`
+            by default and will be enabled unless `adapt_kwargs` is set, in which case
+            it will be disabled. Adaptive clusters often require this feature to be
+            disabled as they use the worker status events for scaling and only one
+            subscriber is allowed. If you set the value to `True` or `False`, it will be
+            respected regardless of the value of `adapt_kwargs`.
 
     Examples:
 
@@ -144,6 +152,7 @@ class DaskExecutor(Executor):
         debug: bool = None,
         performance_report_path: str = None,
         disable_cancellation_event: bool = False,
+        watch_worker_status: bool = None,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -187,6 +196,8 @@ class DaskExecutor(Executor):
         self.adapt_kwargs = adapt_kwargs
         self.client_kwargs = client_kwargs
         self.disable_cancellation_event = disable_cancellation_event
+        self.watch_worker_status = watch_worker_status
+
         # Runtime attributes
         self.client = None
         # These are coupled - they're either both None, or both non-None.
@@ -264,6 +275,11 @@ class DaskExecutor(Executor):
         """
         This method is triggered when a worker is added or removed from the cluster.
 
+        This method will not be called if `watch_worker_status` is not set.
+
+        We recommend not relying on this method since worker status subscription is used
+        by Dask cluster implementations to manage worker state.
+
         Args:
             - op (str): Either "add" or "remove"
             - message (dict): Information about the event that the scheduler has sent
@@ -325,9 +341,12 @@ class DaskExecutor(Executor):
             )
             self._should_run_event.set()
 
-        self._watch_dask_events_task = asyncio.run_coroutine_threadsafe(
-            self._watch_dask_events(), self.client.loop.asyncio_loop  # type: ignore
-        )
+        if self.watch_worker_status is True or (
+            self.watch_worker_status is None and not self.adapt_kwargs
+        ):
+            self._watch_dask_events_task = asyncio.run_coroutine_threadsafe(
+                self._watch_dask_events(), self.client.loop.asyncio_loop  # type: ignore
+            )
 
     def _post_start_yield(self) -> None:
         from distributed import wait
