@@ -259,8 +259,8 @@ class GCSUpload(GCSBaseTask):
             - encryption_key (str, optional): an encryption key
             - create_bucket (bool, optional): boolean specifying whether to create the bucket
                 if it does not exist, otherwise an Exception is raised. Defaults to `False`..
-            - content_type (str, optional): HTTP ‘Content-Type’ header for this object.
-            - content_encoding (str, optional): HTTP ‘Content-Encoding’ header for this object.
+            - content_type (str, optional): HTTP 'Content-Type' header for this object.
+            - content_encoding (str, optional): HTTP 'Content-Encoding' header for this object.
             - request_timeout (Union[float, Tuple[float, float]], optional): the number of
                 seconds the transport should wait for the server response.
                 Can also be passed as a tuple (connect_timeout, read_timeout).

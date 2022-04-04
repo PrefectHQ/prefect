@@ -581,6 +581,7 @@ classes = ["SpacyNLP", "SpacyTagger", "SpacyParser", "SpacyNER", "SpacyComponent
 title = "SQLite Tasks"
 module = "prefect.tasks.database"
 classes = ["SQLiteQuery", "SQLiteScript"]
+verified_task = true
 
 [pages.tasks.function]
 title = "Function Tasks"
