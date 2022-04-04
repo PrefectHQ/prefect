@@ -688,8 +688,12 @@ async def begin_task_run(
                 result_storage=result_storage,
                 client=client,
             )
-        except Abort as exc:
-            return exc
+        except Abort:
+            # Task run already completed, just fetch its state
+            task_run = await client.read_task_run(task_run.id)
+            # TODO: The state's data will need to be resolved from a document into a
+            #       concrete value as would be expected from a normal return value
+            return task_run.state
 
 
 async def orchestrate_task_run(
