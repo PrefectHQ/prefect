@@ -275,6 +275,11 @@ class DaskExecutor(Executor):
         """
         This method is triggered when a worker is added or removed from the cluster.
 
+        This method will not be called if `watch_worker_status` is not set.
+
+        We recommend not relying on this method since worker status subscription is used
+        by Dask cluster implementations to manage worker state.
+
         Args:
             - op (str): Either "add" or "remove"
             - message (dict): Information about the event that the scheduler has sent
