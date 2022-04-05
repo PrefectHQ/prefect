@@ -1,6 +1,0 @@
-enhancement:
-  - "Support default value on `DateTimeParameter` - [#5519](https://github.com/PrefectHQ/prefect/pull/5519)"
-
-contributor:
-  - "[Panagiotis Simakis](https://github.com/sp1thas)"
-  - "[Josh Wang](https://github.com/wangjoshuah)"
