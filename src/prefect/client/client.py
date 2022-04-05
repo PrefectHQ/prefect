@@ -284,7 +284,7 @@ class Client:
 
     @tenant_id.setter
     def tenant_id(self, tenant_id: Union[str, uuid.UUID, None]) -> None:
-        if tenant_id in (None, ""):
+        if not tenant_id:
             self._tenant_id = None
             return
 
