@@ -1,0 +1,2 @@
+fix:
+  - 'Fix an issue where logging in via the CLI for the first time raised exceptions - [#5643](https://github.com/PrefectHQ/prefect/pull/5643)'
