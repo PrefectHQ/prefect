@@ -3,18 +3,18 @@ import { UnionFilters } from '@/services/Filter'
 import { FilterDescriptionService } from '@/services/FilterDescriptionService'
 import { FilterParseService } from '@/services/FilterParseService'
 import { FiltersQueryService } from '@/services/FiltersQueryService'
-import { FilterStringifyService } from '@/services/FilterStringifyService'
+import { FilterStringifyOptions, FilterStringifyService } from '@/services/FilterStringifyService'
 import { Filter } from '@/types/filters'
 
 export class FilterService {
-  public static stringify(filter: Required<Filter>): string
-  public static stringify(filters: Required<Filter>[]): string[]
-  public static stringify(filterOrFilters: Required<Filter> | Required<Filter>[]): string | string[] {
+  public static stringify(filter: Required<Filter>, options?: FilterStringifyOptions): string
+  public static stringify(filters: Required<Filter>[], options?: FilterStringifyOptions): string[]
+  public static stringify(filterOrFilters: Required<Filter> | Required<Filter>[], options?: FilterStringifyOptions): string | string[] {
     if (Array.isArray(filterOrFilters)) {
-      return FilterStringifyService.stringifyFilters(filterOrFilters)
+      return FilterStringifyService.stringifyFilters(filterOrFilters, options)
     }
 
-    return FilterStringifyService.stringifyFilter(filterOrFilters)
+    return FilterStringifyService.stringifyFilter(filterOrFilters, options)
   }
 
   public static parse(filter: string): Required<Filter>
