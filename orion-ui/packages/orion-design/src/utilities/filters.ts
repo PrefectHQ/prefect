@@ -156,7 +156,7 @@ export function hasFilter(haystack: Filter[], needle: Filter): boolean {
   })
 }
 
-export function isRelativeDateOperation(value: FilterOperation): value is 'newer' | 'older' | 'upcoming' {
+export function isRelativeDateOperation(value: FilterOperation): value is 'next' | 'last' {
   return ['newer', 'older', 'upcoming'].includes(value)
 }
 

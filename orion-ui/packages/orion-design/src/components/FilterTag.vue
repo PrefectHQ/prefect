@@ -5,8 +5,9 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import DismissibleTag from '@/components/DismissibleTag.vue'
-  import { FilterService } from '@/services/FilterService'
+  import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
 
   const emit = defineEmits<{
     (event: 'dismiss', filter: Required<Filter>): void,
@@ -18,8 +19,8 @@
   }
 
   const props = defineProps<Props>()
-
-  const label = computed<string>(() => FilterService.stringify(props.filter))
+  const defaultObject = inject(filtersDefaultObjectKey)
+  const label = computed<string>(() => FilterService.stringify(props.filter, { defaultObject }))
 
   function dismiss(filter: Required<Filter>): void {
     if (props.dismissible) {

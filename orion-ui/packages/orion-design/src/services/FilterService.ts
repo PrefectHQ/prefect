@@ -1,10 +1,10 @@
-/* eslint-disable no-dupe-class-members */
+import { InjectionKey } from 'vue'
 import { UnionFilters } from '@/services/Filter'
 import { FilterDescriptionService } from '@/services/FilterDescriptionService'
 import { FilterParseService } from '@/services/FilterParseService'
 import { FiltersQueryService } from '@/services/FiltersQueryService'
 import { FilterStringifyOptions, FilterStringifyService } from '@/services/FilterStringifyService'
-import { Filter } from '@/types/filters'
+import { Filter, FilterObject } from '@/types/filters'
 
 export class FilterService {
   public static stringify(filter: Required<Filter>, options?: FilterStringifyOptions): string
@@ -17,14 +17,14 @@ export class FilterService {
     return FilterStringifyService.stringifyFilter(filterOrFilters, options)
   }
 
-  public static parse(filter: string): Required<Filter>
-  public static parse(filters: string[]): Required<Filter>[]
-  public static parse(filterOrFilters: string | string[]): Required<Filter> | Required<Filter>[] {
+  public static parse(filter: string, defaultObject: FilterObject): Required<Filter>
+  public static parse(filters: string[], defaultObject: FilterObject): Required<Filter>[]
+  public static parse(filterOrFilters: string | string[], defaultObject: FilterObject): Required<Filter> | Required<Filter>[] {
     if (Array.isArray(filterOrFilters)) {
-      return FilterParseService.parseFilters(filterOrFilters)
+      return FilterParseService.parseFilters(filterOrFilters, defaultObject)
     }
 
-    return FilterParseService.parseFilter(filterOrFilters)
+    return FilterParseService.parseFilter(filterOrFilters, defaultObject)
   }
 
   public static query(filters: Required<Filter>[]): UnionFilters {
@@ -51,3 +51,5 @@ export class FilterService {
     }
   }
 }
+
+export const filtersDefaultObjectKey: InjectionKey<FilterObject> = Symbol('filtersDefaultObjectKey')
