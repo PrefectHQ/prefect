@@ -1,5 +1,5 @@
 ---
-description: Configuring and managing work queues and agents.
+description: Prefect work queues define work to be done. Prefect agents poll a work queue for new work.
 tags:
     - Orion
     - work queues

@@ -72,17 +72,17 @@
 
 <script lang="ts" setup>
   import {
-    logsApi,
     LogsRequestFilter,
     FlowRunLogs,
     Log,
     logLevelLabel,
-    formatDateTimeNumeric
-    , CopyButton
+    formatDateTimeNumeric,
+    CopyButton
   } from '@prefecthq/orion-design'
-  import { subscribe } from '@prefecthq/vue-compositions'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, nextTick, ref, watch } from 'vue'
+  import { logsApi } from '@/services/logsApi'
 
   const props = defineProps({
     flowRunId: {
@@ -123,11 +123,11 @@
   const options: SubscriptionOptions = {
     interval: props.running ? 5000 : undefined,
   }
-  const subscription = subscribe(logsApi.getLogs.bind(logsApi), [filter], options)
-  const logs = computed<Log[]>(() => subscription.response.value ?? [])
-  const loading = computed<boolean>(() => subscription.loading.value ?? true)
+  const subscription = useSubscription(logsApi.getLogs, [filter], options)
+  const logs = computed<Log[]>(() => subscription.response ?? [])
+  const loading = computed<boolean>(() => subscription.loading ?? true)
 
-  const clearFilters = () => {
+  const clearFilters = (): void => {
     levelFilter.value = 0
   }
 
@@ -164,7 +164,7 @@
   )
 
   watch(
-    () => subscription.response.value,
+    () => subscription.response,
     () => updateScrollPosition(),
   )
 </script>
@@ -201,7 +201,7 @@
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
     grid-template-areas: 'level time message task';
-    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
+    grid-template-columns: [level] 65px [time] 108px [message] 1fr [task] 140px;
   }
 }
 

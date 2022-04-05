@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useSubscription } from '@prefecthq/vue-compositions/src/subscribe/subscribe'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DetailsKeyValue from '@/components/DetailsKeyValue.vue'
@@ -28,35 +28,45 @@
   import WorkQueueEditPanel from '@/components/WorkQueueEditPanel.vue'
   import WorkQueuePanel from '@/components/WorkQueuePanel.vue'
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
-  import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { Crumb } from '@/models/Crumb'
   import { WorkQueue } from '@/models/WorkQueue'
+  import { deploymentsApiKey } from '@/services/DeploymentsApi'
+  import { workQueuesApiKey } from '@/services/WorkQueuesApi'
+  import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
+  import { workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
-  const injectedServices = useInjectedServices()
   const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
+
+  const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)
+  const deploymentsApi = inject(deploymentsApiKey)
+  const workQueuesApi = inject(workQueuesApiKey)
+
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
-    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueue.id])
+    const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueue.id])
 
     showPanel(WorkQueueEditPanel, {
       workQueue,
       workQueueSubscription,
-      ...injectedServices,
+      workQueuesListSubscription,
+      deploymentsApi,
+      workQueuesApi,
     })
   }
 
   function openWorkQueuePanel(): void {
     const workQueueId = props.workQueue.id
-    const workQueueSubscription = useSubscription(injectedServices.getWorkQueue, [workQueueId])
+    const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {
       workQueueId,
       workQueueSubscription,
+      workQueuesListSubscription,
       openWorkQueueEditPanel,
-      ...injectedServices,
+      workQueuesApi,
     })
   }
 </script>
