@@ -284,7 +284,7 @@ class Client:
 
     @tenant_id.setter
     def tenant_id(self, tenant_id: Union[str, uuid.UUID, None]) -> None:
-        if tenant_id is None:
+        if tenant_id in (None, ""):
             self._tenant_id = None
             return
 
@@ -533,7 +533,7 @@ class Client:
         # is still being hit
         rate_limited = response.status_code == 429
         if rate_limited and rate_limit_counter <= 6:
-            jitter = random.random() * 10 * (2**rate_limit_counter)
+            jitter = random.random() * 10 * (2 ** rate_limit_counter)
             naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
             self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
             time.sleep(naptime)
