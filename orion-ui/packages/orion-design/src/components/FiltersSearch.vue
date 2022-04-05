@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref, withDefaults } from 'vue'
+  import { computed, inject, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import FilterTags from '@/components/FilterTags.vue'
@@ -36,7 +36,6 @@
   import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore, FilterState } from '@/stores/filters'
-  import { inject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
   import { toPluralString } from '@/utilities/strings'
 
@@ -58,7 +57,7 @@
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
-  const defaultObject = inject(filtersDefaultObjectKey)
+  const defaultObject = inject(filtersDefaultObjectKey, 'flow_run')
 
   function add(): void {
     if (term.value == '') {
