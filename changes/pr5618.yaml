@@ -1,2 +1,0 @@
-enhancement:
-  - "Add create_bucket kwarg to GCSCopy [#5618](https://github.com/PrefectHQ/prefect/issues/5618)"

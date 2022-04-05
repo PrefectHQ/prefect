@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.2.0 <Badge text="beta" type="success" />
+
+Released on April 5, 2022.
+
+### Features
+
+- Add `retry_on` to allow tasks to retry on a subset of exception types - [#5634](https://github.com/PrefectHQ/prefect/pull/5634)
+
+### Enhancements
+
+- Add ability to add capacity provider for ECS flow runs - [#4356](https://github.com/PrefectHQ/prefect/issues/4356)
+- Add support for default values to `DateTimeParameter` - [#5519](https://github.com/PrefectHQ/prefect/pull/5519)
+- Calling `flow.run` within a flow definition context will raise a `RuntimeError` - [#5588](https://github.com/PrefectHQ/prefect/pull/5588)
+- Add support for service principal and managed identities for storage on Azure - [#5612](https://github.com/PrefectHQ/prefect/pull/5612)
+
+### Task Library
+
+- The `azureml-sdk` dependency has been moved from the `azure` extra into `azureml` - [#5632](https://github.com/PrefectHQ/prefect/pull/5632)
+- Add task to create materializations with [Transform](https://transform.co/) - [#5518](https://github.com/PrefectHQ/prefect/pull/5518)
+- Add `create_bucket` to `GCSCopy` - [#5618](https://github.com/PrefectHQ/prefect/issues/5618)
+
+### Fixes
+
+- Fix issue where the `FlowRunView` could fail to initialize when the backend has no state data - [#5554](https://github.com/PrefectHQ/prefect/pull/5554)
+- Fix issue where adaptive Dask clusters failed to replace workers - [#5549](https://github.com/PrefectHQ/prefect/issues/5549)
+- Fix issue where logging in to Cloud via the CLI could fail - [#5643](https://github.com/PrefectHQ/prefect/pull/5643)
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Emre Akgün](https://github.com/Fraznist)
+- [Josh Wang](https://github.com/wangjoshuah)
+- [Panagiotis Simakis](https://github.com/sp1thas)
+- [eedokl](https://github.com/eedokl)
+
 ## 1.1.0 <Badge text="beta" type="success" />
 
 Released on March 10, 2022.

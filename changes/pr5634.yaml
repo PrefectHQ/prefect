@@ -1,2 +1,0 @@
-feature:
-  - 'Add `retry_on` to allow tasks to retry on a subset of exception types - [#5634](https://github.com/PrefectHQ/prefect/pull/5634)'
