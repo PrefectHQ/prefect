@@ -131,6 +131,12 @@
   </div>
 
   <ListTabSet v-model:value="resultsTab" :tabs="tabs" class="mt-3">
+    <template #logs>
+      <section class="flow-run__tab-content">
+        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
+      </section>
+    </template>
+
     <template #task_runs="{ tab }">
       <section class="results-section">
         <ResultsList
@@ -160,12 +166,6 @@
         <div v-else class="text-center my-8">
           <h2>No results found</h2>
         </div>
-      </section>
-    </template>
-
-    <template #logs>
-      <section class="flow-run__tab-content">
-        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
       </section>
     </template>
   </ListTabSet>
@@ -355,6 +355,12 @@
 
   const tabs = computed<ListTab[]>(() => [
     {
+      title: 'Logs',
+      key: 'logs',
+      icon: 'pi-logs-fill',
+      count: null,
+    },
+    {
       title: 'Task Runs',
       key: 'task_runs',
       icon: 'pi-task',
@@ -366,22 +372,18 @@
       icon: 'pi-flow-run',
       count: queries.sub_flow_runs_count.response?.value ?? 0,
     },
-    {
-      title: 'Logs',
-      key: 'logs',
-      icon: 'pi-logs-fill',
-      count: null,
-    },
   ])
 
   const duration = computed(() => {
-    if ([States.PENDING, States.SCHEDULED].includes(state.value.type)) {
+    if (state.value.type == 'PENDING' || state.value.type == 'SCHEDULED') {
       return '--'
     }
 
-    return flowRun.value.total_run_time
-      ? secondsToApproximateString(flowRun.value.total_run_time)
-      : secondsToApproximateString(flowRun.value.estimated_run_time)
+    if (flowRun.value.total_run_time) {
+      return secondsToApproximateString(flowRun.value.total_run_time)
+    }
+
+    return secondsToApproximateString(flowRun.value.estimated_run_time)
   })
 
   // This cleanup is necessary since the initial flow run query isn't
