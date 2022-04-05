@@ -49,7 +49,7 @@ export class FilterUrlService {
   }
 
   private updateUrl(): void {
-    const filters = FilterService.stringify(this.store.all)
+    const filters = FilterService.stringify(this.store.all, { method: 'short' })
 
     this.router.push({ query: { ...this.query, filter: filters } })
   }
