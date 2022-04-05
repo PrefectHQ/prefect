@@ -113,8 +113,8 @@
     StateType,
     FiltersQueryService,
     FilterUrlService,
-    flowRunsApi,
-    States
+    States,
+    ButtonCard
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref, ComputedRef } from 'vue'
@@ -122,29 +122,29 @@
   import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
   import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
   import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
-
   import { Api, Endpoints, Query } from '@/plugins/api'
+  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
     },
   ])
 
-  const historyStart = computed(() => firstFlowRunSubscription.response.value?.[0]?.expectedStartTime)
+  const historyStart = computed(() => firstFlowRunSubscription.response?.[0]?.expectedStartTime)
 
-  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
     },
   ])
 
-  const historyEnd = computed(() => lastFlowRunSubscription.response.value?.[0]?.expectedStartTime)
+  const historyEnd = computed(() => lastFlowRunSubscription.response?.[0]?.expectedStartTime)
 
   const filter = computed<UnionFilters>(() => {
     return FiltersQueryService.query(filtersStore.all)

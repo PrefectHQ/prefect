@@ -1,3 +1,17 @@
+---
+description: Prefect logging captures information about flows and tasks for monitoring, troubleshooting, and auditing.
+tags:
+    - Orion
+    - UI
+    - dashboard
+    - Prefect Cloud
+    - flows
+    - tasks
+    - logging
+    - log formatters
+    - configuration
+---
+
 # Logging
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.

@@ -4,19 +4,10 @@
   </div>
 </template>
 
-<script lang="ts">
-  import { Vue, prop, Options } from 'vue-class-component'
-
-  class Props {
-    hideScrollbars = prop<boolean>({
-      required: false,
-      default: false,
-      type: Boolean,
-    })
-  }
-
-  @Options({})
-  export default class Row extends Vue.with(Props) {}
+<script lang="ts" setup>
+  defineProps<{
+    hideScrollbars?: boolean,
+  }>()
 </script>
 
 <style lang="scss" scoped>
