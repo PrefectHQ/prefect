@@ -4,12 +4,7 @@
       <i class="pi pi-search-line" />
     </template>
     <template v-else>
-      <template v-if="filters.length <= 3 && media.sm">
-        <FilterTags :filters="filters" class="filters-search__tags" :dismissible="dismissable" @dismiss="dismiss" @click.stop />
-      </template>
-      <template v-else>
-        <DismissibleTag :label="filtersLabel" :dismissible="dismissable" @dismiss="dismissAll" @click.stop />
-      </template>
+      <FilterTags v-bind="{ filters, dismissible }" class="filters-search__tags" auto-hide @dismiss="dismiss" @click.stop />
     </template>
     <input
       v-model="term"
@@ -19,34 +14,27 @@
       @keypress.prevent.enter="add"
       @keypress.prevent.tab="add"
     >
-    <template v-if="term.length">
-      <button type="button" class="filters-search__clear" @click="clear">
-        <i class="pi pi-sm pi-close-circle-fill" />
-      </button>
-    </template>
+    <button type="button" class="filters-search__clear" :class="classes.clear" @click="clear">
+      <i class="pi pi-sm pi-close-circle-fill" />
+    </button>
   </div>
 </template>
 
 <script lang="ts" setup>
   import { computed, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
-  import DismissibleTag from '@/components/DismissibleTag.vue'
   import FilterTags from '@/components/FilterTags.vue'
   import { FilterPrefixError } from '@/models/FilterPrefixError'
   import { FilterService } from '@/services/FilterService'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore, FilterState } from '@/stores/filters'
-  import { media } from '@/utilities/media'
-  import { toPluralString } from '@/utilities/strings'
 
   interface Props {
-    dismissable?: boolean,
+    dismissible?: boolean,
     placeholder?: string,
   }
 
   withDefaults(defineProps<Props>(), {
-    // eslint-disable-next-line vue/no-boolean-default
-    dismissable: true,
     placeholder: 'Search...',
   })
 
@@ -55,8 +43,14 @@
   const filterUrlService = new FilterUrlService(useRouter())
   const term = ref('')
   const filters = computed(() => filtersStore.all)
-  const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
+
+  const classes = computed(() => ({
+    clear: {
+      'filters-search__clear--visible': term.value.length,
+    },
+  }))
+
   function add(): void {
     if (term.value == '') {
       return
@@ -80,10 +74,6 @@
 
   function dismiss(filter: FilterState): void {
     filterUrlService.remove(filter)
-  }
-
-  function dismissAll(): void {
-    filterUrlService.removeAll()
   }
 
   function clear(): void {
@@ -134,6 +124,7 @@
 }
 
 .filters-search__clear {
+  opacity: 0;
   appearance: none;
   cursor: pointer;
   border: 0;
@@ -143,5 +134,9 @@
   &:hover {
     color: var(--grey-80);
   }
+}
+
+.filters-search__clear--visible {
+  opacity: 1;
 }
 </style>
