@@ -1,16 +1,24 @@
 <template>
   <div class="flows-list">
-    <m-card shadow="sm">
-      <VirtualScroller :items="flows" :item-estimate-height="70" @bottom="emit('bottom')">
-        <template #default="{ item }">
-          <FlowsPageFlowListItem :flow="item">
-            <template #flow-filters="{ flow }">
-              <slot name="flow-filters" :flow="flow" />
-            </template>
-          </FlowsPageFlowListItem>
-        </template>
-      </VirtualScroller>
-    </m-card>
+    <template v-if="loading">
+      <m-loader
+        loading
+        class="text-center my-3 mx-auto"
+      />
+    </template>
+    <template v-else>
+      <m-card shadow="sm">
+        <VirtualScroller :items="flows" :item-estimate-height="70" @bottom="emit('bottom')">
+          <template #default="{ item }">
+            <FlowsPageFlowListItem :flow="item">
+              <template #flow-filters="{ flow }">
+                <slot name="flow-filters" :flow="flow" />
+              </template>
+            </FlowsPageFlowListItem>
+          </template>
+        </VirtualScroller>
+      </m-card>
+    </template>
     <template v-if="empty">
       <div class="text-center my-8">
         <h2>No results found</h2>
@@ -27,6 +35,7 @@
 
   const props = defineProps<{
     flows: Flow[],
+    loading: boolean,
   }>()
 
   const emit = defineEmits<{
