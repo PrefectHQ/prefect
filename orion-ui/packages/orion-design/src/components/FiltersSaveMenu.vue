@@ -139,4 +139,8 @@
   gap: var(--m-1);
   justify-content: space-between;
 }
+
+.filters-save-menu .filter-tags__tags {
+  flex-wrap: wrap;
+}
 </style>
