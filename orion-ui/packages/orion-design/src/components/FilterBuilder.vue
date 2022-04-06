@@ -2,7 +2,7 @@
   <div class="filter-builder">
     <div class="filter-builder__header">
       <FilterBuilderHeading class="filter-builder__heading" :filter="innerFilter" />
-      <template v-if="dismissable && hasObject">
+      <template v-if="dismissible && hasObject">
         <button type="button" class="filter-builder__close" @click="emit('dismiss')">
           <i class="filter-builder__close-icon pi pi-sm pi-close-circle-fill" />
         </button>
@@ -48,7 +48,7 @@
 
   const props = defineProps<{
     filter: Partial<Filter>,
-    dismissable?: boolean,
+    dismissible?: boolean,
     expanded?: boolean,
   }>()
 
