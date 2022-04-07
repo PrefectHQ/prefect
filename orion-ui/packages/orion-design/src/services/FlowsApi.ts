@@ -4,7 +4,7 @@ import { Flow } from '@/models/Flow'
 import { IFlowResponse } from '@/models/IFlowResponse'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
-import { translate } from '@/services/Translate'
+import { mapper } from '@/services/Mapper'
 
 export class FlowsApi extends Api {
 
@@ -12,12 +12,12 @@ export class FlowsApi extends Api {
 
   public getFlow(id: string): Promise<Flow> {
     return this.get<IFlowResponse>(`/${id}`)
-      .then(({ data }) => translate.toDestination('IFlowResponse:Flow', data))
+      .then(({ data }) => mapper.map('IFlowResponse', data, 'Flow'))
   }
 
   public getFlows(filter: UnionFilters): Promise<Flow[]> {
     return this.post<IFlowResponse[]>('/filter', filter)
-      .then(({ data }) => data.map(x => translate.toDestination('IFlowResponse:Flow', x)))
+      .then(({ data }) => mapper.map('IFlowResponse', data, 'Flow'))
   }
 
   public getFlowsCount(filter: UnionFilters): Promise<number> {
