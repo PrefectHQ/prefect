@@ -23,6 +23,12 @@
       </template>
     </div>
 
+    <div class="filters-menu__add">
+      <m-button color="primary" @click="add">
+        Add Filter
+      </m-button>
+    </div>
+
     <template #actions>
       <div class="filters-menu__footer">
         <!-- not adding icon for now because the size is messed up -->
@@ -49,13 +55,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { reactive, watch } from 'vue'
+  import { reactive } from 'vue'
   import { useRouter } from 'vue-router'
   import FilterBuilder from '@/components/FilterBuilder.vue'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
-  import { isCompleteFilter, isFilter } from '@/utilities/filters'
+  import { isCompleteFilter } from '@/utilities/filters'
   import { clone } from '@/utilities/object'
 
   const emit = defineEmits<{
@@ -67,11 +73,9 @@
 
   const tempFilters: Partial<Filter>[] = reactive(clone(filters.all))
 
-  watch(tempFilters, () => {
-    if (tempFilters.every(filter => isFilter(filter))) {
-      tempFilters.push({})
-    }
-  }, { immediate: true })
+  function add(): void {
+    tempFilters.push({})
+  }
 
   function updateFilter(index: number, filter: Partial<Filter>): void {
     tempFilters[index] = filter
@@ -155,6 +159,13 @@
   gap: var(--m-1);
   padding: var(--p-2);
   max-height: 85vh;
+}
+
+.filters-menu__add {
+  padding: var(--p-2);
+  padding-top: 0;
+  display: flex;
+  align-self: center;
 }
 
 .filters-menu__footer {
