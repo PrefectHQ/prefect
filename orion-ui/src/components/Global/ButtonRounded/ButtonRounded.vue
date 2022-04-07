@@ -1,24 +1,19 @@
 <template>
-  <button class="button-rounded" :class="classes">
+  <button type="button" class="button-rounded" :class="classes">
     <slot />
   </button>
 </template>
 
-<script lang="ts">
-  import { Vue, Options, prop } from 'vue-class-component'
+<script lang="ts" setup>
+  import { computed } from 'vue'
 
-  class Props {
-    disabled = prop<boolean>({ default: false, type: Boolean })
-  }
+  const props = defineProps<{
+    disabled?: boolean,
+  }>()
 
-  @Options({})
-  export default class ButtonCard extends Vue.with(Props) {
-    get classes() {
-      return {
-        'button-rounded--disabled': this.disabled,
-      }
-    }
-  }
+  const classes = computed(() => ({
+    'button-rounded--disabled': props.disabled,
+  }))
 </script>
 
 <style lang="scss" scoped>

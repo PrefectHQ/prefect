@@ -1,11 +1,11 @@
 ---
-description: Create and manage work queues from the Orion or Cloud UI.
+description: Create and manage work queues from the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
     - deployments
     - flow runs
-    - Cloud
+    - Prefect Cloud
     - work queues
     - agents
     - tags

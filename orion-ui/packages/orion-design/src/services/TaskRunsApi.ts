@@ -1,14 +1,13 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { InjectionKey } from 'vue'
 import { ITaskRunResponse } from '@/models/ITaskRunResponse'
 import { TaskRun } from '@/models/TaskRun'
-import { Api, Route } from '@/services/Api'
+import { Api, ApiRoute } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { mapper } from '@/services/Mapper'
 
 export class TaskRunsApi extends Api {
 
-  protected route: Route = '/task_runs'
+  protected route: ApiRoute = '/task_runs'
 
   public getTaskRun(id: string): Promise<TaskRun> {
     return this.get<ITaskRunResponse>(`/${id}`)
@@ -26,6 +25,4 @@ export class TaskRunsApi extends Api {
 
 }
 
-export const taskRunsApi = createActions(new TaskRunsApi())
-
-export const getTaskRunKey: InjectionKey<TaskRunsApi['getTaskRun']> = Symbol()
+export const taskRunsApiKey: InjectionKey<TaskRunsApi> = Symbol('taskRunsApiKey')

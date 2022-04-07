@@ -86,7 +86,7 @@
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
     grid-template-areas: "level time message task";
-    grid-template-columns: [level] 65px [time] 100px [message] 1fr [task] 140px;
+    grid-template-columns: [level] 65px [time] 108px [message] 1fr [task] 140px;
     padding: 0 var(--p-2);
 
     + .flow-run-log {
@@ -128,10 +128,6 @@
   grid-area: time;
   color: var(--log-level-info);
   text-align: left;
-
-  @media screen and (min-width: map.get($breakpoints, 'md')) {
-    text-align: center;
-  }
 }
 
 .flow-run-log__time--error {
@@ -148,7 +144,6 @@
   border: 1px solid transparent;
   border-radius: 4px;
   grid-area: message;
-  padding: 0 var(--p-1);
   display: flex;
   white-space: pre-wrap;
 

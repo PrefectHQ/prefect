@@ -512,6 +512,32 @@ class TestTaskCaching:
         assert third_state.result() == "something"
         assert fourth_state.result() == "something"
 
+    def test_cache_key_fn_receives_resolved_futures(self):
+        def check_args(context, params):
+            assert params["x"] == "something"
+            assert len(params) == 1
+            return params["x"]
+
+        @task
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=check_args)
+        def bar(x):
+            return x
+
+        @flow
+        def my_flow():
+            future = foo("something")
+            return bar(future).wait(), bar(future).wait()
+
+        first_state, second_state = my_flow().result()
+        assert first_state.name == "Completed"
+        assert first_state.result() == "something"
+
+        assert second_state.name == "Cached"
+        assert second_state.result() == "something"
+
     def test_cache_key_fn_arg_inputs_are_stable(self):
         def stringed_inputs(context, args):
             return str(args)

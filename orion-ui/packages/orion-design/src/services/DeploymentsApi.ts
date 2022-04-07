@@ -1,17 +1,16 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { InjectionKey } from 'vue'
 import { Deployment } from '@/models/Deployment'
 import { Flow } from '@/models/Flow'
 import { ICreateFlowRunRequest } from '@/models/ICreateFlowRunRequest'
 import { IDeploymentResponse } from '@/models/IDeploymentResponse'
 import { IFlowResponse } from '@/models/IFlowResponse'
-import { Api, Route } from '@/services/Api'
+import { Api, ApiRoute } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
 import { mapper } from '@/services/Mapper'
 
 export class DeploymentsApi extends Api {
 
-  protected route: Route = '/deployments'
+  protected override route: ApiRoute = '/deployments'
 
   public getDeployment(deploymentId: string): Promise<Deployment> {
     return this.get<IDeploymentResponse>(`/${deploymentId}`)
@@ -37,9 +36,4 @@ export class DeploymentsApi extends Api {
   }
 }
 
-export const deploymentsApi = createActions(new DeploymentsApi())
-
-export const getDeploymentsCountKey: InjectionKey<DeploymentsApi['getDeploymentsCount']> = Symbol()
-export const getDeploymentsKey: InjectionKey<DeploymentsApi['getDeployments']> = Symbol()
-export const createDeploymentFlowRunKey: InjectionKey<DeploymentsApi['createDeploymentFlowRun']> = Symbol()
-export const deleteDeploymentKey: InjectionKey<DeploymentsApi['deleteDeployment']> = Symbol()
+export const deploymentsApiKey: InjectionKey<DeploymentsApi> = Symbol('deploymentsApiKey')
