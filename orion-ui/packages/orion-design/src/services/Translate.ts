@@ -1,37 +1,54 @@
-import { profiles } from '@/profiles'
+import { maps } from '@/maps'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyProfile = Profile<any, any>
-type SourceType<T extends AnyProfile> = ReturnType<T['toSource']>
-type DestinationType<T extends AnyProfile> = ReturnType<T['toDestination']>
+type Map = (...args: any) => any
+type Maps = Record<string, Record<string, Map>>
+type MapsMember<T extends Maps, K extends keyof T> = T[K][keyof T[K]]
+type Mappers<T extends Maps, K extends keyof T> = Extract<MapsMember<T, K>, Map>
+type MapperSourceType<T extends Maps, K extends keyof T> = Parameters<Mappers<T, K>>[0]
+type MapperDestinationType<T extends Maps, K extends keyof T> = ReturnType<Mappers<T, K>>
 
-function mapToDestination<T extends AnyProfile>(profile: T, source: SourceType<T>[]): DestinationType<T>[] {
-  return source.map(x => profile.toDestination(x))
-}
+export class Mapper<T extends Maps> {
+  private readonly mapperFunctions: T
 
-function mapToSource<T extends AnyProfile>(profile: T, destination: DestinationType<T>[]): SourceType<T>[] {
-  return destination.map(x => profile.toSource(x))
-}
+  public constructor(mapperFunctions: T) {
+    this.mapperFunctions = mapperFunctions
+  }
 
-export function translate<K extends keyof typeof profiles>(key: K): typeof profiles[K] & {
-  mapToDestination: (source: SourceType<typeof profiles[K]>[]) => DestinationType<typeof profiles[K]>[],
-  mapToSource: (destination: DestinationType<typeof profiles[K]>[]) => SourceType<typeof profiles[K]>[],
-} {
-  const profile = profiles[key]
+  public map<K extends keyof T>(source: K, value: MapperSourceType<T, K>, destination: keyof T[K]): MapperDestinationType<T, K>
+  public map<K extends keyof T>(source: K, value: MapperSourceType<T, K>[], destination: keyof T[K]): MapperDestinationType<T, K>[]
+  public map<K extends keyof T>(source: K, value: MapperSourceType<T, K> | MapperSourceType<T, K>[], destination: keyof T[K]): MapperDestinationType<T, K> | MapperDestinationType<T, K>[] {
+    const mapper = this.mapperFunctions[source][destination]
 
-  return {
-    ...profile,
-    mapToDestination: (source: SourceType<typeof profile>[]) => mapToDestination(profile, source),
-    mapToSource: (destination: DestinationType<typeof profile>[]) => mapToSource(profile, destination),
+    if (Array.isArray(value)) {
+      return value.map(x => this.bindMapper<K>(mapper, x))
+    }
+
+    return this.bindMapper<K>(mapper, value)
+  }
+
+  public mapEntries<K extends keyof T>(source: K, value: Record<string, MapperSourceType<T, K>>, destination: keyof T[K]): Record<string, MapperDestinationType<T, K>>
+  public mapEntries<K extends keyof T>(source: K, value: Record<string, MapperSourceType<T, K>[]>, destination: keyof T[K]): Record<string, MapperDestinationType<T, K>[]>
+  public mapEntries<K extends keyof T>(source: K, value: Record<string, MapperSourceType<T, K>> | Record<string, MapperSourceType<T, K>[]>, destination: keyof T[K]): Record<string, MapperDestinationType<T, K>> | Record<string, MapperDestinationType<T, K>[]> {
+    const response = {} as Record<string, MapperDestinationType<T, K>>
+
+    return Object.entries(value).reduce<Record<string, MapperDestinationType<T, K>>>((mapped, [key, value]) => {
+      mapped[key] = this.map(source, value, destination)
+
+      return mapped
+    }, response)
+  }
+
+  private bindMapper<K extends keyof T>(mapper: MapsMember<T, K>, value: Parameters<MapsMember<T, K>>[0]): MapperDestinationType<T, K> {
+    const map = mapper.bind(this, value)
+
+    return map()
   }
 }
 
-export type Profile<Source, Destination> = {
-  toDestination: (source: Source) => Destination,
-  toSource: (destination: Destination) => Source,
-}
+export const mapper = new Mapper(maps)
 
-// todo: map arrays?
-// translate('IFlow[]:Flow[]').toSource(destination)
+export type MapFunction<Source, Destination> = (this: typeof mapper, source: Source) => Destination
 
-// todo: can you use ts to enforce the profile key as {source}:{destination}?
+// rename translate => mapper
+// numberProfile
