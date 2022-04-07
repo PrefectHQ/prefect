@@ -49,6 +49,3 @@ export class Mapper<T extends Maps> {
 export const mapper = new Mapper(maps)
 
 export type MapFunction<Source, Destination> = (this: typeof mapper, source: Source) => Destination
-
-// rename translate => mapper
-// numberProfile

@@ -5,7 +5,7 @@ import { IWorkQueueResponse } from '@/models/IWorkQueueResponse'
 import { WorkQueue } from '@/models/WorkQueue'
 import { Api, Route } from '@/services/Api'
 import { PaginatedFilter } from '@/services/Filter'
-import { translate } from '@/services/Translate'
+import { mapper } from '@/services/Mapper'
 
 export class WorkQueuesApi extends Api {
 
@@ -13,17 +13,17 @@ export class WorkQueuesApi extends Api {
 
   public getWorkQueue(id: string): Promise<WorkQueue> {
     return this.get<IWorkQueueResponse>(`/${id}`)
-      .then(({ data }) => translate.toDestination('IWorkQueueResponse:WorkQueue', data))
+      .then(({ data }) => mapper.map('IWorkQueueResponse', data, 'WorkQueue'))
   }
 
   public getWorkQueues(filter: PaginatedFilter): Promise<WorkQueue[]> {
     return this.post<IWorkQueueResponse[]>('/filter', filter)
-      .then(({ data }) => data.map(x => translate.toDestination('IWorkQueueResponse:WorkQueue', x)))
+      .then(({ data }) => mapper.map('IWorkQueueResponse', data, 'WorkQueue'))
   }
 
   public createWorkQueue(request: IWorkQueueRequest): Promise<WorkQueue> {
     return this.post<IWorkQueueResponse>('/', request)
-      .then(({ data }) => translate.toDestination('IWorkQueueResponse:WorkQueue', data))
+      .then(({ data }) => mapper.map('IWorkQueueResponse', data, 'WorkQueue'))
   }
 
   public pauseWorkQueue(id: string): Promise<void> {

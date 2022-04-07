@@ -4,7 +4,7 @@ import { ITaskRunResponse } from '@/models/ITaskRunResponse'
 import { TaskRun } from '@/models/TaskRun'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
-import { translate } from '@/services/Translate'
+import { mapper } from '@/services/Mapper'
 
 export class TaskRunsApi extends Api {
 
@@ -12,12 +12,12 @@ export class TaskRunsApi extends Api {
 
   public getTaskRun(id: string): Promise<TaskRun> {
     return this.get<ITaskRunResponse>(`/${id}`)
-      .then(({ data }) => translate.toDestination('ITaskRunResponse:TaskRun', data))
+      .then(({ data }) => mapper.map('ITaskRunResponse', data, 'TaskRun'))
   }
 
   public getTaskRuns(filter: UnionFilters): Promise<TaskRun[]> {
     return this.post<ITaskRunResponse[]>('/filter', filter)
-      .then(({ data }) => data.map(x => translate.toDestination('ITaskRunResponse:TaskRun', x)))
+      .then(({ data }) => mapper.map('ITaskRunResponse', data, 'TaskRun'))
   }
 
   public getTaskRunsCount(filter: UnionFilters): Promise<number> {
