@@ -948,7 +948,7 @@ def test_docker_agent_parse_volume_spec_unix(
             {"C:\\some\\path": {"bind": "/c/some/path", "mode": "rw"}},
         ),
         (
-            # windows host --> linux container
+            # windows docker socket
             ["//var/run/docker.sock"],
             [],
             ['/var/run/docker.sock'],
