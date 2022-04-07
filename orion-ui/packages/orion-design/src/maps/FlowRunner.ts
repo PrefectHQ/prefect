@@ -9,9 +9,9 @@ export const mapIFlowRunnerResponseToFlowRunner: MapFunction<IFlowRunnerResponse
   })
 }
 
-export const mapFlowRunnerToIFlowRunnerResponse: MapFunction<FlowRunner, IFlowRunnerResponse> = function(destination: FlowRunner): IFlowRunnerResponse {
+export const mapFlowRunnerToIFlowRunnerResponse: MapFunction<FlowRunner, IFlowRunnerResponse> = function(source: FlowRunner): IFlowRunnerResponse {
   return {
-    type: destination.type,
-    config: destination.config,
+    type: source.type,
+    config: source.config,
   }
 }
