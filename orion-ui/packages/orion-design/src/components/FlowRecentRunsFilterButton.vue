@@ -32,7 +32,7 @@
       object: 'flow_run',
       property: 'start_date',
       type: 'date',
-      operation: 'newer',
+      operation: 'last',
       value: '1w',
     },
   ])
