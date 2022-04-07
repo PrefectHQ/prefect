@@ -33,9 +33,14 @@ export class Mapper<T extends Maps> {
   }
 
   public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE> | null>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION> | null>
+  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>> | null
   public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>[]>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>[]>
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE> | MapperSourceType<T, SOURCE>[] | null> | Record<string, MapperSourceType<T, SOURCE>>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION> | MapperDestinationType<T, SOURCE, DESTINATION>[] | null> {
+  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>[]> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>[]> | null
+  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE> | MapperSourceType<T, SOURCE>[]> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION> | MapperDestinationType<T, SOURCE, DESTINATION>[]> | null {
+    if (value === null) {
+      return null
+    }
+
     const response = {} as Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>
 
     return Object.entries(value).reduce<Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>>((mapped, [key, value]) => {
