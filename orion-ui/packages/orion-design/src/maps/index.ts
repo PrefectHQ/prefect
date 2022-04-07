@@ -8,6 +8,7 @@ import { mapFlowRunGraphToIFlowRunGraphResponse, mapIFlowRunGraphResponseToFlowR
 import { mapRunHistoryToIFlowRunHistoryResponse, mapIFlowRunHistoryResponseToRunHistory } from './FlowRunHistory'
 import { mapFlowRunnerToIFlowRunnerResponse, mapIFlowRunnerResponseToFlowRunner } from './FlowRunner'
 import { mapLogToILogResponse, mapILogResponseToLog } from './Logs'
+import { mapNumberToString, mapStringToNumber } from './Number'
 import { mapScheduleToIScheduleResponse, mapIScheduleResponseToSchedule } from './Schedule'
 import { mapIStateResponseToIState, mapIStateToIStateResponse } from './State'
 import { mapIStateDetailsResponseToIStateDetails, mapIStateDetailsToIStateDetailsResponse } from './StateDetails'
@@ -20,6 +21,7 @@ import { mapWorkQueueFilterToIWorkQueueFilterResponse, mapIWorkQueueFilterRespon
 export const maps = {
   string: {
     Date: mapStringToDate,
+    number: mapStringToNumber,
   },
   Date: {
     string: mapDateToString,
@@ -77,6 +79,9 @@ export const maps = {
   },
   ILogResponse: {
     Log: mapILogResponseToLog,
+  },
+  number: {
+    string: mapNumberToString,
   },
   Schedule: {
     IScheduleResponse: mapScheduleToIScheduleResponse,
