@@ -14,7 +14,7 @@ export const mapIDeploymentResponseToDeployment: MapFunction<IDeploymentResponse
     isScheduleActive: source.is_schedule_active,
     parameters: source.parameters,
     tags: source.tags,
-    flowRunner: this.map('IFlowRunnerResponse', source.flow_runner, 'FlowRunner'),
+    flowRunner: source.flow_runner ? this.map('IFlowRunnerResponse', source.flow_runner, 'FlowRunner') : null,
   })
 }
 
@@ -30,6 +30,6 @@ export const mapDeploymentToIDeploymentResponse: MapFunction<Deployment, IDeploy
     'is_schedule_active': source.isScheduleActive,
     'parameters': source.parameters,
     'tags': source.tags,
-    'flow_runner': this.map('FlowRunner', source.flowRunner!, 'IFlowRunnerResponse'),
+    'flow_runner': source.flowRunner ? this.map('FlowRunner', source.flowRunner, 'IFlowRunnerResponse') : null,
   }
 }
