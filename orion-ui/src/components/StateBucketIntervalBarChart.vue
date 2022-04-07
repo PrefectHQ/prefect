@@ -24,38 +24,35 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
-  import { subscribe } from '@prefecthq/vue-compositions'
+  import { FlowRunsHistoryFilter, KeysMatching, RunHistory, StateHistory } from '@prefecthq/orion-design'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import IntervalBarChartCard from './IntervalBarChart/IntervalBarChartCard.vue'
   import { IntervalBarChartItem } from './IntervalBarChart/Types/IntervalBarChartItem'
-  import FlowRunHistory from '@/models/flowRunHistory'
-  import FlowRunStateHistory from '@/models/flowRunStateHistory'
-  import FlowRunsApi from '@/services/flowRunsApi'
-  import { KeysMatching } from '@/types/utilities'
+  import { flowRunsApi } from '@/services/flowRunsApi'
   import { secondsToApproximateString } from '@/util/util'
 
   const props = defineProps<{
     title: string,
-    filter: FlowRunsHistoryFilter, // todo: this should come from the store
-    property: KeysMatching<FlowRunStateHistory, number>,
+    filter: FlowRunsHistoryFilter,
+    property: KeysMatching<StateHistory, number>,
   }>()
 
-  const history = subscribe(FlowRunsApi.History, [props.filter], {
+  const history = useSubscription(flowRunsApi.getFlowRunsHistory, [props.filter], {
     interval: 30000,
   })
 
   const historyToChartItem = (
-    bucket: FlowRunHistory,
-  ): IntervalBarChartItem<FlowRunHistory> => ({
+    bucket: RunHistory,
+  ): IntervalBarChartItem<RunHistory> => ({
     data: bucket,
-    interval_start: bucket.interval_start,
-    interval_end: bucket.interval_end,
+    interval_start: bucket.intervalStart,
+    interval_end: bucket.intervalEnd,
     value: bucket.states.reduce((acc, curr) => acc + curr[props.property], 0),
   })
 
-  const items = computed<IntervalBarChartItem<FlowRunHistory>[]>(() => {
-    const buckets: FlowRunHistory[] = history.response.value || []
+  const items = computed<IntervalBarChartItem<RunHistory>[]>(() => {
+    const buckets: RunHistory[] = history.response ?? []
     const items = buckets.map(historyToChartItem)
     const filteredItems = items.filter((item) => item.value)
 
@@ -68,7 +65,7 @@
     return secondsToApproximateString(avg)
   }
 
-  const countRunsInStates = (states: FlowRunStateHistory[]): number => {
-    return states.reduce((total, state) => total + state.count_runs, 0)
+  const countRunsInStates = (states: StateHistory[]): number => {
+    return states.reduce((total, state) => total + state.countRuns, 0)
   }
 </script>

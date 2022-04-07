@@ -1,7 +1,7 @@
 <template>
   <div class="details-key-value" :class="{ 'details-key-value--stacked': stacked, 'details-key-value--not-stacked': !stacked }">
     <div class="details-key-value__label">
-      {{ label }}:
+      {{ label }}
     </div>
     <div class="details-key-value__value">
       <slot v-bind="{ emptyValue }">

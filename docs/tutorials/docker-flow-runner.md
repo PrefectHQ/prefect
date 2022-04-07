@@ -1,5 +1,5 @@
 ---
-description: Learn how to run flows in Docker containers using the DockerFlowRunner.
+description: Learn how to run Prefect flows in Docker containers using the Docker flow runner.
 tags:
     - Docker
     - containers
@@ -11,7 +11,7 @@ tags:
 
 # Running flows in Docker
 
-Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/). The [DockerFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
+Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/). The [DockerFlowRunner](/api-ref/prefect/flow-runners/#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
 
 In this tutorial we'll work through the steps you'll need to: 
 
@@ -210,5 +210,3 @@ Open the Prefect Orion UI at [http://127.0.0.1:4200](http://127.0.0.1:4200) and 
 ## Cleaning up
 
 When you're finished, just close the Prefect Orion UI tab in your browser, and close the terminal sessions running the Prefect Orion server and agent.
-
-

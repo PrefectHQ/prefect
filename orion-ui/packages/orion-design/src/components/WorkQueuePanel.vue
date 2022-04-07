@@ -85,20 +85,19 @@
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
     openWorkQueueEditPanel: (workQueue: WorkQueue) => void,
-    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
-    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
+    workQueuesApi: WorkQueuesApi,
   }>()
 
   const saving = ref(false)
 
-  const loading = computed(() => props.workQueueSubscription.loading.value && props.workQueueSubscription.response.value === undefined)
-  const workQueue = computed(() => props.workQueueSubscription.response.value ?? null)
+  const loading = computed(() => props.workQueueSubscription.loading && props.workQueueSubscription.response === undefined)
+  const workQueue = computed(() => props.workQueueSubscription.response ?? null)
   const concurrencyLimit = computed(() => workQueue.value?.concurrencyLimit ? workQueue.value.concurrencyLimit.toLocaleString() : 'No Limit')
   const createdDate = computed(() => workQueue.value?.created ? workQueue.value.created.toISOString() : null)
 
   async function pause(): Promise<void> {
     saving.value = true
-    await props.pauseWorkQueue(props.workQueueId)
+    await props.workQueuesApi.pauseWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()
@@ -108,7 +107,7 @@
 
   async function resume(): Promise<void> {
     saving.value = true
-    await props.resumeWorkQueue(props.workQueueId)
+    await props.workQueuesApi.resumeWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()

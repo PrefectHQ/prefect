@@ -1,5 +1,5 @@
 ---
-description: Overview of Orion metadata database use and configuration.
+description: Learn more about Prefect Orion database use and configuration.
 tags:
     - Orion
     - database
