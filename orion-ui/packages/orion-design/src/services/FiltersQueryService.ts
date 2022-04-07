@@ -1,11 +1,4 @@
-/* eslint-disable import/no-duplicates */
-import addDays from 'date-fns/addDays'
-import addHours from 'date-fns/addHours'
-import addMonths from 'date-fns/addMonths'
-import addWeeks from 'date-fns/addWeeks'
-import addYears from 'date-fns/addYears'
-import startOfToday from 'date-fns/startOfToday'
-import subDays from 'date-fns/subDays'
+import { addDays, addHours, addMonths, addWeeks, addYears, startOfToday, subDays } from 'date-fns'
 import { FilterRelativeDateUnitError } from '@/models/FilterRelativeDateUnitError'
 import { FlowRunsHistoryFilter, UnionFilters } from '@/services/Filter'
 import { DatePartShort, isDatePartShort } from '@/types/dates'
@@ -135,14 +128,12 @@ export class FiltersQueryService {
             case 'before':
               query.expected_start_time.before_ = filter.value.toISOString()
               break
-            case 'newer':
+            case 'next':
               query.expected_start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'older':
+            case 'last':
               query.expected_start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'upcoming':
-              query.expected_start_time.before_ = this.createUpcomingRelativeDate(filter.value).toISOString()
           }
 
           break
@@ -180,10 +171,10 @@ export class FiltersQueryService {
             case 'before':
               query.start_time.before_ = filter.value.toISOString()
               break
-            case 'newer':
+            case 'next':
               query.start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'older':
+            case 'last':
               query.start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
           }

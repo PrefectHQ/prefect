@@ -28,12 +28,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref, withDefaults } from 'vue'
+  import { computed, inject, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import FilterTags from '@/components/FilterTags.vue'
   import { FilterPrefixError } from '@/models/FilterPrefixError'
-  import { FilterService } from '@/services/FilterService'
+  import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore, FilterState } from '@/stores/filters'
   import { media } from '@/utilities/media'
@@ -57,13 +57,15 @@
   const filters = computed(() => filtersStore.all)
   const filtersLabel = computed(() => `${filters.value.length} ${toPluralString('filter', filters.value.length)}`)
   const hasFilters = computed(() => filters.value.length > 0)
+  const defaultObject = inject(filtersDefaultObjectKey, 'flow_run')
+
   function add(): void {
     if (term.value == '') {
       return
     }
 
     try {
-      const filter = FilterService.parse(term.value)
+      const filter = FilterService.parse(term.value, defaultObject)
 
       filterUrlService.add(filter)
       clear()
