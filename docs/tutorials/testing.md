@@ -1,5 +1,5 @@
 ---
-description: Learn how to write tests for your flows and tasks.
+description: Learn about writing tests for Prefect flows and tasks.
 tags:
     - tutorial
     - testing

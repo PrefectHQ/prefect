@@ -38,8 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { CopyButton, useFiltersStore } from '@prefecthq/orion-design'
-  import { media } from '@prefecthq/orion-design/utilities'
+  import { CopyButton, useFiltersStore, media } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
 
   import { useRoute, onBeforeRouteLeave } from 'vue-router'

@@ -15,8 +15,6 @@ from prefect.utilities.hashing import file_hash, stable_hash, to_qualified_name
         (("hello", "goodbye"), "441add4718519b71e42d329a834d6d5e"),
         (("hello", b"goodbye"), "441add4718519b71e42d329a834d6d5e"),
         (("goodbye", "hello"), "c04d8ccb6b9368703e62be93358094f9"),
-        ((1,), "93b885adfe0da089cdf634904fd59f71"),
-        (("hello", 1, b"goodbye"), "1ac272fb6705dfebcd4d5dcd4d4633ff"),
     ],
 )
 def test_stable_hash(inputs, expected):
