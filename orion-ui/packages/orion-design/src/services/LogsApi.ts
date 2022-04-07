@@ -2,7 +2,7 @@ import { createActions } from '@prefecthq/vue-compositions'
 import { ILogResponse } from '@/models/ILogResponse'
 import { Log } from '@/models/Log'
 import { Api, Route } from '@/services/Api'
-import { translate } from '@/services/Translate'
+import { mapper } from '@/services/Mapper'
 import { LogsRequestFilter } from '@/types/LogsRequestFilter'
 
 export class LogsApi extends Api {
@@ -11,7 +11,7 @@ export class LogsApi extends Api {
 
   public getLogs(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post<ILogResponse[]>('/filter', filter)
-      .then(({ data }) => data.map(x => translate.toDestination('ILogResponse:Log', x)))
+      .then(({ data }) => mapper.map('ILogResponse', data, 'Log'))
   }
 
 }

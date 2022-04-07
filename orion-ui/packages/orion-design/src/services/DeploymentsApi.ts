@@ -7,7 +7,7 @@ import { IDeploymentResponse } from '@/models/IDeploymentResponse'
 import { IFlowResponse } from '@/models/IFlowResponse'
 import { Api, Route } from '@/services/Api'
 import { UnionFilters } from '@/services/Filter'
-import { translate } from '@/services/Translate'
+import { mapper } from '@/services/Mapper'
 
 export class DeploymentsApi extends Api {
 
@@ -15,12 +15,12 @@ export class DeploymentsApi extends Api {
 
   public getDeployment(deploymentId: string): Promise<Deployment> {
     return this.get<IDeploymentResponse>(`/${deploymentId}`)
-      .then(({ data }) => translate.toDestination('IDeploymentResponse:Deployment', data))
+      .then(({ data }) => mapper.map('IDeploymentResponse', data, 'Deployment'))
   }
 
   public getDeployments(filter: UnionFilters): Promise<Deployment[]> {
     return this.post<IDeploymentResponse[]>('/filter', filter)
-      .then(({ data }) => data.map(x => translate.toDestination('IDeploymentResponse:Deployment', x)))
+      .then(({ data }) => mapper.map('IDeploymentResponse', data, 'Deployment'))
   }
 
   public getDeploymentsCount(filter: UnionFilters): Promise<number> {
@@ -29,7 +29,7 @@ export class DeploymentsApi extends Api {
 
   public createDeploymentFlowRun(deploymentId: string, body: ICreateFlowRunRequest): Promise<Flow> {
     return this.post<IFlowResponse>(`/${deploymentId}/create_flow_run`, body)
-      .then(({ data }) => translate.toDestination('IFlowResponse:Flow', data))
+      .then(({ data }) => mapper.map('IFlowResponse', data, 'Flow'))
   }
 
   public deleteDeployment(deploymentId: string): Promise<void> {
