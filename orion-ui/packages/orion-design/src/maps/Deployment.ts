@@ -10,11 +10,11 @@ export const mapIDeploymentResponseToDeployment: MapFunction<IDeploymentResponse
     name: source.name,
     flowId: source.flow_id,
     flowData: this.map('IFlowDataResponse', source.flow_data, 'FlowData'),
-    schedule: source.schedule ? this.map('IScheduleResponse', source.schedule, 'Schedule') : null,
+    schedule: this.map('IScheduleResponse', source.schedule, 'Schedule'),
     isScheduleActive: source.is_schedule_active,
     parameters: source.parameters,
     tags: source.tags,
-    flowRunner: source.flow_runner ? this.map('IFlowRunnerResponse', source.flow_runner, 'FlowRunner') : null,
+    flowRunner: this.map('IFlowRunnerResponse', source.flow_runner, 'FlowRunner'),
   })
 }
 
@@ -26,10 +26,10 @@ export const mapDeploymentToIDeploymentResponse: MapFunction<Deployment, IDeploy
     'name': source.name,
     'flow_id': source.flowId,
     'flow_data': this.map('FlowData', source.flowData, 'IFlowDataResponse'),
-    'schedule': source.schedule ? this.map('Schedule', source.schedule, 'IScheduleResponse') : null,
+    'schedule': this.map('Schedule', source.schedule, 'IScheduleResponse'),
     'is_schedule_active': source.isScheduleActive,
     'parameters': source.parameters,
     'tags': source.tags,
-    'flow_runner': source.flowRunner ? this.map('FlowRunner', source.flowRunner, 'IFlowRunnerResponse') : null,
+    'flow_runner': this.map('FlowRunner', source.flowRunner, 'IFlowRunnerResponse'),
   }
 }
