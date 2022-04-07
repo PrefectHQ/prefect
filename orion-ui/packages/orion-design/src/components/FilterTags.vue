@@ -5,7 +5,7 @@
         <FilterTag :ref="refs.tags" class="filter-tags__tag" v-bind="{ filter, dismissible, autoHide }" @dismiss="emit('dismiss', filter)" />
       </template>
     </div>
-    <template v-if="hidden">
+    <template v-if="hiddenCount">
       <DismissibleTag class="filter-tags__hidden" :style="styles" :label="moreLabel" />
       <DismissibleTag class="filter-tags__hidden-placeholder" :label="moreLabel" />
     </template>
@@ -35,8 +35,8 @@
     tags: ref<InstanceType<typeof FilterTag>[]>([]),
   }
 
-  const hidden = computed(() => refs.tags.value.filter(tag => tag.hidden).length)
-  const moreLabel = computed(() => `${hidden.value} more`)
+  const hiddenCount = computed(() => refs.tags.value.filter(tag => tag.hidden).length)
+  const moreLabel = computed(() => `${hiddenCount.value} more`)
   const styles = computed(() => {
     if (refs.container.value === undefined) {
       return null
@@ -46,12 +46,12 @@
     const sorted = tagsComponents.sort((a, b) => props.filters.indexOf(a.filter as FilterState) - props.filters.indexOf(b.filter as FilterState))
     const firstHidden = sorted.find(tag => tag.hidden)
 
-    if (firstHidden === undefined) {
+    if (firstHidden?.el === undefined) {
       return null
     }
 
     const containerRect = refs.container.value.getBoundingClientRect()
-    const tagRect = firstHidden.el!.getBoundingClientRect()
+    const tagRect = firstHidden.el.getBoundingClientRect()
     const left = tagRect.left - containerRect.left
 
     return {
