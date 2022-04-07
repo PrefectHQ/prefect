@@ -21,11 +21,11 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref, withDefaults } from 'vue'
+  import { computed, inject, ref, withDefaults } from 'vue'
   import {  useRouter } from 'vue-router'
   import FilterTags from '@/components/FilterTags.vue'
   import { FilterPrefixError } from '@/models/FilterPrefixError'
-  import { FilterService } from '@/services/FilterService'
+  import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { FilterUrlService } from '@/services/FilterUrlService'
   import { useFiltersStore, FilterState } from '@/stores/filters'
 
@@ -44,6 +44,8 @@
   const term = ref('')
   const filters = computed(() => filtersStore.all)
   const hasFilters = computed(() => filters.value.length > 0)
+  const defaultObject = inject(filtersDefaultObjectKey, 'flow_run')
+
 
   const classes = computed(() => ({
     clear: {
@@ -57,7 +59,7 @@
     }
 
     try {
-      const filter = FilterService.parse(term.value)
+      const filter = FilterService.parse(term.value, defaultObject)
 
       filterUrlService.add(filter)
       clear()

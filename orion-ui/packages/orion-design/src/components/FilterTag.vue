@@ -5,10 +5,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, onMounted, ref, Ref, defineExpose } from 'vue'
+  import { computed, onMounted, ref, Ref, defineExpose, inject } from 'vue'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import { useIntersectionObserver } from '@/compositions/useIntersectionObserver'
-  import { FilterService } from '@/services/FilterService'
+  import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { Filter } from '@/types/filters'
 
   const emit = defineEmits<{
@@ -21,8 +21,8 @@
   }
 
   const props = defineProps<Props>()
-
-  const label = computed<string>(() => FilterService.stringify(props.filter))
+  const defaultObject = inject(filtersDefaultObjectKey, 'flow_run')
+  const label = computed<string>(() => FilterService.stringify(props.filter, { defaultObject }))
   const el: Ref<HTMLDivElement | undefined> = ref()
   const hidden = ref(false)
   const observed = ref(false)

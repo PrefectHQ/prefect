@@ -336,7 +336,18 @@ class DaskTaskRunner(BaseTaskRunner):
                 "The task runner must be started before submitting work."
             )
 
-        self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
+        self._dask_futures[task_run.id] = self._client.submit(
+            run_fn,
+            # Dask displays the text up to the first '-' as the name, include the
+            # task run id to ensure the key is unique.
+            key=f"{task_run.name}-{task_run.id.hex}",
+            # Dask defaults to treating functions are pure, but we set this here for
+            # explicit expectations. If this task run is submitted to Dask twice, the
+            # result of the first run should be returned. Subsequent runs would return
+            # `Abort` exceptions if they were submitted again.
+            pure=True,
+            **run_kwargs,
+        )
 
         return PrefectFuture(
             task_run=task_run, task_runner=self, asynchronous=asynchronous
