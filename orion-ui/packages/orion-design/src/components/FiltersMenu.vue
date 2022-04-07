@@ -24,8 +24,9 @@
     </div>
 
     <div class="filters-menu__add">
-      <m-button color="primary" @click="add">
-        Add Filter
+      <m-button @click="add">
+        <i class="pi pi-xs pi-add-line mr-1" />
+        Add
       </m-button>
     </div>
 
