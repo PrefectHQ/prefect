@@ -22,11 +22,11 @@
     WorkQueuesListEmptyState,
     WorkQueueCreateButton,
     PageHeader,
-    workQueuesApi,
     workQueuesListSubscriptionKey
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide } from 'vue'
+  import { workQueuesApi } from '@/services/workQueuesApi'
 
 
   const workQueuesSubscription = useSubscription(workQueuesApi.getWorkQueues, [{}])

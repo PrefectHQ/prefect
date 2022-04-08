@@ -4,18 +4,16 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ApiRouteParams } from '@/models/ApiRouteParams'
 import { Require } from '@/types/utilities'
 
-export type Route = string | ((params?: ApiRouteParams) => string)
+export type ApiRoute = string | ((params?: ApiRouteParams) => string)
+export type ApiServer = string | Promise<string>
 
 export abstract class Api {
-  // todo: can this will need to be defined by the server itself
-  // https://github.com/PrefectHQ/orion/issues/667
-  protected server: string = 'http://127.0.0.1:4200/api'
+  protected server: ApiServer = ''
+  protected route: ApiRoute = ''
 
   private _config: AxiosRequestConfig | null = null
   private _instance: AxiosInstance | null = null
   private _params: ApiRouteParams | undefined = undefined
-
-  protected abstract route: Route
 
   public constructor(config?: AxiosRequestConfig) {
     if (config) {
@@ -23,28 +21,31 @@ export abstract class Api {
     }
   }
 
-  protected get instance(): AxiosInstance {
+  protected async instance(): Promise<AxiosInstance> {
     if (this._instance) {
       return this._instance
     }
 
-    return this._instance = axios.create(this.config)
+    const config = await this.config()
+
+    return this._instance = axios.create(config)
   }
 
-  protected get config(): AxiosRequestConfig {
+  protected async config(): Promise<AxiosRequestConfig> {
     if (this._config) {
       return this._config
     }
 
     return this._config = {
-      baseURL: this.server,
+      baseURL: await this.server,
     }
   }
 
-  protected request<T = any, R = AxiosResponse<T>>(config: Require<AxiosRequestConfig, 'url' | 'method'>): Promise<R> {
+  protected async request<T = any, R = AxiosResponse<T>>(config: Require<AxiosRequestConfig, 'url' | 'method'>): Promise<R> {
     const urlWithRoute = this.withRoute(config.url, this._params)
     const configWithRoute = { ...config, url: urlWithRoute }
-    const response: Promise<R> = this.instance.request(configWithRoute)
+    const instance = await this.instance()
+    const response: Promise<R> = instance.request(configWithRoute)
 
     this._params = undefined
 

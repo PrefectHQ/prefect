@@ -22,11 +22,12 @@
   import { useRouter } from 'vue-router'
   import ButtonCard from '@/components/ButtonCard.vue'
   import { useFilterQuery } from '@/compositions/useFilterQuery'
-  import { useInjectedServices } from '@/compositions/useInjectedServices'
   import { StateType } from '@/models/StateType'
   import { UnionFilters } from '@/services/Filter'
   import { FilterUrlService } from '@/services/FilterUrlService'
+  import { flowRunsApiKey } from '@/services/FlowRunsApi'
   import { States } from '@/types/states'
+  import { inject } from '@/utilities/inject'
 
 
   type PreMadeFilter = {
@@ -38,7 +39,6 @@
 
   const filter = useFilterQuery()
   const router = useRouter()
-  const injectedServices = useInjectedServices()
 
   const failedFlowRunsFilter = computed<UnionFilters>(() => ({
     ...filter.value,
@@ -76,9 +76,10 @@
     },
   }))
 
-  const failedFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [failedFlowRunsFilter])
-  const lateFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [lateFlowRunsFilter])
-  const scheduledFlowRunsSubscription = useSubscription(injectedServices.getFlowRunsCount, [scheduledFlowRunsFilter])
+  const flowRunsApi = inject(flowRunsApiKey)
+  const failedFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [failedFlowRunsFilter])
+  const lateFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [lateFlowRunsFilter])
+  const scheduledFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [scheduledFlowRunsFilter])
   const defaultCountValue = '--'
 
   const filters = computed<PreMadeFilter[]>(() => [

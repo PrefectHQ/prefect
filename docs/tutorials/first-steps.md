@@ -1,5 +1,5 @@
 ---
-description: Learn the basics of creating and running flows and tasks.
+description: Learn the basics of creating and running Prefect flows and tasks.
 tags:
     - tutorial
     - getting started

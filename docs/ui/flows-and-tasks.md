@@ -1,5 +1,5 @@
 ---
-description: Working with flows, deployments, and tasks in the Orion UI.
+description: Work with flows, deployments, and tasks in the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
@@ -8,7 +8,7 @@ tags:
     - flow runs
     - deployments
     - logging
-    - Cloud
+    - Prefect Cloud
 ---
 
 # Flows and Tasks

@@ -2,16 +2,16 @@
   <div>
     <row class="filter-row py-1 my-1" hide-scrollbars>
       <ButtonCard
-        v-for="filter in premadeFilters"
-        :key="filter.label"
+        v-for="premadeFilter in premadeFilters"
+        :key="premadeFilter.label"
         class="filter-card-button"
         shadow="sm"
-        @click="applyFilter(filter)"
+        @click="applyFilter(premadeFilter)"
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
-            <span class="font--secondary subheader">{{ filter.count }}</span>
-            <span class="ml-1 body">{{ filter.label }}</span>
+            <span class="font--secondary subheader">{{ premadeFilter.count }}</span>
+            <span class="ml-1 body">{{ premadeFilter.label }}</span>
           </div>
           <i class="pi pi-filter-3-line pi-lg text--grey-80" />
         </div>
@@ -26,22 +26,11 @@
       <LatenessIntervalBarChart :filter="flowRunStatsFilter" class="run-lateness flex-grow-0" />
     </div>
 
-    <RouterTabSet :tabs="tabs" class="mt-5">
-      <template #after-tab="{ tab }">
-        <span class="dashboard__tab-badge caption">{{ getCount(tab.key).toLocaleString() }}</span>
-      </template>
-      <template #before-tab-content="{ selectedTab }">
-        <div class="font--secondary caption my-2" style="min-height: 17px">
-          <span
-            v-if="getCount(selectedTab.key) > 0"
-          >{{ getCount(selectedTab.key).toLocaleString() }} {{ toPluralString('Result', getCount(selectedTab.key)) }}</span>
-        </div>
-      </template>
-
+    <ListTabSet :tabs="tabs" class="mt-5">
       <template #flows="{ tab }">
         <section class="results-section">
           <ResultsList
-            v-if="getCount(tab.key) > 0"
+            v-if="tab.count > 0"
             key="flows"
             :filter="filter"
             component="ListItemFlow"
@@ -57,7 +46,7 @@
       <template #deployments="{ tab }">
         <section class="results-section">
           <ResultsList
-            v-if="getCount(tab.key) > 0"
+            v-if="tab.count > 0"
             key="deployments"
             :filter="deploymentsFilter"
             component="ListItemDeployment"
@@ -79,7 +68,7 @@
       <template #flow_runs="{ tab }">
         <section class="results-section">
           <ResultsList
-            v-if="getCount(tab.key) > 0"
+            v-if="tab.count > 0"
             key="flow_runs"
             :filter="filter"
             component="ListItemFlowRun"
@@ -95,7 +84,7 @@
       <template #task_runs="{ tab }">
         <section class="results-section d-flex flex-column align-stretch justify-stretch">
           <ResultsList
-            v-if="getCount(tab.key) > 0"
+            v-if="tab.count > 0"
             key="task_runs"
             :filter="filter"
             component="ListItemTaskRun"
@@ -107,7 +96,7 @@
           </div>
         </section>
       </template>
-    </RouterTabSet>
+    </ListTabSet>
 
     <hr class="results-hr mt-3">
   </div>
@@ -115,31 +104,31 @@
 
 <script lang="ts" setup>
   import {
-    useFiltersStore,
-    RouterTabSet,
-    StateType,
-    FiltersQueryService,
-    FilterUrlService,
-    flowRunsApi,
-    toPluralString,
     UnionFilters,
     FlowRunsHistoryFilter,
     DeploymentsFilter,
+    useFiltersStore,
+    ListTabSet,
+    ListRouterTab,
+    StateType,
+    FiltersQueryService,
+    FilterUrlService,
+    States,
     ButtonCard
   } from '@prefecthq/orion-design'
-  import { useSubscription } from '@prefecthq/vue-compositions/src'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref, ComputedRef } from 'vue'
   import { useRouter } from 'vue-router'
   import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
   import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
   import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
-
   import { Api, Endpoints, Query } from '@/plugins/api'
+  import { flowRunsApi } from '@/services/flowRunsApi'
 
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const firstFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_ASC',
@@ -148,7 +137,7 @@
 
   const historyStart = computed(() => firstFlowRunSubscription.response?.[0]?.expectedStartTime)
 
-  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns.bind(flowRunsApi), [
+  const lastFlowRunSubscription = useSubscription(flowRunsApi.getFlowRuns, [
     {
       limit: 1,
       sort: 'EXPECTED_START_TIME_DESC',
@@ -163,7 +152,7 @@
 
   const deploymentFilterOff = ref(false)
 
-  const onFilterOff = () => {
+  const onFilterOff = (): void => {
     deploymentFilterOff.value = true
   }
 
@@ -228,21 +217,21 @@
     }),
     filter_counts_failed: Api.query({
       endpoint: Endpoints.flow_runs_count,
-      body: countsFilter('Failed', 'FAILED'),
+      body: countsFilter('Failed', States.FAILED),
       options: {
         pollInterval: basePollInterval,
       },
     }),
     filter_counts_late: Api.query({
       endpoint: Endpoints.flow_runs_count,
-      body: countsFilter('Late', 'FAILED'),
+      body: countsFilter('Late', States.FAILED),
       options: {
         pollInterval: basePollInterval,
       },
     }),
     filter_counts_scheduled: Api.query({
       endpoint: Endpoints.flow_runs_count,
-      body: countsFilter('Scheduled', 'SCHEDULED'),
+      body: countsFilter('Scheduled', States.SCHEDULED),
       options: {
         pollInterval: basePollInterval,
       },
@@ -263,19 +252,19 @@
       {
         label: 'Failed Runs',
         count: typeof failed == 'number' ? failed.toLocaleString() : '--',
-        type: 'FAILED',
+        type: States.FAILED,
         name: 'Failed',
       },
       {
         label: 'Late Runs',
         count: typeof late == 'number' ? late.toLocaleString() : '--',
-        type: 'SCHEDULED',
+        type: States.SCHEDULED,
         name: 'Late',
       },
       {
         label: 'Upcoming Runs',
         count: typeof scheduled == 'number' ? scheduled.toLocaleString() : '--',
-        type: 'SCHEDULED',
+        type: States.SCHEDULED,
         name: 'Scheduled',
       },
     ]
@@ -314,18 +303,7 @@
     }
   })
 
-  const countMap = computed(() => ({
-    'flows': flowsCount.value,
-    'deployments': deploymentsCount.value,
-    'flow_runs': flowRunsCount.value,
-    'task_runs': taskRunsCount.value,
-  }))
-
-  const getCount = (key: 'flows'|'deployments'|'flow_runs'|'task_runs'): number => {
-    return countMap.value[key]
-  }
-
-  const tabs = [
+  const tabs = computed<ListRouterTab[]>(() => [
     {
       title: 'Flows',
       key: 'flows',
@@ -334,6 +312,7 @@
         hash: 'flows',
       },
       icon: 'pi-flow',
+      count: flowsCount.value,
     },
     {
       title: 'Deployments',
@@ -343,6 +322,7 @@
         hash: 'deployments',
       },
       icon: 'pi-map-pin-line',
+      count: deploymentsCount.value,
     },
     {
       title: 'Flow Runs',
@@ -352,6 +332,7 @@
         hash: 'flow_runs',
       },
       icon: 'pi-flow-run',
+      count: flowRunsCount.value,
     },
     {
       title: 'Task Runs',
@@ -361,8 +342,9 @@
         hash: 'task_runs',
       },
       icon: 'pi-task',
+      count: taskRunsCount.value,
     },
-  ]
+  ])
 
   const applyFilter = (filter: PremadeFilter): void => {
     const service = new FilterUrlService(router)
@@ -380,22 +362,6 @@
 <style lang="scss">
 @use '@/styles/views/dashboard.scss';
 
-.dashboard__tab-badge {
-    background-color: $white;
-    border-radius: 16px;
-    font-weight: 400;
-    padding: 0 8px;
-    min-width: 24px;
-    transition: 150ms all;
-}
-.tab-set__tab--active {
-    background-color: $primary;
-    color: $white;
-    .dashboard__tab-badge {
-        background-color: $primary;
-        color: $white;
-    }
-}
 .results-section {
   display: flex;
   align-items: stretch;

@@ -32,7 +32,7 @@ jobs:
 
         include:
           # Docker image builds are required for service tests
-          - test-options: "--only-services"
+          - test-options: "--only-services --exclude-service ray"
             docker-images: true
 
           # Run 3.7 tests with lower bound pins
