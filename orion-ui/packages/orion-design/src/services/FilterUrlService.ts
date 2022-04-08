@@ -1,7 +1,7 @@
-import { LocationQuery, LocationQueryValue, Router } from 'vue-router'
+import { LocationQuery, Router } from 'vue-router'
 import { FilterService } from '@/services/FilterService'
 import { FilterState, useFiltersStore } from '@/stores/filters'
-import { Filter } from '@/types/filters'
+import { Filter, FilterObject } from '@/types/filters'
 import { hasFilter } from '@/utilities/filters'
 
 export class FilterUrlService {
@@ -40,32 +40,18 @@ export class FilterUrlService {
     this.updateUrl()
   }
 
-  public updateStore(): void {
+  public updateStore(defaultObject: FilterObject): void {
     const params = new URLSearchParams(window.location.search)
     const filters = params.getAll('filter')
-    const parsedFilters = FilterService.parse(filters)
+    const parsedFilters = FilterService.parse(filters, defaultObject)
 
     this.store.replaceAll(parsedFilters)
   }
 
   private updateUrl(): void {
-    const filters = FilterService.stringify(this.store.all)
+    const filters = FilterService.stringify(this.store.all, { method: 'short' })
 
     this.router.push({ query: { ...this.query, filter: filters } })
-  }
-
-  private isFilterString(value: LocationQueryValue): value is string {
-    if (value === null) {
-      return false
-    }
-
-    try {
-      FilterService.parse(value)
-    } catch {
-      return false
-    }
-
-    return true
   }
 
 }
