@@ -48,7 +48,7 @@
 
   const props = defineProps<{
     filter: Partial<Filter>,
-    dismissable?: boolean,
+    dismissible?: boolean,
     expanded?: boolean,
   }>()
 
