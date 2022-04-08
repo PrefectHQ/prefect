@@ -379,7 +379,7 @@ class SavedSearchFilter(PrefectBaseModel):
     )
     type: str = Field(..., description="TODO")
     operation: str = Field(..., description="TODO")
-    value: str = Field(..., description="TODO")
+    value: Any = Field(..., description="A JSON-compatible value for the filter.")
 
 
 class SavedSearch(ORMBaseModel):
