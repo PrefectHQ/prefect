@@ -1,9 +1,9 @@
 ---
-description: Using Prefect Cloud, including account creation, team and workspace management, and running flows.
+description: Learn about using Prefect Cloud, including account creation and running flow deployments.
 tags:
     - UI
     - dashboard
-    - Cloud
+    - Prefect Cloud
     - accounts
     - teams
     - workspaces

@@ -28,6 +28,7 @@ from anyio.abc import BlockingPortal
 
 import prefect
 import prefect.context
+from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
@@ -245,6 +246,7 @@ async def begin_flow_run(
     Begins execution of a flow run; blocks until completion of the flow run
 
     - Starts a task runner
+    - Determines the result storage block to use
     - Orchestrates the flow run (runs the user-function and generates tasks)
     - Waits for tasks to complete / shutsdown the task runner
     - Sets a terminal state for the flow run
@@ -271,6 +273,15 @@ async def begin_flow_run(
         logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
         task_runner = await stack.enter_async_context(flow.task_runner.start())
 
+        result_storage = await client.get_default_storage_block()
+        if not result_storage:
+            logger.warning(
+                "No default storage is configured on the server. Results from this "
+                "flow run will be stored in a temporary directory in its runtime "
+                "environment."
+            )
+            result_storage = TempStorageBlock()
+
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
@@ -278,11 +289,7 @@ async def begin_flow_run(
             task_runner=task_runner,
             client=client,
             sync_portal=sync_portal,
-        )
-
-        await client.propose_state(
-            state=terminal_state,
-            flow_run_id=flow_run.id,
+            result_storage=result_storage,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -313,6 +320,7 @@ async def create_and_begin_subflow_run(
     Subflows differ from parent flows in that they
     - Resolve futures in passed parameters into values
     - Create a dummy task for representation in the parent flow
+    - Retrieve default result storage from the parent flow rather than the server
 
     Returns:
         The final state of the run
@@ -373,6 +381,7 @@ async def create_and_begin_subflow_run(
             task_runner=task_runner,
             client=client,
             sync_portal=parent_flow_run_context.sync_portal,
+            result_storage=parent_flow_run_context.result_storage,
         )
 
     # Display the full state (including the result) if debugging
@@ -396,6 +405,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     client: OrionClient,
     sync_portal: BlockingPortal,
+    result_storage: StorageBlock,
 ) -> State:
     """
     Executes a flow run
@@ -435,6 +445,7 @@ async def orchestrate_flow_run(
                 task_runner=task_runner,
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
+                result_storage=result_storage,
             ) as flow_run_context:
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
@@ -486,6 +497,13 @@ async def orchestrate_flow_run(
     state = await client.propose_state(
         state=state,
         flow_run_id=flow_run.id,
+        backend_state_data=(
+            await client.persist_data(
+                state.data.json().encode(), block=flow_run_context.result_storage
+            )
+            if state.data is not None
+            else None
+        ),
     )
 
     return state
@@ -607,6 +625,7 @@ async def create_and_submit_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
+            result_storage=flow_run_context.result_storage,
             settings=get_current_settings(),
         ),
         asynchronous=task.isasync,
@@ -625,6 +644,7 @@ async def begin_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
+    result_storage: StorageBlock,
     settings: prefect.settings.Settings,
 ):
     """
@@ -659,13 +679,21 @@ async def begin_task_run(
                 f"Failed to connect to API at {client.api_url}."
             ) from connect_error
 
-        return await orchestrate_task_run(
-            task=task,
-            task_run=task_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            client=client,
-        )
+        try:
+            return await orchestrate_task_run(
+                task=task,
+                task_run=task_run,
+                parameters=parameters,
+                wait_for=wait_for,
+                result_storage=result_storage,
+                client=client,
+            )
+        except Abort:
+            # Task run already completed, just fetch its state
+            task_run = await client.read_task_run(task_run.id)
+            # TODO: The state's data will need to be resolved from a document into a
+            #       concrete value as would be expected from a normal return value
+            return task_run.state
 
 
 async def orchestrate_task_run(
@@ -673,6 +701,7 @@ async def orchestrate_task_run(
     task_run: TaskRun,
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
+    result_storage: StorageBlock,
     client: OrionClient,
 ) -> State:
     """
@@ -705,10 +734,7 @@ async def orchestrate_task_run(
         task_run=task_run,
         task=task,
         client=client,
-    )
-
-    cache_key = (
-        task.cache_key_fn(task_run_context, parameters) if task.cache_key_fn else None
+        result_storage=result_storage,
     )
 
     try:
@@ -717,20 +743,26 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-        state = await client.propose_state(
+        return await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
         )
-    else:
-        # Transition from `PENDING` -> `RUNNING`
-        state = await client.propose_state(
-            Running(state_details=StateDetails(cache_key=cache_key)),
-            task_run_id=task_run.id,
-        )
+
+    # Generate the cache key to attach to proposed states
+    cache_key = (
+        task.cache_key_fn(task_run_context, resolved_parameters)
+        if task.cache_key_fn
+        else None
+    )
+
+    # Transition from `PENDING` -> `RUNNING`
+    state = await client.propose_state(
+        Running(state_details=StateDetails(cache_key=cache_key)),
+        task_run_id=task_run.id,
+    )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
-
         try:
             args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
@@ -768,7 +800,18 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await client.propose_state(terminal_state, task_run_id=task_run.id)
+        state = await client.propose_state(
+            terminal_state,
+            task_run_id=task_run.id,
+            backend_state_data=(
+                await client.persist_data(
+                    terminal_state.data.json().encode(),
+                    block=task_run_context.result_storage,
+                )
+                if state.data is not None
+                else None
+            ),
+        )
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(

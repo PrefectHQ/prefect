@@ -145,7 +145,7 @@ class FlowRunner(BaseModel):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
         """
         Implementations should:
@@ -247,7 +247,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
 
         if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
@@ -270,7 +270,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         )
 
         # Mark this submission as successful
-        task_status.started()
+        if task_status:
+            task_status.started()
 
         # Wait for the process to exit
         # - We must the output stream so the buffer does not fill
