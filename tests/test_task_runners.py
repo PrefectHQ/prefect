@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import time
-from contextlib import contextmanager
+import warnings
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -32,6 +32,13 @@ if sys.version_info[1] >= 10:
     RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
 else:
     RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
+
+
+@pytest.fixture
+def ignore_resource_warnings():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ResourceWarning)
+        yield
 
 
 @pytest.fixture
@@ -181,7 +188,7 @@ def default_concurrent_task_runner():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def default_ray_task_runner():
+def default_ray_task_runner(ignore_resource_warnings):
     pytest.importorskip("ray", reason=RAY_MISSING_REASON)
 
     yield RayTaskRunner()
