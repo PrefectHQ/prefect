@@ -1,4 +1,4 @@
-import { onMounted, onUnmounted, Ref } from 'vue'
+import { onMounted, onUnmounted, Ref, unref } from 'vue'
 
 type useIntersectionObserverResponse = {
   observe: (element: Ref<HTMLElement | undefined>) => void,
@@ -7,7 +7,13 @@ type useIntersectionObserverResponse = {
   check: (element: Ref<HTMLElement | undefined>) => void,
 }
 
-export function useIntersectionObserver(callback: (entries: IntersectionObserverEntry[]) => void, options: IntersectionObserverInit): useIntersectionObserverResponse {
+type useIntersectionObserverOptions = {
+  root?: Element | Document | null | Ref<Element | null>,
+  rootMargin?: string,
+  threshold?: number | number[],
+}
+
+export function useIntersectionObserver(callback: (entries: IntersectionObserverEntry[]) => void, options: useIntersectionObserverOptions): useIntersectionObserverResponse {
 
   let intersectionObserver: IntersectionObserver | null = null
 
@@ -33,12 +39,20 @@ export function useIntersectionObserver(callback: (entries: IntersectionObserver
     observer.disconnect()
   }
 
+  function getOptions({ root, rootMargin, threshold }: useIntersectionObserverOptions): IntersectionObserverInit {
+    return {
+      root: unref(root),
+      rootMargin,
+      threshold,
+    }
+  }
+
   function check(element: Ref<HTMLElement | undefined>): void {
     if (!element.value) {
       return
     }
 
-    const observer = new IntersectionObserver(callback, options)
+    const observer = new IntersectionObserver(callback, getOptions(options))
 
     observer.observe(element.value)
 
@@ -54,7 +68,7 @@ export function useIntersectionObserver(callback: (entries: IntersectionObserver
   }
 
   function createObserver(): void {
-    intersectionObserver = new IntersectionObserver(callback, options)
+    intersectionObserver = new IntersectionObserver(callback, getOptions(options))
   }
 
   onMounted(() => {
