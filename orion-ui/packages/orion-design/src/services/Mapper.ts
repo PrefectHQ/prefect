@@ -3,10 +3,10 @@ import { maps } from '@/maps'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Map = (...args: any) => any
 type Maps = Record<string, Record<string, Map>>
-type MapsMember<T extends Maps, SOURCE extends keyof T> = T[SOURCE][keyof T[SOURCE]]
-type Mappers<T extends Maps, SOURCE extends keyof T> = Extract<MapsMember<T, SOURCE>, Map>
-type MapperSourceType<T extends Maps, SOURCE extends keyof T> = Parameters<Mappers<T, SOURCE>>[0]
-type MapperDestinationType<T extends Maps, SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]> = ReturnType<T[SOURCE][DESTINATION]>
+type MapsMember<T extends Maps, S extends keyof T> = T[S][keyof T[S]]
+type Mappers<T extends Maps, S extends keyof T> = Extract<MapsMember<T, S>, Map>
+type MapperSourceType<T extends Maps, S extends keyof T> = Parameters<Mappers<T, S>>[0]
+type MapperDestinationType<T extends Maps, S extends keyof T, D extends keyof T[S]> = ReturnType<T[S][D]>
 
 export class Mapper<T extends Maps> {
   private readonly mapperFunctions: T
@@ -15,48 +15,47 @@ export class Mapper<T extends Maps> {
     this.mapperFunctions = mapperFunctions
   }
 
-  public map<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: MapperSourceType<T, SOURCE>, destination: DESTINATION): MapperDestinationType<T, SOURCE, DESTINATION>
-  public map<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: MapperSourceType<T, SOURCE> | null, destination: DESTINATION): MapperDestinationType<T, SOURCE, DESTINATION> | null
-  public map<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: MapperSourceType<T, SOURCE>[], destination: DESTINATION): MapperDestinationType<T, SOURCE, DESTINATION>[]
-  public map<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: MapperSourceType<T, SOURCE> | MapperSourceType<T, SOURCE>[] | null, destination: DESTINATION): MapperDestinationType<T, SOURCE, DESTINATION> | MapperDestinationType<T, SOURCE, DESTINATION>[] | null {
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S>, destination: D): MapperDestinationType<T, S, D>
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | null, destination: D): MapperDestinationType<T, S, D> | null
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S>[], destination: D): MapperDestinationType<T, S, D>[]
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | MapperSourceType<T, S>[] | null, destination: D): MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[] | null {
     if (value === null) {
       return null
     }
 
-    const mapper = this.mapperFunctions[source][destination]
+    const mapper = this.bindMapper(this.mapperFunctions[source][destination])
 
     if (Array.isArray(value)) {
-      return value.map(x => this.bindMapper<SOURCE, DESTINATION>(mapper, x))
+      return value.map(mapper)
     }
 
-    return this.bindMapper<SOURCE, DESTINATION>(mapper, value)
+    return mapper(value)
   }
 
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>> | null
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>[]>, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>[]>
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE>[]> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION>[]> | null
-  public mapEntries<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(source: SOURCE, value: Record<string, MapperSourceType<T, SOURCE> | MapperSourceType<T, SOURCE>[]> | null, destination: DESTINATION): Record<string, MapperDestinationType<T, SOURCE, DESTINATION> | MapperDestinationType<T, SOURCE, DESTINATION>[]> | null {
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>>, destination: D): Record<string, MapperDestinationType<T, S, D>>
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>> | null, destination: D): Record<string, MapperDestinationType<T, S, D>> | null
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>[]>, destination: D): Record<string, MapperDestinationType<T, S, D>[]>
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>[]> | null, destination: D): Record<string, MapperDestinationType<T, S, D>[]> | null
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S> | MapperSourceType<T, S>[]> | null, destination: D): Record<string, MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[]> | null {
     if (value === null) {
       return null
     }
 
-    const response = {} as Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>
+    const response = {} as Record<string, MapperDestinationType<T, S, D>>
 
-    return Object.entries(value).reduce<Record<string, MapperDestinationType<T, SOURCE, DESTINATION>>>((mapped, [key, value]) => {
+    return Object.entries(value).reduce<Record<string, MapperDestinationType<T, S, D>>>((mapped, [key, value]) => {
       mapped[key] = this.map(source, value, destination)
 
       return mapped
     }, response)
   }
 
-  private bindMapper<SOURCE extends keyof T, DESTINATION extends keyof T[SOURCE]>(mapper: MapsMember<T, SOURCE>, value: Parameters<MapsMember<T, SOURCE>>[0]): MapperDestinationType<T, SOURCE, DESTINATION> {
-    const map = mapper.bind(this, value)
-
-    return map()
+  private bindMapper<S extends keyof T, D extends keyof T[S]>(mapper: MapsMember<T, S>): (source: MapperSourceType<T, S>) => MapperDestinationType<T, S, D> {
+    return mapper.bind(this)
   }
 }
 
 export const mapper = new Mapper(maps)
+const t1 = mapper.map('string', '123', 'Date')
 
-export type MapFunction<SOURCE, DESTINATION> = (this: typeof mapper, source: SOURCE) => DESTINATION
+export type MapFunction<S, D> = (this: typeof mapper, source: S) => D
