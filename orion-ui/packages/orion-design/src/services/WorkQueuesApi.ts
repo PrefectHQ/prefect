@@ -1,4 +1,3 @@
-import { createActions } from '@prefecthq/vue-compositions'
 import { AxiosResponse } from 'axios'
 import { InjectionKey } from 'vue'
 import { PaginatedFilter } from '.'
@@ -7,11 +6,11 @@ import { IWorkQueueRequest } from '@/models/IWorkQueueRequest'
 import { IWorkQueueResponse } from '@/models/IWorkQueueResponse'
 import { WorkQueue } from '@/models/WorkQueue'
 import { WorkQueueFilter } from '@/models/WorkQueueFilter'
-import { Api, Route } from '@/services/Api'
+import { Api, ApiRoute } from '@/services/Api'
 
 export class WorkQueuesApi extends Api {
 
-  protected route: Route = '/work_queues'
+  protected route: ApiRoute = '/work_queues'
 
   public getWorkQueue(id: string): Promise<WorkQueue> {
     return this.get<IWorkQueueResponse>(`/${id}`).then(response => this.mapWorkQueueResponse(response))
@@ -72,11 +71,4 @@ export class WorkQueuesApi extends Api {
 
 }
 
-export const getWorkQueueKey: InjectionKey<WorkQueuesApi['getWorkQueue']> = Symbol()
-export const pauseWorkQueueKey: InjectionKey<WorkQueuesApi['pauseWorkQueue']> = Symbol()
-export const resumeWorkQueueKey: InjectionKey<WorkQueuesApi['resumeWorkQueue']> = Symbol()
-export const createWorkQueueKey: InjectionKey<WorkQueuesApi['createWorkQueue']> = Symbol()
-export const updateWorkQueueKey: InjectionKey<WorkQueuesApi['updateWorkQueue']> = Symbol()
-export const deleteWorkQueueKey: InjectionKey<WorkQueuesApi['deleteWorkQueue']> = Symbol()
-
-export const workQueuesApi = createActions(new WorkQueuesApi())
+export const workQueuesApiKey: InjectionKey<WorkQueuesApi> = Symbol('workQueuesApiKey')

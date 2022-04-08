@@ -1,5 +1,11 @@
+---
+description: Learn about Prefect 2.0, our second-generation workflow orchestration engine.
+tags:
+    - getting started
+    - overview
+---
 
-![](./img/logos/prefect-2-logo-dark.png)
+![Prefect 2.0 logo](./img/logos/prefect-2-logo-dark.png)
 
 #
 

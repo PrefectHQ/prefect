@@ -42,23 +42,21 @@
 
   const props = defineProps<{
     filter: UnionFilters,
-    getDeployments: DeploymentsApi['getDeployments'],
-    getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
-    createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    deploymentsApi: DeploymentsApi,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
   const filter = computed(() => props.filter)
 
-  const deploymentsCountSubscription = useSubscription(props.getDeploymentsCount, [filter])
+  const deploymentsCountSubscription = useSubscription(props.deploymentsApi.getDeploymentsCount, [filter])
   const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
 
-  const deploymentsSubscription = useSubscription(props.getDeployments, [filter])
+  const deploymentsSubscription = useSubscription(props.deploymentsApi.getDeployments, [filter])
   const deployments = computed(() => deploymentsSubscription.response ?? [])
   const noDeployments = computed(() => deploymentsSubscription.response?.length === 0)
 
   function run(deployment: Deployment): void {
-    props.createDeploymentFlowRun(deployment.id, {
+    props.deploymentsApi.createDeploymentFlowRun(deployment.id, {
       state: {
         type: 'SCHEDULED',
         message: 'Quick run through UI',
