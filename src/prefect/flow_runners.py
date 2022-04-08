@@ -107,13 +107,13 @@ def get_prefect_image_name(
 def base_flow_run_environment() -> Dict[str, str]:
     """
     Generate a dictionary of environment variables for a flow run job.
-
-    Note that `PREFECT_API_URL` is often required as well, but is not included here as
-    the value often needs replacement for networking purposes.
     """
-    SETTINGS = {PREFECT_API_KEY}
+    SETTINGS = {PREFECT_API_KEY, PREFECT_API_URL}
 
-    return {setting.name: setting.value() for setting in SETTINGS}
+    env = {setting.name: setting.value() for setting in SETTINGS}
+
+    # Cast to strings and drop null values
+    return {key: str(value) for key, value in env if value is not None}
 
 
 class FlowRunner(BaseModel):
@@ -721,19 +721,17 @@ class DockerFlowRunner(UniversalFlowRunner):
     def _get_environment_variables(self, network_mode):
         env = {**base_flow_run_environment(), **self.env}
 
-        # Set the container to connect to the same API as the flow runner by default
+        # If the API URL has been set by the base environment rather than the flow
+        # runner config, update the value to ensure connectivity when using a bridge
+        # network by update local connections to use the docker internal host unless the
+        # network mode is "host" where localhost is available already.
 
-        if PREFECT_API_URL:
-            api_url = PREFECT_API_URL.value()
-
-            # Update local connections to use the docker internal host unless the
-            # network mode is "host" where localhost is available
-            if network_mode != "host":
-                api_url = api_url.replace("localhost", "host.docker.internal").replace(
-                    "127.0.0.1", "host.docker.internal"
-                )
-
-            env.setdefault("PREFECT_API_URL", api_url)
+        if "PREFECT_API_URL" not in self.env and network_mode != "host":
+            env["PREFECT_API_URL"] = (
+                env["PREFECT_API_URL"]
+                .replace("localhost", "host.docker.internal")
+                .replace("127.0.0.1", "host.docker.internal")
+            )
 
         return env
 
@@ -952,9 +950,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         return labels
 
     def _get_environment_variables(self):
-        env = {**base_flow_run_environment(), **self.env}
-        env.setdefault("PREFECT_API_URL", "http://orion:4200/api")
-        return env
+        return {**base_flow_run_environment(), **self.env}
 
     def _create_and_start_job(self, flow_run: FlowRun) -> str:
         k8s_env = [
