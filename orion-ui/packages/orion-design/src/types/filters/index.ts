@@ -56,7 +56,6 @@ export type FilterProperty = Required<Filter>['property']
 export type FilterOperation = Required<Filter>['operation']
 export type FilterType = Required<Filter>['type']
 export type FilterValue = Required<Filter>['value']
-export type ObjectFilter = Pick<Required<Filter>, 'type' | 'operation' | 'value'>
 
 const ObjectTagPrefixDictionaryData = {
   'deployment': 'd',

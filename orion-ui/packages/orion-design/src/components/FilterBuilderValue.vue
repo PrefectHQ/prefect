@@ -17,18 +17,18 @@
   import { Filter } from '@/types/filters'
 
   const emit = defineEmits<{
-    (event: 'update:filter', value: Partial<Filter>): void,
+    (event: 'update:filter', value: Filter): void,
   }>()
 
   const props = defineProps<{
-    filter: Partial<Filter>,
+    filter: Filter,
   }>()
 
   const filter = computed({
     get() {
       return props.filter
     },
-    set(filter: Partial<Filter>) {
+    set(filter: Filter) {
       emit('update:filter', filter)
     },
   })

@@ -13,11 +13,11 @@
     </div>
     <template v-if="innerExpanded">
       <div class="filter-builder__filter">
-        <template v-if="!innerFilter.object">
+        <template v-if="!isFilter(innerFilter)">
           <FilterBuilderObject v-model:filter="innerFilter" />
         </template>
         <template v-else-if="!innerFilter.property">
-          <FilterBuilderProperty v-model:filter="innerFilter" />
+          <FilterBuilderProperty v-model:filter="innerFilter" :filters="filters" />
         </template>
         <template v-else>
           <FilterBuilderValue v-model:filter="innerFilter" />
@@ -38,7 +38,7 @@
   import FilterBuilderValue from '@/components/FilterBuilderValue.vue'
   import FilterTag from '@/components/FilterTag.vue'
   import { Filter } from '@/types/filters'
-  import { isCompleteFilter } from '@/utilities/filters'
+  import { isFilter, isCompleteFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'update:filter', value: Partial<Filter>): void,
