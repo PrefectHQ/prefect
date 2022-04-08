@@ -1,7 +1,7 @@
 <template>
   <div class="filter-builder-property-flow">
     <template v-for="objectProperty in objectProperties" :key="objectProperty">
-      <m-button color="secondary" miter icon="pi-add-fill" @click="update(objectProperty)">
+      <m-button color="secondary" miter icon="pi-add-fill" :disabled="disabled(objectProperty)" @click="update(objectProperty)">
         {{ objectProperty.label }}
       </m-button>
     </template>
@@ -11,13 +11,15 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { Filter, FilterObject, FilterProperty, FilterType } from '@/types/filters'
+  import { isObjectStateFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
-    (event: 'update:filter', value: Partial<Filter>): void,
+    (event: 'update:filter', value: Filter): void,
   }>()
 
   const props = defineProps<{
-    filter: Partial<Filter>,
+    filter: Filter,
+    filters: Filter[],
   }>()
 
   type item = {
@@ -58,17 +60,21 @@
     get() {
       return props.filter
     },
-    set(filter: Partial<Filter>) {
+    set(filter: Filter) {
       emit('update:filter', filter)
-    }
+    },
   })
 
   const objectProperties = computed(() => {
-    return properties.filter(item => item.objects.includes(props.filter.object!))
+    return properties.filter(item => item.objects.includes(props.filter.object))
   })
 
+  function disabled(item: item): boolean {
+    return item.property === 'state' && props.filters.some(filter => isObjectStateFilter(filter) && filter.object == props.filter.object)
+  }
+
   function update(item: item): void {
-    filter.value = { ...filter.value, property: item.property, type: item.type } as Partial<Filter>
+    filter.value = { ...filter.value, property: item.property, type: item.type } as Filter
   }
 </script>
 
