@@ -378,7 +378,9 @@ class SavedSearchFilter(PrefectBaseModel):
         ..., description="The property of the object on which to filter."
     )
     type: str = Field(..., description="The type of the property.")
-    operation: str = Field(..., description="The operator to apply to the object. For example, `equals`.")
+    operation: str = Field(
+        ..., description="The operator to apply to the object. For example, `equals`."
+    )
     value: Any = Field(..., description="A JSON-compatible value for the filter.")
 
 
