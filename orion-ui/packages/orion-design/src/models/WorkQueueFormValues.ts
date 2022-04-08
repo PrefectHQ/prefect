@@ -33,9 +33,9 @@ export class WorkQueueFormValues {
       'description': this.description,
       'concurrency_limit': this.concurrencyLimit,
       'filter': {
-        'tags': this.filter.tags,
-        'deployment_ids': this.filter.deploymentIds,
-        'flow_runner_types': this.filter.flowRunnerTypes,
+        'tags': this.filter.tags.length ? this.filter.tags : null,
+        'deployment_ids': this.filter.deploymentIds.length ? this.filter.deploymentIds: null,
+        'flow_runner_types': this.filter.flowRunnerTypes.length ? this.filter.flowRunnerTypes : null,
       },
       'is_paused': this.isPaused,
     }

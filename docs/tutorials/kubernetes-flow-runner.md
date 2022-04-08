@@ -1,5 +1,5 @@
 ---
-description: Learn how to run flows as Kubernetes Jobs using the KubernetesFlowRunner.
+description: Learn how to run Prefect flows as Kubernetes Jobs using the Kubernetes flow runner.
 tags:
     - Kubernetes
     - orchestration
@@ -10,7 +10,7 @@ tags:
 
 # Running flows in Kubernetes
 
-Prefect integrates with Kubernetes via the [flow runner interface](/concepts/flow-runners/). The [KubernetesFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.KubernetesFlowRunner) runs Prefect flows on Kubernetes as Jobs. You can also can run the Orion API, UI, and agent on Kubernetes.
+Prefect integrates with Kubernetes via the [flow runner interface](/concepts/flow-runners/). The [KubernetesFlowRunner](/api-ref/prefect/flow-runners/#prefect.flow_runners.KubernetesFlowRunner) runs Prefect flows on Kubernetes as Jobs. You can also can run the Orion API, UI, and agent on Kubernetes.
 
 For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster.
 

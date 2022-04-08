@@ -20,12 +20,19 @@
   import EmptyStateCard from '@/components/EmptyStateCard.vue'
   import WorkQueueCreateButton from '@/components/WorkQueueCreateButton.vue'
   import WorkQueuesListItem from '@/components/WorkQueuesListItem.vue'
-  import { getDeploymentsCountKey } from '@/services/DeploymentsApi'
-  import { getFlowRunsCountKey } from '@/services/FlowRunsApi'
+  import { DeploymentsApi, deploymentsApiKey } from '@/services/DeploymentsApi'
+  import { FlowRunsApi, flowRunsApiKey } from '@/services/FlowRunsApi'
   import { mocker } from '@/services/Mocker'
 
-  provide(getFlowRunsCountKey, () => Promise.resolve(mocker.create('number', [0, 15])))
-  provide(getDeploymentsCountKey, () => Promise.resolve(mocker.create('number', [0, 3])))
+  // these mock the count endpoints for the WorkQueuesListItem
+  // "as unknown as" is used so we don't have to mock the whole service
+  provide(flowRunsApiKey, {
+    getFlowRunsCount: () => Promise.resolve(mocker.create('number', [0, 15])),
+  } as unknown as FlowRunsApi)
+
+  provide(deploymentsApiKey, {
+    getDeploymentsCount: () => Promise.resolve(mocker.create('number', [0, 3])),
+  } as unknown as DeploymentsApi)
 
   const workQueues = [
     mocker.create('workQueue', [{ name: 'Local', isPaused: false, filter: { tags: ['Temporary'] }, concurrencyLimit: 70 }]),

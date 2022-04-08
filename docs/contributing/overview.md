@@ -1,3 +1,12 @@
+---
+description: Learn about contributing to Prefect 2.0.
+tags:
+    - open source
+    - contributing
+    - development
+    - standards
+---
+
 # Contributing
 
 Thanks for considering contributing to Prefect!

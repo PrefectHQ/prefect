@@ -108,10 +108,6 @@
     return props.item.state
   })
 
-  const stateType = computed(() => {
-    return props.item.state.type.toLowerCase()
-  })
-
   const tags = computed(() => {
     return props.item.tags
   })
@@ -133,13 +129,15 @@
   })
 
   const duration = computed(() => {
-    if (stateType.value == 'pending' || stateType.value == 'scheduled') {
+    if (props.item.state.type == 'PENDING' || props.item.state.type == 'SCHEDULED') {
       return '--'
     }
 
-    return props.item.total_run_time
-      ? secondsToApproximateString(props.item.total_run_time)
-      : secondsToApproximateString(props.item.estimated_run_time)
+    if (props.item.total_run_time) {
+      return secondsToApproximateString(props.item.total_run_time)
+    }
+
+    return secondsToApproximateString(props.item.estimated_run_time)
   })
 
   const crumbs = computed<Crumb[]>(() => {
