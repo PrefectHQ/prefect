@@ -11,7 +11,7 @@
 <script lang="ts" setup>
   import { computed } from 'vue'
   import { Filter, FilterObject, FilterProperty, FilterType } from '@/types/filters'
-  import { isObjectStateFilter } from '@/utilities/filters'
+  import { isFilter, isObjectStateFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'update:filter', value: Filter): void,
@@ -19,7 +19,7 @@
 
   const props = defineProps<{
     filter: Filter,
-    filters: Filter[],
+    filters: Partial<Filter>[],
   }>()
 
   type item = {
@@ -70,7 +70,7 @@
   })
 
   function disabled(item: item): boolean {
-    return item.property === 'state' && props.filters.some(filter => isObjectStateFilter(filter) && filter.object == props.filter.object)
+    return item.property === 'state' && props.filters.some(filter => isFilter(filter) && isObjectStateFilter(filter) && filter.object == props.filter.object)
   }
 
   function update(item: item): void {
