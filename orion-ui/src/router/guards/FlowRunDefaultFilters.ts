@@ -1,5 +1,6 @@
-import { Filter, useFiltersStore, RouteGuard, flowRunsApi, hasFilter } from '@prefecthq/orion-design'
+import { Filter, useFiltersStore, RouteGuard, hasFilter } from '@prefecthq/orion-design'
 import { RouteLocationNormalized } from 'vue-router'
+import { flowRunsApi } from '@/services/flowRunsApi'
 
 export class FlowRunDefaultFilters implements RouteGuard {
   public before(to: RouteLocationNormalized): void {

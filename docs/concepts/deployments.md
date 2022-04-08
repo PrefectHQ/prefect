@@ -1,3 +1,16 @@
+---
+description: Prefect flow deployments encapsulate a flow, allowing it to be scheduled and triggered via API.
+tags:
+    - Orion
+    - work queues
+    - agents
+    - orchestration
+    - flow runs
+    - deployments
+    - schedules
+    - tags
+---
+
 # Deployments
 
 A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. 

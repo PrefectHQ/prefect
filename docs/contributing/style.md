@@ -1,3 +1,11 @@
+---
+description: Code style and best practices for contributions to Prefect.
+tags:
+    - standards
+    - code style
+    - coding practices
+---
+
 # Code style and practices
 
 Generally, we follow the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html). This document covers sections where we differ or where additional clarification is necessary.
