@@ -371,14 +371,14 @@ class Configuration(ORMBaseModel):
 
 
 class SavedSearchFilter(PrefectBaseModel):
-    """A filter for a saved search model"""
+    """A filter for a saved search model. Intended for use by the Prefect UI."""
 
     object: str = Field(..., description="The object over which to filter.")
     property: str = Field(
         ..., description="The property of the object on which to filter."
     )
-    type: str = Field(..., description="TODO")
-    operation: str = Field(..., description="TODO")
+    type: str = Field(..., description="The type of the property.")
+    operation: str = Field(..., description="The operator to apply to the object. For example, `equals`.")
     value: Any = Field(..., description="A JSON-compatible value for the filter.")
 
 
