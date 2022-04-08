@@ -22,7 +22,7 @@
         <FilterBuilder
           :filter="filter"
           :filters="tempFilters"
-          dismissable
+          dismissible
           expanded
           @update:filter="updateFilter(index, $event)"
           @dismiss="removeFilter(index)"
