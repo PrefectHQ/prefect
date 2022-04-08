@@ -101,7 +101,7 @@ INFO:     10.1.0.1:29042 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c2
 INFO:     10.1.0.1:29406 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
 INFO:     10.1.0.1:38615 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
 Created kubernetes work queue 48199460-6a55-45c1-a96f-baf849c8c25f.
-<div style="color:white; white-space:pre-wrap; font-weight: bold;">Starting agent connected to http://orion:4200/api...
+Starting agent connected to http://orion:4200/api...
 
   ___ ___ ___ ___ ___ ___ _____     _   ___ ___ _  _ _____
  | _ \ _ \ __| __| __/ __|_   _|   /_\ / __| __| \| |_   _|
@@ -110,7 +110,7 @@ Created kubernetes work queue 48199460-6a55-45c1-a96f-baf849c8c25f.
 
 
 Agent started! Looking for work from queue 'kubernetes'...
-19:46:51.179 | WARNING | prefect.agent - No work queue found named 'kubernetes'</div>
+19:46:51.179 | WARNING | prefect.agent - No work queue found named 'kubernetes'
 ```
 </div>
 
@@ -125,7 +125,7 @@ To interact with the Prefect Orion API running in Kubernetes, we need to make su
 - The `prefect` command knows to talk to the Orion API running in Kubernetes
 - We can visit the Orion UI running in Kubernetes
 
-### Forward ports
+## Forward ports
 
 First, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. 
 
@@ -146,7 +146,7 @@ Handling connection for 4200
 
 Keep this command running, and open a new terminal for the next commands. Make sure you change to the same directory as you were previously using and activate your Python virtual environment, if you're using one.
 
-### Configure the API URL
+## Configure the API URL
 
 Now we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
 
@@ -170,7 +170,7 @@ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 
 Since we previously configured port forwarding for the localhost port to the Kubernetes environment, we’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
 
-### Configure storage
+## Configure storage
 
 Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data. 
 
@@ -178,7 +178,7 @@ Note that if you created remote storage for the [Docker flow runner tutorial](/t
 
 Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
 
-Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key. You can use the service and authentication method appropriate to your needs.
+Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key. You should use the details of a service and authentication method that you have configured.
 
 <div class='termy'>
 ```
@@ -196,20 +196,21 @@ Found the following storage types:
     Store data in an AWS S3 bucket
 5) Temporary Local Storage
     Store data in a temporary directory in a run's local file system
-Select a storage type to create: <span style="font-weight: bold;">4</span>
+Select a storage type to create: 4
+
 You've selected S3 Storage. It has 6 option(s).
-<div style="font-weight: bold;">BUCKET: the-curious-case-of-benjamin-bucket
+BUCKET: the-curious-case-of-benjamin-bucket
 AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
-AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</div>
+AWS SECRET ACCESS KEY (optional): XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 AWS SESSION TOKEN (optional):
 PROFILE NAME (optional):
 REGION NAME (optional):
-<span style="font-weight: bold;">Choose a name for this storage configuration: benjamin-bucket</span>
+Choose a name for this storage configuration: benjamin-bucket
 Validating configuration...
 Registering storage with server...
-<div style="font-weight: bold;">Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
+Registered storage 'benjamin-bucket' with identifier '0f536aaa-216f-4c72-9c31-f3272bcdf977'.
 You do not have a default storage configuration. Would you like to set this as your default storage? [Y/n]: y
-Set default storage to 'benjamin-bucket'.</div>
+Set default storage to 'benjamin-bucket'.
 ```
 </div>
 
