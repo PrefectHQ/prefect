@@ -19,7 +19,14 @@
 
     <div class="filters-menu__filters">
       <template v-for="(filter, index) in tempFilters" :key="filter.id">
-        <FilterBuilder :filter="filter" dismissable expanded @update:filter="updateFilter(index, $event)" @dismiss="removeFilter(index)" />
+        <FilterBuilder
+          :filter="filter"
+          :filters="tempFilters"
+          dismissable
+          expanded
+          @update:filter="updateFilter(index, $event)"
+          @dismiss="removeFilter(index)"
+        />
       </template>
     </div>
 
