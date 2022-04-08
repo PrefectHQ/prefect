@@ -1,3 +1,15 @@
+---
+description: Best practices for using Python virtual environments when developing Prefect flows.
+tags:
+    - Python
+    - virtual environments
+    - conda
+    - virtualenv
+    - venv
+    - development
+    - tutorial
+    - deployments
+---
 
 # Virtual environments
 

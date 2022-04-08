@@ -1,5 +1,5 @@
 ---
-description: Learn how to configure and use flow runners, which responsible for creating and monitoring infrastructure for flow runs associated with deployments.
+description: Prefect flow runners are responsible for creating and monitoring the infrastructure for flow runs associated with deployments.
 tags:
     - orchestration
     - flow runners
@@ -74,7 +74,7 @@ Once the deployment exists, any flow runs that this deployment starts will use `
 
 ## Configuring a flow runner
 
-All flow runners have the configuration fields at [`UniversalFlowRunner`](/api-ref/prefect/flow_runners/#prefect.flow_runners.UniversalFlowRunner) available. Additionally, every flow runner has type-specific options.
+All flow runners have the configuration fields at [`UniversalFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.UniversalFlowRunner) available. Additionally, every flow runner has type-specific options.
 
 You can mix type-specific flow runner options with universal flow runner options. For example, you can configure the `SubprocessFlowRunner` to include an environment variable (a universal setting) and an Anaconda environment (a subprocess-specific setting):
 
@@ -96,7 +96,7 @@ DeploymentSpec(
 
 ## Universal flow runner
 
-By including a flow runner type for your deployment, you are specifying the infrastructure that will run your flow. If you want your flow to be able to run on any infrastructure, deferring the choice to the agent, you may either leave the `flow_runner` field blank or set it to a [`UniversalFlowRunner`](/api-ref/prefect/flow_runners/#prefect.flow_runners.UniversalFlowRunner).
+By including a flow runner type for your deployment, you are specifying the infrastructure that will run your flow. If you want your flow to be able to run on any infrastructure, deferring the choice to the agent, you may either leave the `flow_runner` field blank or set it to a [`UniversalFlowRunner`](/api-ref/prefect/flow-runners/#prefect.flow_runners.UniversalFlowRunner).
 
 If a deployment has a `UniversalFlowRunner` or no flow runner specified, the default flow runner will be used.
 

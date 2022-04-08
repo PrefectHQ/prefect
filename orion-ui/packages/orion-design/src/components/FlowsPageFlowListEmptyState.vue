@@ -24,19 +24,23 @@
   import { provide } from 'vue'
   import EmptyStateCard from '@/components/EmptyStateCard.vue'
   import FlowsPageFlowListItem from '@/components/FlowsPageFlowListItem.vue'
-  import { getDeploymentsCountKey } from '@/services/DeploymentsApi'
-  import { getFlowRunsCountKey } from '@/services/FlowRunsApi'
+  import { DeploymentsApi, deploymentsApiKey } from '@/services/DeploymentsApi'
+  import { FlowRunsApi, flowRunsApiKey } from '@/services/FlowRunsApi'
   import { mocker } from '@/services/Mocker'
 
-  defineProps({
-      hideDocsButton: {
-        type: Boolean,
-        default: false
-    },
-  })
+  defineProps<{
+    hideDocsButton?: boolean,
+  }>()
 
-  provide(getFlowRunsCountKey, () => Promise.resolve(mocker.create('number', [0, 15])))
-  provide(getDeploymentsCountKey, () => Promise.resolve(mocker.create('number', [0, 3])))
+  // these mock the count endpoints for the FlowsPageFlowListItem
+  // "as unknown as" is used so we don't have to mock the whole service
+  provide(flowRunsApiKey, {
+    getFlowRunsCount: () => Promise.resolve(mocker.create('number', [0, 15])),
+  } as unknown as FlowRunsApi)
+
+  provide(deploymentsApiKey, {
+    getDeploymentsCount: () => Promise.resolve(mocker.create('number', [0, 3])),
+  } as unknown as DeploymentsApi)
 
   const flows = [
     mocker.create('flow', [{ name: 'My-ETL-Flow', tags: [] }]),
