@@ -49,7 +49,7 @@
   const props = defineProps<{
     filter: Partial<Filter>,
     filters: Partial<Filter>[],
-    dismissable?: boolean,
+    dismissible?: boolean,
     expanded?: boolean,
   }>()
 
