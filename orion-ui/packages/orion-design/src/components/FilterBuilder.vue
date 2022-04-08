@@ -14,13 +14,13 @@
     <template v-if="innerExpanded">
       <div class="filter-builder__filter">
         <template v-if="!innerFilter.object">
-          <FilterBuilderObject v-model:object="innerFilter.object" />
+          <FilterBuilderObject v-model:filter="innerFilter" />
         </template>
         <template v-else-if="!innerFilter.property">
-          <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
+          <FilterBuilderProperty v-model:filter="innerFilter" />
         </template>
         <template v-else>
-          <FilterBuilderValue v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :object="innerFilter.object" :property="innerFilter.property" />
+          <FilterBuilderValue v-model:filter="innerFilter" />
         </template>
         <template v-if="isCompleteFilter(innerFilter)">
           <FilterTag class="filter-builder__tag" :filter="innerFilter" />
@@ -48,6 +48,7 @@
 
   const props = defineProps<{
     filter: Partial<Filter>,
+    filters: Partial<Filter>[],
     dismissable?: boolean,
     expanded?: boolean,
   }>()
