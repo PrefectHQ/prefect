@@ -1,0 +1,121 @@
+import os
+
+from prefect import Task
+from prefect.utilities.tasks import defaults_from_attrs
+from prefect.engine.signals import FAIL
+
+from .hightouch_utils import HightouchClient
+
+
+class HightouchRunSync(Task):
+    """
+    This task can be used to trigger a new sync run on [Hightouch]().
+    Under the hood it uses [Hightouch official APIs]().
+
+    Args:
+        - api_key (str, optional): The API key to use to authenticate on Hightouch.
+        - api_key_env_var (str, optional): The name of the environment variable that contains
+            the API key to use to authenticate on Hightouch.
+            This value is considered only if `api_key` is not provided.
+        - sync_id (int, optional): The ID of the Hightouch sync to run.
+        - wait_for_completion (bool, optional): Whether to wait for sync run completion or not.
+            Default is `False`.
+        - wait_for_completion: (int, optional): Whether to wait for the sync run to finish execution
+            or not.
+            Default to `False`.
+        - wait_time_between_api_calls (int, optional): The number of seconds to
+            wait between API calls.
+            Default to 10.
+        - max_wait_time (int, optional): The number of seconds to wait for the
+            Hightouch API to return a response.
+        - **kwargs (optional): Additional keyword arguments to pass to the
+            standard Task initalization.
+    """
+
+    def __init__(
+        self,
+        api_key: str = None,
+        api_key_env_var: str = None,
+        sync_id: int = None,
+        wait_for_completion: bool = False,
+        wait_time_between_api_calls: int = 10,
+        max_wait_time: int = None,
+        **kwargs
+    ):
+        self.api_key = api_key
+        self.api_key_env_var = api_key_env_var
+        self.sync_id = sync_id
+        self.wait_for_completion = wait_for_completion
+        self.wait_time_between_api_calls = wait_time_between_api_calls
+        self.max_wait_time = max_wait_time
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "api_key",
+        "api_key_env_var",
+        "sync_id",
+        "wait_for_completion",
+        "wait_time_between_api_calls",
+        "max_wait_time",
+    )
+    def run(
+        self,
+        api_key: str = None,
+        api_key_env_var: str = None,
+        sync_id: int = None,
+        wait_for_completion: bool = False,
+        wait_time_between_api_calls: int = 10,
+        max_wait_time: int = None,
+    ):
+        """
+        This task can be used to trigger a new sync run on [Hightouch]().
+        Under the hood it uses [Hightouch official APIs]().
+
+        Args:
+            - api_key (str, optional): The API key to use to authenticate on Hightouch.
+            - api_key_env_var (str, optional): The name of the environment variable that contains
+                the API key to use to authenticate on Hightouch.
+                This value is considered only if `api_key` is not provided.
+            - sync_id (int, optional): The ID of the Hightouch sync to run.
+            - wait_for_completion: (int, optional): Whether to wait for the sync run to finish execution
+                or not.
+                Default to `False`.
+            - wait_time_between_api_calls (int, optional): The number of seconds to
+                wait between API calls.
+                Default to 10.
+            - max_wait_time (int, optional): The number of seconds to wait for the
+                Hightouch API to return a response.
+
+        Raises:
+            - `prefect.engine.signals.FAIL` if both `api_key` and `api_key_env_var` are missing.
+            - `prefect.engine.signals.FAIL` if `api_key` is missing and `api_key_env_var` is not found.
+            - `prefect.engine.signals.FAIL` if `sync_id` is missing.
+
+        Returns:
+            - if `wait_for_completion` is `False`, returns the response of the
+                [Start a new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run).
+            - if `wait_for_completion` is `True`, returns the response of the [Get the status of a sync run API](https://hightouch.io/docs/syncs/api/#get-the-status-of-a-sync-run).
+        """
+        if not api_key and not api_key_env_var:
+            msg = "Both `api_key` and `api_key_env_var` are missing."
+            raise FAIL(message=msg)
+
+        if not api_key and api_key_env_var not in os.environ.keys():
+            msg = "`api_key` is missing and `api_key_env_var` cannot be found."
+            raise FAIL(message=msg)
+
+        key = api_key if api_key else os.environ[api_key_env_var]
+
+        if not sync_id:
+            msg = "`sync_id` is missing."
+            raise FAIL(message=msg)
+        
+        wait_api_call_secs = wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
+
+        ht_client = HightouchClient(api_key=key)
+        return ht_client.start_sync_run(
+            sync_id=sync_id,
+            wait_for_completion=wait_for_completion,
+            wait_time_between_api_calls=wait_api_call_secs,
+            max_wait_time=max_wait_time,
+        )

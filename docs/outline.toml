@@ -791,3 +791,8 @@ title = "Transform Tasks"
 module = "prefect.tasks.transform"
 classes = ["TransformCreateMaterialization"]
 verified_task = true
+
+[pages.tasks.Hightouch]
+title = "Hightouch Tasks"
+module = "prefect.tasks.hightouch"
+classes = ["HightouchRunSync"]
