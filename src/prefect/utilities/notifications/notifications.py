@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 TrackedObjectType = Union["Flow", "Task"]
 
-__all__ = ["callback_factory", "gmail_notifier", "slack_notifier"]
+__all__ = ["callback_factory", "gmail_notifier", "slack_notifier", "snowflake_logger"]
 
 
 def callback_factory(
@@ -323,7 +323,6 @@ def slack_notifier(
 def snowflake_message_formatter(
     tracked_obj: TrackedObjectType,
     state: "prefect.engine.state.State",
-    backend_info: bool = True,
 ) -> dict:
     # see https://api.slack.com/docs/message-attachments
     fields = []
@@ -342,21 +341,6 @@ def snowflake_message_formatter(
         "message": fields,
     }
 
-    if backend_info and prefect.context.get("flow_run_id"):
-        # url = None
-
-        """if isinstance(tracked_obj, prefect.Flow):
-            url = prefect.client.Client().get  .get_cloud_url(
-                "flow-run", prefect.context["flow_run_id"], as_user=False
-            )
-        elif isinstance(tracked_obj, prefect.Task):
-            url = prefect.client.Client().get_cloud_url(
-                "task-run", prefect.context.get("task_run_id", ""), as_user=False
-            )
-
-        if url:
-            notification_payload.update(title_link=url)"""
-
     return notification_payload
 
 
@@ -369,7 +353,6 @@ def snowflake_logger(
     only_states: list = None,
     snowflake_secret: str = None,
     snowflake_log_table_name: str = None,
-    backend_info: bool = False,
     test_env: bool = False,
 ) -> "prefect.engine.state.State":
     """
