@@ -46,7 +46,7 @@ jobs:
           python setup.py bdist_wheel
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: built-package
           path: "./dist"
@@ -104,7 +104,7 @@ jobs:
           docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect version
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         # Images are stashed for publish after approval is given
         with:
           name: release-image-${{ github.sha }}-${{ matrix.python-version }}
