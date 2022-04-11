@@ -67,9 +67,8 @@ class TestReadFlowRunHistory:
         assert len(response.json()) == 3
 
     async def test_read_flow_runs(self, flow_runs, client):
-        response = await client.post(
-            "/ui/flow_runs/history", json=dict(sort="EXPECTED_START_TIME_ASC")
-        )
+        response = await client.post("/ui/flow_runs/history", json=dict(sort="ID_DESC"))
+        flow_runs = sorted(flow_runs, key=lambda x: x.id, reverse=True)
         data = pydantic.parse_obj_as(List[SimpleFlowRun], response.json())
         for i in range(3):
             assert data[i].id == flow_runs[i].id

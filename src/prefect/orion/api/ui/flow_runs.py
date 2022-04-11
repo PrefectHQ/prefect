@@ -27,10 +27,15 @@ class SimpleFlowRun(PrefectBaseModel):
     id: UUID = Field(..., description="The flow run id.")
     state_type: schemas.states.StateType = Field(..., description="The state type.")
     timestamp: datetime.datetime = Field(
-        ..., description="The start time or expected start time of the run"
+        ...,
+        description="The start time of the run, or the expected start time "
+        "if it hasn't run yet.",
     )
     duration: datetime.timedelta = Field(
         ..., description="The total run time of the run."
+    )
+    lateness: datetime.timedelta = Field(
+        ..., description="The delay between the expected and actual start time."
     )
 
 
@@ -51,6 +56,7 @@ async def read_flow_run_history(
     columns = [
         db.FlowRun.id,
         db.FlowRun.state_type,
+        db.FlowRun.start_time,
         db.FlowRun.expected_start_time,
         db.FlowRun.total_run_time,
     ]
@@ -68,8 +74,9 @@ async def read_flow_run_history(
         SimpleFlowRun(
             id=r.id,
             state_type=r.state_type,
-            timestamp=r.expected_start_time,
+            timestamp=r.start_time or r.expected_start_time,
             duration=r.estimated_run_time,
+            lateness=r.estimated_start_time_delta,
         )
         for r in result
     ]
