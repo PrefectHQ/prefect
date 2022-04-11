@@ -60,7 +60,7 @@
 
 <script lang="ts">
   /* eslint-disable */
-  import { media, showPanel, DeploymentPanel, BreadCrumbs, Crumb, DeploymentsApi, FlowRunsApi } from '@prefecthq/orion-design'
+  import { media, showPanel, DeploymentPanel, BreadCrumbs, Crumb, DeploymentsApi, FlowRunsApi, mapper, IDeploymentResponse } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -71,7 +71,7 @@
   import { flowRunsApi } from '@/services/flowRunsApi'
 
   class Props {
-    item = prop<Deployment>({ required: true })
+    item = prop<IDeploymentResponse>({ required: true })
   }
 
   @Options({
@@ -89,14 +89,14 @@
   })
   export default class ListItemDeployment extends Vue.with(Props) {
     search: string = ''
-    scheduleActive: boolean = this.item.is_schedule_active
+    scheduleActive: boolean = this.item.is_schedule_active ?? false
     creatingRun: boolean = false
     media = media
     crumbs: Crumb[] = [{ text: this.item.name, action: () => this.openDeploymentPanel() }]
 
     openDeploymentPanel(): void {
       showPanel(DeploymentPanel, {
-        deployment: deploymentsApi.mapDeployment(this.item as any),
+        deployment: mapper.map('IDeploymentResponse', this.item, 'Deployment'),
         dashboardRoute: { name: 'Dashboard' },
         deploymentsApi: deploymentsApi as DeploymentsApi,
         flowRunsApi: flowRunsApi as FlowRunsApi,
@@ -155,7 +155,7 @@
     }
 
     get tags(): string[] {
-      return this.item.tags
+      return this.item.tags ?? []
     }
 
     get filteredParameters(): Record<string, any>[] {
