@@ -140,7 +140,7 @@ def test_raise_warning_futures_in_condition():
         if a_task().result():
             pass
 
-    match = "A 'PrefectFuture' resulting from a 'Task'"
+    match = "A 'PrefectFuture' from a task call was cast to a boolean"
     with pytest.warns(UserWarning, match=match):
         if_flow()
 
