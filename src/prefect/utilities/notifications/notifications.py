@@ -318,3 +318,149 @@ def slack_notifier(
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
     return new_state
+
+
+def snowflake_message_formatter(
+    tracked_obj: TrackedObjectType,
+    state: "prefect.engine.state.State",
+    backend_info: bool = True,
+) -> dict:
+    # see https://api.slack.com/docs/message-attachments
+    fields = []
+    if isinstance(state.result, Exception):
+        value = "{}".format(repr(state.result))
+    else:
+        value = cast(str, state.message)
+    if value is not None:
+        fields.append({"value": value})
+
+    notification_payload = {
+        "flow_id": prefect.context.get("flow_run_id"),
+        "flow_name": prefect.context.get("flow_name"),
+        "task_name": tracked_obj.name,
+        "state": type(state).__name__,
+        "message": fields,
+    }
+
+    if backend_info and prefect.context.get("flow_run_id"):
+        # url = None
+
+        """if isinstance(tracked_obj, prefect.Flow):
+            url = prefect.client.Client().get  .get_cloud_url(
+                "flow-run", prefect.context["flow_run_id"], as_user=False
+            )
+        elif isinstance(tracked_obj, prefect.Task):
+            url = prefect.client.Client().get_cloud_url(
+                "task-run", prefect.context.get("task_run_id", ""), as_user=False
+            )
+
+        if url:
+            notification_payload.update(title_link=url)"""
+
+    return notification_payload
+
+
+@curry
+def snowflake_logger(
+    tracked_obj: TrackedObjectType,
+    old_state: "prefect.engine.state.State",
+    new_state: "prefect.engine.state.State",
+    ignore_states: list = None,
+    only_states: list = None,
+    snowflake_secret: str = None,
+    snowflake_log_table_name: str = None,
+    backend_info: bool = False,
+    test_env: bool = False,
+) -> "prefect.engine.state.State":
+    """
+    Snowflake state change handler/logger; requires having the Prefect Snowflake app installed.  Works as a
+    standalone state handler, or can be called from within a custom state handler.  This
+    function is curried meaning that it can be called multiple times to partially bind any
+    keyword arguments (see example below).
+    Args:
+        - tracked_obj (Task or Flow): Task or Flow object the handler is
+            registered with
+        - old_state (State): previous state of tracked object
+        - new_state (State): new state of tracked object
+        - ignore_states ([State], optional): list of `State` classes to ignore, e.g.,
+            `[Running, Scheduled]`. If `new_state` is an instance of one of the passed states,
+            no notification will occur.
+        - only_states ([State], optional): similar to `ignore_states`, but instead _only_
+            notifies you if the Task / Flow is in a state from the provided list of `State`
+            classes
+        - snowflake_secret (str, optional): the name of the Prefect Secret that stores your Snowflake
+            credentials; defaults to `"SNOWFLAKE_CREDS"`
+        - snowflake_log_table_name (str, optional): the fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
+        - test_env (bool): Only used for testing and defaults to False
+    Returns:
+        - State: the `new_state` object that was provided
+    Raises:
+        - ValueError: if the snowflake logger fails for any reason
+    Example:
+        ```python
+        from prefect import task
+        from prefect.utilities.notifications import snowflake_logger
+        @task(state_handlers=[snowflake_logger(ignore_states=[Running])]) # uses currying
+        def add(x, y):
+            return x + y
+        ```
+    """
+    # import SnowflakeQuery here to avoid circular import error
+    from prefect.tasks.snowflake import SnowflakeQuery
+
+    ignore_states = ignore_states or []
+    only_states = only_states or []
+
+    if any(isinstance(new_state, ignored) for ignored in ignore_states):
+        return new_state
+
+    if only_states and not any(
+        [isinstance(new_state, included) for included in only_states]
+    ):
+        return new_state
+
+    # 'import requests' is expensive time-wise, we should do this just-in-time to keep
+    # the 'import prefect' time low
+
+    # get the secret
+    sf_secret_dict = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
+
+    # get formatted message and destruct it
+    row_data = snowflake_message_formatter(tracked_obj, new_state, backend_info)
+    flow_id = row_data.get("flow_id")
+    flow_name = row_data.get("flow_name")
+    task_name = row_data.get("task_name")
+    state = row_data.get("state")
+    message = row_data.get("message")[0]["value"].replace("'", "'\'") if row_data.get("message") != [] else ""
+
+    # get fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
+    full_log_table_name = prefect.client.Secret(snowflake_log_table_name or "LOG_TABLE_NAME_FULL").get().split(".")
+    DB_NAME = full_log_table_name[0]
+    SCHEMA_NAME = full_log_table_name[1]
+    TABLE_NAME = full_log_table_name[2]
+
+    sql = f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, STATE, MESSAGE, " \
+          f"INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}','{state}','{message}',CURRENT_TIMESTAMP());"
+
+    sf_user = sf_secret_dict.get("user", None)
+    sf_password = sf_secret_dict.get("password", None)
+    sf_account = sf_secret_dict.get("account", None)
+    sf_role = sf_secret_dict.get("role", None)
+    sf_warehouse = sf_secret_dict.get("warehouse", None)
+    sf_private_key = sf_secret_dict.get("private_key", None)
+
+    # adding extra check to handle testing
+    # at this point it would just test the original SnowflakeQuery Task
+    # and that is unnecessary
+    if test_env:
+        print(sql)
+    else:
+        # Insert log data about Task into LOG table
+        SnowflakeQuery().run(user=sf_user,
+                             password=sf_password,
+                             account=sf_account,
+                             role=sf_role,
+                             warehouse=sf_warehouse,
+                             private_key=sf_private_key,
+                             query=sql)
+    return new_state
