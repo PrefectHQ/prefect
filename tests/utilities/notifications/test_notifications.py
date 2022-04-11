@@ -25,13 +25,13 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.notifications.notifications import snowflake_logger
 from prefect.utilities.notifications import (
     callback_factory,
     gmail_notifier,
     slack_message_formatter,
     slack_notifier
 )
+from prefect.utilities.notifications.notifications import snowflake_logger
 
 
 def test_callback_factory_generates_pickleable_objs():
