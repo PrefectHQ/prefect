@@ -46,7 +46,7 @@ jobs:
           python setup.py bdist_wheel
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: built-package
           path: "./dist"
@@ -104,7 +104,7 @@ jobs:
           docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect version
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         # Images are stashed for publish after approval is given
         with:
           name: release-image-${{ github.sha }}-${{ matrix.python-version }}
@@ -154,7 +154,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: built-package
           path: "./dist"
@@ -214,7 +214,7 @@ jobs:
 
     steps:
       - name: Download build artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: built-package
           path: "./dist"
@@ -234,25 +234,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download image artifacts for Python 3.7
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: release-image-${{ github.sha }}-3.7
           path: /tmp/3.7/
 
       - name: Download image artifacts for Python 3.8
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: release-image-${{ github.sha }}-3.8
           path: /tmp/3.8/
 
       - name: Download image artifacts for Python 3.9
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: release-image-${{ github.sha }}-3.9
           path: /tmp/3.9/
 
       - name: Download image artifacts for Python 3.10
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: release-image-${{ github.sha }}-3.10
           path: /tmp/3.10/
