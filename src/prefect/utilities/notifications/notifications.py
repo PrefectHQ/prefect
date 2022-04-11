@@ -409,21 +409,31 @@ def snowflake_logger(
     sf_secret_dict = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
 
     # get formatted message and destruct it
-    row_data = snowflake_message_formatter(tracked_obj, new_state, backend_info)
+    row_data = snowflake_message_formatter(tracked_obj, new_state)
     flow_id = row_data.get("flow_id")
     flow_name = row_data.get("flow_name")
     task_name = row_data.get("task_name")
     state = row_data.get("state")
-    message = row_data.get("message")[0]["value"].replace("'", "'\'") if row_data.get("message") != [] else ""
+    message = (
+        row_data.get("message")[0]["value"].replace("'", "''")
+        if row_data.get("message") != []
+        else ""
+    )
 
     # get fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
-    full_log_table_name = prefect.client.Secret(snowflake_log_table_name or "LOG_TABLE_NAME_FULL").get().split(".")
+    full_log_table_name = (
+        prefect.client.Secret(snowflake_log_table_name or "LOG_TABLE_NAME_FULL")
+        .get()
+        .split(".")
+    )
     DB_NAME = full_log_table_name[0]
     SCHEMA_NAME = full_log_table_name[1]
     TABLE_NAME = full_log_table_name[2]
 
-    sql = f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, STATE, MESSAGE, " \
-          f"INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}','{state}','{message}',CURRENT_TIMESTAMP());"
+    sql = (
+        f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, STATE, MESSAGE, "
+        f"INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}','{state}','{message}',CURRENT_TIMESTAMP());"
+    )
 
     sf_user = sf_secret_dict.get("user", None)
     sf_password = sf_secret_dict.get("password", None)
@@ -439,11 +449,13 @@ def snowflake_logger(
         print(sql)
     else:
         # Insert log data about Task into LOG table
-        SnowflakeQuery().run(user=sf_user,
-                             password=sf_password,
-                             account=sf_account,
-                             role=sf_role,
-                             warehouse=sf_warehouse,
-                             private_key=sf_private_key,
-                             query=sql)
+        SnowflakeQuery().run(
+            user=sf_user,
+            password=sf_password,
+            account=sf_account,
+            role=sf_role,
+            warehouse=sf_warehouse,
+            private_key=sf_private_key,
+            query=sql,
+        )
     return new_state
