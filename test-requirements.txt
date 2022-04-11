@@ -5,3 +5,4 @@ pytest-xdist >= 2.0
 flaky >= 3.0
 responses >= 0.14.0
 PyJWT >= 2.3.0
+snowflake-connector-python >= 1.8.2

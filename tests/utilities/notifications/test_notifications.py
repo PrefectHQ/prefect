@@ -10,7 +10,7 @@ import cloudpickle
 import pytest
 
 import prefect
-from prefect import Task, task
+from prefect import Task
 from prefect.engine.state import (
     Cached,
     Failed,
@@ -25,11 +25,12 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
+from prefect.utilities.notifications.notifications import snowflake_logger
 from prefect.utilities.notifications import (
     callback_factory,
     gmail_notifier,
     slack_message_formatter,
-    slack_notifier,
+    slack_notifier
 )
 
 
@@ -343,3 +344,94 @@ def test_gmail_notifier_ignores_ignore_states(monkeypatch):
                 returned = gmail_notifier(Task(), "", s, ignore_states=[State])
         assert returned is s
         assert sendmail.called is False
+
+
+def test_snowflake_logger_returns_new_state_and_old_state_is_ignored(monkeypatch):
+    new_state = Failed(message="1", result=0)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(SNOWFLAKE_CREDS={"user": "", "password": "", "account": ""},
+                                          LOG_TABLE_NAME_FULL="TEST_DB.TEST_SCHEMA_LOG.TEST_TABLE_LOG")):
+            assert snowflake_logger(Task(), "", new_state, test_env=True) is new_state
+
+
+def test_snowflake_logger_pulls_connection_info_from_secret(monkeypatch):
+    state = Failed(message="1", result=0)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with pytest.raises(ValueError, match="SNOWFLAKE_CREDS"):
+            snowflake_logger(Task(), "", state, test_env=True)
+
+        with prefect.context(secrets=dict(SNOWFLAKE_CREDS={"user": "test", "password": "test", "account": "test"},
+                                          LOG_TABLE_NAME_FULL="TEST_DB.TEST_SCHEMA_LOG.TEST_TABLE_LOG")):
+            snowflake_logger(Task(), "", state, test_env=True)
+
+
+def test_snowflake_logger_ignores_ignore_states(monkeypatch):
+    all_states = [
+        Running,
+        Pending,
+        Finished,
+        Failed,
+        TriggerFailed,
+        Cached,
+        Scheduled,
+        Retrying,
+        Success,
+        Skipped,
+    ]
+    for state in all_states:
+        s = state()
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(SNOWFLAKE_CREDS={"user": "test", "password": "test", "account": "test"},
+                                              LOG_TABLE_NAME_FULL="TEST_DB.TEST_SCHEMA_LOG.TEST_TABLE_LOG")):
+                returned = snowflake_logger(Task(), "", s, ignore_states=[State], test_env=True)
+        assert returned is s
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        Running,
+        Pending,
+        Finished,
+        Failed,
+        TriggerFailed,
+        Cached,
+        Scheduled,
+        Retrying,
+        Success,
+        Skipped,
+    ],
+)
+def test_snowflake_logger_is_curried_and_ignores_ignore_states(monkeypatch, state):
+    state = state()
+    handler = snowflake_logger(ignore_states=[Finished], test_env=True)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(SNOWFLAKE_CREDS={"user": "test", "password": "test", "account": "test"},
+                                          LOG_TABLE_NAME_FULL="TEST_DB.TEST_SCHEMA_LOG.TEST_TABLE_LOG")):
+            returned = handler(Task(), "", state)
+    assert returned is state
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        Running,
+        Pending,
+        Finished,
+        Failed,
+        TriggerFailed,
+        Cached,
+        Scheduled,
+        Retrying,
+        Success,
+        Skipped,
+    ],
+)
+def test_snowflake_logger_is_curried_and_uses_only_states(monkeypatch, state):
+    state = state()
+    handler = snowflake_logger(only_states=[TriggerFailed], test_env=True)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(SNOWFLAKE_CREDS={"user": "test", "password": "test", "account": "test"},
+                                          LOG_TABLE_NAME_FULL="TEST_DB.TEST_SCHEMA_LOG.TEST_TABLE_LOG")):
+            returned = handler(Task(), "", state)
+    assert returned is state
