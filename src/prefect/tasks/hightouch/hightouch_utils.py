@@ -3,7 +3,6 @@ import time
 from typing import Dict
 
 from prefect.engine.signals import FAIL
-import prefect
 
 
 class HightouchClient:
@@ -14,7 +13,10 @@ class HightouchClient:
 
     def __init__(self, api_key: str):
         """
-        TODO
+        Create an `HightouchClient`.
+
+        Args:
+            - api_key (str): The API kye to use to authenticate API calls on Hightouch.
         """
         self.api_key = api_key
         self.session = Session()
@@ -25,7 +27,19 @@ class HightouchClient:
 
     def get_sync_run_status(self, sync_id: int) -> Dict:
         """
-        TODO
+        Return the status of a sync run.
+        The status is obtained by calling the
+        [Get sync run status API](https://hightouch.io/docs/syncs/api/#get-the-status-of-a-sync-run).
+
+        Args:
+            - sync_id (int): The sync identifier.
+
+        Raises:
+            - `prefect.engine.signals.FAIL` if the response status code is not 200.
+
+        Returns:
+            - The JSON response containing information about the status of
+                the sync run.
         """
         url = f"{self.__HIGHTOUCH_GET_SYNC_RUN_STATUS}/{sync_id}"
         with self.session.get(url) as response:
@@ -35,9 +49,36 @@ class HightouchClient:
 
             return response.json()
 
-    def start_sync_run(self, sync_id: int, wait_for_completion: bool, wait_time_between_api_calls: int, max_wait_time: int) -> Dict:
+    def start_sync_run(
+        self,
+        sync_id: int,
+        wait_for_completion: bool,
+        wait_time_between_api_calls: int,
+        max_wait_time: int,
+    ) -> Dict:
         """
-        TODO
+        Start a new sync run.
+        Optionally, wait for run completion.
+        The sync run is triggered via the
+        [Start new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run)
+
+        Args:
+            - sync_id (int): The sync identifier
+            - wait_for_completion (bool): Whether to wait for the sync run completion or not.
+            - wait_time_between_api_calls (int): The number of seconds to wait between API calls.
+                This is used only if `wait_for_completion` is `True`.
+            - max_wait_time (int): The maximum number of seconds to wait for the sync run to complete.
+                This is used only if `wait_for_completion` is `True`.
+
+        Raises:
+            - `prefect.engine.signals.FAIL` if the sync run takes more
+                than `max_wait_time` seconds to complete.
+
+        Returns:
+            - If `wait_for_completion` is `True`, returns the JSON response
+                containing the status of the sync run.
+            - If `wait_for_completion` is `False`, returns the JSON response
+                containing information about the start sync run action.
         """
         url = f"{self.__HIGHTOUCH_START_NEW_SYNC_RUN_URL}/{sync_id}"
         with self.session.post(url) as response:
@@ -57,8 +98,9 @@ class HightouchClient:
                     if sync_status == "success":
                         return sync_status_response
                     else:
+                        time.sleep(wait_time_between_api_calls)
                         elapsed_wait_time += wait_time_between_api_calls
-                
+
                 msg = "Sync run exceeded `max_wait_time`"
                 raise FAIL(message=msg)
 

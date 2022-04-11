@@ -2,15 +2,15 @@ import os
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.engine.signals import FAIL
 
 from .hightouch_utils import HightouchClient
 
 
 class HightouchRunSync(Task):
     """
-    This task can be used to trigger a new sync run on [Hightouch]().
-    Under the hood it uses [Hightouch official APIs]().
+    This task can be used to trigger a new sync run on [Hightouch](https://hightouch.io/).
+    Under the hood
+    it uses [Hightouch official APIs](https://hightouch.io/docs/syncs/api/#the-hightouch-rest-api).
 
     Args:
         - api_key (str, optional): The API key to use to authenticate on Hightouch.
@@ -26,7 +26,7 @@ class HightouchRunSync(Task):
         - wait_time_between_api_calls (int, optional): The number of seconds to
             wait between API calls.
             Default to 10.
-        - max_wait_time (int, optional): The number of seconds to wait for the
+        - max_wait_time (int, optional): The maximum number of seconds to wait for the
             Hightouch API to return a response.
         - **kwargs (optional): Additional keyword arguments to pass to the
             standard Task initalization.
@@ -83,34 +83,37 @@ class HightouchRunSync(Task):
             - wait_time_between_api_calls (int, optional): The number of seconds to
                 wait between API calls.
                 Default to 10.
-            - max_wait_time (int, optional): The number of seconds to wait for the
+            - max_wait_time (int, optional): The maximum number of seconds to wait for the
                 Hightouch API to return a response.
 
         Raises:
-            - `prefect.engine.signals.FAIL` if both `api_key` and `api_key_env_var` are missing.
-            - `prefect.engine.signals.FAIL` if `api_key` is missing and `api_key_env_var` is not found.
-            - `prefect.engine.signals.FAIL` if `sync_id` is missing.
+            - `ValueError` if both `api_key` and `api_key_env_var` are missing.
+            - `ValueError` if `api_key` is missing and `api_key_env_var` is not found.
+            - `ValueError` if `sync_id` is missing.
 
         Returns:
-            - if `wait_for_completion` is `False`, returns the response of the
-                [Start a new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run).
-            - if `wait_for_completion` is `True`, returns the response of the [Get the status of a sync run API](https://hightouch.io/docs/syncs/api/#get-the-status-of-a-sync-run).
+            - if `wait_for_completion` is `False`, returns the response of
+                [Start a new sync run](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run).
+            - if `wait_for_completion` is `True`, returns the response of
+                [Get sync run status](https://hightouch.io/docs/syncs/api/#get-the-status-of-a-sync-run).
         """
         if not api_key and not api_key_env_var:
             msg = "Both `api_key` and `api_key_env_var` are missing."
-            raise FAIL(message=msg)
+            raise ValueError(msg)
 
         if not api_key and api_key_env_var not in os.environ.keys():
             msg = "`api_key` is missing and `api_key_env_var` cannot be found."
-            raise FAIL(message=msg)
+            raise ValueError(msg)
 
         key = api_key if api_key else os.environ[api_key_env_var]
 
         if not sync_id:
             msg = "`sync_id` is missing."
-            raise FAIL(message=msg)
-        
-        wait_api_call_secs = wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
+            raise ValueError(msg)
+
+        wait_api_call_secs = (
+            wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
+        )
 
         ht_client = HightouchClient(api_key=key)
         return ht_client.start_sync_run(
