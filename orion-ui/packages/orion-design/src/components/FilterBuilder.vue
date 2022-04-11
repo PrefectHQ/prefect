@@ -2,7 +2,7 @@
   <div class="filter-builder">
     <div class="filter-builder__header">
       <FilterBuilderHeading class="filter-builder__heading" :filter="innerFilter" />
-      <template v-if="dismissible && hasObject">
+      <template v-if="dismissible">
         <button type="button" class="filter-builder__close" @click="emit('dismiss')">
           <i class="filter-builder__close-icon pi pi-sm pi-close-circle-fill" />
         </button>
@@ -63,8 +63,6 @@
   watch(() => props.expanded, () => {
     innerExpanded.value = props.expanded ?? true
   }, { immediate: true })
-
-  const hasObject = computed<boolean>(() => !!innerFilter.value.object)
 
   const classes = computed(() => ({
     toggle: {
