@@ -331,7 +331,7 @@ def snowflake_message_formatter(
     else:
         value = cast(str, state.message)
     if value is not None:
-        fields.append({"value": value})
+        fields.append({"value": value.replace("'", "''")})
 
     notification_payload = {
         "flow_id": prefect.context.get("flow_run_id"),
@@ -406,7 +406,8 @@ def snowflake_logger(
     # the 'import prefect' time low
 
     # get the secret
-    sf_secret_dict = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
+    sf_secret = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
+    sf_secret_dict = sf_secret if sf_secret is not None else {}
 
     # get formatted message and destruct it
     row_data = snowflake_message_formatter(tracked_obj, new_state)
@@ -414,21 +415,18 @@ def snowflake_logger(
     flow_name = row_data.get("flow_name")
     task_name = row_data.get("task_name")
     state = row_data.get("state")
-    message = (
-        row_data.get("message")[0]["value"].replace("'", "''")
-        if row_data.get("message") != []
-        else ""
-    )
+    message = row_data.get("message") if row_data.get("message") != [] else ""
 
     # get fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
-    full_log_table_name = (
-        prefect.client.Secret(snowflake_log_table_name or "LOG_TABLE_NAME_FULL")
-        .get()
-        .split(".")
+    full_log_table_name = prefect.client.Secret(
+        snowflake_log_table_name or "LOG_TABLE_NAME_FULL"
+    ).get()
+    full_log_table_name_list = (
+        full_log_table_name.split(".") if full_log_table_name else "DB.SCHEMA.TABLE"
     )
-    DB_NAME = full_log_table_name[0]
-    SCHEMA_NAME = full_log_table_name[1]
-    TABLE_NAME = full_log_table_name[2]
+    DB_NAME = full_log_table_name_list[0]
+    SCHEMA_NAME = full_log_table_name_list[1]
+    TABLE_NAME = full_log_table_name_list[2]
 
     sql = (
         f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, STATE, MESSAGE, "
