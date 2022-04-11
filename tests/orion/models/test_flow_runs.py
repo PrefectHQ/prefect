@@ -1036,6 +1036,20 @@ class TestReadFlowRuns:
         )
         assert result[0].id == flow_run_2.id
 
+    async def test_read_flow_runs_with_only_one_column(self, flow_runs, db, session):
+        result = await models.flow_runs.read_flow_runs(
+            session=session, columns=[db.FlowRun.id]
+        )
+
+        assert {r.id for r in result} == {fr.id for fr in flow_runs}
+
+    async def test_read_flow_runs_with_only_two_columns(self, flow_runs, db, session):
+        result = await models.flow_runs.read_flow_runs(
+            session=session, columns=[db.FlowRun.id, db.FlowRun.name]
+        )
+        assert {r.id for r in result} == {fr.id for fr in flow_runs}
+        assert {r.name for r in result} == {fr.name for fr in flow_runs}
+
 
 class TestReadFlowRunTaskRunDependencies:
     async def test_read_task_run_dependencies(self, flow_run, session):
