@@ -451,7 +451,7 @@ def snowflake_logger(
 
     # adding extra check to handle testing
     # at this point it would just test the original SnowflakeQuery Task
-    # and that is unnecessary
+    # and that seems unnecessary
     if test_env:
         print(sql)
     else:
