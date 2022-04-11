@@ -65,7 +65,6 @@
   import { Options, Vue, prop } from 'vue-class-component'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import { Api, Endpoints } from '@/plugins/api'
-  import { Deployment } from '@/typings/objects'
   import { secondsToString } from '@/util/util'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
