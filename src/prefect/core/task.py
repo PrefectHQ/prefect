@@ -30,6 +30,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.edges import EdgeAnnotation
+from prefect.utilities.tasks import as_task
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -950,7 +951,11 @@ class Task(metaclass=TaskMetaclass):
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
-        return _prefect_task(_prefect_self, **kwargs)
+
+        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):
+            return as_task(_prefect_task(_prefect_self, **kwargs))
+        else:
+            return _prefect_task(_prefect_self, **kwargs)
 
     # Serialization ------------------------------------------------------------
 
