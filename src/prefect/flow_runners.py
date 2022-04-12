@@ -113,7 +113,7 @@ def base_flow_run_environment() -> Dict[str, str]:
     env = {setting.name: setting.value() for setting in SETTINGS}
 
     # Cast to strings and drop null values
-    return {key: str(value) for key, value in env if value is not None}
+    return {key: str(value) for key, value in env.items() if value is not None}
 
 
 class FlowRunner(BaseModel):
