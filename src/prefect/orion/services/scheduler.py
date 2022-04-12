@@ -62,9 +62,9 @@ class Scheduler(LoopService):
 
         session = await db.session()
         async with session:
-            async with session.begin():
-                last_id = None
-                while True:
+            last_id = None
+            while True:
+                async with session.begin():
                     query = self._get_select_deployments_to_schedule_query()
 
                     # use cursor based pagination
@@ -77,14 +77,21 @@ class Scheduler(LoopService):
                     # collect runs across all deployments
                     all_runs = []
                     for deployment_id in deployment_ids:
-                        runs = await self._generate_scheduled_flow_runs(
-                            session=session,
-                            deployment_id=deployment_id,
-                            start_time=now,
-                            end_time=now + self.max_scheduled_time,
-                            max_runs=self.max_runs,
-                        )
-                        all_runs.extend(runs)
+                        # guard against erroneously configured schedules
+                        try:
+                            runs = await self._generate_scheduled_flow_runs(
+                                session=session,
+                                deployment_id=deployment_id,
+                                start_time=now,
+                                end_time=now + self.max_scheduled_time,
+                                max_runs=self.max_runs,
+                            )
+                            all_runs.extend(runs)
+                        except Exception as exc:
+                            self.logger.info(
+                                f"Error scheduling deployment {deployment_id!r}.",
+                                exc_info=True,
+                            )
 
                     # bulk insert the runs based on batch size setting
                     for batch in batched_iterable(all_runs, self.insert_batch_size):
@@ -94,12 +101,12 @@ class Scheduler(LoopService):
                         await session.flush()
                         total_inserted_runs += len(inserted_runs)
 
-                    # if no deployments were found, exit the loop
-                    if len(deployment_ids) < self.deployment_batch_size:
-                        break
-                    else:
-                        # record the last deployment ID
-                        last_id = deployment_ids[-1]
+                # if no deployments were found, exit the loop
+                if len(deployment_ids) < self.deployment_batch_size:
+                    break
+                else:
+                    # record the last deployment ID
+                    last_id = deployment_ids[-1]
 
             self.logger.info(f"Scheduled {total_inserted_runs} runs.")
 
