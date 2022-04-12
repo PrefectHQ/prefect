@@ -75,18 +75,19 @@ class Scheduler(LoopService):
                     deployment_ids = result.scalars().unique().all()
 
                     # collect runs across all deployments
-                    all_runs = []
+                    runs_to_insert = []
                     for deployment_id in deployment_ids:
                         # guard against erroneously configured schedules
                         try:
-                            runs = await self._generate_scheduled_flow_runs(
-                                session=session,
-                                deployment_id=deployment_id,
-                                start_time=now,
-                                end_time=now + self.max_scheduled_time,
-                                max_runs=self.max_runs,
+                            runs_to_insert.extend(
+                                await self._generate_scheduled_flow_runs(
+                                    session=session,
+                                    deployment_id=deployment_id,
+                                    start_time=now,
+                                    end_time=now + self.max_scheduled_time,
+                                    max_runs=self.max_runs,
+                                )
                             )
-                            all_runs.extend(runs)
                         except Exception as exc:
                             self.logger.error(
                                 f"Error scheduling deployment {deployment_id!r}.",
@@ -94,11 +95,12 @@ class Scheduler(LoopService):
                             )
 
                     # bulk insert the runs based on batch size setting
-                    for batch in batched_iterable(all_runs, self.insert_batch_size):
+                    for batch in batched_iterable(
+                        runs_to_insert, self.insert_batch_size
+                    ):
                         inserted_runs = await self._insert_scheduled_flow_runs(
                             session=session, runs=batch
                         )
-                        await session.flush()
                         total_inserted_runs += len(inserted_runs)
 
                 # if no deployments were found, exit the loop
