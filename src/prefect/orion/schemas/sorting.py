@@ -22,6 +22,8 @@ class FlowRunSort(AutoEnum):
     ID_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
+    NAME_ASC = AutoEnum.auto()
+    NAME_DESC = AutoEnum.auto()
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
     END_TIME_DESC = AutoEnum.auto()
 
@@ -31,6 +33,8 @@ class FlowRunSort(AutoEnum):
             "ID_DESC": db.FlowRun.id.desc(),
             "EXPECTED_START_TIME_ASC": db.FlowRun.expected_start_time.asc(),
             "EXPECTED_START_TIME_DESC": db.FlowRun.expected_start_time.desc(),
+            "NAME_ASC": db.FlowRun.name.asc(),
+            "NAME_DESC": db.FlowRun.name.desc(),
             "NEXT_SCHEDULED_START_TIME_ASC": db.FlowRun.next_scheduled_start_time.asc(),
             "END_TIME_DESC": db.FlowRun.end_time.desc(),
         }
