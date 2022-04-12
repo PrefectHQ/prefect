@@ -1,3 +1,14 @@
+---
+description: Learn about controlling data and execution dependencies between Prefect tasks.
+tags:
+    - tasks
+    - error handling
+    - dependencies
+    - task order
+    - data dependencies
+    - state
+---
+
 # Task dependencies
 
 One of the core features of Prefect is the ability to control dependencies between tasks. This includes tasks that exchange data and those that need to execute in a pre-specified order due to external side effects.

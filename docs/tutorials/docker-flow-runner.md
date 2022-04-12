@@ -1,5 +1,5 @@
 ---
-description: Learn how to run flows in Docker containers using the DockerFlowRunner.
+description: Learn how to run Prefect flows in Docker containers using the Docker flow runner.
 tags:
     - Docker
     - containers

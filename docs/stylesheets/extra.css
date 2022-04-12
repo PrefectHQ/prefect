@@ -13,9 +13,14 @@
 
 /* Image drop shadow, separates browser from background */
 img {
-    /* margin-top: 1rem;
-    margin-bottom: 1rem; */
+    margin-top: 1rem;
+    margin-bottom: 1rem;
     filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+}
+
+.md-logo img {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* Table formatting */
