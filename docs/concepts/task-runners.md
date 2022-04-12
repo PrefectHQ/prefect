@@ -241,7 +241,7 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
     
     Ray currently does not support Python 3.10.
 
-    Ray currently does not support non-x86/64 architectures such as ARM/M1 processors with `pip install` alone, but it is possible with [`conda install`](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support).
+    Ray currently does not support non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See [the Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
 
 ## Running tasks sequentially
 
