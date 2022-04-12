@@ -35,13 +35,6 @@ else:
 
 
 @pytest.fixture
-def ignore_resource_warnings():
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", ResourceWarning)
-        yield
-
-
-@pytest.fixture
 @pytest.mark.service("dask")
 def dask_task_runner_with_existing_cluster():
     """
@@ -188,10 +181,16 @@ def default_concurrent_task_runner():
 
 @pytest.fixture
 @pytest.mark.service("ray")
-def default_ray_task_runner(ignore_resource_warnings):
+def default_ray_task_runner():
     pytest.importorskip("ray", reason=RAY_MISSING_REASON)
 
-    yield RayTaskRunner()
+    with warnings.catch_warnings():
+        # Ray does not properly close resources and we do not want their warnings to
+        # bubble into our test suite
+        # https://github.com/ray-project/ray/pull/22419
+        warnings.simplefilter("ignore", ResourceWarning)
+
+        yield RayTaskRunner()
 
 
 @pytest.fixture
