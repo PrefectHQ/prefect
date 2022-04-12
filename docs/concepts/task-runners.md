@@ -240,8 +240,6 @@ Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
     
     Ray currently does not support Python 3.10.
-    
-    Ray currently does not support non-x86/64 architectures such as ARM/M1 processors.
 
 ## Running tasks sequentially
 

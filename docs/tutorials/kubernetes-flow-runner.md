@@ -87,7 +87,8 @@ kubectl logs -lapp=orion --all-containers
 
 You should see something like this indicating that the Orion API is running in Kubernetes:
 
-```bash
+<div class='termy'>
+```
 $ kubectl logs -lapp=orion --all-containers
 INFO:     10.1.0.1:26106 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
 INFO:     10.1.0.1:56253 - "POST /work_queues/48199460-6a55-45c1-a96f-baf849c8c25f/get_runs HTTP/1.1" 200 OK
@@ -108,10 +109,14 @@ Starting agent connected to http://orion:4200/api...
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
 
-Agent started!
+Agent started! Looking for work from queue 'kubernetes'...
+19:46:51.179 | WARNING | prefect.agent - No work queue found named 'kubernetes'
 ```
+</div>
 
 This Kubernetes deployment runs the Orion API and UI servers, creates a [work queue](/concepts/work-queues/), and starts and agent &mdash; all within the cluster. 
+
+Don't worry about the `No work queue found named 'kubernetes'` warning here. A new Prefect Orion API server does not start with a default work queue from which the agent can pick up work. We'll create the work queue in a future step.
 
 ## Configure the Orion API on Kubernetes
 
@@ -120,7 +125,7 @@ To interact with the Prefect Orion API running in Kubernetes, we need to make su
 - The `prefect` command knows to talk to the Orion API running in Kubernetes
 - We can visit the Orion UI running in Kubernetes
 
-### Forward ports
+## Forward ports
 
 First, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. 
 
@@ -141,7 +146,7 @@ Handling connection for 4200
 
 Keep this command running, and open a new terminal for the next commands. Make sure you change to the same directory as you were previously using and activate your Python virtual environment, if you're using one.
 
-### Configure the API URL
+## Configure the API URL
 
 Now we need to tell our local `prefect` command how to communicate with the Orion API running in Kubernetes.
 
@@ -165,7 +170,7 @@ prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 
 Since we previously configured port forwarding for the localhost port to the Kubernetes environment, we’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
 
-### Configure storage
+## Configure storage
 
 Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data. 
 
@@ -173,7 +178,7 @@ Note that if you created remote storage for the [Docker flow runner tutorial](/t
 
 Before doing this next step, make sure you have the information to connect to and authenticate with a remote data store. In this example we're connecting to an AWS S3 bucket, but you could also Google Cloud Storage or Azure Blob Storage.
 
-Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key.
+Run the `prefect storage create` command. In this case we choose the S3 option and supply the bucket name and AWS IAM access key. You should use the details of a service and authentication method that you have configured.
 
 <div class='termy'>
 ```
@@ -192,6 +197,7 @@ Found the following storage types:
 5) Temporary Local Storage
     Store data in a temporary directory in a run's local file system
 Select a storage type to create: 4
+
 You've selected S3 Storage. It has 6 option(s).
 BUCKET: the-curious-case-of-benjamin-bucket
 AWS ACCESS KEY ID (optional): XXXXXXXXXXXXXXXXXXXX
@@ -210,9 +216,26 @@ Set default storage to 'benjamin-bucket'.
 
 We set this storage as the default for the server running in Kubernetes, and any flow runs orchestrated by this server can use the persistent S3 storage for flow code, task results, and flow results.
 
+## Create a work queue
+
+Work queues organize work that agents can pick up to execute. Work queues can be configured to make available deployments based on criteria such as tags, flow runners, or even specific deployments. Agents are configured to poll for work from specific work queues. To learn more, see the [Work Queues & Agents](/concepts/work-queues/) documentation.
+
+To run orchestrated deployments, you'll need to set up at least one work queue and agent. As you saw earlier, there's already an agent running in Kubernetes, looking for a work queue.
+
+For this project we'll configure a work queue that works with any Kubernetes-based agent.
+
+In the terminal, use the `prefect work-queue create` command to create a work queue called "kubernetes". We don't pass any other options, so this work queue passes any scheduled flow runs to the waiting agent.
+
+<div class='termy'>
+```
+$ prefect work-queue create kubernetes
+UUID('3c482650-ea98-4eee-9b8d-c92a4b758d61')
+```
+</div>
+
 ## Create the deployment on Kubernetes
 
-Now use the Prefect CLI to create the deployment, passing the file containing the flow code and deployment specification, `docker-deployment.py`:
+Now use the Prefect CLI to create the deployment, passing the file containing the flow code and deployment specification, `kubernetes-deployment.py`:
 
 <div class='termy'>
 ```
@@ -291,4 +314,25 @@ To continue experimenting with the flow in Kubernetes, make any changes to the f
 
 ## Cleaning up
 
-To clean up your cluster, follow the Docker Desktop instructions to [disable Kubernetes](https://docs.docker.com/desktop/kubernetes/#disable-kubernetes).
+When you're finished, just close the Prefect Orion UI tab in your browser, and close the terminal sessions running the port forwarding to your cluster.
+
+You can use `kubectl` commands to remove the "orion" Kubernetes deployment. `kubectl get deployments` lists any Kubernetes deployments in your environment.
+
+<div class='termy'>
+```
+$ kubectl get deployments
+<div style="color:white; white-space:pre-wrap;">NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+orion   1/1     1            1           66m</div>
+```
+</div>
+
+`kubectl delete deployments` removes the deployment from Kubernetes if you don't want to use it further.
+
+<div class='termy'>
+```
+$ kubectl delete deployments orion
+deployment.apps "orion" deleted
+```
+</div>
+
+Follow the Docker Desktop instructions to [disable Kubernetes](https://docs.docker.com/desktop/kubernetes/#disable-kubernetes).
