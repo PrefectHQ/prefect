@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from prefect.core import Task
-from prefect.engine.signals import SUCCESS, FAIL
+from prefect.engine.signals import FAIL, SUCCESS
 from prefect.utilities.gcp import get_bigquery_client
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -43,14 +43,14 @@ class BigQueryTask(Task):
     def __init__(
         self,
         query: str = None,
-        query_params: List[tuple] = None,  # 3-tuples
-        project: str = None,
+        query_params: Optional[List[tuple]] = None,  # 3-tuples
+        project: Optional[str] = None,
         location: str = "US",
-        dry_run_max_bytes: int = None,
-        dataset_dest: str = None,
-        table_dest: str = None,
-        to_dataframe: bool = False,
-        job_config: dict = None,
+        dry_run_max_bytes: Optional[int] = None,
+        dataset_dest: Optional[str] = None,
+        table_dest: Optional[str] = None,
+        to_dataframe: Optional[bool] = False,
+        job_config: Optional[dict] = None,
         **kwargs,
     ):
         self.query = query
@@ -78,15 +78,15 @@ class BigQueryTask(Task):
     def run(
         self,
         query: str = None,
-        query_params: List[tuple] = None,
-        project: str = None,
+        query_params: Optional[List[tuple]] = None,
+        project: Optional[str] = None,
         location: str = "US",
-        dry_run_max_bytes: int = None,
-        credentials: dict = None,
-        dataset_dest: str = None,
-        table_dest: str = None,
-        to_dataframe: bool = False,
-        job_config: dict = None,
+        dry_run_max_bytes: Optional[int] = None,
+        credentials: Optional[dict] = None,
+        dataset_dest: Optional[str] = None,
+        table_dest: Optional[str] = None,
+        to_dataframe: Optional[bool] = False,
+        job_config: Optional[dict] = None,
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
@@ -206,7 +206,7 @@ class BigQueryStreamingInsert(Task):
         self,
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
+        project: Optional[str] = None,
         location: str = "US",
         **kwargs,
     ):
@@ -222,9 +222,9 @@ class BigQueryStreamingInsert(Task):
         records: List[dict],
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
-        location: str = "US",
-        credentials: dict = None,
+        project: Optional[str] = None,
+        location: Optional[str] = "US",
+        credentials: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -308,8 +308,8 @@ class BigQueryLoadGoogleCloudStorage(Task):
         uri: str = None,
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
-        schema: List[bigquery.SchemaField] = None,
+        project: Optional[str] = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
         location: str = "US",
         **kwargs,
     ):
@@ -327,10 +327,10 @@ class BigQueryLoadGoogleCloudStorage(Task):
         uri: str = None,
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
-        schema: List[bigquery.SchemaField] = None,
+        project: Optional[str] = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
         location: str = "US",
-        credentials: dict = None,
+        credentials: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -437,12 +437,12 @@ class BigQueryLoadFile(Task):
         self,
         file: Union[str, Path] = None,
         rewind: bool = False,
-        size: int = None,
+        size: Optional[int] = None,
         num_retries: int = 6,
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
-        schema: List[bigquery.SchemaField] = None,
+        project: Optional[str] = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
         location: str = "US",
         **kwargs,
     ):
@@ -475,10 +475,10 @@ class BigQueryLoadFile(Task):
         num_retries: int = 6,
         dataset_id: str = None,
         table: str = None,
-        project: str = None,
-        schema: List[bigquery.SchemaField] = None,
+        project: Optional[str] = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
         location: str = "US",
-        credentials: dict = None,
+        credentials: Optional[dict] = None,
         **kwargs,
     ):
         """
@@ -590,9 +590,9 @@ class CreateBigQueryTable(Task):
         project: str = None,
         dataset: str = None,
         table: str = None,
-        schema: List[bigquery.SchemaField] = None,
-        clustering_fields: List[str] = None,
-        time_partitioning: bigquery.TimePartitioning = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
+        clustering_fields: Optional[List[str]] = None,
+        time_partitioning: Optional[bigquery.TimePartitioning] = None,
         **kwargs,
     ):
         self.project = project
@@ -606,11 +606,11 @@ class CreateBigQueryTable(Task):
     @defaults_from_attrs("project", "dataset", "table", "schema")
     def run(
         self,
-        project: str = None,
-        credentials: dict = None,
+        project: Optional[str] = None,
+        credentials: Optional[dict] = None,
         dataset: str = None,
         table: str = None,
-        schema: List[bigquery.SchemaField] = None,
+        schema: Optional[List[bigquery.SchemaField]] = None,
     ):
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after

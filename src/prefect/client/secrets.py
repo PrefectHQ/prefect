@@ -103,7 +103,10 @@ class Secret:
         secrets = prefect.context.get("secrets", {})
         if self.name in secrets:
             return True
-        elif prefect.context.config.cloud.use_local_secrets is False:
+        elif (
+            prefect.config.backend == "cloud"
+            and prefect.context.config.cloud.use_local_secrets is False
+        ):
             cloud_secrets = self.client.graphql("query{secret_names}").data.secret_names
             if self.name in cloud_secrets:
                 return True

@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from transform import MQLClient
 from transform.exceptions import AuthException, QueryRuntimeException, URLException
 
@@ -26,10 +27,10 @@ class TransformCreateMaterialization(Task):
         - mql_server_url_env_var (str, optional): The name of the environment variable
             that contains the URL of the Transform MQL Server from which to
             create the materialization.
-        - model_key_id (int, optional): The unique identifier of the Transform model
-            against which the transformation will be created.
         - materialization_name (str, optional): The name of the Transform materialization
             to create.
+        - model_key_id (int, optional): The unique identifier of the Transform model
+            against which the transformation will be created.
         - start_time (str, optional): The UTC start time of the materialization.
         - end_time (str, optional): The UTC end time of the materialization.
         - output_table (str, optional): The name of the database table, in the form of
@@ -48,21 +49,21 @@ class TransformCreateMaterialization(Task):
         api_key_env_var: str = None,
         mql_server_url: str = None,
         mql_server_url_env_var: str = None,
-        model_key_id: int = None,
         materialization_name: str = None,
-        start_time: str = None,
-        end_time: str = None,
-        output_table: str = None,
-        force: bool = False,
-        wait_for_creation: bool = True,
+        model_key_id: Optional[int] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+        output_table: Optional[str] = None,
+        force: Optional[bool] = False,
+        wait_for_creation: Optional[bool] = True,
         **kwargs,
     ):
         self.api_key = api_key
         self.api_key_env_var = api_key_env_var
         self.mql_server_url = mql_server_url
         self.mql_server_url_env_var = mql_server_url_env_var
-        self.model_key_id = model_key_id
         self.materialization_name = materialization_name
+        self.model_key_id = model_key_id
         self.start_time = start_time
         self.end_time = end_time
         self.output_table = output_table
@@ -75,8 +76,8 @@ class TransformCreateMaterialization(Task):
         "api_key_env_var",
         "mql_server_url",
         "mql_server_url_env_var",
-        "model_key_id",
         "materialization_name",
+        "model_key_id",
         "start_time",
         "end_time",
         "output_table",
@@ -89,13 +90,13 @@ class TransformCreateMaterialization(Task):
         api_key_env_var: str = None,
         mql_server_url: str = None,
         mql_server_url_env_var: str = None,
-        model_key_id: int = None,
         materialization_name: str = None,
-        start_time: str = None,
-        end_time: str = None,
-        output_table: str = None,
-        force: bool = False,
-        wait_for_creation: bool = True,
+        model_key_id: Optional[int] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+        output_table: Optional[str] = None,
+        force: Optional[bool] = False,
+        wait_for_creation: Optional[bool] = True,
     ):
         """
         Task run method to create a materialization against a Transform metrics
@@ -113,10 +114,10 @@ class TransformCreateMaterialization(Task):
             - mql_server_url_env_var (str, optional): The name of the environment variable
                 that contains the URL of the Transform MQL Server from which to
                 create the materialization.
-            - model_key_id (int, optional): The unique identifier of the Transform model
-                against which the transformation will be created.
             - materialization_name (str, optional): The name of the Transform materialization
                 to create.
+            - model_key_id (int, optional): The unique identifier of the Transform model
+                against which the transformation will be created.
             - start_time (str, optional): The UTC start time of the materialization.
             - end_time (str, optional): The ISO end time of the materialization.
             - output_table (str, optional): The name of the database table, in the form of
@@ -135,8 +136,8 @@ class TransformCreateMaterialization(Task):
             - `prefect.engine.signals.FAIL` if the materialization creation process fails.
 
         Returns:
-            - An `MqlQueryStatusResp` object if `run_async` is `True`.
-            - An `MqlMaterializeResp` object if `run_async` is `False`.
+            - An `MqlMaterializeResp` object if `wait_for_creation` is `True`.
+            - An `MqlQueryStatusResp` object if `wait_for_creation` is `False`.
 
         """
         # Raise error if both api_key and api_key_env_var are missing
@@ -149,8 +150,6 @@ class TransformCreateMaterialization(Task):
             msg = "`api_key` is missing and `api_key_env_var` not found in env vars."
             raise ValueError(msg)
 
-        mql_api_key = api_key or os.environ[api_key_env_var]
-
         # Raise error if both mql_server_url and mql_server_url_env_var are missing
         if not (mql_server_url or mql_server_url_env_var):
             msg = "Both `mql_server_url` and `mql_server_url_env_var` are missing."
@@ -161,12 +160,12 @@ class TransformCreateMaterialization(Task):
             msg = "`mql_server_url` is missing and `mql_server_url_env_var` not found in env vars."
             raise ValueError(msg)
 
-        mql_url = mql_server_url or os.environ[mql_server_url_env_var]
-
         if not materialization_name:
             msg = "`materialization_name` is missing."
             raise ValueError(msg)
 
+        mql_api_key = api_key or os.environ[api_key_env_var]
+        mql_url = mql_server_url or os.environ[mql_server_url_env_var]
         use_async = not wait_for_creation
 
         try:

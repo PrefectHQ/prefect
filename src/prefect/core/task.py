@@ -16,8 +16,10 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Set,
     Union,
     Tuple,
+    Type,
 )
 from collections import defaultdict
 
@@ -240,6 +242,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
+        - retry_on (Union[Exception, Iterable[Type[Exception]]], optional): Exception types that will
+            allow retry behavior to occur. If not set, all exceptions will allow retries. If set,
+            retries will only occur if the exception is a subtype of the exception types provided.
         - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
             resolution is not supported, even when passing in a timedelta.
@@ -315,6 +320,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
+        retry_on: Union[Type[Exception], Iterable[Type[Exception]]] = None,
         timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
@@ -366,6 +372,28 @@ class Task(metaclass=TaskMetaclass):
             raise ValueError(
                 "A datetime.timedelta `retry_delay` must be provided if max_retries > 0"
             )
+        if retry_on and not max_retries > 0:
+            raise ValueError(
+                "A number of `max_retries` must be provided if `retry_on` is set."
+            )
+
+        self.retry_on: Optional[Set[Type[Exception]]] = None
+        if retry_on:
+            if not isinstance(retry_on, Iterable):
+                self.retry_on = {retry_on}
+            else:
+                self.retry_on = set(retry_on)
+            for v in self.retry_on:
+                if not isinstance(v, type):
+                    raise TypeError(
+                        f"Invalid `retry_on` value {v!r}. "
+                        f"Expected an exception type but got an instance of {type(v).__name__}"
+                    )
+                if not issubclass(v, Exception):
+                    raise TypeError(
+                        f"Invalid `retry_on` value {v!r}. Expected an exception subclass."
+                    )
+
         # specify not max retries because the default is false
         if retry_delay is not None and not max_retries:
             raise ValueError(

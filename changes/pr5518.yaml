@@ -1,5 +1,0 @@
-enhancement:
-  - "Adds task to create materializations on Transform - [#5518](https://github.com/PrefectHQ/prefect/pull/5518)"
-
-contributor:
-  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"

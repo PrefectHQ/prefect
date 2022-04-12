@@ -39,16 +39,22 @@ def test_serialize_azure_storage():
 
 
 @pytest.mark.parametrize(
-    "secret_name,secret_arg",
+    "secret_name,secret_arg,credential",
     [
-        ("SECRET_NAME", "conn_string_value_one"),
-        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
+        ("SECRET_NAME", "conn_string_value_one", MagicMock()),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two", MagicMock()),
+        (
+            "AZURE_STORAGE_CONNECTION_STRING",
+            "conn_string_value_three;AccountKey=abcdef",
+            None,
+        ),
     ],
 )
-def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
+def test_blob_service_client_property(monkeypatch, secret_name, secret_arg, credential):
     connection = MagicMock()
     azure = MagicMock(from_connection_string=connection)
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
+    monkeypatch.setattr("azure.identity.DefaultAzureCredential", credential)
 
     with context(secrets={secret_name: secret_arg}):
         storage = Azure(container="test", connection_string_secret=secret_name)
@@ -57,7 +63,10 @@ def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
         assert storage.connection_string == secret_arg
 
     assert azure_client
-    connection.assert_called_with(conn_str=secret_arg)
+    if credential is None:
+        connection.assert_called_with(conn_str=secret_arg, credential=None)
+    else:
+        connection.assert_called_with(conn_str=secret_arg, credential=credential())
 
 
 @pytest.mark.parametrize(

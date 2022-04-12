@@ -1,5 +1,0 @@
-enhancement:
-  - 'Raise RuntimeError when calling flow.run within Flow context - [#5588](https://github.com/PrefectHQ/prefect/pull/5588)'
-
-contributor:
-  - '[Emre Akgün](https://github.com/Fraznist)'

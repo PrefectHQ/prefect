@@ -174,6 +174,21 @@ class Azure(Storage):
     def _azure_block_blob_service(self):  # type: ignore
         import azure.storage.blob
 
+        connection_string = self.connection_string
+        if any(
+            x in connection_string for x in ["AccountKey=", "SharedAccessSignature="]
+        ):
+            credential = None
+        else:
+            # if no key is given in connection string use an instance of a
+            # DefaultAzureCredential from azure.identity which checks for any of
+            # Service Principal, Managed Identity, AzureCLI, ...
+            import azure.identity
+
+            self.logger.debug(
+                "Authenticate BlobServiceClient using DefaultAzureCredential"
+            )
+            credential = azure.identity.DefaultAzureCredential()
         return azure.storage.blob.BlobServiceClient.from_connection_string(
-            conn_str=self.connection_string
+            conn_str=connection_string, credential=credential
         )

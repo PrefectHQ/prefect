@@ -1,2 +1,0 @@
-enhancement:
-  - "Adding ability to add capacity provider in run-task-kwargs for ECSAgent and ECSRun- [#4356](https://github.com/PrefectHQ/prefect/issues/4356)"
