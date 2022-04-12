@@ -414,7 +414,7 @@ PREFECT_ORION_UI_API_URL = Setting(
     str,
     default=None,
     description="""The connection url for communication from the UI to the API. 
-    Defaults to `PREFECT_API_URL` if set. Otherwise, the default is inferred from
+    Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
     `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`""",
     value_callback=default_ui_api_url,
 )
