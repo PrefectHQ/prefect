@@ -22,12 +22,14 @@ class HightouchRunSync(Task):
             Default is `False`.
         - wait_for_completion: (int, optional): Whether to wait for the sync run to finish execution
             or not.
-            Default to `False`.
+            Default is `False`.
         - wait_time_between_api_calls (int, optional): The number of seconds to
             wait between API calls.
-            Default to 10.
+            Default is 10.
         - max_wait_time (int, optional): The maximum number of seconds to wait for the
             Hightouch API to return a response.
+            If `wait_for_completion` is `True` and `maximum_wait_time` is not set then the
+            task will run until completed or cancelled.
         - **kwargs (optional): Additional keyword arguments to pass to the
             standard Task initalization.
     """
@@ -40,7 +42,7 @@ class HightouchRunSync(Task):
         wait_for_completion: bool = False,
         wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
-        **kwargs
+        **kwargs,
     ):
         self.api_key = api_key
         self.api_key_env_var = api_key_env_var
@@ -98,17 +100,22 @@ class HightouchRunSync(Task):
                 [Get sync run status](https://hightouch.io/docs/syncs/api/#get-the-status-of-a-sync-run).
         """
         if not api_key and not api_key_env_var:
-            msg = "Both `api_key` and `api_key_env_var` are missing."
+            msg = """Neither `api_key` nor `api_key_env_var` have been provided.
+            Please provide either an API key or an environment variable
+            where the API is stored."""
             raise ValueError(msg)
 
         if not api_key and api_key_env_var not in os.environ.keys():
-            msg = "`api_key` is missing and `api_key_env_var` cannot be found."
+            msg = f"""We were unable to find the environment variable ${api_key_env_var}.
+            Please make sure the provided environment variable has been
+            set with your Hightouch API key."""
             raise ValueError(msg)
 
         key = api_key if api_key else os.environ[api_key_env_var]
 
         if not sync_id:
-            msg = "`sync_id` is missing."
+            msg = """`sync_id` has not been provided. Please provide the ID for the
+            Hightouch sync that you would like to trigger."""
             raise ValueError(msg)
 
         wait_api_call_secs = (

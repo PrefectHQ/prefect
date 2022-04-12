@@ -37,19 +37,19 @@ class TestHightouchRunSyncTask:
 
     def test_run_with_no_values_raises(self):
         ht_task = HightouchRunSync()
-        msg_match = "Both `api_key` and `api_key_env_var` are missing."
+        msg_match = "Neither `api_key` nor `api_key_env_var` have been provided."
         with pytest.raises(ValueError, match=msg_match):
             ht_task.run()
 
     def test_run_missing_api_key_with_api_key_env_var(self):
         ht_task = HightouchRunSync()
-        msg_match = "`api_key` is missing and `api_key_env_var` cannot be found."
+        msg_match = "We were unable to find the environment variable \\$foo."
         with pytest.raises(ValueError, match=msg_match):
             ht_task.run(api_key_env_var="foo")
 
     def test_run_missing_sync_id(self):
         ht_task = HightouchRunSync()
-        msg_match = "`sync_id` is missing."
+        msg_match = "`sync_id` has not been provided."
         with pytest.raises(ValueError, match=msg_match):
             ht_task.run(api_key="key")
 
@@ -119,17 +119,11 @@ class TestHightouchRunSyncTask:
 
         response = ht_task.run(api_key="key", sync_id=123, wait_for_completion=True)
 
-        assert (
-            responses.assert_call_count(
-                f"https://api.hightouch.io/api/v2/rest/run/{sync_id}", 1
-            )
-            is True
+        responses.assert_call_count(
+            f"https://api.hightouch.io/api/v2/rest/run/{sync_id}", 1
         )
-        assert (
-            responses.assert_call_count(
-                f"https://api.hightouch.io/api/v2/rest/sync/{sync_id}", 1
-            )
-            is True
+        responses.assert_call_count(
+            f"https://api.hightouch.io/api/v2/rest/sync/{sync_id}", 1
         )
 
         assert responses.calls[0].request.headers["Authorization"] == "Bearer key"
