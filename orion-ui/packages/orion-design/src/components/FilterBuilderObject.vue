@@ -1,8 +1,8 @@
 <template>
   <div class="filter-builder-object">
-    <template v-for="obj in objects" :key="obj">
-      <m-button color="secondary" :icon="FilterService.icon({ object: obj })" miter @click="emit('update:object', obj)">
-        <span class="filter-builder-object__name">{{ FilterDescriptionService.object(obj) }}</span>
+    <template v-for="object in objects" :key="object">
+      <m-button color="secondary" :icon="FilterService.icon({ object })" miter @click="filter.object = object">
+        <span class="filter-builder-object__name">{{ FilterDescriptionService.object(object) }}</span>
       </m-button>
     </template>
   </div>
@@ -11,19 +11,27 @@
 <script lang="ts" setup>
   import { FilterDescriptionService } from '@/services/FilterDescriptionService'
   import { FilterService } from '@/services/FilterService'
-  import { FilterObject } from '@/types/filters'
+  import { Filter, FilterObject } from '@/types/filters'
+import { computed } from 'vue';
 
   const emit = defineEmits<{
-    (event: 'update:object', value: FilterObject): void,
+    (event: 'update:filter', value: Partial<Filter>): void,
   }>()
 
-  defineProps<{
-    // object is used for the v-model but not accessed
-    // eslint-disable-next-line vue/no-unused-properties
-    object?: FilterObject,
+  const props = defineProps<{
+    filter: Partial<Filter>,
   }>()
 
   const objects: FilterObject[] = ['flow', 'deployment', 'flow_run', 'task_run']
+
+  const filter = computed({
+    get() {
+      return props.filter
+    },
+    set(filter: Partial<Filter>) {
+      emit('update:filter', filter)
+    }
+  })
 </script>
 
 <style lang="scss">
