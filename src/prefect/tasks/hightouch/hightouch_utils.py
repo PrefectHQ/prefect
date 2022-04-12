@@ -63,7 +63,7 @@ class HightouchClient:
         [Start new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run)
 
         Args:
-            - sync_id (int): The sync identifier
+            - sync_id (int): The sync identifier.
             - wait_for_completion (bool): Whether to wait for the sync run completion or not.
             - wait_time_between_api_calls (int): The number of seconds to wait between API calls.
                 This is used only if `wait_for_completion` is `True`.
