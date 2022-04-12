@@ -75,7 +75,7 @@ The Prefect icon always takes you back to the dashboard. In Prefect Cloud, it re
 
 [Prefect Cloud](https://beta.prefect.io) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
 
-- All of the UI features of the local Prefect API server UI.
+- All of the features of the local Prefect UI.
 - A personal account and workspace.
 - API keys to sync deployments and flow runs with the Prefect Cloud API.
 - A hosted Prefect database that stores flow and task run history.
