@@ -265,10 +265,10 @@ class DockerAgent(Agent):
                     external = ntpath.normpath(fields[0])
                     internal = posixpath.normpath(fields[1])
             elif len(fields) == 1:
-                if fields[0] == '//var/run/docker.sock':
+                if fields[0] == "//var/run/docker.sock":
                     # Special handling for docker-in-docker
-                    external = '//var/run/docker.sock'
-                    internal = '/var/run/docker.sock'
+                    external = "//var/run/docker.sock"
+                    internal = "/var/run/docker.sock"
                 else:
                     # \path1          <-- assumed container path of /path1 (relative to current drive)
                     external = ntpath.normpath(fields[0])
