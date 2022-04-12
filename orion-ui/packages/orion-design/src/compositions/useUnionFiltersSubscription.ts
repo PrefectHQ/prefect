@@ -7,8 +7,8 @@ import { UnionFilters } from '@/services/Filter'
 
 // any is correct here
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type UnionFiltersAction = (filters: UnionFilters) => Promise<any[]>
-type UnionFiltersActionResponse<T extends UnionFiltersAction> = {
+export type UnionFiltersAction = (filters: UnionFilters) => Promise<any[]>
+export type UnionFiltersActionResponse<T extends UnionFiltersAction> = {
   loadMore: () => void,
 } & Omit<UseSubscription<T>, 'promise'>
 
@@ -69,7 +69,7 @@ export function useUnionFiltersSubscription<T extends UnionFiltersAction>(...[ac
 
   if (watchable !== null) {
     unwatch = watch(watchable, () => {
-      if (isSubscribed()) {
+      if (!isSubscribed()) {
         unwatch!()
         return
       }

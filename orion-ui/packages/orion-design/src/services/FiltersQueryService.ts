@@ -128,11 +128,11 @@ export class FiltersQueryService {
             case 'before':
               query.expected_start_time.before_ = filter.value.toISOString()
               break
-            case 'next':
+            case 'last':
               query.expected_start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'last':
-              query.expected_start_time.before_ = this.createRelativeDate(filter.value).toISOString()
+            case 'next':
+              query.expected_start_time.before_ = this.createUpcomingRelativeDate(filter.value).toISOString()
               break
           }
 
@@ -171,11 +171,11 @@ export class FiltersQueryService {
             case 'before':
               query.start_time.before_ = filter.value.toISOString()
               break
-            case 'next':
+            case 'last':
               query.start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'last':
-              query.start_time.before_ = this.createRelativeDate(filter.value).toISOString()
+            case 'next':
+              query.start_time.before_ = this.createUpcomingRelativeDate(filter.value).toISOString()
               break
           }
 
@@ -229,7 +229,6 @@ export class FiltersQueryService {
       case 'y':
         return addYears(startOfToday(), value)
     }
-
   }
 
   private static createIntervalSeconds(start: Date, end: Date): number {
