@@ -13,11 +13,11 @@ tags:
 
 # Work Queues
 
-[Work Queues](/concepts/work-queues/) and agents work together to bridge your orchestration environment &mdash; Orion or Prefect Cloud &mdash; and your execution environments. Work queues gather flow runs for scheduled deployments, and agents pick up work from their configured work queues.
+[Work Queues](/concepts/work-queues/) and agents work together to bridge your orchestration environment &mdash; a local Prefect API server or Prefect Cloud &mdash; and your execution environments. Work queues gather flow runs for scheduled deployments, and agents pick up work from their configured work queues.
 
 Work queue configuration lets you specify which queues handle which flow runs. You can filter runs based on tags, flow runners, and even specific deployments.
 
-You can create, edit, manage, and delete work queues through the Orion or Prefect Cloud UI or [Prefect CLI commands](/concepts/work-queues/#work-queue-configuration).
+You can create, edit, manage, and delete work queues through the Prefect API server, Prefect Cloud UI, or [Prefect CLI commands](/concepts/work-queues/#work-queue-configuration).
 
 ## Managing work queues
 
