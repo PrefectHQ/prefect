@@ -41,8 +41,6 @@ DeploymentSpec(
 )
 ```
 
-When you create or update a deployment with `prefect deployment create`, the Prefect API creates scheduled flow runs based on the `schedule` parameter value in the deployment specification.
-
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 
 To remove all scheduled runs for a flow deployment, update the deployment with no `schedule` parameter.
