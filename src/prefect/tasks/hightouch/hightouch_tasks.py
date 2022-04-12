@@ -70,8 +70,9 @@ class HightouchRunSync(Task):
         max_wait_time: int = None,
     ):
         """
-        This task can be used to trigger a new sync run on [Hightouch]().
-        Under the hood it uses [Hightouch official APIs]().
+        This task can be used to trigger a new sync run on [Hightouch](https://hightouch.io/).
+        Under the hood it uses
+        [Hightouch official APIs](https://hightouch.io/docs/syncs/api/#the-hightouch-rest-api).
 
         Args:
             - api_key (str, optional): The API key to use to authenticate on Hightouch.
