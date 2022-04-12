@@ -1,0 +1,5 @@
+enhancement:
+  - "Add pipe support for EdgeAnnotation - [#5674](https://github.com/PrefectHQ/prefect/pull/5674)"
+
+contributor:
+  - "[Karthikeyan Singaravelan](https://github.com/tirkarthi)"

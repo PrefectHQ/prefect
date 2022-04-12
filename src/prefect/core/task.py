@@ -8,6 +8,7 @@ import warnings
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
+    cast,
     Any,
     Callable,
     Dict,
@@ -936,7 +937,9 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
-    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+    def pipe(
+        _prefect_self, _prefect_task: Union[Type[EdgeAnnotation], "Task"], **kwargs: Any
+    ) -> "Task":
         """
         "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
         equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
@@ -955,7 +958,9 @@ class Task(metaclass=TaskMetaclass):
         if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):
             return as_task(_prefect_task(_prefect_self, **kwargs))
         else:
-            return _prefect_task(_prefect_self, **kwargs)
+            # cast as Task to pass mypy since Union is used in signature and mypy doesn't
+            # infer this block to always return Task.
+            return cast("Task", _prefect_task(_prefect_self, **kwargs))
 
     # Serialization ------------------------------------------------------------
 
