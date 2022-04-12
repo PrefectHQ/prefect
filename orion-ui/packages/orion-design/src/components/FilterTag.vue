@@ -64,7 +64,7 @@
 </script>
 
 <style lang="scss">
-.filter-tag--hidden {
+.filter-tag--auto-hide {
   visibility: hidden;
 }
 
