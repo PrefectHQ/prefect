@@ -18,8 +18,6 @@ export function useUnionFiltersSubscription<T extends UnionFiltersAction>(...[ac
   const pages = ref(0)
   const watchable = watchableArgs(argsWithDefault)
 
-  console.log({ watchable })
-
   let unwatch: ReturnType<typeof watch> | undefined
 
   const loading = computed(() => subscriptions.some(subscription => subscription.loading))
