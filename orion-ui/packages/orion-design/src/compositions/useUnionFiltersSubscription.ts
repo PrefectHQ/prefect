@@ -69,7 +69,7 @@ export function useUnionFiltersSubscription<T extends UnionFiltersAction>(...[ac
 
   if (watchable !== null) {
     unwatch = watch(watchable, () => {
-      if (isSubscribed()) {
+      if (!isSubscribed()) {
         unwatch!()
         return
       }
