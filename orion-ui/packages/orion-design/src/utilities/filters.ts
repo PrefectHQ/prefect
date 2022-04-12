@@ -17,7 +17,6 @@ import {
   TaskRunStateFilter,
   TaskRunDateFilter,
   TaskRunTagFilter,
-  ObjectFilter,
   ObjectStringFilter,
   ObjectDateFilter,
   ObjectStateFilter,
@@ -126,19 +125,19 @@ export function isTaskRunTagFilter(filter: Filter): filter is TaskRunTagFilter {
   return isTaskRunFilter(filter) && filter.type === 'tag'
 }
 
-export function isObjectStringFilter(filter: ObjectFilter): filter is ObjectStringFilter {
+export function isObjectStringFilter(filter: Filter): filter is Filter & ObjectStringFilter {
   return filter.type == 'string'
 }
 
-export function isObjectDateFilter(filter: ObjectFilter): filter is ObjectDateFilter {
+export function isObjectDateFilter(filter: Filter): filter is Filter & ObjectDateFilter {
   return filter.type == 'date'
 }
 
-export function isObjectStateFilter(filter: ObjectFilter): filter is ObjectStateFilter {
+export function isObjectStateFilter(filter: Filter): filter is Filter & ObjectStateFilter {
   return filter.type == 'state'
 }
 
-export function isObjectTagFilter(filter: ObjectFilter): filter is ObjectTagFilter {
+export function isObjectTagFilter(filter: Filter): filter is Filter & ObjectTagFilter {
   return filter.type == 'tag'
 }
 
