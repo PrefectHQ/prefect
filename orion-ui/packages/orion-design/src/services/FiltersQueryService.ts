@@ -128,10 +128,10 @@ export class FiltersQueryService {
             case 'before':
               query.expected_start_time.before_ = filter.value.toISOString()
               break
-            case 'next':
+            case 'last':
               query.expected_start_time.after_ = this.createRelativeDate(filter.value).toISOString()
               break
-            case 'last':
+            case 'next':
               query.expected_start_time.before_ = this.createRelativeDate(filter.value).toISOString()
               break
           }
