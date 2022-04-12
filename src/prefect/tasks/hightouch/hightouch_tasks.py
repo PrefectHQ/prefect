@@ -82,10 +82,10 @@ class HightouchRunSync(Task):
             - sync_id (int, optional): The ID of the Hightouch sync to run.
             - wait_for_completion: (int, optional): Whether to wait for the sync run to finish execution
                 or not.
-                Default to `False`.
+                Default is `False`.
             - wait_time_between_api_calls (int, optional): The number of seconds to
                 wait between API calls.
-                Default to 10.
+                Default is 10.
             - max_wait_time (int, optional): The maximum number of seconds to wait for the
                 Hightouch API to return a response.
 
