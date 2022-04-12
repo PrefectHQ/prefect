@@ -88,7 +88,7 @@ class Scheduler(LoopService):
                             )
                             all_runs.extend(runs)
                         except Exception as exc:
-                            self.logger.info(
+                            self.logger.error(
                                 f"Error scheduling deployment {deployment_id!r}.",
                                 exc_info=True,
                             )
