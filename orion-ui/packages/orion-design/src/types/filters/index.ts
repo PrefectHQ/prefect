@@ -22,13 +22,7 @@ export type ObjectDateFilter = {
 
 export type ObjectRelativeDateFilter = {
   type: 'date',
-  operation: 'newer' | 'older',
-  value: RelativeDateFilterValue,
-}
-
-export type ObjectUpcomingRelativeDateFilter = {
-  type: 'date',
-  operation: 'upcoming',
+  operation: 'next' | 'last',
   value: RelativeDateFilterValue,
 }
 
@@ -56,7 +50,6 @@ export type FilterProperty = Required<Filter>['property']
 export type FilterOperation = Required<Filter>['operation']
 export type FilterType = Required<Filter>['type']
 export type FilterValue = Required<Filter>['value']
-export type ObjectFilter = Pick<Required<Filter>, 'type' | 'operation' | 'value'>
 
 const ObjectTagPrefixDictionaryData = {
   'deployment': 'd',

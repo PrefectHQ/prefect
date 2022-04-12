@@ -368,6 +368,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                name="Flow Run 1",
                 state=schemas.states.State(
                     type="SCHEDULED",
                     timestamp=now.subtract(minutes=1),
@@ -378,6 +379,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                name="Flow Run 2",
                 state=schemas.states.State(
                     type="SCHEDULED",
                     timestamp=now.add(minutes=1),
@@ -425,6 +427,26 @@ class TestReadFlowRuns:
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_ASC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_DESC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_2.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]

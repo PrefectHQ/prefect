@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { deploymentsApiKey, FilterBar, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey } from '@prefecthq/orion-design'
+  import { deploymentsApiKey, FilterBar, filtersDefaultObjectKey, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey } from '@prefecthq/orion-design'
   import { computed, provide } from 'vue'
   import { useRoute } from 'vue-router'
   import NavBar from '@/components/NavBar.vue'
@@ -32,6 +32,7 @@
   provide(searchApiKey, searchApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
+  provide(filtersDefaultObjectKey, 'flow_run')
 
   const filtersVisible = computed(() => route.meta.filters?.visible ?? false)
   const filtersDisabled = computed(() => route.meta.filters?.disabled ?? false)
@@ -49,7 +50,7 @@
   background-color: var(--grey-10);
   display: grid;
   grid-template-areas: 'nav main';
-  grid-template-columns: 62px 1fr;
+  grid-template-columns: 62px minmax(0, 1fr);
   min-height: 100vh;
 
   @media (max-width: 640px) {
@@ -57,7 +58,7 @@
       'nav'
       'main';
     grid-template-columns: unset;
-    grid-template-rows: 62px 1fr;
+    grid-template-rows: 62px minmax(0, 1fr);
     row-gap: 0;
   }
 }
@@ -66,7 +67,7 @@
   grid-template-areas:
     'nav filter-bar'
     'nav main';
-  grid-template-rows: 62px 1fr;
+  grid-template-rows: 62px minmax(0, 1fr);
   row-gap: 16px;
 
   @media (max-width: 640px) {
@@ -75,7 +76,7 @@
       'filter-bar'
       'main';
     grid-template-columns: unset;
-    grid-template-rows: 62px 62px 1fr;
+    grid-template-rows: 62px 62px minmax(0, 1fr);
     row-gap: 0;
   }
 }
@@ -92,6 +93,7 @@
 
 .application__filter-bar {
   grid-area: filter-bar;
+  min-width: 0;
 }
 
 .application__nav {
