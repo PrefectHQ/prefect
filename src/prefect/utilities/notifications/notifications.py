@@ -356,8 +356,8 @@ def snowflake_logger(
     test_env: bool = False,
 ) -> "prefect.engine.state.State":
     """
-    Snowflake state change handler/logger; requires having the Prefect Snowflake app installed.  Works as a
-    standalone state handler, or can be called from within a custom state handler.  This
+    Snowflake state change handler/logger; requires having the Prefect Snowflake app installed.
+    Works as a standalone state handler, or can be called from within a custom state handler.  This
     function is curried meaning that it can be called multiple times to partially bind any
     keyword arguments (see example below).
     Args:
@@ -373,7 +373,8 @@ def snowflake_logger(
             classes
         - snowflake_secret (str, optional): the name of the Prefect Secret that stores your Snowflake
             credentials; defaults to `"SNOWFLAKE_CREDS"`
-        - snowflake_log_table_name (str, optional): the fully qualified Snowflake log table name e.g. DB.SCHEMA.TABLE
+        - snowflake_log_table_name (str, optional): the fully qualified Snowflake log table name
+            e.g. DB.SCHEMA.TABLE
         - test_env (bool): Only used for testing and defaults to False
     Returns:
         - State: the `new_state` object that was provided
@@ -429,8 +430,9 @@ def snowflake_logger(
     TABLE_NAME = full_log_table_name_list[2]
 
     sql = (
-        f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, STATE, MESSAGE, "
-        f"INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}','{state}','{message}',CURRENT_TIMESTAMP());"
+        f"INSERT INTO {DB_NAME}.{SCHEMA_NAME}.{TABLE_NAME} (FLOW_ID, FLOW_NAME, TASK_NAME, "
+        f"STATE, MESSAGE, INGESTED_AT) VALUES ('{flow_id}','{flow_name}','{task_name}',"
+        f"'{state}','{message}',CURRENT_TIMESTAMP());"
     )
 
     sf_user = sf_secret_dict.get("user", None)
