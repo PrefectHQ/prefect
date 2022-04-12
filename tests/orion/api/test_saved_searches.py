@@ -5,7 +5,6 @@ import pytest
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import SavedSearchCreate
-from prefect.orion.schemas.data import DataDocument
 
 
 class TestCreateSavedSearch:
@@ -28,6 +27,13 @@ class TestCreateSavedSearch:
                 "type": "string",
                 "operation": "equals",
                 "value": "bar",
+            },
+            {
+                "object": "flow_run",
+                "property": "state",
+                "type": "state",
+                "operation": "or",
+                "value": ["PENDING", "COMPLETED", "RUNNING"],
             },
         ]
 
