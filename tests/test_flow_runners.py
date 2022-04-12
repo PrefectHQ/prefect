@@ -46,6 +46,7 @@ from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.testing import (
     AsyncMock,
     assert_does_not_warn,
+    kubernetes_environments_equal,
     temporary_settings,
 )
 
@@ -1634,10 +1635,13 @@ class TestKubernetesFlowRunner:
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "PREFECT_API_KEY", "value": "my-api-key"},
-            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
-        ]
+        assert kubernetes_environments_equal(
+            call_env,
+            [
+                {"name": "PREFECT_API_KEY", "value": "my-api-key"},
+                {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
+            ],
+        )
 
     async def test_does_not_override_user_provided_variables(
         self,
@@ -1659,7 +1663,9 @@ class TestKubernetesFlowRunner:
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [{"name": key, "value": "foo"} for key in base_env]
+        assert kubernetes_environments_equal(
+            call_env, [{"name": key, "value": "foo"} for key in base_env]
+        )
 
     async def test_includes_base_environment_if_user_set_other_env_vars(
         self,
@@ -1679,13 +1685,9 @@ class TestKubernetesFlowRunner:
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [{"name": "WATCH", "value": "1"}] + [
-            {
-                "name": key,
-                "value": value,
-            }
-            for key, value in base_flow_run_environment().items()
-        ]
+        assert kubernetes_environments_equal(
+            call_env, {**base_flow_run_environment, "WATCH": 1}
+        )
 
     async def test_defaults_to_unspecified_image_pull_policy(
         self,
