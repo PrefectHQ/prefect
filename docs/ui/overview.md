@@ -7,14 +7,14 @@ tags:
     - Prefect Cloud
 ---
 
-# Orion UI & Cloud Overview
+# Prefect UI & Cloud Overview
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 
 There are two ways to access the UI:
 
-- The Prefect [Orion UI](#using-the-orion-ui) gives you insight into the flows running with any local Orion server instance.
-- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Orion UI, plus personal accounts and workspaces.
+- The [Prefect UI](#using-the-orion-ui) gives you insight into the flows running with any local Prefect API server instance.
+- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts and workspaces.
 
 The UI displays many useful insights about your flow runs, including:
 
@@ -28,9 +28,9 @@ The UI displays many useful insights about your flow runs, including:
 
 You can filter the information displayed in the UI by time, flow state, and tags.
 
-## Using the Orion UI
+## Using the Prefect UI
 
-The Orion UI is available in any environment where the Prefect Orion server is running with `prefect orion start`.
+The Prefect UI is available in any environment where the Prefect API server is running with `prefect orion start`.
 
 ```bash
 $ prefect orion start
@@ -48,11 +48,11 @@ Configure Prefect to communicate with the server with:
 Check out the dashboard at http://127.0.0.1:4200
 ```
 
-When Prefect Orion server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
+When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
 ![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
 
-The following sections provide details about Orion UI pages and visualizations:
+The following sections provide details about Prefect UI pages and visualizations:
 
 - [Dashboard](/ui/dashboard/) provides a high-level overview of your flows, tasks, and deployments.
 - [Flows and Tasks](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
@@ -61,9 +61,9 @@ The following sections provide details about Orion UI pages and visualizations:
 
 ## Navigating the UI
 
-Icons on the left side of the Orion UI help you navigate to commonly used pages.
+Icons on the left side of the Prefect UI help you navigate to commonly used pages.
 
-The Prefect icon always takes you back to the Orion UI dashboard. In Prefect Cloud, it returns you to the list of workspaces.
+The Prefect icon always takes you back to the dashboard. In Prefect Cloud, it returns you to the list of workspaces.
 
 | Icon | Description |
 | --- | --- |
@@ -75,9 +75,9 @@ The Prefect icon always takes you back to the Orion UI dashboard. In Prefect Clo
 
 [Prefect Cloud](https://beta.prefect.io) provides a hosted server and UI instance for running and monitoring deployed flows. Prefect Cloud includes:
 
-- All of the UI features of the local Orion server UI.
+- All of the UI features of the local Prefect API server UI.
 - A personal account and workspace.
 - API keys to sync deployments and flow runs with the Prefect Cloud API.
-- A hosted Orion metadata database that stores flow and task run history.
+- A hosted Prefect database that stores flow and task run history.
 
 See the [Prefect Cloud](/ui/cloud/) documentation for details about setting up accounts, workspaces, and API keys.
