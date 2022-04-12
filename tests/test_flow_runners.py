@@ -34,6 +34,7 @@ from prefect.flow_runners import (
     KubernetesRestartPolicy,
     SubprocessFlowRunner,
     UniversalFlowRunner,
+    base_flow_run_environment,
     get_prefect_image_name,
     lookup_flow_runner,
     python_version_minor,
@@ -41,7 +42,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.testing import (
     AsyncMock,
     assert_does_not_warn,
@@ -311,6 +312,18 @@ class TestFlowRunnerRegistration:
         assert FlowRunner.from_settings(settings) == UniversalFlowRunner(
             env={"foo": "bar"}
         )
+
+
+class TestBaseFlowRunEnvironment:
+    def test_empty_by_default(self):
+        assert base_flow_run_environment() == {}
+
+    def test_includes_api_url_and_key_when_set(self):
+        with temporary_settings(PREFECT_API_KEY="foo", PREFECT_API_URL="bar"):
+            assert base_flow_run_environment() == {
+                "PREFECT_API_KEY": "foo",
+                "PREFECT_API_URL": "bar",
+            }
 
 
 class TestUniversalFlowRunner:
@@ -1493,9 +1506,10 @@ class TestKubernetesFlowRunner:
                                 ],
                                 "env": [
                                     {
-                                        "name": "PREFECT_API_URL",
-                                        "value": "http://orion:4200/api",
+                                        "name": key,
+                                        "value": value,
                                     }
+                                    for key, value in base_flow_run_environment().items()
                                 ],
                             }
                         ],
@@ -1601,7 +1615,7 @@ class TestKubernetesFlowRunner:
             "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
         ), "prefect labels still included"
 
-    async def test_defaults_to_api_urlname(
+    async def test_default_env_includes_api_url_and_key(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1612,16 +1626,20 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
-        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        with temporary_settings(
+            PREFECT_API_URL="http://orion:4200/api", PREFECT_API_KEY="my-api-key"
+        ):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
         assert call_env == [
-            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"}
+            {"name": "PREFECT_API_KEY", "value": "my-api-key"},
+            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
         ]
 
-    async def test_does_not_override_user_provided_host(
+    async def test_does_not_override_user_provided_variables(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1632,18 +1650,18 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
+        base_env = base_flow_run_environment()
+
         await KubernetesFlowRunner(
-            env={"PREFECT_API_URL": "http://my-host:6666/api"}
+            env={key: "foo" for key in base_env}
         ).submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "PREFECT_API_URL", "value": "http://my-host:6666/api"}
-        ]
+        assert call_env == [{"name": key, "value": "foo"} for key in base_env]
 
-    async def test_includes_default_prefect_host_if_user_set_other_env_vars(
+    async def test_includes_base_environment_if_user_set_other_env_vars(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1661,9 +1679,12 @@ class TestKubernetesFlowRunner:
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "WATCH", "value": "1"},
-            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
+        assert call_env == [{"name": "WATCH", "value": "1"}] + [
+            {
+                "name": key,
+                "value": value,
+            }
+            for key, value in base_flow_run_environment().items()
         ]
 
     async def test_defaults_to_unspecified_image_pull_policy(
