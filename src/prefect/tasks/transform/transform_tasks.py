@@ -136,8 +136,8 @@ class TransformCreateMaterialization(Task):
             - `prefect.engine.signals.FAIL` if the materialization creation process fails.
 
         Returns:
-            - An `MqlQueryStatusResp` object if `run_async` is `True`.
-            - An `MqlMaterializeResp` object if `run_async` is `False`.
+            - An `MqlMaterializeResp` object if `wait_for_creation` is `True`.
+            - An `MqlQueryStatusResp` object if `wait_for_creation` is `False`.
 
         """
         # Raise error if both api_key and api_key_env_var are missing
