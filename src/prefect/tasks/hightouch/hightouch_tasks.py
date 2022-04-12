@@ -87,6 +87,8 @@ class HightouchRunSync(Task):
                 wait between API calls.
                 Default is 10.
             - max_wait_time (int, optional): The maximum number of seconds to wait for the
+                If `wait_for_completion` is `True` and `maximum_wait_time` is not set then the
+                task will run until completed or cancelled.
                 Hightouch API to return a response.
 
         Raises:

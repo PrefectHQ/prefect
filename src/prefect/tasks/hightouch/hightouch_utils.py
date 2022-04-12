@@ -60,7 +60,7 @@ class HightouchClient:
         Start a new sync run.
         Optionally, wait for run completion.
         The sync run is triggered via the
-        [Start new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run)
+        [Start new sync run API](https://hightouch.io/docs/syncs/api/#start-a-new-sync-run).
 
         Args:
             - sync_id (int): The sync identifier.
