@@ -12,7 +12,7 @@
       "
       :class="{ blur: route.fullPath.includes('/radar') }"
     >
-      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
+      <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" icon="flow-run" />
       <template v-if="route.fullPath.includes('/radar')">
         <div v-if="media.sm" class="text-truncate d-flex align-center">
           <span class="ml-5">
@@ -38,7 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { CopyButton, useFiltersStore, media } from '@prefecthq/orion-design'
+  import { CopyButton, useFiltersStore, media, BreadCrumbs } from '@prefecthq/orion-design'
   import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
 
   import { useRoute, onBeforeRouteLeave } from 'vue-router'

@@ -1,5 +1,5 @@
 ---
-description: Overview of Orion metadata database use and configuration.
+description: Learn more about Prefect Orion database use and configuration.
 tags:
     - Orion
     - database
@@ -101,3 +101,11 @@ $ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory
 
 !!! warning "In-memory databases for testing only"
     In-memory databases are only supported in Orion for testing purposes and are not compatible with multiprocessing.  
+
+
+## Database versions
+
+The following database versions are required for use with Prefect:
+
+- SQLite 3.24 or newer
+- PostgreSQL 13.0 or newer

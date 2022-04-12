@@ -1,5 +1,5 @@
 ---
-description: A guide to configuring and using Prefect task runners.
+description: Task runners enable sequential, concurrent, parallel, or distributed execution of Prefect tasks.
 tags:
     - Orion
     - tasks
