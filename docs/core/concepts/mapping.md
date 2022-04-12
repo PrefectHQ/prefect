@@ -1,6 +1,6 @@
 # Mapping
 
-Prefect introduces a flexible map/reduce model for dynamically executing parallel tasks.
+Prefect introduces a flexible map/reduce model for dynamically executing tasks across an iterable input. This, in turn, gives you the ability to execute mapped tasks in a distributed or parallel manner using an executor like the DaskExecutor.
 
 Classic "map/reduce" is a powerful two-stage programming model that can be used to distribute and parallelize work (the "map" phase) before collecting and processing all the results (the "reduce" phase).
 
@@ -71,6 +71,10 @@ with Flow('simple map') as flow:
 ```
 
 The result of the `mapped_result` task will be `[11, 12, 13]` when the flow is run.
+
+::: tip Child task execution
+The actual execution of the child tasks which are applied to each element of the list, can be concurrent or parallel. This depends on how the workflow is configured.
+:::
 
 ## Iterated mapping
 

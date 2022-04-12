@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import box
 import pytest
@@ -169,3 +169,12 @@ def test_secrets_dont_raise_just_because_flow_key_is_populated():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(test=42), flow="not None"):
             assert secret.get() == 42
+
+
+@patch.object(Secret, "client")
+def test_secrets_backend_server_if_local_doesnt_exists(
+    mocked_prefect_client: MagicMock,
+):
+    with set_temporary_config({"backend": "server", "cloud.use_local_secrets": False}):
+        mocked_prefect_client.assert_not_called()
+        assert not Secret(name="test").exists()

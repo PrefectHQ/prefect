@@ -131,3 +131,24 @@ class TestDateTimeParameter:
         state = self.dt_flow.run()
         assert state.result[self.dt].result is None
         assert state.result[self.x].result is None
+
+    def test_datetime_parameter_returns_datetimes_with_default_string(self):
+        now = pendulum.now()
+        with Flow("test") as dt_flow:
+            dt = DateTimeParameter("dt", default=str(now), required=False)
+            x = self.return_value(dt)
+
+        state = dt_flow.run()
+        assert state.result[dt].result == now
+        assert state.result[x].result == now
+
+    def test_datetime_parameter_must_have_value_or_default_when_required_is_true(self):
+        with Flow("test") as dt_flow:
+            dt = DateTimeParameter("dt", required=True)
+            x = self.return_value(dt)
+
+        with pytest.raises(
+            ValueError,
+            match="Flow.run did not receive the following required parameters: dt",
+        ):
+            _ = dt_flow.run()

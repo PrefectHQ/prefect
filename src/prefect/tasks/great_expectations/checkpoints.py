@@ -226,7 +226,7 @@ class RunGreatExpectationsValidation(Task):
         """
 
         if version.parse(ge.__version__) < version.parse("0.13.8"):
-            self.logger.warn(
+            self.logger.warning(
                 f"You are using great_expectations version {ge.__version__} which may cause"
                 "errors in this task. Please upgrade great_expections to 0.13.8 or later."
             )

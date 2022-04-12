@@ -2,6 +2,7 @@ from time import sleep
 from typing import List, Tuple
 
 import requests
+import prefect
 
 
 # dbt Cloud Trigger Job API -> https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
@@ -26,7 +27,7 @@ __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2 = (
     "https://{apiDomain}/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
 )
 
-dbt_cloud_artifact_paths = ("manifest.json", "run_results.json", "catalog.json")
+USER_AGENT_HEADER = {"user-agent": f"prefect-{prefect.__version__}"}
 
 
 class DbtCloudBaseException(Exception):
@@ -102,7 +103,7 @@ def trigger_job_run(
         url=__DBT_CLOUD_TRIGGER_JOB_API_ENDPOINT_V2.format(
             accountId=account_id, jobId=job_id, apiDomain=domain
         ),
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {token}", **USER_AGENT_HEADER},
         data=data,
     )
 
@@ -145,7 +146,7 @@ def wait_for_job_run(
             url=__DBT_CLOUD_GET_RUN_API_ENDPOINT_V2.format(
                 accountId=account_id, runId=run_id, apiDomain=domain
             ),
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token}", **USER_AGENT_HEADER},
         )
 
         if get_run_request.status_code != 200:
@@ -194,7 +195,7 @@ def list_run_artifact_links(
         url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(
             accountId=account_id, runId=run_id, apiDomain=domain
         ),
-        headers={"Authorization": f"Bearer {token}"},
+        headers={"Authorization": f"Bearer {token}", **USER_AGENT_HEADER},
     )
     if list_run_artifact_response.status_code != 200:
         raise DbtCloudListArtifactsFailed(list_run_artifact_response.reason)

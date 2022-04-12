@@ -73,9 +73,9 @@ This has a few nice properties:
 The downside is you may have to do a bit more configuration to tell prefect
 where your script is located (since it can't always be automatically inferred).
 
-Some storage classes (e.g. `GitHub`, `Bitbucket`, `GitLab`, ...) only support
-script-based flow storage. Other classes (e.g. `Local`, `S3`, `GCS`, ...)
-support both - pickle is used by default, but you can opt in to script-based
+Some storage classes (such as `GitHub`, `Bitbucket`, and `GitLab`) only support
+script-based flow storage. Other classes (including `Local`, `S3`, and `GCS`)
+support both &mdash; pickle is used by default, but you can opt in to script-based
 storage by passing `stored_as_script=True`. See the [script based storage
 idiom](/core/idioms/script-based.html) for more information.
 
@@ -91,9 +91,9 @@ deciding what Storage mechanism is right for you.
   [Local](#local) storage class. It requires no external resources, and is
   quick to configure.
 
-- If you store your flows in a code repository you may want to use the
-  corresponding storage class (e.g. [GitHub](#github), [Bitbucket](#bitbucket),
-  [GitLab](#gitlab), ...).  During a flow run your flow source will be pulled
+- If you store your flows in a code repository, you may want to use the
+  corresponding storage class (such as [GitHub](#github), [Bitbucket](#bitbucket),
+  or [GitLab](#gitlab)).  During a flow run, your flow source will be pulled
   from the repo (optionally from a specific commit/branch) before execution.
 
 - If you're making use of cloud storage within your flows, you may want to
@@ -104,7 +104,7 @@ deciding what Storage mechanism is right for you.
 
 ## Storage Types
 
-Prefect has a number of different `Storage` implementations - we'll briefly
+Prefect has a number of different `Storage` implementations. We'll briefly
 cover each below. See [the API documentation](/api/latest/storage.md) for more
 information.
 
@@ -164,7 +164,7 @@ flow = Flow("module example", storage=Module(__name__))
 ### AWS S3
 
 [S3 Storage](/api/latest/storage.md#s3) is a storage option that
-uploads flows to an AWS S3 bucket.
+saves flows to and references flows stored in an AWS S3 bucket.
 
 ```python
 from prefect import Flow
@@ -183,7 +183,7 @@ persisting any task results in the same S3 bucket.
 
 :::tip AWS Credentials
 S3 Storage uses AWS credentials the same way as
-[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
+[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html),
 which means both upload (build) and download (local agent) times need to have
 proper AWS credential configuration.
 :::
@@ -191,7 +191,7 @@ proper AWS credential configuration.
 ### Azure Blob Storage
 
 [Azure Storage](/api/latest/storage.md#azure) is a storage
-option that uploads flows to an Azure Blob container.
+option that saves flows to and references flows stored in an Azure Blob container.
 
 ```python
 from prefect import Flow
@@ -216,7 +216,7 @@ persisting any task results to the same container in Azure Blob storage.
 
 :::tip Azure Credentials
 Azure Storage uses an Azure [connection
-string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string)
+string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string),
 which means both upload (build) and download (local agent) times need to have a
 working Azure connection string. Azure Storage will also look in the
 environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to
@@ -226,7 +226,7 @@ the class directly.
 ### Google Cloud Storage
 
 [GCS Storage](/api/latest/storage.md#gcs) is a storage option
-that uploads flows to a Google Cloud Storage bucket.
+that saves flows to and references flows stored in a Google Cloud Storage bucket.
 
 ```python
 from prefect import Flow
@@ -246,7 +246,7 @@ persisting any task results in the same GCS location.
 :::tip Google Cloud Credentials
 GCS Storage uses Google Cloud credentials the same way as the standard
 [google.cloud
-library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python)
+library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python),
 which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
@@ -260,7 +260,7 @@ GCS Storage.
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
-This storage class uses underlying git protocol instead of specific client libraries (e.g. `PyGithub` for GitHub), superseding other git based storages.
+This storage class uses underlying git protocol instead of specific client libraries (such as `PyGithub` for GitHub), superseding other git-based storages.
 
 ```python
 from prefect import Flow
@@ -284,12 +284,12 @@ storage = Git(
 )
 ```
 
-`Git` storage will attempt to build the correct git clone url based on the parameters provided. Users can override this logic and provide their git clone url directly.
+`Git` storage will attempt to build the correct `git clone` URL based on the parameters provided. Users can override this logic and provide their `git clone` URL directly.
 
-To use a custom git clone url, first create a Secret containing the url. Next, specify the name of the secret when creating your `Git` storage class.
+To use a custom `git clone` URL, first create a `Secret` containing the URL. Then specify the name of the secret when creating your `Git` storage class.
 
 ```python
-# example using Azure devops url
+# example using Azure devops URL
 # using a secret named 'MY_REPO_CLONE_URL' with value 'https://<username>:<personal_access_token>@dev.azure.com/<organization>/<project>/_git/<repo>'
 
 storage = Git(
@@ -298,10 +298,12 @@ storage = Git(
 )
 ```
 
-:::tip Git Deploy Keys
+##### Git Deploy Keys
+
 To use `Git` storage with Deploy Keys, ensure your environment is configured to use Deploy Keys. Then, create a `Git` storage class with `use_ssh=True`.
 
 You can find more information about configuring Deploy Keys for common providers here:
+
 - [GitHub](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys)
 - [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
 - [BitBucket](https://bitbucket.org/blog/deployment-keys)
@@ -310,11 +312,13 @@ For Deploy Keys to work correctly, the flow execution environment must be config
 This configuration is not Prefect specific and varies across infrastructure.
 
 For more information and examples, see [configuring SSH + Git storage](/orchestration/flow_config/storage.html#ssh-git-storage).
-:::
 
-:::tip GitLab Deploy Tokens
-To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing your Deploy Token. Then, you can configure `Git` storage
-```
+
+#### GitLab Deploy Tokens
+
+To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing your Deploy Token. Then, you can configure `Git` storage:
+
+```python
 storage = Git(
     repo="org/repo",                            # name of repo
     flow_path="flows/my_flow.py",               # location of flow file in repo
@@ -323,10 +327,10 @@ storage = Git(
     git_token_username="myuser"                 # username associated with the Deploy Token
 )
 ```
-:::
 
-:::tip Loading additional files from git repository
-`Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage)
+
+:::tip Loading additional files from a git repository
+`Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage).
 :::
 
 ### GitHub
@@ -348,7 +352,7 @@ flow = Flow(
 )
 ```
 
-For a detailed look on how to use GitHub storage visit the [Using script based
+For a detailed look on how to use GitHub storage see the [Using script based
 storage](/core/idioms/script-based.md) idiom.
 
 :::tip GitHub Credentials
@@ -394,7 +398,7 @@ instance.
 
 ### Bitbucket
 
-[Bitbucket Storage](/api/latest/storage.html#github) is a
+[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a
 storage option that uploads flows to a Bitbucket repository as `.py` files.
 
 ```python
@@ -430,7 +434,7 @@ pointing to the correct project name.
 ### CodeCommit
 
 [CodeCommit Storage](/api/latest/storage.html#codecommit) is a
-storage option that uploads flows to a CodeCommit repository as `.py` files.
+storage option for referencing flows stored in a CodeCommit repository as `.py` files.
 
 ```python
 from prefect import Flow
@@ -447,9 +451,9 @@ flow = Flow(
 ```
 
 :::tip AWS Credentials
-S3 Storage uses AWS credentials the same way as
+CodeCommit uses AWS credentials the same way as
 [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
-which means both upload (build) and download (local agent) times need to
+which download (local agent) times need to
 have proper AWS credential configuration.
 :::
 
@@ -458,7 +462,7 @@ have proper AWS credential configuration.
 [Docker Storage](/api/latest/storage.md#docker) is a storage option that puts
 flows inside of a Docker image and pushes them to a container registry. As
 such, it will not work with flows deployed via a [local
-agent](/orchestration/agents/local.md), since docker images aren't supported
+agent](/orchestration/agents/local.md), since Docker images aren't supported
 there.
 
 ```python
@@ -473,21 +477,19 @@ flow = Flow(
 
 After registration, the flow's image will be stored in the container registry
 under `my-registry.io/<slugified-flow-name>:<slugified-current-timestamp>`. Note that each
-type of container registry uses a different format for image naming (e.g.
-DockerHub vs GCR).
+type of container registry uses a different format for image naming (for example, DockerHub or GCR).
 
-If you do not specify a `registry_url` for your Docker Storage then the image
+If you do not specify a `registry_url` for your Docker Storage, then the image
 will not attempt to be pushed to a container registry and instead the image
 will live only on your local machine. This is useful when using the Docker
 Agent because it will not need to perform a pull of the image since it already
 exists locally.
 
 :::tip Container Registry Credentials
-Docker Storage uses the [Docker SDK for
-Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the
+Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the
 image and push to a registry. Make sure you have the Docker daemon running
 locally and you are configured to push to your desired container registry.
-Additionally make sure whichever platform Agent deploys the container also has
+Additionally, make sure whichever platform Agent deploys the container also has
 permissions to pull from that same registry.
 :::
 
@@ -541,8 +543,8 @@ flow = Flow(
 
 Template strings in `${}` are used to reference sensitive information. Given
 `${SOME_TOKEN}`, this storage object will first look in environment variable
-`SOME_TOKEN` and then fall back to [Prefect
-secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
+`SOME_TOKEN` and then fall back to [Prefect Secrets](/core/concepts/secrets.md) 
+`SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
 
@@ -556,7 +558,7 @@ For example, let's say we want to say hello to a person and their name is specif
 
 Our git repository contains two files in the root directory, `flow.py` and `person.txt`.
 
-`flow.py` contains our flow, including logic for loading information from `person.txt`, and should look like this
+`flow.py` contains our flow, including logic for loading information from `person.txt`, and should look like this:
 
 ```python
 from pathlib import Path
@@ -589,7 +591,8 @@ flow.storage = Git(flow_path="flow.py", repo='org/repo')
 
 To use SSH with `Git` storage, you'll need to ensure your repository can be cloned using SSH from where your flow is being run.
 
-For this to work correctly, the environment must have 
+For this to work correctly, the environment must have:
+
 1. An SSH client available
 2. Required SSH keys configured
 
@@ -625,7 +628,7 @@ prefect agent docker start --volume /path/to/ssh_directory:/root/.ssh
 
 When using a [Kubernetes agent](/orchestration/agents/kubernetes.html#kubernetes-agent), SSH keys can be mounted as secret volumes.
 
-First, create a [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) containing our SSH key and known hosts file.
+First, create a [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) containing your SSH key and known hosts file.
 
 ```bash
 kubectl create secret generic my-ssh-key --from-file=<ssh-key-name>=/path/to/<ssh-key-name> --from-file=known_hosts=/path/to/known_hosts

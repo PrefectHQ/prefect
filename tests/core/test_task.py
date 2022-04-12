@@ -152,6 +152,32 @@ class TestCreateTask:
         with pytest.raises(TypeError):
             Task(state_handlers=lambda *a: 1)
 
+    def test_create_task_with_retry_on(self):
+        t1 = Task()
+        assert t1.retry_on is None
+
+        with pytest.raises(ValueError, match=" `max_retries` must be provided"):
+            Task(retry_on={RuntimeError})
+
+        with pytest.raises(
+            TypeError, match="exception type but got an instance of str"
+        ):
+            Task(retry_on={"foo"}, max_retries=2, retry_delay=timedelta(seconds=1))
+
+        t2 = Task(
+            retry_on={RuntimeError, ValueError},
+            max_retries=2,
+            retry_delay=timedelta(seconds=1),
+        )
+        assert t2.retry_on == {RuntimeError, ValueError}
+
+        t3 = Task(
+            retry_on=IOError,
+            max_retries=2,
+            retry_delay=timedelta(seconds=1),
+        )
+        assert t3.retry_on == {IOError}
+
     def test_class_instantiation_rejects_varargs(self):
         with pytest.raises(ValueError):
 
@@ -852,4 +878,4 @@ def test_task_call_with_self_succeeds():
 
     with Flow("test") as flow:
         seconds_task(initial)
-        assert flow.run().is_successful()
+    assert flow.run().is_successful()

@@ -30,7 +30,10 @@ test_requires = open("test-requirements.txt").read().strip().split("\n")
 
 orchestration_extras = {
     "aws": ["boto3 >= 1.9"],
-    "azure": ["azure-storage-blob >= 12.1.0"],
+    "azure": [
+        "azure-storage-blob >= 12.1.0",
+        "azure-identity >= 1.7.0",
+    ],
     "bitbucket": ["atlassian-python-api >= 2.0.1"],
     "gcp": [
         "google-cloud-secret-manager >= 2.4.0",
@@ -50,9 +53,9 @@ extras = {
     "azure": [
         "azure-core >= 1.10.0",
         "azure-storage-blob >= 12.1.0",
-        "azureml-sdk >= 1.0.6",
         "azure-cosmos >= 3.1.1",
     ],
+    "azureml": ["azureml-sdk"],
     "bitbucket": orchestration_extras["bitbucket"],
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
@@ -73,7 +76,7 @@ extras = {
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
     "jira": ["jira >= 2.0.0"],
-    "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7"],
+    "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7", "ipykernel >= 6.9.2"],
     "kafka": ["confluent-kafka >= 1.7.0"],
     "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
@@ -98,6 +101,7 @@ extras = {
     "sendgrid": ["sendgrid >= 6.7.0"],
     "cubejs": ["PyJWT >= 2.3.0"],
     "neo4j": ["py2neo >= 2021.2.3"],
+    "transform": ["transform >= 1.0.12"],
 }
 
 

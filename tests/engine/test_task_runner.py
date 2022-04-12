@@ -178,6 +178,50 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     assert isinstance(state, Failed)
 
 
+def test_task_that_fails_does_not_retry_if_not_in_retry_on():
+    err_task = ErrorTask(
+        retry_on={RuntimeError}, max_retries=2, retry_delay=timedelta(0)
+    )
+    task_runner = TaskRunner(task=err_task)
+
+    state = task_runner.run()
+    assert isinstance(state, Failed)
+
+
+def test_task_that_fails_retries_if_a_retry_on_subtype():
+    err_task = ErrorTask(retry_on={Exception}, max_retries=2, retry_delay=timedelta(0))
+    task_runner = TaskRunner(task=err_task)
+
+    state = task_runner.run()
+    assert isinstance(state, Retrying)
+
+
+def test_task_that_fails_retries_if_a_retry_on_type():
+    err_task = ErrorTask(retry_on={ValueError}, max_retries=2, retry_delay=timedelta(0))
+    task_runner = TaskRunner(task=err_task)
+
+    state = task_runner.run()
+    assert isinstance(state, Retrying)
+
+
+def test_task_that_fails_retries_if_a_retry_on_non_iterable_type():
+    err_task = ErrorTask(retry_on=ValueError, max_retries=2, retry_delay=timedelta(0))
+    task_runner = TaskRunner(task=err_task)
+
+    state = task_runner.run()
+    assert isinstance(state, Retrying)
+
+
+def test_task_that_fails_retries_if_any_of_a_retry_on_type():
+    err_task = ErrorTask(
+        retry_on={KeyError, ValueError}, max_retries=2, retry_delay=timedelta(0)
+    )
+    task_runner = TaskRunner(task=err_task)
+
+    state = task_runner.run()
+    assert isinstance(state, Retrying)
+
+
 def test_task_with_max_retries_0_does_not_retry():
     task = ErrorTask(max_retries=0, retry_delay=None)
     task_runner = TaskRunner(task)
@@ -2454,10 +2498,10 @@ class TestTaskRunNames:
                 .pipe(add_time, minutes=1)
             )
 
-            state = flow.run()
-            assert state.result[result].result == datetime(
-                year=1970, month=1, day=2, hour=1, minute=1
-            )
+        state = flow.run()
+        assert state.result[result].result == datetime(
+            year=1970, month=1, day=2, hour=1, minute=1
+        )
 
     def test_task_pipeline_no_varargs(self):
         """
@@ -2490,8 +2534,8 @@ class TestTaskRunNames:
             res = accepts_anything("initial arg").pipe(
                 accepts_anything, task="some kwarg"
             )
-            state = flow.run()
-            assert state.result[res].result == dict(task="some kwarg")
+        state = flow.run()
+        assert state.result[res].result == dict(task="some kwarg")
 
     def test_task_pipeline_keyword_self(self):
         """
@@ -2508,4 +2552,4 @@ class TestTaskRunNames:
                 res = accepts_anything("initial arg").pipe(
                     accepts_anything, self="some kwarg"
                 )
-            state = flow.run()
+        state = flow.run()

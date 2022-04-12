@@ -403,7 +403,7 @@ class TestGetTaskRunResult:
         # Ensure we aren't sleeping on already finished runs
         mock_sleep = MagicMock(
             side_effect=RuntimeError(
-                "Sleep should not be called for a fnished flow run."
+                "Sleep should not be called for a finished flow run."
             )
         )
         monkeypatch.setattr("prefect.tasks.prefect.flow_run.time.sleep", mock_sleep)
