@@ -738,7 +738,6 @@ async def orchestrate_task_run(
     )
 
     try:
-        logger.info("Waiting for upstream tasks...")
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
@@ -927,7 +926,6 @@ async def resolve_upstream_task_futures(
         # Resolves futures into data, raising if they are not completed after `wait` is
         # called.
         if isinstance(expr, PrefectFuture):
-            print(f"Waiting for {expr.task_run.name}")
             state = await expr._wait()
             if not state.is_completed():
                 raise UpstreamTaskError(
