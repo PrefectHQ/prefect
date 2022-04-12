@@ -1686,7 +1686,7 @@ class TestKubernetesFlowRunner:
             "template"
         ]["spec"]["containers"][0]["env"]
         assert kubernetes_environments_equal(
-            call_env, {**base_flow_run_environment, "WATCH": 1}
+            call_env, {**base_flow_run_environment(), "WATCH": 1}
         )
 
     async def test_defaults_to_unspecified_image_pull_policy(
