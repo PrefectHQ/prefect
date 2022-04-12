@@ -1,9 +1,10 @@
 <template>
   <component
     :is="component"
-    v-model:operation="internalOperation"
-    v-model:value="internalValue"
-    v-bind="{ object, property }"
+    v-model:operation="filter.operation"
+    v-model:value="filter.value"
+    :object="filter.object"
+    :property="filter.property"
   />
 </template>
 
@@ -13,24 +14,27 @@
   import FilterBuilderValueState from '@/components/FilterBuilderValueState.vue'
   import FilterBuilderValueString from '@/components/FilterBuilderValueString.vue'
   import FilterBuilderValueTag from '@/components/FilterBuilderValueTag.vue'
-  import { FilterObject, FilterOperation, FilterProperty, FilterValue } from '@/types/filters'
+  import { Filter } from '@/types/filters'
 
   const emit = defineEmits<{
-    (event: 'update:operation', value: FilterOperation): void,
-    (event: 'update:value', value: FilterValue): void,
+    (event: 'update:filter', value: Filter): void,
   }>()
 
   const props = defineProps<{
-    object: FilterObject,
-    property: FilterProperty,
-    operation?: FilterOperation,
-    value?: FilterValue,
+    filter: Filter,
   }>()
 
-  // eslint-disable-next-line vue/return-in-computed-property
+  const filter = computed({
+    get() {
+      return props.filter
+    },
+    set(filter: Filter) {
+      emit('update:filter', filter)
+    },
+  })
+
   const component = computed(() => {
-    // eslint-disable-next-line default-case
-    switch (props.property) {
+    switch (filter.value.property) {
       case 'tag':
         return FilterBuilderValueTag
       case 'name':
@@ -39,16 +43,8 @@
         return FilterBuilderValueDate
       case 'state':
         return FilterBuilderValueState
+      default:
+        return null
     }
-  })
-
-  const internalOperation = computed({
-    get: () => props.operation,
-    set: (operation) => emit('update:operation', operation!),
-  })
-
-  const internalValue = computed({
-    get: () => props.value,
-    set: (value) => emit('update:value', value!),
   })
 </script>

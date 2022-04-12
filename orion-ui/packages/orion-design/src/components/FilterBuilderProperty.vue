@@ -1,7 +1,7 @@
 <template>
   <div class="filter-builder-property-flow">
     <template v-for="objectProperty in objectProperties" :key="objectProperty">
-      <m-button color="secondary" miter icon="pi-add-fill" @click="update(objectProperty.property, objectProperty.type)">
+      <m-button color="secondary" miter icon="pi-add-fill" :disabled="disabled(objectProperty)" @click="update(objectProperty)">
         {{ objectProperty.label }}
       </m-button>
     </template>
@@ -10,21 +10,16 @@
 
 <script lang="ts" setup>
   import { computed } from 'vue'
-  import { FilterObject, FilterProperty, FilterType } from '@/types/filters'
+  import { Filter, FilterObject, FilterProperty, FilterType } from '@/types/filters'
+  import { isFilter, isObjectStateFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
-    (event: 'update:property', value: FilterProperty): void,
-    (event: 'update:type', value: FilterType): void,
+    (event: 'update:filter', value: Filter): void,
   }>()
 
   const props = defineProps<{
-    object: FilterObject,
-    // prop used for v-model:property but not used internally
-    // eslint-disable-next-line vue/no-unused-properties
-    property?: FilterProperty,
-    // prop used for v-model:property but not used internally
-    // eslint-disable-next-line vue/no-unused-properties
-    type?: FilterType,
+    filter: Filter,
+    filters: Partial<Filter>[],
   }>()
 
   type item = {
@@ -61,13 +56,25 @@
     },
   ]
 
-  const objectProperties = computed(() => {
-    return properties.filter(item => item.objects.includes(props.object))
+  const filter = computed({
+    get() {
+      return props.filter
+    },
+    set(filter: Filter) {
+      emit('update:filter', filter)
+    },
   })
 
-  function update(property: FilterProperty, type: FilterType): void {
-    emit('update:property', property)
-    emit('update:type', type)
+  const objectProperties = computed(() => {
+    return properties.filter(item => item.objects.includes(props.filter.object))
+  })
+
+  function disabled(item: item): boolean {
+    return item.property === 'state' && props.filters.some(filter => isFilter(filter) && isObjectStateFilter(filter) && filter.object == props.filter.object)
+  }
+
+  function update(item: item): void {
+    filter.value = { ...filter.value, property: item.property, type: item.type } as Filter
   }
 </script>
 

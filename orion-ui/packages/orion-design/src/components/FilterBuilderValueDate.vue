@@ -167,6 +167,10 @@
   height: 58px;
 }
 
+.filter-builder-value-date__number .number-input__input {
+  text-align: right;
+}
+
 .filter-builder-value-date__number .number-input__spin-buttons {
   display: flex;
   flex-direction: column;
