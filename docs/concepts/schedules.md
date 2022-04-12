@@ -26,7 +26,7 @@ Prefect supports several types of schedule that cover a wide range of use cases 
 
 ## Creating schedules
 
-You create a schedule by defining a `schedule` parameter as part of the [deployment specification](/concepts/deployments/#deployment-specifications) for a deployment.
+You create a schedule by including a `schedule` parameter as part of the [deployment specification](/concepts/deployments/#deployment-specifications) for a deployment.
 
 First, import the schedule class that you want to use, then define the `schedule` parameter using an instance of that class.
 
