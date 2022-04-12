@@ -26,6 +26,10 @@ export class FilterStringifyService {
     const tag = short ? this.createTagShort(filter, options.defaultObject) : this.createTag(filter, options?.defaultObject)
     const value = this.createTagValue(filter)
 
+    if(tag == '') {
+      return value
+    }
+
     return `${tag}:${value}`
   }
 
