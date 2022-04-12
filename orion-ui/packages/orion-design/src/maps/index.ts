@@ -9,12 +9,14 @@ import { mapRunHistoryToIFlowRunHistoryResponse, mapIFlowRunHistoryResponseToRun
 import { mapFlowRunnerToIFlowRunnerResponse, mapIFlowRunnerResponseToFlowRunner } from './flowRunner'
 import { mapLogToILogResponse, mapILogResponseToLog } from './logs'
 import { mapNumberToString, mapStringToNumber } from './number'
+import { mapUiFlowRunHistoryToScatterPlotItem } from './scatterPlotItem'
 import { mapScheduleToIScheduleResponse, mapIScheduleResponseToSchedule } from './schedule'
 import { mapIStateResponseToIState, mapIStateToIStateResponse } from './state'
 import { mapIStateDetailsResponseToIStateDetails, mapIStateDetailsToIStateDetailsResponse } from './stateDetails'
 import { mapStateHistoryToIStateHistoryResponse, mapIStateHistoryResponseToStateHistory } from './stateHistory'
 import { mapTaskInputToITaskInputResponse, mapITaskInputResponseToTaskInput } from './taskInput'
 import { mapTaskRunToITaskRunResponse, mapITaskRunResponseToTaskRun } from './taskRun'
+import { mapUiFlowRunHistoryResponseToUiFlowRunHistory } from './uiFlowRunHistory'
 import { mapWorkQueueToIWorkQueueResponse, mapIWorkQueueResponseToWorkQueue } from './workQueue'
 import { mapWorkQueueFilterToIWorkQueueFilterResponse, mapIWorkQueueFilterResponseToWorkQueueFilter } from './workQueueFilter'
 
@@ -130,5 +132,11 @@ export const maps = {
   },
   IWorkQueueFilterResponse: {
     WorkQueueFilter: mapIWorkQueueFilterResponseToWorkQueueFilter,
+  },
+  UiFlowRunHistoryResponse: {
+    UiFlowRunHistory: mapUiFlowRunHistoryResponseToUiFlowRunHistory,
+  },
+  UiFlowRunHistory: {
+    ScatterPlotItem: mapUiFlowRunHistoryToScatterPlotItem,
   },
 }
