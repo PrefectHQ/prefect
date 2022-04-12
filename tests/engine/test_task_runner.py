@@ -2407,6 +2407,7 @@ def test_task_runner_logs_full_name_for_mapped_tasks(caplog, task_type):
         log_index = r.name[-2]
         assert log_index == r.msg
 
+
 @pytest.mark.parametrize("task_type", ["class", "function"])
 def test_task_runner_logs_custom_full_name_for_mapped_tasks(caplog, task_type):
     @prefect.task(name="custom_name")
