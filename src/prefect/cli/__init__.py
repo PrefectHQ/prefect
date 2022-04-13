@@ -4,9 +4,6 @@ import os
 
 import click
 
-from click_repl import repl as _repl
-from prompt_toolkit.history import FileHistory
-
 import prefect
 from prefect.utilities import backend as backend_util
 
@@ -87,15 +84,29 @@ cli.add_command(_kv)
 @cli.command()
 def repl():
     """
-    Start a REPL
+    Start an interactive Prefect CLI session
     """
     banner = f"""
-Welcome to Prefect REPL
+Welcome to the Prefect REPL
 version : {prefect.__version__}
     """
 
+    try:
+        from click_repl import repl as _repl
+    except ImportError:
+        print(
+            """
+This command needs click-repl package. Please install it.
+python -m pip install click-repl
+"""
+        )
+        exit(1)
+
+    from prompt_toolkit.history import FileHistory
+
+    history_path = os.path.join(prefect.config.home_dir, "repl-history")
     prompt_kwargs = {
-        "history": FileHistory(os.path.expanduser("~/.prefect/repl-history")),
+        "history": FileHistory(history_path),
     }
 
     click.echo(banner)
