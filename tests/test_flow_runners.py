@@ -34,6 +34,7 @@ from prefect.flow_runners import (
     KubernetesRestartPolicy,
     SubprocessFlowRunner,
     UniversalFlowRunner,
+    base_flow_run_environment,
     get_prefect_image_name,
     lookup_flow_runner,
     python_version_minor,
@@ -41,10 +42,11 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.testing import (
     AsyncMock,
     assert_does_not_warn,
+    kubernetes_environments_equal,
     temporary_settings,
 )
 
@@ -311,6 +313,18 @@ class TestFlowRunnerRegistration:
         assert FlowRunner.from_settings(settings) == UniversalFlowRunner(
             env={"foo": "bar"}
         )
+
+
+class TestBaseFlowRunEnvironment:
+    def test_empty_by_default(self):
+        assert base_flow_run_environment() == {}
+
+    def test_includes_api_url_and_key_when_set(self):
+        with temporary_settings(PREFECT_API_KEY="foo", PREFECT_API_URL="bar"):
+            assert base_flow_run_environment() == {
+                "PREFECT_API_KEY": "foo",
+                "PREFECT_API_URL": "bar",
+            }
 
 
 class TestUniversalFlowRunner:
@@ -765,6 +779,19 @@ class TestDockerFlowRunner:
         assert call_labels["bar"] == "BAR"
         assert "io.prefect.flow-run-id" in call_labels, "prefect labels still included"
 
+    async def test_uses_network_mode_setting(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "bridge"
+
     async def test_uses_env_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
@@ -778,11 +805,93 @@ class TestDockerFlowRunner:
         assert call_env["foo"] == "FOO"
         assert call_env["bar"] == "BAR"
 
-    async def test_replaces_localhost_with_dockerhost_in_env(
+    @pytest.mark.parametrize("localhost", ["localhost", "127.0.0.1"])
+    async def test_network_mode_defaults_to_host_if_using_localhost_api_on_linux(
+        self, mock_docker_client, flow_run, localhost, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "linux")
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL=f"http://{localhost}/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "host"
+
+    async def test_network_mode_defaults_to_none_if_using_networks(
+        self, mock_docker_client, flow_run
+    ):
+        # Despite using localhost for the API, we will set the network mode to `None`
+        # because `networks` and `network_mode` cannot both be set.
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://localhost/test"),
+            networks=["test"],
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_using_nonlocal_api(
+        self, mock_docker_client, flow_run
+    ):
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://foo/test")
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_not_on_linux(
+        self, mock_docker_client, flow_run, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        await DockerFlowRunner(
+            env=dict(PREFECT_API_URL="http://localhost/test")
+        ).submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
+        self, mock_docker_client, flow_run, monkeypatch
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        # It is hard to actually get urlparse to fail, so we'll just raise an error
+        # manually
+        monkeypatch.setattr(
+            "urllib.parse.urlparse", MagicMock(side_effect=ValueError("test"))
+        )
+
+        with pytest.warns(UserWarning, match="Failed to parse host"):
+            await DockerFlowRunner(env=dict(PREFECT_API_URL="foo")).submit_flow_run(
+                flow_run, MagicMock()
+            )
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode is None
+
+    async def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
         self, mock_docker_client, flow_run, use_hosted_orion, hosted_orion_api
     ):
 
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        await DockerFlowRunner(network_mode="bridge").submit_flow_run(
+            flow_run, MagicMock()
+        )
         mock_docker_client.containers.create.assert_called_once()
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
         assert "PREFECT_API_URL" in call_env
@@ -790,7 +899,51 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    async def test_does_not_override_user_provided_host(
+    async def test_does_not_replace_localhost_api_when_using_host_network(
+        self,
+        mock_docker_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+        monkeypatch,
+    ):
+        # We will warn if setting 'host' network mode on non-linux platforms
+        monkeypatch.setattr("sys.platform", "linux")
+
+        await DockerFlowRunner(network_mode="host").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "PREFECT_API_URL" in call_env
+        assert call_env["PREFECT_API_URL"] == hosted_orion_api
+
+    async def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
+        self,
+        mock_docker_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("sys.platform", "darwin")
+
+        with assert_does_not_warn():
+            runner = DockerFlowRunner(network_mode="host")
+
+        with pytest.warns(
+            UserWarning,
+            match="'host' network mode is not supported on platform 'darwin'",
+        ):
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        network_mode = mock_docker_client.containers.create.call_args[1].get(
+            "network_mode"
+        )
+        assert network_mode == "host", "The setting is passed to dockerpy still"
+
+    async def test_does_not_override_user_provided_api_host(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
 
@@ -951,13 +1104,11 @@ class TestDockerFlowRunner:
         monkeypatch.setattr("sys.platform", "linux")
         mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
-        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
-        with pytest.warns(None) as warnings:
+        with assert_does_not_warn():
             await DockerFlowRunner(
                 env={"PREFECT_API_URL": "http://my-domain.test/api"}
             ).submit_flow_run(flow_run, MagicMock())
 
-        assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
         call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
             "extra_hosts"
@@ -1019,8 +1170,12 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
         runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert PREFECT_API_URL.value_from(runtime_settings) == hosted_orion_api.replace(
-            "localhost", "host.docker.internal"
+
+        runtime_api_url = PREFECT_API_URL.value_from(runtime_settings)
+        assert runtime_api_url == (
+            hosted_orion_api
+            if sys.platform == "linux"
+            else hosted_orion_api.replace("localhost", "host.docker.internal")
         )
 
     @pytest.mark.service("docker")
@@ -1352,9 +1507,10 @@ class TestKubernetesFlowRunner:
                                 ],
                                 "env": [
                                     {
-                                        "name": "PREFECT_API_URL",
-                                        "value": "http://orion:4200/api",
+                                        "name": key,
+                                        "value": value,
                                     }
+                                    for key, value in base_flow_run_environment().items()
                                 ],
                             }
                         ],
@@ -1460,7 +1616,7 @@ class TestKubernetesFlowRunner:
             "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
         ), "prefect labels still included"
 
-    async def test_defaults_to_api_urlname(
+    async def test_default_env_includes_api_url_and_key(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1471,16 +1627,23 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
-        await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+        with temporary_settings(
+            PREFECT_API_URL="http://orion:4200/api", PREFECT_API_KEY="my-api-key"
+        ):
+            await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"}
-        ]
+        assert kubernetes_environments_equal(
+            call_env,
+            [
+                {"name": "PREFECT_API_KEY", "value": "my-api-key"},
+                {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
+            ],
+        )
 
-    async def test_does_not_override_user_provided_host(
+    async def test_does_not_override_user_provided_variables(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1491,18 +1654,20 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
+        base_env = base_flow_run_environment()
+
         await KubernetesFlowRunner(
-            env={"PREFECT_API_URL": "http://my-host:6666/api"}
+            env={key: "foo" for key in base_env}
         ).submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "PREFECT_API_URL", "value": "http://my-host:6666/api"}
-        ]
+        assert kubernetes_environments_equal(
+            call_env, [{"name": key, "value": "foo"} for key in base_env]
+        )
 
-    async def test_includes_default_prefect_host_if_user_set_other_env_vars(
+    async def test_includes_base_environment_if_user_set_other_env_vars(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1520,10 +1685,9 @@ class TestKubernetesFlowRunner:
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert call_env == [
-            {"name": "WATCH", "value": "1"},
-            {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
-        ]
+        assert kubernetes_environments_equal(
+            call_env, {**base_flow_run_environment(), "WATCH": "1"}
+        )
 
     async def test_defaults_to_unspecified_image_pull_policy(
         self,

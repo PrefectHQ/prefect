@@ -1,12 +1,12 @@
-<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/4lgiSBlqqp7GH72CXvipnL/46e0fb4dabeb28e302427b6f6b95b4e7/prefect-orion-constellation-banner-light.png" width=1000></p>
+<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
 # Prefect 2.0
 
-A development repo for Prefect 2.0 and Orion. Documentation can be found at https://orion-docs.prefect.io/.
+A development repo for Prefect 2.0. Documentation can be found at https://orion-docs.prefect.io/.
 
 ## Welcome!
 
-Prefect 2.0 is powered by Orion, the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io).
+Prefect 2.0 is the second-generation workflow orchestration platform from [Prefect](https://www.prefect.io).
 
 Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
@@ -16,17 +16,15 @@ Read the docs, run the code, or host the UI. Join thousands of community members
 
 **"Don't Panic"**
 
-Prefect 2.0 and Orion are under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
+Prefect 2.0 and Orion are beta software under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 
 ---
 
 ## Hello, Orion!
 
-Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules.
+Powered by the Orion engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
-
-Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.
 
 ```python
 from prefect import flow, task
@@ -57,7 +55,7 @@ After running any running some flows, fire up the UI to gain insight into their 
 prefect orion start
 ```
 
-![](/docs/img/tutorials/hello-orion-dashboard.png)
+![](/docs/img/ui/orion-dashboard.png)
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](https://orion-docs.prefect.io/concepts/deployments).
 
@@ -72,7 +70,7 @@ Begin by [installing Prefect](https://orion-docs.prefect.io/getting-started/inst
 
 ### Concepts
 
-Learn more about Prefect's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
+Learn more about Prefect's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 ### Frequently asked questions
 
@@ -80,7 +78,7 @@ Prefect 2.0 represents a fundamentally new way of building and orchestrating dat
 
 ### API reference
 
-Prefect Orion provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://orion-docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](https://orion-docs.prefect.io/api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
 ### Contributing
 

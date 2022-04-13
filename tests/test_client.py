@@ -23,7 +23,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
-from prefect.utilities.testing import AsyncMock, temporary_settings
+from prefect.utilities.testing import AsyncMock, exceptions_equal, temporary_settings
 
 
 class TestGetClient:
@@ -214,7 +214,14 @@ async def test_hello(orion_client):
 
 
 async def test_healthcheck(orion_client):
-    assert await orion_client.api_healthcheck()
+    assert await orion_client.api_healthcheck() is None
+
+
+async def test_healthcheck_failure(orion_client, monkeypatch):
+    monkeypatch.setattr(
+        orion_client._client, "get", AsyncMock(side_effect=ValueError("test"))
+    )
+    assert exceptions_equal(await orion_client.api_healthcheck(), ValueError("test"))
 
 
 async def test_create_then_read_flow(orion_client):
@@ -594,8 +601,10 @@ class ExPydanticModel(BaseModel):
         ExPydanticModel(x=0),
     ],
 )
-async def test_put_then_retrieve_object(put_obj, orion_client):
-    data_document = await orion_client.persist_object(put_obj)
+async def test_put_then_retrieve_object(put_obj, orion_client, local_storage_block):
+    data_document = await orion_client.persist_object(
+        put_obj, storage_block=local_storage_block
+    )
     assert isinstance(data_document, DataDocument)
     retrieved_obj = await orion_client.retrieve_object(data_document)
     assert retrieved_obj == put_obj
@@ -628,11 +637,14 @@ class TestResolveDataDoc:
         )
         assert innermost == "hello"
 
-    async def test_resolves_persisted_data_documents(self, orion_client):
+    async def test_resolves_persisted_data_documents(
+        self, orion_client, local_storage_block
+    ):
         innermost = await orion_client.resolve_datadoc(
             (
                 await orion_client.persist_data(
-                    DataDocument.encode("json", "hello").json().encode()
+                    DataDocument.encode("json", "hello").json().encode(),
+                    block=local_storage_block,
                 )
             ),
         )

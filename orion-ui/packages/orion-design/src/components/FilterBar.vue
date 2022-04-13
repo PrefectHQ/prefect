@@ -1,6 +1,6 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissable="!disabled" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissible="!disabled" @click="show('search')" />
 
     <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
       <i class="pi pi-star-line" />
@@ -43,15 +43,16 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
   import FiltersMenu from '@/components/FiltersMenu.vue'
   import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
   import FiltersSearch  from '@/components/FiltersSearch.vue'
   import FiltersSearchMenu from '@/components/FiltersSearchMenu.vue'
   import { FilterService } from '@/services/FilterService'
-  import { getSearchesKey, searchApi } from '@/services/SearchApi'
+  import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { isSame } from '@/utilities/arrays'
+  import { inject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
@@ -66,9 +67,9 @@
   const placeholderText = computed(()=> props.disabled ? '' : 'Search...')
 
   const filtersStore = useFiltersStore()
-  const getSearches = inject(getSearchesKey, searchApi.getSearches)
-  const searchesSubscription = useSubscription(getSearches)
-  const savedSearches = computed(() => searchesSubscription.response.value ?? [])
+  const searchApi = inject(searchApiKey)!
+  const searchesSubscription = useSubscription(searchApi.getSearches)
+  const savedSearches = computed(() => searchesSubscription.response ?? [])
 
   const usingSavedSearch = computed(() => {
     const stringFilters = FilterService.stringify(filtersStore.all)

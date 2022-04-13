@@ -2,7 +2,7 @@
   <div class="filter-builder">
     <div class="filter-builder__header">
       <FilterBuilderHeading class="filter-builder__heading" :filter="innerFilter" />
-      <template v-if="dismissable && hasObject">
+      <template v-if="dismissible">
         <button type="button" class="filter-builder__close" @click="emit('dismiss')">
           <i class="filter-builder__close-icon pi pi-sm pi-close-circle-fill" />
         </button>
@@ -13,14 +13,14 @@
     </div>
     <template v-if="innerExpanded">
       <div class="filter-builder__filter">
-        <template v-if="!innerFilter.object">
-          <FilterBuilderObject v-model:object="innerFilter.object" />
+        <template v-if="!isFilter(innerFilter)">
+          <FilterBuilderObject v-model:filter="innerFilter" />
         </template>
         <template v-else-if="!innerFilter.property">
-          <FilterBuilderProperty v-model:property="innerFilter.property" v-model:type="innerFilter.type" :object="innerFilter.object" />
+          <FilterBuilderProperty v-model:filter="innerFilter" :filters="filters" />
         </template>
         <template v-else>
-          <FilterBuilderValue v-model:operation="innerFilter.operation" v-model:value="innerFilter.value" :object="innerFilter.object" :property="innerFilter.property" />
+          <FilterBuilderValue v-model:filter="innerFilter" />
         </template>
         <template v-if="isCompleteFilter(innerFilter)">
           <FilterTag class="filter-builder__tag" :filter="innerFilter" />
@@ -38,7 +38,7 @@
   import FilterBuilderValue from '@/components/FilterBuilderValue.vue'
   import FilterTag from '@/components/FilterTag.vue'
   import { Filter } from '@/types/filters'
-  import { isCompleteFilter } from '@/utilities/filters'
+  import { isFilter, isCompleteFilter } from '@/utilities/filters'
 
   const emit = defineEmits<{
     (event: 'update:filter', value: Partial<Filter>): void,
@@ -48,7 +48,8 @@
 
   const props = defineProps<{
     filter: Partial<Filter>,
-    dismissable?: boolean,
+    filters: Partial<Filter>[],
+    dismissible?: boolean,
     expanded?: boolean,
   }>()
 
@@ -62,8 +63,6 @@
   watch(() => props.expanded, () => {
     innerExpanded.value = props.expanded ?? true
   }, { immediate: true })
-
-  const hasObject = computed<boolean>(() => !!innerFilter.value.object)
 
   const classes = computed(() => ({
     toggle: {

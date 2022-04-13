@@ -4,23 +4,23 @@
 
 Prefect requires Python 3.7 or later.
 
-We recommend installing Orion using a Python virtual environment manager such as `pipenv`, `conda` or `virtualenv`.
+We recommend installing Prefect 2.0 using a Python virtual environment manager such as `pipenv`, `conda` or `virtualenv`.
 
 ## Installing the latest version
 
-Prefect is published as a Python package. To install the latest 2.0 alpha release, run the following in a shell:
+Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell:
 
 ```bash
-pip install -U "prefect>=2.0a"
+pip install --pre -U prefect
 ```
 
 To install a specific version, specify the version, such as:
 
 ```bash
-pip install -U "prefect==2.0a9"
+pip install -U "prefect==2.0b1"
 ```
 
-Find the available release versions in the [Orion Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+Find the available release versions in the [Prefect 2.0 Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
 
 ## Installing the bleeding edge
 
@@ -67,9 +67,9 @@ Running this command should print a familiar looking version string to your cons
 
 Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
 
-Prior to 2.0a10, Orion did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
+Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
-Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect Orion automatically creates a new database on the next write.
+Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
 
@@ -77,11 +77,11 @@ Resetting the database with the CLI command `prefect orion database reset` is no
 
 ## External requirements
 
-While Prefect Orion works with many of your favorite tools and Python modules, Orion has a few external dependencies.
+While Prefect works with many of your favorite tools and Python modules, it has a few external dependencies.
 
 ### SQLite
 
-Prefect Orion uses SQLite as the default backing database, but it is not packaged with the Orion installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Orion requires SQLite version 3.24.0 or later.
+Prefect 2.0 uses SQLite as the default backing database, but it is not packaged with the Prefect installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Prefect requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 

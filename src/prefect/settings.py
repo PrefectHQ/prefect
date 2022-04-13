@@ -12,6 +12,8 @@ import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator
 
+from prefect.exceptions import MissingProfileError
+
 T = TypeVar("T")
 
 
@@ -616,6 +618,9 @@ def load_profiles(
         active_profile = env_profile
 
     if active_only:
+        if active_profile not in profiles:
+            raise MissingProfileError(f"Active profile {active_profile!r} not found.")
+
         return {active_profile: profiles[active_profile]}
     else:
         return profiles
@@ -658,7 +663,7 @@ def load_profile(name: str) -> Dict[str, str]:
     profiles = load_profiles()
 
     if name not in profiles:
-        raise ValueError(f"Profile {name!r} not found.")
+        raise MissingProfileError(f"Profile {name!r} not found.")
 
     variables = profiles[name]
     for var, value in variables.items():

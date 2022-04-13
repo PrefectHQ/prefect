@@ -1,4 +1,5 @@
 site_name: Prefect 2.0
+site_url: https://orion-docs.prefect.io
 repo_url: https://github.com/PrefectHQ/prefect
 edit_uri: edit/orion/docs/
 extra_css:
@@ -20,7 +21,11 @@ markdown_extensions:
     - meta
     - pymdownx.highlight:
         use_pygments: true
-    - pymdownx.superfences
+    - pymdownx.superfences:
+        custom_fences:
+            - name: mermaid
+              class: mermaid
+              format: !!python/name:pymdownx.superfences.fence_code_format
     - pymdownx.tabbed
 theme:
     name: material
@@ -36,14 +41,14 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-mark-solid-white.svg
+    logo: img/logos/prefect-2.0-logo-mark-white.png
     palette:
         primary: blue
         accent: blue
     custom_dir: docs/overrides
 plugins:
-    - autorefs
-    - mkdocstrings:
+    autorefs: {}
+    mkdocstrings:
         custom_templates: docs/templates
         handlers:
             python:
@@ -55,9 +60,9 @@ plugins:
                     heading_level: 1
         watch:
             - src/prefect/
-    - render_swagger
-    - search
-    - gen-files:
+    render_swagger: {}
+    search: {}
+    gen-files:
         scripts:
             - docs/collections/generate_catalog.py
 nav:
@@ -76,6 +81,7 @@ nav:
             - tutorials/virtual-environments.md
             - tutorials/docker-flow-runner.md
             - tutorials/kubernetes-flow-runner.md
+            - tutorials/testing.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -90,7 +96,7 @@ nav:
         - Storage: concepts/storage.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
-    - Orion UI & Cloud:
+    - Prefect UI & Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
         - ui/flows-and-tasks.md
@@ -114,10 +120,10 @@ nav:
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.logging': api-ref/prefect/logging.md
-            - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md
+            - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Blocks':
                 - 'prefect.blocks.core': api-ref/prefect/blocks/core.md
@@ -179,7 +185,7 @@ nav:
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
-        - Orion REST API: api-ref/rest-api.md
+        - Prefect REST API: api-ref/rest-api.md
     - Contributing: 
         - Overview: contributing/overview.md
         - Style: contributing/style.md

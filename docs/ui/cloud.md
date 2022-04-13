@@ -1,9 +1,9 @@
 ---
-description: Using Prefect Cloud, including account creation, team and workspace management, and running flows.
+description: Learn about using Prefect Cloud, including account creation and running flow deployments.
 tags:
     - UI
     - dashboard
-    - Cloud
+    - Prefect Cloud
     - accounts
     - teams
     - workspaces
@@ -11,7 +11,7 @@ tags:
 
 # Prefect Cloud
 
-Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Orion UI](/ui/overview/) in a hosted environment, including:
+Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect UI](/ui/overview/) in a hosted environment, including:
 
 - Flow run summaries
 - Deployed flow details
@@ -67,7 +67,7 @@ It also provide the Prefect CLI command that configures Prefect to orchestrate f
 
 Click the Prefect logo: this always returns to your workspace list. Then click on a workspace name to view the dashboard for that workspace.
 
-![Viewing a workspace dashboard in the Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
 ## Create an API key
 
@@ -87,7 +87,7 @@ Note that API keys cannot be revealed again in the UI after you generate them, s
 
 ## Configure Orion for Cloud
 
-Your next step is to configure a local execution environment to use Cloud as the API server for local flow runs.
+Your next step is to configure a local execution environment to use Prefect Cloud as the API server for local flow runs.
 
 First, [Install Orion](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
@@ -112,7 +112,7 @@ Successfully logged in and set workspace to 'tprefectio/tp-workspace' in profile
 
 It then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current profile.
 
-Now you're ready to run flows locally and have the results displayed in the Cloud UI.
+Now you're ready to run flows locally and have the results displayed in the Prefect Cloud UI.
 
 The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
 
@@ -133,11 +133,11 @@ In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the de
 
 When using Prefect Cloud, we recommend configuring global storage for persisting flow and task data. See [Storage](/concepts/storage/) for details.
 
-By default, Orion uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using containers or distributed computing environments like Dask and Ray.
+By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using containers or distributed computing environments like Dask and Ray.
 
-## Run a flow with Cloud
+## Run a flow with Prefect Cloud
 
-Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like running local flows with the Prefect Orion API server, but because you configured `PREFECT_API_URL` and `PREFECT_API_KEY`, your flow runs show up in Cloud!
+Okay, you're all set to run a local flow with Prefect Cloud. Notice that everything works just like running local flows with the Prefect API server, but because you configured `PREFECT_API_URL` and `PREFECT_API_KEY`, your flow runs show up in Prefect Cloud!
 
 In your local environment, where you configured the previous steps, create a file named `basic_flow.py` with the following contents:
 
@@ -165,8 +165,8 @@ $ python basic_flow.py
 ```
 </div>
 
-Go to the dashboard for your workspace in Prefect Cloud. You'll see the flow run results right there in Cloud!
+Go to the dashboard for your workspace in Prefect Cloud. You'll see the flow run results right there in Prefect Cloud!
 
 ![Viewing local flow run results in the Cloud UI.](/img/ui/cloud-flow-run.png)
 
-To run deployments using the API or directly from the Cloud UI, you'll need to configure [work queues](/ui/work-queues/) and agents. See the [Work Queues & Agents](/concepts/work-queues/) documentation for details, and the [Deployments tutorial](/tutorials/deployments/#work-queues-and-agents) for a hands-on example.
+To run deployments using the API or directly from the Prefect Cloud UI, you'll need to configure [work queues](/ui/work-queues/) and agents. See the [Work Queues & Agents](/concepts/work-queues/) documentation for details, and the [Deployments tutorial](/tutorials/deployments/#work-queues-and-agents) for a hands-on example.

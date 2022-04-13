@@ -106,15 +106,11 @@
   const isDateFilter = computed<boolean>(() => props.operation == 'before' || props.operation == 'after')
   const operations = computed(() => {
     const base = [
-      { label: 'Newer than', value: 'newer' },
+      { label: 'Next', value: 'next' },
       { label: 'Before date', value: 'before' },
       { label: 'After date', value: 'after' },
-      { label: 'Older than', value: 'older' },
+      { label: 'Last', value: 'last' },
     ]
-
-    if (props.object == 'flow_run') {
-      base.push({ label: 'Upcoming within', value: 'upcoming' })
-    }
 
     return base
   })
@@ -165,6 +161,10 @@
 
 .filter-builder-value-date__number .number-input__container {
   height: 58px;
+}
+
+.filter-builder-value-date__number .number-input__input {
+  text-align: right;
 }
 
 .filter-builder-value-date__number .number-input__spin-buttons {
