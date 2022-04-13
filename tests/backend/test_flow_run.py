@@ -600,7 +600,7 @@ def test_watch_flow_run_timeout(monkeypatch):
     # Mock sleep so that we do not have a slow test
     monkeypatch.setattr("prefect.backend.flow_run.time.sleep", MagicMock())
 
-    with pytest.raises(RuntimeError, match="timed out after 12 hours of waiting"):
+    with pytest.raises(RuntimeError, match="timed out after 12.0 hours of waiting"):
         for log in watch_flow_run("id"):
             pass
 
