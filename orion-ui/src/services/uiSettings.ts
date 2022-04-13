@@ -10,7 +10,7 @@ type Settings = {
   apiUrl: string,
 }
 
-export class ApiSettings {
+export class UiSettings {
   public static settings: Settings | null = null
 
   private static promise: Promise<Settings> | null = null
@@ -26,7 +26,7 @@ export class ApiSettings {
     }
 
     this.promise = new Promise(resolve => {
-      return axios.get<SettingsResponse>('/api-settings', {
+      return axios.get<SettingsResponse>('/ui-settings', {
         baseURL: this.baseUrl,
       }).then(mapSettingsResponse).then(resolve)
     })
