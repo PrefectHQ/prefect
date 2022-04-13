@@ -16,7 +16,6 @@ from prefect.deployments import (
     load_flow_from_script,
 )
 from prefect.exceptions import (
-    InvalidNameError,
     MissingFlowError,
     ScriptError,
     SpecValidationError,
@@ -140,7 +139,7 @@ class TestDeploymentSpec:
         ],
     )
     def test_invalid_name(self, name):
-        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+        with pytest.raises(ValidationError, match="contains an invalid character"):
             DeploymentSpec(name=name)
 
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
