@@ -235,7 +235,7 @@ class Flow(Generic[P, R]):
         for key, value in parameters.items():
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
-            except TypeError:
+            except (TypeError, ValueError):
                 logger.debug(
                     f"Parameter {key!r} for flow {self.name!r} is of unserializable "
                     f"type {type(value).__name__!r} and will not be stored "
