@@ -172,7 +172,7 @@ There is no default global work queue or agent, so to orchestrate flow runs you 
 
 You can create work queues:
 
-- [Using ClI commands](/concepts/work-queues/#work-queue-configuration)
+- [Using CLI commands](/concepts/work-queues/#work-queue-configuration)
 - [Using the Orion UI](/ui/work-queues/)
 
 Agents are configured to pull work from a specific work queue. You'll use the CLI to [start an agent](/concepts/work-queues/#agent-configuration) in your execution environment. If you configure work queues in the Orion UI, the work queue panel provides the CLI command: you can simply copy the entire command and run it in your execution environment.
