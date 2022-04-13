@@ -42,6 +42,9 @@ export class FilterParseService {
       case 'fr':
       case 'flow_run':
         return this.stringFilter('flow_run', 'name', value)
+      case 'frt':
+      case 'flow_run_tag':
+        return this.tagFilter('flow_run', value)
       case 'fra':
       case 'flow_run_after':
         return this.dateFilter('flow_run', 'start_date', 'after', value)
@@ -60,6 +63,9 @@ export class FilterParseService {
       case 'tr':
       case 'task_run':
         return this.stringFilter('task_run', 'name', value)
+      case 'trt':
+      case 'task_run_tag':
+        return this.tagFilter('task_run', value)
       case 'tra':
       case 'task_run_after':
         return this.dateFilter('task_run', 'start_date', 'after', value)
