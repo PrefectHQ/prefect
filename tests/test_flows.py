@@ -876,10 +876,11 @@ class TestFlowParameterTypes:
             return x
 
         data = Exception
-        # Using this as a mock because calling jsonable_encoder(Exception) results in
-        # `ValueError: [..., TypeError('vars() argument must have __dict__ attribute')]`
-        # which is similar enough to the error reported for numpy arrays from
-        # https://github.com/PrefectHQ/orion/issues/1638
+        # When passing some parameter types, jsonable_encoder will raise a ValueError
+        # for a missing a __dict__ attribute instead of a TypeError.
+        # This was notably encountered when using numpy arrays as an
+        # input type but applies to exception classes as well.
+        # See #1638.
         assert my_flow(data).result() == data
 
     def test_subflow_parameters_can_be_pydantic_types(self):
