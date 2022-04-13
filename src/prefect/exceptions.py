@@ -195,7 +195,7 @@ class ReservedArgumentError(PrefectException, TypeError):
     pass
 
 
-class InvalidNameError(PrefectException):
+class InvalidNameError(PrefectException, ValueError):
     """
     Raised when a name contains characters that are not permitted.
     """
