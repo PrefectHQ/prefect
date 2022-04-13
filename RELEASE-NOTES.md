@@ -23,6 +23,9 @@ Fixes some bugs:
 - Dashboard filters including flow/task run states can now be saved.
 - Flow runs can no longer transition from terminal states. The engine will no longer try to set the final state of a flow run twice.
 - Scheduled flow runs are now deleted when their corresponding deployment is deleted.
+- Work queues created in the UI now work the same as those created with the CLI.
+- Kubernetes flow runners now correctly inject credentials into the execution environment.
+- 
 - Work queues created via the UI now function correctly.
 
 ## 2.0b2
