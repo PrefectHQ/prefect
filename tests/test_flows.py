@@ -870,6 +870,18 @@ class TestFlowParameterTypes:
 
         assert my_flow().result() == data
 
+    def test_flow_parameters_can_be_unserializable_types_that_raise_value_error(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        data = Exception
+        # Using this as a mock because calling jsonable_encoder(Exception) results in
+        # `ValueError: [..., TypeError('vars() argument must have __dict__ attribute')]`
+        # which is similar enough to the error reported for numpy arrays from
+        # https://github.com/PrefectHQ/orion/issues/1638
+        assert my_flow(data).result() == data
+
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
