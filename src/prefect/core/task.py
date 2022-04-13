@@ -8,7 +8,6 @@ import warnings
 from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
-    cast,
     Any,
     Callable,
     Dict,
@@ -955,12 +954,11 @@ class Task(metaclass=TaskMetaclass):
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
 
-        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):
-            return as_task(_prefect_task(_prefect_self, **kwargs))
+        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):  # type: ignore
+            return as_task(_prefect_task(_prefect_self))
         else:
-            # cast as Task to pass mypy since Union is used in signature and mypy doesn't
-            # infer this block to always return Task.
-            return cast("Task", _prefect_task(_prefect_self, **kwargs))
+            # mypy<0.900 doesn't infer type as Task due to Union type
+            return _prefect_task(_prefect_self, **kwargs)  # type: ignore
 
     # Serialization ------------------------------------------------------------
 
