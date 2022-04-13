@@ -80,6 +80,9 @@ class PrefectTyper(typer.Typer):
         no_args_is_help: bool = True,
         **kwargs,
     ) -> None:
+        """
+        This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
+        """
         return super().add_typer(
             typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs
         )
