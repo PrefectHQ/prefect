@@ -1,0 +1,5 @@
+fix:
+  - 'Fixes graphviz syntax error when visualizing a flow with a task which is a mapped lambda. [#5662](https://github.com/PrefectHQ/prefect/pull/5662)'
+
+contributor:
+  - '[Ben Ayers-Glassey](https://github.com/bayersglassey-zesty/)'
