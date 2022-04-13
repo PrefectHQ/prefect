@@ -44,7 +44,7 @@ export class FilterParseService {
         return this.stringFilter('flow_run', 'name', value)
       case 'frt':
       case 'flow_run_tag':
-        return this.tagFilter('task_run', value)
+        return this.tagFilter('flow_run', value)
       case 'fra':
       case 'flow_run_after':
         return this.dateFilter('flow_run', 'start_date', 'after', value)
