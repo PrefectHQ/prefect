@@ -30,6 +30,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.edges import EdgeAnnotation
+from prefect.utilities.tasks import as_task
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -935,7 +936,9 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
-    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+    def pipe(
+        _prefect_self, _prefect_task: Union[Type[EdgeAnnotation], "Task"], **kwargs: Any
+    ) -> "Task":
         """
         "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
         equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
@@ -950,7 +953,12 @@ class Task(metaclass=TaskMetaclass):
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
-        return _prefect_task(_prefect_self, **kwargs)
+
+        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):  # type: ignore
+            return as_task(_prefect_task(_prefect_self))
+        else:
+            # mypy<0.900 doesn't infer type as Task due to Union type
+            return _prefect_task(_prefect_self, **kwargs)  # type: ignore
 
     # Serialization ------------------------------------------------------------
 

@@ -47,6 +47,7 @@ from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
 from prefect.exceptions import TaskTimeoutSignal
+from prefect.utilities.edges import flatten, mapped, unmapped
 from prefect.utilities.tasks import pause_task
 
 
@@ -2553,3 +2554,30 @@ class TestTaskRunNames:
                     accepts_anything, self="some kwarg"
                 )
         state = flow.run()
+
+    def test_task_pipeline_edge_annotation(self):
+        """
+        Verify that passing EdgeAnnotation to pipe returns Task objects
+        that can chain further.
+        """
+        from prefect import Flow
+
+        @prefect.task
+        def add_one(number) -> int:
+            return number + 1
+
+        @prefect.task
+        def aggregate(numbers) -> int:
+            return sum(numbers)
+
+        with Flow(name="test") as flow:
+            total = (
+                add_one.map(range(5))
+                .pipe(flatten)
+                .pipe(mapped)
+                .pipe(unmapped)
+                .pipe(aggregate)
+            )
+
+        state = flow.run()
+        assert state.result[total].result == 15
