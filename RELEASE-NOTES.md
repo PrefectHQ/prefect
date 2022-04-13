@@ -12,6 +12,7 @@ Includes some minor improvements:
 - Improved filter expression display and syntax in the UI.
 - Flow runs can be queries more flexibly and performantly.
 - Improved results persistence handling.
+- Adds code examples to schedules documentation.
 - Added a unit testing utility, `prefect_test_harness`.
 - Various documentation updates.
 
