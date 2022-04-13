@@ -31,7 +31,7 @@ class Flow(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name {v!r} contains an invalid character. "
                 f"Must not contain any of: {INVALID_CHARACTERS}."
             )
@@ -545,7 +545,7 @@ class WorkQueue(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name {v!r} contains an invalid character. Must not contain any of: {INVALID_CHARACTERS}."
             )
         return v
