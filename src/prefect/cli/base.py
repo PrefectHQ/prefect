@@ -73,6 +73,17 @@ class PrefectTyper(typer.Typer):
     Wraps commands created by `Typer` to support async functions and handle errors.
     """
 
+    def add_typer(
+        self,
+        typer_instance: "PrefectTyper",
+        *args,
+        no_args_is_help: bool = True,
+        **kwargs,
+    ) -> None:
+        return super().add_typer(
+            typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs
+        )
+
     def command(self, *args, **kwargs):
         command_decorator = super().command(*args, **kwargs)
 
