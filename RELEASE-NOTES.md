@@ -2,10 +2,18 @@
 
 ## 2.0b3
 
+New features:
+
+- Adds Twitter Collection.
+- Adds Great Expectations Collection.
+
 Includes some minor improvements:
 
+- Improved filter expression display and syntax in the UI.
 - Flow runs can be queries more flexibly and performantly.
 - Improved results persistence handling.
+- Added a unit testing utility, `prefect_test_harness`.
+- Various documentation updates.
 
 Fixes some bugs:
 
@@ -14,6 +22,7 @@ Fixes some bugs:
 - Dashboard filters including flow/task run states can now be saved.
 - Flow runs can no longer transition from terminal states. The engine will no longer try to set the final state of a flow run twice.
 - Scheduled flow runs are now deleted when their corresponding deployment is deleted.
+- Work queues created via the UI now function correctly.
 
 ## 2.0b2
 
