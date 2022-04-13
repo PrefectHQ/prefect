@@ -63,6 +63,7 @@ import prefect.orion.schemas as schemas
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
+    InvalidNameError,
     MissingDeploymentError,
     MissingFlowError,
     SpecValidationError,
@@ -308,7 +309,7 @@ class DeploymentSpec(PrefectBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name {v!r} contains an invalid character. Must not contain any of: {INVALID_CHARACTERS}."
             )
         return v
