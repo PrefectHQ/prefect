@@ -10,6 +10,7 @@ export default defineConfig({
     alias: [{ find: '@', replacement: resolve(__dirname, './src') }]
   },
   css: {
+    devSourcemap: true,
     preprocessorOptions: {
       scss: {
         charset: false,

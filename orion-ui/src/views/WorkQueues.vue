@@ -1,7 +1,6 @@
 <template>
   <div class="work-queues">
-    <PageHeader icon="robot-line">
-      <span>Work Queues</span>
+    <PageHeader icon="robot-line" heading="Work Queues">
       <template v-if="workQueues.length" #actions>
         <WorkQueueCreateButton />
       </template>
@@ -23,16 +22,16 @@
     WorkQueuesListEmptyState,
     WorkQueueCreateButton,
     PageHeader,
-    workQueuesApi,
     workQueuesListSubscriptionKey
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide } from 'vue'
+  import { workQueuesApi } from '@/services/workQueuesApi'
 
 
   const workQueuesSubscription = useSubscription(workQueuesApi.getWorkQueues, [{}])
   provide(workQueuesListSubscriptionKey, workQueuesSubscription)
 
-  const workQueues = computed(() => workQueuesSubscription.response.value ?? [])
-  const loading = computed(() => workQueuesSubscription.response.value === undefined)
+  const workQueues = computed(() => workQueuesSubscription.response ?? [])
+  const loading = computed(() => workQueuesSubscription.response === undefined)
 </script>

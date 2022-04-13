@@ -1,0 +1,26 @@
+{
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": true
+    },
+    "cSpell.words": [
+        "composables",
+        "datetime",
+        "dismissable",
+        "emperical",
+        "idempotency",
+        "pinia",
+        "prefecthq",
+        "subflow",
+        "timeframe",
+        "vite",
+        "Vuex"
+    ],
+    "cSpell.flagWords": [
+        "canceled"
+    ],
+    "files.exclude": {
+        "node_modules": true,
+        "packages": true,
+        "dist": true
+    },
+}

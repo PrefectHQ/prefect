@@ -5,15 +5,19 @@ import functools
 import os
 import platform
 import sys
+import traceback
+from contextlib import contextmanager
 from typing import TypeVar
 
 import pendulum
 import rich.console
 import typer
 import typer.core
+from click.exceptions import ClickException
 
 import prefect
 import prefect.context
+from prefect.exceptions import MissingProfileError
 from prefect.settings import Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
@@ -48,9 +52,25 @@ def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
     )
 
 
+def with_cli_exception_handling(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (typer.Exit, typer.Abort, ClickException):
+            raise  # Do not capture click or typer exceptions
+        except MissingProfileError as exc:
+            exit_with_error(exc)
+        except Exception:
+            traceback.print_exc()
+            exit_with_error("An exception occurred.")
+
+    return wrapper
+
+
 class PrefectTyper(typer.Typer):
     """
-    Wraps commands created by `Typer` to support async functions.
+    Wraps commands created by `Typer` to support async functions and handle errors.
     """
 
     def command(self, *args, **kwargs):
@@ -59,6 +79,7 @@ class PrefectTyper(typer.Typer):
         def wrapper(fn):
             if is_async_fn(fn):
                 fn = sync_compatible(fn)
+            fn = with_cli_exception_handling(fn)
             return command_decorator(fn)
 
         return wrapper
@@ -77,6 +98,7 @@ def version_callback(value: bool):
 
 
 @app.callback()
+@with_cli_exception_handling
 def main(
     ctx: typer.Context,
     version: bool = typer.Option(
@@ -96,12 +118,6 @@ def main(
     ),
 ):
     if profile:
-        # Exit early if the profile is set but not valid
-        try:
-            prefect.settings.load_profile(profile)
-        except ValueError:
-            exit_with_error(f"Profile {profile!r} not found.")
-
         profile_ctx = prefect.context.profile(
             profile, override_existing_variables=True, initialize=True
         )

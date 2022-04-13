@@ -1,11 +1,7 @@
-// todo: rename this to StateType
-export type State =
-  | 'COMPLETED'
-  | 'RUNNING'
-  | 'SCHEDULED'
-  | 'PENDING'
-  | 'FAILED'
-  | 'CANCELLED'
+import { stateType } from '@/models/StateType'
+
+// duplicate of @/models/StateType
+export type State = typeof stateType[number]
 
 export type StateName =
   | 'Completed'
