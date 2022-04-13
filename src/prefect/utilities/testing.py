@@ -6,6 +6,7 @@ import sys
 import warnings
 from contextlib import ExitStack, contextmanager
 from tempfile import TemporaryDirectory
+from typing import Dict, List, Union
 
 import prefect.context
 import prefect.settings
@@ -82,6 +83,30 @@ def temporary_settings(**kwargs):
                 os.environ[key] = old_env[key]
             else:
                 os.environ.pop(key, None)
+
+
+def kubernetes_environments_equal(
+    actual: List[Dict[str, str]],
+    expected: Union[List[Dict[str, str]], Dict[str, str]],
+):
+
+    # Convert to a required format and sort by name
+    if isinstance(expected, dict):
+        expected = [
+            {"name": key, "value": value} for key, value in sorted(expected.items())
+        ]
+    else:
+        expected = list(sorted(expected, key=lambda item: item["name"]))
+
+    # Just sort the actual so the format can be tested
+    if isinstance(actual, dict):
+        raise TypeError(
+            "Unexpected type 'dict' for 'actual' kubernetes environment. "
+            "Expected 'List[dict]'. Did you pass your arguments in the wrong order?"
+        )
+    actual = list(sorted(actual, key=lambda item: item["name"]))
+
+    return actual == expected
 
 
 @contextmanager
