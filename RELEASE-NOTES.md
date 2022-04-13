@@ -1,5 +1,69 @@
 # Orion Release Notes
 
+
+## 2.0b2
+
+Includes some minor improvements:
+
+- Docker flow runners can connect to local API applications on Linux without binding to `0.0.0.0`.
+- Adds `with_options` method to flows allowing override of settings e.g. the task runner.
+
+Fixes some bugs:
+
+- The CLI no longer displays tracebacks on sucessful exit.
+- Returning pandas objects from tasks does not error.
+- Flows are listed correctly in the UI dashboard.
+
+## 2.0b1
+
+We are excited to introduce this branch as [Prefect 2.0](https://www.prefect.io/blog/introducing-prefect-2-0/), powered by [Orion, our second-generation orchestration engine](https://www.prefect.io/blog/announcing-prefect-orion/)! We will continue to develop Prefect 2.0 on this branch. Both the Orion engine and Prefect 2.0 as a whole will remain under active development in beta for the next several months, with a number of major features yet to come.
+
+This is the first release that's compatible with Prefect Cloud 2.0's beta API - more exciting news to come on that soon!
+
+### Expanded UI 
+Through our technical preview phase, our focus has been on establishing the right [concepts](https://orion-docs.prefect.io/concepts/overview/) and making them accessible through the CLI and API. Now that some of those concepts have matured, we've made them more accessible and tangible through UI representations. This release adds some very important concepts to the UI:
+
+**Flows and deployments**
+
+If you've ever created a deployment without a schedule, you know it can be difficult to find that deployment in the UI. This release gives flows and their deployments a dedicated home on the growing left sidebar navigation. The dashboard continues to be the primary interface for exploring flow runs and their task runs.
+
+**Work queues**
+
+With the [2.0a13 release](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md#work-queues), we introduced [work queues](https://orion-docs.prefect.io/concepts/work-queues/), which could only be created through the CLI. Now, you can create and edit work queues directly from the UI, then copy, paste, and run a command that starts an agent that pulls work from that queue.
+
+### Collections
+Prefect Collections are groupings of pre-built tasks and flows used to quickly build data flows with Prefect.
+
+Collections are grouped around the services with which they interact. For example, to download data from an S3 bucket, you could use the `s3_download` task from the [prefect-aws collection](https://github.com/PrefectHQ/prefect-aws), or if you want to send a Slack message as part of your flow you could use the `send_message` task from the [prefect-slack collection](https://github.com/PrefectHQ/prefect-slack).
+
+By using Prefect Collections, you can reduce the amount of boilerplate code that you need to write for interacting with common services, and focus on the outcome you're seeking to achieve. Learn more about them in [the docs](https://orion-docs.prefect.io/collections/overview.md).
+
+### Profile switching
+
+We've added the `prefect profile use <name>` command to allow you to easily switch your active profile.
+
+The format for the profiles file has changed to support this. Existing profiles will not work unless their keys are updated.
+
+For example, the profile "foo" must be changed to "profiles.foo" in the file `profiles.toml`:
+
+```toml
+[foo]
+SETTING = "VALUE"
+```
+
+to
+
+```toml
+[profiles.foo]
+SETTING = "VALUE"
+```
+
+### Other enhancements
+- It's now much easier to explore Prefect 2.0's major entities, including flows, deployments, flow runs, etc. through the CLI with the `ls` command, which produces consistent, beautifully stylized tables for each entity.
+- Improved error handling for issues that the client commonly encounters, such as network errors, slow API requests, etc.
+- The UI has been polished throughout to be sleeker, faster, and even more intuitive.
+- We've made it even easier to access file storage through [fsspec](https://filesystem-spec.readthedocs.io/en/latest/index.html), which includes [many useful built in implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations).
+
 ## 2.0a13
 
 We've got some exciting changes to cover in our biggest release yet!
@@ -43,7 +107,7 @@ We've also rehauled our [settings reference](https://orion-docs.prefect.io/api-r
 ## 2.0a12
 
 ### Filters
-Orion captures valuable metadata about your flows, deployments, and their runs. We want it to be just as simple to retrieve this information as it is to record it. This release exposes a powerful set of filter operations to cut through this body of information with ease and precision. Want to see all of the runs of your Daily ETL flow? Now its as easy as typing `flow:"Daily ETL"` into the filter bar. This update also includes a query builder UI, so you can utilize and learn these operators quickly and easily.
+Orion captures valuable metadata about your flows, deployments, and their runs. We want it to be just as simple to retrieve this information as it is to record it. This release exposes a powerful set of filter operations to cut through this body of information with ease and precision. Want to see all of the runs of your Daily ETL flow? Now it's as easy as typing `flow:"Daily ETL"` into the filter bar. This update also includes a query builder UI, so you can utilize and learn these operators quickly and easily.
 
 ## 2.0a11
 

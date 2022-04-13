@@ -37,12 +37,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { Filter, useFiltersStore, UnionFilters, FlowRunsFilter } from '@prefecthq/orion-design'
-  import { FilterUrlService } from '@prefecthq/orion-design/services'
-  import { media, toPluralString, hasFilter } from '@prefecthq/orion-design/utilities'
+  import { Filter, FilterUrlService, useFiltersStore, UnionFilters, FlowRunsFilter, FiltersQueryService, BreadCrumbs, Crumb, media, toPluralString, hasFilter } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
-  import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
   import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
@@ -70,14 +67,18 @@
     return new Date(props.item.end_time)
   })
 
+  const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flow_runs_filter_body: UnionFilters = {
+    ...runFilter.value,
     sort: 'START_TIME_DESC',
     flow_runs: {
+      ...runFilter.value.flow_runs,
       id: {
         any_: [props.item.id],
       },
     },
     task_runs: {
+      ...runFilter.value.task_runs,
       subflow_runs: {
         exists_: false,
       },
@@ -120,11 +121,15 @@
   }
 
   const duration = computed(() => {
-    return stateType.value == 'pending' || stateType.value == 'scheduled'
-      ? '--'
-      : props.item.total_run_time
-        ? secondsToApproximateString(props.item.total_run_time)
-        : secondsToApproximateString(props.item.estimated_run_time)
+    if (props.item.state.type == 'PENDING' || props.item.state.type == 'SCHEDULED') {
+      return '--'
+    }
+
+    if (props.item.total_run_time) {
+      return secondsToApproximateString(props.item.total_run_time)
+    }
+
+    return secondsToApproximateString(props.item.estimated_run_time)
   })
 
   const state = computed(() => {
@@ -151,14 +156,14 @@
     return queries.task_run_history?.response.value || []
   })
 
-  const crumbs = computed(() => {
+  const crumbs = computed<Crumb[]>(() => {
     return [
       { text: flow.value?.name },
-      { text: props.item.name, to: `/flow-run/${props.item.id}` },
+      { text: props.item.name, action: `/flow-run/${props.item.id}` },
     ]
   })
 
-  function filter() {
+  function filter(): void {
     const filterToAdd: Required<Filter> = {
       object: 'flow_run',
       property: 'name',
@@ -176,8 +181,6 @@
     service.add(filterToAdd)
   }
 </script>
-
-<style lang="scss" scoped></style>
 
 <style lang="scss" scoped>
 @use '@/styles/components/list-item--flow-run.scss';

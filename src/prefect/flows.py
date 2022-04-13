@@ -132,6 +132,71 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+    def with_options(
+        self,
+        *,
+        name: str = None,
+        version: str = None,
+        description: str = None,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
+        timeout_seconds: Union[int, float] = None,
+        validate_parameters: bool = None,
+    ):
+        """
+        Create a new flow from the current object, updating provided options.
+
+        Args:
+            name: A new name for the flow.
+            version: A new version for the flow.
+            description: A new description for the flow.
+            task_runner: A new task runner for the flow.
+            timeout_seconds: A new number of seconds to fail the flow after if still
+                running.
+            validate_parameters: A new value indicating if flow calls should validate
+                given parameters.
+
+        Returns:
+            A new `Flow` instance.
+
+        Examples:
+
+            Create a new flow from an existing flow and update the name:
+
+            >>> @flow(name="My flow")
+            >>> def my_flow():
+            >>>     return 1
+            >>>
+            >>> new_flow = my_flow.with_options(name="My new flow")
+
+            Create a new flow from an existing flow, update the task runner, and call
+            it without an intermediate variable:
+
+            >>> from prefect.task_runners import SequentialTaskRunner
+            >>>
+            >>> @flow
+            >>> def my_flow(x, y):
+            >>>     return x + y
+            >>>
+            >>> state = my_flow.with_options(task_runner=SequentialTaskRunner)(1, 3)
+            >>> assert state.result() == 4
+
+        """
+        return Flow(
+            fn=self.fn,
+            name=name or self.name,
+            description=description or self.description,
+            version=version or self.version,
+            task_runner=task_runner or self.task_runner,
+            timeout_seconds=(
+                timeout_seconds if timeout_seconds is not None else self.timeout_seconds
+            ),
+            validate_parameters=(
+                validate_parameters
+                if validate_parameters is not None
+                else self.should_validate_parameters
+            ),
+        )
+
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate parameters for compatibility with the flow by attempting to cast the inputs to the

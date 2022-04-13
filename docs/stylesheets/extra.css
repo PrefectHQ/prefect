@@ -2,6 +2,10 @@
 
 /* Code block background and highlight */
 :root > * {
+    /* theme */ 
+    --md-primary-fg-color: #115AF4;
+    --md-primary-fg-color--light: #115AF4;
+    --md-primary-fg-color--dark:  #115AF4;   
     /* code blocks */
     --md-code-hl-color: #eeeeee;
     --md-code-bg-color: #f3f3f3;
@@ -12,6 +16,11 @@ img {
     margin-top: 1rem;
     margin-bottom: 1rem;
     filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+}
+
+.md-logo img {
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* Table formatting */

@@ -1,7 +1,7 @@
 <template>
   <ListItem class="list-item--deployment" icon="pi-map-pin-line">
     <div class="list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openDeploymentPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
       <div
         class="
           tag-container
@@ -43,16 +43,6 @@
 
     <div v-if="media.sm" class="ml-auto d-flex align-middle nowrap">
       <m-toggle v-if="false" v-model="scheduleActive" />
-
-      <m-button
-        outlined
-        height="36px"
-        width="160px"
-        class="mr-1 text--grey-80"
-        @click="parametersDrawerActive = true"
-      >
-        View Parameters
-      </m-button>
       <m-button
         outlined
         miter
@@ -66,85 +56,26 @@
       </m-button>
     </div>
   </ListItem>
-
-  <Drawer v-model="parametersDrawerActive" show-overlay>
-    <template #title>
-      {{ item.name }}
-    </template>
-    <h3 class="font-weight-bold">
-      Parameters
-    </h3>
-    <div>These are the inputs that are passed to runs of this Deployment.</div>
-
-    <hr class="mt-2 parameters-hr align-self-stretch">
-
-    <m-input v-model="search" placeholder="Search...">
-      <template #prepend>
-        <i class="pi pi-search-line" />
-      </template>
-    </m-input>
-
-    <div class="mt-2 font--secondary">
-      {{ filteredParameters.length }} result{{
-        filteredParameters.length !== 1 ? 's' : ''
-      }}
-    </div>
-
-    <hr class="mt-2 parameters-hr">
-
-    <div class="parameters-container pr-2 align-self-stretch">
-      <div v-for="(parameter, i) in filteredParameters" :key="i">
-        <div class="d-flex align-center justify-space-between">
-          <div class="caption font-weight-bold font--secondary">
-            {{ parameter.name }}
-          </div>
-          <span
-            class="
-              parameter-type
-              font--secondary
-              caption-small
-              px-1
-              text--white
-            "
-          >
-            {{ parameter.type }}
-          </span>
-        </div>
-
-        <p class="font--secondary caption">
-          {{ parameter.value }}
-        </p>
-
-        <hr
-          v-if="i !== filteredParameters.length - 1"
-          class="mb-2 parameters-hr"
-        >
-      </div>
-    </div>
-  </Drawer>
 </template>
 
 <script lang="ts">
   /* eslint-disable */
-  import { media, showPanel, DeploymentPanel, useInjectedServices, DeploymentsApi } from '@prefecthq/orion-design'
+  import { media, showPanel, DeploymentPanel, BreadCrumbs, Crumb, DeploymentsApi, FlowRunsApi, mapper, IDeploymentResponse } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/miter-design'
   import { Options, Vue, prop } from 'vue-class-component'
-  import Drawer from '@/components/Global/Drawer/Drawer.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import { Api, Endpoints } from '@/plugins/api'
-  import { Deployment } from '@/typings/objects'
   import { secondsToString } from '@/util/util'
+  import { deploymentsApi } from '@/services/deploymentsApi'
+  import { flowRunsApi } from '@/services/flowRunsApi'
 
   class Props {
-    item = prop<Deployment>({ required: true })
+    item = prop<IDeploymentResponse>({ required: true })
   }
 
   @Options({
-    components: { ListItem, Drawer },
+    components: { ListItem, BreadCrumbs },
     watch: {
-      parametersDrawerActive() {
-        this.search = ''
-      },
       async scheduleActive(val) {
         const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
 
@@ -156,20 +87,18 @@
     },
   })
   export default class ListItemDeployment extends Vue.with(Props) {
-    parametersDrawerActive: boolean = false
     search: string = ''
-    scheduleActive: boolean = this.item.is_schedule_active
+    scheduleActive: boolean = this.item.is_schedule_active ?? false
     creatingRun: boolean = false
     media = media
-    crumbs = [{ text: this.item.name, to: window.location.href }]
-    injectedServices = useInjectedServices()
-    deploymentsApi = new DeploymentsApi()
+    crumbs: Crumb[] = [{ text: this.item.name, action: () => this.openDeploymentPanel() }]
 
     openDeploymentPanel(): void {
       showPanel(DeploymentPanel, {
-        deployment: this.deploymentsApi.mapDeployment(this.item as any),
+        deployment: mapper.map('IDeploymentResponse', this.item, 'Deployment'),
         dashboardRoute: { name: 'Dashboard' },
-        ...this.injectedServices,
+        deploymentsApi: deploymentsApi as DeploymentsApi,
+        flowRunsApi: flowRunsApi as FlowRunsApi,
       })
     }
 
@@ -225,7 +154,7 @@
     }
 
     get tags(): string[] {
-      return this.item.tags
+      return this.item.tags ?? []
     }
 
     get filteredParameters(): Record<string, any>[] {

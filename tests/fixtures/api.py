@@ -62,7 +62,7 @@ async def hosted_orion_api():
             "--factory",
             "prefect.orion.api.server:create_app",
             "--host",
-            "0.0.0.0",  # required for access across networked docker containers in CI
+            "127.0.0.1",
             "--port",
             "2222",
             "--log-level",

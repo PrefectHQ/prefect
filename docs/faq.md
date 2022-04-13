@@ -1,6 +1,25 @@
-# Frequently Asked Questions
+---
+description: Answers to frequently asked questions about Prefect 2.0.
+tags:
+    - FAQ
+    - questions
+    - license
+    - Orion
+    - databases
+---
 
-## Orion
+# Frequently Asked Questions
+## Prefect 2.0
+
+
+### How is Prefect 2.0 licensed?
+
+Prefect 2.0 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+### Can I use Prefect 2.0 in production?
+
+Prefect 2.0 is beta software and we do not recommend Orion for production use at this time.
+
+## The Orion Engine
 
 ### Why "Orion"?
 
@@ -32,65 +51,13 @@ Orion is capable of governing **any** code through a well-defined series of stat
 
 To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Orion engine as is useful for their objectives.
 
-### Why is Orion a "technical preview"?
-
-Orion is the latest step in a long-term mission to codify the best practices of modern data engineering. Historically, Prefect has benefitted from looping our community in early to our product development lifecycle. We are continuing this tradition with Orion. 
-
-The current codebase is the core of our new workflow engine. It meets our initial design objectives and we are excited to learn from our users' experiences in the wild. However, while it is fully functional, it is far from a finished product. Many conveniences &mdash; and even some major features &mdash; have not yet been implemented. 
-
-Over the next few months, you can follow our development in the open &mdash; and even participate yourself &mdash; as we bring this product toward release. Until then, we will maintain the "technical preview" label to communicate the status of the project as not yet battle-tested in production. 
-
-For production use cases, we currently recommend [Prefect Core](https://github.com/prefecthq/prefect).
-
-### Can I use Orion in production?
-
-Orion is alpha software and we do not recommend Orion for production use at this time.
-
-### How is Orion licensed?
-
-The Orion technical preview is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
 ## Features
 
-### What's on the Orion roadmap?
 
-We will publish a complete roadmap for Orion soon. Here are a few important milestones currently under consideration:
+### Does Prefect 2.0 support mapping?
 
-#### Python client
-  
-- Task mapping
-- Porting the Prefect task library and integrations
-- Track inputs across tasks
-
-#### UI
-
-- Task Run pages
-- Create deployments from UI
-- Create schedules from UI
-- Share dashboards
-- Configure storage locations
-- Update server settings from UI
-- View flow run execution and data tracking in schematic
-
-#### Orion server
-
-- Add `CRASHED` states for capturing and reacting to infrastructure failures
-- Orion engine orchestration rules
-- Configurable retry on `CRASHED`
-- Automatically expire caches when tasks are taken out of `TERMINAL` states
-- Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
-- Exponential backoff for `AWAITING_RETRY`
-- Configurable storage locations for flows and persisted data
-
-#### Prefect IDE
-
-- Time travel debugging: download states from remote runs to replay them interactively
-
-One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project.
-
-### Does Orion support mapping?
-
-Mapping is one of the most popular features in Prefect Core, allowing users to tap into their task runner's native fan-out abilities. An equivalent `.map()` operator will be released for Orion soon. For now, users can take advantage of Orion's support for native Python to call tasks in loops:
+Mapping is one of the most popular features in Prefect 1.0, allowing users to tap into their task runner's native fan-out abilities. An equivalent `.map()` operator will be released for Prefect 2.0 soon. For now, users can take advantage of Prefect's support for native Python to call tasks in loops:
 
 ```python
 @flow
@@ -106,7 +73,7 @@ def my_flow():
         my_mapped_task_2(i)
 ```
 
-Note that when tasks are called on constant values, they cannot detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Orion will have convenience functions for detecting these associations, and Orion's `.map()` operator will automatically track them.
+Note that when tasks are called on constant values, they cannot detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Prefect will have convenience functions for detecting these associations, and Prefect's `.map()` operator will automatically track them.
 
 ### How do I enforce ordering between tasks that don't share data?
 
@@ -129,62 +96,29 @@ def my_flow():
     y = task_2(wait_for=[x])
 ```
 
-### When will Orion be released?
+### When will Prefect 2.0 be released?
 
-Orion will remain in technical preview status until at least the end of 2021, and we expect to ship a stable release in early 2022.
+The Prefect 2.0 beta period is expected to last for at least the second quarter of 2022.
 
-## Deployment
 
-### How is Orion organized?
+### What external requirements does Prefect have?
 
-The Orion technical preview consists of a few complementary parts:
-
-- Python Client: where workflows are defined and executed
-- Orion API: a REST API that exposes the central orchestration engine
-- Metadata DB: a persistent store for states, results, and run metadata
-- Dashboard: a UI for monitoring and interacting with the system
-
-Most users will begin in the *client* by annotating a function as either a `flow` or `task`. 
-
-Every time that function is called, it collaborates with the *orchestration engine* via the Orion API. The orchestration engine is responsible for governing the function's transitions through various [states](concepts/states) that represent its progress. 
-
-The orchestration engine is composed of a variety of rules that enforce helpful behaviors. For example, one rule might intercept tasks that fail and instruct them to retry. Another might identify that a task was cached and instruct it not to run at all. 
-
-All states and metadata are stored in the *metadata database*. 
-
-The Dashboard leverages all of this to deliver an interactive way to browse live and historical data.
-
-!!! tip "Always On"
-Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. Running a flow interactively will still properly interact with the orchestration API and persist metadata in your locally-configured database. You only need to run a stateful Orion server and related services when you require the features they provide, such as automatic scheduling and execution or a hosted UI. For interactive runs against a SQLite database, Orion can operate as a completely serverless platform.
-
-### What external requirements does Orion have?
-
-Orion does not have any additional requirements besides those installed by `pip install prefect>=2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
+Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
 To use PostgreSQL, users must provide the [connection string][prefect.settings.Settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
 
-### What databases does Orion support?
+### What databases does Prefect support?
 
-Orion works with SQLite and PostgreSQL. New Orion installs default to a SQLite database hosted at `~/.prefect/orion.db`.
+Prefect works with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/orion.db`.
 
 ### How do I choose between SQLite and Postgres?
 
-SQLite is appropriate for getting started and exploring Orion. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency may prefer to start with PostgreSQL.
+SQLite is appropriate for getting started and exploring Prefect. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency may prefer to start with PostgreSQL.
 
 This answer will be updated with more concrete guidelines in the future.
 
 ## Relationship with other Prefect products
 
-### Does Orion replace Prefect Core and Prefect Server?
+### Is there an upgrade guide from Prefect 1.0 to Prefect 2.0?
 
-Orion represents the future of Prefect's orchestration engine and API. It will power a new generation of self-hosted and commercial Prefect products. We are releasing it as a technical preview because it has achieved its primary design objectives, but it still has a ways to go. In the coming months, you will see Orion undergo rapid changes as it approaches a stable release in early 2022. At that time, Orion will become the "default" version of Prefect, replacing both Prefect Core and Prefect Server. 
-
-### Can I still use Prefect Core?
-
-Yes! Prefect Core is our battle-tested, production-ready workflow engine. Its API has remained stable &mdash; and almost completely backwards compatible &mdash; for almost two years. Our Prefect Cloud customers have used it to execute over half a billion tasks this year, and our open-source users have stressed it even further. 
-
-For these reasons, as a reflection of its maturity, Prefect Core will be promoted to 1.0 in the near future. Prefect 1.0 will remain fully supported by the Prefect team for at least one year after Orion's release.
-
-### Is there an upgrade guide from Prefect Core to Prefect Orion?
-
-As Orion moves closer to release, we will provide upgrade guides and tools to make Orion adoption as easy as possible for Prefect 1.0 users. Given the similarity of the Orion and Core client APIs, upgrading should require minimal effort on users' behalf.
+As Prefect 2.0 moves closer to release, we will provide upgrade guides and tools to make adoption as easy as possible for Prefect 1.0 users. Given the similarity of the 1.0 and 2.0 client APIs, upgrading should require minimal effort on users' behalf.

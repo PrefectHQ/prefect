@@ -15,7 +15,7 @@
       <h3 class="font-weight-semibold my-1">
         Color theme
       </h3>
-      <StateColorModeSelector />
+      <ColorSchemeSelect />
     </section>
 
     <section
@@ -113,12 +113,12 @@
 </template>
 
 <script lang="ts">
+  import { ColorSchemeSelect } from '@prefecthq/orion-design'
   import { Options, Vue } from 'vue-class-component'
-  import StateColorModeSelector from '@/components/Settings/StateColorModeSelector.vue'
   import { Api, Endpoints, Query } from '@/plugins/api'
 
   @Options({
-    components: { StateColorModeSelector },
+    components: { ColorSchemeSelect },
   })
   export default class Settings extends Vue {
     queries: Record<string, Query> = {

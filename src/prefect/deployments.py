@@ -46,29 +46,45 @@ Examples:
 """
 
 import pathlib
-import runpy
+import sys
+import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, List, Set
+from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple, Union
 from uuid import UUID
 
+import fsspec
 import yaml
-from pydantic import root_validator, validator
+from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
+from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
-from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
+from prefect.exceptions import (
+    MissingDeploymentError,
+    MissingFlowError,
+    SpecValidationError,
+    UnspecifiedDeploymentError,
+    UnspecifiedFlowError,
+)
+from prefect.flow_runners import (
+    FlowRunner,
+    FlowRunnerSettings,
+    SubprocessFlowRunner,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow
+from prefect.orion import schemas
 from prefect.orion.schemas.core import INVALID_CHARACTERS
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.filesystem import is_local_path, tmpchdir
+from prefect.utilities.importtools import objects_from_script
 
 
 class DeploymentSpec(PrefectBaseModel):
@@ -97,58 +113,197 @@ class DeploymentSpec(PrefectBaseModel):
         tags: An optional set of tags to assign to the deployment.
     """
 
-    name: str
+    name: str = None
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    push_to_server: bool = True
+    flow_storage: Optional[StorageBlock] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
-    flow_runner: FlowRunner = None
+    flow_runner: Union[FlowRunner, FlowRunnerSettings] = Field(
+        default_factory=UniversalFlowRunner
+    )
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         # After initialization; register this deployment. See `_register_new_specs`
         _register_spec(self)
 
-    def load_flow(self):
+    # Validation and inference ---------------------------------------------------------
+
+    @validator("flow_location", pre=True)
+    def ensure_paths_are_absolute_strings(cls, value):
+        if isinstance(value, pathlib.Path):
+            return str(value.absolute())
+        elif isinstance(value, str) and is_local_path(value):
+            return abspath(value)
+        return value
+
+    @sync_compatible
+    @inject_client
+    async def validate(self, client: OrionClient):
+
+        # Ensure either flow location or flow were provided
+
+        if not self.flow_location and not self.flow:
+            raise SpecValidationError(
+                "Either `flow_location` or `flow` must be provided."
+            )
+
+        # Load the flow from the flow location
+
         if self.flow_location and not self.flow:
             self.flow = load_flow_from_script(self.flow_location, self.flow_name)
-            if not self.flow_name:
-                self.flow_name = self.flow.name
 
-    @root_validator
-    def infer_location_from_flow(cls, values):
-        if values.get("flow") and not values.get("flow_location"):
-            flow_file = values["flow"].fn.__globals__.get("__file__")
+        # Infer the flow location from the flow
+
+        elif self.flow and not self.flow_location:
+            self.flow_location = self.flow.fn.__globals__.get("__file__")
+
+        # Ensure the flow location matches the flow both are given
+
+        elif self.flow and self.flow_location and is_local_path(self.flow_location):
+            flow_file = self.flow.fn.__globals__.get("__file__")
             if flow_file:
-                values["flow_location"] = abspath(str(flow_file))
-        return values
+                abs_given = abspath(str(self.flow_location))
+                abs_flow = abspath(str(flow_file))
+                if abs_given != abs_flow:
+                    raise SpecValidationError(
+                        f"The given flow location {abs_given!r} does not "
+                        f"match the path of the given flow: '{abs_flow}'."
+                    )
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_str(cls, value):
-        return str(value)
+        # Ensure the flow location is absolute if local
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_absolute(cls, value):
-        return str(pathlib.Path(value).absolute())
+        if self.flow_location and is_local_path(self.flow_location):
+            self.flow_location = abspath(str(self.flow_location))
 
-    @root_validator
-    def infer_flow_name_from_flow(cls, values):
-        if values.get("flow") and not values.get("flow_name"):
-            values["flow_name"] = values["flow"].name
-        return values
+        # Ensure the flow location is set
 
-    @root_validator
-    def ensure_flow_name_matches_flow_object(cls, values):
-        flow, flow_name = values.get("flow"), values.get("flow_name")
-        if flow and flow_name and flow.name != flow_name:
-            raise ValueError(
-                "`flow.name` and `flow_name` must match. "
-                f"Got {flow.name!r} and {flow_name!r}."
+        if not self.flow_location:
+            raise SpecValidationError(
+                "Failed to determine the location of your flow. "
+                "Provide the path to your flow code with `flow_location`."
             )
-        return values
+
+        # Infer flow name from flow
+
+        if self.flow and not self.flow_name:
+            self.flow_name = self.flow.name
+
+        # Ensure a given flow name matches the given flow's name
+
+        elif self.flow.name != self.flow_name:
+            raise SpecValidationError(
+                "`flow.name` and `flow_name` must match. "
+                f"Got {self.flow.name!r} and {self.flow_name!r}."
+            )
+
+        # Default the deployment name to the flow name
+
+        if not self.name and self.flow_name:
+            self.name = self.flow_name
+
+        # Convert flow runner settings to concrete instances
+
+        if isinstance(self.flow_runner, FlowRunnerSettings):
+            self.flow_runner = FlowRunner.from_settings(self.flow_runner)
+
+        # Do not allow the abstract flow runner type
+
+        if type(self.flow_runner) is FlowRunner:
+            raise SpecValidationError(
+                "The base `FlowRunner` type cannot be used. Provide a flow runner "
+                "implementation or flow runner settings instead."
+            )
+
+        # Determine the storage block
+
+        # TODO: Some of these checks may be retained in the future, but will use block
+        # capabilities instead of types to check for compatibility with flow runners
+
+        self.flow_storage = (
+            self.flow_storage or await client.get_default_storage_block()
+        )
+        no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
+
+        if isinstance(self.flow_runner, SubprocessFlowRunner):
+            local_machine_message = (
+                "this deployment will only be usable from the current machine."
+            )
+            if not self.flow_storage:
+                warnings.warn(f"{no_storage_message}, {local_machine_message}")
+                self.flow_storage = LocalStorageBlock()
+            elif isinstance(self.flow_storage, (LocalStorageBlock, TempStorageBlock)):
+                warnings.warn(
+                    f"You have configured local storage, {local_machine_message}."
+                )
+        else:
+            # All other flow runners require remote storage, ensure we've been given one
+            flow_runner_message = f"this deployment is using a {self.flow_runner.typename.capitalize()} flow runner which requires remote storage"
+            if not self.flow_storage:
+                raise SpecValidationError(
+                    f"{no_storage_message} but {flow_runner_message}."
+                )
+            elif isinstance(self.flow_storage, (LocalStorageBlock, TempStorageBlock)):
+                raise SpecValidationError(
+                    f"You have configured local storage but {flow_runner_message}."
+                )
+
+    # Methods --------------------------------------------------------------------------
+
+    @sync_compatible
+    @inject_client
+    async def create_deployment(
+        self, client: OrionClient, validate: bool = True
+    ) -> UUID:
+        """
+        Create a deployment from the current specification.
+        """
+        if validate:
+            await self.validate()
+
+        flow_id = await client.create_flow(self.flow)
+
+        # Read the flow file
+        with fsspec.open(self.flow_location, "rb") as flow_file:
+            flow_bytes = flow_file.read()
+
+        # Ensure the storage is a registered block for later retrieval
+
+        if not self.flow_storage._block_id:
+            block_spec = await client.read_block_spec_by_name(
+                self.flow_storage._block_spec_name,
+                self.flow_storage._block_spec_version,
+            )
+
+            self.flow_storage._block_id = await client.create_block(
+                self.flow_storage,
+                block_spec_id=block_spec.id,
+                name=f"{self.flow_name}-{self.name}",
+            )
+
+        # Write the flow to storage
+        storage_token = await self.flow_storage.write(flow_bytes)
+        flow_data = DataDocument.encode(
+            encoding="blockstorage",
+            data={"data": storage_token, "block_id": self.flow_storage._block_id},
+        )
+
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=self.name,
+            schedule=self.schedule,
+            flow_data=flow_data,
+            parameters=self.parameters,
+            tags=self.tags,
+            flow_runner=self.flow_runner,
+        )
+
+        return deployment_id
+
+    # Pydantic -------------------------------------------------------------------------
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -166,48 +321,42 @@ class DeploymentSpec(PrefectBaseModel):
         return hash((self.name, self.flow_name))
 
 
-def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
+# Utilities for loading flows and deployment specifications ----------------------------
+
+
+def select_flow(
+    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+) -> Flow:
     """
-    Extract a flow object from a script by running all of the code in the file
+    Select the only flow in an iterable or a flow specified by name.
 
-    If the script has multiple flows in it, a flow name must be provided to specify
-    the flow to return.
-
-    Args:
-        script_path: A path to a Python script containing flows
-        flow_name: An optional flow name to look for in the script
-
-    Returns:
-        The flow object from the script
+    Returns
+        A single flow object
 
     Raises:
-        MissingFlowError: If no flows exist in the script
+        MissingFlowError: If no flows exist in the iterable
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
-    try:
-        variables = runpy.run_path(script_path)
-    except Exception as exc:
-        raise FlowScriptError(
-            user_exc=exc,
-            script_path=script_path,
-        ) from exc
+    # Convert to flows by name
+    flows = {f.name: f for f in flows}
 
-    flows = {f.name: f for f in extract_instances(variables.values(), types=Flow)}
+    # Add a leading space if given, otherwise use an empty string
+    from_message = (" " + from_message) if from_message else ""
 
     if not flows:
-        raise MissingFlowError(f"No flows found at path {script_path!r}")
+        raise MissingFlowError(f"No flows found{from_message}.")
 
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
-            f"Flow {flow_name!r} not found at path {script_path!r}. "
+            f"Flow {flow_name!r} not found{from_message}. "
             f"Found the following flows: {listrepr(flows.keys())}"
         )
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows at {script_path!r}: {listrepr(flows.keys())}. "
-            "Specify a flow name to select a flow to deploy.",
+            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
+            "Specify a flow name to select a flow.",
         )
 
     if flow_name:
@@ -216,51 +365,141 @@ def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
         return list(flows.values())[0]
 
 
-@sync_compatible
-@inject_client
-async def create_deployment_from_spec(
-    spec: DeploymentSpec, client: OrionClient
-) -> UUID:
+def select_deployment(
+    deployments: Iterable[DeploymentSpec],
+    deployment_name: str = None,
+    flow_name: str = None,
+    from_message: str = None,
+) -> Flow:
     """
-    Create a deployment from a specification.
-    """
-    spec.load_flow()
-    flow_id = await client.create_flow(spec.flow)
+    Select the only deployment in an iterable or a deployment specified by either
+    deployment or flow name.
 
-    if spec.push_to_server:
-        with open(spec.flow_location, "rb") as flow_file:
-            flow_data = await client.persist_data(flow_file.read())
+    Returns
+        A single deployment object
+
+    Raises:
+        MissingDeploymentError: If no deployments exist in the iterable
+        MissingDeploymentError: If a deployment name is provided and that deployment does not exist
+        UnspecifiedDeploymentError: If multiple deployments exist but no deployment name was provided
+    """
+    # Convert to deployments by name and flow name
+    deployments = {d.name: d for d in deployments}
+
+    if flow_name:
+        # If given a lookup by flow name, ensure the deployments have a flow name
+        # resolved
+        for deployment in deployments.values():
+            if not deployment.flow_name:
+                deployment.load_flow()
+        deployments_by_flow = {d.flow_name: d for d in deployments.values()}
+
+    # Add a leading space if given, otherwise use an empty string
+    from_message = (" " + from_message) if from_message else ""
+
+    if not deployments:
+        raise MissingDeploymentError(f"No deployments found{from_message}.")
+
+    elif deployment_name and deployment_name not in deployments:
+        raise MissingDeploymentError(
+            f"Deployment {deployment_name!r} not found{from_message}. "
+            f"Found the following deployments: {listrepr(deployments.keys())}"
+        )
+
+    elif flow_name and flow_name not in deployments_by_flow:
+        raise MissingDeploymentError(
+            f"Deployment for flow {flow_name!r} not found{from_message}. "
+            "Found deployments for the following flows: "
+            f"{listrepr(deployments_by_flow.keys())}"
+        )
+
+    elif not deployment_name and not flow_name and len(deployments) > 1:
+        raise UnspecifiedDeploymentError(
+            f"Found {len(deployments)} deployments{from_message}: {listrepr(deployments.keys())}. "
+            "Specify a deployment or flow name to select a deployment.",
+        )
+
+    if deployment_name:
+        deployment = deployments[deployment_name]
+        if flow_name and deployment.flow_name != flow_name:
+            raise MissingDeploymentError(
+                f"Deployment {deployment_name!r} for flow {flow_name!r} not found. "
+                f"Found deployment {deployment_name!r} but it is for flow "
+                f"{deployment.flow_name!r}."
+            )
+        return deployment
+    elif flow_name:
+        return deployments_by_flow[flow_name]
     else:
-        flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
+        return list(deployments.values())[0]
 
-    deployment_id = await client.create_deployment(
-        flow_id=flow_id,
-        name=spec.name,
-        schedule=spec.schedule,
-        flow_data=flow_data,
-        parameters=spec.parameters,
-        tags=spec.tags,
-        flow_runner=spec.flow_runner,
+
+def load_flows_from_script(path: str) -> Set[Flow]:
+    """
+    Load all flow objects from the given python script. All of the code in the file
+    will be executed.
+
+    Returns:
+        A set of flows
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+    """
+    objects = objects_from_script(path)
+    return set(extract_instances(objects.values(), types=Flow))
+
+
+def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
+    """
+    Extract a flow object from a script by running all of the code in the file.
+
+    If the script has multiple flows in it, a flow name must be provided to specify
+    the flow to return.
+
+    Args:
+        path: A path to a Python script containing flows
+        flow_name: An optional flow name to look for in the script
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        See `load_flows_from_script` and `select_flow`
+    """
+    return select_flow(
+        load_flows_from_script(path),
+        flow_name=flow_name,
+        from_message=f"in script '{path}'",
     )
 
-    return deployment_id
+
+def deployment_specs_and_flows_from_script(
+    script_path: str,
+) -> Tuple[Dict[DeploymentSpec, str], Set[Flow]]:
+    """
+    Load deployment specifications and flows from a python script.
+    """
+    with _register_new_specs() as specs:
+        flows = load_flows_from_script(script_path)
+
+    return (specs, flows)
 
 
-def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
+def deployment_specs_from_script(path: str) -> Dict[DeploymentSpec, str]:
     """
     Load deployment specifications from a python script.
     """
     with _register_new_specs() as specs:
-        runpy.run_path(script_path)
+        objects_from_script(path)
 
     return specs
 
 
-def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
+def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     """
     Load deployment specifications from a yaml file.
     """
-    with open(path, "r") as f:
+    with fsspec.open(path, "r") as f:
         contents = yaml.safe_load(f.read())
 
     # Load deployments relative to the yaml file's directory
@@ -287,7 +526,7 @@ def _register_new_specs():
     This is convenient for `deployment_specs_from_script` which can collect deployment
     declarations without requiring them to be assigned to a global variable
     """
-    specs = set()
+    specs = dict()
     token = _DeploymentSpecContextVar.set(specs)
     yield specs
     _DeploymentSpecContextVar.reset(token)
@@ -302,9 +541,16 @@ def _register_spec(spec: DeploymentSpec) -> None:
     if specs is None:
         return
 
+    # Retrieve information about the definition of the spec
+    # This goes back two frames to where the spec was defined
+    #   - This function (current frame)
+    #   - DeploymentSpec.__init__
+    #   - DeploymentSpec definition
+
+    frame = sys._getframe().f_back.f_back
+
     # Replace the existing spec with the new one if they collide
-    specs.discard(spec)
-    specs.add(spec)
+    specs[spec] = {"file": frame.f_globals["__file__"], "line": frame.f_lineno}
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):

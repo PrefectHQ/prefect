@@ -1,11 +1,17 @@
+---
+description: Learn about Prefect 2.0, our second-generation workflow orchestration engine.
+tags:
+    - getting started
+    - overview
+---
 
-![](./img/logos/prefect-orion-constellation-banner-light.png)
+![Prefect 2.0 logo](./img/logos/prefect-2-logo-dark.png)
 
 #
 
 ## Welcome!
 
-Prefect 2.0 is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](faq/#why-is-orion-a-technical-preview).
+Prefect 2.0 is the second-generation workflow orchestration platform from [Prefect](https://www.prefect.io).
 
 Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
@@ -14,12 +20,12 @@ _**You should love your workflows again.**_
 Read the docs, run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
 !!! info "Don't Panic"
-    Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
+    Prefect 2.0 is under active development and may change rapidly. For production use, we recommend [Prefect 1.0](https://github.com/prefecthq/prefect).
 ---
 
 ## Hello, Orion!
 
-Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
+Powered by the Orion engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
 
@@ -27,13 +33,13 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 
 You don’t need to rewrite your entire workflow as a directed acyclic graph (DAG) to take advantage of Prefect 2.0. DAGs represent a rigid, constrained, outdated framework for creating modern, dynamic data and computation workflows. 
 
-With Prefect Orion, you're not limited by the rigid requirements of DAGs. 
+With Prefect 2.0, you're not limited by the rigid requirements of DAGs. 
 
 - You can use native code alongside Prefect flows and tasks in workflows, enabling you to choose which individual elements of your workflow code you want to be registered with the orchestration API.
 - Flows can include logic to determine execution paths at runtime, using native constructs such as `if` statements and Prefect constructs such as futures and state.
 - Workflows can be modified at any time: you can run flows and tasks with custom runtime parameters, change schedules at any time, execute ad hoc runs, and even generate flow runs in response to runtime conditions or streaming events.
 
-For a deeper discussion about how and why Prefect Orion moved away from a reliance on DAGs, see [Prefect Orion: Our Second-Generation Workflow Engine](https://www.prefect.io/blog/announcing-prefect-orion/).
+For a deeper discussion about how and why Prefect 2.0 moved away from a reliance on DAGs, see [Prefect Orion: Our Second-Generation Workflow Engine](https://www.prefect.io/blog/announcing-prefect-orion/).
 
 ### Basic orchestration
 
@@ -130,7 +136,7 @@ From here, you can continue to use Prefect interactively or set up automated [de
 
 ## Next steps
 
-Orion was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
+Prefect 2.0 was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
 
 ### Getting started
 
@@ -138,7 +144,7 @@ Begin by [installing Prefect 2.0](getting-started/installation.md) on your machi
 
 ### Concepts
 
-Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](concepts/overview.md). These are intended to introduce the building blocks of Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
+Learn more about Prefect 2.0's features and design by reading our in-depth [concept docs](concepts/overview.md). These are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 ### Frequently asked questions
 
@@ -146,7 +152,7 @@ Prefect 2.0 represents a fundamentally new way of building and orchestrating dat
 
 ### API reference
 
-Prefect Orion provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect 2.0 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
 ## Join the community
 

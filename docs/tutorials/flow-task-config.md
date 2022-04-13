@@ -1,5 +1,5 @@
 ---
-description: Configuration for flows and tasks.
+description: Explore the configuration available for Prefect flows and tasks.
 tags:
     - tutorial
     - configuration
@@ -165,7 +165,7 @@ def my_task():
     # do some work
 ```
 
-### Task retries
+## Task retries
 
 Prefect allows for off-the-shelf configuration of task-level retries.  The only two decisions you need to make are how many retries you want to attempt and what delay you need between run attempts:
 
@@ -217,71 +217,164 @@ Once we dive deeper into state transitions and orchestration policies, you will 
 
 Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
 
-### Task caching
+## Task caching
 
-Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flows and flow runs using the concept of a "cache key".  
+[Caching](/concepts/tasks/#caching) refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flows and flow runs using the concept of a "cache key function".
 
-To illustrate, run the following flow in a REPL:
+You can define a cache key function using the `cache_key_fn` argument on a task. 
+
+### Task input hash
+
+One way to use `cache_key_fn` is to cache based on inputs by specifying `task_input_hash`. If the input parameters to the task are the same, Prefect returns the cached results rather than running the task again. 
+
+To illustrate, run the following flow in a REPL.
 
 ```python
 from prefect import task, flow
+from prefect.tasks import task_input_hash
+from datetime import timedelta
 
-def static_cache_key(context, parameters):
-    # return a constant
-    return "static cache key"
-
-@task(cache_key_fn=static_cache_key)
-def cached_task():
-    print('running an expensive operation')
-    return 42
-
-@task
-def printer(val):
-    print(val)
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(minutes=1))
+def hello_task(name_input):
+    # Doing some work
+    print(f"Saying hello {name_input}")
+    return "hello " + name_input
 
 @flow
-def test_caching():
-    cached_task()
-    cached_task()
-
-@flow
-def another_flow():
-    printer(cached_task())
+def hello_flow(name_input):
+    hello_task(name_input)
 ```
+
+Run the flow a few times in a row passing the same name (in this case we used "Marvin") and notice that the task only prints out its message the first time.
+
+But if you change the argument passed to the task (here we used "Trillian" instead of "Marvin"), the task runs again, as demonstrated by printing the message "Saying hello Trillian".
 
 <div class="termy">
 ```
->>> test_caching()
-21:22:36.487 | INFO    | prefect.engine - Created flow run 'dainty-jaguarundi' for flow 'test-caching'
-21:22:36.488 | INFO    | Flow run 'dainty-jaguarundi' - Using task runner 'ConcurrentTaskRunner'
-21:22:36.546 | INFO    | Flow run 'dainty-jaguarundi' - Created task run 'cached_task-64beb460-0' for task 'cached_task'
-21:22:36.603 | INFO    | Flow run 'dainty-jaguarundi' - Created task run 'cached_task-64beb460-1' for task 'cached_task'
-running an expensive operation
-running an expensive operation
-21:22:36.715 | INFO    | Task run 'cached_task-64beb460-0' - Finished in state Completed(None)
-21:22:36.730 | INFO    | Task run 'cached_task-64beb460-1' - Finished in state Completed(None)
-21:22:37.175 | INFO    | Flow run 'dainty-jaguarundi' - Finished in state Completed('All states completed.')
->>> another_flow()
-21:22:50.635 | INFO    | prefect.engine - Created flow run 'macho-coucal' for flow 'another-flow'
-21:22:50.635 | INFO    | Flow run 'macho-coucal' - Using task runner 'ConcurrentTaskRunner'
-21:22:50.693 | INFO    | Flow run 'macho-coucal' - Created task run 'cached_task-64beb460-2' for task 'cached_task'
-21:22:50.742 | INFO    | Flow run 'macho-coucal' - Created task run 'printer-da44fb11-0' for task 'printer'
-21:22:50.786 | INFO    | Task run 'cached_task-64beb460-2' - Finished in state Cached(None, type=COMPLETED)
-42
-21:22:51.048 | INFO    | Task run 'printer-da44fb11-0' - Finished in state Completed(None)
-21:22:51.435 | INFO    | Flow run 'macho-coucal' - Finished in state Completed('All states completed.')
+>>> hello_flow("Marvin")
+11:52:09.553 | INFO    | prefect.engine - Created flow run 'attentive-turaco' for flow 'hello-flow'
+11:52:09.553 | INFO    | Flow run 'attentive-turaco' - Using task runner 'ConcurrentTaskRunner'
+11:52:09.761 | INFO    | Flow run 'attentive-turaco' - Created task run 'hello_task-e97fb216-0' for task 'hello_task'
+
+<span style="font-weight: bold;">Saying hello Marvin</span>
+
+11:52:10.798 | INFO    | Task run 'hello_task-e97fb216-0' - Finished in state Completed(None)
+11:52:12.004 | INFO    | Flow run 'attentive-turaco' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result='hello Marvin', task_run_id=90dcb0d6-ae5b-4ad2-bb74-92e58626850b)], flow_run_id=8af63f45-b50c-46ef-b59e-ec19897421cd)
+
+>>> hello_flow("Marvin")
+11:52:17.512 | INFO    | prefect.engine - Created flow run 'taupe-grasshopper' for flow 'hello-flow'
+11:52:17.512 | INFO    | Flow run 'taupe-grasshopper' - Using task runner 'ConcurrentTaskRunner'
+11:52:17.718 | INFO    | Flow run 'taupe-grasshopper' - Created task run 'hello_task-e97fb216-1' for task 'hello_task'
+11:52:18.316 | INFO    | Task run 'hello_task-e97fb216-1' - Finished in state Cached(None, type=COMPLETED)
+11:52:19.429 | INFO    | Flow run 'taupe-grasshopper' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result='hello Marvin', task_run_id=79bb8dd6-f640-4bc2-b1fd-ec6ee84a8974)], flow_run_id=757bd56e-6ee3-44dc-a9fe-ada4b4cefe13)
+
+>>> hello_flow("Trillian")
+11:53:06.637 | INFO    | prefect.engine - Created flow run 'imposing-stork' for flow 'hello-flow'
+11:53:06.637 | INFO    | Flow run 'imposing-stork' - Using task runner 'ConcurrentTaskRunner'
+11:53:06.846 | INFO    | Flow run 'imposing-stork' - Created task run 'hello_task-e97fb216-3' for task 'hello_task'
+
+<span style="font-weight: bold;">Saying hello Trillian</span>
+
+11:53:07.787 | INFO    | Task run 'hello_task-e97fb216-3' - Finished in state Completed(None)
+11:53:09.027 | INFO    | Flow run 'imposing-stork' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result='hello Trillian', task_run_id=20d269b5-fccd-4804-9806-5e13ebd0685b)], flow_run_id=22b9b3a5-08df-40f0-8334-475c6446c4ff)
 ```
 </div>
 
-Notice that the `cached_task` only ran one time across both flow runs!  Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion server identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
+Note that in this example we're also specifying `cache_expiration=timedelta(minutes=1)`, so the cache expires after one minute regardless of the task input. You can demonstrate this by: 
+
+- Running `hello_flow("Marvin")` a few times, noting that the task only prints its message the first time. 
+- Waiting 60 seconds.
+- Running `hello_flow("Marvin")` again, noting that the task prints its message this time, even though the input didn't change.
+
+Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion server identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
+
+### Cache key function
+
+You can also define your own cache key function that returns a string cache key. As long as the cache key remains the same, the Orion backend identifies that there is a COMPLETED state associated with this key and instructs the new run to immediately enter the same COMPLETED state, including the same return values.
+
+In this example, you could provide different input, but the cache key remains the same if the sum of the inputs remains the same.
+
+```python
+from prefect import task, flow
+from datetime import timedelta
+import time
+
+def cache_key_from_sum(context, parameters):
+    print(parameters)
+    return sum(parameters["nums"])
+
+@task(cache_key_fn=cache_key_from_sum, cache_expiration=timedelta(minutes=1))
+def cached_task(nums):
+    print('running an expensive operation')  
+    time.sleep(3)
+    return sum(nums)
+
+@flow
+def test_caching(nums):
+    cached_task(nums)
+```
+
+Notice that if we call `test_caching()` with the value `[2,2]`, the long running operation only runs once. And the task still doesn't run if we call it with the value `[1,3]` &mdash; both 2+2 and 1+3 return the same cache key string, "4".
+
+But if you then call `test_caching([2,3])`, which results in the cache key string "5", `cached_task()` runs.
+
+<div class='termy'>
+```
+>>> test_caching([2,2])
+13:52:52.072 | INFO    | prefect.engine - Created flow run 'saffron-lemur' for flow 'test-caching'
+13:52:52.072 | INFO    | Flow run 'saffron-lemur' - Using task runner 'ConcurrentTaskRunner'
+13:52:52.293 | INFO    | Flow run 'saffron-lemur' - Created task run 'cached_task-64beb460-0' for task 'cached_task'
+{'nums': [2, 2]}
+
+<span style="font-weight: bold;">running an expensive operation</span>
+
+13:52:55.724 | INFO    | Task run 'cached_task-64beb460-0' - Finished in state Completed(None)
+13:52:56.135 | INFO    | Flow run 'saffron-lemur' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result=4, task_run_id=6233c853-f711-4843-a256-4cfdf2b25d15)], flow_run_id=c0cd85aa-4893-4c81-9efd-7c6531466ea1)
+
+>>> test_caching([2,2])
+13:53:12.169 | INFO    | prefect.engine - Created flow run 'pristine-chicken' for flow 'test-caching'
+13:53:12.169 | INFO    | Flow run 'pristine-chicken' - Using task runner 'ConcurrentTaskRunner'
+13:53:12.370 | INFO    | Flow run 'pristine-chicken' - Created task run 'cached_task-64beb460-1' for task 'cached_task'
+{'nums': [2, 2]}
+13:53:12.556 | INFO    | Task run 'cached_task-64beb460-1' - Finished in state Cached(None, type=COMPLETED)
+13:53:12.959 | INFO    | Flow run 'pristine-chicken' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result=4, task_run_id=f4925f7f-f8de-4434-9943-1d08c23f2994)], flow_run_id=46d0d0ac-defb-4dbd-a086-2b89f24250f5)
+
+>>> test_caching([1,3])
+13:53:20.765 | INFO    | prefect.engine - Created flow run 'holistic-loon' for flow 'test-caching'
+13:53:20.766 | INFO    | Flow run 'holistic-loon' - Using task runner 'ConcurrentTaskRunner'
+13:53:20.972 | INFO    | Flow run 'holistic-loon' - Created task run 'cached_task-64beb460-2' for task 'cached_task'
+{'nums': [1, 3]}
+13:53:21.160 | INFO    | Task run 'cached_task-64beb460-2' - Finished in state Cached(None, type=COMPLETED)
+13:53:21.520 | INFO    | Flow run 'holistic-loon' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Cached(message=None, type=COMPLETED, result=4, task_run_id=ac43e614-4ffe-4798-af5b-40ab7b419914)], flow_run_id=bbb7117c-e362-474e-aa16-8aa88290ab11)
+
+>>> test_caching([2,3])
+13:53:26.145 | INFO    | prefect.engine - Created flow run 'chestnut-jackal' for flow 'test-caching'
+13:53:26.146 | INFO    | Flow run 'chestnut-jackal' - Using task runner 'ConcurrentTaskRunner'
+13:53:26.343 | INFO    | Flow run 'chestnut-jackal' - Created task run 'cached_task-64beb460-3' for task 'cached_task'
+{'nums': [2, 3]}
+
+<span style="font-weight: bold;">running an expensive operation</span>
+
+13:53:29.715 | INFO    | Task run 'cached_task-64beb460-3' - Finished in state Completed(None)
+13:53:30.070 | INFO    | Flow run 'chestnut-jackal' - Finished in state Completed('All states completed.')
+Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result=5, task_run_id=95673be8-4d7c-49e2-90f2-880369efadd9)], flow_run_id=c136a29a-6fed-49d9-841a-0b54249a0f0e)
+```
+</div>
 
 !!! warning "The persistence of state"
-    Note that up until now we have run all of our workflows interactively. This means that our metadata store is a SQLite database located at the default database location: `~/.prefect/orion.db`.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until you clear it manually!
+    Note that up until now we have run all of our workflows interactively. This means that our metadata store is a SQLite database located at the default database location.  This can be configured in various ways, but please note that any cache keys you experiment with will be persisted in this SQLite database until they expire or you clear it manually!
+
+    That is why the examples here include `cache_expiration=timedelta(minutes=1)` so that tutorial cache keys do not remain in your database permanently.
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
-    - [Orchestration Policies](/concepts/orchestration/)
     - [Flows](/concepts/flows/)
     - [Tasks](/concepts/tasks/)
     - [States](/concepts/states/)

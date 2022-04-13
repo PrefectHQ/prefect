@@ -198,6 +198,24 @@ async def test_gather():
     assert results == [await foo(i) for i in range(10)]
 
 
+async def test_gather_is_robust_with_return_types_that_break_equality_checks():
+    """
+    Some libraries like pandas override the equality operator and can fail if gather
+    performs an __eq__ check with the GatherIncomplete type
+    """
+
+    class Foo:
+        def __eq__(self, __o: object) -> bool:
+            raise ValueError()
+
+    async def foo():
+        return Foo()
+
+    results = await gather(*[partial(foo) for _ in range(2)])
+    assert len(results) == 2
+    assert all(isinstance(x, Foo) for x in results)
+
+
 async def test_gather_task_group_get_result():
     async def foo():
         await anyio.sleep(0.1)

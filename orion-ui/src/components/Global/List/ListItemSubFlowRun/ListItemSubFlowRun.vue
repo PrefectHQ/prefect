@@ -38,8 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import type { FlowRunsFilter } from '@prefecthq/orion-design'
-  import { media, toPluralString } from '@prefecthq/orion-design/utilities'
+  import { BreadCrumbs, Crumb, FlowRunsFilter, media, toPluralString } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
@@ -109,10 +108,6 @@
     return props.item.state
   })
 
-  const stateType = computed(() => {
-    return props.item.state.type.toLowerCase()
-  })
-
   const tags = computed(() => {
     return props.item.tags
   })
@@ -134,17 +129,21 @@
   })
 
   const duration = computed(() => {
-    return stateType.value == 'pending' || stateType.value == 'scheduled'
-      ? '--'
-      : props.item.total_run_time
-        ? secondsToApproximateString(props.item.total_run_time)
-        : secondsToApproximateString(props.item.estimated_run_time)
+    if (props.item.state.type == 'PENDING' || props.item.state.type == 'SCHEDULED') {
+      return '--'
+    }
+
+    if (props.item.total_run_time) {
+      return secondsToApproximateString(props.item.total_run_time)
+    }
+
+    return secondsToApproximateString(props.item.estimated_run_time)
   })
 
-  const crumbs = computed(() => {
+  const crumbs = computed<Crumb[]>(() => {
     return [
       { text: flow.value?.name },
-      { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
+      { text: flowRun.value?.name, action: `/flow-run/${flowRun.value?.id}` },
       { text: props.item.name },
     ]
   })
