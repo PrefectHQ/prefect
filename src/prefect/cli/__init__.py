@@ -96,7 +96,7 @@ version : {prefect.__version__}
     except ImportError:
         print(
             """
-This command needs click-repl package. Please install it.
+This command requires the 'click-repl' package. Install it first to use this feature:
 python -m pip install click-repl
 """
         )
