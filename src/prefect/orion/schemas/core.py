@@ -9,10 +9,10 @@ from uuid import UUID
 import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
-from prefect.exceptions import InvalidNameError
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
+from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
