@@ -9,6 +9,7 @@ from uuid import UUID
 import coolname
 from pydantic import Field, validator
 from typing_extensions import Literal
+from prefect.exceptions import InvalidNameError
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
@@ -324,7 +325,7 @@ class Deployment(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name {v!r} contains an invalid character."
                 f"Must not contain any of: {INVALID_CHARACTERS}."
             )
@@ -355,7 +356,7 @@ class BlockSpec(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name contains an invalid character {INVALID_CHARACTERS}."
             )
         return v
@@ -382,7 +383,7 @@ class Block(ORMBaseModel):
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
+            raise InvalidNameError(
                 f"Name {v!r} contains an invalid character. "
                 f"Must not contain any of: {INVALID_CHARACTERS}."
             )
