@@ -231,7 +231,7 @@ class LocalStorageBlock(StorageBlock):
         )
 
     def basepath(self):
-        return Path(self._storage_path).absolute()
+        return Path(self._storage_path).expanduser().absolute()
 
     async def write(self, data: bytes) -> str:
         # Ensure the basepath exists

@@ -1,7 +1,7 @@
 <template>
   <ListItem class="list-item-flow" icon="pi-flow">
     <div class="list-item__title">
-      <BreadCrumbs :crumbs="crumbs" tag="h2" @click="openFlowPanel" />
+      <BreadCrumbs :crumbs="crumbs" tag="h2" />
     </div>
 
     <div v-if="media.sm" class="ml-auto nowrap">
@@ -31,6 +31,8 @@
 
 <script lang="ts" setup>
   import {
+    BreadCrumbs,
+    Crumb,
     useFiltersStore,
     FlowsFilter,
     FilterUrlService,
@@ -39,10 +41,11 @@
     toPluralString,
     showPanel,
     FlowPanel,
-    useInjectedServices,
     Flow,
     Deployment,
-    DeploymentPanel
+    DeploymentPanel,
+    DeploymentsApi,
+    FlowRunsApi
   } from '@prefecthq/orion-design'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -50,6 +53,8 @@
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
   import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
   import { Api, Query, Endpoints } from '@/plugins/api'
+  import { deploymentsApi } from '@/services/deploymentsApi'
+  import { flowRunsApi } from '@/services/flowRunsApi'
   import { Buckets } from '@/typings/run_history'
 
   const props = defineProps<{ item: Flow }>()
@@ -57,8 +62,7 @@
   const filtersStore = useFiltersStore()
   const router = useRouter()
 
-  const crumbs = [{ text: props.item.name, to: window.location.href }]
-  const injectedServices = useInjectedServices()
+  const crumbs: Crumb[] = [{ text: props.item.name, action: openFlowPanel }]
 
   const runFilter = computed(()=> FiltersQueryService.query(filtersStore.all))
   const flows: FlowsFilter = {
@@ -83,7 +87,6 @@
   const start = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_start))
   const end = computed<Date>(() => new Date(flowRunHistoryFilter.value.history_end))
   const queries: Record<string, Query> = {
-   
     flow_run_history: Api.query({
       endpoint: Endpoints.flow_runs_history,
       body: flowRunHistoryFilter.value,
@@ -129,7 +132,8 @@
       flow: props.item,
       dashboardRoute: route,
       openDeploymentPanel,
-      ...injectedServices,
+      deploymentsApi: deploymentsApi as DeploymentsApi,
+      flowRunsApi: flowRunsApi as FlowRunsApi,
     })
   }
 
@@ -137,7 +141,8 @@
     showPanel(DeploymentPanel, {
       deployment,
       dashboardRoute: route,
-      ...injectedServices,
+      deploymentsApi: deploymentsApi as DeploymentsApi,
+      flowRunsApi: flowRunsApi as FlowRunsApi,
     })
   }
 </script>

@@ -31,7 +31,7 @@
 <style lang="scss">
 .overflow-wrapper {
   white-space: nowrap;
-  overflow: auto;
+  min-width: 0;
 }
 
 .overflow-wrapper__test {

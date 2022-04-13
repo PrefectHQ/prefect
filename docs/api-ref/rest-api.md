@@ -1,8 +1,16 @@
+---
+description: Prefect REST API for interacting with the Orion orchestration engine and Prefect Cloud.
+tags:
+    - REST API
+    - Orion
+    - Prefect Cloud
+---
+
 ## Overview
 
-The Prefect Orion REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing [REST APIs](https://technically.dev/posts/apis-for-the-rest-of-us).
+The Prefect REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing [REST APIs](https://technically.dev/posts/apis-for-the-rest-of-us).
 
-To generate Orion's complete OpenAPI document, run the following commands in an interactive Python session:
+To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
 from prefect.orion.api.server import create_app
@@ -14,7 +22,7 @@ This document allows you to generate your own API client, explore the API using 
 
 ## REST Guidelines
 
-The Orion REST API adheres to the following guidelines:
+The Prefect REST API adheres to the following guidelines:
 
 - Collection names are pluralized (e.g., `/flows`, `/runs`)
 - We indicate variable placeholders with colons (e.g., `GET /flows/:id`)
@@ -88,7 +96,7 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 }
 ```
 
-## Orion REST API Reference
+## Prefect REST API Reference
 
 The following REST API reference was automatically generated using [Swagger UI](https://swagger.io/tools/swagger-ui/).
 

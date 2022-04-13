@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging.configuration
 import prefect.settings
+from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
@@ -94,7 +95,8 @@ class FlowRunContext(RunContext):
     Attributes:
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
-        task_runner: The task_runner instance being used for the flow run
+        task_runner: The task runner instance being used for the flow run
+        result_storage: A block to used to persist run state data
         task_run_futures: A list of futures for task runs created within this flow run
         subflow_states: A list of states for flow runs created within this flow run
         sync_portal: A blocking portal for sync task/flow runs in an async flow
@@ -104,6 +106,7 @@ class FlowRunContext(RunContext):
     flow: Flow
     flow_run: FlowRun
     task_runner: BaseTaskRunner
+    result_storage: StorageBlock
 
     # Tracking created objects
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
@@ -125,10 +128,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
+        result_storage: A block to used to persist run state data
     """
 
     task: Task
     task_run: TaskRun
+    result_storage: StorageBlock
 
     __var__ = ContextVar("task_run")
 

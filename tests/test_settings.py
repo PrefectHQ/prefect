@@ -72,11 +72,16 @@ def test_temporary_settings():
         assert (
             PREFECT_TEST_MODE.value_from(new_settings) is False
         ), "Yields the new settings"
-        assert PREFECT_TEST_MODE.value() is False, "Loads from env"
-        assert PREFECT_TEST_MODE.value() is False, "Loads from context"
+        assert PREFECT_TEST_MODE.value() is False
 
-    assert PREFECT_TEST_MODE.value() is True, "Restores old setting"
-    assert PREFECT_TEST_MODE.value() is True, "Restores old profile"
+    assert PREFECT_TEST_MODE.value() is True
+
+
+def test_temporary_settings_can_restore_to_defaults_defaults():
+    assert PREFECT_TEST_MODE.value() is True
+    with temporary_settings(PREFECT_LOGGING_LEVEL="ERROR"):
+        with temporary_settings(PREFECT_LOGGING_LEVEL=None):
+            assert PREFECT_LOGGING_LEVEL.value() == PREFECT_LOGGING_LEVEL.field.default
 
 
 def test_temporary_settings_restores_on_error():
@@ -87,8 +92,7 @@ def test_temporary_settings_restores_on_error():
             raise ValueError()
 
     assert os.environ["PREFECT_TEST_MODE"] == "1", "Restores os environ."
-    assert PREFECT_TEST_MODE.value() is True, "Restores old setting"
-    assert PREFECT_TEST_MODE.value() is True, "Restores old profile"
+    assert PREFECT_TEST_MODE.value() is True
 
 
 def test_refresh_settings(monkeypatch):

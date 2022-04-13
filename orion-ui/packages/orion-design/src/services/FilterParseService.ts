@@ -18,11 +18,11 @@ export class FilterParseService {
     (input: string) => new Date(input),
   ]
 
-  public static parseFilters(inputs: string[]): Required<Filter>[] {
-    return inputs.map(input => this.parseFilter(input))
+  public static parseFilters(inputs: string[], defaultObject: FilterObject): Required<Filter>[] {
+    return inputs.map(input => this.parseFilter(input, defaultObject))
   }
 
-  public static parseFilter(input: string): Required<Filter> {
+  public static parseFilter(input: string, defaultObject: FilterObject): Required<Filter> {
     const [prefix, ...rest] = input.split(':')
     const value = rest.join(':')
 
@@ -42,42 +42,63 @@ export class FilterParseService {
       case 'fr':
       case 'flow_run':
         return this.stringFilter('flow_run', 'name', value)
+      case 'frt':
+      case 'flow_run_tag':
+        return this.tagFilter('flow_run', value)
       case 'fra':
       case 'flow_run_after':
         return this.dateFilter('flow_run', 'start_date', 'after', value)
       case 'frb':
       case 'flow_run_before':
         return this.dateFilter('flow_run', 'start_date', 'before', value)
+      case 'frl':
+      case 'flow_run_last':
+        return this.filter('flow_run', 'start_date', 'date', 'last', value)
       case 'frn':
-      case 'flow_run_newer':
-        return this.filter('flow_run', 'start_date', 'date', 'newer', value)
-      case 'fro':
-      case 'flow_run_older':
-        return this.filter('flow_run', 'start_date', 'date', 'older', value)
-      case 'fru':
-      case 'flow_run_upcoming':
-        return this.filter('flow_run', 'start_date', 'date', 'upcoming', value)
+      case 'flow_run_next':
+        return this.filter('flow_run', 'start_date', 'date', 'next', value)
       case 'frs':
       case 'flow_run_state':
         return this.stateFilter('flow_run', 'state', value)
       case 'tr':
       case 'task_run':
         return this.stringFilter('task_run', 'name', value)
+      case 'trt':
+      case 'task_run_tag':
+        return this.tagFilter('task_run', value)
       case 'tra':
       case 'task_run_after':
         return this.dateFilter('task_run', 'start_date', 'after', value)
       case 'trb':
       case 'task_run_before':
         return this.dateFilter('task_run', 'start_date', 'before', value)
+      case 'trl':
+      case 'task_run_last':
+        return this.filter('task_run', 'start_date', 'date', 'last', value)
       case 'trn':
-      case 'task_run_newer':
-        return this.filter('task_run', 'start_date', 'date', 'newer', value)
-      case 'tro':
-      case 'task_run_older':
-        return this.filter('task_run', 'start_date', 'date', 'older', value)
+      case 'task_run_next':
+        return this.filter('task_run', 'start_date', 'date', 'next', value)
       case 'trs':
       case 'task_run_state':
         return this.stateFilter('task_run', 'state', value)
+      case 'a':
+      case 'after':
+        return this.dateFilter(defaultObject, 'start_date', 'after', value)
+      case 'b':
+      case 'before':
+        return this.dateFilter(defaultObject, 'start_date', 'before', value)
+      case 'n':
+      case 'next':
+        return this.filter(defaultObject, 'start_date', 'date', 'next', value)
+      case 'l':
+      case 'last':
+        return this.filter(defaultObject, 'start_date', 'date', 'last', value)
+      case 's':
+      case 'state':
+        return this.stateFilter(defaultObject, 'state', value)
+      case 't':
+      case 'tag':
+        return this.tagFilter(defaultObject, value)
       default:
         throw new FilterPrefixError()
     }

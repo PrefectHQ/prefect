@@ -17,10 +17,12 @@
           </router-link>
         </slot>
       </div>
-      <div class="empty-state-card__example">
-        <slot name="example">
-          <img :src="imagePath" :alt="imageAltText" class="empty-state-card__card-image">
-        </slot>
+      <div class="empty-state-card__example-shadow">
+        <div class="empty-state-card__example">
+          <slot name="example">
+            <img :src="imagePath" :alt="imageAltText" class="empty-state-card__card-image" />
+          </slot>
+        </div>
       </div>
     </div>
   </m-card>
@@ -95,7 +97,7 @@
   }
 
   &__text,
-  &__example {
+  &__example-shadow {
     position: relative;
     z-index: 2;
   }
@@ -117,8 +119,11 @@
   &__example {
     border-radius: 4px;
     overflow: hidden;
-    filter: $drop-shadow-sm;
     min-width: 500px;
+  }
+
+  &__example-shadow {
+    filter: $drop-shadow-sm;
   }
 
   &__letters {

@@ -45,7 +45,7 @@ from typing_extensions import Literal
 import prefect
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
@@ -104,6 +104,18 @@ def get_prefect_image_name(
     return f"prefecthq/prefect:{tag}"
 
 
+def base_flow_run_environment() -> Dict[str, str]:
+    """
+    Generate a dictionary of environment variables for a flow run job.
+    """
+    SETTINGS = {PREFECT_API_KEY, PREFECT_API_URL}
+
+    env = {setting.name: setting.value() for setting in SETTINGS}
+
+    # Cast to strings and drop null values
+    return {key: str(value) for key, value in env.items() if value is not None}
+
+
 class FlowRunner(BaseModel):
     """
     Flow runners are responsible for creating infrastructure for flow runs and starting
@@ -133,7 +145,7 @@ class FlowRunner(BaseModel):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
         """
         Implementations should:
@@ -235,7 +247,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
 
         if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
@@ -258,7 +270,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         )
 
         # Mark this submission as successful
-        task_status.started()
+        if task_status:
+            task_status.started()
 
         # Wait for the process to exit
         # - We must the output stream so the buffer does not fill
@@ -281,8 +294,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     def _generate_command_and_environment(
         self, flow_run_id: UUID
     ) -> Tuple[Sequence[str], Dict[str, str]]:
-        # Copy the base environment
-        env = os.environ.copy()
+        # Include the base environment and current process environment
+        env = {**base_flow_run_environment(), **os.environ}
 
         # Set up defaults
         command = []
@@ -707,21 +720,19 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return {"host.docker.internal": "host-gateway"}
 
     def _get_environment_variables(self, network_mode):
-        env = self.env.copy()
+        env = {**base_flow_run_environment(), **self.env}
 
-        # Set the container to connect to the same API as the flow runner by default
+        # If the API URL has been set by the base environment rather than the flow
+        # runner config, update the value to ensure connectivity when using a bridge
+        # network by update local connections to use the docker internal host unless the
+        # network mode is "host" where localhost is available already.
 
-        if PREFECT_API_URL:
-            api_url = PREFECT_API_URL.value()
-
-            # Update local connections to use the docker internal host unless the
-            # network mode is "host" where localhost is available
-            if network_mode != "host":
-                api_url = api_url.replace("localhost", "host.docker.internal").replace(
-                    "127.0.0.1", "host.docker.internal"
-                )
-
-            env.setdefault("PREFECT_API_URL", api_url)
+        if "PREFECT_API_URL" not in self.env and network_mode != "host":
+            env["PREFECT_API_URL"] = (
+                env["PREFECT_API_URL"]
+                .replace("localhost", "host.docker.internal")
+                .replace("127.0.0.1", "host.docker.internal")
+            )
 
         return env
 
@@ -940,9 +951,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         return labels
 
     def _get_environment_variables(self):
-        env = self.env.copy()
-        env.setdefault("PREFECT_API_URL", "http://orion:4200/api")
-        return env
+        return {**base_flow_run_environment(), **self.env}
 
     def _create_and_start_job(self, flow_run: FlowRun) -> str:
         k8s_env = [

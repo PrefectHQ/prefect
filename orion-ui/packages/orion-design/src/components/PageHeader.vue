@@ -1,13 +1,15 @@
 <template>
   <div class="page-header">
-    <template v-if="icon">
-      <i class="pi page-header__icon" :class="`pi-${icon}`" />
-    </template>
-    <slot :heading="heading">
-      <h1 class="page-header__title">
-        {{ heading }}
-      </h1>
-    </slot>
+    <div class="page-header-slot">
+      <template v-if="icon">
+        <i class="page-header__icon pi" :class="`pi-${icon}`" />
+      </template>
+      <slot :heading="heading">
+        <h1 class="page-header__title">
+          {{ heading }}
+        </h1>
+      </slot>
+    </div>
     <div class="page-header__actions">
       <slot name="actions" />
     </div>
@@ -29,17 +31,24 @@
   display: flex;
   gap: var(--p-1);
   align-items: center;
-  height: 62px;
-  min-width: 0;
+  flex-wrap: wrap;
+  min-height: 62px;
 }
 
 .page-header__icon {
   flex-grow: 0;
 }
 
+.page-header-slot {
+  display: flex;
+  gap: var(--p-1);
+  flex-grow: 1;
+  align-items: center;
+  min-width: 0;
+}
+
 .page-header__actions {
   flex-grow: 0;
   flex-shrink: 0;
-  margin-left: auto;
 }
 </style>
