@@ -948,6 +948,13 @@ def test_docker_agent_parse_volume_spec_unix(
             {"C:\\some\\path": {"bind": "/c/some/path", "mode": "rw"}},
         ),
         (
+            # windows docker socket
+            ["//var/run/docker.sock"],
+            [],
+            ["/var/run/docker.sock"],
+            {"//var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"}},
+        ),
+        (
             # internal & external paths
             ["C:\\some\\path:/ctr/path"],
             [],
