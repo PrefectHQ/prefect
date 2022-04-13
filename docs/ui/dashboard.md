@@ -16,7 +16,7 @@ The dashboard provides high-level visibility into the status of your flow and ta
 - Flow runs
 - Task runs
 
-When Prefect Server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200). If you're running a local server or accessing a server running in a container or cluster, the default initial view is the dashboard.
+When a Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200). If you're running a local server or accessing a server running in a container or cluster, the default initial view is the dashboard.
 
 ![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
 
@@ -28,13 +28,13 @@ The following sections discuss each section of the dashboard view.
 
 ## Filters
 
-The Filters area at the top of the dashboard provides controls that enable you to display selected details of flow runs on the dashboard. Filters include flow run state, tags, time, and more. See the [Filters](/ui/filters/) documentation for more information.
+The **Filters** area at the top of the dashboard provides controls that enable you to display selected details of flow runs on the dashboard. Filters include flow run state, tags, time, and more. See the [Filters](/ui/filters/) documentation for more information.
 
 ![Highlighting the filters section of the dashboard.](/img/ui/orion-dash-filters.png)
 
 ## Run history
 
-The Run history area of the dashboard provides an overview of recent flow runs. [Filters](#filters) control the detail of what's shown in the Run history.
+The **Run history** area of the dashboard provides an overview of recent flow runs. [Filters](#filters) control the detail of what's shown in the Run history.
 
 ![Highlighting the run history section of the dashboard.](/img/ui/orion-dash-history.png)
 
@@ -42,8 +42,8 @@ The Run history area of the dashboard provides an overview of recent flow runs. 
 
 The details area of the dashboard provides a listing of:
 
-- Flows the Orion server knows about
-- Deployments created with the Orion server
+- Flows the server knows about
+- Deployments created with the server
 - Flow runs that are scheduled or have attempted to execute
 - Task runs created by flows runs
 
