@@ -19,11 +19,13 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def stream_flow_run_logs(flow_run_id: str) -> None:
+def stream_flow_run_logs(flow_run_id: str, **kwargs) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
+
+    TODO: I can't find this used anywhere?
     """
-    for log in watch_flow_run(flow_run_id):
+    for log in watch_flow_run(flow_run_id, **kwargs):
         level_name = logging.getLevelName(log.level)
         timestamp = log.timestamp.in_tz(tz="local")
         # Uses `print` instead of the logger to prevent duplicate timestamps
@@ -50,7 +52,7 @@ def watch_flow_run(
         - stream_states: If set, flow run state changes will be streamed as logs
         - stream_logs: If set, logs will be streamed from the flow run
         - max_duration: If provided, flow run will terminate
-            after `max_duration`. Defaults to 12 hours.
+            after waiting for `max_duration`. Defaults to 12 hours.
 
     Yields:
         FlowRunLog: Sorted log entries
@@ -100,7 +102,7 @@ def watch_flow_run(
         if total_time_elapsed_rounded > int(max_duration.total_seconds()):
             raise RuntimeError(
                 f"`watch_flow_run` timed out after "
-                f"{24 * max_duration.days + round(max_duration.seconds / 60 / 60, 1)} "
+                f"{24 * max_duration.days + round(max_duration.seconds / (60 * 60), 1)} "
                 "hours of waiting for completion. "
                 f"Your flow run is still in state: {flow_run.state}"
             )
