@@ -96,12 +96,12 @@ def watch_flow_run(
 
         # Get a rounded time elapsed for display purposes
         total_time_elapsed_rounded = round(total_time_elapsed / 5) * 5
-        # Check whether run has exceede `max_duration`
+        # Check whether run has exceeded `max_duration`
         if total_time_elapsed_rounded > int(max_duration.total_seconds()):
             raise RuntimeError(
                 f"`watch_flow_run` timed out after "
-                f"{24 * max_duration.days + round(max_duration.seconds / 60 / 60, 1)} hours "
-                "of waiting for completion. "
+                f"{24 * max_duration.days + round(max_duration.seconds / 60 / 60, 1)} "
+                "hours of waiting for completion. "
                 f"Your flow run is still in state: {flow_run.state}"
             )
 

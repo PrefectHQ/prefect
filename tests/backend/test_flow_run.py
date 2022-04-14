@@ -4,6 +4,7 @@ Tests for `FlowRunView`
 import pendulum
 import pytest
 import logging
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 from prefect.backend import FlowRunView, TaskRunView
@@ -586,7 +587,7 @@ def test_watch_flow_run(monkeypatch):
     assert i == 5  # Assert we saw all of the expected logs
 
 
-def test_watch_flow_run_timeout(monkeypatch):
+def test_watch_flow_run_default_timeout(monkeypatch):
     flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
     flow_run.state = Running()  # Not finished
     flow_run.get_latest = MagicMock(return_value=flow_run)
@@ -602,6 +603,27 @@ def test_watch_flow_run_timeout(monkeypatch):
 
     with pytest.raises(RuntimeError, match="timed out after 12.0 hours of waiting"):
         for log in watch_flow_run("id"):
+            pass
+
+
+def test_watch_flow_run_timeout(monkeypatch):
+    flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
+    flow_run.state = Running()  # Not finished
+    flow_run.get_latest = MagicMock(return_value=flow_run)
+    flow_run.get_logs = MagicMock()
+
+    MockView = MagicMock()
+    MockView.from_flow_run_id.return_value = flow_run
+
+    monkeypatch.setattr("prefect.backend.flow_run.FlowRunView", MockView)
+
+    # Mock sleep so that we do not have a slow test
+    monkeypatch.setattr("prefect.backend.flow_run.time.sleep", MagicMock())
+
+    with pytest.raises(RuntimeError, match="timed out after 36.5 hours of waiting"):
+        for log in watch_flow_run(
+            "id", max_duration=timedelta(days=1, hours=12.5, seconds=1)
+        ):
             pass
 
 
