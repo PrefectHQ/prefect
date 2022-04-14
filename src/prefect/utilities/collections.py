@@ -209,7 +209,6 @@ async def visit_collection(
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
-    print(expr, typ)
     # do not visit mock objects
     if isinstance(expr, Mock):
         return expr if return_data else None
