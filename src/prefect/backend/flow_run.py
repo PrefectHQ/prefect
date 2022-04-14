@@ -38,7 +38,7 @@ def watch_flow_run(
     flow_run_id: str,
     stream_states: bool = True,
     stream_logs: bool = True,
-    max_duration: Optional[timedelta] = timedelta(hours=12),
+    max_duration: timedelta = timedelta(hours=12),
 ) -> Iterator["FlowRunLog"]:
     """
     Watch execution of a flow run displaying state changes. This function will yield
@@ -51,8 +51,7 @@ def watch_flow_run(
         - flow_run_id: The flow run to watch
         - stream_states: If set, flow run state changes will be streamed as logs
         - stream_logs: If set, logs will be streamed from the flow run
-        - max_duration: If provided, flow run will terminate
-            after waiting for `max_duration`. Defaults to 12 hours.
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours
 
     Yields:
         FlowRunLog: Sorted log entries

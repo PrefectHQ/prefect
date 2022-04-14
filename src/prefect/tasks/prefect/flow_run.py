@@ -245,7 +245,7 @@ def wait_for_flow_run(
     stream_states: bool = True,
     stream_logs: bool = False,
     raise_final_state: bool = False,
-    max_duration: Optional[timedelta] = timedelta(hours=12),
+    max_duration: timedelta = timedelta(hours=12),
 ) -> "FlowRunView":
     """
     Task to wait for a flow run to finish executing, streaming state and log information
@@ -257,8 +257,7 @@ def wait_for_flow_run(
             ignored
         - raise_final_state: If set, the state of this task will be set to the final
             state of the child flow run on completion.
-        - max_duration: Wait for flow run to finish for a maximum of `max_duration`.
-            Defaults to 12 hours.
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours.
 
     Returns:
         FlowRunView: A view of the flow run after completion
