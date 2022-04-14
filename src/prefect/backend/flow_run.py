@@ -56,6 +56,9 @@ def watch_flow_run(
     Yields:
         FlowRunLog: Sorted log entries
 
+    Raises:
+        - RuntimeError: if flow runtime exceeds `max_duration`
+
     """
 
     flow_run = FlowRunView.from_flow_run_id(flow_run_id)
