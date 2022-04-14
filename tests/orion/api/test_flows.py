@@ -32,6 +32,8 @@ class TestCreateFlow:
         """If the flow already exists, we return a 200 code"""
         flow_data = {"name": "my-flow"}
         response_1 = await client.post("/flows/", json=flow_data)
+        assert response_1.status_code == 201
+        assert response_1.json()["name"] == "my-flow"
         response_2 = await client.post("/flows/", json=flow_data)
         assert response_2.status_code == 200
         assert response_2.json()["name"] == "my-flow"
@@ -54,7 +56,7 @@ class TestCreateFlow:
         "name",
         [
             "my/flow",
-            "my%flow",
+            r"my%flow",
         ],
     )
     async def test_create_flow_with_invalid_characters_fails(self, client, name):
@@ -167,7 +169,7 @@ class TestReadFlow:
         "name",
         [
             "my/flow",
-            "my%flow",
+            r"my%flow",
         ],
     )
     async def test_read_flow_by_name_with_invalid_characters_fails(self, client, name):
@@ -186,11 +188,13 @@ class TestReadFlows:
         response = await client.post("/flows/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
+        _ = flows
 
     async def test_read_flows_applies_limit(self, flows, client):
         response = await client.post("/flows/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
+        _ = flows
 
     async def test_read_flows_applies_flow_filter(self, client, session):
         flow_1 = await models.flows.create_flow(

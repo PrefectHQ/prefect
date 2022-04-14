@@ -17,7 +17,7 @@ valid_names = [
 
 invalid_names = [
     "my/object",
-    "my%object",
+    r"my%object",
 ]
 
 

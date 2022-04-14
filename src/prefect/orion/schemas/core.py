@@ -18,6 +18,18 @@ from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 
+def raise_on_invalid_name(name: str):
+    """
+    Raise an InvalidNameError if the given name contains any invalid
+    characters.
+    """
+    if any(c in name for c in INVALID_CHARACTERS):
+        raise InvalidNameError(
+            f"Name {name!r} contains an invalid character. "
+            f"Must not contain any of: {INVALID_CHARACTERS}."
+        )
+
+
 class Flow(ORMBaseModel):
     """An ORM representation of flow data."""
 
@@ -30,11 +42,7 @@ class Flow(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        if any(c in v for c in INVALID_CHARACTERS):
-            raise InvalidNameError(
-                f"Name {v!r} contains an invalid character. "
-                f"Must not contain any of: {INVALID_CHARACTERS}."
-            )
+        raise_on_invalid_name(v)
         return v
 
 
@@ -324,11 +332,7 @@ class Deployment(ORMBaseModel):
     # flow: Flow = None
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        if any(c in v for c in INVALID_CHARACTERS):
-            raise InvalidNameError(
-                f"Name {v!r} contains an invalid character."
-                f"Must not contain any of: {INVALID_CHARACTERS}."
-            )
+        raise_on_invalid_name(v)
         return v
 
 
@@ -355,10 +359,7 @@ class BlockSpec(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        if any(c in v for c in INVALID_CHARACTERS):
-            raise InvalidNameError(
-                f"Name contains an invalid character {INVALID_CHARACTERS}."
-            )
+        raise_on_invalid_name(v)
         return v
 
     @validator("version", check_fields=False)

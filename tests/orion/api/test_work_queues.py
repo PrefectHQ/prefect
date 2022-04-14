@@ -5,7 +5,6 @@ import pytest
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture
@@ -58,7 +57,7 @@ class TestCreateWorkQueue:
         "name",
         [
             "work/queue",
-            "work%queue",
+            r"work%queue",
         ],
     )
     async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
@@ -295,7 +294,7 @@ class TestReadWorkQueueRuns:
         assert response.status_code == 422
 
     async def test_read_work_queue_runs_respects_scheduled_before(
-        self, client, work_queue, flow_run_2_id
+        self, client, work_queue
     ):
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
