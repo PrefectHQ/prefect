@@ -62,7 +62,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import visit_collection
+from prefect.utilities.collections import Quote, visit_collection
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -739,9 +739,9 @@ async def orchestrate_task_run(
 
     try:
         # Resolve futures in parameters into data
-        resolved_parameters = await resolve_upstream_task_references(parameters)
+        resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_upstream_task_references(wait_for, return_data=False)
+        await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -909,11 +909,12 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         raise exc from None
 
 
-async def resolve_upstream_task_references(
+async def resolve_inputs(
     parameters: Dict[str, Any], return_data: bool = True
 ) -> Dict[str, Any]:
     """
-    Resolve any `PrefectFuture` or `State` types nested in parameters into data.
+    Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
+    data.
 
     Returns:
         A copy of the parameters with resolved data
@@ -923,11 +924,11 @@ async def resolve_upstream_task_references(
     """
 
     async def visit_fn(expr):
-        # Resolves futures into data, raising if they are not completed after `wait` is
-        # called.
         state = None
 
-        if isinstance(expr, PrefectFuture):
+        if isinstance(expr, Quote):
+            return expr.unquote()
+        elif isinstance(expr, PrefectFuture):
             state = await expr._wait()
         elif isinstance(expr, State):
             state = expr
@@ -938,9 +939,9 @@ async def resolve_upstream_task_references(
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
             )
-        # Only load the state data if requested
-        if return_data:
-            return state.result()
+
+        # Only retrieve the result if requested as it may be expensive
+        return state.result() if return_data else None
 
     return await visit_collection(
         parameters,
