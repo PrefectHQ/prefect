@@ -153,7 +153,6 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
-@dataclass
 class Quote(Generic[T]):
     """
     Simple wrapper to mark an expression as a different type so it will not be coerced
@@ -161,10 +160,11 @@ class Quote(Generic[T]):
     the flow assume that state.
     """
 
-    expr: T
+    def __init__(self, data: T) -> None:
+        self.data = data
 
     def unquote(self) -> T:
-        return self.expr
+        return self.data
 
 
 def quote(expr: T) -> Quote[T]:
@@ -209,6 +209,7 @@ async def visit_collection(
     typ = list if isinstance(expr, IteratorABC) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
+    print(expr, typ)
     # do not visit mock objects
     if isinstance(expr, Mock):
         return expr if return_data else None
