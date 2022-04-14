@@ -301,14 +301,26 @@ class TestWaitForFlowRun:
 
     @pytest.mark.parametrize("stream_logs", [True, False])
     @pytest.mark.parametrize("stream_states", [True, False])
+    @pytest.mark.parametrize("max_duration", [timedelta(hours=1), timedelta(hours=12)])
     def test_passes_args_to_watch_flow_run(
-        self, mock_watch_flow_run, stream_logs, stream_states, MockFlowRunView
+        self,
+        mock_watch_flow_run,
+        stream_logs,
+        stream_states,
+        max_duration,
+        MockFlowRunView,
     ):
         wait_for_flow_run.run(
-            "flow-run-id", stream_states=stream_states, stream_logs=stream_logs
+            "flow-run-id",
+            stream_states=stream_states,
+            stream_logs=stream_logs,
+            max_duration=max_duration,
         )
         mock_watch_flow_run.assert_called_once_with(
-            "flow-run-id", stream_states=stream_states, stream_logs=stream_logs
+            "flow-run-id",
+            stream_states=stream_states,
+            stream_logs=stream_logs,
+            max_duration=max_duration,
         )
 
     def test_returns_latest_flow_run_view(self, mock_watch_flow_run, MockFlowRunView):
