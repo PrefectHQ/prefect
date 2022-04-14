@@ -6,9 +6,12 @@ from uuid import uuid4
 import pytest
 
 from prefect.client import OrionClient
+from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed
+from prefect.tasks import task
+from prefect.utilities.testing import assert_does_not_warn
 
 mock_client = MagicMock(spec=OrionClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]
@@ -113,3 +116,36 @@ async def test_resolves_futures_in_nested_collections(task_run):
     assert await resolve_futures_to_data(
         Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
+
+
+def test_raise_warning_futures_in_condition():
+    @task
+    def a_task():
+        return False
+
+    @flow
+    def if_flow():
+        if a_task():
+            pass
+
+    @flow
+    def elif_flow():
+        if False:
+            pass
+        elif a_task():
+            pass
+
+    @flow
+    def if_result_flow():
+        if a_task().result():
+            pass
+
+    match = "A 'PrefectFuture' from a task call was cast to a boolean"
+    with pytest.warns(UserWarning, match=match):
+        if_flow()
+
+    with pytest.warns(UserWarning, match=match):
+        elif_flow()
+
+    with assert_does_not_warn():
+        if_result_flow()
