@@ -27,9 +27,9 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.exceptions import InvalidNameError, ParameterTypeError
+from prefect.exceptions import ParameterTypeError
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import INVALID_CHARACTERS
+from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
@@ -93,11 +93,7 @@ class Flow(Generic[P, R]):
 
         # Validate name if given
         if name:
-            if any(c in name for c in INVALID_CHARACTERS):
-                raise InvalidNameError(
-                    f"Name {name!r} contains an invalid character. "
-                    f"Must not contain any of: {INVALID_CHARACTERS}."
-                )
+            raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
         task_runner = task_runner or ConcurrentTaskRunner()
