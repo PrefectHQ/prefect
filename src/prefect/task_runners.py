@@ -81,6 +81,7 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A, sync_compatible
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
 
@@ -336,6 +337,10 @@ class DaskTaskRunner(BaseTaskRunner):
                 "The task runner must be started before submitting work."
             )
 
+        # Cast Prefect futures to Dask futures where possible to optimize Dask task
+        # scheduling
+        run_kwargs = await self._optimize_futures(run_kwargs)
+
         self._dask_futures[task_run.id] = self._client.submit(
             run_fn,
             # Dask displays the text up to the first '-' as the name, include the
@@ -360,6 +365,17 @@ class DaskTaskRunner(BaseTaskRunner):
         The Dask future is for the `run_fn`, which should return a `State`.
         """
         return self._dask_futures[prefect_future.run_id]
+
+    async def _optimize_futures(self, expr):
+        async def visit_fn(expr):
+            if isinstance(expr, PrefectFuture):
+                dask_future = self._dask_futures.get(expr.run_id)
+                if dask_future is not None:
+                    return dask_future
+            # Fallback to return the expression unaltered
+            return expr
+
+        return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
     async def wait(
         self,
