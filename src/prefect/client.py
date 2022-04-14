@@ -94,7 +94,7 @@ def get_client() -> "OrionClient":
 
 
 APP_LIFESPANS: Dict[int, LifespanManager] = {}
-APP_LIFESPANS_EXIT_EVENTS: Dict[int, List[anyio.Event]] = defaultdict(list)
+APP_LIFESPANS_REF_COUNTS: Dict[int, int] = {}
 APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above lists
 
 
@@ -135,34 +135,22 @@ async def app_lifespan_context(app: FastAPI):
     async with APP_LIFESPANS_LOCK:
         if key in APP_LIFESPANS:
             context = asyncnullcontext()
-            yield_value = None
-            # Create an event to indicate when this dependent exits its context
-            exit_event = anyio.Event()
-            APP_LIFESPANS_EXIT_EVENTS[key].append(exit_event)
+            APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
-            yield_value = APP_LIFESPANS[key] = context = LifespanManager(app)
-            exit_event = None
+            APP_LIFESPANS[key] = context = LifespanManager(app)
+            APP_LIFESPANS_REF_COUNTS[key] = 1
 
-    async with context:
-        yield yield_value
+    try:
+        yield await context.__aenter__()
+    finally:
+        # After exiting the context, set the exit event
+        APP_LIFESPANS_REF_COUNTS[key] -= 1
 
-        # If this the root context that is managing the lifespan, remove the lifespan
-        # from the cache before exiting the context so the next request does not
-        # get a lifespan that is shutting down.
-        if yield_value is not None:
+        # If this the last context to exit, close the lifespan
+        if APP_LIFESPANS_REF_COUNTS[key] <= 0:
             async with APP_LIFESPANS_LOCK:
                 APP_LIFESPANS.pop(key)
-
-                # Do not exit the lifespan context until other all other contexts
-                # depending on this lifespan have exited
-                for exit_event in APP_LIFESPANS_EXIT_EVENTS[key]:
-                    await exit_event.wait()
-
-                APP_LIFESPANS_EXIT_EVENTS[key].clear()
-
-    # After exiting the context, set the exit event
-    if exit_event:
-        exit_event.set()
+            await context.__aexit__(None, None, None)
 
 
 class OrionClient:
