@@ -16,8 +16,7 @@ $ python -m asyncio
 </div>
 """
 import datetime
-import warnings
-from collections import defaultdict
+import sys
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
@@ -95,7 +94,7 @@ def get_client() -> "OrionClient":
 
 APP_LIFESPANS: Dict[int, LifespanManager] = {}
 APP_LIFESPANS_REF_COUNTS: Dict[int, int] = {}
-APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above lists
+APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above dicts
 
 
 @asynccontextmanager
@@ -112,45 +111,54 @@ async def app_lifespan_context(app: FastAPI):
     startup hooks will be called before their context starts and shutdown hooks will
     only be called after their context exits.
 
-    If you have two concurrrent contexts which are used as follows:
+    A reference count is used to support nested use of clients without running
+    lifespan hooks excessively. The first client context entered will create and enter
+    a lifespan context. Each subsequent client will increment a reference count but will
+    not create a new lifespan context. When each client context exits, the reference
+    count is decremented. When the last client context exits, the lifespan will be
+    closed.
 
-    --> Context A is entered (manages a new lifespan)
-    -----> Context B is entered (uses the lifespan from A)
-    -----> Context A exits
-    -----> Context B exits
-
-    Context A will *block* until Context B exits to avoid calling shutdown hooks before
-    the context from B is complete. This means that if B depends on work that occurs
-    after the exit of A, a deadlock will occur.
+    In simple nested cases, the first client context will be the one to exit the
+    lifespan. However, if client contexts are entered concurrently they may not exit
+    in a consistent order. If the first client context was responsible for closing
+    the lifespan, it would have to wait until all other client contexts to exit to
+    avoid firing shutdown hooks while the application is in use. Waiting for the other
+    clients to exit can introduce deadlocks, so, instead, the first client will exit
+    without closing the lifespan context and reference counts will be used to ensure
+    the lifespan is closed once all of the clients are done.
     """
-    # TODO: We could push contexts onto a stack so the last context that exits is
-    #       responsible for closing the lifespan regardless of whether or not it was the
-    #       one that entered the lifespan. This would make a deadlock impossible, but
-    #       consumers of the context would no longer know if they are the one that is
-    #       responsible for closing the lifespan or not.
 
     # The id is used instead of the hash so each application instance is managed independently
     key = id(app)
+    context: Optional[LifespanManager] = None
+
+    # On exception, this will be populated with exception details
+    exc_info = (None, None, None)
 
     async with APP_LIFESPANS_LOCK:
         if key in APP_LIFESPANS:
-            context = asyncnullcontext()
+            # The lifespan is already being managed, just increment the reference count
             APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
+            # Create a new lifespan manager
             APP_LIFESPANS[key] = context = LifespanManager(app)
             APP_LIFESPANS_REF_COUNTS[key] = 1
 
     try:
-        yield await context.__aenter__()
+        yield await context.__aenter__() if context else None
+    except BaseException:
+        exc_info = sys.exc_info()
+        raise
     finally:
-        # After exiting the context, set the exit event
-        APP_LIFESPANS_REF_COUNTS[key] -= 1
+        async with APP_LIFESPANS_LOCK:
+            # After the consumer exits the context, decrement the reference count
+            APP_LIFESPANS_REF_COUNTS[key] -= 1
 
-        # If this the last context to exit, close the lifespan
-        if APP_LIFESPANS_REF_COUNTS[key] <= 0:
-            async with APP_LIFESPANS_LOCK:
-                APP_LIFESPANS.pop(key)
-            await context.__aexit__(None, None, None)
+            # If this the last context to exit, close the lifespan
+            if APP_LIFESPANS_REF_COUNTS[key] <= 0:
+                APP_LIFESPANS_REF_COUNTS.pop(key)
+                context = APP_LIFESPANS.pop(key)
+                await context.__aexit__(*exc_info)
 
 
 class OrionClient:
@@ -195,7 +203,7 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
-        # Only set if this client is responsible for the lifespan of the application
+        # Only set if this client started the lifespan of the application
         self._ephemeral_lifespan: Optional[LifespanManager] = None
         self._closed = False
         self._started = False
@@ -1671,8 +1679,7 @@ class OrionClient:
         """
         Start the client.
 
-        If the client is already started, entering and exiting this context will have
-        no effect.
+        If the client is already started, this will raise an exception.
 
         If the client is already closed, this will raise an exception. Use a new client
         instance instead.
@@ -1707,12 +1714,9 @@ class OrionClient:
     async def __aexit__(self, *exc_info):
         """
         Shutdown the client.
-
-        If the client has been started multiple times, this will have no effect until
-        all of the contexts have been exited.
         """
         self._closed = True
-        return await self._exit_stack.aclose()
+        return await self._exit_stack.__aexit__(*exc_info)
 
     def __enter__(self):
         raise RuntimeError(
