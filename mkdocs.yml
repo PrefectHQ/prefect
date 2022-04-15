@@ -102,7 +102,9 @@ nav:
         - ui/flows-and-tasks.md
         - ui/filters.md
         - ui/work-queues.md
-        - ui/cloud.md
+        - Cloud:
+            - Overview: ui/cloud.md
+            - Getting Started: ui/cloud-getting-started.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
