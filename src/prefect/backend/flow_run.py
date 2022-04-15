@@ -22,8 +22,9 @@ logger = get_logger("backend.flow_run")
 def stream_flow_run_logs(flow_run_id: str, **kwargs) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
-
-    TODO: I can't find this used anywhere?
+    Args:
+        - flow_run_id: The flow run to stream logs from
+        - kwargs: kwargs to `watch_flow_run`
     """
     for log in watch_flow_run(flow_run_id, **kwargs):
         level_name = logging.getLevelName(log.level)

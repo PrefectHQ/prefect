@@ -588,6 +588,8 @@ def test_watch_flow_run(monkeypatch):
 
 
 def test_watch_flow_run_default_timeout(monkeypatch):
+    # Test the default behavior, which sets the timeout to 12 hours
+    # when the `max_duration` kwarg is not provided
     flow_run = FlowRunView._from_flow_run_data(FLOW_RUN_DATA_1)
     flow_run.state = Running()  # Not finished
     flow_run.get_latest = MagicMock(return_value=flow_run)
