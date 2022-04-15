@@ -101,7 +101,7 @@ class TestUpdateFlow:
         updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["db", "blue"]
 
-    async def test_update_flow_rasises_error_if_flow_does_not_exist(self, client):
+    async def test_update_flow_raises_error_if_flow_does_not_exist(self, client):
         response = await client.patch(
             f"/flows/{str(uuid4())}",
             json={},
@@ -184,24 +184,24 @@ class TestReadFlows:
         await client.post("/flows/", json={"name": f"my-flow-1"})
         await client.post("/flows/", json={"name": f"my-flow-2"})
 
-    async def test_read_flows(self, flows, client):
+    @pytest.mark.usefixtures("flows")
+    async def test_read_flows(self, client):
         response = await client.post("/flows/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
-        _ = flows
 
-    async def test_read_flows_applies_limit(self, flows, client):
+    @pytest.mark.usefixtures("flows")
+    async def test_read_flows_applies_limit(self, client):
         response = await client.post("/flows/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
-        _ = flows
 
     async def test_read_flows_applies_flow_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
         )
-        flow_2 = await models.flows.create_flow(
+        await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
         await session.commit()
@@ -221,7 +221,7 @@ class TestReadFlows:
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
         )
-        flow_2 = await models.flows.create_flow(
+        await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -246,7 +246,7 @@ class TestReadFlows:
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
         )
-        flow_2 = await models.flows.create_flow(
+        await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
