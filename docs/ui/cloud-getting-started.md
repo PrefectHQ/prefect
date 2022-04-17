@@ -20,7 +20,7 @@ The following sections will get you set up and using Prefect Cloud, using these 
 3. [Create an API key](#create-an-api-key) to authorize a local execution environment.
 4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
 5. [Configure storage](#configure-storage).
-6. [Run a flow](#run-a-flow-with-cloud) and display the flow run in Prefect Cloud.
+6. [Run a flow](#run-a-flow-with-cloud) and view flow results in Prefect Cloud.
 
 ## Sign in or register
 
