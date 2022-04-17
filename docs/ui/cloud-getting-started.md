@@ -48,7 +48,7 @@ Click **Create** to create the workspace.
 
 ![Viewing a list of available workspaces in the Cloud UI.](/img/ui/cloud-workspace-list.png)
 
-Click **Edit Workspace**. This lets you edit details about the workspace or delete the workspace. 
+If you change your mind, you can select **Edit Workspace** to modify the workspace details or to delete it.
 
 It also provide the Prefect CLI command that configures Prefect to orchestrate flow runs with this workspace. Copy this command and run it in the environment in which you'll be running flows so they'll show up in your workspace.
 
