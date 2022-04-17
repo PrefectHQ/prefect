@@ -54,7 +54,7 @@ The Edit Workspace dialog also provides a shell command that configures Prefect 
 
 ![Editing a workspace.](/img/ui/cloud-edit-workspace.png)
 
-Click the Prefect logo: this always returns to your workspace list. Then click on a workspace name to view the dashboard for that workspace.
+The Prefect logo in the upper left always returns to your account dashboard, which shows the list of available workspaces. You can then navigate to a given workspace to view the results of flow runs associated with that workspace.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
