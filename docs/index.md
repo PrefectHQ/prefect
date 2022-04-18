@@ -70,7 +70,7 @@ github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 
 Control task execution by changing a flow's `task_runner`. The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
 
-```python hl_lines="2 14"
+```python hl_lines="2 12"
 from prefect import flow, task
 from prefect.task_runners import DaskTaskRunner
 from typing import List
