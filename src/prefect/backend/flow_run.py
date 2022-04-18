@@ -19,7 +19,7 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def stream_flow_run_logs(flow_run_id: str, **kwargs) -> None:
+def stream_flow_run_logs(flow_run_id: str, **kwargs: dict) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
     Args:
