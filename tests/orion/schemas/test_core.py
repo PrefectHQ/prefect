@@ -5,23 +5,18 @@ import pytest
 
 from prefect.orion import schemas
 
-valid_names = [
-    "my-object",
-    "my object",
-    "my:object",
-    "my;object",
-    r"my\object",
-    "my|object",
-    "my⁉️object",
-]
-
-invalid_names = [
-    "my/object",
-    r"my%object",
-]
-
-
-@pytest.mark.parametrize("name", valid_names)
+@pytest.mark.parametrize(
+    "name",
+    [
+        "my-object",
+        "my object",
+        "my:object",
+        "my;object",
+        r"my\object",
+        "my|object",
+        "my⁉️object",
+    ],
+)
 async def test_valid_names(name):
     assert schemas.core.Flow(name=name)
     assert schemas.core.Deployment(
@@ -33,7 +28,13 @@ async def test_valid_names(name):
     assert schemas.core.Block(name=name, block_spec_id=uuid4())
 
 
-@pytest.mark.parametrize("name", invalid_names)
+@pytest.mark.parametrize(
+    "name",
+    [
+        "my/object",
+        r"my%object",
+    ],
+)
 async def test_invalid_names(name):
     with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
         assert schemas.core.Flow(name=name)
@@ -49,7 +50,13 @@ async def test_invalid_names(name):
         assert schemas.core.Block(name=name, block_spec_id=uuid4())
 
 
-@pytest.mark.parametrize("version", invalid_names)
+@pytest.mark.parametrize(
+    "version",
+    [
+        "my/object",
+        r"my%object",
+    ],
+)
 async def test_invalid_block_spec_version(version):
     with pytest.raises(
         pydantic.ValidationError, match="(Version contains an invalid character)"
