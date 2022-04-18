@@ -134,7 +134,7 @@ Separately from task run or flow run logs, Prefect has an Enterprise-only featur
 
 Audit logs for each tenant have a `timestamp`, a `message` describing the event, an `object_id` associated with an `object_table`, and an option `info`.
 
-An example audit log for a user logging in would contain a timestamp, the login event message, the object table would be 'user' and the object id would be user id of the user logging in.
+An example audit log for a user logging in would contain a timestamp, the login event message, the object table would be 'user', and the object id would be user id of the user logging in.
 
 
 Audit logs can be accessed via the GraphQL API.
