@@ -509,7 +509,7 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
             raw_spec = yaml.safe_load(yaml.serialize(node))
             spec = DeploymentSpec.parse_obj(raw_spec)
 
-        specs[spec] = {"file": path, "line": line}
+        specs[spec] = {"file": str(path), "line": line}
 
     return specs
 

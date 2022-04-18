@@ -473,8 +473,14 @@ class TestDeploymentSpecFromFile:
     async def test_spec_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "single-deployment.yaml")
         assert len(specs) == 1
-        spec = list(specs)[0]
+        spec = list(specs.keys())[0]
+
+        src = specs[spec]
+        assert src["file"] == str(TEST_FILES_DIR / "single-deployment.yaml")
+        assert src["line"] == 1
+
         await spec.validate()
+
         assert spec.name == "hello-world-deployment"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
@@ -484,19 +490,28 @@ class TestDeploymentSpecFromFile:
     async def test_multiple_specs_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "multiple-deployments.yaml")
         assert len(specs) == 2
-        for spec in specs:
-            await spec.validate()
         specs_by_name = {spec.name: spec for spec in specs}
         assert set(specs_by_name.keys()) == {
             "hello-sun-deployment",
             "hello-moon-deployment",
         }
+
         sun_deploy = specs_by_name["hello-sun-deployment"]
         moon_deploy = specs_by_name["hello-moon-deployment"]
         assert sun_deploy.flow_location == str(TEST_FILES_DIR / "multiple_flows.py")
         assert sun_deploy.flow_name == "hello-sun"
         assert moon_deploy.flow_location == str(TEST_FILES_DIR / "multiple_flows.py")
         assert moon_deploy.flow_name == "hello-moon"
+
+        sun_src = specs[sun_deploy]
+        moon_src = specs[moon_deploy]
+        assert sun_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
+        assert moon_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
+        assert sun_src["line"] == 1
+        assert moon_src["line"] == 5
+
+        for spec in specs:
+            await spec.validate()
 
     async def test_loading_spec_does_not_raise_until_flow_is_loaded(self):
         specs = deployment_specs_from_yaml(
