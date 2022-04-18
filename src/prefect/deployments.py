@@ -496,9 +496,14 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     # Load deployments relative to the yaml file's directory
     with tmpchdir(path):
         if isinstance(contents, list):
-            specs = {DeploymentSpec.parse_obj(spec) for spec in contents}
+            specs = {
+                # TODO: We can determine the specs position in the file with more
+                #       advanced parsing
+                DeploymentSpec.parse_obj(spec): {"file": path, "line": "unknown"}
+                for spec in contents
+            }
         else:
-            specs = {DeploymentSpec.parse_obj(contents)}
+            specs = {DeploymentSpec.parse_obj(contents): {"file": path, "line": 0}}
 
     return specs
 
