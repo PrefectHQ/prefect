@@ -18,7 +18,7 @@
     "@prefecthq/vue-compositions": "0.1.20",
     "core-js": "^3.21.1",
     "d3": "^7.4.3",
-    "esbuild": "^0.14.34",
+    "esbuild": "^0.14.36",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
     "vue": "^3.0.5",
