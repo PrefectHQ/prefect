@@ -130,7 +130,7 @@ The `memberships.id` value for a given user should be provided as the `membershi
 
 ### Audit Log (Enterprise Only)
 
-Separately from task run or flow run logs, Prefect has an Enterprise only feature to track “audit logs” for events within the system per tenant. 
+Separately from task run or flow run logs, Prefect has an Enterprise-only feature to track “audit logs” for events within the system, per tenant. 
 
 Audit logs for each tenant have a `timestamp`, `message` describing the event, an `object_id` associated with an `object_table` and an option `info`.
 
