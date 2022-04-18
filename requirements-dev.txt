@@ -18,5 +18,5 @@ pyyaml
 requests
 setuptools != 60.9.0; python_version < '3.8'
 virtualenv
-watchgod
+watchfiles
 respx
