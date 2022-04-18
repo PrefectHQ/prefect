@@ -58,7 +58,7 @@ def get_stars(repo: str):
     print(f"{repo} has {count} stars!")
 
 
-@flow(name="Github Stars")
+@flow(name="GitHub Stars")
 def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
@@ -83,7 +83,7 @@ def get_stars(repo: str):
     count = httpx.get(url).json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="Github Stars", task_runner=DaskTaskRunner())
+@flow(name="GitHub Stars", task_runner=DaskTaskRunner())
 def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
@@ -114,7 +114,7 @@ async def get_stars(repo: str):
     count = response.json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="Github Stars")
+@flow(name="GitHub Stars")
 async def github_stars(repos: List[str]):
     await asyncio.gather(*[get_stars(repo) for repo in repos])
 
