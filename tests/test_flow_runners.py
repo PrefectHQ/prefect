@@ -1514,6 +1514,7 @@ class TestKubernetesFlowRunner:
                                 ],
                             }
                         ],
+                        "serviceAccountName": "default"
                     }
                 },
                 "backoff_limit": 4,
@@ -1615,6 +1616,44 @@ class TestKubernetesFlowRunner:
         assert (
             "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
         ), "prefect labels still included"
+
+
+    async def test_uses_namespace_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(namespace="foo").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+            "metadata"
+        ]["namespace"]
+        assert(namespace == "foo")
+
+    async def test_uses_service_account_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(service_account="foo").submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        service_account = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["serviceAccountName"]
+        assert service_account == "foo"
+
 
     async def test_default_env_includes_api_url_and_key(
         self,
