@@ -484,7 +484,12 @@ class Task(metaclass=TaskMetaclass):
 
     @instance_property
     def logger(self) -> logging.logging.Logger:
-        return prefect.context.get("logger")
+        # If metadata about a task exists in context, then the logger must be modified
+        if prefect.context.get("task_id"):
+            return prefect.context.get("logger")
+
+        # otherwise return a logger that specifies the task it belongs to.
+        return logging.get_logger(self.name)
 
     def __repr__(self) -> str:
         return "<Task: {self.name}>".format(self=self)

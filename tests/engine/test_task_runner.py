@@ -2421,20 +2421,18 @@ def test_task_runner_logs_custom_full_name_for_mapped_tasks(caplog, task_type):
             map_index = prefect.context.get("map_index")
             self.logger.info("{}".format(map_index))
 
-    if task_type == "class":
-        test_task = MyTask(name="custom_name")
+    task = MyTask()
+    edge = Edge(Task(), task, mapped=True)
+    new_state = TaskRunner(task=task).run(
+        state=None, upstream_states={edge: Success(result=Result(list(range(10))))}
+    )
 
-    data = [0, 1, 2]
-    with prefect.Flow("test") as flow:
-        test_task.map(data)
-
-    state = flow.run()
-    task_log_records = [r for r in caplog.records if test_task.name in r.name]
-    assert len(task_log_records) == len(data)
-
-    for r in task_log_records:
-        log_index = r.name[-2]
-        assert log_index == r.msg
+    logs = [r.message for r in caplog.records if "prefect.Task:" in r.message]
+    task_name = task.name
+    for line in logs:
+        msg = line.split("INFO")[1]
+        logged_map_index = msg[-1]
+        assert msg.count(logged_map_index) == 2
 
 
 class TestTaskRunNames:
