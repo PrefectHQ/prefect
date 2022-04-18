@@ -128,6 +128,19 @@ class TestDeploymentSpec:
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
 
+    async def test_raises_validation_error_on_missing_flow_name(
+        self, remote_default_storage
+    ):
+        spec = DeploymentSpec(
+            name="test",
+            flow_location=TEST_FILES_DIR / "multiple_flows.py",
+            flow_name="shall-not-be-found",
+        )
+        assert spec.flow is None
+        assert spec.flow_name == "shall-not-be-found"
+        with pytest.raises(SpecValidationError, match="'shall-not-be-found' not found"):
+            await spec.validate()
+
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
         @flow
         def foo():
