@@ -246,9 +246,8 @@ def test_response_scoped_dependency_is_overridable():
 
 
 class TestParsing:
-    @pytest.fixture()
-    def test_client(self):
-
+    @pytest.fixture
+    def client(self):
         app = FastAPI()
         router = OrionRouter()
 
@@ -260,11 +259,10 @@ class TestParsing:
         client = TestClient(app)
         return client
 
-    def test_url_encoded_variables(self, test_client):
+    def test_url_encoded_variables(self, client):
         """FastAPI automatically handles url-encoded variables"""
         x = "| ; 👍"
-        quoted_x = x
-        response = test_client.get(f"/{x}")
-        quoted_response = test_client.get(urllib.parse.quote(f"/{x}"))
+        response = client.get(f"/{x}")
+        quoted_response = client.get(urllib.parse.quote(f"/{x}"))
 
         assert x == response.json() == quoted_response.json()
