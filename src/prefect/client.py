@@ -17,7 +17,6 @@ $ python -m asyncio
 """
 import datetime
 import sys
-import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
@@ -129,11 +128,8 @@ async def app_lifespan_context(app: FastAPI):
     the lifespan is closed once all of the clients are done.
     """
 
-    # The id is used instead of the hash so each application instance is managed
-    # independently. We include the thread identity to avoid caching across threads
-    # the application instance must be unique per event loop.
-    key = id(app) + threading.get_ident()
-
+    # The id is used instead of the hash so each application instance is managed independently
+    key = id(app)
     context: Optional[LifespanManager] = None
 
     # On exception, this will be populated with exception details
