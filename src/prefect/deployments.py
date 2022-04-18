@@ -153,7 +153,10 @@ class DeploymentSpec(PrefectBaseModel):
         # Load the flow from the flow location
 
         if self.flow_location and not self.flow:
-            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            try:
+                self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            except MissingFlowError as exc:
+                raise SpecValidationError(str(exc)) from exc
 
         # Infer the flow location from the flow
 
