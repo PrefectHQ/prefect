@@ -494,19 +494,22 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     Load deployment specifications from a yaml file.
     """
     with fsspec.open(path, "r") as f:
-        contents = yaml.safe_load(f.read())
+        contents = f.read()
 
-    # Load deployments relative to the yaml file's directory
-    with tmpchdir(path):
-        if isinstance(contents, list):
-            specs = {
-                # TODO: We can determine the specs position in the file with more
-                #       advanced parsing
-                DeploymentSpec.parse_obj(spec): {"file": path, "line": "unknown"}
-                for spec in contents
-            }
-        else:
-            specs = {DeploymentSpec.parse_obj(contents): {"file": path, "line": 0}}
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
+
+    specs = {}
+
+    for node in nodes:
+        line = node.start_mark.line + 1
+
+        # Load deployments relative to the yaml file's directory
+        with tmpchdir(path):
+            raw_spec = yaml.safe_load(yaml.serialize(node))
+            spec = DeploymentSpec.parse_obj(raw_spec)
+
+        specs[spec] = {"file": path, "line": line}
 
     return specs
 
