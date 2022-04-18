@@ -39,9 +39,9 @@ Examples:
     - foo
     - bar
     parameters:
-    name: "Earth"
+      name: "Earth"
     schedule:
-    interval: 3600
+      interval: 3600
     ```
 """
 
