@@ -278,6 +278,12 @@ async def delete_deployment(
     Returns:
         bool: whether or not the deployment was deleted
     """
+    # delete any scheduled runs for this deployment
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    )
+    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
