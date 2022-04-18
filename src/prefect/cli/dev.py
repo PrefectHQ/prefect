@@ -153,12 +153,12 @@ async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     Starts a hot-reloading development agent process.
     """
     # Delayed import since this is only a 'dev' dependency
-    import watchgod
+    import watchfiles
 
     console.print("Creating hot-reloading agent process...")
-    await watchgod.arun_process(
+    await watchfiles.arun_process(
         prefect.__module_path__,
-        start_agent,
+        target=start_agent,
         kwargs=dict(hide_welcome=False, api=api_url),
     )
 
