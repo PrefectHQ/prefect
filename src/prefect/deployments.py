@@ -32,16 +32,16 @@ Examples:
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object
     ```yaml
-    - name: my-first-deployment
-      flow_location: ./path-to-the-flow-script.py
-      flow_name: hello-world
-      tags:
-        - foo
-        - bar
-      parameters:
-        name: "Earth"
-      schedule:
-        interval: 3600
+    name: my-first-deployment
+    flow_location: ./path-to-the-flow-script.py
+    flow_name: hello-world
+    tags:
+    - foo
+    - bar
+    parameters:
+    name: "Earth"
+    schedule:
+    interval: 3600
     ```
 """
 
