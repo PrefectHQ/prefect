@@ -18,7 +18,7 @@ from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 
-def raise_on_invalid_name(name: str) -> str:
+def raise_on_invalid_name(name: str) -> None:
     """
     Raise an InvalidNameError if the given name contains any invalid
     characters.
@@ -28,8 +28,6 @@ def raise_on_invalid_name(name: str) -> str:
             f"Name {name!r} contains an invalid character. "
             f"Must not contain any of: {INVALID_CHARACTERS}."
         )
-
-    return name
 
 
 class Flow(ORMBaseModel):
