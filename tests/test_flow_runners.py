@@ -1514,7 +1514,6 @@ class TestKubernetesFlowRunner:
                                 ],
                             }
                         ],
-                        "serviceAccountName": "default",
                     }
                 },
                 "backoff_limit": 4,
@@ -1636,7 +1635,7 @@ class TestKubernetesFlowRunner:
         ]["namespace"]
         assert namespace == "foo"
 
-    async def test_uses_service_account_setting(
+    async def test_uses_service_account_name_setting(
         self,
         mock_k8s_client,
         mock_watch,
@@ -1646,14 +1645,14 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
-        await KubernetesFlowRunner(service_account="foo").submit_flow_run(
+        await KubernetesFlowRunner(service_account_name="foo").submit_flow_run(
             flow_run, MagicMock()
         )
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
-        service_account = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
-            "spec"
-        ]["template"]["spec"]["serviceAccountName"]
-        assert service_account == "foo"
+        service_account_name = mock_k8s_batch_client.create_namespaced_job.call_args[0][
+            1
+        ]["spec"]["template"]["spec"]["serviceAccountName"]
+        assert service_account_name == "foo"
 
     async def test_default_env_includes_api_url_and_key(
         self,
