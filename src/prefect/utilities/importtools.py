@@ -1,4 +1,5 @@
 import importlib
+import os
 import runpy
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Union
@@ -59,9 +60,12 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
     """
 
     def run_script(run_path: str):
+        # Cast to an absolute path before changing directories to ensure relative paths
+        # are not broken
+        abs_run_path = os.path.abspath(run_path)
         with tmpchdir(run_path):
             try:
-                return runpy.run_path(run_path)
+                return runpy.run_path(abs_run_path)
             except Exception as exc:
                 raise ScriptError(user_exc=exc, path=path) from exc
 
