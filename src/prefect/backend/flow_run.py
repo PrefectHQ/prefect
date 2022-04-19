@@ -19,14 +19,16 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def stream_flow_run_logs(flow_run_id: str, **kwargs: dict) -> None:
+def stream_flow_run_logs(
+    flow_run_id: str, max_duration: timedelta = timedelta(hours=12)
+) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
     Args:
         - flow_run_id: The flow run to stream logs from
-        - kwargs: kwargs to `watch_flow_run`
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours
     """
-    for log in watch_flow_run(flow_run_id, **kwargs):
+    for log in watch_flow_run(flow_run_id, max_duration=max_duration):
         level_name = logging.getLevelName(log.level)
         timestamp = log.timestamp.in_tz(tz="local")
         # Uses `print` instead of the logger to prevent duplicate timestamps
