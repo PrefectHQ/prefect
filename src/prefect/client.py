@@ -17,9 +17,19 @@ $ python -m asyncio
 """
 import datetime
 import sys
+import threading
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ContextManager,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 import anyio
@@ -98,7 +108,7 @@ APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above dicts
 
 
 @asynccontextmanager
-async def app_lifespan_context(app: FastAPI):
+async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     """
     A context manager that calls startup/shutdown hooks for the given application.
 
@@ -127,9 +137,10 @@ async def app_lifespan_context(app: FastAPI):
     without closing the lifespan context and reference counts will be used to ensure
     the lifespan is closed once all of the clients are done.
     """
-
-    # The id is used instead of the hash so each application instance is managed independently
-    key = id(app)
+    # The id is used instead of the hash so each application instance is managed
+    # independently. The threading identity is included to avoid collissions across
+    # threads because we are using a lock that is _not_ thread safe.
+    key = id(app) + threading.get_ident()
     context: Optional[LifespanManager] = None
 
     # On exception, this will be populated with exception details
@@ -144,21 +155,29 @@ async def app_lifespan_context(app: FastAPI):
             APP_LIFESPANS[key] = context = LifespanManager(app)
             APP_LIFESPANS_REF_COUNTS[key] = 1
 
+            # Ensure we enter the context before releasing the lock so startup hooks
+            # are complete before another client can be used
+            await context.__aenter__()
+
     try:
-        yield await context.__aenter__() if context else None
+        yield
     except BaseException:
         exc_info = sys.exc_info()
         raise
     finally:
-        async with APP_LIFESPANS_LOCK:
-            # After the consumer exits the context, decrement the reference count
-            APP_LIFESPANS_REF_COUNTS[key] -= 1
+        # If we do not shield against anyio cancellation, the lock will return
+        # immediately and the code in its context will not run, leaving the lifespan
+        # open
+        with anyio.CancelScope(shield=True):
+            async with APP_LIFESPANS_LOCK:
+                # After the consumer exits the context, decrement the reference count
+                APP_LIFESPANS_REF_COUNTS[key] -= 1
 
-            # If this the last context to exit, close the lifespan
-            if APP_LIFESPANS_REF_COUNTS[key] <= 0:
-                APP_LIFESPANS_REF_COUNTS.pop(key)
-                context = APP_LIFESPANS.pop(key)
-                await context.__aexit__(*exc_info)
+                # If this the last context to exit, close the lifespan
+                if APP_LIFESPANS_REF_COUNTS[key] <= 0:
+                    APP_LIFESPANS_REF_COUNTS.pop(key)
+                    context = APP_LIFESPANS.pop(key)
+                    await context.__aexit__(*exc_info)
 
 
 class OrionClient:

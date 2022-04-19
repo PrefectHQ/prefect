@@ -221,6 +221,25 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(task_status):
+            async with OrionClient(app):
+                task_status.started()
+                await anyio.sleep_forever()
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+
+            tg.cancel_scope.cancel()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
     async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
