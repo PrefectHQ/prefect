@@ -26,7 +26,7 @@ def stream_flow_run_logs(
     Basic wrapper for `watch_flow_run` to print the logs of the run
     Args:
         - flow_run_id: The flow run to stream logs from
-        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours.
     """
     for log in watch_flow_run(flow_run_id, max_duration=max_duration):
         level_name = logging.getLevelName(log.level)
