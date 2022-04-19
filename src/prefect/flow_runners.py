@@ -979,7 +979,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                                 "env": k8s_env,
                             }
                         ],
-                        "serviceAccountName": self.service_account
+                        "serviceAccountName": self.service_account,
                     }
                 },
                 "backoff_limit": 4,
