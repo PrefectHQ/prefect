@@ -773,7 +773,7 @@ class TestClientAPIKey:
 class TestClientWorkQueues:
     @pytest.fixture
     async def deployment(self, orion_client):
-        foo = flow(lambda: None)
+        foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
         schedule = IntervalSchedule(interval=timedelta(days=1))
         flow_data = DataDocument.encode("cloudpickle", foo)

@@ -12,7 +12,7 @@ import prefect.context
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
@@ -81,6 +81,20 @@ class TestFlow:
             match="Flow function is not compatible with `validate_parameters`",
         ):
             Flow(fn=my_fn)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/flow",
+            r"my%flow",
+            "my<flow",
+            "my>flow",
+            "my&flow",
+        ],
+    )
+    def test_invalid_name(self, name):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            Flow(fn=lambda: 1, name=name)
 
 
 class TestDecorator:

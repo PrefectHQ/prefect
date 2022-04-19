@@ -128,6 +128,20 @@ class TestDeploymentSpec:
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/deployment",
+            r"my%deployment",
+            "my>deployment",
+            "my<deployment",
+            "my&deployment",
+        ],
+    )
+    def test_invalid_name(self, name):
+        with pytest.raises(ValidationError, match="contains an invalid character"):
+            DeploymentSpec(name=name)
+
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
         @flow
         def foo():
@@ -341,7 +355,6 @@ class TestCreateDeploymentFromSpec:
         deployment_id = await spec.create_deployment(client=orion_client)
 
         # Check that the flow is retrievable
-
         deployment = await orion_client.read_deployment(deployment_id)
         flow = await load_flow_from_deployment(deployment, client=orion_client)
         expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
