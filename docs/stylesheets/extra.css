@@ -20,6 +20,11 @@
 /* adjust clipboard button to accommodate margin and padding */
 .md-clipboard {
     top: 1.5rem;
+    color: #a2a2a2b1;
+}
+
+.terminal:hover .md-clipboard {
+    color: #a2a2a2;
 }
 
 /* terminal code block formatting */
