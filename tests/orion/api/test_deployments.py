@@ -1,4 +1,5 @@
 import datetime
+import json
 from uuid import uuid4
 
 import pendulum
@@ -374,6 +375,48 @@ class TestReadDeploymentByName:
         )
 
         response = await client.get(f"/deployments/name/My Deployment")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my deployment",
+            "my:deployment",
+            r"my\deployment",
+            "my👍deployment",
+            "my|deployment",
+        ],
+    )
+    async def test_read_deployment_by_name_with_nonstandard_characters(
+        self, client, name, flow
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=dict(
+                name=name,
+                flow_id=str(flow.id),
+                flow_data=schemas.data.DataDocument(encoding="x", blob=b"y").dict(
+                    json_compatible=True
+                ),
+            ),
+        )
+        deployment_id = response.json()["id"]
+
+        response = await client.get(f"/deployments/name/{flow.name}/{name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == deployment_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/deployment",
+            "my%deployment",
+        ],
+    )
+    async def test_read_deployment_by_name_with_invalid_characters_fails(
+        self, client, name, flow
+    ):
+        response = await client.get(f"/deployments/name/{flow.name}/{name}")
         assert response.status_code == 404
 
 
