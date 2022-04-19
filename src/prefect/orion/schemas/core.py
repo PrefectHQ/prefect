@@ -12,7 +12,22 @@ from typing_extensions import Literal
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
+from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+
+INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
+
+
+def raise_on_invalid_name(name: str) -> None:
+    """
+    Raise an InvalidNameError if the given name contains any invalid
+    characters.
+    """
+    if any(c in name for c in INVALID_CHARACTERS):
+        raise InvalidNameError(
+            f"Name {name!r} contains an invalid character. "
+            f"Must not contain any of: {INVALID_CHARACTERS}."
+        )
 
 
 class Flow(ORMBaseModel):
@@ -25,9 +40,10 @@ class Flow(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    # relationships
-    # flow_runs: List["FlowRun"] = Field(default_factory=list)
-    # deployments: List["Deployment"] = Field(default_factory=list)
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
 
 class FlowRunnerSettings(PrefectBaseModel):
@@ -314,6 +330,10 @@ class Deployment(ORMBaseModel):
     )
 
     # flow: Flow = None
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
 
 class ConcurrencyLimit(ORMBaseModel):
@@ -337,6 +357,19 @@ class BlockSpec(ORMBaseModel):
         default_factory=dict, description="The block spec's field schema"
     )
 
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
+
+    @validator("version", check_fields=False)
+    def validate_version_characters(cls, v):
+        if any(c in v for c in INVALID_CHARACTERS):
+            raise ValueError(
+                f"Version contains an invalid character {INVALID_CHARACTERS}."
+            )
+        return v
+
 
 class Block(ORMBaseModel):
     """An ORM representation of a block."""
@@ -347,6 +380,11 @@ class Block(ORMBaseModel):
     block_spec: Optional[BlockSpec] = Field(
         None, description="The associated block spec"
     )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
     @classmethod
     async def from_orm_model(
@@ -500,6 +538,11 @@ class WorkQueue(ORMBaseModel):
     concurrency_limit: Optional[int] = Field(
         None, description="An optional concurrency limit for the work queue."
     )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
 
 class Agent(ORMBaseModel):
