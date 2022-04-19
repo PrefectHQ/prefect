@@ -77,6 +77,7 @@ from prefect.flow_runners import (
 )
 from prefect.flows import Flow
 from prefect.orion import schemas
+from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -306,6 +307,11 @@ class DeploymentSpec(PrefectBaseModel):
         return deployment_id
 
     # Pydantic -------------------------------------------------------------------------
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
     class Config:
         arbitrary_types_allowed = True
