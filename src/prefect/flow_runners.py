@@ -767,6 +767,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     Attributes:
         image: An optional string specifying the tag of a Docker image to use for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
+        service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
@@ -777,6 +778,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
+    service_account_name: str = None
     labels: Dict[str, str] = None
     image_pull_policy: KubernetesImagePullPolicy = None
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
@@ -982,6 +984,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 "backoff_limit": 4,
             },
         )
+
+        if self.service_account_name:
+            job_settings["spec"]["template"]["spec"][
+                "serviceAccountName"
+            ] = self.service_account_name
 
         if self.image_pull_policy:
             job_settings["spec"]["template"]["spec"]["containers"][0][
