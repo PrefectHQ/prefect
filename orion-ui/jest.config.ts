@@ -13,9 +13,9 @@ const config: Config.InitialOptions = {
   globals: {
     DOMRect,
     'ts-jest': {
-      tsconfig: './tsconfig.json'
-    }
-  }
+      tsconfig: './tsconfig.json',
+    },
+  },
 }
 
 export default config
