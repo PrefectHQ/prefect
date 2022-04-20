@@ -187,7 +187,9 @@ async def ls():
             block.block_spec.name,
             block.block_spec.version,
             block.name,
-            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
+            Emoji("white_check_mark")
+            if str(block.id) == default_storage_block.get("id")
+            else None,
         )
 
     if not default_storage_block:
