@@ -2,6 +2,9 @@ name: Static analysis
 
 on: [pull_request]
 
+permissions:
+  contents: read
+
 # Limit concurrency by workflow/branch combination.
 #
 # For pull request builds, pushing additional changes to the
