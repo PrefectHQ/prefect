@@ -140,7 +140,7 @@ class TestDeploymentSpec:
         assert spec.flow_name == "shall-not-be-found"
         with pytest.raises(SpecValidationError, match="'shall-not-be-found' not found"):
             await spec.validate()
-            
+
     @pytest.mark.parametrize(
         "name",
         [
@@ -154,7 +154,7 @@ class TestDeploymentSpec:
     def test_invalid_name(self, name):
         with pytest.raises(ValidationError, match="contains an invalid character"):
             DeploymentSpec(name=name)
-            
+
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
         @flow
         def foo():
