@@ -46,7 +46,7 @@ export class UiSettings {
         return defaultValue
       }
 
-      throw `api setting "${setting}" does not exist and no default was provided.`
+      throw `UI setting "${setting}" does not exist and no default was provided.`
     }
 
     return value
