@@ -9,11 +9,11 @@ tags:
     - development
 ---
 
-# Testing Flows
+# Testing
 
 Now that you have all of these awesome flows, you probably want to test them!
 
-## Writing unit tests
+## Unit testing flows
 
 Prefect provides a simple context manager for unit tests that allows you to run flows and tasks against a temporary local SQLite database.
 
@@ -22,11 +22,10 @@ from prefect import flow
 from prefect.utilities.testing import prefect_test_harness
 
 @flow
-def my_favorite_function():
-    print("This function doesn't do much")
+def my_favorite_flow():
     return 42
 
-def test_my_favorite_function():
+def test_my_favorite_flow():
   with prefect_test_harness():
       # run the flow against a temporary testing database
       assert my_favorite_function().result() == 42
@@ -38,13 +37,42 @@ For more extensive testing, you can leverage `prefect_test_harness` as a fixture
 import pytest
 from prefect.utilities.testing import prefect_test_harness
 
-from my_flows import my_favorite_function
+from my_flows import my_favorite_flow
 
 @pytest.fixture(autouse=True)
 def prefect_test_fixture():
     with prefect_test_harness():
         yield
 
-def test_my_favorite_function():
-    assert my_favorite_function().result() == 42
+def test_my_favorite_flow():
+    assert my_favorite_flow().result() == 42
+```
+
+# Unit testing tasks
+
+To test an individual task, you can create a flow inside of your test:
+
+```python
+from prefect import flow, task
+
+@task
+def my_favorite_task():
+    return 42
+
+def test_my_favorite_task():
+    @flow
+    def my_flow():
+        return my_favorite_task()
+    
+    state = my_flow().result()
+    assert state.result() == 42
+```
+
+Alternatively, if your task doesn't use any Prefect behavior, you can test the underlying function using `.fn()`:
+
+```python
+from my_tasks import my_favorite_task
+
+def test_my_favorite_task():
+    assert my_favorite_task.fn() == 42
 ```
