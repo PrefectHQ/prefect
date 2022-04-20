@@ -884,6 +884,19 @@ class TestFlowParameterTypes:
 
         assert my_flow().result() == data
 
+    def test_flow_parameters_can_be_unserializable_types_that_raise_value_error(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        data = Exception
+        # When passing some parameter types, jsonable_encoder will raise a ValueError
+        # for a missing a __dict__ attribute instead of a TypeError.
+        # This was notably encountered when using numpy arrays as an
+        # input type but applies to exception classes as well.
+        # See #1638.
+        assert my_flow(data).result() == data
+
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
