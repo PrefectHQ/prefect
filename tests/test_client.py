@@ -152,6 +152,62 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_context_lifespan_is_robust_to_deadlocks(self):
+        """
+        If you have two concurrrent contexts which are used as follows:
+
+        --> Context A is entered (manages a new lifespan)
+        -----> Context B is entered (uses the lifespan from A)
+        -----> Context A exits
+        -----> Context B exits
+
+        We must ensure that the lifespan shutdown hooks are not called on exit of A and
+        wait for all clients to be done consuming them (e.g. after B exits). We must
+        also ensure that we do not deadlock by having dependent waits during this
+        interleaved case.
+        """
+        startup = MagicMock(side_effect=lambda: print("Startup called!"))
+        shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
+
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        one_started = anyio.Event()
+        one_exited = anyio.Event()
+        two_started = anyio.Event()
+
+        async def one():
+            async with OrionClient(app):
+                print("Started one")
+                one_started.set()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Waiting for two to start...")
+                await two_started.wait()
+                # Exit after two has started
+                print("Exiting one...")
+            one_exited.set()
+
+        async def two():
+            await one_started.wait()
+            # Enter after one has started but before one has exited
+            async with OrionClient(app):
+                print("Started two")
+                two_started.set()
+                # Wait for one to exit, this creates an interleaved dependency
+                await one_exited.wait()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Exiting two...")
+
+        # Run concurrently
+        with anyio.fail_after(5):  # Kill if a deadlock occurs
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(one)
+                tg.start_soon(two)
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
@@ -161,6 +217,41 @@ class TestClientContextManager:
         with pytest.raises(ValueError):
             async with client:
                 raise ValueError()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(task_status):
+            async with OrionClient(app):
+                task_status.started()
+                await anyio.sleep_forever()
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+
+            tg.cancel_scope.cancel()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        with pytest.raises(ValueError):
+            async with OrionClient(app):
+                try:
+                    async with OrionClient(app):
+                        raise ValueError()
+                finally:
+                    # Shutdown not called yet, will be handled by the outermost ctx
+                    shutdown.assert_not_called()
 
         startup.assert_called_once()
         shutdown.assert_called_once()
