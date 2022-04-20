@@ -20,7 +20,7 @@
     "d3": "^7.4.3",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
-    "vue": "^3.0.5",
+    "vue": "^3.2.33",
     "vue-router": "^4.0.14"
   },
   "devDependencies": {
