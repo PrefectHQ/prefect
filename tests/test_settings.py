@@ -8,6 +8,7 @@ import prefect.context
 import prefect.settings
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_ORION_DATABASE_ECHO,
