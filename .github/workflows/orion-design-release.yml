@@ -8,10 +8,16 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   version-change-check:
     name: Check package version
     runs-on: ubuntu-latest
+    permissions:
+      actions: write # for cancel-action
+      contents: read
 
     steps: 
       - uses: actions/checkout@v3

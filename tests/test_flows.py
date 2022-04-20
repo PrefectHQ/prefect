@@ -12,7 +12,7 @@ import prefect.context
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
@@ -81,6 +81,20 @@ class TestFlow:
             match="Flow function is not compatible with `validate_parameters`",
         ):
             Flow(fn=my_fn)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/flow",
+            r"my%flow",
+            "my<flow",
+            "my>flow",
+            "my&flow",
+        ],
+    )
+    def test_invalid_name(self, name):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            Flow(fn=lambda: 1, name=name)
 
 
 class TestDecorator:
@@ -869,6 +883,19 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow().result() == data
+
+    def test_flow_parameters_can_be_unserializable_types_that_raise_value_error(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        data = Exception
+        # When passing some parameter types, jsonable_encoder will raise a ValueError
+        # for a missing a __dict__ attribute instead of a TypeError.
+        # This was notably encountered when using numpy arrays as an
+        # input type but applies to exception classes as well.
+        # See #1638.
+        assert my_flow(data).result() == data
 
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow

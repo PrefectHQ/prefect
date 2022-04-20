@@ -1,3 +1,5 @@
+import urllib.parse
+
 import anyio
 import fastapi
 import httpx
@@ -241,3 +243,26 @@ def test_response_scoped_dependency_is_overridable():
     response = client.get("/")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == "override"
+
+
+class TestParsing:
+    @pytest.fixture
+    def client(self):
+        app = FastAPI()
+        router = OrionRouter()
+
+        @router.get("/{x}")
+        def echo(x: str):
+            return x
+
+        app.include_router(router)
+        client = TestClient(app)
+        return client
+
+    def test_url_encoded_variables(self, client):
+        """FastAPI automatically handles url-encoded variables"""
+        x = "| ; 👍"
+        response = client.get(f"/{x}")
+        quoted_response = client.get(urllib.parse.quote(f"/{x}"))
+
+        assert x == response.json() == quoted_response.json()

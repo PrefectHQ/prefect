@@ -17,7 +17,7 @@ def tmpchdir(path: str):
     Change current-working directories for the duration of the context
     """
     path = os.path.abspath(path)
-    if os.path.isfile(path):
+    if os.path.isfile(path) or (not os.path.exists(path) and not path.endswith("/")):
         path = os.path.dirname(path)
 
     owd = os.getcwd()
