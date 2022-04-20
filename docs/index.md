@@ -46,7 +46,7 @@ For a deeper discussion about how and why Prefect 2.0 moved away from a reliance
 Decorate functions to automatically retry them on failure while providing complete visibility in the Prefect 2.0 UI.
 
 
-```python hl_lines="1 6 13"
+```python hl_lines="1 5 11"
 from prefect import flow, task
 from typing import List
 import httpx
@@ -57,8 +57,7 @@ def get_stars(repo: str):
     count = httpx.get(url).json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-
-@flow(name="Github Stars")
+@flow(name="GitHub Stars")
 def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
@@ -71,7 +70,7 @@ github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 
 Control task execution by changing a flow's `task_runner`. The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
 
-```python hl_lines="2 14"
+```python hl_lines="2 12"
 from prefect import flow, task
 from prefect.task_runners import DaskTaskRunner
 from typing import List
@@ -83,7 +82,7 @@ def get_stars(repo: str):
     count = httpx.get(url).json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="Github Stars", task_runner=DaskTaskRunner())
+@flow(name="GitHub Stars", task_runner=DaskTaskRunner())
 def github_stars(repos: List[str]):
     for repo in repos:
         get_stars(repo)
@@ -101,7 +100,7 @@ if __name__ == "__main__":
 
 With native async support, concurrent parallelism is easy. Asynchronous flows can include a mix of synchronous and asynchronous tasks, just like Python.
 
-```python hl_lines="4 8-10 16-17 21"
+```python hl_lines="4 7-9 14-15 18"
 from prefect import flow, task
 from typing import List
 import httpx
@@ -114,7 +113,7 @@ async def get_stars(repo: str):
     count = response.json()["stargazers_count"]
     print(f"{repo} has {count} stars!")
 
-@flow(name="Github Stars")
+@flow(name="GitHub Stars")
 async def github_stars(repos: List[str]):
     await asyncio.gather(*[get_stars(repo) for repo in repos])
 

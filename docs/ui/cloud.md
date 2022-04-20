@@ -121,7 +121,7 @@ The `prefect cloud logout` CLI command unsets those settings in the current prof
 Note that you can also manually configure the settings to interact with Prefect Cloud using an account ID, workspace ID, and API key.
 
 ```BASH
-$ prefect config set PREFECT_API_URL="https://beta.prefect.io/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+$ prefect config set PREFECT_API_URL="https://api-beta.prefect.io/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 $ prefect config set PREFECT_API_KEY="[API-KEY]"
 ```
 
