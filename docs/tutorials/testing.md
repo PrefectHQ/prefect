@@ -45,6 +45,6 @@ def prefect_test_fixture():
     with prefect_test_harness():
         yield
 
-def test_my_favorite_function(prefect_test_fixture):
+def test_my_favorite_function():
     assert my_favorite_function().result() == 42
 ```
