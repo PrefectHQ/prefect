@@ -37,7 +37,9 @@ def generate_lower_bounds(input_path):
             # Split the package from the conditional section
             pkg, cond = line.split(";", 1) if ";" in line else (line, "")
             # Parse the package name and the
-            pkg_parsed = re.match(r"^([\w\d]*)\s*.*\s*(?:>=|==|~=)\s*([\d*\.?]+)", pkg)
+            pkg_parsed = re.match(
+                r"^([\w\d_\-]*)\s*.*\s*(?:>=|==|~=)\s*([\d*\.?]+)", pkg
+            )
 
             if not pkg_parsed:
                 # There is no versioning for this requirement
