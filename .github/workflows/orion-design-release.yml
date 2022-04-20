@@ -50,10 +50,6 @@ jobs:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
     
-      - name: Install orion-ui dependencies
-        working-directory: ./orion-ui
-        run: npm ci install
-      
       - name: Install orion-design dependencies
         working-directory: ./orion-ui/packages/orion-design
         run: npm ci install
