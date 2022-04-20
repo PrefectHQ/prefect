@@ -5,15 +5,17 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
+      actions: read
       security-events: write
-
     strategy:
       fail-fast: false
       matrix:
