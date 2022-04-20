@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+  pull_request:
+    paths:
+      - .github/workflows/codeql-analysis.yml
+    branches:
+      - main
+
 permissions:
   contents: read
 
