@@ -48,7 +48,7 @@ def test_my_favorite_flow():
     assert my_favorite_flow().result() == 42
 ```
 
-# Unit testing tasks
+## Unit testing tasks
 
 To test an individual task, you can create a flow inside of your test:
 
