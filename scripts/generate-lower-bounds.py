@@ -34,13 +34,27 @@ import sys
 def generate_lower_bounds(input_path):
     with open(input_path, "r") as f:
         for line in f:
-            pkg_data = re.split(">=|,|==", line.replace("~", ">"), maxsplit=1)
+            # Split the package from the conditional section
+            pkg, cond = line.split(";", 1) if ";" in line else (line, "")
+            # Parse the package name and the
+            pkg_parsed = re.match(r"^([\w\d]*)\s*.*\s*(?:>=|==|~=)\s*([\d*\.?]+)", pkg)
 
-            if len(pkg_data) == 1:
+            if not pkg_parsed:
                 # There is no versioning for this requirement
-                print(pkg_data[0].strip())
+                print(pkg.strip(), end="")
             else:
-                print(pkg_data[0].strip() + "==" + pkg_data[1].strip())
+                # Pin to the lowest version
+                pkg_name, pkg_min_version = (
+                    pkg_parsed.groups()[0].strip(),
+                    pkg_parsed.groups()[1].strip(),
+                )
+                print(f"{pkg_name}=={pkg_min_version}", end="")
+
+            # Include the condition if it exists, otherwise a newline
+            if cond:
+                print(f"; {cond.strip()}")
+            else:
+                print()
 
 
 if __name__ == "__main__":
