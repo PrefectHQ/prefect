@@ -1,5 +1,6 @@
 import os
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -122,6 +123,11 @@ def test_nested_settings(monkeypatch):
 def test_extra_loggers(value, expected):
     settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
     assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+
+
+def test_prefect_home_expands_tilde_in_path():
+    settings = Settings(PREFECT_HOME="~/test")
+    assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
 
 class TestProfiles:
