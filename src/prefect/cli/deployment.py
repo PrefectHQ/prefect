@@ -228,6 +228,7 @@ async def create(path: str):
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
+    failed = 0
     for spec, src in specs.items():
         try:
             await spec.validate()
@@ -236,6 +237,7 @@ async def create(path: str):
                 f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
                 style="red",
             )
+            failed += 1
             continue  # Attempt to create the next deployment
 
         stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
@@ -252,6 +254,7 @@ async def create(path: str):
         except Exception as exc:
             console.print(exception_traceback(exc))
             console.print(f"Failed to create deployment {stylized_name}", style="red")
+            failed += 1
             continue  # Attempt to create the next deployment
         else:
             console.print(f"Created deployment {stylized_name}.")
@@ -262,3 +265,8 @@ async def create(path: str):
                 "View your new deployment with: "
                 f"\n\n    prefect deployment inspect {stylized_name}"
             )
+
+    if failed:
+        exit_with_error(f"Failed to create {failed} out of {len(specs)} deployments.")
+    else:
+        exit_with_success(f"Created {len(specs)} deployments!")
