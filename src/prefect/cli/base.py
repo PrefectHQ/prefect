@@ -164,6 +164,7 @@ async def version():
         "Profile": prefect.context.get_profile_context().name,
     }
 
+    is_ephemeral = None
     try:
         async with prefect.get_client() as client:
             is_ephemeral = client._ephemeral_app is not None
