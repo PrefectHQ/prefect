@@ -488,7 +488,7 @@ class Settings(SettingsFieldsMixin):
     This is not recommended:
     ```python
     from prefect.settings import Settings
-    Settings().PREFECT_PROFILE_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
+    Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
     ```
     """
 
