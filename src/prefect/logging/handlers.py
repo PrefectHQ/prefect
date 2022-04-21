@@ -129,7 +129,7 @@ class OrionLogWorker:
                 continue
 
             client = get_client()
-            client.manage_lifespan = True
+            client.manage_lifespan = False
             async with client:
                 try:
                     await client.create_logs(self._pending_logs)
