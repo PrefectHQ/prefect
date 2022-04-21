@@ -185,10 +185,6 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                     context = APP_LIFESPANS.pop(key)
                     await context.__aexit__(*exc_info)
 
-                    # Drop the lock to avoid memory leaks, if there is another lifespan
-                    # created in this thread we will allocate a new one
-                    APP_LIFESPANS_LOCKS.pop(thread_id)
-
 
 class OrionClient:
     """
