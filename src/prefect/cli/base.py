@@ -7,7 +7,7 @@ import platform
 import sys
 import traceback
 from contextlib import contextmanager
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 import pendulum
 import rich.console
@@ -164,7 +164,7 @@ async def version():
         "Profile": prefect.context.get_profile_context().name,
     }
 
-    is_ephemeral = None
+    is_ephemeral: Optional[bool] = None
     try:
         async with prefect.get_client() as client:
             is_ephemeral = client._ephemeral_app is not None
