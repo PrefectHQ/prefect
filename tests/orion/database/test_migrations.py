@@ -147,11 +147,16 @@ async def test_backfill_state_name(db, flow):
         # check to see the revision worked
         session = await db.session()
         async with session:
-            flow_runs = (
-                await session.execute(
-                    sa.text("SELECT id, name, state_name FROM flow_run order by name")
-                )
-            ).all()
+            flow_runs = [
+                (str(fr[0]), fr[1], fr[2])
+                for fr in (
+                    await session.execute(
+                        sa.text(
+                            "SELECT id, name, state_name FROM flow_run order by name"
+                        )
+                    )
+                ).all()
+            ]
             expected_flow_runs = [
                 (str(flow_run_id), "foo", "My Custom Name"),
                 (str(null_state_flow_run_id), "null state", None),
@@ -160,11 +165,16 @@ async def test_backfill_state_name(db, flow):
                 expected_flow_runs == flow_runs
             ), "state_name is backfilled for flow runs"
 
-            task_runs = (
-                await session.execute(
-                    sa.text("SELECT id, name, state_name FROM task_run order by name")
-                )
-            ).all()
+            task_runs = [
+                (str(tr[0]), tr[1], tr[2])
+                for tr in (
+                    await session.execute(
+                        sa.text(
+                            "SELECT id, name, state_name FROM task_run order by name"
+                        )
+                    )
+                ).all()
+            ]
             expected_task_runs = [
                 (str(task_run_id), "foo-task", "My Custom Name"),
                 (str(null_state_task_run_id), "null-state-task", None),
