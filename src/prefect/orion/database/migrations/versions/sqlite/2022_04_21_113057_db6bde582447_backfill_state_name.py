@@ -26,10 +26,8 @@ def upgrade():
 
     update_flow_run_state_name_in_batches = """
         UPDATE flow_run
-        SET state_name = flow_run_state.name
-        FROM flow_run_state
-        WHERE flow_run.state_id = flow_run_state.id
-        AND flow_run.id in (SELECT id from flow_run where state_name is null and state_id is not null limit 500);
+        SET state_name = (SELECT name from flow_run_state where flow_run.state_id = flow_run_state.id)
+        WHERE flow_run.id in (SELECT id from flow_run where state_name is null and state_id is not null limit 500);
     """
 
     while True:
@@ -39,10 +37,8 @@ def upgrade():
 
     update_task_run_state_name_in_batches = """
         UPDATE task_run
-        SET state_name = task_run_state.name
-        FROM task_run_state
-        WHERE task_run.state_id = task_run_state.id
-        AND task_run.id in (SELECT id from task_run where state_name is null and state_id is not null limit 500);
+        SET state_name = (SELECT name from task_run_state where task_run.state_id = task_run_state.id)
+        WHERE task_run.id in (SELECT id from task_run where state_name is null and state_id is not null limit 500);
     """
 
     while True:
