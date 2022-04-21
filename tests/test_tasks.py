@@ -189,25 +189,6 @@ class TestTaskCall:
         task_state = flow_state.result()
         assert task_state.result() == (1, 2, dict(x=3, y=4, z=5))
 
-    async def test_call_result_on_async_tasks_without_await(self):
-        @task
-        async def get_data():
-            return {"value": 127}
-
-        @task
-        async def increment_value(value):
-            return value + 1
-
-        # note this flow is purposely not async
-        @flow
-        def test_flow():
-            value = get_data().result()["value"]
-            return increment_value(value)
-
-        flow_state = test_flow()
-        task_state = flow_state.result()
-        assert task_state.result() == 128
-
 
 class TestTaskFutures:
     def test_tasks_return_futures(self):
@@ -335,6 +316,22 @@ class TestTaskFutures:
             return True  # Ignore failed tasks
 
         (await my_flow()).result()
+
+    async def test_async_tasks_in_sync_flows_return_sync_futures(self):
+        @task
+        async def get_data():
+            return {"value": 1}
+
+        # note this flow is purposely not async
+        @flow
+        def test_flow():
+            future = get_data()
+            assert not future.asynchronous, "The async task should return a sync future"
+            assert future.result() == 1, "Retrieving the result returns data"
+
+        flow_state = test_flow()
+        task_state = flow_state.result()
+        assert task_state.result() == 1
 
 
 class TestTaskRetries:
