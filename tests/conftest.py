@@ -15,9 +15,6 @@ from .fixtures.database import *
 from .fixtures.logging import *
 from .fixtures.storage import *
 
-profile = prefect.context.get_profile_context()
-profile.initialize()
-
 
 def pytest_addoption(parser):
     parser.addoption(
