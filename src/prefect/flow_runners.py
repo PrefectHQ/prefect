@@ -479,6 +479,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Start the container
         container.start()
 
+        docker_client.close()
+
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
@@ -627,6 +629,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
         result = container.wait()
+        docker_client.close()
         return result.get("StatusCode") == 0
 
     @property
@@ -649,7 +652,18 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_client(self):
         try:
-            docker_client = self._docker.from_env()
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = self._docker.from_env()
+
         except self._docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
@@ -767,6 +781,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     Attributes:
         image: An optional string specifying the tag of a Docker image to use for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
+        service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
@@ -777,6 +792,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
+    service_account_name: str = None
     labels: Dict[str, str] = None
     image_pull_policy: KubernetesImagePullPolicy = None
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
@@ -982,6 +998,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 "backoff_limit": 4,
             },
         )
+
+        if self.service_account_name:
+            job_settings["spec"]["template"]["spec"][
+                "serviceAccountName"
+            ] = self.service_account_name
 
         if self.image_pull_policy:
             job_settings["spec"]["template"]["spec"]["containers"][0][
