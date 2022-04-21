@@ -175,6 +175,7 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
         # immediately and the code in its context will not run, leaving the lifespan
         # open
         with anyio.CancelScope(shield=True):
+
             async with APP_LIFESPANS_LOCKS[thread_id]:
                 # After the consumer exits the context, decrement the reference count
                 APP_LIFESPANS_REF_COUNTS[key] -= 1
@@ -183,12 +184,7 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                 if APP_LIFESPANS_REF_COUNTS[key] <= 0:
                     APP_LIFESPANS_REF_COUNTS.pop(key)
                     context = APP_LIFESPANS.pop(key)
-                    should_close = True
-                else:
-                    should_close = False
-
-            if should_close:
-                await context.__aexit__(*exc_info)
+                    await context.__aexit__(*exc_info)
 
 
 class OrionClient:
