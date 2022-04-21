@@ -157,7 +157,7 @@ class TestProfilesContext:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
-        with temporary_settings(PREFECT_PROFILES_PATH=path):
+        with temporary_settings(PREFECT_HOME=tmp_path, PREFECT_PROFILES_PATH=path):
             yield path
 
     def test_profile_context_variable(self):
@@ -178,24 +178,6 @@ class TestProfilesContext:
         )
         with pytest.raises(MissingContextError, match="No profile"):
             get_profile_context()
-
-    def test_profile_context_creates_home_if_asked(
-        self, tmp_path, temporary_profiles_path
-    ):
-        home = tmp_path / "home"
-        assert not home.exists()
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                f"""
-                [profiles.foo]
-                PREFECT_HOME = "{home}"
-                """
-            )
-        )
-        with profile("foo", initialize=False) as ctx:
-            ctx.initialize(create_home=True)
-
-        assert home.exists()
 
     def test_profile_context_uses_settings(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
