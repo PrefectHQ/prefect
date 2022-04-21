@@ -108,7 +108,7 @@ class TestClientContextManager:
         assert startup.call_count == 2
         assert shutdown.call_count == 2
 
-    async def test_client_context_lifespan_is_robust_to_concurrent_usage(self):
+    async def test_client_context_lifespan_is_robust_to_async_concurrency(self):
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
@@ -182,7 +182,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    async def test_client_context_lifespan_is_robust_to_highly_concurrent_usage(self):
+    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
@@ -216,44 +216,6 @@ class TestClientContextManager:
                 async with anyio.create_task_group() as tg:
                     for _ in range(100):
                         tg.start_soon(enter_client)
-
-        threads = [
-            threading.Thread(
-                target=anyio.run,
-                args=(
-                    enter_client_many_times,
-                    prefect.context.ProfileContext.get().copy(),
-                ),
-            )
-            for _ in range(100)
-        ]
-        for thread in threads:
-            thread.start()
-
-        for thread in threads:
-            thread.join(3)
-
-        assert startup.call_count == shutdown.call_count
-        assert startup.call_count > 0
-
-    async def test_client_context_lifespan_is_robust_to_mixed_concurrency_with_fresh_apps(
-        self,
-    ):
-        startup, shutdown = MagicMock(), MagicMock()
-
-        async def enter_client(app):
-            # Use random sleeps to interleave clients
-            await anyio.sleep(random.random())
-            async with OrionClient(app):
-                await anyio.sleep(random.random())
-
-        async def enter_client_many_times(context):
-            # We must re-enter the profile context in the new thread
-            with context:
-                app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
-                async with anyio.create_task_group() as tg:
-                    for _ in range(100):
-                        tg.start_soon(enter_client, app)
 
         threads = [
             threading.Thread(
