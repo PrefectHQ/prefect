@@ -318,9 +318,10 @@ class TestTaskFutures:
         (await my_flow()).result()
 
     async def test_async_tasks_in_sync_flows_return_sync_futures(self):
+        data = {"value": 1}
         @task
         async def get_data():
-            return {"value": 1}
+            return data
 
         # note this flow is purposely not async
         @flow
@@ -328,10 +329,10 @@ class TestTaskFutures:
             future = get_data()
             assert not future.asynchronous, "The async task should return a sync future"
             result = future.result()
-            assert result == {"value": 1}, "Retrieving the result returns data"
+            assert result == data, "Retrieving the result returns data"
             return result
 
-        assert test_flow().result() == {"value": 1}
+        assert test_flow().result() == data
 
 
 class TestTaskRetries:
