@@ -212,7 +212,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.FlowRun.state.has(db.FlowRunState.name.in_(self.any_)))
+            filters.append(db.FlowRun.state_name.in_(self.any_))
         return filters
 
 
@@ -492,7 +492,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.TaskRun.state.has(db.TaskRunState.name.in_(self.any_)))
+            filters.append(db.TaskRun.state_name.in_(self.any_))
         return filters
 
 
