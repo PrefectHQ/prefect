@@ -8,8 +8,6 @@ Create Date: 2022-04-21 11:30:57.542292
 import sqlalchemy as sa
 from alembic import op
 
-import prefect
-
 # revision identifiers, used by Alembic.
 revision = "db6bde582447"
 down_revision = "7f5f335cace3"
@@ -27,7 +25,7 @@ def upgrade():
     conn = op.get_bind()
 
     update_flow_run_state_name_in_batches = """
-        WITH null_flow_run_state_name_cte as (SELECT id from flow_run where state_name is null limit 500)
+        WITH null_flow_run_state_name_cte as (SELECT id from flow_run where state_name is null and state_id is not null limit 500)
         UPDATE flow_run
         SET state_name = flow_run_state.name
         FROM flow_run_state, null_flow_run_state_name_cte
@@ -41,7 +39,7 @@ def upgrade():
             break
 
     update_task_run_state_name_in_batches = """
-        WITH null_task_run_state_name_cte as (SELECT id from task_run where state_name is null limit 500)
+        WITH null_task_run_state_name_cte as (SELECT id from task_run where state_name is null and state_id is not null limit 500)
         UPDATE task_run
         SET state_name = task_run_state.name
         FROM task_run_state, null_task_run_state_name_cte
