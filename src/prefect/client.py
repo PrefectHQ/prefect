@@ -232,6 +232,8 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
+        self.manage_lifespan = True
+
         # Only set if this client started the lifespan of the application
         self._ephemeral_lifespan: Optional[LifespanManager] = None
         self._closed = False
@@ -1728,7 +1730,7 @@ class OrionClient:
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self._ephemeral_app:
+        if self._ephemeral_app and self.manage_lifespan:
             self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
                 app_lifespan_context(self._ephemeral_app)
             )
