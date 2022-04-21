@@ -171,3 +171,12 @@ def event_loop(request):
 @pytest.fixture
 def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
+
+
+@pytest.fixture(autouse=True)
+def test_home(tmp_path):
+    path = tmp_path / "profiles.toml"
+    with prefect.utilities.testing.temporary_settings(
+        PREFECT_HOME=tmp_path, PREFECT_PROFILES_PATH=path
+    ):
+        yield path
