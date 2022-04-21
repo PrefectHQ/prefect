@@ -2,7 +2,13 @@
 Command line interface for working with concurrency limits.
 """
 import pendulum
-from rich.console import Group
+
+try:
+    from rich.console import Group
+except ImportError:
+    # Name changed in https://github.com/Textualize/rich/blob/master/CHANGELOG.md#1100---2022-01-09
+    from rich.console import RenderGroup as Group
+
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table

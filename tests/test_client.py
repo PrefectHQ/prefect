@@ -1,4 +1,5 @@
-import uuid
+import random
+import threading
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -12,6 +13,7 @@ from fastapi import Depends, FastAPI
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
+import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, get_client
@@ -106,7 +108,7 @@ class TestClientContextManager:
         assert startup.call_count == 2
         assert shutdown.call_count == 2
 
-    async def test_client_context_lifespan_is_robust_to_concurrent_usage(self):
+    async def test_client_context_lifespan_is_robust_to_async_concurrency(self):
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
@@ -152,6 +154,144 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(context):
+            # We must re-enter the profile context in the new thread
+            with context:
+                # Use random sleeps to interleave clients
+                await anyio.sleep(random.random())
+                async with OrionClient(app):
+                    await anyio.sleep(random.random())
+
+        threads = [
+            threading.Thread(
+                target=anyio.run,
+                args=(enter_client, prefect.context.ProfileContext.get().copy()),
+            )
+            for _ in range(100)
+        ]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(3)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client():
+            # Use random sleeps to interleave clients
+            await anyio.sleep(random.random())
+            async with OrionClient(app):
+                await anyio.sleep(random.random())
+
+        with anyio.fail_after(5):
+            async with anyio.create_task_group() as tg:
+                for _ in range(1000):
+                    tg.start_soon(enter_client)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client():
+            # Use random sleeps to interleave clients
+            await anyio.sleep(random.random())
+            async with OrionClient(app):
+                await anyio.sleep(random.random())
+
+        async def enter_client_many_times(context):
+            # We must re-enter the profile context in the new thread
+            with context:
+                async with anyio.create_task_group() as tg:
+                    for _ in range(100):
+                        tg.start_soon(enter_client)
+
+        threads = [
+            threading.Thread(
+                target=anyio.run,
+                args=(
+                    enter_client_many_times,
+                    prefect.context.ProfileContext.get().copy(),
+                ),
+            )
+            for _ in range(100)
+        ]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(3)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
+        """
+        If you have two concurrrent contexts which are used as follows:
+
+        --> Context A is entered (manages a new lifespan)
+        -----> Context B is entered (uses the lifespan from A)
+        -----> Context A exits
+        -----> Context B exits
+
+        We must ensure that the lifespan shutdown hooks are not called on exit of A and
+        wait for all clients to be done consuming them (e.g. after B exits). We must
+        also ensure that we do not deadlock by having dependent waits during this
+        interleaved case.
+        """
+        startup = MagicMock(side_effect=lambda: print("Startup called!"))
+        shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
+
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        one_started = anyio.Event()
+        one_exited = anyio.Event()
+        two_started = anyio.Event()
+
+        async def one():
+            async with OrionClient(app):
+                print("Started one")
+                one_started.set()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Waiting for two to start...")
+                await two_started.wait()
+                # Exit after two has started
+                print("Exiting one...")
+            one_exited.set()
+
+        async def two():
+            await one_started.wait()
+            # Enter after one has started but before one has exited
+            async with OrionClient(app):
+                print("Started two")
+                two_started.set()
+                # Wait for one to exit, this creates an interleaved dependency
+                await one_exited.wait()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Exiting two...")
+
+        # Run concurrently
+        with anyio.fail_after(5):  # Kill if a deadlock occurs
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(one)
+                tg.start_soon(two)
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
@@ -161,6 +301,41 @@ class TestClientContextManager:
         with pytest.raises(ValueError):
             async with client:
                 raise ValueError()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(task_status):
+            async with OrionClient(app):
+                task_status.started()
+                await anyio.sleep_forever()
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+
+            tg.cancel_scope.cancel()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        with pytest.raises(ValueError):
+            async with OrionClient(app):
+                try:
+                    async with OrionClient(app):
+                        raise ValueError()
+                finally:
+                    # Shutdown not called yet, will be handled by the outermost ctx
+                    shutdown.assert_not_called()
 
         startup.assert_called_once()
         shutdown.assert_called_once()
