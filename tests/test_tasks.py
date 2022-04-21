@@ -331,9 +331,7 @@ class TestTaskFutures:
             assert result["value"] == 1, "Retrieving the result returns data"
             return result
 
-        flow_state = test_flow()
-        task_state = flow_state.result()
-        assert task_state.result()["value"] == 1
+        assert test_flow().result()["value"] == 1
 
 
 class TestTaskRetries:
