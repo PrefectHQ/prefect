@@ -1,4 +1,5 @@
-import uuid
+import random
+import threading
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -12,6 +13,7 @@ from fastapi import Depends, FastAPI
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
+import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, get_client
@@ -151,6 +153,52 @@ class TestClientContextManager:
 
         startup.assert_called_once()
         shutdown.assert_called_once()
+
+    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(context):
+            # We must re-enter the profile context in the new thread
+            with context:
+                # Use random sleeps to interleave clients
+                await anyio.sleep(random.random())
+                async with OrionClient(app):
+                    await anyio.sleep(random.random())
+
+        threads = [
+            threading.Thread(
+                target=anyio.run,
+                args=(enter_client, prefect.context.ProfileContext.get().copy()),
+            )
+            for _ in range(100)
+        ]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(3)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_large_concurrent_usage(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client():
+            # Use random sleeps to interleave clients
+            await anyio.sleep(random.random())
+            async with OrionClient(app):
+                await anyio.sleep(random.random())
+
+        with anyio.fail_after(5):
+            async with anyio.create_task_group() as tg:
+                for _ in range(1000):
+                    tg.start_soon(enter_client)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
 
     async def test_client_context_lifespan_is_robust_to_deadlocks(self):
         """
