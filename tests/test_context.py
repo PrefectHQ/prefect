@@ -179,6 +179,15 @@ class TestProfilesContext:
         with pytest.raises(MissingContextError, match="No profile"):
             get_profile_context()
 
+    def test_creates_home_if_asked(self, tmp_path, temporary_profiles_path):
+        home = tmp_path / "home"
+        assert not home.exists()
+        with temporary_settings(PREFECT_HOME=home):
+            with profile("default", initialize=False) as ctx:
+                ctx.initialize(create_home=True)
+
+        assert home.exists()
+
     def test_profile_context_uses_settings(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(
