@@ -1,13 +1,15 @@
 import asyncio
 import logging
+import os
 import pathlib
+import tempfile
 import warnings
 from typing import Set
 
 import pytest
 
-# Initialize logging
 import prefect
+import prefect.settings
 
 from .fixtures.api import *
 from .fixtures.client import *
@@ -173,10 +175,25 @@ def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
 
 
-@pytest.fixture(autouse=True)
-def test_home(tmp_path):
-    path = tmp_path / "profiles.toml"
-    with prefect.utilities.testing.temporary_settings(
-        PREFECT_HOME=tmp_path, PREFECT_PROFILES_PATH=path
-    ):
-        yield path
+@pytest.fixture(scope="session", autouse=True)
+def tests_profile():
+    """
+    Creates a fixture for the scope of the test session that sets the PREFECT_HOME to
+    a temporary directory to avoid clobbering"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.environ["PREFECT_HOME"] = str(tmpdir)
+        # We set the profile path explicitly as well to avoid interaction with a
+        # developer's profiles if they have set this via environment variable
+        os.environ["PREFECT_PROFILES_PATH"] = "$PREFECT_HOME/profiles.toml"
+
+        settings = prefect.settings.get_settings_from_env()
+
+        with prefect.context.ProfileContext(
+            name="base-test-profile", settings=settings, env={}
+        ) as profile:
+
+            # It is important to initialize the profile so logging is configured
+            # when the test run starts rather than lazily once a flow runs
+            profile.initialize()
+
+            yield profile
