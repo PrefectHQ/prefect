@@ -182,7 +182,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    async def test_client_context_lifespan_is_robust_to_large_concurrent_usage(self):
+    async def test_client_context_lifespan_is_robust_to_highly_concurrent_usage(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
@@ -200,7 +200,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
-    async def test_client_context_lifespan_is_robust_to_deadlocks(self):
+    async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
         """
         If you have two concurrrent contexts which are used as follows:
 
