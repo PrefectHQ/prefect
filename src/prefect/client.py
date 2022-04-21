@@ -183,7 +183,12 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                 if APP_LIFESPANS_REF_COUNTS[key] <= 0:
                     APP_LIFESPANS_REF_COUNTS.pop(key)
                     context = APP_LIFESPANS.pop(key)
-                    await context.__aexit__(*exc_info)
+                    should_close = True
+                else:
+                    should_close = False
+
+            if should_close:
+                await context.__aexit__(*exc_info)
 
 
 class OrionClient:
