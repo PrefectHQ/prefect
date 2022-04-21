@@ -18,6 +18,7 @@ $ python -m asyncio
 import datetime
 import sys
 import threading
+from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import (
@@ -28,6 +29,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Tuple,
     Union,
 )
 from uuid import UUID
@@ -102,9 +104,11 @@ def get_client() -> "OrionClient":
     )
 
 
-APP_LIFESPANS: Dict[int, LifespanManager] = {}
-APP_LIFESPANS_REF_COUNTS: Dict[int, int] = {}
-APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above dicts
+# Datastores for lifespan management, keys should be a tuple of thread and app identities.
+APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
+APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
+# Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
+APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
 @asynccontextmanager
@@ -138,15 +142,16 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     the lifespan is closed once all of the clients are done.
     """
     # The id is used instead of the hash so each application instance is managed
-    # independently. The threading identity is included to avoid collissions across
+    # independently no matter what. The threading identity is included to avoid collissions across
     # threads because we are using a lock that is _not_ thread safe.
-    key = id(app) + threading.get_ident()
+    thread_id = threading.get_ident()
+    key = (thread_id, app)
     context: Optional[LifespanManager] = None
 
     # On exception, this will be populated with exception details
     exc_info = (None, None, None)
 
-    async with APP_LIFESPANS_LOCK:
+    async with APP_LIFESPANS_LOCKS[thread_id]:
         if key in APP_LIFESPANS:
             # The lifespan is already being managed, just increment the reference count
             APP_LIFESPANS_REF_COUNTS[key] += 1
@@ -169,7 +174,7 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
         # immediately and the code in its context will not run, leaving the lifespan
         # open
         with anyio.CancelScope(shield=True):
-            async with APP_LIFESPANS_LOCK:
+            async with APP_LIFESPANS_LOCKS[thread_id]:
                 # After the consumer exits the context, decrement the reference count
                 APP_LIFESPANS_REF_COUNTS[key] -= 1
 
