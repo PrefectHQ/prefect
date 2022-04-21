@@ -319,6 +319,7 @@ class TestTaskFutures:
 
     async def test_async_tasks_in_sync_flows_return_sync_futures(self):
         data = {"value": 1}
+
         @task
         async def get_data():
             return data
