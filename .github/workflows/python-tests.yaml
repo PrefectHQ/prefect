@@ -58,6 +58,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    timeout-minutes: 20
+
     steps:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
@@ -148,6 +150,8 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v3
