@@ -18,6 +18,7 @@ $ python -m asyncio
 import datetime
 import sys
 import threading
+from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
 from typing import (
@@ -28,6 +29,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Tuple,
     Union,
 )
 from uuid import UUID
@@ -102,9 +104,11 @@ def get_client() -> "OrionClient":
     )
 
 
-APP_LIFESPANS: Dict[int, LifespanManager] = {}
-APP_LIFESPANS_REF_COUNTS: Dict[int, int] = {}
-APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above dicts
+# Datastores for lifespan management, keys should be a tuple of thread and app identities.
+APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
+APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
+# Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
+APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
 @asynccontextmanager
@@ -137,16 +141,25 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     without closing the lifespan context and reference counts will be used to ensure
     the lifespan is closed once all of the clients are done.
     """
-    # The id is used instead of the hash so each application instance is managed
-    # independently. The threading identity is included to avoid collissions across
-    # threads because we are using a lock that is _not_ thread safe.
-    key = id(app) + threading.get_ident()
-    context: Optional[LifespanManager] = None
+    # TODO: A deadlock has been observed during multithreaded use of clients while this
+    #       lifespan context is being used. This has only been reproduced on Python 3.7
+    #       and while we hope to discourage using multiple event loops in threads, this
+    #       bug may emerge again.
+    #       See https://github.com/PrefectHQ/orion/pull/1696
+    thread_id = threading.get_ident()
+
+    # The id of the application is used instead of the hash so each application instance
+    # is managed independently even if they share the same settings. We include the
+    # thread id since applications are managed separately per thread.
+    key = (thread_id, id(app))
 
     # On exception, this will be populated with exception details
     exc_info = (None, None, None)
 
-    async with APP_LIFESPANS_LOCK:
+    # Get a lock unique to this thread since anyio locks are not threadsafe
+    lock = APP_LIFESPANS_LOCKS[thread_id]
+
+    async with lock:
         if key in APP_LIFESPANS:
             # The lifespan is already being managed, just increment the reference count
             APP_LIFESPANS_REF_COUNTS[key] += 1
@@ -169,7 +182,7 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
         # immediately and the code in its context will not run, leaving the lifespan
         # open
         with anyio.CancelScope(shield=True):
-            async with APP_LIFESPANS_LOCK:
+            async with lock:
                 # After the consumer exits the context, decrement the reference count
                 APP_LIFESPANS_REF_COUNTS[key] -= 1
 
@@ -222,6 +235,8 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
+        self.manage_lifespan = True
+
         # Only set if this client started the lifespan of the application
         self._ephemeral_lifespan: Optional[LifespanManager] = None
         self._closed = False
@@ -1718,7 +1733,7 @@ class OrionClient:
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self._ephemeral_app:
+        if self._ephemeral_app and self.manage_lifespan:
             self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
                 app_lifespan_context(self._ephemeral_app)
             )
