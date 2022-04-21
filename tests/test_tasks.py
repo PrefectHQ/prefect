@@ -327,7 +327,9 @@ class TestTaskFutures:
         def test_flow():
             future = get_data()
             assert not future.asynchronous, "The async task should return a sync future"
-            assert future.result()["value"] == 1, "Retrieving the result returns data"
+            result = future.result()
+            assert result["value"] == 1, "Retrieving the result returns data"
+            return result
 
         flow_state = test_flow()
         task_state = flow_state.result()
