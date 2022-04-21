@@ -146,19 +146,20 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     #       and while we hope to discourage using multiple event loops in threads, this
     #       bug may emerge again.
     #       See https://github.com/PrefectHQ/orion/pull/1696
-
-    # The threading identity is included to avoid collisions across threads because
-    # the lock is not thread safe and a unique lock must be used per thread.
     thread_id = threading.get_ident()
 
     # The id of the application is used instead of the hash so each application instance
-    # is managed independently even if they share the same settings.
+    # is managed independently even if they share the same settings. We include the
+    # thread id since applications are managed separately per thread.
     key = (thread_id, id(app))
 
     # On exception, this will be populated with exception details
     exc_info = (None, None, None)
 
-    async with APP_LIFESPANS_LOCKS[thread_id]:
+    # Get a lock unique to this thread since anyio locks are not threadsafe
+    lock = APP_LIFESPANS_LOCKS[thread_id]
+
+    async with lock:
         if key in APP_LIFESPANS:
             # The lifespan is already being managed, just increment the reference count
             APP_LIFESPANS_REF_COUNTS[key] += 1
@@ -181,8 +182,7 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
         # immediately and the code in its context will not run, leaving the lifespan
         # open
         with anyio.CancelScope(shield=True):
-
-            async with APP_LIFESPANS_LOCKS[thread_id]:
+            async with lock:
                 # After the consumer exits the context, decrement the reference count
                 APP_LIFESPANS_REF_COUNTS[key] -= 1
 
