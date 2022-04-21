@@ -141,13 +141,19 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     without closing the lifespan context and reference counts will be used to ensure
     the lifespan is closed once all of the clients are done.
     """
-    # The id of the application is used instead of the hash so each application instance
-    # is managed independently even if they share the same settings.
-    # The threading identity is included to avoid collissions across threads because
+    # TODO: A deadlock has been observed during multithreaded use of clients while this
+    #       lifespan context is being used. This has only been reproduced on Python 3.7
+    #       and while we hope to discourage using multiple event loops in threads, this
+    #       bug may emerge again.
+    #       See https://github.com/PrefectHQ/orion/pull/1696
+
+    # The threading identity is included to avoid collisions across threads because
     # the lock is not thread safe and a unique lock must be used per thread.
     thread_id = threading.get_ident()
-    key = (thread_id, app)
-    context: Optional[LifespanManager] = None
+
+    # The id of the application is used instead of the hash so each application instance
+    # is managed independently even if they share the same settings.
+    key = (thread_id, id(app))
 
     # On exception, this will be populated with exception details
     exc_info = (None, None, None)
