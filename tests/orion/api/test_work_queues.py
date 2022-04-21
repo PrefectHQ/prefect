@@ -127,7 +127,7 @@ class TestReadWorkQueueByName:
         [
             "work queue",
             "work:queue",
-            "work\queue",
+            "work\\queue",
             "work👍queue",
             "work|queue",
         ],
