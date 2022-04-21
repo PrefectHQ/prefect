@@ -7,6 +7,7 @@ on:
       - "**/*.py"
       - requirements.txt
       - requirements-dev.txt
+      - setup.cfg
   push:
     branches:
       - main
@@ -58,6 +59,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    timeout-minutes: 20
+
     steps:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
@@ -70,6 +73,22 @@ jobs:
       - name: Set up Docker Buildx
         if: ${{ matrix.docker-images }}
         uses: docker/setup-buildx-action@v1
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "requirements*.txt"
+
+      - name: Pin requirements to lower bounds
+        if: ${{ matrix.lower-bound-requirements }}
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
 
       - name: Build test images
         if: ${{ matrix.docker-images }}
@@ -89,22 +108,6 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Pin requirements to lower bounds
-        if: ${{ matrix.lower-bound-requirements }}
-        # Creates lower bound files then replaces the input files so we can do a normal install
-        run: |
-          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
-          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
-          mv requirements-lower.txt requirements.txt
-          mv requirements-dev-lower.txt requirements-dev.txt
 
       - name: Install packages
         run: |
@@ -148,6 +151,8 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v3
