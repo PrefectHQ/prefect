@@ -116,7 +116,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv ${{ matrix.test-options }} --not-service ray
+          pytest tests -vv ${{ matrix.test-options }} --not-service ray -x
 
   run-tests-postgres:
     name: Test with Postgres
