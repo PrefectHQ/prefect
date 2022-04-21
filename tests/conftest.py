@@ -179,7 +179,9 @@ def tests_dir() -> pathlib.Path:
 def tests_profile():
     """
     Creates a fixture for the scope of the test session that sets the PREFECT_HOME to
-    a temporary directory to avoid clobbering"""
+    a temporary directory to avoid clobbering environments and settings that the
+    developer may have configured.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         os.environ["PREFECT_HOME"] = str(tmpdir)
         # We set the profile path explicitly as well to avoid interaction with a
