@@ -25,12 +25,11 @@ def upgrade():
     conn = op.get_bind()
 
     update_flow_run_state_name_in_batches = """
-        WITH null_flow_run_state_name_cte as (SELECT id from flow_run where state_name is null and state_id is not null limit 500)
         UPDATE flow_run
         SET state_name = flow_run_state.name
-        FROM flow_run_state, null_flow_run_state_name_cte
+        FROM flow_run_state
         WHERE flow_run.state_id = flow_run_state.id
-        AND flow_run.id = null_flow_run_state_name_cte.id;
+        AND flow_run.id in (SELECT id from flow_run where state_name is null and state_id is not null limit 500);
     """
 
     while True:
@@ -39,12 +38,11 @@ def upgrade():
             break
 
     update_task_run_state_name_in_batches = """
-        WITH null_task_run_state_name_cte as (SELECT id from task_run where state_name is null and state_id is not null limit 500)
         UPDATE task_run
         SET state_name = task_run_state.name
-        FROM task_run_state, null_task_run_state_name_cte
+        FROM task_run_state
         WHERE task_run.state_id = task_run_state.id
-        AND task_run.id = null_task_run_state_name_cte.id;
+        AND task_run.id in (SELECT id from task_run where state_name is null and state_id is not null limit 500);
     """
 
     while True:
