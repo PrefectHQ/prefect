@@ -33,8 +33,8 @@ def upgrade():
         AND flow_run.id = null_flow_run_state_name_cte.id;
     """
 
-    result = conn.execute(sa.text(update_flow_run_state_name_in_batches))
     while True:
+        result = conn.execute(sa.text(update_flow_run_state_name_in_batches))
         if result.rowcount <= 0:
             break
 
@@ -47,8 +47,8 @@ def upgrade():
         AND task_run.id = null_task_run_state_name_cte.id;
     """
 
-    result = conn.execute(sa.text(update_task_run_state_name_in_batches))
     while True:
+        result = conn.execute(sa.text(update_task_run_state_name_in_batches))
         if result.rowcount <= 0:
             break
 
