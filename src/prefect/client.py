@@ -141,9 +141,10 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     without closing the lifespan context and reference counts will be used to ensure
     the lifespan is closed once all of the clients are done.
     """
-    # The id is used instead of the hash so each application instance is managed
-    # independently no matter what. The threading identity is included to avoid collissions across
-    # threads because we are using a lock that is _not_ thread safe.
+    # The id of the application is used instead of the hash so each application instance
+    # is managed independently even if they share the same settings.
+    # The threading identity is included to avoid collissions across threads because
+    # the lock is not thread safe and a unique lock must be used per thread.
     thread_id = threading.get_ident()
     key = (thread_id, app)
     context: Optional[LifespanManager] = None
