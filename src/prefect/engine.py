@@ -439,6 +439,7 @@ async def orchestrate_flow_run(
         if flow.timeout_seconds
         else nullcontext()
     )
+    flow_run_context = None
 
     try:
         with timeout_context as timeout_scope:
@@ -502,7 +503,7 @@ async def orchestrate_flow_run(
             await client.persist_data(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
-            if state.data is not None
+            if state.data is not None and flow_run_context
             else None
         ),
     )
