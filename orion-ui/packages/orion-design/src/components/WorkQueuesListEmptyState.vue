@@ -3,7 +3,7 @@
     header="Create a work queue to get started"
     description="Work queues specify the criteria for flow runs to be picked up by a corresponding agent process, which runs in your execution environment. They are defined by the set of deployments, tags, or flow runners that they filter for."
   >
-    <template v-if="can?.create.work_queue">
+    <template v-if="can.create.work_queue">
       <WorkQueueCreateButton />
     </template>
     <template v-else>
