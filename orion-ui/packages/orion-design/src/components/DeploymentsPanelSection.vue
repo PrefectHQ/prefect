@@ -22,7 +22,7 @@
               Paused
             </span>
           </template>
-          <template v-if="can?.create.flow_run">
+          <template v-if="can.create.flow_run">
             <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
               Quick Run
             </m-button>

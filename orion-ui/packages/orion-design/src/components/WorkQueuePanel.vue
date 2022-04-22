@@ -53,7 +53,7 @@
       <m-button miter @click="close">
         Close
       </m-button>
-      <template v-if="can?.update.work_queue">
+      <template v-if="can.update.work_queue">
         <m-button miter @click="open">
           <i class="pi pi-xs pi-pencil-line mr-1" /> Edit
         </m-button>
