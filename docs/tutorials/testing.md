@@ -64,8 +64,8 @@ def test_my_favorite_task():
     def my_flow():
         return my_favorite_task()
     
-    state = my_flow().result()
-    assert state.result() == 42
+    task_state = my_flow().result()
+    assert task_state.result() == 42
 ```
 
 Alternatively, if your task doesn't use any Prefect behavior, you can test the underlying function using `.fn()`:
