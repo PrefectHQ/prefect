@@ -99,6 +99,6 @@ export function getAppFeatureFlags(check: (key: FeatureFlag) => boolean): AppFea
   }
 }
 
-export type Can = AppWorkspacePermissions & AppFeatureFlags
+export type Can = AppWorkspacePermissions & AppAccountPermissions & AppFeatureFlags
 
 export const canKey: InjectionKey<Can> = Symbol()
