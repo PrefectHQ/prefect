@@ -332,6 +332,11 @@ async def begin_flow_run(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
 
+        # Create a task group for background tasks
+        flow_run_context.background_tasks = await stack.enter_async_context(
+            anyio.create_task_group()
+        )
+
         # If the flow is async, we need to provide a portal so sync tasks can run
         flow_run_context.sync_portal = (
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
@@ -961,10 +966,16 @@ async def begin_task_run(
             # the flow _and_ the flow run has a timeout attached. If the task is on a
             # worker, the flow run timeout will not be raised in the worker process.
             interruptible = maybe_flow_run_context.timeout_scope is not None
+            background_tasks = maybe_flow_run_context.background_tasks
         else:
             # Otherwise, retrieve a new client
             client = await stack.enter_async_context(get_client())
             interruptible = False
+            background_tasks = await stack.enter_async_context(
+                anyio.create_task_group()
+            )
+
+        # TODO: Use the background tasks group to manage logging for this task
 
         connect_error = await client.api_healthcheck()
         if connect_error:
