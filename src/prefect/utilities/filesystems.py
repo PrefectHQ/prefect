@@ -65,7 +65,7 @@ def read_bytes_from_path(path: str) -> bytes:
         import requests
 
         return requests.get(path).content
-    elif parsed.scheme in ["gcs","gs"]:
+    elif parsed.scheme in ["gcs", "gs"]:
         from prefect.utilities.gcp import get_storage_client
 
         client = get_storage_client()
