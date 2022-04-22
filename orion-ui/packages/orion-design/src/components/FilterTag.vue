@@ -5,11 +5,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, onMounted, ref, Ref, defineExpose, inject } from 'vue'
+  import { computed, onMounted, ref, Ref, defineExpose } from 'vue'
   import DismissibleTag from '@/components/DismissibleTag.vue'
   import { useIntersectionObserver } from '@/compositions/useIntersectionObserver'
   import { filtersDefaultObjectKey, FilterService } from '@/services/FilterService'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
 
   const emit = defineEmits<{
     (event: 'dismiss', filter: Required<Filter>): void,
