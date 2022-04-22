@@ -1,17 +1,12 @@
 from typing import List
-from uuid import uuid4
 
-import pendulum
 import pydantic
 import pytest
-import sqlalchemy as sa
+from fastapi import status
 
-from prefect.orion import models, schemas
+from prefect.orion import models
 from prefect.orion.api.ui.flow_runs import SimpleFlowRun
-from prefect.orion.models.flow_runs import DependencyResult
-from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas import actions, core, data, responses, states
-from prefect.orion.schemas.core import TaskRunResult
+from prefect.orion.schemas import actions, states
 
 
 @pytest.fixture
@@ -63,7 +58,7 @@ async def flow_runs(flow, session):
 class TestReadFlowRunHistory:
     async def test_read_flow_runs_200(self, flow_runs, client):
         response = await client.post("/ui/flow_runs/history")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
 
     async def test_read_flow_runs(self, flow_runs, client):
