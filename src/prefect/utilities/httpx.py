@@ -1,10 +1,7 @@
-import typing
-
 import anyio
 import httpx
+from fastapi import status
 from httpx._models import Response
-
-from prefect.settings import PREFECT_API_REQUEST_TIMEOUT
 
 
 class PrefectHttpxClient(httpx.AsyncClient):
@@ -20,7 +17,10 @@ class PrefectHttpxClient(httpx.AsyncClient):
         retry_count = 0
         response = await self._httpx_send(*args, **kwargs)
 
-        while response.status_code == 429 and retry_count < self.RETRY_MAX:
+        while (
+            response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+            and retry_count < self.RETRY_MAX
+        ):
             retry_count += 1
             # respect CloudFlare conventions for handling rate-limit response headers
             # see https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI

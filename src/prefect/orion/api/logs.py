@@ -5,13 +5,11 @@ Routes for interacting with log objects.
 from typing import List
 
 import sqlalchemy as sa
-from fastapi import Body, Depends, Response
-from starlette import status
+from fastapi import Body, Depends, Response, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-import prefect.settings
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/logs", tags=["Logs"])

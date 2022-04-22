@@ -1,5 +1,5 @@
 import pytest
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, status
 from httpx import AsyncClient
 
 from prefect.orion.api.dependencies import LimitBody
@@ -28,7 +28,7 @@ class TestPagination:
 
     async def test_pagination_defaults(self, client):
         response = await client.post("/")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == dict(limit=200, offset=0)
 
     async def test_negative_limit_not_allowed(self, client):
@@ -38,15 +38,15 @@ class TestPagination:
 
     async def test_zero_limit(self, client):
         response = await client.post("/", json=dict(limit=0))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == dict(limit=0, offset=0)
 
     async def test_too_large_limit(self, client):
         response = await client.post("/", json=dict(limit=1000))
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert "less than or equal to 200" in response.text
 
     async def test_negative_offset_not_allowed(self, client):
         response = await client.post("/", json=dict(offset=-1))
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert "greater than or equal to 0" in response.text

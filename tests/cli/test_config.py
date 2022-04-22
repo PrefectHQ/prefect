@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 import prefect.settings
 from prefect.cli import app
 from prefect.context import profile
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 """
 Testing Typer tutorial here: https://typer.tiangolo.com/tutorial/testing/
