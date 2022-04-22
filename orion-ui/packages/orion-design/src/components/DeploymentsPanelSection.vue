@@ -35,12 +35,13 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { canKey } from '@/types/permissions'
+  import { inject } from '@/utilities/inject'
   import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{

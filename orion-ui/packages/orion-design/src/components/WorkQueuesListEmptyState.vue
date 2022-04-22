@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { provide, inject } from 'vue'
+  import { provide } from 'vue'
   import EmptyStateCard from '@/components/EmptyStateCard.vue'
   import WorkQueueCreateButton from '@/components/WorkQueueCreateButton.vue'
   import WorkQueuesListItem from '@/components/WorkQueuesListItem.vue'
@@ -29,6 +29,7 @@
   import { FlowRunsApi, flowRunsApiKey } from '@/services/FlowRunsApi'
   import { mocker } from '@/services/Mocker'
   import { canKey } from '@/types/permissions'
+  import { inject } from '@/utilities/inject'
 
   // these mock the count endpoints for the WorkQueuesListItem
   // "as unknown as" is used so we don't have to mock the whole service

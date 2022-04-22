@@ -5,7 +5,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import FilterCountButton from '@/components/FilterCountButton.vue'
   import { useFilterQuery } from '@/compositions/useFilterQuery'
   import { Flow } from '@/models/Flow'
@@ -13,6 +13,7 @@
   import { taskRunsApiKey } from '@/services/TaskRunsApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
 
   const props = defineProps<{ flow: Flow }>()
 
