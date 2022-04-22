@@ -22,9 +22,11 @@
               Paused
             </span>
           </template>
-          <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
-            Quick Run
-          </m-button>
+          <template v-if="can?.create.flow_run">
+            <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
+              Quick Run
+            </m-button>
+          </template>
         </button>
       </template>
     </template>
@@ -33,11 +35,12 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, inject } from 'vue'
   import PanelSection from '@/components/PanelSection.vue'
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { canKey } from '@/types/permissions'
   import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
@@ -45,6 +48,8 @@
     deploymentsApi: DeploymentsApi,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()
+
+  const can = inject(canKey)
 
   const filter = computed(() => props.filter)
 
