@@ -35,6 +35,7 @@ jobs:
     strategy:
       matrix:
         python-version:
+          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
@@ -51,12 +52,14 @@ jobs:
             docker-images: true
 
           # Run 3.7 tests with lower bound pins
-          # - python-version: "3.7"
-          #   lower-bound-requirements: true
+          - python-version: "3.7"
+            lower-bound-requirements: true
 
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
+
+    timeout-minutes: 20
 
     steps:
       - name: Display current test matrix
@@ -148,6 +151,8 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v3
