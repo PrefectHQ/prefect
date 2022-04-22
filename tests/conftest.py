@@ -183,12 +183,13 @@ def tests_profile():
     developer may have configured.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        os.environ["PREFECT_HOME"] = str(tmpdir)
-        # We set the profile path explicitly as well to avoid interaction with a
-        # developer's profiles if they have set this via environment variable
-        os.environ["PREFECT_PROFILES_PATH"] = "$PREFECT_HOME/profiles.toml"
-
-        settings = prefect.settings.get_settings_from_env()
+        settings = prefect.settings.Settings(
+            **prefect.settings.get_settings_from_env().dict(
+                exclude={"PREFECT_HOME", "PREFECT_PROFILES_PATH"}
+            ),
+            PREFECT_HOME=tmpdir,
+            PREFECT_PROFILES_PATH="$PREFECT_HOME/profiles.toml",
+        )
 
         with prefect.context.ProfileContext(
             name="base-test-profile", settings=settings, env={}
