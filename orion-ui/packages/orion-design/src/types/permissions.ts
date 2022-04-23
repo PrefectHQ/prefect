@@ -89,16 +89,26 @@ export function getAppPermissions(
   checkWorkspacePermission: (action: PermissionAction, key: WorkspacePermissionKey) => boolean,
   checkFeatureFlag: (key: FeatureFlag) => boolean,
 ): Can {
-  return permissionActions.reduce<Can>((result, action) => ({
-    ...result,
-    [action]: {
-      ...getAccountPermissions((key) => checkAccountPermission(action, key)),
-      ...getWorkspacePermissions((key) => checkWorkspacePermission(action, key)),
-    },
+  return {
+    ...permissionActions.reduce<Can>((result, action) => ({
+      ...result,
+      [action]: {
+        ...getAccountPermissions((key) => checkAccountPermission(action, key)),
+        ...getWorkspacePermissions((key) => checkWorkspacePermission(action, key)),
+      },
+    }), {} as Can),
     access: {
       ...getFeatureFlagPermissions((key) => checkFeatureFlag(key)),
     },
-  }), {} as Can)
+  }
+}
+
+export function byPassPermissions(value: boolean): Can {
+  return getAppPermissions(
+    () => value,
+    () => value,
+    () => value,
+  )
 }
 
 export type Can = AppPermissions & AppFeatureFlags
