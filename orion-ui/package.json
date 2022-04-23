@@ -13,15 +13,14 @@
     "lint:fix": "eslint src --fix --debug"
   },
   "dependencies": {
-    "@prefecthq/miter-design": "0.1.33",
+    "@prefecthq/miter-design": "0.1.34",
     "@prefecthq/orion-design": "0.1.75",
     "@prefecthq/vue-compositions": "0.1.20",
     "core-js": "^3.21.1",
-    "d3": "^7.4.3",
-    "esbuild": "^0.14.34",
+    "d3": "^7.4.4",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
-    "vue": "^3.0.5",
+    "vue": "^3.2.33",
     "vue-router": "^4.0.14"
   },
   "devDependencies": {
@@ -35,7 +34,7 @@
     "@types/puppeteer": "^5.4.5",
     "@types/sass-loader": "^8.0.3",
     "@vitejs/plugin-vue": "^2.3.1",
-    "@vue/test-utils": "^2.0.0-rc.19",
+    "@vue/test-utils": "^2.0.0-rc.20",
     "cross-env": "^7.0.3",
     "date-fns": "^2.28.0",
     "date-fns-tz": "^1.3.3",
@@ -44,8 +43,8 @@
     "jest-dev-server": "^6.0.3",
     "jest-puppeteer": "^6.1.0",
     "miragejs": "^0.1.43",
-    "puppeteer": "^13.5.2",
-    "sass": "^1.50.0",
+    "puppeteer": "^13.6.0",
+    "sass": "^1.50.1",
     "ts-jest": "^27.1.4",
     "ts-node": "10.7.0",
     "typescript": "^4.6.3",

@@ -1037,7 +1037,8 @@ class TestReadFlowRuns:
         assert result[0].id == flow_run_2.id
 
     @pytest.mark.filterwarnings(
-        "ignore:coroutine 'Connection.cursor' was never awaited"
+        # SQLAlchemy will create an unawaited coroutine on attribute access failure
+        "ignore:coroutine '.*' was never awaited"
     )
     async def test_read_flow_runs_with_only_one_column(self, flow_runs, db, session):
         # clear the session to erase cached versions of these flow runs and
@@ -1059,7 +1060,8 @@ class TestReadFlowRuns:
                 r.state_type
 
     @pytest.mark.filterwarnings(
-        "ignore:coroutine 'Connection.cursor' was never awaited"
+        # SQLAlchemy will create an unawaited coroutine on attribute access failure
+        "ignore:coroutine '.*' was never awaited"
     )
     async def test_read_flow_runs_with_only_two_columns(self, flow_runs, db, session):
         # clear the session to erase cached versions of these flow runs and

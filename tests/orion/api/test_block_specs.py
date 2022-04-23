@@ -75,6 +75,35 @@ class TestCreateBlockSpec:
         assert response.status_code == 409
         assert 'Block spec "x/1.0" already exists.' in response.json()["detail"]
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my block spec",
+            "my:block spec",
+            r"my\block spec",
+            "my👍block_spec",
+            "my|block spec",
+        ],
+    )
+    async def test_create_block_spec_with_nonstandard_characters(self, client, name):
+        response = await client.post(
+            "/block_specs/", json=dict(name=name, version="1.0")
+        )
+        assert response.status_code == 201
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my%block_spec",
+            "my/block spec",
+        ],
+    )
+    async def test_create_block_spec_with_invalid_characters(self, client, name):
+        response = await client.post(
+            "/block_specs/", json=dict(name=name, version="1.0")
+        )
+        assert response.status_code == 422
+
 
 class TestDeleteBlockSpec:
     async def test_delete_block_spec(self, session, client, block_specs):
@@ -134,3 +163,47 @@ class TestReadBlockSpec:
 
         result = await client.get(f"/block_specs/xyzabc/versions/1.0")
         assert result.status_code == 404
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my block spec",
+            "my:block spec",
+            r"my\block spec",
+            "my👍block_spec",
+            "my|block spec",
+        ],
+    )
+    async def test_read_block_spec_by_name_with_nonstandard_characters(
+        self, client, name
+    ):
+        response = await client.post(
+            "/block_specs/", json=dict(name=name, version="1.0")
+        )
+        block_spec_id = response.json()["id"]
+
+        response = await client.get(f"/block_specs/{name}/versions")
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == block_spec_id
+
+    @pytest.mark.parametrize(
+        "version",
+        [
+            "my block spec",
+            "my:block spec",
+            r"my\block spec",
+            "my👍block_spec",
+            "my|block spec",
+        ],
+    )
+    async def test_read_block_spec_by_name_with_nonstandard_characters_version(
+        self, client, version
+    ):
+        response = await client.post(
+            "/block_specs/", json=dict(name="block spec", version=version)
+        )
+        block_spec_id = response.json()["id"]
+
+        response = await client.get(f"/block_specs/block spec/versions/{version}")
+        assert response.status_code == 200
+        assert response.json()["id"] == block_spec_id
