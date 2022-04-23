@@ -1,7 +1,8 @@
 import subprocess
 import sys
 import time
-from unittest.mock import ANY, MagicMock
+import warnings
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import anyio
@@ -60,7 +61,7 @@ def machine_ray_instance():
     try:
         yield "ray://127.0.0.1:10001"
     finally:
-        subprocess.run(["ray", "stop"])
+        subprocess.check_call(["ray", "stop"])
 
 
 @pytest.fixture
@@ -183,7 +184,13 @@ def default_concurrent_task_runner():
 def default_ray_task_runner():
     pytest.importorskip("ray", reason=RAY_MISSING_REASON)
 
-    yield RayTaskRunner()
+    with warnings.catch_warnings():
+        # Ray does not properly close resources and we do not want their warnings to
+        # bubble into our test suite
+        # https://github.com/ray-project/ray/pull/22419
+        warnings.simplefilter("ignore", ResourceWarning)
+
+        yield RayTaskRunner()
 
 
 @pytest.fixture
@@ -430,7 +437,7 @@ class TestTaskRunnerParallelism:
             sleep_time += 1.5
         elif isinstance(runner, ConcurrentTaskRunner):
             # Account for thread overhead
-            sleep_time += 0.5
+            sleep_time += 1
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
@@ -468,12 +475,14 @@ class TestTaskRunnerParallelism:
 
     @parameterize_with_parallel_task_runners
     def test_sync_tasks_run_concurrently_with_parallel_task_runners(
-        self, task_runner, tmp_file
+        self, task_runner, tmp_file, tmp_path
     ):
         @task
         def foo():
-            # This test is prone to flaking
-            time.sleep(self.get_sleep_time(task_runner) + 0.5)
+            # Sleeping should yield to other threads
+            time.sleep(self.get_sleep_time(task_runner))
+            # Perform an extra yield in case the bar thread was not ready
+            time.sleep(0)
             tmp_file.write_text("foo")
 
         @task

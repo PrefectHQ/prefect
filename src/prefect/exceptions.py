@@ -195,6 +195,14 @@ class ReservedArgumentError(PrefectException, TypeError):
     pass
 
 
+class InvalidNameError(PrefectException, ValueError):
+    """
+    Raised when a name contains characters that are not permitted.
+    """
+
+    pass
+
+
 class PrefectSignal(BaseException):
     """
     Base type for signal-like exceptions that should never be caught by users.

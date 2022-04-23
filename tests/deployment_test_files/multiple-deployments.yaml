@@ -1,8 +1,9 @@
-- name: hello-sun-deployment
-  flow_location: ./multiple_flows.py
-  flow_name: hello-sun
-- name: hello-moon-deployment
-  flow_location: ./multiple_flows.py
-  flow_name: hello-moon
-  flow_runner:
-    type: subprocess
+name: hello-sun-deployment
+flow_location: ./multiple_flows.py
+flow_name: hello-sun
+---
+name: hello-moon-deployment
+flow_location: ./multiple_flows.py
+flow_name: hello-moon
+flow_runner:
+  type: subprocess
