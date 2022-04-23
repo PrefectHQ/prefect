@@ -159,7 +159,7 @@ class Bitbucket(Storage):
 
             if not re.match(SHA1_REGEX, ref):
                 raise ValueError(
-                    "ref {ref!r} not found in '{self.workspace}/{self.repo}'"
+                    f"ref {ref!r} not found in '{self.workspace}/{self.repo}'"
                 )
 
             contents_url = (

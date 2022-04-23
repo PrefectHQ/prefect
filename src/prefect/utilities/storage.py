@@ -156,10 +156,10 @@ def extract_flow_from_module(module_str: str, flow_name: str = None) -> "Flow":
             return flows.popitem()[1]
         elif len(flows) > 1:
             raise ValueError(
-                "Multiple flows found in {module_str!r}, please provide `flow_name` to select one."
+                f"Multiple flows found in {module_str!r}, please provide `flow_name` to select one."
             )
         else:
-            raise ValueError("No flows found in {module_str!r}")
+            raise ValueError(f"No flows found in {module_str!r}")
 
 
 def flow_to_bytes_pickle(flow: "Flow") -> bytes:
