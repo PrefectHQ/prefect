@@ -84,22 +84,21 @@ export type WorkspacePermissionString = `${PermissionAction}:${WorkspacePermissi
 export type AppPermissions = Record<PermissionAction, Record<AccountPermissionKey, boolean> & Record<WorkspacePermissionKey, boolean>>
 export type AppFeatureFlags = Record<'access', FeatureFlagPermissions>
 
-export function getAppPermissions(check: (action: PermissionAction, key: AccountPermissionKey | WorkspacePermissionKey) => boolean): AppPermissions {
-  return permissionActions.reduce<AppPermissions>((result, action) => ({
+export function getAppPermissions(
+  checkAccountPermission: (action: PermissionAction, key: AccountPermissionKey) => boolean,
+  checkWorkspacePermission: (action: PermissionAction, key: WorkspacePermissionKey) => boolean,
+  checkFeatureFlag: (key: FeatureFlag) => boolean,
+): Can {
+  return permissionActions.reduce<Can>((result, action) => ({
     ...result,
     [action]: {
-      ...getAccountPermissions((key) => check(action, key)),
-      ...getWorkspacePermissions((key) => check(action, key)),
+      ...getAccountPermissions((key) => checkAccountPermission(action, key)),
+      ...getWorkspacePermissions((key) => checkWorkspacePermission(action, key)),
     },
-  }), {} as AppPermissions)
-}
-
-export function getAppFeatureFlags(check: (key: FeatureFlag) => boolean): AppFeatureFlags {
-  return {
     access: {
-      ...getFeatureFlagPermissions(check),
+      ...getFeatureFlagPermissions((key) => checkFeatureFlag(key)),
     },
-  }
+  }), {} as Can)
 }
 
 export type Can = AppPermissions & AppFeatureFlags
