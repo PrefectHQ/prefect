@@ -1,6 +1,6 @@
 import sqlite3
 from abc import ABC, abstractmethod
-from asyncio import get_event_loop
+from asyncio import get_running_loop
 from functools import partial
 from typing import Hashable, Tuple
 
@@ -86,7 +86,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             sa.engine.Engine: a SQLAlchemy engine
         """
 
-        loop = get_event_loop()
+        loop = get_running_loop()
 
         cache_key = (
             loop,
@@ -193,7 +193,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
         kwargs = {}
 
-        loop = get_event_loop()
+        loop = get_running_loop()
 
         cache_key = (
             loop,

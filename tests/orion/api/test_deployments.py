@@ -1,4 +1,5 @@
 import datetime
+import json
 from uuid import uuid4
 
 import pendulum
@@ -376,6 +377,48 @@ class TestReadDeploymentByName:
         response = await client.get(f"/deployments/name/My Deployment")
         assert response.status_code == 404
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my deployment",
+            "my:deployment",
+            r"my\deployment",
+            "my👍deployment",
+            "my|deployment",
+        ],
+    )
+    async def test_read_deployment_by_name_with_nonstandard_characters(
+        self, client, name, flow
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=dict(
+                name=name,
+                flow_id=str(flow.id),
+                flow_data=schemas.data.DataDocument(encoding="x", blob=b"y").dict(
+                    json_compatible=True
+                ),
+            ),
+        )
+        deployment_id = response.json()["id"]
+
+        response = await client.get(f"/deployments/name/{flow.name}/{name}")
+        assert response.status_code == 200
+        assert response.json()["id"] == deployment_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/deployment",
+            "my%deployment",
+        ],
+    )
+    async def test_read_deployment_by_name_with_invalid_characters_fails(
+        self, client, name, flow
+    ):
+        response = await client.get(f"/deployments/name/{flow.name}/{name}")
+        assert response.status_code == 404
+
 
 class TestReadDeployments:
     @pytest.fixture
@@ -487,7 +530,7 @@ class TestDeleteDeployment:
     async def test_delete_deployment(self, session, client, deployment):
         # schedule both an autoscheduled and manually scheduled flow run
         # for this deployment id, these should be deleted when the deployment is deleted
-        await models.flow_runs.create_flow_run(
+        flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=deployment.flow_id,
@@ -500,7 +543,7 @@ class TestDeleteDeployment:
                 ),
             ),
         )
-        await models.flow_runs.create_flow_run(
+        flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=deployment.flow_id,
@@ -523,11 +566,11 @@ class TestDeleteDeployment:
         response = await client.get(f"/deployments/{deployment.id}")
         assert response.status_code == 404
 
-        # make sure autoscheduled flow runs are deleted
+        # make sure scheduled flow runs are deleted
         n_runs = await models.flow_runs.count_flow_runs(
             session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                deployment_id={"any_": [deployment.id]}
+                id={"any_": [flow_run_1.id, flow_run_2.id]}
             ),
         )
         assert n_runs == 0
