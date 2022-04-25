@@ -7,7 +7,7 @@ import platform
 import sys
 import traceback
 from contextlib import contextmanager
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 import pendulum
 import rich.console
@@ -72,6 +72,20 @@ class PrefectTyper(typer.Typer):
     """
     Wraps commands created by `Typer` to support async functions and handle errors.
     """
+
+    def add_typer(
+        self,
+        typer_instance: "PrefectTyper",
+        *args,
+        no_args_is_help: bool = True,
+        **kwargs,
+    ) -> None:
+        """
+        This will cause help to be default command for all sub apps unless specifically stated otherwise, opposite of before.
+        """
+        return super().add_typer(
+            typer_instance, *args, no_args_is_help=no_args_is_help, **kwargs
+        )
 
     def command(self, *args, **kwargs):
         command_decorator = super().command(*args, **kwargs)
@@ -150,6 +164,7 @@ async def version():
         "Profile": prefect.context.get_profile_context().name,
     }
 
+    is_ephemeral: Optional[bool] = None
     try:
         async with prefect.get_client() as client:
             is_ephemeral = client._ephemeral_app is not None
