@@ -46,25 +46,28 @@ def generate_lower_bounds(input_file):
     for line in input_file:
         output_line = ""
 
-        # Split the package from the conditional section
-        pkg, _, cond = line.partition(";")
+        # Split the package name and versions from the conditional section
+        requirement_package, _, requirement_condition = line.partition(";")
+
         # Parse the package name and lower bound
-        pkg_parsed = LOWER_BOUND_RE.match(pkg)
+        lower_bound_match = LOWER_BOUND_RE.match(requirement_package)
 
-        if not pkg_parsed:
-            # There is no versioning for this requirement
-            output_line += pkg.strip()
+        if not lower_bound_match:
+            # There is no versioning for this requirement, just include it as-is
+            output_line += requirement_package.strip()
         else:
-            # Pin to the lowest version
-            pkg_name, pkg_min_version = (
-                pkg_parsed.groups()[0].strip(),
-                pkg_parsed.groups()[1].strip(),
-            )
-            output_line += f"{pkg_name}=={pkg_min_version}"
+            capture_groups = lower_bound_match.groups()
 
-        # Include the condition if it exists
-        if cond:
-            output_line += f"; {cond.strip()}"
+            # Pin to the lowest version
+            package_name, lower_bound_version = (
+                capture_groups[0].strip(),
+                capture_groups[1].strip(),
+            )
+            output_line += f"{package_name}=={lower_bound_version}"
+
+        # Include the condition unaltered
+        if requirement_condition:
+            output_line += f"; {requirement_condition.strip()}"
 
         yield output_line
 
