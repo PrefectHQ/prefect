@@ -37,7 +37,7 @@ def generate_lower_bounds(input_file):
 
         # Split the package from the conditional section
         pkg, _, cond = line.partition(";")
-        # Parse the package name and the
+        # Parse the package name and lower bound
         pkg_parsed = re.match(
             r"^([\w\d_\-\[\]]*)\s*.*\s*(?:>=|==|~=)\s*([\d*\.?]+)", pkg
         )
