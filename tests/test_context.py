@@ -73,23 +73,28 @@ def test_context_exit_restores_previous_context():
     assert ExampleContext.get() is None
 
 
-def test_temporary_environ_does_not_overwrite_falsy_values(monkeypatch):
+def test_temporary_environ_does_not_overwrite_falsy_values():
     """
     Covers case where temporary_environ was overwriting environment variables where an 
     empty string was the value, due to `if dict.get(key):` logic
     """
     VAR = 'PREFECT_API_URL'
+    original_value = os.getenv(VAR)
     not_nones = [0, 'False', '']
 
     for not_none in not_nones:
-        os.environ = {VAR: not_none}
+        os.environ[VAR] = str(not_none)
         start = deepcopy(os.environ)
 
         with temporary_environ({VAR: "Other Value"}):
             pass
 
-        end = os.environ
-        assert start.get(VAR) == end.get(VAR)
+        assert start.get(VAR) == os.environ.get(VAR)
+
+    if original_value is not None: 
+        os.environ[VAR] = original_value
+    else:
+        del os.environ[VAR]
 
 
 
