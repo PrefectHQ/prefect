@@ -171,6 +171,6 @@ def event_loop(request):
     policy.set_event_loop(loop)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
