@@ -8,12 +8,12 @@ const config: Config.InitialProjectOptions = {
   testEnvironment: 'jsdom',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {}],
-    '.*\\.(vue)$': ['vue3-jest', {}]
+    '.*\\.(vue)$': ['vue3-jest', {}],
   },
   moduleNameMapper: {
-    '@/(.*)$': '<rootDir>/../../src/$1'
+    '@/(.*)$': '<rootDir>/../../src/$1',
   },
-  setupFiles: ['./setup.ts']
+  setupFiles: ['./setup.ts'],
 }
 
 export default config
