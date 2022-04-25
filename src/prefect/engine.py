@@ -652,15 +652,32 @@ async def begin_task_run(
 
     This function is intended for submission to the task runner.
 
-    This method may be called from a worker so we enter a temporary profile context
-    with the settings from submission and ensure it is initialized.
+    This method may be called from a worker so we ensure the profile context has been
+    entered. For example, with a runner that is executing tasks in the same event loop,
+    we will likely not enter the context again:
+
+    main thread:
+    --> Flow called with profile A
+    --> `begin_task_run` executes same event loop
+    --> Profile A matches and is not entered again
+
+    However, with execution on a remote environment, we are going to need to ensure the
+    settings are respected by entering the profile context:
+
+    main thread:
+    --> Flow called with profile A
+    --> `begin_task_run` is scheduled on a remote worker, profile A is serialized
+    remote worker:
+    --> Remote worker imports Prefect
+    --> Global profile is loaded with default settings
+    --> `begin_task_run` executes on a different event loop than the flow
+    --> Current profile does not match, profile A is entered
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
 
-        # Enter the settings profile for the task run if not present
-        if prefect.context.ProfileContext.get() != profile:
+        if prefect.context.get_profile_context() != profile:
             stack.enter_context(profile)
             profile.initialize(create_home=False)
 
