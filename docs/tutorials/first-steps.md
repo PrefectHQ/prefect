@@ -36,10 +36,10 @@ Running a Prefect workflow manually is as easy as calling the annotated function
 <div class="termy">
 ```
 >>> state = my_favorite_function()
-15:27:42.543 | INFO    | prefect.engine - Created flow run 'stimulating-cockle' for flow 'my-favorite-function'
-15:27:42.543 | INFO    | Flow run 'stimulating-cockle' - Using task runner 'ConcurrentTaskRunner'
+15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
+15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
 This function doesn't do much
-15:27:42.652 | INFO    | Flow run 'stimulating-cockle' - Finished in state Completed(None)
+15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed(None)
 ```
 </div>
 

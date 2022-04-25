@@ -1331,7 +1331,17 @@ class TestDockerFlowRunner:
         import docker.client
         import docker.errors
 
-        client = docker.client.from_env()
+        with warnings.catch_warnings():
+            # Silence warnings due to use of deprecated methods within dockerpy
+            # See https://github.com/docker/docker-py/pull/2931
+            warnings.filterwarnings(
+                "ignore",
+                message="distutils Version classes are deprecated.*",
+                category=DeprecationWarning,
+            )
+
+            client = docker.client.from_env()
+
         tag = get_prefect_image_name()
         build_cmd = f"`docker build {prefect.__root_path__} -t {tag!r}`"
 
@@ -1343,7 +1353,7 @@ class TestDockerFlowRunner:
                 "available. Build the image with " + build_cmd
             )
 
-        output = client.containers.run(tag, "prefect version")
+        output = client.containers.run(tag, "prefect --version")
         container_version = output.decode().strip()
         test_run_version = prefect.__version__
 
@@ -1356,6 +1366,8 @@ class TestDockerFlowRunner:
                 "have intentionally not built a new test image. Rebuild the image "
                 "with " + build_cmd
             )
+
+        client.close()
 
 
 class TestKubernetesFlowRunner:
@@ -1615,6 +1627,44 @@ class TestKubernetesFlowRunner:
         assert (
             "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
         ), "prefect labels still included"
+
+    async def test_uses_namespace_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(namespace="foo").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        namespace = mock_k8s_batch_client.create_namespaced_job.call_args[0][1][
+            "metadata"
+        ]["namespace"]
+        assert namespace == "foo"
+
+    async def test_uses_service_account_name_setting(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(service_account_name="foo").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        service_account_name = mock_k8s_batch_client.create_namespaced_job.call_args[0][
+            1
+        ]["spec"]["template"]["spec"]["serviceAccountName"]
+        assert service_account_name == "foo"
 
     async def test_default_env_includes_api_url_and_key(
         self,
