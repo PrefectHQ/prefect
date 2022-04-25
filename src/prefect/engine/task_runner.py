@@ -1,3 +1,4 @@
+import types
 from contextlib import redirect_stdout
 from contextlib import AbstractContextManager
 from typing import (
@@ -877,10 +878,9 @@ class TaskRunner(Runner):
             )  # type: AbstractContextManager
 
             result_exists = False
-            tokenized_path = None
-
             if (
-                prefect.context.get("checkpointing") is True
+                isinstance(self.result.default_location, Callable)
+                and prefect.context.get("checkpointing") is True
                 and self.task.checkpoint is not False
             ):
                 formatting_kwargs = {
@@ -889,11 +889,16 @@ class TaskRunner(Runner):
                     **raw_inputs,
                 }
                 tokenized_path = self.result.default_location(**formatting_kwargs)
-                result_exists = self.result.exists(
-                    location=tokenized_path, **formatting_kwargs
-                )
+                try:
+                    result_exists = self.result.exists(
+                        location=tokenized_path, **formatting_kwargs
+                    )
+                except prefect.engine.result.base.ResultNotImplementedError:
+                    pass
+            else:
+                tokenized_path = self.result.default_location
 
-            if result_exists and tokenized_path:
+            if result_exists is True and tokenized_path:
                 # This should only trigger in a case of task resubmission as there is no other
                 # way to reproduce the same `tokenized_path` unless it's an identical task
                 # `tokenized_path` dependent on `result.default_location` which itself

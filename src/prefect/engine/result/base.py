@@ -24,7 +24,7 @@ import copy
 import types
 import pendulum
 import uuid
-from typing import Any
+from typing import Any, Callable
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
@@ -139,9 +139,7 @@ class Result:
             new.location = new._formatter(**kwargs)
         else:
             # backward compatibility
-            if isinstance(new.default_location, types.FunctionType) or isinstance(
-                new.default_location, types.MethodType
-            ):
+            if isinstance(new.default_location, Callable):
                 new.location = new.default_location(**kwargs)
             else:
                 new.location = new.default_location
