@@ -6,7 +6,7 @@ tags:
     - database configuration
     - configuration
     - settings
-    - S3
+    - AWS S3
     - Azure Blob Storage
     - Google Cloud Storage
 ---
