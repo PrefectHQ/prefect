@@ -1,4 +1,6 @@
 from pathlib import Path
+from typing import Optional
+
 import snowflake.connector as sf
 from snowflake.connector.cursor import SnowflakeCursor
 
@@ -44,18 +46,18 @@ class SnowflakeQuery(Task):
         self,
         account: str = None,
         user: str = None,
-        password: str = None,
-        private_key: bytes = None,
-        database: str = None,
-        schema: str = None,
-        role: str = None,
-        warehouse: str = None,
+        password: Optional[str] = None,
+        private_key: Optional[bytes] = None,
+        database: Optional[str] = None,
+        schema: Optional[str] = None,
+        role: Optional[str] = None,
+        warehouse: Optional[str] = None,
         query: str = None,
-        data: tuple = None,
-        autocommit: bool = None,
+        data: Optional[tuple] = None,
+        autocommit: Optional[bool] = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        authenticator: str = None,
-        token: str = None,
+        authenticator: Optional[str] = None,
+        token: Optional[str] = None,
         **kwargs,
     ):
         self.account = account
@@ -94,18 +96,18 @@ class SnowflakeQuery(Task):
         self,
         account: str = None,
         user: str = None,
-        password: str = None,
-        private_key: bytes = None,
-        database: str = None,
-        schema: str = None,
-        role: str = None,
-        warehouse: str = None,
+        password: Optional[str] = None,
+        private_key: Optional[bytes] = None,
+        database: Optional[str] = None,
+        schema: Optional[str] = None,
+        role: Optional[str] = None,
+        warehouse: Optional[str] = None,
         query: str = None,
-        data: tuple = None,
-        autocommit: bool = None,
+        data: Optional[tuple] = None,
+        autocommit: Optional[bool] = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        authenticator: str = None,
-        token: str = None,
+        authenticator: Optional[str] = None,
+        token: Optional[str] = None,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -129,11 +131,11 @@ class SnowflakeQuery(Task):
                 takes snowflake AUTOCOMMIT parameter
             - cursor_type (SnowflakeCursor, optional): specify the type of database
                 cursor to use for the query, defaults to SnowflakeCursor
-        - authenticator (str, optional): type of authenticator to use for initiating
-            connection (oauth, externalbrowser...), refer to snowflake documentation
-            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
-            for details, note that `externalbrowser` will only work in an environment
-            where a browser is available, default to None
+            - authenticator (str, optional): type of authenticator to use for initiating
+                connection (oauth, externalbrowser...), refer to snowflake documentation
+                https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+                for details, note that `externalbrowser` will only work in an environment
+                where a browser is available, default to None
             - token (str, optional): OAuth or JWT Token to provide when authenticator
                 is set to oauth, default to None
 
@@ -148,6 +150,8 @@ class SnowflakeQuery(Task):
             raise ValueError("An account must be provided")
         if not user:
             raise ValueError("A user must be provided")
+        if password is None and private_key is None:
+            raise ValueError("Either password or private key must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
@@ -171,9 +175,7 @@ class SnowflakeQuery(Task):
 
         # filter out unset values
         connect_params = {
-            param: value
-            for (param, value) in connect_params.items()
-            if value is not None
+            param: value for param, value in connect_params.items() if value is not None
         }
 
         # connect to database, open cursor
@@ -184,13 +186,9 @@ class SnowflakeQuery(Task):
             with conn:
                 with conn.cursor(cursor_type) as cursor:
                     executed = cursor.execute(query, params=data).fetchall()
-            conn.close()
             return executed
-
-        # pass through error, and ensure connection is closed
-        except Exception as error:
+        finally:
             conn.close()
-            raise error
 
 
 class SnowflakeQueriesFromFile(Task):
@@ -233,16 +231,16 @@ class SnowflakeQueriesFromFile(Task):
         account: str = None,
         user: str = None,
         password: str = None,
-        private_key: bytes = None,
-        database: str = None,
-        schema: str = None,
-        role: str = None,
-        warehouse: str = None,
+        private_key: Optional[bytes] = None,
+        database: Optional[str] = None,
+        schema: Optional[str] = None,
+        role: Optional[str] = None,
+        warehouse: Optional[str] = None,
         file_path: str = None,
-        autocommit: bool = None,
+        autocommit: Optional[bool] = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        authenticator: str = None,
-        token: str = None,
+        authenticator: Optional[str] = None,
+        token: Optional[str] = None,
         **kwargs,
     ):
         self.account = account
@@ -277,19 +275,19 @@ class SnowflakeQueriesFromFile(Task):
     )
     def run(
         self,
-        account: str,
-        user: str,
-        password: str = None,
+        account: str = None,
+        user: str = None,
+        password: Optional[str] = None,
         private_key: bytes = None,
-        database: str = None,
-        schema: str = None,
-        role: str = None,
-        warehouse: str = None,
+        database: Optional[str] = None,
+        schema: Optional[str] = None,
+        role: Optional[str] = None,
+        warehouse: Optional[str] = None,
         file_path: str = None,
-        autocommit: bool = None,
+        autocommit: Optional[bool] = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        authenticator: str = None,
-        token: str = None,
+        authenticator: Optional[str] = None,
+        token: Optional[str] = None,
     ):
         """
         Task run method. Executes a query against snowflake database.
@@ -311,11 +309,11 @@ class SnowflakeQueriesFromFile(Task):
                 takes snowflake AUTOCOMMIT parameter
             - cursor_type (SnowflakeCursor, optional): specify the type of database
                 cursor to use for the query, defaults to SnowflakeCursor
-        - authenticator (str, optional): type of authenticator to use for initiating
-            connection (oauth, externalbrowser...), refer to snowflake documentation
-            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
-            for details, note that `externalbrowser` will only work in an environment
-            where a browser is available, default to None
+            - authenticator (str, optional): type of authenticator to use for initiating
+                connection (oauth, externalbrowser...), refer to snowflake documentation
+                https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+                for details, note that `externalbrowser` will only work in an environment
+                where a browser is available, default to None
             - token (str, optional): OAuth or JWT Token to provide when authenticator
                 is set to oauth, default to None
 
@@ -331,6 +329,8 @@ class SnowflakeQueriesFromFile(Task):
             raise ValueError("An account must be provided")
         if user is None:
             raise ValueError("A user must be provided")
+        if password is None and private_key is None:
+            raise ValueError("Either password or private key must be provided")
         if file_path is None:
             raise ValueError("A file path must be provided")
 
@@ -354,9 +354,7 @@ class SnowflakeQueriesFromFile(Task):
 
         # filter out unset values
         connect_params = {
-            param: value
-            for (param, value) in connect_params.items()
-            if value is not None
+            param: value for param, value in connect_params.items() if value is not None
         }
 
         # connect to database, open cursor
@@ -367,16 +365,10 @@ class SnowflakeQueriesFromFile(Task):
         try:
             # load query from file
             query = Path(file_path).read_text()
-
             with conn:
-                result = []
                 cursor_list = conn.execute_string(query, cursor_class=cursor_type)
-
-                for cursor in cursor_list:
-                    result.append(cursor.fetchall())
-                    # return fetch for each cursor
+                result = [cursor.fetchall() for cursor in cursor_list]
             return result
-
         # ensure connection is closed
         finally:
             conn.close()
