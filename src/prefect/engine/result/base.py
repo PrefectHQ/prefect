@@ -76,6 +76,7 @@ class Result:
             self._formatter = location
             self.location = None
         self.logger = logging.get_logger(type(self).__name__)
+        self.__is_mocked__ = False
 
     def __eq__(self, other: Any) -> bool:
         if type(self) == type(other):
