@@ -2,9 +2,8 @@
 Command line interface for working with profiles
 """
 import os
-from typing import List
+from typing import List, Optional
 
-import toml
 import typer
 
 import prefect.context
@@ -16,9 +15,18 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
+help_message = """
+    Commands for interacting with Prefect settings.
+
+    For documentation about specific settings, see:
+    https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings
+
+    For documentation about settings, including profiles and settings conflicts, see:
+    https://orion-docs.prefect.io/concepts/settings/
+"""
 
 config_app = PrefectTyper(
-    name="config", help="Commands for interacting with Prefect settings."
+    name="config", help=help_message
 )
 app.add_typer(config_app)
 
@@ -90,7 +98,17 @@ def unset(variables: List[str]):
 
 
 @config_app.command()
-def view(show_defaults: bool = False, show_sources: bool = False):
+def view(
+    show_defaults: Optional[bool] = typer.Option(
+        False, 
+        "--show-defaults/--hide-defaults",
+        help="Show all config values even if they are the Prefect defaults"
+        ),
+    show_sources: Optional[bool] = typer.Option(
+        True, 
+        "--show-sources/--hide-sources", 
+        help="Show the source of a config value. Either 'from profile' (a Prefect Profile) or 'from env' (an environment variable)")
+):
     """
     Display the current settings.
     """
@@ -99,23 +117,24 @@ def view(show_defaults: bool = False, show_sources: bool = False):
     # Get settings at each level, converted to a flat dictionary for easy comparison
     default_settings = prefect.settings.get_default_settings().dict()
     env_settings = prefect.settings.get_settings_from_env().dict()
-    current_settings = profile.settings.dict()
+    current_profile_settings = profile.settings.dict()
 
     output = [f"PREFECT_PROFILE={profile.name!r}"]
 
-    # Collect differences from defaults set in the env and the profile
+    # The combination of environment variables and profile settings that are in use
+    profile_overrides = {
+        key: val
+        for key, val in current_profile_settings.items()
+        if val != default_settings[key]
+    }
+
+    # Used to see which settings in current_profile_settings came from environment variables
     env_overrides = {
         key: val for key, val in env_settings.items() if val != default_settings[key]
     }
 
-    current_overrides = {
-        key: val
-        for key, val in current_settings.items()
-        if val != default_settings[key]
-    }
-
-    for key, value in current_overrides.items():
-        source = "env" if value == env_overrides.get(key) else "profile"
+    for key, value in profile_overrides.items():
+        source = "env" if env_overrides.get(key) is not None else "profile"
         source_blurb = f" (from {source})" if show_sources else ""
         output.append(f"{key}='{value}'{source_blurb}")
 
