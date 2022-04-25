@@ -103,6 +103,41 @@ class TestCreateBlock:
         )
         assert response.status_code == 201
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my block",
+            "my:block",
+            r"my\block",
+            "my👍block",
+            "my|block",
+        ],
+    )
+    async def test_create_block_with_nonstandard_characters(
+        self, client, name, block_specs
+    ):
+        response = await client.post(
+            "/blocks/",
+            json=dict(name=name, data=dict(), block_spec_id=str(block_specs[0].id)),
+        )
+        assert response.status_code == 201
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my%block",
+            "my/block",
+        ],
+    )
+    async def test_create_block_with_invalid_characters(
+        self, client, name, block_specs
+    ):
+        response = await client.post(
+            "/blocks/",
+            json=dict(name=name, data=dict(), block_spec_id=str(block_specs[0].id)),
+        )
+        assert response.status_code == 422
+
 
 class TestReadBlock:
     async def test_read_missing_block(self, client):
