@@ -153,4 +153,4 @@ You can use the following options to configure Local Storage for persisting Pref
 
 Temporary Local Storage persists Prefect flow run and result data in the local file system, using `~/.prefect/flows` and `~/.prefect/results` by default.
 
-Temporary Local Storage works best for local development and testing. If you're using Docker or Kubernetes, you must configure remote storage such as AWS S3, Azure Blob Storage, Google Cloud Storage, or File Storage configured to use a file share.
+Temporary Local Storage works best for local development and testing. If you're using Docker or Kubernetes, you must configure remote storage such as AWS S3, Azure Blob Storage, Google Cloud Storage, or File Storage configured to use a shared file system.
