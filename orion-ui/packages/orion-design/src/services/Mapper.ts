@@ -17,10 +17,11 @@ export class Mapper<T extends Maps> {
 
   public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S>, destination: D): MapperDestinationType<T, S, D>
   public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | null, destination: D): MapperDestinationType<T, S, D> | null
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | undefined, destination: D): MapperDestinationType<T, S, D> | undefined
   public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S>[], destination: D): MapperDestinationType<T, S, D>[]
-  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | MapperSourceType<T, S>[] | null, destination: D): MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[] | null {
+  public map<S extends keyof T, D extends keyof T[S]>(source: S, value: MapperSourceType<T, S> | MapperSourceType<T, S>[] | null | undefined, destination: D): MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[] | null | undefined {
     if (value === null) {
-      return null
+      return value
     }
 
     const mapper = this.bindMapper(this.mapperFunctions[source][destination])
@@ -34,11 +35,13 @@ export class Mapper<T extends Maps> {
 
   public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>>, destination: D): Record<string, MapperDestinationType<T, S, D>>
   public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>> | null, destination: D): Record<string, MapperDestinationType<T, S, D>> | null
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>> | undefined, destination: D): Record<string, MapperDestinationType<T, S, D>> | undefined
   public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>[]>, destination: D): Record<string, MapperDestinationType<T, S, D>[]>
   public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>[]> | null, destination: D): Record<string, MapperDestinationType<T, S, D>[]> | null
-  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S> | MapperSourceType<T, S>[]> | null, destination: D): Record<string, MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[]> | null {
-    if (value === null) {
-      return null
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S>[]> | undefined, destination: D): Record<string, MapperDestinationType<T, S, D>[]> | undefined
+  public mapEntries<S extends keyof T, D extends keyof T[S]>(source: S, value: Record<string, MapperSourceType<T, S> | MapperSourceType<T, S>[]> | null | undefined, destination: D): Record<string, MapperDestinationType<T, S, D> | MapperDestinationType<T, S, D>[]> | null | undefined {
+    if (value === null || value === undefined) {
+      return value
     }
 
     const response = {} as Record<string, MapperDestinationType<T, S, D>>
@@ -56,6 +59,5 @@ export class Mapper<T extends Maps> {
 }
 
 export const mapper = new Mapper(maps)
-const t1 = mapper.map('string', '123', 'Date')
 
 export type MapFunction<S, D> = (this: typeof mapper, source: S) => D

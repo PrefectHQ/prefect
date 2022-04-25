@@ -3,7 +3,12 @@
     header="Create a work queue to get started"
     description="Work queues specify the criteria for flow runs to be picked up by a corresponding agent process, which runs in your execution environment. They are defined by the set of deployments, tags, or flow runners that they filter for."
   >
-    <WorkQueueCreateButton />
+    <template v-if="can.create.work_queue">
+      <WorkQueueCreateButton />
+    </template>
+    <template v-else>
+      <span />
+    </template>
 
     <template #example>
       <div class="work-queues-list-empty-state__examples">
@@ -23,6 +28,8 @@
   import { DeploymentsApi, deploymentsApiKey } from '@/services/DeploymentsApi'
   import { FlowRunsApi, flowRunsApiKey } from '@/services/FlowRunsApi'
   import { mocker } from '@/services/Mocker'
+  import { canKey } from '@/types/permissions'
+  import { inject } from '@/utilities/inject'
 
   // these mock the count endpoints for the WorkQueuesListItem
   // "as unknown as" is used so we don't have to mock the whole service
@@ -39,6 +46,8 @@
     mocker.create('workQueue', [{ name: 'Docker', isPaused: false, filter: { tags: ['Apollo', 'DevOps'] }, concurrencyLimit: 10 }]),
     mocker.create('workQueue', [{ name: 'Kubernetes-production', isPaused: false, filter: { tags: ['Apollo', 'DevOps', 'Production'] }, concurrencyLimit: 500 }]),
   ]
+
+  const can = inject(canKey)
 </script>
 
 <style lang="scss">
