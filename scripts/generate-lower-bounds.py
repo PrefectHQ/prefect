@@ -30,6 +30,17 @@ It can be used inline with pip if newlines are converted to spaces:
 import re
 import sys
 
+LOWER_BOUND_RE = re.compile(
+    r"""
+    ^([\w\d_\-\[\]]+)   # Capture the name of the package at start of string
+    .*                  # Ignore any non-lower bound version specifications
+    (?:>=|==|~=)        # Begin parsing a version with a lower bound like equality
+    \s*                 # Allow arbitrary whitespace between the equality and version
+    ([\d*\.?]+)         # Capture versions of arbitrary length X.Y.Z...
+    """,
+    re.VERBOSE,
+)
+
 
 def generate_lower_bounds(input_file):
     for line in input_file:
@@ -38,9 +49,7 @@ def generate_lower_bounds(input_file):
         # Split the package from the conditional section
         pkg, _, cond = line.partition(";")
         # Parse the package name and lower bound
-        pkg_parsed = re.match(
-            r"^([\w\d_\-\[\]]*)\s*.*\s*(?:>=|==|~=)\s*([\d*\.?]+)", pkg
-        )
+        pkg_parsed = LOWER_BOUND_RE.match(pkg)
 
         if not pkg_parsed:
             # There is no versioning for this requirement
