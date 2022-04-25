@@ -25,7 +25,11 @@ def test_generate_lower_bounds_no_version(generate_lower_bounds):
 
 @pytest.mark.parametrize(
     "input",
-    ["x >= 10", "x >=10", "x ~=10"],
+    [
+        "x >= 10",
+        "x >=10",
+        "x ~=10",
+    ],
 )
 def test_generate_lower_bounds_min_version_only(generate_lower_bounds, input):
     results = list(generate_lower_bounds([input]))
@@ -34,7 +38,12 @@ def test_generate_lower_bounds_min_version_only(generate_lower_bounds, input):
 
 @pytest.mark.parametrize(
     "min_version",
-    ["10.0", "10.1.3", "10.23.241", "10.0.0.0.0.0"],
+    [
+        "10.0",
+        "10.1.3",
+        "10.23.241",
+        "10.0.0.0.0.0",
+    ],
 )
 def test_generate_lower_bounds_robust_to_versions_with_dots(
     generate_lower_bounds, min_version
@@ -54,7 +63,10 @@ def test_generate_lower_bounds_max_version_only(generate_lower_bounds, input):
 
 @pytest.mark.parametrize(
     "input",
-    ["x != 11", "x !=11"],
+    [
+        "x != 11",
+        "x !=11",
+    ],
 )
 def test_generate_lower_bounds_ignore_version_only(generate_lower_bounds, input):
     results = list(generate_lower_bounds([input]))
@@ -69,7 +81,12 @@ def test_generate_lower_bounds_ignore_and_max_versions(generate_lower_bounds, in
 
 @pytest.mark.parametrize(
     "input",
-    ["x <= 11, >= 10", "x <=11, >=10", "x >=10, <=10", "x >= 10, <= 10"],
+    [
+        "x <= 11, >= 10",
+        "x <=11, >=10",
+        "x >=10, <=10",
+        "x >= 10, <= 10",
+    ],
 )
 def test_generate_lower_bounds_min_and_max_versions(generate_lower_bounds, input):
     results = list(generate_lower_bounds([input]))
@@ -78,7 +95,12 @@ def test_generate_lower_bounds_min_and_max_versions(generate_lower_bounds, input
 
 @pytest.mark.parametrize(
     "input",
-    ["x != 11, >= 10", "x !=11, >=10", "x >=10, !=10", "x >= 10, != 10"],
+    [
+        "x != 11, >= 10",
+        "x !=11, >=10",
+        "x >=10, !=10",
+        "x >= 10, != 10",
+    ],
 )
 def test_generate_lower_bounds_min_and_ignore_versions(generate_lower_bounds, input):
     results = list(generate_lower_bounds([input]))
@@ -87,7 +109,10 @@ def test_generate_lower_bounds_min_and_ignore_versions(generate_lower_bounds, in
 
 @pytest.mark.parametrize(
     "input",
-    ["x==10", "x == 10"],
+    [
+        "x==10",
+        "x == 10",
+    ],
 )
 def test_generate_lower_bounds_pinned_version(generate_lower_bounds, input):
     results = list(generate_lower_bounds([input]))
@@ -96,7 +121,11 @@ def test_generate_lower_bounds_pinned_version(generate_lower_bounds, input):
 
 @pytest.mark.parametrize(
     "condition",
-    ["python_version < 3.10", "python_version < 3.10 and foo", "python_version >= 3"],
+    [
+        "python_version < 3.10",
+        "python_version < 3.10 and foo",
+        "python_version >= 3",
+    ],
 )
 def test_generate_lower_bounds_retains_conditions(generate_lower_bounds, condition):
     results = list(generate_lower_bounds([f"x >= 10; {condition}"]))
