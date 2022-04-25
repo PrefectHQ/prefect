@@ -34,7 +34,7 @@ Current storage types include:
 | [Google Cloud Storage](#google-cloud-storage) | Store data in a Google Cloud Platform (GCP) Cloud Storage bucket. |
 | [KV Server Storage](#key-value-storage) | Store data by sending requests to a KV server. |
 | [Local Storage](#local-storage) | Store data in a run's local file system. |
-| [S3 Storage](#aws-s3-storage) | Store data in an AWS S3 bucket. |
+| [AWS S3 Storage](#aws-s3-storage) | Store data in an AWS S3 bucket. |
 | [Temporary Local Storage](#temporary-local-storage) | Store data in a temporary directory in a run's local file system. (Default) |
 
 Select a storage type and follow the prompts to complete configuration. You should have details of your storage on hand to complete configuration.
