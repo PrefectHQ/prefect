@@ -118,7 +118,6 @@ class FlowRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current flow run state."
     )
-    state_name: str = Field(None, description="The name of the current flow run state.")
     run_count: int = Field(
         0, description="The number of times the flow run was executed."
     )
@@ -260,7 +259,6 @@ class TaskRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current task run state."
     )
-    state_name: str = Field(None, description="The name of the current task run state.")
     run_count: int = Field(
         0, description="The number of times the task run has been executed."
     )
