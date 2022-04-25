@@ -51,7 +51,7 @@
         </DetailsKeyValue>
       </div>
     </LabelWrapper>
-    <template v-if="internalValue.id">
+    <template v-if="internalValue.id && can.delete.work_queue">
       <DeleteSection label="Work Queue" @remove="emit('remove', internalValue.id!)" />
     </template>
   </div>
@@ -69,10 +69,12 @@
   import ValidationMessage from '@/components/ValidationMessage.vue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
+  import { Can } from '@/types/permissions'
 
   const props = defineProps<{
     values: WorkQueueFormValues,
     deploymentsApi: DeploymentsApi,
+    can: Can,
   }>()
 
   const emit = defineEmits<{

@@ -81,6 +81,10 @@ def get_extra_loggers(_: "Settings", value: str) -> List[str]:
     return [name.strip() for name in value.split(",")] if value else []
 
 
+def expanduser_in_path(_, value: Path) -> Path:
+    return value.expanduser()
+
+
 def debug_mode_log_level(settings, value):
     """
     `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
@@ -128,9 +132,10 @@ def max_log_size_smaller_than_batch_size(values):
 
 PREFECT_HOME = Setting(
     Path,
-    default=Path("~/.prefect").expanduser(),
+    default=Path("~/.prefect"),
     description="""Prefect's home directory. Defaults to `~/.prefect`. This
         directory may be created automatically when required.""",
+    value_callback=expanduser_in_path,
 )
 
 PREFECT_DEBUG_MODE = Setting(
@@ -488,7 +493,7 @@ class Settings(SettingsFieldsMixin):
     This is not recommended:
     ```python
     from prefect.settings import Settings
-    Settings().PREFECT_PROFILE_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
+    Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
     ```
     """
 
