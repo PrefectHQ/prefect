@@ -102,12 +102,12 @@ def view(
     show_defaults: Optional[bool] = typer.Option(
         False, 
         "--show-defaults/--hide-defaults",
-        help="Show all config values even if they are the Prefect defaults"
+        help="Show all config values, even if they are the Prefect defaults"
         ),
     show_sources: Optional[bool] = typer.Option(
         True, 
         "--show-sources/--hide-sources", 
-        help="Show the source of a config value. Either 'from profile' (a Prefect Profile) or 'from env' (an environment variable)")
+        help="Show the source of a config value. One of: 'from profile' (a Prefect Profile), 'from env' (an environment variable), or from defaults' (Prefect default values)")
 ):
     """
     Display the current settings.
