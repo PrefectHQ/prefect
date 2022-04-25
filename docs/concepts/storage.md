@@ -53,7 +53,7 @@ Found the following storage types:
     Store data by sending requests to a KV server.
 4) Local Storage
     Store data in a run's local file system.
-5) S3 Storage
+5) AWS S3 Storage
     Store data in an AWS S3 bucket.
 6) Temporary Local Storage
     Store data in a temporary directory in a run's local file system.
