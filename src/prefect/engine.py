@@ -626,7 +626,7 @@ async def create_and_submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_storage=flow_run_context.result_storage,
-            profile=prefect.context.ProfileContext.get(),
+            profile=prefect.context.ProfileContext.get().copy(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
