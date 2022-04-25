@@ -1,6 +1,8 @@
 import textwrap
 from contextvars import ContextVar
+import os
 from unittest.mock import ANY, MagicMock
+from copy import deepcopy
 
 import pytest
 from pendulum.datetime import DateTime
@@ -16,6 +18,7 @@ from prefect.context import (
     get_profile_context,
     get_run_context,
     profile,
+    temporary_environ,
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
@@ -68,6 +71,26 @@ def test_context_exit_restores_previous_context():
             assert ExampleContext.get().x == 2
         assert ExampleContext.get().x == 1
     assert ExampleContext.get() is None
+
+
+def test_temporary_environ_does_not_overwrite_falsy_values(monkeypatch):
+    """
+    Covers case where temporary_environ was overwriting environment variables where an 
+    empty string was the value, due to `if dict.get(key):` logic
+    """
+    VAR = 'PREFECT_API_URL'
+    not_nones = [0, 'False', '']
+
+    for not_none in not_nones:
+        os.environ = {VAR: not_none}
+        start = deepcopy(os.environ)
+
+        with temporary_environ({VAR: "Other Value"}):
+            pass
+
+        end = os.environ
+        assert start.get(VAR) == end.get(VAR)
+
 
 
 async def test_flow_run_context(orion_client, local_storage_block):
