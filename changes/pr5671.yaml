@@ -1,0 +1,6 @@
+feature:
+  - "Adds an extra state handler that is basically a Snowflake logger.
+    - [#5671](https://github.com/PrefectHQ/prefect/pull/5671)"
+
+contributor:
+  - "[Mate Hricz](https://github.com/Matt9993)"
