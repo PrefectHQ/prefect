@@ -16,7 +16,7 @@
     "@prefecthq/miter-design": "0.1.34",
     "@prefecthq/orion-design": "0.1.75",
     "@prefecthq/vue-compositions": "0.1.20",
-    "core-js": "^3.21.1",
+    "core-js": "^3.22.2",
     "d3": "^7.4.4",
     "pinia": "^2.0.11",
     "register-service-worker": "^1.7.1",
