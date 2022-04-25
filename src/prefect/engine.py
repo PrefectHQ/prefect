@@ -668,16 +668,18 @@ async def begin_task_run(
     --> Flow called with profile A
     --> `begin_task_run` is scheduled on a remote worker, profile A is serialized
     remote worker:
-    --> Remote worker imports Prefect
+    --> Remote worker imports Prefect (may not occur)
     --> Global profile is loaded with default settings
     --> `begin_task_run` executes on a different event loop than the flow
-    --> Current profile does not match, profile A is entered
+    --> Current profile is not set or does not match, profile A is entered
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
 
-        if prefect.context.get_profile_context() != profile:
+        # The profile context may be null on a remote worker so we use the safe `.get`
+        # method and compare it to the profile required for this task run
+        if prefect.context.ProfileContext.get() != profile:
             stack.enter_context(profile)
             profile.initialize(create_home=False)
 
