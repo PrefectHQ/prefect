@@ -626,7 +626,7 @@ async def create_and_submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_storage=flow_run_context.result_storage,
-            settings=get_current_settings(),
+            profile=prefect.context.ProfileContext.get(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
@@ -645,7 +645,7 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_storage: StorageBlock,
-    settings: prefect.settings.Settings,
+    profile: prefect.context.ProfileContext,
 ):
     """
     Entrypoint for task run execution.
@@ -658,12 +658,11 @@ async def begin_task_run(
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        profile = stack.enter_context(
-            prefect.context.ProfileContext(
-                name=f"task-run-{task_run.name}", settings=settings, env={}
-            )
-        )
-        profile.initialize(create_home=False)
+
+        # Enter the settings profile for the task run if not present
+        if prefect.context.ProfileContext.get() != profile:
+            stack.enter_context(profile)
+            profile.initialize(create_home=False)
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
