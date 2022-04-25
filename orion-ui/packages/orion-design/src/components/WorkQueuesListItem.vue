@@ -32,14 +32,16 @@
   import { WorkQueue } from '@/models/WorkQueue'
   import { deploymentsApiKey } from '@/services/DeploymentsApi'
   import { workQueuesApiKey } from '@/services/WorkQueuesApi'
+  import { canKey } from '@/types/permissions'
   import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
   import { workQueuesListSubscriptionKey } from '@/utilities/subscriptions'
 
   const props = defineProps<{ workQueue: WorkQueue }>()
 
-  const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
+  const can = inject(canKey)
 
+  const crumbs = computed<Crumb[]>(() => [{ text: props.workQueue.name, action: openWorkQueuePanel }])
 
   const workQueuesListSubscription = inject(workQueuesListSubscriptionKey)
   const deploymentsApi = inject(deploymentsApiKey)
@@ -54,6 +56,7 @@
       workQueuesListSubscription,
       deploymentsApi,
       workQueuesApi,
+      can,
     })
   }
 
@@ -67,6 +70,7 @@
       workQueuesListSubscription,
       openWorkQueueEditPanel,
       workQueuesApi,
+      can,
     })
   }
 </script>
