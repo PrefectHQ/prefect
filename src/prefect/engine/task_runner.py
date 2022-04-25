@@ -876,13 +876,42 @@ class TaskRunner(Runner):
                 else nullcontext()
             )  # type: AbstractContextManager
 
-            with log_context:
-                value = prefect.utilities.executors.run_task_with_timeout(
-                    task=self.task,
-                    args=(),
-                    kwargs=raw_inputs,
-                    logger=self.logger,
+            result_exists = False
+            tokenized_path = None
+
+            if (
+                prefect.context.get("checkpointing") is True
+                and self.task.checkpoint is not False
+            ):
+                formatting_kwargs = {
+                    **prefect.context.get("parameters", {}).copy(),
+                    **prefect.context,
+                    **raw_inputs,
+                }
+                tokenized_path = self.result.default_location(**formatting_kwargs)
+                result_exists = self.result.exists(
+                    location=tokenized_path, **formatting_kwargs
                 )
+
+            if result_exists and tokenized_path:
+                # This should only trigger in a case of task resubmission as there is no other
+                # way to reproduce the same `tokenized_path` unless it's an identical task
+                # `tokenized_path` dependent on `result.default_location` which itself
+                # is dependent on task context thus this should not trigger in any other case
+                self.logger.info(
+                    f"Task {task_name!r}: Result was found at {tokenized_path}, computation skipped"
+                )
+                value = self.result.read(tokenized_path)
+                # to detect this behavior at runtime
+                value.__is_mocked__ = True
+            else:
+                with log_context:
+                    value = prefect.utilities.executors.run_task_with_timeout(
+                        task=self.task,
+                        args=(),
+                        kwargs=raw_inputs,
+                        logger=self.logger,
+                    )
 
         except TaskTimeoutSignal as exc:  # Convert timeouts to a `TimedOut` state
             if prefect.context.get("raise_on_exception"):

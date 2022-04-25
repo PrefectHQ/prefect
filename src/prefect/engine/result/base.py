@@ -21,12 +21,14 @@ _absence_ of computation / data.  This is in contrast to a `Result` whose value
 is `None`.
 """
 import copy
+import types
 import pendulum
 import uuid
 from typing import Any
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
+from hashlib import md5
 
 
 # Subclass of `NotImplementedError` to make it easier to distinguish this error
@@ -110,10 +112,11 @@ class Result:
         """
         return copy.copy(self)
 
-    @property
-    def default_location(self) -> str:
-        date = pendulum.now("utc").format("Y/M/D")  # type: ignore
-        location = f"{date}/{uuid.uuid4()}.prefect_result"
+    def default_location(self, **kwargs) -> str:
+        # ensures deterministic result path
+        tokenized = md5(str(kwargs).encode("utf8")).hexdigest()
+        date = kwargs.pop("today", "").replace("-", "/")
+        location = f"{date}/{tokenized}.prefect_result"
         return location
 
     def format(self, **kwargs: Any) -> "Result":
@@ -134,7 +137,13 @@ class Result:
         elif new._formatter is not None:
             new.location = new._formatter(**kwargs)
         else:
-            new.location = new.default_location
+            # backward compatibility
+            if isinstance(new.default_location, types.FunctionType) or isinstance(
+                new.default_location, types.MethodType
+            ):
+                new.location = new.default_location(**kwargs)
+            else:
+                new.location = new.default_location
         return new
 
     def exists(self, location: str, **kwargs: Any) -> bool:
