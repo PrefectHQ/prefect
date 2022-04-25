@@ -36,6 +36,14 @@ Now, [install Prefect](/getting-started/installation.md):
 pip install prefect>=2.0a
 ```
 
+## Isolating settings per environment
+
+You may want each Python environment to have isolated Prefect settings. By default, Prefect settings are stored in your home directory and are shared across all versions of Python. To avoid this, you can change the `PREFECT_HOME` setting to a unique directory per environment. For example, with `conda` you may [configure the environment so the variable is set when your environment is activated](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#setting-environment-variables):
+
+```bash
+conda env config vars set PREFECT_HOME="~/.prefect/prefect-dev"
+```
+
 ## Running a flow in the virtual environment
 
 Save the following script to the file `example.py`:

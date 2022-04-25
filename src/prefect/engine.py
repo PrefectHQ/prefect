@@ -628,7 +628,7 @@ async def create_and_submit_task_run(
             result_storage=flow_run_context.result_storage,
             settings=get_current_settings(),
         ),
-        asynchronous=task.isasync,
+        asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
     logger.debug(f"Submitted task run {task_run.name!r} to task runner")
