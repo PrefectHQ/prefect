@@ -23,7 +23,7 @@ Prefect 2.0 supports creating multiple storage configurations and switching betw
 
 ## Configuring storage
 
-To create a storage configuration, use the `prefect storage create` CLI command. You'll be able to select from available storage types. When necessary, you can provide storage location and authentication details.
+To create a storage configuration, use the `prefect storage create` CLI command. You'll be able to select from available storage types. When necessary, you must provide storage location and authentication details.
 
 Current storage types include:
 
