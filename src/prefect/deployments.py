@@ -32,16 +32,16 @@ Examples:
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object
     ```yaml
-    - name: my-first-deployment
-      flow_location: ./path-to-the-flow-script.py
-      flow_name: hello-world
-      tags:
-        - foo
-        - bar
-      parameters:
-        name: "Earth"
-      schedule:
-        interval: 3600
+    name: my-first-deployment
+    flow_location: ./path-to-the-flow-script.py
+    flow_name: hello-world
+    tags:
+    - foo
+    - bar
+    parameters:
+      name: "Earth"
+    schedule:
+      interval: 3600
     ```
 """
 
@@ -77,6 +77,7 @@ from prefect.flow_runners import (
 )
 from prefect.flows import Flow
 from prefect.orion import schemas
+from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -153,7 +154,10 @@ class DeploymentSpec(PrefectBaseModel):
         # Load the flow from the flow location
 
         if self.flow_location and not self.flow:
-            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            try:
+                self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            except MissingFlowError as exc:
+                raise SpecValidationError(str(exc)) from exc
 
         # Infer the flow location from the flow
 
@@ -303,6 +307,11 @@ class DeploymentSpec(PrefectBaseModel):
         return deployment_id
 
     # Pydantic -------------------------------------------------------------------------
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
     class Config:
         arbitrary_types_allowed = True
@@ -491,14 +500,22 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     Load deployment specifications from a yaml file.
     """
     with fsspec.open(path, "r") as f:
-        contents = yaml.safe_load(f.read())
+        contents = f.read()
 
-    # Load deployments relative to the yaml file's directory
-    with tmpchdir(path):
-        if isinstance(contents, list):
-            specs = {DeploymentSpec.parse_obj(spec) for spec in contents}
-        else:
-            specs = {DeploymentSpec.parse_obj(contents)}
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
+
+    specs = {}
+
+    for node in nodes:
+        line = node.start_mark.line + 1
+
+        # Load deployments relative to the yaml file's directory
+        with tmpchdir(path):
+            raw_spec = yaml.safe_load(yaml.serialize(node))
+            spec = DeploymentSpec.parse_obj(raw_spec)
+
+        specs[spec] = {"file": str(path), "line": line}
 
     return specs
 

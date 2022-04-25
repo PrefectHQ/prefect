@@ -5,7 +5,6 @@ import pytest
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture
@@ -53,6 +52,18 @@ class TestCreateWorkQueue:
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
         assert response.status_code == 409
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            r"work%queue",
+        ],
+    )
+    async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
+        response = await client.post("/work_queues/", json=dict(name=name))
+        assert response.status_code == 422
+        assert b"contains an invalid character" in response.content
 
 
 class TestUpdateWorkQueue:
@@ -112,7 +123,14 @@ class TestReadWorkQueueByName:
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "name", ["work queue", "work/queue", "work:queue", "work\\queue", "work👍queue"]
+        "name",
+        [
+            "work queue",
+            "work:queue",
+            "work\\queue",
+            "work👍queue",
+            "work|queue",
+        ],
     )
     async def test_read_work_queue_by_name_with_nonstandard_characters(
         self, client, name
@@ -123,6 +141,20 @@ class TestReadWorkQueueByName:
         response = await client.get(f"/work_queues/name/{name}")
         assert response.status_code == 200
         assert response.json()["id"] == work_queue_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            "work%queue",
+        ],
+    )
+    async def test_read_work_queue_by_name_with_invalid_characters_fails(
+        self, client, name
+    ):
+
+        response = await client.get(f"/work_queues/name/{name}")
+        assert response.status_code == 404
 
 
 class TestReadWorkQueues:
@@ -262,7 +294,7 @@ class TestReadWorkQueueRuns:
         assert response.status_code == 422
 
     async def test_read_work_queue_runs_respects_scheduled_before(
-        self, client, work_queue, flow_run_2_id
+        self, client, work_queue
     ):
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
