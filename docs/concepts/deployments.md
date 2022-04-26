@@ -21,9 +21,9 @@ For detailed information about deployment objects, see the [prefect.deployments]
 
 ## Deployments overview
 
-In Orion, all flow runs are tracked by the API. The API does not require prior registration of flows. With Orion, you can call a flow locally or on a remote environment and it will be tracked. Deployments are, however, necessary for scheduling flow runs.
+All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked. Deployments are, however, necessary for scheduling flow runs.
 
-Deployments persist your flow to a location or tell the server about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. 
+Deployments persist your flow to a location or tell the server &mdash; either Prefect Cloud or a local Prefect API server &mdash; about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. 
 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, UI, or the API.
 
@@ -33,7 +33,7 @@ More specifically:
 - A [deployment specification](#deployment-specifications) includes the settings that will be used to create the deployment. 
 - Running a deployment creates a flow run using the settings defined in the deployment object.
 
-For example, in the Orion server, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
+For example, in the Prefect database, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
 
 - A pointer to a file that contains the flow
 - The literal text of the flow code
@@ -43,9 +43,11 @@ With a deployment specification, you just provide the path to the flow script. W
 
 ### Deployments and flows
 
-Each deployment is associated with a single flow, but any given flow can have multiple deployments. This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and promotion purposes.
+Each deployment is associated with a single flow, but any given flow can have multiple deployments. 
 
-Flow runners enable you to dynamically allocate infrastructure for your flow runs. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
+This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and promotion purposes.
+
+[Flow runners](/concepts/flow-runners/) enable you to dynamically allocate infrastructure for your flow runs. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
 
 A simple example of a deployment specification for a flow looks like this:
 
@@ -58,15 +60,17 @@ DeploymentSpec(
 )
 ```
 
-Once the deployment has been created, you'll see it in the Orion dashboard and can inspect it using the CLI.
+Once the deployment has been created, you'll see it in the [Prefect UI](/ui/dashboard/) and can inspect it using the CLI.
 
 ![Screenshot showing deployments listed in the Orion UI.](/img/concepts/deployments.png)
 
 When you run a deployed flow in Orion, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
-- An agent detects the flow run and uses a flow runner to create infrastructure for the run.
+- An agent picks up the flow run from a work queue and uses a flow runner to create infrastructure for the run.
 - The flow run executes within the infrastructure.
+
+[Work queues and agents](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. There is no default global work queue or agent, so to execute deployment flow runs you need to configure at least one work queue and agent. The [Deployments tutorial](/tutorials/deployments/) walks through the steps for configuring a work queue and starting an agent.
 
 ## Deployment representation in Orion
 
