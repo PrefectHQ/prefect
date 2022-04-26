@@ -1,7 +1,7 @@
 import textwrap
 from contextvars import ContextVar
 import os
-from unittest.mock import ANY, MagicMock
+from unittest.mock import MagicMock
 from copy import deepcopy
 
 import pytest
@@ -75,12 +75,12 @@ def test_context_exit_restores_previous_context():
 
 def test_temporary_environ_does_not_overwrite_falsy_values():
     """
-    Covers case where temporary_environ was overwriting environment variables where an 
+    Covers case where temporary_environ was overwriting environment variables where an
     empty string was the value, due to `if dict.get(key):` logic
     """
-    VAR = 'PREFECT_API_URL'
+    VAR = "PREFECT_API_URL"
     original_value = os.getenv(VAR)
-    not_nones = [0, 'False', '']
+    not_nones = [0, "False", ""]
 
     for not_none in not_nones:
         os.environ[VAR] = str(not_none)
@@ -91,11 +91,10 @@ def test_temporary_environ_does_not_overwrite_falsy_values():
 
         assert start.get(VAR) == os.environ.get(VAR)
 
-    if original_value is not None: 
+    if original_value is not None:
         os.environ[VAR] = original_value
     else:
         del os.environ[VAR]
-
 
 
 async def test_flow_run_context(orion_client, local_storage_block):
@@ -323,7 +322,7 @@ class TestProfilesContext:
         profile = MagicMock()
         temporary_profiles_path.write_text(
             textwrap.dedent(
-                f"""
+                """
                 [profiles.test]
                 PREFECT_API_KEY = "xxx"
                 """
