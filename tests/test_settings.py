@@ -21,7 +21,7 @@ from prefect.settings import (
     update_profile,
     write_profiles,
 )
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 
 class TestSetting_UI_API_URL:
