@@ -1,10 +1,10 @@
 from datetime import timedelta
 from typing import List
 
-import fastapi
 import pendulum
 import pydantic
 import pytest
+from fastapi import Response, status
 
 from prefect.orion import models
 from prefect.orion.schemas import core, responses, states
@@ -13,8 +13,8 @@ from prefect.orion.schemas.states import StateType
 dt = pendulum.datetime(2021, 7, 1)
 
 
-def parse_response(response: fastapi.Response, include=None):
-    assert response.status_code == 200
+def parse_response(response: Response, include=None):
+    assert response.status_code == status.HTTP_200_OK
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
 
     # for each interval...
@@ -190,10 +190,10 @@ async def test_history_returns_maximum_items(client, route):
         ),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     # only first 500 items returned
-    assert len(response.json()) == 500
+    assert len(response.json()) == status.HTTP_500_INTERNAL_SERVER_ERROR
     assert min([r["interval_start"] for r in response.json()]) == str(dt)
     assert max([r["interval_start"] for r in response.json()]) == str(
         dt.add(minutes=499)
@@ -497,7 +497,7 @@ async def test_last_bin_contains_end_date(client, route):
         ),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert len(parsed) == 2
     assert parsed[0].interval_start == dt
