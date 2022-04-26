@@ -25,7 +25,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.tasks import task
-from prefect.utilities.testing import AsyncMock, exceptions_equal, temporary_settings
+from prefect.testing.utilities import AsyncMock, exceptions_equal, temporary_settings
 
 
 class TestGetClient:

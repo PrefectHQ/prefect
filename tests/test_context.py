@@ -19,7 +19,7 @@ from prefect.context import (
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 
 class ExampleContext(ContextModel):
