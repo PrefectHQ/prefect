@@ -76,38 +76,46 @@ Deployment properties include:
 
 | Property | Description |
 | --- | --- |
-| id | An auto-generated UUID ID value identifying the deployment. |
-| created | A `datetime` timestamp indicating when the deployment was created. |
-| updated | A `datetime` timestamp indicating when the deployment was last changed. |
-| name | The name of the deployment. |
-| flow_id | The id of the flow associated with the deployment. |
-| flow_data | A [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) representing the flow code to execute. |
-| schedule | An optional schedule for the deployment. |
-| is_schedule_active | Boolean indicating whether the deployment schedule is active. Default is True. |
-| parameters | An optional dictionary of parameters for flow runs scheduled by the deployment. |
-| tags | An optional list of tags for the deployment. |
-| flow_runner | [`FlowRunnerSettings`](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) containing details about the flow runner to assign to flow runs associated with this deployment. |
+| `id` | An auto-generated UUID ID value identifying the deployment. |
+| `created` | A `datetime` timestamp indicating when the deployment was created. |
+| `updated` | A `datetime` timestamp indicating when the deployment was last changed. |
+| `name` | The name of the deployment. |
+| `flow_id` | The id of the flow associated with the deployment. |
+| `flow_data` | A [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) representing the flow code to execute. |
+| `schedule` | An optional schedule for the deployment. |
+| <span class="no-wrap">`is_schedule_active`</span> | Boolean indicating whether the deployment schedule is active. Default is True. |
+| `parameters` | An optional dictionary of parameters for flow runs scheduled by the deployment. |
+| `tags` | An optional list of tags for the deployment. |
+| `flow_runner` | [`FlowRunnerSettings`](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) containing details about the flow runner to assign to flow runs associated with this deployment. |
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
 ```bash 
-$ prefect deployment inspect hello-world/hello-world-daily
-Deployment(
-    id='fee2bf95-5022-4945-bd7a-42a67b8b25fb',
-    created='39 minutes ago',
-    updated='39 minutes ago',
-    name='hello-world-daily',
-    flow_id='118a3548-e74b-4555-9bac-fe52d81e536f',
-    flow_data=DataDocument(encoding='orion'),
-    schedule=IntervalSchedule(interval=datetime.timedelta(seconds=60), 
-                              anchor_date='2 years ago'),
-    parameters={'name': 'Marvin'},
-    tags=['foo', 'bar'],
-    flow_runner=FlowRunnerSettings()
-)
+$ prefect deployment inspect 'hello-world/hello-world-daily'
+{
+    'id': '710145d4-a5cb-4e58-a887-568e4df9da88',
+    'created': '2022-04-25T20:23:42.311269+00:00',
+    'updated': '2022-04-25T20:23:42.309339+00:00',
+    'name': 'hello-world-daily',
+    'flow_id': '80768746-cc02-4d25-a01c-4e4a92797142',
+    'flow_data': {
+        'encoding': 'blockstorage',
+        'blob': '{"data": "\\"f8e7f81f24512625235fe5814f1281ae\\"", "block_id":
+"c204821d-a44f-4b9e-aec3-fcf24619d22f"}'
+    },
+    'schedule': {
+        'interval': 86400.0,
+        'timezone': None,
+        'anchor_date': '2020-01-01T00:00:00+00:00'
+    },
+    'is_schedule_active': True,
+    'parameters': {},
+    'tags': ['earth'],
+    'flow_runner': {'type': 'universal', 'config': {'env': {}}}
+}
 ```
 
-The [prefect.orion.api.deployments](/api-ref/orion/api/deployments/) API also provides functions for inspecting deployments by id or name.
+The [prefect.orion.api.deployments](/api-ref/orion/api/deployments/) API also provides functions for inspecting deployments by ID or name.
 
 ## Deployment specifications
 
@@ -127,18 +135,22 @@ A `DeploymentSpec` object has the following required parameters:
 
 | Parameter | Description |
 | --------- | ----------- |
-| name | String specifying the name of the deployment. |
-| flow | The flow object to associate with the deployment. |
-| flow_name | String specifying the name of the flow to deploy. |
-| flow_location | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
-| push_to_server | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
-| parameters | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
-| schedule | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
-| tags | List containing tags to assign to the deployment. |
+| `name` | String specifying the name of the deployment. |
+| `flow` | The flow object to associate with the deployment. |
+| `flow_location` | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
+| `flow_name` | String specifying the name of the flow to deploy. |
+| `flow_runner` | Specifies the [flow runner](/api-ref/prefect/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) used for flow runs. |
+| `flow_storage` | A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance specifying the [storage](/concepts/storage/) to be used for the flow definition and results. |
+| <span class="no-wrap">`push_to_server`</span> | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
+| `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
+| `schedule` | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
+| `tags` | List containing tags to assign to the deployment. |
 
 Either the flow object or location must be provided.
 
-If a flow location is provided, the script at the given location will be run when the deployment is created to load metadata about the flow.
+If a flow location is provided, the script at the given location will be run when the deployment is created to load metadata about the flow. 
+
+The flow definition for the deployment is stored in the default [storage](/concepts/storage/) configured for the Prefect API server or Prefect Cloud workspace, unless you specify a different storage with `flow_storage`.
 
 ## Deployment specifications as code
 
@@ -234,14 +246,21 @@ $ prefect deployment create <filename>
 For example, if the hello-world deployment specification shown earlier is in the file flow.py, you'd see something like the following:
 
 ```bash
-$ prefect deployment create flow.py
-Loading deployments from python script at 'flow.py'...
-Created deployment 'hello-world-daily' for flow 'hello-world'
+$ prefect deployment create hello_world.py
+Loading deployment specifications from python script at 'hello_world.py'...
+Creating deployment 'hello-world-daily' for flow 'hello-world'...
+Deploying flow script from 'hello_world.py' using File Storage...
+Created deployment 'hello-world/hello-world-daily'.
+View your new deployment with:
+
+    prefect deployment inspect 'hello-world/hello-world-daily'
 ```
 
 !!! note "Scheduled flow runs"
 
-    Scheduled flow runs will not be created unless the scheduler is running. Scheduled flow runs will not run unless an agent is running. The scheduler and agent are included in the services started by `prefect orion start`. 
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect API server started with `prefect orion start`. 
+    
+    Scheduled flow runs will not run unless an appropriate [work queue and agent](/concepts/work-queues/) are configured.  
 
 ### Creating deployments with the API
 
@@ -269,9 +288,23 @@ Coming soon.
 
 ## Examples
 
-The following example builds on an earlier example, demonstrating the use of multiple deployment specifications for a single flow, along with deployment-specific parameters and tags.
+A deployment requires two components: a flow definition and a deployment specification. Let's take a look at some practical examples demonstrating how you can define deployments for a flow.
+
+Let's start with this simple flow: it simply prints a "Hello" message with a name provided as a parameter, and prints "Hello world!" if not passed a parameter.
 
 ```Python
+# filename: hello_flow.py
+from prefect import flow
+
+@flow
+def hello_world(name="world"):
+    print(f"Hello {name}!")
+```
+
+To create a deployment for this flow, you can include the `DeploymentSpec` in the same file as the flow. In this case, `flow` specifies the base flow function, `hello_world`, and the deployment is named `hello-world`.
+
+```Python
+# filename: hello_flow.py
 from prefect import flow
 
 @flow
@@ -279,21 +312,107 @@ def hello_world(name="world"):
     print(f"Hello {name}!")
 
 from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    flow=hello_world,
+    name="hello-world",
+    tags=["earth"],
+)
+```
+
+You can also create the deployment specification in a separate file, including a `flow_location` to indicate the path and filename of the flow definition. 
+
+```Python
+# filename: hello_deployment.py
+from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    flow=hello_world,
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world",
+    tags=["earth"],
+)
+```
+
+Note that, in this case, `flow` is optional &mdash; Prefect can infer the flow from your code. However, you can specify a `flow` in a deployment to start a flow run from a different flow function in the code file.
+
+You can create multiple `DeploymentSpec` definitions for the same flow code, enabling code reuse for different runtime scenarios by providing different schedules, parameters, tags, or base flow functions. This example creates three different deployments for the same flow, using different parameters and tags for each: one with a weekly schedule, one with a daily schedule, and one with no schedule. 
+
+```Python
+# filename: hello_deployment.py
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import IntervalSchedule
 from datetime import timedelta
 
 DeploymentSpec(
-    flow=hello_world,
-    name="hello-world-daily",
-    schedule=IntervalSchedule(interval=timedelta(days=1)),
-    tags=["earth"],
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-unscheduled",
+    parameters={"name": "Trillian"},
+    tags=["trillian","ad-hoc"],
 )
 
 DeploymentSpec(
-    flow=hello_world,
-    name="hello-orion",
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-daily",
+    schedule=IntervalSchedule(interval=timedelta(days=1)),
+    parameters={"name": "Arthur"},
+    tags=["arthur","daily"],
+)
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-weekly",
     schedule=IntervalSchedule(interval=timedelta(weeks=1)),
-    parameters={"name": "Orion"},
-    tags=["marvin"],
+    parameters={"name": "Marvin"},
+    tags=["marvin","weekly"],
 )
 ```
+
+You can configure a [flow runner](/api-ref/prefect/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) to be used for flow runs created by the deployment.
+
+```Python
+# filename: hello_deployment.py
+from prefect.deployments import DeploymentSpec
+from prefect.flow_runners import SubprocessFlowRunner
+from prefect.flow_runners import FlowRunnerSettings
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-subprocess",
+    flow_runner=SubprocessFlowRunner(),
+    tags=["foo"],
+)
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-flow-runner-settings",
+    flow_runner=FlowRunnerSettings(type="subprocess", config={"env": {"test": "test"}}),
+    tags=["earth"],
+)
+```
+
+You can specify or configure a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance, providing the [storage](/concepts/storage/) to be used for the flow definition and results. You can provide the specification of a storage block or the ID of storage already configured for a Prefect API server instance or Prefect Cloud (as configured for your execution environment).
+
+```Python
+# filename: hello_deployment.py
+from prefect.deployments import DeploymentSpec
+from prefect.blocks.storage import FileStorageBlock
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-file-storage",
+    flow_storage=FileStorageBlock(base_path="s3://your-bucket/foo"),
+    tags=["foo"],
+)
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-storage-id",
+    flow_storage='d4982121-b9e3-4b47-97ca-9a1b6b747c49',
+    tags=["earth"],
+)
+```
+
+If not specified, the default storage will be pulled from the server. If the server does not have a default, the flow will attempt to use local storage.
+
+If creating a deployment with a storage block without an ID, it will be registered with the server for retrieval.
