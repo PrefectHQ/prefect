@@ -46,7 +46,7 @@ class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
 
-        if response.status_code == 404:
+        if response.status_code == status.HTTP_404_NOT_FOUND:
             response = await super().get_response("./index.html", scope)
 
         return response
