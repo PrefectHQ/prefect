@@ -6,16 +6,7 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, NamedTuple, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
@@ -30,11 +21,12 @@ import toml
 from slugify import slugify
 
 import prefect
+from prefect.engine.state import Pending
 from prefect.exceptions import (
     AuthorizationError,
     ClientError,
-    VersionLockMismatchSignal,
     ObjectNotFoundError,
+    VersionLockMismatchSignal,
 )
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import (
@@ -1483,7 +1475,12 @@ class Client:
 
         task_run_info = result.data.get_or_create_task_run_info
 
-        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+        state = (
+            prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+            if task_run_info.serialized_state
+            else Pending()
+        )
+
         return TaskRunInfoResult(
             id=task_run_info.id,
             task_id=task_id,
