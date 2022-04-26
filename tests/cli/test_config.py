@@ -3,7 +3,6 @@ from prefect.cli import app
 from prefect.utilities.testing import temporary_settings
 import prefect.settings
 from prefect.context import profile
-from prefect.settings import PREFECT_API_URL
 from typer.testing import CliRunner
 import pytest
 import re
@@ -18,6 +17,7 @@ PROFILE_STRING = "(from profile)"
 
 runner = CliRunner()
 
+
 @pytest.fixture(autouse=True)
 def temporary_profiles_path(tmp_path):
     path = tmp_path / "profiles.toml"
@@ -26,11 +26,8 @@ def temporary_profiles_path(tmp_path):
 
 
 def test_defaults_hidden_by_default():
-    """Default values should be hidden by default
-    """
-    res = runner.invoke(
-        app, ["config", "view", "--show-sources"]
-    )
+    """Default values should be hidden by default"""
+    res = runner.invoke(app, ["config", "view", "--show-sources"])
 
     config_items = res.stdout.split("\n")
     for item in config_items:
@@ -43,9 +40,7 @@ def test_defaults_shown_with_flag():
     settings = prefect.settings.get_settings_from_env().dict()
 
     # Force show-sources, because we are relying on it to identify defaults
-    res = runner.invoke(
-        app, ["config", "view", "--show-defaults", "--show-sources"]
-    )        
+    res = runner.invoke(app, ["config", "view", "--show-defaults", "--show-sources"])
 
     # Assumes that we will have at least one default setting
     assert DEFAULT_STRING in res.stdout
@@ -72,12 +67,10 @@ def test_sources_shown_by_default(temporary_profiles_path):
     )
     with profile("foo", initialize=False) as ctx:
         ctx.initialize(create_home=False)
-        res = runner.invoke(
-            app, ["config", "view"]
-        )
+        res = runner.invoke(app, ["config", "view"])
 
     printed_values = re.split(r"\nP", res.stdout.strip())
-    printed_values = printed_values[1:] # First printed element is the prefect profile
+    printed_values = printed_values[1:]  # First printed element is the prefect profile
     for val in printed_values:
         assert any(s in val for s in sources)
 
