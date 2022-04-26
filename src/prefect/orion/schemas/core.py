@@ -346,14 +346,14 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockSpec(ORMBaseModel):
-    """An ORM representation of a block spec."""
+class BlockSchema(ORMBaseModel):
+    """An ORM representation of a block schema."""
 
-    name: str = Field(..., description="The block spec's name")
-    version: str = Field(..., description="The block spec's version")
-    type: str = Field(None, description="The block spec's type")
+    name: str = Field(..., description="The block schema's name")
+    version: str = Field(..., description="The block schema's version")
+    type: str = Field(None, description="The block schema's type")
     fields: dict = Field(
-        default_factory=dict, description="The block spec's field schema"
+        default_factory=dict, description="The block schema's field schema"
     )
 
     @validator("name", check_fields=False)
@@ -370,14 +370,14 @@ class BlockSpec(ORMBaseModel):
         return v
 
 
-class Block(ORMBaseModel):
-    """An ORM representation of a block."""
+class BlockDocument(ORMBaseModel):
+    """An ORM representation of a block document."""
 
-    name: str = Field(..., description="The block's name'")
-    data: dict = Field(default_factory=dict, description="The block's data")
-    block_spec_id: UUID = Field(..., description="A block spec ID")
-    block_spec: Optional[BlockSpec] = Field(
-        None, description="The associated block spec"
+    name: str = Field(..., description="The block document's name'")
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(..., description="A block schema ID")
+    block_schema: Optional[BlockSchema] = Field(
+        None, description="The associated block schema"
     )
 
     @validator("name", check_fields=False)
@@ -389,14 +389,14 @@ class Block(ORMBaseModel):
     async def from_orm_model(
         cls,
         session,
-        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+        orm_block_document: "prefect.orion.database.orm_models.ORMBlockDocument",
     ):
         return cls(
-            id=orm_block.id,
-            name=orm_block.name,
-            data=await orm_block.decrypt_data(session=session),
-            block_spec_id=orm_block.block_spec_id,
-            block_spec=orm_block.block_spec,
+            id=orm_block_document.id,
+            name=orm_block_document.name,
+            data=await orm_block_document.decrypt_data(session=session),
+            block_schema_id=orm_block_document.block_schema_id,
+            block_schema=orm_block_document.block_schema,
         )
 
 

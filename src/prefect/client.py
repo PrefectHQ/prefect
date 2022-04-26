@@ -44,7 +44,7 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks.core import Block, create_block_from_api_block
+from prefect.blocks.core import Block, create_block_from_block_document
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -861,7 +861,7 @@ class OrionClient:
     async def create_block(
         self,
         block: prefect.blocks.core.Block,
-        block_spec_id: UUID = None,
+        block_schema_id: UUID = None,
         name: str = None,
     ) -> Optional[UUID]:
         """
@@ -869,16 +869,16 @@ class OrionClient:
         Block.
         """
 
-        api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
+        api_block = block.to_block_document(name=name, block_schema_id=block_schema_id)
 
         # Drop fields that are not compliant with `CreateBlock`
         payload = api_block.dict(
-            json_compatible=True, exclude={"block_spec", "id"}, exclude_unset=True
+            json_compatible=True, exclude={"block_schema", "id"}, exclude_unset=True
         )
 
         try:
             response = await self._client.post(
-                "/blocks/",
+                "/block_documents/",
                 json=payload,
             )
         except httpx.HTTPStatusError as e:
@@ -888,27 +888,29 @@ class OrionClient:
                 raise
         return UUID(response.json().get("id"))
 
-    async def read_block_spec_by_name(
+    async def read_block_schema_by_name(
         self, name: str, version: str
-    ) -> schemas.core.BlockSpec:
+    ) -> schemas.core.BlockSchema:
         """
-        Look up a block spec by name and version
+        Look up a block schema by name and version
         """
         try:
-            response = await self._client.get(f"block_specs/{name}/versions/{version}")
+            response = await self._client.get(
+                f"block_schemas/{name}/versions/{version}"
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return schemas.core.BlockSpec.parse_obj(response.json())
+        return schemas.core.BlockSchema.parse_obj(response.json())
 
-    async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
+    async def read_block_schemas(self, type: str) -> List[schemas.core.BlockSchema]:
         """
-        Read all block specs with the given type
+        Read all block schemas with the given type
 
         Args:
-            type: The name of the type of block spec
+            type: The name of the type of block schema
 
         Raises:
             httpx.RequestError: if the block was not found for any reason
@@ -917,41 +919,41 @@ class OrionClient:
             A hydrated block or None.
         """
         response = await self._client.post(
-            f"/block_specs/filter", json={"block_spec_type": type}
+            f"/block_schemas/filter", json={"block_schema_type": type}
         )
-        return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
+        return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
-    async def read_block(self, block_id: UUID):
+    async def read_block(self, block_document_id: UUID):
         """
         Read the block with the specified name that corresponds to a
-        specific block spec name and version.
+        specific block schema name and version.
 
         Args:
-            block_id (UUID): the block id
+            block_document_id (UUID): the block document id
 
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
             A hydrated block or None.
         """
-        response = await self._client.get(f"/blocks/{block_id}")
-        return create_block_from_api_block(response.json())
+        response = await self._client.get(f"/block_documents/{block_document_id}")
+        return create_block_from_block_document(response.json())
 
     async def read_block_by_name(
         self,
         name: str,
-        block_spec_name: str,
-        block_spec_version: str,
+        block_schema_name: str,
+        block_schema_version: str,
     ):
         """
         Read the block with the specified name that corresponds to a
-        specific block spec name and version.
+        specific block schema name and version.
 
         Args:
             name (str): The block name.
-            block_spec_name (str): the block spec name
-            block_spec_version (str): the block spec version. If not provided,
+            block_schema_name (str): the block schema name
+            block_schema_version (str): the block schema version. If not provided,
                 the most recent matching version will be returned.
 
         Raises:
@@ -961,13 +963,13 @@ class OrionClient:
             A hydrated block or None.
         """
         response = await self._client.get(
-            f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
+            f"/block_schemas/{block_schema_name}/versions/{block_schema_version}/block/{name}",
         )
-        return create_block_from_api_block(response.json())
+        return create_block_from_block_document(response.json())
 
     async def read_blocks(
         self,
-        block_spec_type: str = None,
+        block_schema_type: str = None,
         offset: int = None,
         limit: int = None,
         as_json: bool = False,
@@ -976,7 +978,7 @@ class OrionClient:
         Read blocks
 
         Args:
-            block_spec_type (str): an optional block spec type
+            block_schema_type (str): an optional block schema type
             offset (int): an offset
             limit (int): the number of blocks to return
             as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
@@ -986,13 +988,13 @@ class OrionClient:
             A list of blocks
         """
         response = await self._client.post(
-            f"/blocks/filter",
-            json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
+            f"/block_documents/filter",
+            json=dict(block_schema_type=block_schema_type, offset=offset, limit=limit),
         )
         json_result = response.json()
         if as_json:
             return json_result
-        return [create_block_from_api_block(b) for b in json_result]
+        return [create_block_from_block_document(b) for b in json_result]
 
     async def create_deployment(
         self,
@@ -1203,16 +1205,20 @@ class OrionClient:
         Returns:
             Optional[Block]:
         """
-        response = await self._client.post("/blocks/get_default_storage_block")
+        response = await self._client.post(
+            "/block_documents/get_default_storage_block_document"
+        )
         if not response.content:
             return None
         if as_json:
             return response.json()
-        return create_block_from_api_block(response.json())
+        return create_block_from_block_document(response.json())
 
-    async def set_default_storage_block(self, block_id: UUID):
+    async def set_default_storage_block(self, block_document_id: UUID):
         try:
-            await self._client.post(f"/blocks/{block_id}/set_default_storage_block")
+            await self._client.post(
+                f"/block_documents/{block_document_id}/set_default_storage_block_document"
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1220,7 +1226,9 @@ class OrionClient:
                 raise
 
     async def clear_default_storage_block(self):
-        await self._client.post(f"/blocks/clear_default_storage_block")
+        await self._client.post(
+            f"/block_documents/clear_default_storage_block_document"
+        )
 
     async def persist_data(
         self, data: bytes, block: StorageBlock = None
@@ -1244,7 +1252,7 @@ class OrionClient:
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": block._block_id},
+            data={"data": storage_token, "block_document_id": block._block_document_id},
         )
         return storage_datadoc
 
@@ -1263,9 +1271,9 @@ class OrionClient:
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
-        block_id = block_document["block_id"]
-        if block_id is not None:
-            storage_block = await self.read_block(block_id)
+        block_document_id = block_document["block_document_id"]
+        if block_document_id is not None:
+            storage_block = await self.read_block(block_document_id)
         else:
             storage_block = TempStorageBlock()
         return await storage_block.read(embedded_datadoc)
