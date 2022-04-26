@@ -6,7 +6,7 @@ import string
 import textwrap
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 import pydantic
 import toml
@@ -516,6 +516,30 @@ class Settings(SettingsFieldsMixin):
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
         return values
+
+    def copy_with_update(
+        self,
+        updates: Dict[Union[str, Setting], Any] = None,
+        defaults: Dict[Union[str, Setting], Any] = None,
+    ):
+        def prepare_for_merge(dict_):
+            # Cast `Setting` types to their names and resolve null to an empty dict
+            return (
+                {
+                    key.name if isinstance(key, Setting) else key: value
+                    for key, value in dict_.items()
+                }
+                if dict_ is not None
+                else {}
+            )
+
+        return self.__class__(
+            **{
+                **prepare_for_merge(defaults),
+                **self.dict(exclude_unset=True),
+                **prepare_for_merge(updates),
+            }
+        )
 
     class Config:
         frozen = True

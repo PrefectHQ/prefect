@@ -7,6 +7,7 @@ import pytest
 import prefect.context
 import prefect.settings
 from prefect.settings import (
+    PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
@@ -40,6 +41,38 @@ def test_get_value_nested_setting():
 
 def test_settings():
     assert PREFECT_TEST_MODE.value() is True
+
+
+def test_settings_copy_with_update_with_string_keys():
+    settings = get_current_settings()
+    assert settings.value_of(PREFECT_TEST_MODE) is True
+    new_settings = settings.copy_with_update(
+        updates={"PREFECT_LOGGING_LEVEL": "ERROR"},
+        defaults={"PREFECT_TEST_MODE": False, "PREFECT_API_KEY": "TEST"},
+    )
+    assert (
+        new_settings.value_of(PREFECT_TEST_MODE) is True
+    ), "Not changed, existing value was not default"
+    assert (
+        new_settings.value_of(PREFECT_API_KEY) == "TEST"
+    ), "Changed, existing value was default"
+    assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
+
+
+def test_settings_copy_with_update_with_setting_keys():
+    settings = get_current_settings()
+    assert settings.value_of(PREFECT_TEST_MODE) is True
+    new_settings = settings.copy_with_update(
+        updates={PREFECT_LOGGING_LEVEL: "ERROR"},
+        defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
+    )
+    assert (
+        new_settings.value_of(PREFECT_TEST_MODE) is True
+    ), "Not changed, existing value was not default"
+    assert (
+        new_settings.value_of(PREFECT_API_KEY) == "TEST"
+    ), "Changed, existing value was default"
+    assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
 
 
 def test_settings_in_truthy_statements_use_value():
