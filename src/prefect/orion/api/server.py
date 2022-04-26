@@ -47,9 +47,9 @@ API_ROUTERS = (
     api.saved_searches.router,
     api.logs.router,
     api.concurrency_limits.router,
-    api.blocks.router,
+    api.block_documents.router,
     api.work_queues.router,
-    api.block_specs.router,
+    api.block_schemas.router,
     api.ui.flow_runs.router,
     api.admin.router,
     api.root.router,
@@ -256,11 +256,11 @@ def create_app(
             db = provide_database_interface()
             await db.create_db()
 
-    async def add_block_specifications():
+    async def add_block_schemas():
         """Add all registered blocks to the database"""
         from prefect.blocks.core import BLOCK_REGISTRY
         from prefect.orion.database.dependencies import provide_database_interface
-        from prefect.orion.models.block_specs import create_block_spec
+        from prefect.orion.models.block_schemas import create_block_schema
 
         db = provide_database_interface()
 
@@ -268,13 +268,13 @@ def create_app(
 
         session = await db.session()
         async with session:
-            for block_spec in BLOCK_REGISTRY.values():
-                # each block spec gets its own transaction
+            for block_schema in BLOCK_REGISTRY.values():
+                # each block schema gets its own transaction
                 async with session.begin():
                     try:
-                        await create_block_spec(
+                        await create_block_schema(
                             session=session,
-                            block_spec=block_spec.to_api_block_spec(),
+                            block_schema=block_schema.to_block_schema(),
                             override=should_override,
                         )
                     except sa.exc.IntegrityError:
@@ -337,7 +337,7 @@ def create_app(
         version=API_VERSION,
         on_startup=[
             run_migrations,
-            add_block_specifications,
+            add_block_schemas,
             start_services,
         ],
         on_shutdown=[stop_services],

@@ -197,27 +197,29 @@ async def deployment(session, flow, flow_function):
 
 
 @pytest.fixture
-async def block_spec(session):
-    block_spec = await models.block_specs.create_block_spec(
+async def block_schema(session):
+    block_schema = await models.block_schemas.create_block_schema(
         session=session,
-        block_spec=schemas.core.BlockSpec(
+        block_schema=schemas.core.BlockSchema(
             name="x",
             version="1.0",
             type="abc",
         ),
     )
     await session.commit()
-    return block_spec
+    return block_schema
 
 
 @pytest.fixture
-async def block(session, block_spec):
-    block = await models.blocks.create_block(
+async def block_document(session, block_schema):
+    block_document = await models.block_documents.create_block_document(
         session=session,
-        block=schemas.core.Block(block_spec_id=block_spec.id, name="Block 1"),
+        block_document=schemas.core.BlockDocument(
+            block_schema_id=block_schema.id, name="Block 1"
+        ),
     )
     await session.commit()
-    return block
+    return block_document
 
 
 async def commit_task_run_state(

@@ -275,15 +275,15 @@ class DeploymentSpec(PrefectBaseModel):
 
         # Ensure the storage is a registered block for later retrieval
 
-        if not self.flow_storage._block_id:
-            block_spec = await client.read_block_spec_by_name(
-                self.flow_storage._block_spec_name,
-                self.flow_storage._block_spec_version,
+        if not self.flow_storage._block_document_id:
+            block_schema = await client.read_block_schema_by_name(
+                self.flow_storage._block_schema_name,
+                self.flow_storage._block_schema_version,
             )
 
-            self.flow_storage._block_id = await client.create_block(
+            self.flow_storage._block_document_id = await client.create_block(
                 self.flow_storage,
-                block_spec_id=block_spec.id,
+                block_schema_id=block_schema.id,
                 name=f"{self.flow_name}-{self.name}",
             )
 
@@ -291,7 +291,10 @@ class DeploymentSpec(PrefectBaseModel):
         storage_token = await self.flow_storage.write(flow_bytes)
         flow_data = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": self.flow_storage._block_id},
+            data={
+                "data": storage_token,
+                "block_document_id": self.flow_storage._block_document_id,
+            },
         )
 
         deployment_id = await client.create_deployment(

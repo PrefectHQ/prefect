@@ -25,8 +25,8 @@ async def test_valid_names(name):
         flow_id=uuid4(),
         flow_data=schemas.data.DataDocument(encoding="x", blob=b"y"),
     )
-    assert schemas.core.BlockSpec(name=name, version="1.0")
-    assert schemas.core.Block(name=name, block_spec_id=uuid4())
+    assert schemas.core.BlockSchema(name=name, version="1.0")
+    assert schemas.core.BlockDocument(name=name, block_schema_id=uuid4())
 
 
 @pytest.mark.parametrize(
@@ -46,9 +46,9 @@ async def test_invalid_names(name):
             flow_data=schemas.data.DataDocument(encoding="x", blob=b"y"),
         )
     with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
-        assert schemas.core.BlockSpec(name=name, version="1.0")
+        assert schemas.core.BlockSchema(name=name, version="1.0")
     with pytest.raises(pydantic.ValidationError, match="contains an invalid character"):
-        assert schemas.core.Block(name=name, block_spec_id=uuid4())
+        assert schemas.core.BlockDocument(name=name, block_Schema_id=uuid4())
 
 
 @pytest.mark.parametrize(
@@ -58,8 +58,8 @@ async def test_invalid_names(name):
         r"my%object",
     ],
 )
-async def test_invalid_block_spec_version(version):
+async def test_invalid_block_Schema_version(version):
     with pytest.raises(
         pydantic.ValidationError, match="(Version contains an invalid character)"
     ):
-        assert schemas.core.BlockSpec(name="valid name", version=version)
+        assert schemas.core.BlockSchema(name="valid name", version=version)

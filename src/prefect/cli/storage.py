@@ -32,7 +32,7 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 async def create():
     """Create a new storage configuration."""
     async with get_client() as client:
-        specs = await client.read_block_specs("STORAGE")
+        specs = await client.read_block_schemas("STORAGE")
 
     unconfigurable = set()
     for spec in specs:
@@ -102,19 +102,19 @@ async def create():
         exit_with_error(f"Validation failed! {str(exc)}")
 
     app.console.print("Registering storage with server...")
-    block_id = None
-    while not block_id:
+    block_document_id = None
+    while not block_document_id:
         async with get_client() as client:
             try:
-                block_id = await client.create_block(
-                    block=block, block_spec_id=spec.id, name=name
+                block_document_id = await client.create_block(
+                    block=block, block_schema_id=spec.id, name=name
                 )
             except ObjectAlreadyExists:
                 app.console.print(f"[red]The name {name!r} is already taken.[/]")
                 name = typer.prompt("Choose a new name for this storage configuration")
 
     app.console.print(
-        f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
+        f"[green]Registered storage {name!r} with identifier '{block_document_id}'.[/]"
     )
 
     async with get_client() as client:
@@ -126,25 +126,25 @@ async def create():
             )
 
             if set_default:
-                await client.set_default_storage_block(block_id)
+                await client.set_default_storage_block(block_document_id)
                 exit_with_success(f"Set default storage to {name!r}.")
 
             else:
                 app.console.print(
                     "Default left unchanged. Use `prefect storage set-default "
-                    f"{block_id}` to set this as the default storage at a later time."
+                    f"{block_document_id}` to set this as the default storage at a later time."
                 )
 
 
 @storage_config_app.command()
-async def set_default(storage_block_id: UUID):
+async def set_default(storage_block_document_id: UUID):
     """Change the default storage option."""
 
     async with get_client() as client:
         try:
-            await client.set_default_storage_block(storage_block_id)
+            await client.set_default_storage_block(storage_block_document_id)
         except ObjectNotFound:
-            exit_with_error(f"No storage found for id: {storage_block_id}!")
+            exit_with_error(f"No storage found for id: {storage_block_document_id}!")
 
     exit_with_success("Updated default storage!")
 
@@ -169,7 +169,9 @@ async def ls():
     table.add_column("Server Default", width=15)
 
     async with get_client() as client:
-        json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
+        json_blocks = await client.read_blocks(
+            block_schema_type="STORAGE", as_json=True
+        )
         default_storage_block = (
             await client.get_default_storage_block(as_json=True) or {}
         )
@@ -178,8 +180,8 @@ async def ls():
     for block in blocks:
         table.add_row(
             str(block.id),
-            block.block_spec.name,
-            block.block_spec.version,
+            block.block_schema.name,
+            block.block_schema.version,
             block.name,
             Emoji("white_check_mark")
             if str(block.id) == default_storage_block.get("id")

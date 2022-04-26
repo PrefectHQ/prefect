@@ -1129,7 +1129,7 @@ class TestFlowResults:
         server_state = flow_run.state
         assert isinstance(server_state.data, DataDocument)
         document = server_state.data.decode()
-        assert document["block_id"] is None
+        assert document["block_document_id"] is None
         assert document["data"].startswith(str(TempStorageBlock().basepath()))
 
         retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
@@ -1142,7 +1142,9 @@ class TestFlowResults:
         def foo():
             return 6
 
-        await orion_client.set_default_storage_block(local_storage_block._block_id)
+        await orion_client.set_default_storage_block(
+            local_storage_block._block_document_id
+        )
 
         state = foo()
         assert state.result() == 6
@@ -1152,7 +1154,7 @@ class TestFlowResults:
         server_state = flow_run.state
         assert isinstance(server_state.data, DataDocument)
         document = server_state.data.decode()
-        assert document["block_id"] == local_storage_block._block_id
+        assert document["block_document_id"] == local_storage_block._block_document_id
         assert document["data"].startswith(str(local_storage_block.basepath()))
 
         retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
@@ -1164,7 +1166,9 @@ class TestFlowResults:
         @flow
         async def foo():
             # Change the default storage on the server, bar() will not use it
-            await orion_client.set_default_storage_block(local_storage_block._block_id)
+            await orion_client.set_default_storage_block(
+                local_storage_block._block_document_id
+            )
             return bar()
 
         @flow
@@ -1184,10 +1188,11 @@ class TestFlowResults:
         parent_document = parent_flow_run.state.data.decode()
         child_document = child_flow_run.state.data.decode()
         assert (
-            parent_document["block_id"] == child_document["block_id"]
+            parent_document["block_document_id"] == child_document["block_document_id"]
         ), "Parent and child used the same block"
         assert (
-            child_document["block_id"] != local_storage_block._block_id
+            child_document["block_document_id"]
+            != local_storage_block._block_document_id
         ), "Storage block to use is determined at flow start time"
 
         retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)

@@ -38,7 +38,7 @@ class StorageBlock(Block, Generic[T]):
     The type `T` should be JSON serializable.
     """
 
-    _block_spec_type: Optional[str] = "STORAGE"
+    _block_schema_type: Optional[str] = "STORAGE"
 
     @abstractmethod
     async def write(self, data: bytes) -> T:

@@ -730,7 +730,7 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
-class ORMBlockSpec:
+class ORMBlockSchema:
     name = sa.Column(sa.String, nullable=False)
     version = sa.Column(sa.String, nullable=False)
     type = sa.Column(sa.String, nullable=True, index=True)
@@ -739,9 +739,9 @@ class ORMBlockSpec:
     @declared_attr
     def __table_args__(cls):
         return (
-            sa.Index("ix_block_spec__type", "type"),
+            sa.Index("ix_block_schema__type", "type"),
             sa.Index(
-                "uq_block_spec__name_version",
+                "uq_block_schema__name_version",
                 "name",
                 "version",
                 unique=True,
@@ -750,29 +750,31 @@ class ORMBlockSpec:
 
 
 @declarative_mixin
-class ORMBlock:
+class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+    is_default_storage_block_document = sa.Column(
+        sa.Boolean, server_default="0", index=True
+    )
 
     @declared_attr
-    def block_spec_id(cls):
+    def block_schema_id(cls):
         return sa.Column(
             UUID(),
-            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
             nullable=False,
         )
 
     @declared_attr
-    def block_spec(cls):
-        return sa.orm.relationship("BlockSpec", lazy="joined")
+    def block_schema(cls):
+        return sa.orm.relationship("BlockSchema", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block__spec_id_name",
-                "block_spec_id",
+                "uq_block__schema_id_name",
+                "block_schema_id",
                 "name",
                 unique=True,
             ),
@@ -893,8 +895,8 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
-        block_spec_mixin: block_spec orm mixin, combined with Base orm class
-        block_mixin: block orm mixin, combined with Base orm class
+        block_schema_mixin: block_schema orm mixin, combined with Base orm class
+        block_document_mixin: block_document orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
@@ -915,8 +917,8 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_spec_mixin=ORMBlockSpec,
-        block_mixin=ORMBlock,
+        block_schema_mixin=ORMBlockSchema,
+        block_document_mixin=ORMBlockDocument,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -959,8 +961,8 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
-            block_spec_mixin=block_spec_mixin,
-            block_mixin=block_mixin,
+            block_schema_mixin=block_schema_mixin,
+            block_document_mixin=block_document_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -997,8 +999,8 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_spec_mixin=ORMBlockSpec,
-        block_mixin=ORMBlock,
+        block_schema_mixin=ORMBlockSchema,
+        block_document_mixin=ORMBlockDocument,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -1042,10 +1044,10 @@ class BaseORMConfiguration(ABC):
         class Agent(agent_mixin, self.Base):
             pass
 
-        class BlockSpec(block_spec_mixin, self.Base):
+        class BlockSchema(block_schema_mixin, self.Base):
             pass
 
-        class Block(block_mixin, self.Base):
+        class BlockDocument(block_document_mixin, self.Base):
             pass
 
         class Configuration(configuration_mixin, self.Base):
@@ -1063,8 +1065,8 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
-        self.BlockSpec = BlockSpec
-        self.Block = Block
+        self.BlockSchema = BlockSchema
+        self.BlockDocument = BlockDocument
         self.Configuration = Configuration
 
     @property
@@ -1089,9 +1091,9 @@ class BaseORMConfiguration(ABC):
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
 
     @property
-    def block_spec_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockSpec"""
-        return [self.BlockSpec.name, self.BlockSpec.version]
+    def block_schema_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSchema"""
+        return [self.BlockSchema.name, self.BlockSchema.version]
 
     @property
     def flow_unique_upsert_columns(self):

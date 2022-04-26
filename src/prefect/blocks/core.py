@@ -12,28 +12,28 @@ BLOCK_REGISTRY: Dict[str, "Block"] = dict()
 
 def register_block(name: str = None, version: str = None):
     """
-    Register a block spec with an optional name and version.
+    Register a block schema with an optional name and version.
 
     Args:
-        name (str): If provided, the block spec name. If not provided, the
-            `_block_spec_name` private field will be checked, and if that is
-            `None`, the block spec class name will be used.
-        version (str): If provided, the block spec version. If not provided,
-            the `_block_spec_version` private field will be checked. If not
+        name (str): If provided, the block schema name. If not provided, the
+            `_block_schema_name` private field will be checked, and if that is
+            `None`, the block schema class name will be used.
+        version (str): If provided, the block schema version. If not provided,
+            the `_block_schema_version` private field will be checked. If not
             found, an error will be raised.
     """
 
     def wrapper(block):
-        registered_name = name or block._block_spec_name
+        registered_name = name or block._block_schema_name
         if not registered_name:
-            raise ValueError("No _block_spec_name set and no name provided.")
-        registered_version = version or block._block_spec_version
+            raise ValueError("No _block_schema_name set and no name provided.")
+        registered_version = version or block._block_schema_version
         if not registered_version:
-            raise ValueError("No _block_spec_version set and no version provided.")
+            raise ValueError("No _block_schema_version set and no version provided.")
 
         BLOCK_REGISTRY[(registered_name, registered_version)] = block
-        block._block_spec_name = registered_name
-        block._block_spec_version = registered_version
+        block._block_schema_name = registered_name
+        block._block_schema_version = registered_version
         return block
 
     return wrapper
@@ -42,7 +42,7 @@ def register_block(name: str = None, version: str = None):
 def get_block_class(name: str, version: str) -> "Block":
     block = BLOCK_REGISTRY.get((name, version))
     if not block:
-        raise ValueError(f"No block spec exists for {name}/{version}.")
+        raise ValueError(f"No block schema exists for {name}/{version}.")
     return block
 
 
@@ -56,11 +56,11 @@ class Block(BaseModel, ABC):
 
     This class can be defined with an arbitrary set of fields and methods, and
     couples business logic with data contained in an Orion Block. `block_name`,
-    `block_id`, `block_spec_id`, `block_spec_name`, and `block_spec_version` are
-    reserved by Orion as Block metadata fields, but otherwise a Block can
-    implement arbitrary logic. Blocks can be instantiated without populating
-    these metadata fields, but can only be used interactively, not with the
-    Orion API.
+    `block_document_id`, `block_schema_id`, `block_schema_name`, and 
+    `block_schema_version` are reserved by Orion as Block metadata fields, but 
+    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+    without populating these metadata fields, but can only be used interactively,
+    not with the Orion API.
 
     Instead of the __init__ method, a Block implementation allows the
     definition of a `block_initialization` method that is called after
@@ -76,56 +76,58 @@ class Block(BaseModel, ABC):
 
     # -- private class variables
     # type is set by the class itself
-    _block_spec_type: Optional[str] = None
+    _block_schema_type: Optional[str] = None
     # name and version are set by the registration decorator
-    _block_spec_name: Optional[str] = None
-    _block_spec_version: Optional[str] = None
+    _block_schema_name: Optional[str] = None
+    _block_schema_version: Optional[str] = None
 
     # -- private instance variables
     # these are set when blocks are loaded from the API
-    _block_id: Optional[UUID] = None
-    _block_spec_id: Optional[UUID] = None
-    _block_name: Optional[str] = None
+    _block_document_id: Optional[UUID] = None
+    _block_schema_id: Optional[UUID] = None
+    _block_document_name: Optional[str] = None
 
-    def to_api_block(
-        self, name: str = None, block_spec_id: UUID = None
-    ) -> prefect.orion.schemas.core.Block:
-        if not name or self._block_name:
+    def to_block_document(
+        self, name: str = None, block_schema_id: UUID = None
+    ) -> prefect.orion.schemas.core.BlockDocument:
+        if not name or self._block_document_name:
             raise ValueError("No name provided, either as an argument or on the block.")
-        if not block_spec_id or self._block_spec_id:
+        if not block_schema_id or self._block_schema_id:
             raise ValueError(
-                "No block spec ID provided, either as an argument or on the block."
+                "No block schema ID provided, either as an argument or on the block."
             )
 
         data_keys = self.schema()["properties"].keys()
-        return prefect.orion.schemas.core.Block(
-            id=self._block_id or uuid4(),
-            name=name or self._block_name,
-            block_spec_id=block_spec_id or self._block_spec_id,
+        return prefect.orion.schemas.core.BlockDocument(
+            id=self._block_document_id or uuid4(),
+            name=name or self._block_document_name,
+            block_schema_id=block_schema_id or self._block_schema_id,
             data=self.dict(include=data_keys),
-            block_spec=self.to_api_block_spec(),
+            block_schema=self.to_block_schema(),
         )
 
     @classmethod
-    def to_api_block_spec(cls) -> prefect.orion.schemas.core.BlockSpec:
+    def to_block_schema(cls) -> prefect.orion.schemas.core.BlockSchema:
         fields = cls.schema()
-        fields["title"] = cls._block_spec_name
-        return prefect.orion.schemas.core.BlockSpec(
-            name=cls._block_spec_name,
-            version=cls._block_spec_version,
-            type=cls._block_spec_type,
+        fields["title"] = cls._block_schema_name
+        return prefect.orion.schemas.core.BlockSchema(
+            name=cls._block_schema_name,
+            version=cls._block_schema_version,
+            type=cls._block_schema_type,
             fields=fields,
         )
 
 
-def create_block_from_api_block(api_block_dict: dict):
-    api_block = prefect.orion.schemas.core.Block.parse_obj(api_block_dict)
-    block_spec_cls = get_block_class(
-        name=api_block.block_spec.name,
-        version=api_block.block_spec.version,
+def create_block_from_block_document(block_document_dict: dict):
+    block_document = prefect.orion.schemas.core.BlockDocument.parse_obj(
+        block_document_dict
     )
-    block = block_spec_cls(**api_block.data)
-    block._block_id = api_block.id
-    block._block_spec_id = api_block.block_spec_id
-    block._block_name = api_block.name
+    block_schema_cls = get_block_class(
+        name=block_document.block_schema.name,
+        version=block_document.block_schema.version,
+    )
+    block = block_schema_cls(**block_document.data)
+    block._block_document_id = block_document.id
+    block._block_schema_id = block_document.block_schema_id
+    block._block_name = block_document.name
     return block

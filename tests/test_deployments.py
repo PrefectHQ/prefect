@@ -45,27 +45,27 @@ async def tmp_remote_storage_block(tmp_path, orion_client):
 
     block = FileStorageBlock(base_path=str(tmp_path))
 
-    block_spec = await orion_client.read_block_spec_by_name(
-        block._block_spec_name, block._block_spec_version
+    block_schema = await orion_client.read_block_schema_by_name(
+        block._block_schema_name, block._block_schema_version
     )
 
-    block_id = await orion_client.create_block(
-        block, block_spec_id=block_spec.id, name="test"
+    block_document_id = await orion_client.create_block(
+        block, block_schema_id=block_schema.id, name="test"
     )
-    return block_id
+    return block_document_id
 
 
 @pytest.fixture
 async def tmp_local_storage_block(tmp_path, orion_client):
 
     block = LocalStorageBlock(storage_path=str(tmp_path))
-    block_spec = await orion_client.read_block_spec_by_name(
-        block._block_spec_name, block._block_spec_version
+    block_schema = await orion_client.read_block_schema_by_name(
+        block._block_schema_name, block._block_schema_version
     )
-    block_id = await orion_client.create_block(
-        block, block_spec_id=block_spec.id, name="test"
+    block_document_id = await orion_client.create_block(
+        block, block_schema_id=block_schema.id, name="test"
     )
-    return block_id
+    return block_document_id
 
 
 @pytest.fixture

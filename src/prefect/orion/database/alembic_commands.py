@@ -61,7 +61,7 @@ def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
 
 def alembic_stamp(revision):
     """
-    Stamp the revision table with the given revision; don’t run any migrations
+    Stamp the revision table with the given revision; don't run any migrations
 
     Args:
         revision: The revision passed to `alembic stamp`.

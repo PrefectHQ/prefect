@@ -17,21 +17,21 @@ from prefect.orion.api.server import validation_exception_handler
 
 
 @pytest.fixture
-async def local_storage_block_id(tmp_path, orion_client):
+async def local_storage_block_document_id(tmp_path, orion_client):
     # Local storage in a temporary directory that exists for the lifetime of a test
     block = LocalStorageBlock(storage_path=str(tmp_path))
-    block_spec = await orion_client.read_block_spec_by_name(
-        block._block_spec_name, block._block_spec_version
+    block_schema = await orion_client.read_block_schema_by_name(
+        block._block_schema_name, block._block_schema_version
     )
-    block_id = await orion_client.create_block(
-        block, block_spec_id=block_spec.id, name="test"
+    block_document_id = await orion_client.create_block(
+        block, block_schema_id=block_schema.id, name="test"
     )
-    return block_id
+    return block_document_id
 
 
 @pytest.fixture
-async def local_storage_block(local_storage_block_id, orion_client):
-    return await orion_client.read_block(local_storage_block_id)
+async def local_storage_block(local_storage_block_document_id, orion_client):
+    return await orion_client.read_block(local_storage_block_document_id)
 
 
 # Key-value storage API ----------------------------------------------------------------
@@ -117,18 +117,20 @@ async def set_up_kv_storage(session, run_storage_server):
     Use this fixture to make the distributed storage server the default
     (useful for distributed flow or task runner tests)
     """
-    block_spec = await models.block_specs.create_block_spec(
+    block_schema = await models.block_schemas.create_block_schema(
         session=session,
-        block_spec=KVServerStorageBlock.to_api_block_spec(),
+        block_schema=KVServerStorageBlock.to_block_schema(),
         override=True,
     )
 
-    block = await models.blocks.create_block(
+    block_document = await models.block_documents.create_block_document(
         session=session,
-        block=KVServerStorageBlock(
+        block_document=KVServerStorageBlock(
             api_address="http://127.0.0.1:1234/storage"
-        ).to_api_block(name="test-storage-block", block_spec_id=block_spec.id),
+        ).to_block_document(name="test-storage-block", block_schema_id=block_schema.id),
     )
 
-    await models.blocks.set_default_storage_block(session=session, block_id=block.id)
+    await models.block_documents.set_default_storage_block_document(
+        session=session, block_document_id=block_document.id
+    )
     await session.commit()
