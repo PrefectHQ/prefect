@@ -18,12 +18,6 @@ from prefect.cli.base import (
 
 help_message = """
     Commands for interacting with Prefect settings.
-
-    For documentation about specific settings, see:
-    https://orion-docs.prefect.io/api-ref/prefect/settings/#prefect.settings.Settings
-
-    For documentation about settings, including profiles and settings conflicts, see:
-    https://orion-docs.prefect.io/concepts/settings/
 """
 
 config_app = PrefectTyper(name="config", help=help_message)
@@ -96,21 +90,38 @@ def unset(variables: List[str]):
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
+show_defaults_help = """
+Toggle display of default settings.
+
+--show-defaults displays all settings,
+even if they are not changed from the
+default values.
+
+--hide-defaults displays only settings
+that are changed from default values.
+
+"""
+
+show_sources_help = """
+Toggle display of the source of a value for
+a setting. 
+
+The value for a setting can come from the 
+current profile, environment variables, or 
+the defaults.
+
+"""
+
+
 @config_app.command()
 def view(
     show_defaults: Optional[bool] = typer.Option(
-        False,
-        "--show-defaults/--hide-defaults",
-        help="Show all config values, even if they are the Prefect defaults",
+        False, "--show-defaults/--hide-defaults", help=(show_defaults_help)
     ),
     show_sources: Optional[bool] = typer.Option(
         True,
         "--show-sources/--hide-sources",
-        help=(
-            "Show the source of a config value. One of: 'from profile' (a Prefect"
-            " Profile), 'from env' (an environment variable), or from defaults'"
-            " (Prefect default values)"
-        ),
+        help=(show_sources_help),
     ),
 ):
     """
