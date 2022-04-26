@@ -242,7 +242,7 @@ async def create(path: str):
             )
             source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
             app.console.print(
-                f"Deploying {source} using {spec.flow_storage._block_spec_name}..."
+                f"Deploying {source} using {spec.flow_storage._block_schema_name}..."
             )
             await spec.create_deployment(validate=False)
         except Exception as exc:
