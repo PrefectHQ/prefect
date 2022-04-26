@@ -233,7 +233,7 @@ There are several ways to create an Orion deployment:
 - Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to create a deployment with [`create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment). 
 - Making an API call with a JSON document conforming to `DeploymentCreate`. (Not recommended at this time.)
 
-### Creating deployments with the CLI
+### With the CLI
 
 Create a deployment with the Prefect CLI using the `prefect deployment create` command, specifying the name of the file containing the deployment specification. 
 
@@ -262,7 +262,7 @@ View your new deployment with:
     
     Scheduled flow runs will not run unless an appropriate [work queue and agent](/concepts/work-queues/) are configured.  
 
-### Creating deployments with the API
+### With the API
 
 Coming soon.
 
@@ -282,7 +282,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | inspect | View details about a deployment. |
 | ls | View all deployments or deployments for specific flows. |
 
-### Running deployments with the API
+### With the API
 
 Coming soon.
 
@@ -300,6 +300,8 @@ from prefect import flow
 def hello_world(name="world"):
     print(f"Hello {name}!")
 ```
+
+### Single file deployments
 
 To create a deployment for this flow, you can include the `DeploymentSpec` in the same file as the flow. In this case, `flow` specifies the base flow function, `hello_world`, and the deployment is named `hello-world`.
 
@@ -320,6 +322,8 @@ DeploymentSpec(
 )
 ```
 
+### Separate deployment file
+
 You can also create the deployment specification in a separate file, including a `flow_location` to indicate the path and filename of the flow definition. 
 
 ```Python
@@ -335,6 +339,8 @@ DeploymentSpec(
 ```
 
 Note that, in this case, `flow` is optional &mdash; Prefect can infer the flow from your code. However, you can specify a `flow` in a deployment to start a flow run from a different flow function in the code file.
+
+### Multiple deployments for a flow
 
 You can create multiple `DeploymentSpec` definitions for the same flow code, enabling code reuse for different runtime scenarios by providing different schedules, parameters, tags, or base flow functions. This example creates three different deployments for the same flow, using different parameters and tags for each: one with a weekly schedule, one with a daily schedule, and one with no schedule. 
 
@@ -368,7 +374,9 @@ DeploymentSpec(
 )
 ```
 
-You can configure a [flow runner](/api-ref/prefect/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) to be used for flow runs created by the deployment.
+### Configuring flow runners
+
+You can configure a [flow runner](/concepts/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) to be used for flow runs created by the deployment.
 
 ```Python
 # filename: hello_deployment.py
@@ -390,6 +398,8 @@ DeploymentSpec(
     tags=["earth"],
 )
 ```
+
+### Configuring storage
 
 You can specify or configure a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance, providing the [storage](/concepts/storage/) to be used for the flow definition and results. You can provide the specification of a storage block or the ID of storage already configured for a Prefect API server instance or Prefect Cloud (as configured for your execution environment).
 
@@ -413,6 +423,6 @@ DeploymentSpec(
 )
 ```
 
-If not specified, the default storage will be pulled from the server. If the server does not have a default, the flow will attempt to use local storage.
+If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the flow will attempt to use local storage.
 
-If creating a deployment with a storage block without an ID, it will be registered with the server for retrieval.
+If creating a deployment that specifies a `FileStorageBlock`, without an ID of existing storage, it will be registered as a new storage configuration with the server.
