@@ -11,7 +11,7 @@ from prefect.orion.utilities.schemas import (
     PrefectBaseModel,
     pydantic_subclass,
 )
-from prefect.utilities.testing import assert_does_not_warn
+from prefect.testing.utilities import assert_does_not_warn
 
 
 class TestExtraForbidden:
