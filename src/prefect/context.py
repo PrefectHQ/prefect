@@ -285,7 +285,7 @@ class ProfileContext(ContextModel):
 
 def get_profile_context() -> ProfileContext:
     """
-    Returns a ProfileContext that contains the combination of user profile
+    Returns a `ProfileContext` that contains the combination of user profile
     settings and environment variable settings present when the context was initialized
     """
     profile_ctx = ProfileContext.get()
