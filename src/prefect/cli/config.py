@@ -15,6 +15,7 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
+
 help_message = """
     Commands for interacting with Prefect settings.
 
@@ -25,9 +26,7 @@ help_message = """
     https://orion-docs.prefect.io/concepts/settings/
 """
 
-config_app = PrefectTyper(
-    name="config", help=help_message
-)
+config_app = PrefectTyper(name="config", help=help_message)
 app.add_typer(config_app)
 
 
@@ -100,14 +99,19 @@ def unset(variables: List[str]):
 @config_app.command()
 def view(
     show_defaults: Optional[bool] = typer.Option(
-        False, 
+        False,
         "--show-defaults/--hide-defaults",
-        help="Show all config values, even if they are the Prefect defaults"
-        ),
+        help="Show all config values, even if they are the Prefect defaults",
+    ),
     show_sources: Optional[bool] = typer.Option(
-        True, 
-        "--show-sources/--hide-sources", 
-        help="Show the source of a config value. One of: 'from profile' (a Prefect Profile), 'from env' (an environment variable), or from defaults' (Prefect default values)")
+        True,
+        "--show-sources/--hide-sources",
+        help=(
+            "Show the source of a config value. One of: 'from profile' (a Prefect"
+            " Profile), 'from env' (an environment variable), or from defaults'"
+            " (Prefect default values)"
+        ),
+    ),
 ):
     """
     Display the current settings.
@@ -128,7 +132,7 @@ def view(
         if val != default_settings[key]
     }
 
-    # Used to see which settings in current_profile_settings came from environment variables
+    # Used to see which settings in current_profile_settings came from env vars
     env_overrides = {
         key: val for key, val in env_settings.items() if val != default_settings[key]
     }
@@ -140,7 +144,7 @@ def view(
 
     if show_defaults:
         for key, value in sorted(default_settings.items()):
-            source_blurb = f" (from defaults)" if show_sources else ""
+            source_blurb = " (from defaults)" if show_sources else ""
             output.append(f"{key}='{value}'{source_blurb}")
 
     console.print("\n".join(output))
