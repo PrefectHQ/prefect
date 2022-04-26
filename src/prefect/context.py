@@ -246,8 +246,8 @@ class ProfileContext(ContextModel):
         env: The environment variables set in this profile configuration and their
             current values. These may differ from the profile configuration if the
             user has overridden them explicitly.
-    
-    Notes on usage: the attributes are initialized by the context manager 
+
+    Notes on usage: the attributes are initialized by the context manager
     `prefect.context.profile`
     """
 
@@ -285,7 +285,7 @@ class ProfileContext(ContextModel):
 
 def get_profile_context() -> ProfileContext:
     """
-    Returns a ProfileContext that contains the combination of user profile 
+    Returns a ProfileContext that contains the combination of user profile
     settings and environment variable settings present when the context was initialized
     """
     profile_ctx = ProfileContext.get()
@@ -368,11 +368,13 @@ def profile(
 
     # Prevent multiple threads from mutating the environment concurrently
     with _PROFILE_ENV_LOCK:
-        # Set the environment variables to temporarily reflect the combination of 
+        # Set the environment variables to temporarily reflect the combination of
         # values in the user profile, and the existing environment variables. Then
         # create a settings object based on these values.
-        with temporary_environ( 
-            profile_vars, override_existing=override_existing_variables, warn_on_override=True
+        with temporary_environ(
+            profile_vars,
+            override_existing=override_existing_variables,
+            warn_on_override=True,
         ):
             settings = prefect.settings.get_settings_from_env()
 

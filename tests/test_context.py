@@ -1,8 +1,8 @@
+import os
 import textwrap
 from contextvars import ContextVar
-import os
-from unittest.mock import MagicMock
 from copy import deepcopy
+from unittest.mock import MagicMock
 
 import pytest
 from pendulum.datetime import DateTime
