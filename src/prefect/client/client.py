@@ -21,7 +21,6 @@ import toml
 from slugify import slugify
 
 import prefect
-from prefect.engine.state import Pending
 from prefect.exceptions import (
     AuthorizationError,
     ClientError,
@@ -1239,17 +1238,26 @@ class Client:
                 version=tr.version,
                 task_id=tr.task.id,
                 task_slug=tr.task.slug,
-                state=State.deserialize(tr.serialized_state),
+                state=State.deserialize(tr.serialized_state)
+                if tr.serialized_state
+                else prefect.engine.state.Pending,
             )
             for tr in result.task_runs
         ]
+
+        state = (
+            prefect.engine.state.State.deserialize(result.serialized_state)
+            if result.serialized_state
+            else prefect.engine.state.Pending
+        )
+
         return FlowRunInfoResult(
             id=result.id,
             name=result.name,
             flow_id=result.flow_id,
             version=result.version,
             task_runs=task_runs,
-            state=State.deserialize(result.serialized_state),
+            state=state,
             scheduled_start_time=pendulum.parse(result.scheduled_start_time),  # type: ignore
             project=ProjectInfo(
                 id=result.flow.project.id, name=result.flow.project.name
@@ -1478,7 +1486,7 @@ class Client:
         state = (
             prefect.engine.state.State.deserialize(task_run_info.serialized_state)
             if task_run_info.serialized_state
-            else Pending()
+            else prefect.engine.state.Pending
         )
 
         return TaskRunInfoResult(
