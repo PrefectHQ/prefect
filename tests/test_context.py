@@ -164,14 +164,11 @@ class TestProfilesContext:
 
     def test_profile_context_variable(self):
         with ProfileContext(
-            name="test",
-            settings=prefect.settings.get_settings_from_env(),
-            env={"FOO": "BAR"},
+            name="test", settings=prefect.settings.get_settings_from_env()
         ) as context:
             assert get_profile_context() is context
             assert context.name == "test"
             assert context.settings == prefect.settings.get_settings_from_env()
-            assert context.env == {"FOO": "BAR"}
 
     def test_get_profile_context_missing(self, monkeypatch):
         # It's kind of hard to actually exit the default profile, so we patch `get`
@@ -251,14 +248,12 @@ class TestProfilesContext:
                     prefect.settings.PREFECT_API_URL.value_from(bar_context.settings)
                     == "bar"
                 )
-                assert bar_context.env == {"PREFECT_API_URL": "bar"}
                 assert bar_context.name == "bar"
             assert foo_context.settings == prefect.settings.get_current_settings()
             assert (
                 prefect.settings.PREFECT_API_URL.value_from(foo_context.settings)
                 == "foo"
             )
-            assert foo_context.env == {"PREFECT_API_URL": "foo"}
             assert foo_context.name == "foo"
 
     def test_enter_global_profile(self, monkeypatch):

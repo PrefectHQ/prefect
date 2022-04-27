@@ -183,16 +183,15 @@ def tests_profile():
     developer may have configured.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        settings = prefect.settings.Settings(
-            **prefect.settings.get_settings_from_env().dict(
-                exclude={"PREFECT_HOME", "PREFECT_PROFILES_PATH"}
-            ),
-            PREFECT_HOME=tmpdir,
-            PREFECT_PROFILES_PATH="$PREFECT_HOME/profiles.toml",
+        settings = prefect.settings.get_current_settings().copy_with_update(
+            updates={
+                prefect.settings.PREFECT_HOME: tmpdir,
+                prefect.settings.PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            }
         )
 
         with prefect.context.ProfileContext(
-            name="base-test-profile", settings=settings, env={}
+            name="base-test-profile", settings=settings
         ) as profile:
 
             # It is important to initialize the profile so logging is configured
