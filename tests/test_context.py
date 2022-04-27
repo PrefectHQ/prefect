@@ -18,8 +18,8 @@ from prefect.context import (
     profile,
 )
 from prefect.exceptions import MissingContextError
+from prefect.settings import PREFECT_HOME, PREFECT_PROFILES_PATH, temporary_settings
 from prefect.task_runners import SequentialTaskRunner
-from prefect.utilities.testing import temporary_settings
 
 
 class ExampleContext(ContextModel):
@@ -157,7 +157,9 @@ class TestProfilesContext:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
-        with temporary_settings(PREFECT_HOME=tmp_path, PREFECT_PROFILES_PATH=path):
+        with temporary_settings(
+            updates={PREFECT_HOME: tmp_path, PREFECT_PROFILES_PATH: path}
+        ):
             yield path
 
     def test_profile_context_variable(self):
@@ -179,12 +181,11 @@ class TestProfilesContext:
         with pytest.raises(MissingContextError, match="No profile"):
             get_profile_context()
 
-    def test_creates_home_if_asked(self, tmp_path, temporary_profiles_path):
+    def test_creates_home_if_asked(self, tmp_path):
         home = tmp_path / "home"
         assert not home.exists()
-        with temporary_settings(PREFECT_HOME=home):
-            with profile("default", initialize=False) as ctx:
-                ctx.initialize(create_home=True)
+        with temporary_settings(updates={PREFECT_HOME: home}):
+            get_profile_context().initialize(create_home=True)
 
         assert home.exists()
 
@@ -200,7 +201,6 @@ class TestProfilesContext:
         with profile("foo") as ctx:
             assert prefect.settings.PREFECT_API_URL.value() == "test"
             assert ctx.settings == prefect.settings.get_current_settings()
-            assert ctx.env == {"PREFECT_API_URL": "test"}
             assert ctx.name == "foo"
 
     def test_profile_context_sets_up_logging_if_asked(

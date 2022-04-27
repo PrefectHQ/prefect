@@ -33,8 +33,15 @@ from prefect.logging.loggers import (
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import Settings
-from prefect.utilities.testing import AsyncMock, temporary_settings
+from prefect.settings import (
+    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
+    PREFECT_LOGGING_ORION_BATCH_SIZE,
+    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    Settings,
+    temporary_settings,
+)
+from prefect.utilities.testing import AsyncMock
 
 
 @pytest.fixture
@@ -464,7 +471,7 @@ class TestOrionHandler:
         self, logger, mock_log_worker, task_run
     ):
         with temporary_settings(
-            PREFECT_LOGGING_ORION_ENABLED="False",
+            updates={PREFECT_LOGGING_ORION_ENABLED: "False"},
         ):
             with TaskRunContext.construct(task_run=task_run):
                 logger.info("test")
@@ -535,7 +542,7 @@ class TestOrionHandler:
         self, task_run, logger, capsys, mock_log_worker
     ):
         with TaskRunContext.construct(task_run=task_run):
-            with temporary_settings(PREFECT_LOGGING_ORION_MAX_LOG_SIZE="1"):
+            with temporary_settings(updates={PREFECT_LOGGING_ORION_MAX_LOG_SIZE: "1"}):
                 logger.info("test")
 
         mock_log_worker().enqueue.assert_not_called()
@@ -686,8 +693,10 @@ class TestOrionLogWorker:
         monkeypatch.setattr("prefect.client.OrionClient.create_logs", mock_create_logs)
 
         with temporary_settings(
-            PREFECT_LOGGING_ORION_BATCH_SIZE=str(test_log_size + 1),
-            PREFECT_LOGGING_ORION_MAX_LOG_SIZE=str(test_log_size),
+            updates={
+                PREFECT_LOGGING_ORION_BATCH_SIZE: test_log_size + 1,
+                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: test_log_size,
+            }
         ):
             worker = get_worker()
             worker.enqueue(log_json)
@@ -710,7 +719,9 @@ class TestOrionLogWorker:
 
         monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
 
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.001"):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "0.001"}
+        ):
             worker = get_worker()
             worker.enqueue(log_json)
             worker.start()
@@ -723,7 +734,7 @@ class TestOrionLogWorker:
 
     def test_batch_interval_is_respected(self, get_worker):
 
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "5"}):
             worker = get_worker()
             worker._flush_event = MagicMock(return_val=False)
             worker.start()
@@ -734,7 +745,7 @@ class TestOrionLogWorker:
         worker._flush_event.wait.assert_called_with(5)
 
     def test_flush_event_is_cleared(self, get_worker):
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "5"}):
             worker = get_worker()
             worker._flush_event = MagicMock(return_val=False)
             worker.start()
@@ -748,7 +759,7 @@ class TestOrionLogWorker:
     ):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
             worker = get_worker()
             worker.enqueue(log_json)
             worker.start()
@@ -782,7 +793,7 @@ class TestOrionLogWorker:
     ):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
             worker = get_worker()
             worker.enqueue(log_json)
             worker.start()
@@ -802,7 +813,7 @@ class TestOrionLogWorker:
     ):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_BATCH_INTERVAL: "10"}):
             worker = get_worker()
             worker.enqueue(log_json)
             worker.start()
