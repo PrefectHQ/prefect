@@ -341,7 +341,7 @@ def setup_compose_env(
         warnings.warn(
             "The database startup command has been set in the environment via "
             "`PREFECT_SERVER_DB_CMD` and `--no-upgrade` has been passed via CLI. The "
-            "environment variable value (={env['PREFECT_SERVER_DB_CMD']}) will be "
+            f"environment variable value (={env['PREFECT_SERVER_DB_CMD']}) will be "
             "ignored."
         )
         env.pop("PREFECT_SERVER_DB_CMD")
