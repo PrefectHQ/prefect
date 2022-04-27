@@ -3,9 +3,10 @@ from uuid import uuid4
 
 import pydantic
 import pytest
+from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import BlockCreate, BlockUpdate
+from prefect.orion.schemas.actions import BlockCreate
 from prefect.orion.schemas.core import Block
 
 
@@ -52,7 +53,7 @@ class TestCreateBlock:
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         result = Block.parse_obj(response.json())
 
         assert result.name == "x"
@@ -74,7 +75,7 @@ class TestCreateBlock:
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         response = await client.post(
             "/blocks/",
@@ -82,7 +83,7 @@ class TestCreateBlock:
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 409
+        assert response.status_code == status.HTTP_409_CONFLICT
 
     async def test_create_block_with_same_name_but_different_block_spec(
         self, session, client, block_specs
@@ -93,7 +94,7 @@ class TestCreateBlock:
                 name="x", data=dict(y=1), block_spec_id=block_specs[0].id
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         response = await client.post(
             "/blocks/",
@@ -101,7 +102,7 @@ class TestCreateBlock:
                 name="x", data=dict(y=1), block_spec_id=block_specs[1].id
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
     @pytest.mark.parametrize(
         "name",
@@ -120,7 +121,7 @@ class TestCreateBlock:
             "/blocks/",
             json=dict(name=name, data=dict(), block_spec_id=str(block_specs[0].id)),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
     @pytest.mark.parametrize(
         "name",
@@ -136,13 +137,13 @@ class TestCreateBlock:
             "/blocks/",
             json=dict(name=name, data=dict(), block_spec_id=str(block_specs[0].id)),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestReadBlock:
     async def test_read_missing_block(self, client):
         response = await client.get(f"/blocks/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadBlocks:
@@ -197,7 +198,7 @@ class TestReadBlocks:
 
     async def test_read_blocks(self, client, blocks):
         response = await client.post("/blocks/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         read_blocks = pydantic.parse_obj_as(List[schemas.core.Block], response.json())
         assert {b.id for b in read_blocks} == {b.id for b in blocks}
         # sorted by block spec name, block spec version (desc), block name
@@ -236,17 +237,17 @@ class TestDeleteBlock:
         result = Block.parse_obj(response.json())
 
         response = await client.get(f"/blocks/{result.id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         response = await client.delete(f"/blocks/{result.id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"/blocks/{result.id}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_missing_block(self, session, client, block_specs):
         response = await client.delete(f"/blocks/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestDefaultStorageBlock:
@@ -277,13 +278,13 @@ class TestDefaultStorageBlock:
     async def test_set_default_storage_block(self, client, storage_block):
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not response.content
 
         await client.post(f"/blocks/{storage_block.id}/set_default_storage_block")
 
         response = await client.post(f"/blocks/get_default_storage_block")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(storage_block.id)
 
     async def test_set_default_fails_if_not_storage_block(
@@ -300,7 +301,7 @@ class TestDefaultStorageBlock:
         response = await client.post(
             f"/blocks/{non_storage_block.id}/set_default_storage_block"
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
         response = await client.post(f"/blocks/get_default_storage_block")
         assert not response.content

@@ -66,6 +66,8 @@ from uuid import UUID
 
 import anyio
 
+from prefect.utilities.enum import AutoEnum, auto
+
 if TYPE_CHECKING:
     import distributed
     import ray
@@ -89,10 +91,21 @@ T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
 
 
+class TaskConcurrencyType(AutoEnum):
+    SEQUENTIAL = auto()
+    CONCURRENT = auto()
+    PARALLEL = auto()
+
+
 class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger(f"task_runner.{self.name}")
         self._started: bool = False
+
+    @property
+    @abc.abstractmethod
+    def concurrency_type(self) -> TaskConcurrencyType:
+        pass
 
     @property
     def name(self):
@@ -182,6 +195,10 @@ class SequentialTaskRunner(BaseTaskRunner):
     def __init__(self) -> None:
         super().__init__()
         self._results: Dict[UUID, State] = {}
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.SEQUENTIAL
 
     async def submit(
         self,
@@ -324,6 +341,14 @@ class DaskTaskRunner(BaseTaskRunner):
         self._dask_futures: Dict[UUID, "distributed.Future"] = {}
 
         super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return (
+            TaskConcurrencyType.PARALLEL
+            if self.cluster_kwargs.get("processes")
+            else TaskConcurrencyType.CONCURRENT
+        )
 
     async def submit(
         self,
@@ -485,6 +510,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._task_run_ids: Set[UUID] = set()
         super().__init__()
 
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.CONCURRENT
+
     async def submit(
         self,
         task_run: TaskRun,
@@ -616,6 +645,10 @@ class RayTaskRunner(BaseTaskRunner):
         self._ray_refs: Dict[UUID, "ray.ObjectRef"] = {}
 
         super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.PARALLEL
 
     async def submit(
         self,
