@@ -1,5 +1,0 @@
-feature:
-  - "Add REPL mode for cli - [#5615](https://github.com/PrefectHQ/prefect/pull/5615)"
-
-contributor:
-  - "[Karthikeyan Singaravelan](https://github.com/tirkarthi)"

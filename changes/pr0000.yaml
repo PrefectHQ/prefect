@@ -1,5 +1,0 @@
-fix:
-  - "Corrected Databricks new cluster API params: autoscale and policy_id - [#5681](https://github.com/PrefectHQ/prefect/pull/5681)"
-
-contributor:
-  - "[Mahmoud Lababidi](https://github.com/lababidi)"
