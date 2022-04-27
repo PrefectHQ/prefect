@@ -521,7 +521,20 @@ class Settings(SettingsFieldsMixin):
         self,
         updates: Dict[Union[str, Setting], Any] = None,
         defaults: Dict[Union[str, Setting], Any] = None,
-    ):
+    ) -> "Settings":
+        """
+        Create a new `Settings` object with validation.
+
+        Arguments:
+            updates: A mapping of settings to new values. Existing values for the
+                given settings will be overridden.
+            defaults: A mapping of settings to new default values. Existing values for
+                the given settings will only be overridden if they were not set.
+
+        Returns:
+            A new `Settings` object.
+        """
+
         def prepare_for_merge(dict_):
             # Cast `Setting` types to their names and resolve null to an empty dict
             return (
