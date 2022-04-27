@@ -153,7 +153,6 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
-@dataclass
 class Quote(Generic[T]):
     """
     Simple wrapper to mark an expression as a different type so it will not be coerced
@@ -161,10 +160,11 @@ class Quote(Generic[T]):
     the flow assume that state.
     """
 
-    expr: T
+    def __init__(self, data: T) -> None:
+        self.data = data
 
     def unquote(self) -> T:
-        return self.expr
+        return self.data
 
 
 def quote(expr: T) -> Quote[T]:

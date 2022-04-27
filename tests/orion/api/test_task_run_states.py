@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from fastapi import status
+
 from prefect.orion import models, schemas
 
 
@@ -16,12 +18,12 @@ class TestReadTaskRunStateById:
         # make sure we can read the state
         task_run_state_id = result.state.id
         response = await client.get(f"/task_run_states/{task_run_state_id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(task_run_state_id)
 
     async def test_read_task_run_state_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/task_run_states/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadTaskRunStateByTaskRunId:
@@ -29,6 +31,6 @@ class TestReadTaskRunStateByTaskRunId:
         response = await client.get(
             "/task_run_states/", params=dict(task_run_id=task_run.id)
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         response_state_ids = {state["id"] for state in response.json()}
         assert response_state_ids == set([str(state.id) for state in task_run_states])

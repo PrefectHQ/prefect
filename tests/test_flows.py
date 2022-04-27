@@ -19,8 +19,8 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.testing import exceptions_equal
 
 
 class TestFlow:

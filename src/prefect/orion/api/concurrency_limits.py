@@ -11,7 +11,6 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.server import OrionRouter
