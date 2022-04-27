@@ -42,12 +42,11 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
 from prefect.utilities.testing import (
     AsyncMock,
     assert_does_not_warn,
     kubernetes_environments_equal,
-    temporary_settings,
 )
 
 
@@ -320,7 +319,9 @@ class TestBaseFlowRunEnvironment:
         assert base_flow_run_environment() == {}
 
     def test_includes_api_url_and_key_when_set(self):
-        with temporary_settings(PREFECT_API_KEY="foo", PREFECT_API_URL="bar"):
+        with temporary_settings(
+            updates={PREFECT_API_KEY: "foo", PREFECT_API_URL: "bar"}
+        ):
             assert base_flow_run_environment() == {
                 "PREFECT_API_KEY": "foo",
                 "PREFECT_API_URL": "bar",
@@ -1316,7 +1317,7 @@ class TestDockerFlowRunner:
             prefect_settings_test_deployment
         )
 
-        with temporary_settings(PREFECT_API_URL="http://fail.test"):
+        with temporary_settings(updates={PREFECT_API_URL: "http://fail.test"}):
             assert not await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
@@ -1435,7 +1436,7 @@ class TestKubernetesFlowRunner:
 
         # TODO: pytest flag to configure this URL
         k8s_api_url = "http://localhost:4205/api"
-        with temporary_settings(PREFECT_API_URL=k8s_api_url):
+        with temporary_settings(updates={PREFECT_API_URL: k8s_api_url}):
             yield k8s_api_url
 
     @pytest.fixture
@@ -1678,7 +1679,10 @@ class TestKubernetesFlowRunner:
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
         with temporary_settings(
-            PREFECT_API_URL="http://orion:4200/api", PREFECT_API_KEY="my-api-key"
+            updates={
+                PREFECT_API_URL: "http://orion:4200/api",
+                PREFECT_API_KEY: "my-api-key",
+            }
         ):
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
