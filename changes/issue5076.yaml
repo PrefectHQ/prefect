@@ -1,0 +1,5 @@
+fix:
+  - fix DbtCloudRunJob task failing with nested input for additional_args [#5706](https://github.com/PrefectHQ/prefect/issues/5706)"
+
+contributor:
+  - "[Dominick Olivito](https://github.com/olivito)"
