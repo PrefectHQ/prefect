@@ -4,9 +4,22 @@ Prefect settings management.
 import os
 import string
 import textwrap
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 import toml
@@ -61,7 +74,7 @@ class Setting(Generic[T]):
         return settings.value_of(self)
 
     def __repr__(self) -> str:
-        return f"Setting({self.type.__name__}, {self.field!r})"
+        return f"<{self.name}: {self.type.__name__}>"
 
     def __bool__(self) -> bool:
         """
@@ -519,8 +532,9 @@ class Settings(SettingsFieldsMixin):
 
     def copy_with_update(
         self,
-        updates: Dict[Union[str, Setting], Any] = None,
-        defaults: Dict[Union[str, Setting], Any] = None,
+        updates: Mapping[Setting, Any] = None,
+        set_defaults: Mapping[Setting, Any] = None,
+        restore_defaults: Iterable[Setting] = None,
     ) -> "Settings":
         """
         Create a new `Settings` object with validation.
@@ -528,29 +542,23 @@ class Settings(SettingsFieldsMixin):
         Arguments:
             updates: A mapping of settings to new values. Existing values for the
                 given settings will be overridden.
-            defaults: A mapping of settings to new default values. Existing values for
+            set_defaults: A mapping of settings to new default values. Existing values for
                 the given settings will only be overridden if they were not set.
 
         Returns:
             A new `Settings` object.
         """
+        updates = updates or {}
+        set_defaults = set_defaults or {}
+        restore_defaults = restore_defaults or set()
 
-        def prepare_for_merge(dict_):
-            # Cast `Setting` types to their names and resolve null to an empty dict
-            return (
-                {
-                    key.name if isinstance(key, Setting) else key: value
-                    for key, value in dict_.items()
-                }
-                if dict_ is not None
-                else {}
-            )
+        restore_defaults_names = {setting.name for setting in restore_defaults}
 
         return self.__class__(
             **{
-                **prepare_for_merge(defaults),
-                **self.dict(exclude_unset=True),
-                **prepare_for_merge(updates),
+                **{setting.name: value for setting, value in set_defaults.items()},
+                **self.dict(exclude_unset=True, exclude=restore_defaults_names),
+                **{setting.name: value for setting, value in updates.items()},
             }
         )
 
@@ -568,11 +576,16 @@ _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 def get_current_settings() -> Settings:
     """
-    Returns a settings object populated with values from the current profile.
+    Returns a settings object populated with values from the current profile or, if no
+    profile is active, the environment.
     """
-    from prefect.context import get_profile_context
+    from prefect.context import ProfileContext
 
-    return get_profile_context().settings
+    profile = ProfileContext.get()
+    if profile is not None:
+        return profile.settings
+
+    return get_settings_from_env()
 
 
 def get_settings_from_env() -> Settings:
@@ -638,7 +651,7 @@ def load_profiles(
     if all([ignore_defaults, active_only]):
         raise ValueError("Only one of ignore_defaults and active_only can be True.")
 
-    path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
+    path = PREFECT_PROFILES_PATH.value()
 
     if not ignore_defaults:
         default_path = Path(__file__).parent.joinpath("profiles.toml")
@@ -695,7 +708,7 @@ def write_profiles(profiles: dict, active_profile: str = None):
     return path.write_text(toml.dumps(profiles))
 
 
-def load_profile(name: str) -> Dict[str, str]:
+def load_profile(name: str) -> Dict[Setting, str]:
     """
     Loads a profile from the TOML file.
 
@@ -720,7 +733,7 @@ def load_profile(name: str) -> Dict[str, str]:
     if unknown_keys:
         raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
 
-    return variables
+    return {SETTING_VARIABLES[key]: value for key, value in variables.items()}
 
 
 def update_profile(name: str = None, **values) -> Dict[str, str]:
@@ -756,3 +769,43 @@ def update_profile(name: str = None, **values) -> Dict[str, str]:
     write_profiles(profiles)
 
     return settings
+
+
+@contextmanager
+def temporary_settings(
+    updates: Mapping[Setting, Any] = None,
+    set_defaults: Mapping[Setting, Any] = None,
+    restore_defaults: Iterable[Setting] = None,
+    name: str = "temporary",
+) -> Settings:
+    """
+    Temporarily override the current settings by entering a new profile.
+
+    See `Settings.copy_with_update` for details on different argument behavior.
+
+    Example:
+        >>> from prefect.settings import PREFECT_API_URL
+        >>>
+        >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
+        >>>    assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
+        >>>         assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
+        >>>         assert PREFECT_API_URL.value() is None
+        >>>
+        >>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
+        >>>             assert PREFECT_API_URL.value() == "bar"
+        >>> assert PREFECT_API_URL.value() is None
+    """
+    settings = get_current_settings()
+
+    new_settings = settings.copy_with_update(
+        updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
+    )
+
+    import prefect.context
+
+    with prefect.context.ProfileContext(name=name, settings=new_settings, env={}):
+        yield new_settings
