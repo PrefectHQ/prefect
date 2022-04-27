@@ -15,7 +15,7 @@ import prefect
 import tests
 from prefect import flow, task
 from prefect.orion.schemas.core import TaskRun
-from prefect.orion.schemas.states import State
+from prefect.orion.schemas.states import DataDocument, State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
@@ -445,3 +445,41 @@ class TestDaskTaskRunnerConfig:
             task_state, subflow_state = parent_flow().result()
             assert task_state.result() == "a"
             assert subflow_state.result() == "a"
+
+    @pytest.mark.service("dask")
+    async def test_converts_prefect_futures_to_dask_futures(self):
+        task_run_1 = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="1")
+        task_run_2 = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="2")
+
+        async def fake_orchestrate_task_run(example_kwarg):
+            return State(
+                type=StateType.COMPLETED,
+                data=DataDocument.encode("cloudpickle", example_kwarg),
+            )
+
+        async with DaskTaskRunner().start() as task_runner:
+            fut_1 = await task_runner.submit(
+                task_run=task_run_1,
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs=dict(example_kwarg=1),
+            )
+
+            original_submit = task_runner._client.submit
+            mock = task_runner._client.submit = MagicMock(side_effect=original_submit)
+
+            fut_2 = await task_runner.submit(
+                task_run=task_run_2,
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs=dict(example_kwarg=fut_1),
+            )
+
+            called_with = mock.call_args[1].get("example_kwarg")
+            assert isinstance(
+                called_with, distributed.Future
+            ), "Prefect future converted to Dask future"
+            assert called_with == task_runner._get_dask_future(fut_1)
+
+            state_1 = await task_runner.wait(fut_1, 5)
+
+            state_2 = await task_runner.wait(fut_2, 5)
+            assert state_2.result() == state_1, "Dask converted the future to the state"
