@@ -359,14 +359,15 @@ def profile(
 
     env = prefect.settings.load_profile(name)
 
-    # Prevent multiple threads from mutating the environment concurrently
-    with _PROFILE_ENV_LOCK:
-        with temporary_environ(
-            env, override_existing=override_existing_variables, warn_on_override=True
-        ):
-            settings = prefect.settings.get_settings_from_env()
+    existing_context = ProfileContext.get()
+    if existing_context:
+        settings = existing_context.settings
+    else:
+        settings = prefect.settings.get_settings_from_env()
 
-    with ProfileContext(name=name, settings=settings, env=env) as ctx:
+    new_settings = settings.copy_with_update(updates=env)
+
+    with ProfileContext(name=name, settings=new_settings, env={}) as ctx:
         if initialize:
             ctx.initialize()
         yield ctx
