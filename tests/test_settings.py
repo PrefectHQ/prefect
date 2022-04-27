@@ -13,19 +13,22 @@ from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_ORION_DATABASE_ECHO,
+    PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
     Settings,
     get_current_settings,
     load_profile,
     load_profiles,
+    temporary_settings,
     update_profile,
     write_profiles,
 )
-from prefect.utilities.testing import temporary_settings
 
 
 def test_get_value_root_setting():
-    with temporary_settings(PREFECT_API_URL="test"):  # Set a value so its not null
+    with temporary_settings(
+        updates={PREFECT_API_URL: "test"}
+    ):  # Set a value so its not null
         value = prefect.settings.PREFECT_API_URL.value()
         value_of = get_current_settings().value_of(PREFECT_API_URL)
         value_from = PREFECT_API_URL.value_from(get_current_settings())
@@ -43,28 +46,12 @@ def test_settings():
     assert PREFECT_TEST_MODE.value() is True
 
 
-def test_settings_copy_with_update_with_string_keys():
-    settings = get_current_settings()
-    assert settings.value_of(PREFECT_TEST_MODE) is True
-    new_settings = settings.copy_with_update(
-        updates={"PREFECT_LOGGING_LEVEL": "ERROR"},
-        defaults={"PREFECT_TEST_MODE": False, "PREFECT_API_KEY": "TEST"},
-    )
-    assert (
-        new_settings.value_of(PREFECT_TEST_MODE) is True
-    ), "Not changed, existing value was not default"
-    assert (
-        new_settings.value_of(PREFECT_API_KEY) == "TEST"
-    ), "Changed, existing value was default"
-    assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
-
-
-def test_settings_copy_with_update_with_setting_keys():
+def test_settings_copy_with_update():
     settings = get_current_settings()
     assert settings.value_of(PREFECT_TEST_MODE) is True
     new_settings = settings.copy_with_update(
         updates={PREFECT_LOGGING_LEVEL: "ERROR"},
-        defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
+        set_defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
     )
     assert (
         new_settings.value_of(PREFECT_TEST_MODE) is True
@@ -81,7 +68,7 @@ def test_settings_in_truthy_statements_use_value():
     else:
         assert False, "Not treated as truth"
 
-    with temporary_settings(PREFECT_TEST_MODE=False):
+    with temporary_settings(updates={PREFECT_TEST_MODE: False}):
         if not PREFECT_TEST_MODE:
             assert True, "Treated as truth"
         else:
@@ -94,7 +81,7 @@ def test_settings_in_truthy_statements_use_value():
     else:
         assert False, "Not treated as truth"
 
-    with temporary_settings(PREFECT_LOGGING_LEVEL=""):
+    with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
         if not PREFECT_LOGGING_LEVEL:
             assert True, "Treated as truth"
         else:
@@ -103,7 +90,7 @@ def test_settings_in_truthy_statements_use_value():
 
 def test_temporary_settings():
     assert PREFECT_TEST_MODE.value() is True
-    with temporary_settings(PREFECT_TEST_MODE=False) as new_settings:
+    with temporary_settings(updates={PREFECT_TEST_MODE: False}) as new_settings:
         assert (
             PREFECT_TEST_MODE.value_from(new_settings) is False
         ), "Yields the new settings"
@@ -112,10 +99,10 @@ def test_temporary_settings():
     assert PREFECT_TEST_MODE.value() is True
 
 
-def test_temporary_settings_can_restore_to_defaults_defaults():
+def test_temporary_settings_can_restore_to_defaults_values():
     assert PREFECT_TEST_MODE.value() is True
-    with temporary_settings(PREFECT_LOGGING_LEVEL="ERROR"):
-        with temporary_settings(PREFECT_LOGGING_LEVEL=None):
+    with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "ERROR"}):
+        with temporary_settings(restore_defaults={PREFECT_LOGGING_LEVEL}):
             assert PREFECT_LOGGING_LEVEL.value() == PREFECT_LOGGING_LEVEL.field.default
 
 
@@ -123,10 +110,10 @@ def test_temporary_settings_restores_on_error():
     assert PREFECT_TEST_MODE.value() is True
 
     with pytest.raises(ValueError):
-        with temporary_settings(PREFECT_TEST_MODE=False):
+        with temporary_settings(updates={PREFECT_TEST_MODE: False}):
             raise ValueError()
 
-    assert os.environ["PREFECT_TEST_MODE"] == "1", "Restores os environ."
+    assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
     assert PREFECT_TEST_MODE.value() is True
 
 
@@ -168,7 +155,7 @@ class TestProfiles:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
-        with temporary_settings(PREFECT_PROFILES_PATH=path):
+        with temporary_settings(updates={PREFECT_PROFILES_PATH: path}):
             yield path
 
     def test_load_profiles_no_profiles_file(self):
