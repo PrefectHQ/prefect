@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 from prefect import flow, task
-from prefect.context import TaskRunContext
+from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
@@ -29,7 +29,7 @@ from prefect.orion.schemas.states import (
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-from prefect.utilities.collections import quote
+from prefect.utilities.collections import PartialModel, quote
 
 
 class TestOrchestrateTaskRun:
@@ -317,8 +317,17 @@ class TestOrchestrateTaskRun:
 
 
 class TestOrchestrateFlowRun:
+    @pytest.fixture
+    def partial_flow_run_context(self, local_storage_block):
+        return PartialModel(
+            FlowRunContext,
+            task_runner=SequentialTaskRunner(),
+            sync_portal=None,
+            result_storage=local_storage_block,
+        )
+
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, monkeypatch, local_storage_block
+        self, orion_client, monkeypatch, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -353,17 +362,15 @@ class TestOrchestrateFlowRun:
             flow=foo,
             flow_run=flow_run,
             parameters={},
-            task_runner=SequentialTaskRunner(),
-            sync_portal=None,
-            result_storage=local_storage_block,
             client=orion_client,
+            partial_flow_run_context=partial_flow_run_context,
         )
 
         sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, monkeypatch, local_storage_block
+        self, orion_client, monkeypatch, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -387,10 +394,8 @@ class TestOrchestrateFlowRun:
                 flow=foo,
                 flow_run=flow_run,
                 parameters={},
-                task_runner=SequentialTaskRunner(),
-                sync_portal=None,
-                result_storage=local_storage_block,
                 client=orion_client,
+                partial_flow_run_context=partial_flow_run_context,
             )
 
         sleep.assert_not_called()
