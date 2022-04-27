@@ -243,25 +243,15 @@ class ProfileContext(ContextModel):
     Attributes:
         name: The name of the profile
         settings: The complete settings model
-        env: The environment variables set in this profile configuration and their
-            current values. These may differ from the profile configuration if the
-            user has overridden them explicitly.
     """
 
     name: str
     settings: Settings
-    env: Dict[str, str]
 
     __var__ = ContextVar("profile")
 
     def __hash__(self) -> int:
-        return hash(
-            (
-                self.name,
-                self.settings,
-                tuple((key, value) for key, value in self.env.items()),
-            )
-        )
+        return hash((self.name, self.settings))
 
     def initialize(self, create_home: bool = True, setup_logging: bool = True):
         """
@@ -289,55 +279,9 @@ def get_profile_context() -> ProfileContext:
     return profile_ctx
 
 
-_PROFILE_ENV_LOCK = threading.Lock()
-
-
-@contextmanager
-def temporary_environ(
-    variables, override_existing: bool = True, warn_on_override: bool = False
-):
-    """
-    Temporarily override default values in os.environ.
-
-    Yields a dictionary of the key/value pairs matching the provided keys.
-    """
-    old_env = os.environ.copy()
-
-    if override_existing:
-        overrides = set(old_env.keys()).intersection(variables.keys())
-        if overrides and warn_on_override:
-            warnings.warn(
-                f"The following environment variables will be temporarily overwritten: {', '.join(overrides)}",
-                stacklevel=3,
-            )
-
-    try:
-        for var, value in variables.items():
-            if value is None and var in os.environ and override_existing:
-                # Allow setting `None` to remove items
-                os.environ.pop(var)
-                continue
-
-            value = str(value)
-
-            if var not in old_env or override_existing:
-                os.environ[var] = value
-            else:
-                os.environ.setdefault(var, value)
-
-        yield {var: os.environ.get(var) for var in variables}
-
-    finally:
-        for var in variables:
-            if old_env.get(var):
-                os.environ[var] = old_env[var]
-            else:
-                os.environ.pop(var, None)
-
-
 @contextmanager
 def profile(
-    name: str, override_existing_variables: bool = False, initialize: bool = True
+    name: str, override_environment_variables: bool = False, initialize: bool = True
 ):
     """
     Switch to a profile for the duration of this context.
@@ -357,7 +301,8 @@ def profile(
     """
     from prefect.context import ProfileContext
 
-    env = prefect.settings.load_profile(name)
+    profiles = prefect.settings.load_profiles()
+    profile = profiles[name]
 
     existing_context = ProfileContext.get()
     if existing_context:
@@ -365,9 +310,14 @@ def profile(
     else:
         settings = prefect.settings.get_settings_from_env()
 
-    new_settings = settings.copy_with_update(updates=env)
+    if not override_environment_variables:
+        for key in os.environ:
+            if key in prefect.settings.SETTING_VARIABLES:
+                profile.settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
 
-    with ProfileContext(name=name, settings=new_settings, env={}) as ctx:
+    new_settings = settings.copy_with_update(updates=profile.settings)
+
+    with ProfileContext(name=name, settings=new_settings) as ctx:
         if initialize:
             ctx.initialize()
         yield ctx
@@ -392,6 +342,6 @@ def enter_global_profile():
     if GLOBAL_PROFILE_CM:
         return  # A global context already has been entered
 
-    name = prefect.settings.get_active_profile(name_only=True)
-    GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
+    profiles = prefect.settings.load_profiles()
+    GLOBAL_PROFILE_CM = profile(name=profiles.active_name, initialize=False)
     GLOBAL_PROFILE_CM.__enter__()

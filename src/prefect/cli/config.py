@@ -37,7 +37,7 @@ def set(variables: List[str]):
     parsed_variables = []
     for variable in variables:
         try:
-            var, value = variable.split("=")
+            var, value = variable.split("=", maxsplit=1)
         except ValueError:
             exit_with_error(
                 f"Failed to parse argument {variable!r}. Use the format 'VAR=VAL'."

@@ -18,7 +18,12 @@ from prefect.cli.base import (
     exit_with_error,
     exit_with_success,
 )
-from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_URL, update_profile
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_CLOUD_URL,
+    load_profiles,
+    save_profiles,
+)
 
 cloud_app = PrefectTyper(
     name="cloud", help="Commands for interacting with Prefect Cloud"
@@ -207,10 +212,12 @@ async def login(
             "Leave `--workspace` blank to select a workspace."
         )
 
-    update_profile(
+    profiles = load_profiles()
+    profiles.update_active_profile(
         PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle]),
         PREFECT_API_KEY=key,
     )
+    save_profiles(profiles)
 
     profile = prefect.context.get_profile_context()
     exit_with_success(
