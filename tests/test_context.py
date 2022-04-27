@@ -1,6 +1,8 @@
+import os
 import textwrap
 from contextvars import ContextVar
-from unittest.mock import ANY, MagicMock
+from copy import deepcopy
+from unittest.mock import MagicMock
 
 import pytest
 from pendulum.datetime import DateTime
@@ -16,10 +18,11 @@ from prefect.context import (
     get_profile_context,
     get_run_context,
     profile,
+    temporary_environ,
 )
 from prefect.exceptions import MissingContextError
 from prefect.task_runners import SequentialTaskRunner
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 
 class ExampleContext(ContextModel):
@@ -68,6 +71,30 @@ def test_context_exit_restores_previous_context():
             assert ExampleContext.get().x == 2
         assert ExampleContext.get().x == 1
     assert ExampleContext.get() is None
+
+
+def test_temporary_environ_does_not_overwrite_falsy_values():
+    """
+    Covers case where temporary_environ was overwriting environment variables where an
+    empty string was the value, due to `if dict.get(key):` logic
+    """
+    VAR = "PREFECT_API_URL"
+    original_value = os.getenv(VAR)
+    not_nones = [0, "False", ""]
+
+    for not_none in not_nones:
+        os.environ[VAR] = str(not_none)
+        start = deepcopy(os.environ)
+
+        with temporary_environ({VAR: "Other Value"}):
+            pass
+
+        assert start.get(VAR) == os.environ.get(VAR)
+
+    if original_value is not None:
+        os.environ[VAR] = original_value
+    else:
+        del os.environ[VAR]
 
 
 async def test_flow_run_context(orion_client, local_storage_block):
@@ -157,7 +184,7 @@ class TestProfilesContext:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
-        with temporary_settings(PREFECT_PROFILES_PATH=path):
+        with temporary_settings(PREFECT_HOME=tmp_path, PREFECT_PROFILES_PATH=path):
             yield path
 
     def test_profile_context_variable(self):
@@ -179,21 +206,12 @@ class TestProfilesContext:
         with pytest.raises(MissingContextError, match="No profile"):
             get_profile_context()
 
-    def test_profile_context_creates_home_if_asked(
-        self, tmp_path, temporary_profiles_path
-    ):
+    def test_creates_home_if_asked(self, tmp_path, temporary_profiles_path):
         home = tmp_path / "home"
         assert not home.exists()
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                f"""
-                [profiles.foo]
-                PREFECT_HOME = "{home}"
-                """
-            )
-        )
-        with profile("foo", initialize=False) as ctx:
-            ctx.initialize(create_home=True)
+        with temporary_settings(PREFECT_HOME=home):
+            with profile("default", initialize=False) as ctx:
+                ctx.initialize(create_home=True)
 
         assert home.exists()
 
@@ -295,7 +313,7 @@ class TestProfilesContext:
         profile = MagicMock()
         temporary_profiles_path.write_text(
             textwrap.dedent(
-                f"""
+                """
                 [profiles.test]
                 PREFECT_API_KEY = "xxx"
                 """
