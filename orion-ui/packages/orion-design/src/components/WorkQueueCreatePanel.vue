@@ -11,6 +11,7 @@
       <WorkQueueForm
         v-model:values="workQueueFormValues"
         :deployments-api="deploymentsApi"
+        :can="can"
       />
     </section>
 
@@ -36,6 +37,7 @@
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
+  import { Can } from '@/types/permissions'
   import { exitPanel, showPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
@@ -44,6 +46,7 @@
     workQueuesListSubscription: WorkQueuesListSubscription,
     workQueuesApi: WorkQueuesApi,
     deploymentsApi: DeploymentsApi,
+    can: Can,
   }>()
 
   const saving = ref(false)
@@ -58,6 +61,7 @@
       workQueuesListSubscription: props.workQueuesListSubscription,
       workQueuesApi: props.workQueuesApi,
       deploymentsApi: props.deploymentsApi,
+      can: props.can,
     })
   }
 
@@ -70,6 +74,7 @@
       openWorkQueueEditPanel,
       workQueuesListSubscription: props.workQueuesListSubscription,
       workQueuesApi: props.workQueuesApi,
+      can: props.can,
     })
   }
 

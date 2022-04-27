@@ -28,8 +28,8 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.task_runners import SequentialTaskRunner
+from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.collections import quote
-from prefect.utilities.testing import AsyncMock, exceptions_equal
 
 
 class TestOrchestrateTaskRun:

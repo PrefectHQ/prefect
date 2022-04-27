@@ -1,10 +1,10 @@
 import datetime
-import json
 from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
+from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
@@ -27,7 +27,7 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         assert response.json()["flow_runner"] == {"config": None, "type": None}
@@ -61,7 +61,7 @@ class TestCreateDeployment:
         ).dict(json_compatible=True)
 
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
             type="test", config={"foo": "bar"} if with_config else None
@@ -99,7 +99,7 @@ class TestCreateDeployment:
             is_schedule_active=False,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
@@ -117,7 +117,7 @@ class TestCreateDeployment:
             ),
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["is_schedule_active"]
@@ -320,7 +320,7 @@ class TestReadDeployment:
 
         # make sure we we can read the deployment correctly
         response = await client.get(f"/deployments/{deployment_id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == deployment_id
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
@@ -328,7 +328,7 @@ class TestReadDeployment:
 
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadDeploymentByName:
@@ -345,7 +345,7 @@ class TestReadDeploymentByName:
 
         # make sure we we can read the deployment correctly
         response = await client.get(f"/deployments/name/{flow.name}/{data['name']}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == deployment_id
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
@@ -353,13 +353,13 @@ class TestReadDeploymentByName:
 
     async def test_read_deployment_by_name_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/name/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_read_deployment_by_name_returns_404_if_just_given_flow_name(
         self, client, flow
     ):
         response = await client.get(f"/deployments/name/{flow.name}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_read_deployment_by_name_returns_404_if_just_given_deployment_name(
         self, client, flow, flow_function
@@ -375,7 +375,7 @@ class TestReadDeploymentByName:
         )
 
         response = await client.get(f"/deployments/name/My Deployment")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(
         "name",
@@ -403,7 +403,7 @@ class TestReadDeploymentByName:
         deployment_id = response.json()["id"]
 
         response = await client.get(f"/deployments/name/{flow.name}/{name}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == deployment_id
 
     @pytest.mark.parametrize(
@@ -417,7 +417,7 @@ class TestReadDeploymentByName:
         self, client, name, flow
     ):
         response = await client.get(f"/deployments/name/{flow.name}/{name}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadDeployments:
@@ -458,7 +458,7 @@ class TestReadDeployments:
 
     async def test_read_deployments(self, deployments, client):
         response = await client.post("/deployments/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
     async def test_read_deployments_applies_filter(
@@ -470,7 +470,7 @@ class TestReadDeployments:
             ).dict(json_compatible=True)
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1)
         }
@@ -481,7 +481,7 @@ class TestReadDeployments:
             ).dict(json_compatible=True)
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
         deployment_filter = dict(
@@ -490,7 +490,7 @@ class TestReadDeployments:
             ).dict(json_compatible=True)
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1),
             str(deployment_id_2),
@@ -505,24 +505,24 @@ class TestReadDeployments:
             ).dict(json_compatible=True),
         )
         response = await client.post("/deployments/filter", json=deployment_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
     async def test_read_deployments_applies_limit(self, deployments, client):
         response = await client.post("/deployments/filter", json=dict(limit=1))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
         response = await client.post("/deployments/filter", json=dict(offset=1))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
 
@@ -560,11 +560,11 @@ class TestDeleteDeployment:
 
         # delete the deployment
         response = await client.delete(f"/deployments/{deployment.id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # make sure it's deleted
         response = await client.get(f"/deployments/{deployment.id}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
         # make sure scheduled flow runs are deleted
         n_runs = await models.flow_runs.count_flow_runs(
@@ -577,7 +577,7 @@ class TestDeleteDeployment:
 
     async def test_delete_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/deployments/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestSetScheduleActive:
@@ -586,7 +586,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
@@ -599,14 +599,14 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
 
     async def test_set_schedule_inactive_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_set_schedule_active(self, client, deployment, session):
         deployment.is_schedule_active = False
@@ -615,7 +615,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
@@ -630,14 +630,14 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
 
     async def test_set_schedule_active_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_set_schedule_active_toggles_active_flag(
         self, client, deployment, session

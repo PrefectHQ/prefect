@@ -2,9 +2,11 @@
   <div class="filter-bar" :class="classes.root">
     <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissible="!disabled" @click="show('search')" />
 
-    <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
-      <i class="pi pi-star-line" />
-    </button>
+    <template v-if="can.create.saved_search">
+      <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
+        <i class="pi pi-star-line" />
+      </button>
+    </template>
 
     <button type="button" class="filter-bar__button" :class="classes.filtersButton" @click="toggle('filters')">
       <i class="pi pi-filter-3-line" />
@@ -20,13 +22,13 @@
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
-      <template v-if="isOpen('search')">
+      <template v-if="isOpen('search') && can.read.saved_search">
         <div key="search" class="filter-bar__menu filter-bar__menu-search">
           <FiltersSearchMenu @close="toggle('search')" />
         </div>
       </template>
 
-      <template v-if="isOpen('save')">
+      <template v-if="isOpen('save') && can.create.saved_search">
         <div key="save" class="filter-bar__menu filter-bar__menu--save">
           <FiltersSaveMenu class="filter-bar_menu-content" @close="close" />
         </div>
@@ -51,6 +53,7 @@
   import { FilterService } from '@/services/FilterService'
   import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
+  import { canKey } from '@/types/permissions'
   import { isSame } from '@/utilities/arrays'
   import { inject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
@@ -61,6 +64,7 @@
     disabled?: boolean,
   }>()
 
+  const can = inject(canKey)
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
