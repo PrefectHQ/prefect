@@ -3,19 +3,17 @@ Fixtures that create a small distributed storage API, including a storage block
 """
 import subprocess
 import sys
-import time
 from typing import Any, Optional
 
 import anyio
 import httpx
 import pytest
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, status
 from fastapi.exceptions import RequestValidationError
 
 from prefect.blocks.storage import KVServerStorageBlock, LocalStorageBlock
 from prefect.orion import models
 from prefect.orion.api.server import validation_exception_handler
-from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
 
 
 @pytest.fixture
@@ -89,7 +87,7 @@ async def run_storage_server():
                     except httpx.ConnectError:
                         pass
                     else:
-                        if response.status_code == 200:
+                        if response.status_code == status.HTTP_200_OK:
                             break
                     await anyio.sleep(0.1)
             if response:
