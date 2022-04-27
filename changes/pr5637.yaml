@@ -1,5 +1,0 @@
-fix:
-  - 'Fixes bug when prefect client is trying to fetch Secret from cloud when we use backend at `server` configuration [#5637](https://github.com/PrefectHQ/prefect/pull/5637)'
-
-contributor:
-  - '[satoshiking](https://github.com/satoshiking)'
