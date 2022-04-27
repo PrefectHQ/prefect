@@ -15,7 +15,7 @@ import prefect
 import tests
 from prefect import flow, task
 from prefect.orion.schemas.core import TaskRun
-from prefect.orion.schemas.states import State
+from prefect.orion.schemas.states import DataDocument, State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
