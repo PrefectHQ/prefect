@@ -24,7 +24,6 @@ from uuid import UUID, uuid4
 import anyio
 import pendulum
 from anyio import start_blocking_portal
-from anyio.abc import BlockingPortal
 
 import prefect
 import prefect.context
@@ -62,7 +61,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.collections import PartialModel, Quote, visit_collection
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -259,6 +258,9 @@ async def begin_flow_run(
         The final state of the run
     """
     logger = flow_run_logger(flow_run, flow)
+
+    flow_run_context = PartialModel(FlowRunContext)
+
     async with AsyncExitStack() as stack:
 
         await stack.enter_async_context(
@@ -266,12 +268,14 @@ async def begin_flow_run(
         )
 
         # If the flow is async, we need to provide a portal so sync tasks can run
-        sync_portal = (
+        flow_run_context.sync_portal = (
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
         logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
-        task_runner = await stack.enter_async_context(flow.task_runner.start())
+        flow_run_context.task_runner = await stack.enter_async_context(
+            flow.task_runner.start()
+        )
 
         result_storage = await client.get_default_storage_block()
         if not result_storage:
@@ -281,15 +285,14 @@ async def begin_flow_run(
                 "environment."
             )
             result_storage = TempStorageBlock()
+        flow_run_context.result_storage = result_storage
 
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
-            task_runner=task_runner,
             client=client,
-            sync_portal=sync_portal,
-            result_storage=result_storage,
+            partial_flow_run_context=flow_run_context,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -378,10 +381,13 @@ async def create_and_begin_subflow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
-            task_runner=task_runner,
             client=client,
-            sync_portal=parent_flow_run_context.sync_portal,
-            result_storage=parent_flow_run_context.result_storage,
+            partial_flow_run_context=PartialModel(
+                FlowRunContext,
+                sync_portal=parent_flow_run_context.sync_portal,
+                result_storage=parent_flow_run_context.result_storage,
+                task_runner=task_runner,
+            ),
         )
 
     # Display the full state (including the result) if debugging
@@ -401,14 +407,12 @@ async def create_and_begin_subflow_run(
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    task_runner: BaseTaskRunner,
     parameters: Dict[str, Any],
     client: OrionClient,
-    sync_portal: BlockingPortal,
-    result_storage: StorageBlock,
+    partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
     """
-    Executes a flow run
+    Executes a flow run.
 
     Note on flow timeouts:
         Since async flows are run directly in the main event loop, timeout behavior will
@@ -435,17 +439,15 @@ async def orchestrate_flow_run(
         if flow.timeout_seconds
         else nullcontext()
     )
+    flow_run_context = None
 
     try:
         with timeout_context as timeout_scope:
-            with FlowRunContext(
+            with partial_flow_run_context.finalize(
                 flow=flow,
                 flow_run=flow_run,
                 client=client,
-                task_runner=task_runner,
-                sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
-                result_storage=result_storage,
             ) as flow_run_context:
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
@@ -501,7 +503,7 @@ async def orchestrate_flow_run(
             await client.persist_data(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
-            if state.data is not None
+            if state.data is not None and flow_run_context
             else None
         ),
     )
