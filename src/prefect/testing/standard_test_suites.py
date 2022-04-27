@@ -174,8 +174,9 @@ class TaskRunnerStandardTestSuite(ABC):
 
         @task
         def foo():
-            # This test is prone to flaking
-            time.sleep(self.get_sleep_time() + 0.5)
+            time.sleep(self.get_sleep_time())
+            # Yield again in case the sleep started before the other thread was aready
+            time.sleep(0)
             tmp_file.write_text("foo")
 
         @task
