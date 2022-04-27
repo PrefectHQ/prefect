@@ -660,7 +660,8 @@ async def begin_task_run(
     async with AsyncExitStack() as stack:
         profile = stack.enter_context(
             prefect.context.ProfileContext(
-                name=f"task-run-{task_run.name}", settings=settings, env={}
+                name=f"task-run-{task_run.name}",
+                settings=settings,
             )
         )
         profile.initialize(create_home=False)
