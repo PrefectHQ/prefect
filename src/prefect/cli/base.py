@@ -17,6 +17,7 @@ from click.exceptions import ClickException
 
 import prefect
 import prefect.context
+import prefect.settings
 from prefect.exceptions import MissingProfileError
 from prefect.settings import PREFECT_TEST_MODE, Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
@@ -134,7 +135,7 @@ def main(
     ),
 ):
     if profile:
-        settings_ctx = prefect.context.use_profile(
+        settings_ctx = prefect.settings.use_profile(
             profile, override_environment_variables=True, initialize=True
         )
 

@@ -1,13 +1,5 @@
-import re
-import textwrap
-from typing import Any, List
-
 import pytest
-import rich
-from typer.testing import CliRunner, Result
 
-from prefect.cli import app
-from prefect.context import SettingsContext, use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -15,39 +7,12 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
-    get_current_settings,
     load_profiles,
     save_profiles,
     temporary_settings,
+    use_profile,
 )
-
-
-def invoke_and_assert(
-    command: List[str],
-    expected_output: str = None,
-    expected_code: int = 0,
-    echo: bool = True,
-) -> Result:
-    runner = CliRunner()
-    result = runner.invoke(app, command, catch_exceptions=False)
-
-    if echo:
-        print(result.stdout)
-
-    if expected_code is not None:
-        assert result.exit_code == expected_code
-
-    if expected_output is not None:
-        output = result.stdout.strip()
-        expected_output = textwrap.dedent(expected_output).strip()
-
-        print("------ expected ------")
-        print(expected_output)
-        print()
-
-        assert output == expected_output
-
-    return result
+from prefect.testing.cli import invoke_and_assert
 
 
 @pytest.fixture(autouse=True)
@@ -55,13 +20,6 @@ def temporary_profiles_path(tmp_path):
     path = tmp_path / "profiles.toml"
     with temporary_settings({PREFECT_PROFILES_PATH: path}):
         yield path
-
-
-@pytest.fixture()
-def disable_terminal_wrapping(monkeypatch):
-    monkeypatch.setattr(
-        "prefect.cli.profile.console", rich.console.Console(soft_wrap=True)
-    )
 
 
 def test_use_profile_unknown_key():
