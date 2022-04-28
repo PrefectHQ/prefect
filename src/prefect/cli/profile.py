@@ -1,11 +1,9 @@
 """
 Command line interface for working with profiles.
 """
-import os
 import textwrap
 from typing import List
 
-import toml
 import typer
 
 import prefect.context
@@ -63,20 +61,22 @@ def create(
 
     if from_name:
         if from_name not in profiles:
-            exit_with_error("Profile {from_name!r} not found.")
+            exit_with_error(f"Profile {from_name!r} not found.")
 
-        profiles[name] = profiles[from_name]
+        # Create a copy of the profile with a new name and add to the collection
+        profiles.update_profile(profiles[from_name].copy(update={"name": name}))
+
         from_blurb = f" matching {from_name!r}"
     else:
         from_blurb = ""
-        profiles[name] = {}
+        profiles.update_profile(prefect.settings.Profile(name=name, settings={}))
 
-    prefect.settings.write_profiles(profiles)
-    loc = prefect.settings.PREFECT_PROFILES_PATH.value()
+    prefect.settings.save_profiles(profiles)
+
     console.print(
         textwrap.dedent(
             f"""
-            [green]Created profile {name!r}{from_blurb} at {loc}.[/green]
+            [green]Created profile {name!r}{from_blurb}.[/green]
 
             Switch to your new profile with:
 
@@ -96,10 +96,11 @@ def use(name: str):
     Set the given profile to active.
     """
     profiles = prefect.settings.load_profiles()
-    if name not in profiles:
-        exit_with_error(f"Profle {name!r} not found.")
+    if name not in profiles.names:
+        exit_with_error(f"Profile {name!r} not found.")
 
-    prefect.settings.set_active_profile(name)
+    profiles.set_active(name)
+    prefect.settings.save_profiles(profiles)
     exit_with_success(f"Profile {name!r} now active.")
 
 
@@ -110,16 +111,15 @@ def delete(name: str):
     """
     profiles = prefect.settings.load_profiles()
     if name not in profiles:
-        exit_with_error(f"Profle {name!r} not found.")
+        exit_with_error(f"Profile {name!r} not found.")
 
-    profiles.pop(name)
+    profiles.remove_profile(name)
 
     verb = "Removed"
     if name == "default":
         verb = "Reset"
-        profiles["default"] = {}
 
-    prefect.settings.write_profiles(profiles)
+    prefect.settings.save_profiles(profiles)
     exit_with_success(f"{verb} profile {name!r}.")
 
 
@@ -130,61 +130,30 @@ def rename(name: str, new_name: str):
     """
     profiles = prefect.settings.load_profiles()
     if name not in profiles:
-        exit_with_error(f"Profle {name!r} not found.")
+        exit_with_error(f"Profile {name!r} not found.")
 
     if new_name in profiles:
         exit_with_error(f"Profile {new_name!r} already exists.")
 
-    profiles[new_name] = profiles.pop(name)
+    profiles.update_profile(profiles[name].copy(update={"name": new_name}))
+    profiles.remove_profile(name)
 
-    prefect.settings.write_profiles(profiles)
+    prefect.settings.save_profiles(profiles)
     exit_with_success(f"Renamed profile {name!r} to {new_name!r}.")
 
 
 @profile_app.command()
-def inspect(
-    name: str = typer.Argument(None),
-    show_defaults: bool = False,
-    show_sources: bool = False,
-):
+def inspect(name: str):
     """
     Display settings from a given profile; defaults to active.
     """
-    if name:
-        profiles = prefect.settings.load_profiles()
-        if name not in profiles:
-            exit_with_error(f"Profle {name!r} not found.")
-        current_settings = profiles[name]
-    else:
-        profile = prefect.context.get_profile_context()
-        name = profile.name
-        current_settings = profile.settings.dict()
+    profiles = prefect.settings.load_profiles()
+    if name not in profiles:
+        exit_with_error(f"Profile {name!r} not found.")
 
-    # Get settings at each level, converted to a flat dictionary for easy comparison
-    default_settings = prefect.settings.get_default_settings().dict()
-    env_settings = prefect.settings.get_settings_from_env().dict()
+    if not profiles[name].settings:
+        # TODO: Consider instructing on how to add settings.
+        print(f"Profile {name!r} is empty.")
 
-    output = [f"PREFECT_PROFILE={name!r}"]
-
-    # Collect differences from defaults set in the env and the profile
-    env_overrides = {
-        key: val for key, val in env_settings.items() if val != default_settings[key]
-    }
-
-    current_overrides = {
-        key: val
-        for key, val in current_settings.items()
-        if val != default_settings[key]
-    }
-
-    for key, value in current_overrides.items():
-        source = "env" if value == env_overrides.get(key) else "profile"
-        source_blurb = f" (from {source})" if show_sources else ""
-        output.append(f"{key}='{value}'{source_blurb}")
-
-    if show_defaults:
-        for key, value in sorted(default_settings.items()):
-            source_blurb = f" (from defaults)" if show_sources else ""
-            output.append(f"{key}='{value}'{source_blurb}")
-
-    console.print("\n".join(output))
+    for setting, value in profiles[name].settings.items():
+        console.print(f"{setting.name}='{value}'")

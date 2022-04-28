@@ -719,6 +719,14 @@ class ProfilesCollection:
         self.active_profile.settings = new_settings
 
     def update_profile(self, profile: Profile) -> None:
+        """
+        Add a profile to the collection or update the existing on if the name is already
+        present in this collection.
+
+        If updating an existing profile, the settings will be merged. Settings can
+        be dropped from the existing profile by setting them to `None` in the new
+        profile.
+        """
         existing = self.profiles_by_name.get(profile.name)
         if existing:
             new_settings = {**existing.settings, **profile.settings}
@@ -735,6 +743,9 @@ class ProfilesCollection:
             new_profile = profile
 
         self.profiles_by_name[new_profile.name] = new_profile
+
+    def remove_profile(self, name: str) -> None:
+        self.profiles_by_name.pop(name)
 
     def with_new_profiles(self, other: "ProfilesCollection") -> "ProfilesCollection":
         return ProfilesCollection(
@@ -768,6 +779,9 @@ class ProfilesCollection:
 
     def __getitem__(self, name: str) -> Profile:
         return self.profiles_by_name[name]
+
+    def __iter__(self):
+        return self.profiles_by_name.__iter__()
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
@@ -846,7 +860,7 @@ def save_profiles(profiles: ProfilesCollection) -> None:
     return _write_profiles_to(profiles_path, profiles)
 
 
-def set_active_profile(name: str):
+def save_new_active_profile(name: str):
     """
     Persists a new active profile name
     """

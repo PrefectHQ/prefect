@@ -18,7 +18,7 @@ from click.exceptions import ClickException
 import prefect
 import prefect.context
 from prefect.exceptions import MissingProfileError
-from prefect.settings import Setting
+from prefect.settings import PREFECT_TEST_MODE, Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
 T = TypeVar("T")
@@ -62,6 +62,8 @@ def with_cli_exception_handling(fn):
         except MissingProfileError as exc:
             exit_with_error(exc)
         except Exception:
+            if PREFECT_TEST_MODE.value():
+                raise  # Reraise exceptions during test mode
             traceback.print_exc()
             exit_with_error("An exception occurred.")
 
@@ -133,7 +135,7 @@ def main(
 ):
     if profile:
         profile_ctx = prefect.context.profile(
-            profile, override_existing_variables=True, initialize=True
+            profile, override_environment_variables=True, initialize=True
         )
 
         ctx.with_resource(profile_ctx)
