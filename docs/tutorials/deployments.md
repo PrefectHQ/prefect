@@ -96,7 +96,9 @@ You can additionally include the following optional information:
 
 A deployment specification is a definition of a `DeploymentSpec` object. You can create this in the same code file as the flow code, but it's a common pattern to create a separate Python file that contains one or more deployment specifications. 
 
-To create the deployment specification, import `DeploymentSpec`, then define a `DeploymentSpec` object as either Python or [YAML code](/concepts/deployments/#deployment-specifications-as-code). Save the following code in a new `leo_deployment.py` file. 
+To create the deployment specification, import `DeploymentSpec`, then define a `DeploymentSpec` object as either Python or [YAML code](/concepts/deployments/#deployment-specifications-as-code). 
+
+Here's an example of a deployment specification for the flow you created earlier in `leo_flow.py`. Save the following code in a new `leo_deployment.py` file. 
 
 ```python
 from prefect.deployments import DeploymentSpec
@@ -109,7 +111,7 @@ DeploymentSpec(
 )
 ```
 
-Note that this deployment specification moves the value passed as the `name` parameter to a `parameters=` setting in the deployment specification. As you'll see later, one way to use deployments is to create separate deployment specifications for the same flow code, but each deployment specification passes different parameters for different use cases.
+Note that this deployment specification moves the 'Leo' value passed as the `name` parameter to a `parameters=` setting in the deployment specification. As you'll see later, one way to use deployments is to create separate deployment specifications for the same flow code, but each deployment specification passes different parameters for different use cases.
 
 Also, in the flow definition `leo_flow.py` that you created earlier, comment out or remove the last line `leonardo_dicapriflow("Leo")`, the call to the flow function. You don't need that anymore because Prefect will call it directly with the specified `parameters` when it executes the deployment.
 
@@ -166,7 +168,7 @@ Updated profile 'default'
 
 Now configure remote [storage](/concepts/storage/) for flow and task run data. 
 
-This is an important step for orchestrating flows with deployments. When you create a deployment, the Prefect orchestration engine saves a pickled version of your flow code in the storage environment you specify. Later, any flow runs created from the deployment retrieve the flow code from your storage and save task results to that storage, regardless of the environment in which the flow run executes. That flow code and data is always under your control.
+This is an important step for orchestrating flows with deployments. When you create a deployment, the Prefect orchestration engine saves a pickled version of your flow code in the storage environment you specify. Later, any flow runs created from the deployment retrieve the flow code from your storage and save task results to that storage, regardless of the environment in which the flow run executes. That flow code and result data is always under your control.
 
 This means, however, that you need to have access to a storage location such as an S3 bucket, and create a storage definition on the Prefect server. (As an advanced configuration, you can also define storage in the deployment specification. See the [Deployments](/concepts/deployments/) documentation for details.)
 
@@ -217,7 +219,7 @@ This is important for deployments because it means you can run the deployed flow
 
 Now that you have a `leo_flow.py` flow definition and a `leo_deployment.py` deployment specification, you can use the Prefect CLI to create the deployment.
 
-Use the `prefect deployment create` command to create the deployment with the Orion server, specifying the name of the file that contains the deployment specification:
+Use the `prefect deployment create` command to create the deployment on the Prefect server, specifying the name of the file that contains the deployment specification:
 
 <div class="termy">
 ```
@@ -290,7 +292,7 @@ $ prefect deployment execute leonardo_dicapriflow/leonardo-deployment
 ```
 </div>
 
-When you executed the deployment, you referenced it by name in the format "<flow name>/<deployment name>". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each must have a unique name.
+When you executed the deployment, you referenced it by name in the format "flow_name/deployment_name". When you create new deployments in the future, remember that while a flow may be referenced by multiple deployments, each deployment must have a unique name.
 
 You can also see your deployment in the [Prefect UI](/ui/overview/). Open the UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and click **Deployments** to see any deployments you've created. You may need to click the **Show all deployments** button to see deployments with no schedule like the one you just created. (The default [filters](/ui/filters/) display deployments with scheduled runs.)
 
@@ -314,11 +316,9 @@ Open a new terminal session and run the following command to create a work queue
 prefect work-queue create --tag tutorial tutorial_queue
 ```
 
-Note that this command specifically creates a "tutorial" tag on the work queue, meaning the `tutorial_queue` work queue will only serve deployments that include a "tutorial" tag. This is a good practice more making sure flow runs for a given deployment run only in the correct environments, based on the tags you apply.
+Note that this command specifically creates a "tutorial" tag on the work queue, meaning the `tutorial_queue` work queue will only serve deployments that include a "tutorial" tag. This is a good practice to make sure flow runs for a given deployment run only in the correct environments, based on the tags you apply.
 
-Note that you can provide additional, optional [work queue configuration flags](/concepts/work-queues/#work-queue-configuration) to filter which deployments are allocated to a specific work queue by criteria such as tags, flow runners, or even specific deployments. 
-
-Orion API creates the work queue and returns the ID of the queue. Note this ID, you'll use it in a moment to create an agent that polls for work from this queue.
+The Prefect API creates the work queue and returns the ID of the queue. Note this ID, you'll use it in a moment to create an agent that polls for work from this queue.
 
 <div class='termy'>
 ```
@@ -340,9 +340,13 @@ $ prefect work-queue ls
                          (**) denotes a paused queue
 ```
 
+Note that you can provide additional, optional [work queue configuration flags](/concepts/work-queues/#work-queue-configuration) to filter which deployments are allocated to a specific work queue by criteria such as tags, flow runners, or even specific deployments. 
+
+You can also create, edit, and manage work queues through [Prefect UI Work Queues](/ui/work-queues/) page.
+
 ### Run an agent
 
-Now that you have a work flow to allocate work, run an agent to pick up work from that queue.
+Now that you have a work queue to allocate flow runs, you can run an agent to pick up flow runs from that queue.
 
 In the terminal, run the `prefect agent start` command, passing the ID of the `tutorial_queue` work queue you just created (it will be different from the example shown here).
 
@@ -370,6 +374,11 @@ Remember that:
 - The deployment specification included a "tutorial" tag.
 - The `tutorial_queue` work queue is defined to serve deployments with a "tutorial" tag.
 - The agent is configured to pick up work from `tutorial_queue`, so it will only execute flow runs for deployments with a "tutorial" tag.
+
+!!! note "Reference work queues by name or ID"
+    You can reference a work queue by either ID or by name when starting an agent to pull work from a queue. For example: `prefect agent start 'tutorial_queue'`.
+
+    Note, however, that you can edit the name of a work queue after creation, which may cause errors for agents referencing a work queue by name.
 
 ## Run an orchestrated deployment
 
@@ -412,7 +421,7 @@ Click the flow run to see details. In the flow run logs, you can see that the fl
 
 ## Next steps
 
-So far you've seen a simple example of a single deployment for a single flow. But a common and useful pattern is to create multiple deployments for a flow. By using tags, parameters, and schedules effectively, you can have a single flow definitions that serves multiple purposes or can be configured to run in different environments.
+So far you've seen a simple example of a single deployment for a single flow. But a common and useful pattern is to create multiple deployments for a flow. By using tags, parameters, and schedules effectively, you can have a single flow definition that serves multiple purposes or can be configured to run in different environments.
 
 For example, you can extend the earlier example by creating a second deployment for `leo_flow.py` that logs different greetings by passing different parameters.
 
@@ -436,7 +445,7 @@ DeploymentSpec(
 )
 ```
 
-If you run `prefect deployment create leo_deployment.py` again with this code, it won't change `leonardo_deployment`, but it will also create a new `marvin-deployment`.
+If you run `prefect deployment create leo_deployment.py` again with this code, it won't change `leonardo_deployment`, but it will create a new `marvin-deployment`.
 
 - Running `leonardo_deployment` logs the message "Hello Leo!".
 - Running `marvin-deployment` logs the message "Hello Marvin!".
@@ -461,13 +470,7 @@ Deleted work queue 3461754d-e411-4155-9bc7-a0145b6974a0
 ```
 </div>
 
-
-| Attributes | Description |
-| ---- | --- |
-| image | String specifying the tag of a Docker image to use for the Job. |
-| namespace | String signifying the Kubernetes namespace to use. |
-| labels | Dictionary of labels to add to the Job. |
-| image_pull_policy | The Kubernetes image pull policy to use for Job containers. |
+To terminate the Prefect API server, go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
 
 <!-- The REST API
 
