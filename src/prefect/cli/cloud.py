@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List
 import httpx
 import readchar
 import typer
+from fastapi import status
 from rich.live import Live
 from rich.table import Table
 
@@ -99,7 +100,10 @@ class CloudClient:
             res = await self._client.get(route, **kwargs)
             res.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in (401, 403):
+            if exc.response.status_code in (
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            ):
                 exit_with_error(
                     "Unable to authenticate. Please ensure your credentials are correct."
                 )

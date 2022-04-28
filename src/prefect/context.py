@@ -8,7 +8,18 @@ import threading
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import (
+    Any,
+    ContextManager,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -238,11 +249,20 @@ def tags(*new_tags: str) -> Set[str]:
 
 class ProfileContext(ContextModel):
     """
-    The context for a Prefect settings profile.
+        The context for a Prefect settings profile.
 
-    Attributes:
-        name: The name of the profile
-        settings: The complete settings model
+        Attributes:
+            name: The name of the profile
+            settings: The complete settings model
+    <<<<<<< HEAD
+    =======
+            env: The environment variables set in this profile configuration and their
+                current values. These may differ from the profile configuration if the
+                user has overridden them explicitly.
+
+        Notes on usage: the attributes are initialized by the context manager
+        `prefect.context.profile`
+    >>>>>>> main
     """
 
     name: str
@@ -271,6 +291,10 @@ class ProfileContext(ContextModel):
 
 
 def get_profile_context() -> ProfileContext:
+    """
+    Returns a `ProfileContext` that contains the combination of user profile
+    settings and environment variable settings present when the context was initialized
+    """
     profile_ctx = ProfileContext.get()
 
     if not profile_ctx:

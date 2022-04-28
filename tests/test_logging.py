@@ -41,7 +41,7 @@ from prefect.settings import (
     Settings,
     temporary_settings,
 )
-from prefect.utilities.testing import AsyncMock
+from prefect.testing.utilities import AsyncMock
 
 
 @pytest.fixture

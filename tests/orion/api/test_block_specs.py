@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pydantic
 import pytest
-import sqlalchemy as sa
+from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockSpecCreate
@@ -50,7 +50,7 @@ class TestCreateBlockSpec:
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type=None, fields={}).dict(),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "x"
         block_spec_id = response.json()["id"]
 
@@ -66,13 +66,13 @@ class TestCreateBlockSpec:
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type=None, fields={}).dict(),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         response = await client.post(
             "/block_specs/",
             json=BlockSpecCreate(name="x", version="1.0", type="abc", fields={}).dict(),
         )
-        assert response.status_code == 409
+        assert response.status_code == status.HTTP_409_CONFLICT
         assert 'Block spec "x/1.0" already exists.' in response.json()["detail"]
 
     @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ class TestCreateBlockSpec:
         response = await client.post(
             "/block_specs/", json=dict(name=name, version="1.0")
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
     @pytest.mark.parametrize(
         "name",
@@ -102,14 +102,14 @@ class TestCreateBlockSpec:
         response = await client.post(
             "/block_specs/", json=dict(name=name, version="1.0")
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 class TestDeleteBlockSpec:
     async def test_delete_block_spec(self, session, client, block_specs):
         spec_id = block_specs[0].id
         response = await client.delete(f"/block_specs/{spec_id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         session.expire_all()
 
@@ -120,7 +120,7 @@ class TestDeleteBlockSpec:
 
     async def test_delete_nonexistant_block_spec(self, session, client):
         response = await client.delete(f"/block_specs/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadBlockSpec:
@@ -159,10 +159,10 @@ class TestReadBlockSpec:
 
     async def test_read_missing_block_spec_by_name_and_version(self, session, client):
         result = await client.get(f"/block_specs/x/versions/5.0")
-        assert result.status_code == 404
+        assert result.status_code == status.HTTP_404_NOT_FOUND
 
         result = await client.get(f"/block_specs/xyzabc/versions/1.0")
-        assert result.status_code == 404
+        assert result.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(
         "name",
@@ -183,7 +183,7 @@ class TestReadBlockSpec:
         block_spec_id = response.json()["id"]
 
         response = await client.get(f"/block_specs/{name}/versions")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == block_spec_id
 
     @pytest.mark.parametrize(
@@ -205,5 +205,5 @@ class TestReadBlockSpec:
         block_spec_id = response.json()["id"]
 
         response = await client.get(f"/block_specs/block spec/versions/{version}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == block_spec_id

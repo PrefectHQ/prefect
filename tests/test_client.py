@@ -9,7 +9,7 @@ import anyio
 import httpx
 import pendulum
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.tasks import task
-from prefect.utilities.testing import AsyncMock, exceptions_equal
+from prefect.testing.utilities import AsyncMock, exceptions_equal
 
 
 class TestGetClient:
@@ -852,14 +852,14 @@ class TestClientAPIVersionRequests:
     async def test_default_requests_succeeds(self):
         async with get_client() as client:
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_no_api_version_header_succeeds(self):
         async with get_client() as client:
             # remove default header X-PREFECT-API-VERSION
             client._client.headers = {}
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_major_version(
         self, app, major_version, minor_version, patch_version
@@ -867,13 +867,17 @@ class TestClientAPIVersionRequests:
         # higher client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
     async def test_minor_version(
@@ -882,13 +886,17 @@ class TestClientAPIVersionRequests:
         # higher client minor version fails
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
     async def test_patch_version(
@@ -897,20 +905,24 @@ class TestClientAPIVersionRequests:
         # higher client patch version fails
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client minor version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         async with OrionClient(app, api_version=api_version) as client:
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_invalid_header(self, app):
         # Invalid header is rejected
         api_version = "not a real version header"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400") as e:
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ) as e:
                 await client.hello()
             assert (
                 "Invalid X-PREFECT-API-VERSION header format."
@@ -936,12 +948,14 @@ class TestClientAPIKey:
         api_key = "validAPIkey"
         async with OrionClient(test_app, api_key=api_key) as client:
             res = await client._client.get("/check_for_auth_header")
-        assert res.status_code == 200
+        assert res.status_code == status.HTTP_200_OK
         assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
         async with OrionClient(test_app) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="403") as e:
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
+            ) as e:
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):

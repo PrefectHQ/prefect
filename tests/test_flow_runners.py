@@ -43,7 +43,7 @@ from prefect.flow_runners import (
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
-from prefect.utilities.testing import (
+from prefect.testing.utilities import (
     AsyncMock,
     assert_does_not_warn,
     kubernetes_environments_equal,
