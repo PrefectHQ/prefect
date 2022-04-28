@@ -16,21 +16,28 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column("flow_run", sa.Column("state_name", sa.String(), nullable=True))
+    op.add_column("task_run", sa.Column("state_name", sa.String(), nullable=True))
 
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("state_name", sa.String(), nullable=True))
-        batch_op.create_index("ix_flow_run__state_name", ["state_name"], unique=False)
-
-    with op.batch_alter_table("task_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("state_name", sa.String(), nullable=True))
-        batch_op.create_index("ix_task_run__state_name", ["state_name"], unique=False)
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY
+            ix_flow_run__state_name
+            ON flow_run(state_name)
+            """
+        )
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY
+            ix_task_run__state_name
+            ON task_run(state_name)
+            """
+        )
 
 
 def downgrade():
-    with op.batch_alter_table("task_run", schema=None) as batch_op:
-        batch_op.drop_index("ix_task_run__state_name")
-        batch_op.drop_column("state_name")
-
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.drop_index("ix_flow_run__state_name")
-        batch_op.drop_column("state_name")
+    op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
+    op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
+    op.drop_column("flow_run", "state_name")
+    op.drop_column("task_run", "state_name")
