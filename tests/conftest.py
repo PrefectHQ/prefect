@@ -10,6 +10,7 @@ import pytest
 
 import prefect
 import prefect.settings
+from prefect.testing.fixtures import *
 
 from .fixtures.api import *
 from .fixtures.client import *

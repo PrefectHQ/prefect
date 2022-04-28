@@ -4,10 +4,9 @@ Command line interface for working with flow runs
 from typing import List
 from uuid import UUID
 
-import fastapi
 import httpx
 import pendulum
-import typer
+from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -32,7 +31,7 @@ async def inspect(id: UUID):
         try:
             flow_run = await client.read_flow_run(id)
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 exit_with_error(f"Flow run {id!r} not found!")
             else:
                 raise
