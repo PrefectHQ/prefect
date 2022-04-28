@@ -1248,7 +1248,7 @@ class Client:
         state = (
             prefect.engine.state.State.deserialize(result.serialized_state)
             if result.serialized_state
-            else prefect.engine.state.Pending
+            else prefect.engine.state.Pending()
         )
 
         return FlowRunInfoResult(
@@ -1486,7 +1486,7 @@ class Client:
         state = (
             prefect.engine.state.State.deserialize(task_run_info.serialized_state)
             if task_run_info.serialized_state
-            else prefect.engine.state.Pending
+            else prefect.engine.state.Pending()
         )
 
         return TaskRunInfoResult(
