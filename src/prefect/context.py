@@ -283,7 +283,7 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
-GLOBAL_PROFILE_CM: ContextManager[SettingsContext] = None
+GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
 
 
 def enter_root_settings_context():
@@ -297,13 +297,13 @@ def enter_root_settings_context():
     """
     # We set a global variable because otherwise the context object will be garbage
     # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_PROFILE_CM
+    global GLOBAL_SETTINGS_CM
 
-    if GLOBAL_PROFILE_CM:
+    if GLOBAL_SETTINGS_CM:
         return  # A global context already has been entered
 
     profiles = prefect.settings.load_profiles()
-    GLOBAL_PROFILE_CM = prefect.settings.use_profile(
+    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
         name=profiles.active_name, initialize=False
     )
-    GLOBAL_PROFILE_CM.__enter__()
+    GLOBAL_SETTINGS_CM.__enter__()
