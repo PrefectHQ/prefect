@@ -772,7 +772,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
         stream_output: If set, stream output from the container to local standard output.
-        node_selector: If set specifies the node that the pod is running on
+        node_selector: If set, specifies the node that the pod should run on.
+        tolerations: If set, allows pod to be deployed on dedicated nodes.
     """
 
     typename: Literal["kubernetes"] = "kubernetes"
@@ -785,6 +786,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
     stream_output: bool = True
     node_selector: dict = None
+    tolerations: List[dict]= None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -974,6 +976,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                     "spec": {
                         "restartPolicy": self.restart_policy.value,
                         "nodeSelector": self.node_selector,
+                        "tolerations": self.tolerations,
                         "containers": [
                             {
                                 "name": "job",

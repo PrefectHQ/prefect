@@ -208,6 +208,7 @@ The Prefect CLI command `prefect orion kubernetes-manifest` automatically genera
 | image_pull_policy | The Kubernetes image pull policy to use for Job containers.                                                            |
 | restart_policy | The Kubernetes restart policy to use for Jobs.                                                                         |
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output.                                 |
-| node_selector | Dict that indicates where to start the pod   ```KubernetesFlowRunner(node_selector={"hcloud/node-group": "CPX11"})``` |
+| node_selector | [Kubernetes node_selector documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector)  |
+| tolerations | [Kubernetes taints and tolerations documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) |
 
 Check out the [Kubernetes flow runner tutorial](/tutorials/kubernetes-flow-runner/) for an example of running deployments as Jobs with Kubernetes.
