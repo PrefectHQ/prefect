@@ -22,14 +22,14 @@ def upgrade():
     with op.get_context().autocommit_block():
         op.execute(
             """
-            CREATE INDEX CONCURRENTLY
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS
             ix_flow_run__state_name
             ON flow_run(state_name)
             """
         )
         op.execute(
             """
-            CREATE INDEX CONCURRENTLY
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS
             ix_task_run__state_name
             ON task_run(state_name)
             """
@@ -38,7 +38,7 @@ def upgrade():
 
 def downgrade():
     with op.get_context().autocommit_block():
-        op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
-        op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_flow_run__state_name")
+        op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_task_run__state_name")
     op.drop_column("flow_run", "state_name")
     op.drop_column("task_run", "state_name")
