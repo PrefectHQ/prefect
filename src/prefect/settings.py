@@ -932,3 +932,49 @@ def update_current_profile(settings: Dict[Setting, Any]) -> Profile:
     save_profiles(profiles)
 
     return profiles[current_profile.name]
+
+
+@contextmanager
+def use_profile(
+    name: str,
+    override_environment_variables: bool = False,
+    initialize: bool = True,
+):
+    """
+    Switch to a profile for the duration of this context.
+
+    Profile contexts are confined to an async context in a single thread.
+
+    Args:
+        name: The name of the profile to load. Must exist.
+        override_existing_variables: If set, variables in the profile will take
+            precedence over current environment variables. By default, environment
+            variables will override profile settings.
+        initialize: By default, the profile is initialized. If you would like to
+            initialize the profile manually, toggle this to `False`.
+
+    Yields:
+        The created `SettingsContext` object
+    """
+    from prefect.context import SettingsContext
+
+    profiles = load_profiles()
+    profile = profiles[name]
+
+    existing_context = SettingsContext.get()
+    if existing_context:
+        settings = existing_context.settings
+    else:
+        settings = get_settings_from_env()
+
+    if not override_environment_variables:
+        for key in os.environ:
+            if key in SETTING_VARIABLES:
+                profile.settings.pop(SETTING_VARIABLES[key], None)
+
+    new_settings = settings.copy_with_update(updates=profile.settings)
+
+    with SettingsContext(profile=profile, settings=new_settings) as ctx:
+        if initialize:
+            ctx.initialize()
+        yield ctx

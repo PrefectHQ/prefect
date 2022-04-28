@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 import prefect.settings
 from prefect.cli import app
-from prefect.context import use_profile
+from prefect.settings import use_profile
 from prefect.testing.utilities import temporary_settings
 
 """

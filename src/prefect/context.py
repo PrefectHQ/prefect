@@ -4,22 +4,9 @@ Async and thread safe models for passing runtime context data.
 These contexts should never be directly mutated by the user.
 """
 import os
-import threading
-import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import (
-    Any,
-    ContextManager,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import ContextManager, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -167,6 +154,42 @@ class TagsContext(ContextModel):
     __var__ = ContextVar("tags")
 
 
+class SettingsContext(ContextModel):
+    """
+    The context for a Prefect settings.
+
+    This allows for safe concurrent access and modification of settings.
+
+    Attributes:
+        profile: The profile that is in use.
+        settings: The complete settings model.
+    """
+
+    profile: Optional[Profile]
+    settings: Settings
+
+    __var__ = ContextVar("settings")
+
+    def __hash__(self) -> int:
+        return hash(self.settings)
+
+    def initialize(self, create_home: bool = True, setup_logging: bool = True):
+        """
+        Upon initialization, we can create the home directory contained in the settings and
+        configure logging. These steps are optional. Logging can only be set up once per
+        process and later attempts to configure logging will fail.
+        """
+        if create_home and not os.path.exists(
+            prefect.settings.PREFECT_HOME.value_from(self.settings)
+        ):
+            os.makedirs(
+                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
+            )
+
+        if setup_logging:
+            prefect.logging.configuration.setup_logging(self.settings)
+
+
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     """
     Get the current run context from within a task or flow function.
@@ -188,6 +211,19 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     raise MissingContextError(
         "No run context available. You are not in a flow or task run context."
     )
+
+
+def get_settings_context() -> SettingsContext:
+    """
+    Returns a `SettingsContext` that contains the combination of user profile
+    settings and environment variable settings present when the context was initialized
+    """
+    settings_ctx = SettingsContext.get()
+
+    if not settings_ctx:
+        raise MissingContextError("No settings context found.")
+
+    return settings_ctx
 
 
 @contextmanager
@@ -247,99 +283,6 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
-class SettingsContext(ContextModel):
-    """
-    The context for a Prefect settings.
-
-    This allows for safe concurrent access and modification of settings.
-
-    Attributes:
-        profile: The profile that is in use.
-        settings: The complete settings model.
-    """
-
-    profile: Optional[Profile]
-    settings: Settings
-
-    __var__ = ContextVar("settings")
-
-    def __hash__(self) -> int:
-        return hash(self.settings)
-
-    def initialize(self, create_home: bool = True, setup_logging: bool = True):
-        """
-        Upon initialization, we can create the home directory contained in the settings and
-        configure logging. These steps are optional. Logging can only be set up once per
-        process and later attempts to configure logging will fail.
-        """
-        if create_home and not os.path.exists(
-            prefect.settings.PREFECT_HOME.value_from(self.settings)
-        ):
-            os.makedirs(
-                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
-            )
-
-        if setup_logging:
-            prefect.logging.configuration.setup_logging(self.settings)
-
-
-def get_settings_context() -> SettingsContext:
-    """
-    Returns a `SettingsContext` that contains the combination of user profile
-    settings and environment variable settings present when the context was initialized
-    """
-    settings_ctx = SettingsContext.get()
-
-    if not settings_ctx:
-        raise MissingContextError("No profile context found.")
-
-    return settings_ctx
-
-
-@contextmanager
-def use_profile(
-    name: str,
-    override_environment_variables: bool = False,
-    initialize: bool = True,
-):
-    """
-    Switch to a profile for the duration of this context.
-
-    Profile contexts are confined to an async context in a single thread.
-
-    Args:
-        name: The name of the profile to load. Must exist.
-        override_existing_variables: If set, variables in the profile will take
-            precedence over current environment variables. By default, environment
-            variables will override profile settings.
-        initialize: By default, the profile is initialized. If you would like to
-            initialize the profile manually, toggle this to `False`.
-
-    Yields:
-        The created `SettingsContext` object
-    """
-    profiles = prefect.settings.load_profiles()
-    profile = profiles[name]
-
-    existing_context = SettingsContext.get()
-    if existing_context:
-        settings = existing_context.settings
-    else:
-        settings = prefect.settings.get_settings_from_env()
-
-    if not override_environment_variables:
-        for key in os.environ:
-            if key in prefect.settings.SETTING_VARIABLES:
-                profile.settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
-
-    new_settings = settings.copy_with_update(updates=profile.settings)
-
-    with SettingsContext(profile=profile, settings=new_settings) as ctx:
-        if initialize:
-            ctx.initialize()
-        yield ctx
-
-
 GLOBAL_PROFILE_CM: ContextManager[SettingsContext] = None
 
 
@@ -360,5 +303,7 @@ def enter_root_settings_context():
         return  # A global context already has been entered
 
     profiles = prefect.settings.load_profiles()
-    GLOBAL_PROFILE_CM = use_profile(name=profiles.active_name, initialize=False)
+    GLOBAL_PROFILE_CM = prefect.settings.use_profile(
+        name=profiles.active_name, initialize=False
+    )
     GLOBAL_PROFILE_CM.__enter__()
