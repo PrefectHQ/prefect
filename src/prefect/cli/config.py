@@ -32,7 +32,7 @@ def set(variables: List[str]):
     Sets the value in the current profile.
     """
     profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     env = profiles[profile.name]
 
     parsed_variables = []
@@ -69,7 +69,7 @@ def unset(variables: List[str]):
     Removes the setting from the current profile.
     """
     profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     env = profiles[profile.name]
 
     for var in variables:
@@ -127,7 +127,7 @@ def view(
     """
     Display the current settings.
     """
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
     default_settings = prefect.settings.get_default_settings().dict()

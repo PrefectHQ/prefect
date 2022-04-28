@@ -46,7 +46,7 @@ def build_url_from_workspace(workspace: Dict) -> str:
 
 def confirm_logged_in():
     if not PREFECT_API_KEY:
-        profile = prefect.context.get_profile_context()
+        profile = prefect.context.get_settings_context()
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
             "Please login with `prefect cloud login --key <API_KEY>`."
@@ -54,7 +54,7 @@ def confirm_logged_in():
 
 
 def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     return CloudClient(
         host=host or PREFECT_CLOUD_URL.value_from(profile.settings),
         api_key=api_key or PREFECT_API_KEY.value_from(profile.settings),
@@ -223,7 +223,7 @@ async def login(
     )
     save_profiles(profiles)
 
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     exit_with_success(
         "Successfully logged in and set workspace to "
         f"{workspace_handle!r} in profile: {profile.name!r}."
@@ -238,9 +238,13 @@ async def logout():
     """
     confirm_logged_in()
 
+    profiles = prefect.settings.load_profiles()
+
+    profiles.update_active_profile()
+
     update_profile(PREFECT_API_URL=None, PREFECT_API_KEY=None)
 
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     exit_with_success(f"Successfully logged out in profile {profile.name!r}")
 
 
@@ -277,7 +281,7 @@ async def set(
         PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle])
     )
 
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
     exit_with_success(
         f"Successfully set workspace to {workspace_handle!r} in profile: {profile.name!r}."
     )

@@ -370,9 +370,7 @@ class TestProfiles:
         }
 
     def test_update_profile_uses_current_profile_name(self, temporary_profiles_path):
-        with prefect.context.ProfileContext(
-            name="test", settings=get_current_settings()
-        ):
+        with prefect.context.SettingsContext(settings=get_current_settings()):
             update_profile(PREFECT_API_URL="hello")
 
         assert load_profile("test") == {PREFECT_API_URL: "hello"}
