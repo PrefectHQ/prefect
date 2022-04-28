@@ -206,11 +206,11 @@ class TestFlowCall:
 
         mock = MagicMock()
 
-        global_profile = prefect.context.get_profile_context()
-        with prefect.context.ProfileContext(
-            name="test", settings=global_profile.settings
-        ) as profile:
-            object.__setattr__(profile, "initialize", mock)
+        global_context = prefect.context.get_settings_context()
+        with prefect.context.SettingsContext(
+            profile=None, settings=global_context.settings
+        ) as context:
+            object.__setattr__(context, "initialize", mock)
 
             foo()
 

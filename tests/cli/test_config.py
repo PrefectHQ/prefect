@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 import prefect.settings
 from prefect.cli import app
-from prefect.context import profile
+from prefect.context import use_profile
 from prefect.testing.utilities import temporary_settings
 
 """
@@ -67,7 +67,7 @@ def test_sources_shown_by_default(temporary_profiles_path):
             """
         )
     )
-    with profile("foo", initialize=False) as ctx:
+    with use_profile("foo", initialize=False) as ctx:
         ctx.initialize(create_home=False)
         res = runner.invoke(app, ["config", "view"])
 

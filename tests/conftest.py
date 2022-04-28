@@ -191,12 +191,12 @@ def tests_profile():
             }
         )
 
-        with prefect.context.ProfileContext(
-            name="base-test-profile", settings=settings
-        ) as profile:
+        with prefect.context.SettingsContext(
+            profile=None, settings=settings
+        ) as context:
 
-            # It is important to initialize the profile so logging is configured
+            # It is important to initialize the context so logging is configured
             # when the test run starts rather than lazily once a flow runs
-            profile.initialize()
+            context.initialize()
 
-            yield profile
+            yield context

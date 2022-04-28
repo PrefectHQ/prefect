@@ -7,7 +7,7 @@ import rich
 from typer.testing import CliRunner, Result
 
 from prefect.cli import app
-from prefect.context import ProfileContext
+from prefect.context import SettingsContext, use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -150,7 +150,7 @@ def test_ls_respects_current_from_context():
         )
     )
 
-    with ProfileContext(name="bar", settings=get_current_settings()):
+    with use_profile("bar"):
         invoke_and_assert(
             ["profile", "ls"],
             expected_output=(
