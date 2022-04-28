@@ -22,7 +22,6 @@ def upgrade():
     This is a data only migration that can be run as many
     times as desired.
     """
-    conn = op.get_bind()
 
     update_flow_run_state_name_in_batches = """
         WITH null_flow_run_state_name_cte as (SELECT id from flow_run where state_name is null and state_id is not null limit 500)
@@ -33,11 +32,6 @@ def upgrade():
         AND flow_run.id = null_flow_run_state_name_cte.id;
     """
 
-    while True:
-        result = conn.execute(sa.text(update_flow_run_state_name_in_batches))
-        if result.rowcount <= 0:
-            break
-
     update_task_run_state_name_in_batches = """
         WITH null_task_run_state_name_cte as (SELECT id from task_run where state_name is null and state_id is not null limit 500)
         UPDATE task_run
@@ -47,10 +41,21 @@ def upgrade():
         AND task_run.id = null_task_run_state_name_cte.id;
     """
 
-    while True:
-        result = conn.execute(sa.text(update_task_run_state_name_in_batches))
-        if result.rowcount <= 0:
-            break
+    with op.get_context().autocommit_block():
+        conn = op.get_bind()
+        while True:
+            # execute until we've backfilled all flow run state names
+            # autocommit mode will commit each time `execute` is called
+            result = conn.execute(sa.text(update_flow_run_state_name_in_batches))
+            if result.rowcount <= 0:
+                break
+
+        while True:
+            # execute until we've backfilled all task run state names
+            # autocommit mode will commit each time `execute` is called
+            result = conn.execute(sa.text(update_task_run_state_name_in_batches))
+            if result.rowcount <= 0:
+                break
 
 
 def downgrade():
