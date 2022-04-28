@@ -1240,7 +1240,7 @@ class Client:
                 task_slug=tr.task.slug,
                 state=State.deserialize(tr.serialized_state)
                 if tr.serialized_state
-                else prefect.engine.state.Pending,
+                else prefect.engine.state.Pending(),
             )
             for tr in result.task_runs
         ]
