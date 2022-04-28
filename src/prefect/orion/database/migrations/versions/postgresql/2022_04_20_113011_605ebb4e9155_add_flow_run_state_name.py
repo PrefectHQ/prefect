@@ -37,7 +37,8 @@ def upgrade():
 
 
 def downgrade():
-    op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
-    op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
+    with op.get_context().autocommit_block():
+        op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
+        op.execute("DROP INDEX CONCURRENTLY ix_task_run__state_name")
     op.drop_column("flow_run", "state_name")
     op.drop_column("task_run", "state_name")
