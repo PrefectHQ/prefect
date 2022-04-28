@@ -175,7 +175,7 @@ class TestClientContextManager:
         threads = [
             threading.Thread(
                 target=anyio.run,
-                args=(enter_client, prefect.context.ProfileContext.get().copy()),
+                args=(enter_client, prefect.context.SettingsContext.get().copy()),
             )
             for _ in range(100)
         ]
@@ -228,7 +228,7 @@ class TestClientContextManager:
                 target=anyio.run,
                 args=(
                     enter_client_many_times,
-                    prefect.context.ProfileContext.get().copy(),
+                    prefect.context.SettingsContext.get().copy(),
                 ),
             )
             for _ in range(100)

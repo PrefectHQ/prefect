@@ -35,7 +35,7 @@ from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
-from prefect.settings import Settings
+from prefect.settings import Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 
@@ -247,31 +247,24 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
-class ProfileContext(ContextModel):
+class SettingsContext(ContextModel):
     """
-        The context for a Prefect settings profile.
+    The context for a Prefect settings.
 
-        Attributes:
-            name: The name of the profile
-            settings: The complete settings model
-    <<<<<<< HEAD
-    =======
-            env: The environment variables set in this profile configuration and their
-                current values. These may differ from the profile configuration if the
-                user has overridden them explicitly.
+    This allows for safe concurrent access and modification of settings.
 
-        Notes on usage: the attributes are initialized by the context manager
-        `prefect.context.profile`
-    >>>>>>> main
+    Attributes:
+        profile: The profile that is in use.
+        settings: The complete settings model.
     """
 
-    name: str
+    profile: Optional[Profile]
     settings: Settings
 
-    __var__ = ContextVar("profile")
+    __var__ = ContextVar("settings")
 
     def __hash__(self) -> int:
-        return hash((self.name, self.settings))
+        return hash(self.settings)
 
     def initialize(self, create_home: bool = True, setup_logging: bool = True):
         """
@@ -290,22 +283,24 @@ class ProfileContext(ContextModel):
             prefect.logging.configuration.setup_logging(self.settings)
 
 
-def get_profile_context() -> ProfileContext:
+def get_settings_context() -> SettingsContext:
     """
-    Returns a `ProfileContext` that contains the combination of user profile
+    Returns a `SettingsContext` that contains the combination of user profile
     settings and environment variable settings present when the context was initialized
     """
-    profile_ctx = ProfileContext.get()
+    settings_ctx = SettingsContext.get()
 
-    if not profile_ctx:
+    if not settings_ctx:
         raise MissingContextError("No profile context found.")
 
-    return profile_ctx
+    return settings_ctx
 
 
 @contextmanager
-def profile(
-    name: str, override_environment_variables: bool = False, initialize: bool = True
+def use_profile(
+    name: str,
+    override_environment_variables: bool = False,
+    initialize: bool = True,
 ):
     """
     Switch to a profile for the duration of this context.
@@ -321,14 +316,12 @@ def profile(
             initialize the profile manually, toggle this to `False`.
 
     Yields:
-        The created `ProfileContext` object
+        The created `SettingsContext` object
     """
-    from prefect.context import ProfileContext
-
     profiles = prefect.settings.load_profiles()
     profile = profiles[name]
 
-    existing_context = ProfileContext.get()
+    existing_context = SettingsContext.get()
     if existing_context:
         settings = existing_context.settings
     else:
@@ -341,16 +334,16 @@ def profile(
 
     new_settings = settings.copy_with_update(updates=profile.settings)
 
-    with ProfileContext(name=name, settings=new_settings) as ctx:
+    with SettingsContext(profile=profile, settings=new_settings) as ctx:
         if initialize:
             ctx.initialize()
         yield ctx
 
 
-GLOBAL_PROFILE_CM: ContextManager[ProfileContext] = None
+GLOBAL_PROFILE_CM: ContextManager[SettingsContext] = None
 
 
-def enter_global_profile():
+def enter_root_settings_context():
     """
     Enter the profile that will exist as the root context for the module.
 
@@ -367,5 +360,5 @@ def enter_global_profile():
         return  # A global context already has been entered
 
     profiles = prefect.settings.load_profiles()
-    GLOBAL_PROFILE_CM = profile(name=profiles.active_name, initialize=False)
+    GLOBAL_PROFILE_CM = use_profile(name=profiles.active_name, initialize=False)
     GLOBAL_PROFILE_CM.__enter__()

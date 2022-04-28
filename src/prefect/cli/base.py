@@ -134,15 +134,15 @@ def main(
     ),
 ):
     if profile:
-        profile_ctx = prefect.context.profile(
+        settings_ctx = prefect.context.use_profile(
             profile, override_environment_variables=True, initialize=True
         )
 
-        ctx.with_resource(profile_ctx)
+        ctx.with_resource(settings_ctx)
     else:
-        # If not given a profile, initialize the global one
-        profile_ctx = prefect.context.get_profile_context()
-        profile_ctx.initialize()
+        # If not given a profile, initialize the existing context to enable logging
+        settings_ctx = prefect.context.get_settings_context()
+        settings_ctx.initialize()
 
 
 @app.command()
@@ -163,7 +163,7 @@ async def version():
             prefect.__version_info__["date"]
         ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
-        "Profile": prefect.context.get_profile_context().name,
+        "Profile": prefect.context.get_settings_context().name,
     }
 
     is_ephemeral: Optional[bool] = None

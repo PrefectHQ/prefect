@@ -260,22 +260,22 @@ class TestOrionHandler:
         logger.removeHandler(handler)
 
     def test_handler_instances_share_log_worker(self):
-        first = OrionHandler().get_worker(prefect.context.get_profile_context())
-        second = OrionHandler().get_worker(prefect.context.get_profile_context())
+        first = OrionHandler().get_worker(prefect.context.get_settings_context())
+        second = OrionHandler().get_worker(prefect.context.get_settings_context())
         assert first is second
         assert len(OrionHandler.workers) == 1
 
     def test_log_workers_are_cached_by_profile(self):
-        a = OrionHandler().get_worker(prefect.context.get_profile_context())
+        a = OrionHandler().get_worker(prefect.context.get_settings_context())
         b = OrionHandler().get_worker(
-            prefect.context.get_profile_context().copy(update={"name": "foo"})
+            prefect.context.get_settings_context().copy(update={"name": "foo"})
         )
         assert a is not b
         assert len(OrionHandler.workers) == 2
 
     def test_instantiates_log_worker(self, mock_log_worker):
-        OrionHandler().get_worker(prefect.context.get_profile_context())
-        mock_log_worker.assert_called_once_with(prefect.context.get_profile_context())
+        OrionHandler().get_worker(prefect.context.get_settings_context())
+        mock_log_worker.assert_called_once_with(prefect.context.get_settings_context())
         mock_log_worker().start.assert_called_once_with()
 
     def test_worker_is_not_started_until_log_is_emitted(self, mock_log_worker, logger):
@@ -288,7 +288,7 @@ class TestOrionHandler:
 
     def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
         handler = OrionHandler()
-        handler.get_worker(prefect.context.get_profile_context())
+        handler.get_worker(prefect.context.get_settings_context())
         handler.close()
         mock_log_worker().flush.assert_called_once()
         # The worker cannot be stopped because it is a singleton and other handler
@@ -576,7 +576,7 @@ class TestOrionLogWorker:
 
         def get_worker():
             nonlocal worker
-            worker = OrionLogWorker(prefect.context.get_profile_context())
+            worker = OrionLogWorker(prefect.context.get_settings_context())
             return worker
 
         yield get_worker

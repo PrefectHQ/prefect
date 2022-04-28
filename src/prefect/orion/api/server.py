@@ -232,7 +232,7 @@ def create_app(
 
     if not ephemeral:
         # Initialize the profile to configure logging
-        profile = prefect.context.get_profile_context()
+        profile = prefect.context.get_settings_context()
         profile.initialize()
 
     # TODO: Move these startup functions out of this closure into the top-level or

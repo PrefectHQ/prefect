@@ -96,7 +96,7 @@ def inject_client(fn):
 
 
 def get_client() -> "OrionClient":
-    profile = prefect.context.get_profile_context()
+    profile = prefect.context.get_settings_context()
 
     return OrionClient(
         PREFECT_API_URL.value() or create_app(profile.settings, ephemeral=True),

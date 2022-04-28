@@ -607,9 +607,9 @@ def get_current_settings() -> Settings:
     Returns a settings object populated with values from the current profile or, if no
     profile is active, the environment.
     """
-    from prefect.context import ProfileContext
+    from prefect.context import SettingsContext
 
-    profile = ProfileContext.get()
+    profile = SettingsContext.get()
     if profile is not None:
         return profile.settings
 
@@ -655,6 +655,45 @@ def get_default_settings() -> Settings:
         _DEFAULTS_CACHE = settings
 
     return _DEFAULTS_CACHE
+
+
+@contextmanager
+def temporary_settings(
+    updates: Mapping[Setting, Any] = None,
+    set_defaults: Mapping[Setting, Any] = None,
+    restore_defaults: Iterable[Setting] = None,
+) -> Settings:
+    """
+    Temporarily override the current settings by entering a new profile.
+
+    See `Settings.copy_with_update` for details on different argument behavior.
+
+    Example:
+        >>> from prefect.settings import PREFECT_API_URL
+        >>>
+        >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
+        >>>    assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
+        >>>         assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
+        >>>         assert PREFECT_API_URL.value() is None
+        >>>
+        >>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
+        >>>             assert PREFECT_API_URL.value() == "bar"
+        >>> assert PREFECT_API_URL.value() is None
+    """
+    import prefect.context
+
+    settings = get_current_settings()
+
+    new_settings = settings.copy_with_update(
+        updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
+    )
+
+    with prefect.context.SettingsContext(settings=new_settings):
+        yield new_settings
 
 
 class Profile(pydantic.BaseModel):
@@ -860,85 +899,36 @@ def save_profiles(profiles: ProfilesCollection) -> None:
     return _write_profiles_to(profiles_path, profiles)
 
 
-def save_new_active_profile(name: str):
-    """
-    Persists a new active profile name
-    """
-    profiles = load_profiles()
-    profiles.set_active(name)
-    return save_profiles(profiles)
-
-
 def load_profile(name: str) -> Profile:
+    """
+    Load a single profile by name.
+    """
     profiles = load_profiles()
     try:
-        return profiles[name].settings
+        return profiles[name]
     except KeyError:
         raise ValueError(f"Profile {name!r} not found.")
 
 
-def update_profile(name: str = None, **values) -> Profile:
-    # STUB
+def update_current_profile(settings: Dict[Setting, Any]) -> Profile:
     """
-    Update a profile, adding or updating key value pairs.
+    Update the persisted data for the profile currently in-use.
 
-    If the profile does not exist, it will be created.
+    If the profile does not exist in the profiles file, it will be created.
 
-    This function is not thread safe.
-
-    Args:
-        name: The profile to update. If not set, the current profile name will be used.
-        **values: Key and value pairs to update. To unset keys, set them to `None`.
+    Given settings will be merged with the existing settings as described in
+    `ProfilesCollection.update_profile`.
 
     Returns:
-        The new settings for the profile
-    """
-    if name is None:
-        import prefect.context
-
-        name = prefect.context.get_profile_context().name
-
-    profiles = load_profiles()
-    profiles.update_profile(Profile(name=name, settings=values, source=None))
-    save_profiles(profiles)
-    return profiles[name].settings
-
-
-@contextmanager
-def temporary_settings(
-    updates: Mapping[Setting, Any] = None,
-    set_defaults: Mapping[Setting, Any] = None,
-    restore_defaults: Iterable[Setting] = None,
-    name: str = "temporary",
-) -> Settings:
-    """
-    Temporarily override the current settings by entering a new profile.
-
-    See `Settings.copy_with_update` for details on different argument behavior.
-
-    Example:
-        >>> from prefect.settings import PREFECT_API_URL
-        >>>
-        >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
-        >>>    assert PREFECT_API_URL.value() == "foo"
-        >>>
-        >>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
-        >>>         assert PREFECT_API_URL.value() == "foo"
-        >>>
-        >>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
-        >>>         assert PREFECT_API_URL.value() is None
-        >>>
-        >>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
-        >>>             assert PREFECT_API_URL.value() == "bar"
-        >>> assert PREFECT_API_URL.value() is None
+        The new profile.
     """
     import prefect.context
 
-    settings = get_current_settings()
+    current_profile = prefect.context.get_settings_context().profile
 
-    new_settings = settings.copy_with_update(
-        updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
-    )
+    profiles = load_profiles()
+    profiles.update_profile(current_profile)
+    profiles.update_profile(Profile(current_profile.name, settings=settings))
+    save_profiles(profiles)
 
-    with prefect.context.ProfileContext(name=name, settings=new_settings):
-        yield new_settings
+    return profiles[current_profile.name]
