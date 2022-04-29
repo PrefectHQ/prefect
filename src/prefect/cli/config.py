@@ -8,13 +8,7 @@ import typer
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 
 help_message = """
     Commands for interacting with Prefect settings.
@@ -25,40 +19,35 @@ app.add_typer(config_app)
 
 
 @config_app.command()
-def set(variables: List[str]):
+def set(settings: List[str]):
     """
-    Change the value for a setting.
-
-    Sets the value in the current profile.
+    Change the value for a setting by setting the value in the current profile.
     """
-    profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_settings_context()
-    env = profiles[profile.name]
-
-    parsed_variables = []
-    for variable in variables:
+    parsed_settings = {}
+    for item in settings:
         try:
-            var, value = variable.split("=", maxsplit=1)
+            setting, value = item.split("=", maxsplit=1)
         except ValueError:
             exit_with_error(
-                f"Failed to parse argument {variable!r}. Use the format 'VAR=VAL'."
+                f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        parsed_variables.append((var, value))
+        if setting not in prefect.settings.SETTING_VARIABLES:
+            exit_with_error(f"Unknown setting name {setting!r}.")
 
-    for var, value in parsed_variables:
-        env[var] = value
-        console.print(f"Set variable {var!r} to {value!r}")
+        parsed_settings[setting] = value
 
-    for var, _ in parsed_variables:
-        if var in os.environ:
-            console.print(
-                f"[yellow]{var} is also set by an environment variable which will "
-                f"override your config value. Run `unset {var}` to clear it."
+    new_profile = prefect.settings.update_current_profile(parsed_settings)
+
+    for setting, value in parsed_settings.items():
+        app.console.print(f"Set {setting!r} to {value!r}.")
+        if setting in os.environ:
+            app.console.print(
+                f"[yellow]{setting} is also set by an environment variable which will "
+                f"override your config value. Run `unset {setting}` to clear it."
             )
 
-    prefect.settings.write_profiles(profiles)
-    exit_with_success(f"Updated profile {profile.name!r}")
+    exit_with_success(f"Updated profile {new_profile.name!r}.")
 
 
 @config_app.command()
@@ -78,10 +67,10 @@ def unset(variables: List[str]):
         env.pop(var)
 
     for var in variables:
-        console.print(f"Unset variable {var!r}")
+        app.console.print(f"Unset variable {var!r}")
 
         if var in os.environ:
-            console.print(
+            app.console.print(
                 f"[yellow]{var} is also set by an environment variable. "
                 f"Use `unset {var}` to clear it."
             )
@@ -127,14 +116,14 @@ def view(
     """
     Display the current settings.
     """
-    profile = prefect.context.get_settings_context()
+    context = prefect.context.get_settings_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
     default_settings = prefect.settings.get_default_settings().dict()
     env_settings = prefect.settings.get_settings_from_env().dict()
-    current_profile_settings = profile.settings.dict()
+    current_profile_settings = context.settings.dict()
 
-    output = [f"PREFECT_PROFILE={profile.name!r}"]
+    output = [f"PREFECT_PROFILE={context.profile.name!r}"]
 
     # The combination of environment variables and profile settings that are in use
     profile_overrides = {
@@ -158,4 +147,4 @@ def view(
             source_blurb = " (from defaults)" if show_sources else ""
             output.append(f"{key}='{value}'{source_blurb}")
 
-    console.print("\n".join(output))
+    app.console.print("\n".join(output))

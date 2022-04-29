@@ -184,19 +184,18 @@ def tests_profile():
     developer may have configured.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        settings = prefect.settings.get_current_settings().copy_with_update(
-            updates={
+        profile = prefect.settings.Profile(
+            name="test-session",
+            settings={
                 prefect.settings.PREFECT_HOME: tmpdir,
                 prefect.settings.PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
-            }
+            },
+            source=__file__,
         )
 
-        with prefect.context.SettingsContext(
-            profile=None, settings=settings
-        ) as context:
+        with prefect.settings.use_profile(
+            profile,
+            override_environment_variables=True,
+        ) as ctx:
 
-            # It is important to initialize the context so logging is configured
-            # when the test run starts rather than lazily once a flow runs
-            context.initialize()
-
-            yield context
+            yield ctx

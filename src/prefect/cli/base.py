@@ -103,14 +103,14 @@ class PrefectTyper(typer.Typer):
 
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
-console = rich.console.Console(highlight=False)
+app.console = rich.console.Console(highlight=False)
 
 
 def version_callback(value: bool):
     if value:
         import prefect
 
-        console.print(prefect.__version__)
+        app.console.print(prefect.__version__)
         raise typer.Exit()
 
 
@@ -188,10 +188,10 @@ async def version():
         for key, value in object.items():
             key += ":"
             if isinstance(value, dict):
-                console.print(key)
+                app.console.print(key)
                 return display(value, nesting + 2)
             prefix = " " * nesting
-            console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
 
     display(version_info)
 
@@ -201,7 +201,7 @@ def exit_with_error(message, code=1, **kwargs):
     Utility to print a stylized error message and exit with a non-zero code
     """
     kwargs.setdefault("style", "red")
-    console.print(message, **kwargs)
+    app.console.print(message, **kwargs)
     raise typer.Exit(code)
 
 
@@ -210,5 +210,5 @@ def exit_with_success(message, **kwargs):
     Utility to print a stylized success message and exit with a zero code
     """
     kwargs.setdefault("style", "green")
-    console.print(message, **kwargs)
+    app.console.print(message, **kwargs)
     raise typer.Exit(0)

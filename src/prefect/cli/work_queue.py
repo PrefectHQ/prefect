@@ -10,13 +10,7 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -51,7 +45,7 @@ async def create(
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    console.print(Pretty(result))
+    app.console.print(Pretty(result))
 
 
 @work_app.command()
@@ -142,7 +136,7 @@ async def inspect(id: UUID):
         except ObjectNotFound:
             exit_with_error(f"No work queue found with id {id}")
 
-    console.print(Pretty(result))
+    app.console.print(Pretty(result))
 
 
 @work_app.command()
@@ -181,7 +175,7 @@ async def ls(
             row.append(queue.filter.json())
         table.add_row(*row)
 
-    console.print(table)
+    app.console.print(table)
 
 
 @work_app.command()
@@ -228,9 +222,9 @@ async def preview(
         )
 
     if runs:
-        console.print(table)
+        app.console.print(table)
     else:
-        console.print(
+        app.console.print(
             "No runs found - try increasing how far into the future you preview with the --hours flag",
             style="yellow",
         )

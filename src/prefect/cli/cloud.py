@@ -12,13 +12,7 @@ from rich.table import Table
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_CLOUD_URL,
