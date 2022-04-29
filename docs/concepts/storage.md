@@ -52,7 +52,7 @@ Found the following storage types:
 3) Local Storage
     Store data in a run's local file system
 4) S3 Storage
-    Store data in an AWS S3 bucket
+    Store data in S3 compatible storage
 5) Temporary Local Storage
     Store data in a temporary directory in a run's local file system
 Select a storage type to create:
@@ -73,3 +73,8 @@ Updated default storage!
 To see the IDs of available storage configurations, use the `prefect storage ls` command.
 
 `prefect storage reset-default` resets the default storage option to temporary local storage.
+
+### S3 compatible storage
+When need there is the option to use a S3 compatible storage like minio or Scaleway.
+To get this working you would need to provide the endpoint url when creating the storage via the CLI.
+Usually the endpoint url looks something like this ```https://bucketname.s3.nl-ams.scw.cloud```.
