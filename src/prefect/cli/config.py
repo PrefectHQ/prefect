@@ -134,7 +134,8 @@ def view(
     env_settings = prefect.settings.get_settings_from_env().dict()
     current_profile_settings = profile.settings.dict()
 
-    output = [f"PREFECT_PROFILE={profile.name!r}"]
+    profile_name = [f"PREFECT_PROFILE={profile.name!r}"]
+    output = []
 
     # The combination of environment variables and profile settings that are in use
     profile_overrides = {
@@ -155,7 +156,10 @@ def view(
 
     if show_defaults:
         for key, value in sorted(default_settings.items()):
-            source_blurb = " (from defaults)" if show_sources else ""
-            output.append(f"{key}='{value}'{source_blurb}")
+            if profile_overrides.get(key) is None:
+                source_blurb = " (from defaults)" if show_sources else ""
+                output.append(f"{key}='{value}'{source_blurb}")
 
-    console.print("\n".join(output))
+    final_output = profile_name + sorted(output)
+
+    console.print("\n".join(final_output))
