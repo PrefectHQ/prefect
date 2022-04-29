@@ -1,5 +1,0 @@
-fix:
-  - "use json instead of dict for DatabricksSubmitMultitaskRun - [#5727](https://github.com/PrefectHQ/prefect/pull/5727)"
-
-contributor:
-  - "[Robert Phamle](https://github.com/rphamle)"
