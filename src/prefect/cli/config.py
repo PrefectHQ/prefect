@@ -155,7 +155,10 @@ def view(
 
     if show_defaults:
         for key, value in sorted(default_settings.items()):
-            source_blurb = " (from defaults)" if show_sources else ""
-            output.append(f"{key}='{value}'{source_blurb}")
+            if profile_overrides.get(key) is None:
+                source_blurb = " (from defaults)" if show_sources else ""
+                output.append(f"{key}='{value}'{source_blurb}")
+
+    output.sort()
 
     console.print("\n".join(output))
