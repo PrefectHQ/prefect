@@ -4,11 +4,9 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, responses, status
 
-from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
@@ -64,7 +62,8 @@ async def read_block_by_id(
     model = await models.blocks.read_block_by_id(session=session, block_id=block_id)
     if not model:
         return responses.JSONResponse(
-            status_code=404, content={"message": "Block not found"}
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": "Block not found"},
         )
     return await schemas.core.Block.from_orm_model(session=session, orm_block=model)
 
