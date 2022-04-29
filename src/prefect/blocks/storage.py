@@ -156,6 +156,7 @@ class S3StorageBlock(StorageBlock):
     aws_session_token: Optional[str] = None
     profile_name: Optional[str] = None
     region_name: Optional[str] = None
+    endpoint_url: Optional[str] = None
 
     def block_initialization(self):
         import boto3
@@ -177,12 +178,12 @@ class S3StorageBlock(StorageBlock):
         return await run_sync_in_worker_thread(self._read_sync, key)
 
     def _write_sync(self, key: str, data: bytes) -> None:
-        s3_client = self.aws_session.client("s3")
+        s3_client = self.aws_session.client("s3", endpoint_url=self.endpoint_url)
         with io.BytesIO(data) as stream:
             s3_client.upload_fileobj(Fileobj=stream, Bucket=self.bucket, Key=key)
 
     def _read_sync(self, key: str) -> bytes:
-        s3_client = self.aws_session.client("s3")
+        s3_client = self.aws_session.client("s3", endpoint_url=self.endpoint_url)
         with io.BytesIO() as stream:
             s3_client.download_fileobj(Bucket=self.bucket, Key=key, Fileobj=stream)
             stream.seek(0)
