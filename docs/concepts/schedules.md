@@ -31,7 +31,7 @@ You create a schedule by including a `schedule` parameter as part of the [deploy
 First, import the schedule class that you want to use, then set the `schedule` parameter using an instance of that class.
 
 ```python
-from prefect import DeploymentSpec
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
 
 DeploymentSpec(
@@ -50,7 +50,7 @@ To remove all scheduled runs for a flow deployment, update the deployment with n
 A `CronSchedule` creates new flow runs according to a provided [`cron`](https://en.wikipedia.org/wiki/Cron) string. Users may also provide a timezone to enforce DST behaviors.
 
 ```python
-from prefect import DeploymentSpec
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import CronSchedule
 
 DeploymentSpec(
@@ -86,7 +86,7 @@ For more detail, please see the [`CronSchedule` API reference][prefect.orion.sch
 An `IntervalSchedule` creates new flow runs on a regular interval measured in seconds. Intervals are computed from an optional `anchor_date`.
 
 ```python
-from prefect import DeploymentSpec
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import IntervalSchedule
 from datetime import timedelta
 
@@ -147,7 +147,7 @@ RRules are appropriate for any kind of calendar-date manipulation, including sim
 You can specify an `RRuleSchedule` as either an RRule string or an `rrule` object. The following example expresses a simple `DAILY` schedule using an RRule string.
 
 ```python
-from prefect import DeploymentSpec
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import RRuleSchedule
 
 DeploymentSpec(
@@ -171,7 +171,7 @@ You may find it useful to use an RRule string generator such as the [iCalendar.o
 For example, the following deployment RRule schedule creates flow runs on Monday, Wednesday, and Friday, until June 30.
 
 ```python
-from prefect import DeploymentSpec
+from prefect.deployments import DeploymentSpec
 from prefect.orion.schemas.schedules import RRuleSchedule
 
 r_rule_str = """
