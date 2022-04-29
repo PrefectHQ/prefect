@@ -8,13 +8,7 @@ import pendulum
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.client import get_client
 from prefect.deployments import (
     deployment_specs_from_script,
@@ -74,7 +68,7 @@ async def inspect(name: str):
             exit_with_error(f"Deployment {name!r} not found!")
 
     deployment_json = deployment.dict(json_compatible=True)
-    console.print(Pretty(deployment_json))
+    app.console.print(Pretty(deployment_json))
 
 
 @deployment_app.command()
@@ -110,7 +104,7 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
             str(deployment.id),
         )
 
-    console.print(table)
+    app.console.print(table)
 
 
 @deployment_app.command()
@@ -129,7 +123,7 @@ async def run(name: str):
             exit_with_error(f"Deployment {name!r} not found!")
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
-    console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
+    app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()
@@ -146,11 +140,11 @@ async def execute(name: str):
 
     async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
-        console.print("Loading flow from deployed location...")
+        app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
-    console.print("Running flow...")
+    app.console.print("Running flow...")
     state = flow(**parameters)
 
     if state.is_failed():
@@ -215,14 +209,14 @@ async def create(path: str):
     else:
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
-    console.print(
+    app.console.print(
         f"Loading deployment specifications from {from_msg} at [green]{str(path)!r}[/]..."
     )
     try:
         specs = loader(path)
     except ScriptError as exc:
-        console.print(exc)
-        console.print(exception_traceback(exc.user_exc))
+        app.console.print(exc)
+        app.console.print(exception_traceback(exc.user_exc))
         exit_with_error(f"Failed to load specifications from {str(path)!r}")
 
     if not specs:
@@ -233,7 +227,7 @@ async def create(path: str):
         try:
             await spec.validate()
         except SpecValidationError as exc:
-            console.print(
+            app.console.print(
                 f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
                 style="red",
             )
@@ -243,25 +237,27 @@ async def create(path: str):
         stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
 
         try:
-            console.print(
+            app.console.print(
                 f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
             )
             source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
-            console.print(
+            app.console.print(
                 f"Deploying {source} using {spec.flow_storage._block_spec_name}..."
             )
             await spec.create_deployment(validate=False)
         except Exception as exc:
-            console.print(exception_traceback(exc))
-            console.print(f"Failed to create deployment {stylized_name}", style="red")
+            app.console.print(exception_traceback(exc))
+            app.console.print(
+                f"Failed to create deployment {stylized_name}", style="red"
+            )
             failed += 1
             continue  # Attempt to create the next deployment
         else:
-            console.print(f"Created deployment {stylized_name}.")
+            app.console.print(f"Created deployment {stylized_name}.")
 
             # TODO: Check for an API url and link to the UI instead if a hosted API
             #       exists
-            console.print(
+            app.console.print(
                 "View your new deployment with: "
                 f"\n\n    prefect deployment inspect {stylized_name}"
             )
