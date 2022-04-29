@@ -38,7 +38,7 @@ import anyio
 import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 
 import prefect
 import prefect.exceptions
@@ -594,7 +594,7 @@ class OrionClient:
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -653,7 +653,7 @@ class OrionClient:
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -695,7 +695,7 @@ class OrionClient:
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 409:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
@@ -742,7 +742,7 @@ class OrionClient:
         try:
             await self._client.patch(f"/work_queues/{id}", json=data)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -779,7 +779,7 @@ class OrionClient:
                 json=json_data,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -805,7 +805,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"/work_queues/{id}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -853,7 +853,7 @@ class OrionClient:
                 f"/work_queues/{id}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -882,7 +882,7 @@ class OrionClient:
                 json=payload,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 409:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
@@ -897,7 +897,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"block_specs/{name}/versions/{version}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -1076,7 +1076,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -1214,7 +1214,7 @@ class OrionClient:
         try:
             await self._client.post(f"/blocks/{block_id}/set_default_storage_block")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
