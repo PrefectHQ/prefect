@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 from prefect import flow, task
-from prefect.context import TaskRunContext
+from prefect.context import FlowRunContext
 from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
@@ -29,6 +29,7 @@ from prefect.orion.schemas.states import (
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+from prefect.utilities.collections import PartialModel, quote
 
 
 class TestOrchestrateTaskRun:
@@ -241,10 +242,45 @@ class TestOrchestrateTaskRun:
             == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED' state."
         )
 
+    async def test_quoted_parameters_are_resolved(
+        self, orion_client, flow_run, local_storage_block
+    ):
+        # Define a mock to ensure the task was not run
+        mock = MagicMock()
+
+        @task
+        def my_task(x):
+            mock(x)
+
+        # Create a task run to test
+        task_run = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="downstream",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run=task_run,
+            # Quote some data
+            parameters={"x": quote(1)},
+            wait_for=None,
+            result_storage=local_storage_block,
+            client=orion_client,
+        )
+
+        # The task ran with the unqoted data
+        mock.assert_called_once_with(1)
+
+        # Check that the state completed happily
+        assert state.is_completed()
+
     @pytest.mark.parametrize(
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
-    async def test_states_in_parameters_can_be_incomplete(
+    async def test_states_in_parameters_can_be_incomplete_if_quoted(
         self, orion_client, flow_run, upstream_task_state, local_storage_block
     ):
         # Define a mock to ensure the task was not run
@@ -267,7 +303,7 @@ class TestOrchestrateTaskRun:
             task=my_task,
             task_run=task_run,
             # Nest the future in a collection to ensure that it is found
-            parameters={"x": upstream_task_state},
+            parameters={"x": quote(upstream_task_state)},
             wait_for=None,
             result_storage=local_storage_block,
             client=orion_client,
@@ -281,8 +317,17 @@ class TestOrchestrateTaskRun:
 
 
 class TestOrchestrateFlowRun:
+    @pytest.fixture
+    def partial_flow_run_context(self, local_storage_block):
+        return PartialModel(
+            FlowRunContext,
+            task_runner=SequentialTaskRunner(),
+            sync_portal=None,
+            result_storage=local_storage_block,
+        )
+
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, monkeypatch, local_storage_block
+        self, orion_client, monkeypatch, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -317,17 +362,15 @@ class TestOrchestrateFlowRun:
             flow=foo,
             flow_run=flow_run,
             parameters={},
-            task_runner=SequentialTaskRunner(),
-            sync_portal=None,
-            result_storage=local_storage_block,
             client=orion_client,
+            partial_flow_run_context=partial_flow_run_context,
         )
 
         sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, monkeypatch, local_storage_block
+        self, orion_client, monkeypatch, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -351,10 +394,8 @@ class TestOrchestrateFlowRun:
                 flow=foo,
                 flow_run=flow_run,
                 parameters={},
-                task_runner=SequentialTaskRunner(),
-                sync_portal=None,
-                result_storage=local_storage_block,
                 client=orion_client,
+                partial_flow_run_context=partial_flow_run_context,
             )
 
         sleep.assert_not_called()

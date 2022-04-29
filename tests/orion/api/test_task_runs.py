@@ -2,6 +2,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -17,7 +18,7 @@ class TestCreateTaskRun:
             "dynamic_key": "0",
         }
         response = await client.post("/task_runs/", json=task_run_data)
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["id"]
         assert response.json()["name"] == "my-cool-task-run-name"
@@ -38,7 +39,7 @@ class TestCreateTaskRun:
 
         # recreate the same task run, ensure graceful upsert
         response = await client.post("/task_runs/", json=task_run_data)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == task_run_response.json()["id"]
 
     async def test_create_task_run_without_state(self, flow_run, client, session):
@@ -80,7 +81,7 @@ class TestCreateTaskRun:
                 dynamic_key="0",
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
@@ -93,7 +94,7 @@ class TestReadTaskRun:
     async def test_read_task_run(self, flow_run, task_run, client):
         # make sure we we can read the task run correctly
         response = await client.get(f"/task_runs/{task_run.id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(task_run.id)
         assert response.json()["flow_run_id"] == str(flow_run.id)
 
@@ -112,13 +113,13 @@ class TestReadTaskRun:
 
     async def test_read_task_run_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/task_runs/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadTaskRuns:
     async def test_read_task_runs(self, task_run, client):
         response = await client.post("/task_runs/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
@@ -130,7 +131,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
@@ -141,7 +142,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
@@ -151,7 +152,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
@@ -162,7 +163,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
@@ -172,7 +173,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
@@ -183,7 +184,7 @@ class TestReadTaskRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/task_runs/filter", json=bad_task_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
     async def test_read_task_runs_applies_sort(self, flow_run, session, client):
@@ -214,7 +215,7 @@ class TestReadTaskRuns:
                 limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(task_run_2.id)
 
         response = await client.post(
@@ -225,7 +226,7 @@ class TestReadTaskRuns:
                 sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value,
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(task_run_1.id)
 
     @pytest.mark.parametrize(
@@ -235,7 +236,7 @@ class TestReadTaskRuns:
         self, sort, task_run, client
     ):
         response = await client.post("/task_runs/filter", json=dict(sort=sort))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
 
@@ -244,7 +245,7 @@ class TestDeleteTaskRuns:
     async def test_delete_task_runs(self, task_run, client, session):
         # delete the task run
         response = await client.delete(f"/task_runs/{task_run.id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # make sure it's deleted
         task_run_id = task_run.id
@@ -254,11 +255,11 @@ class TestDeleteTaskRuns:
         )
         assert run is None
         response = await client.get(f"/task_runs/{task_run_id}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_task_run_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/task_runs/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestSetTaskRunState:
@@ -267,7 +268,7 @@ class TestSetTaskRunState:
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="RUNNING", name="Test State")),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
@@ -294,7 +295,7 @@ class TestSetTaskRunState:
                 )
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
@@ -317,7 +318,7 @@ class TestSetTaskRunState:
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="FAILED")),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
@@ -347,7 +348,7 @@ class TestSetTaskRunState:
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="FAILED"), force=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
@@ -364,5 +365,5 @@ class TestTaskRunHistory:
                 history_interval_seconds=0.9,
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"History interval must not be less than 1 second" in response.content
