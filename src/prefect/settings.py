@@ -19,6 +19,7 @@ from typing import (
     Set,
     Type,
     TypeVar,
+    Union,
 )
 
 import pydantic
@@ -686,13 +687,15 @@ def temporary_settings(
     """
     import prefect.context
 
-    settings = get_current_settings()
+    context = prefect.context.get_settings_context()
 
-    new_settings = settings.copy_with_update(
+    new_settings = context.settings.copy_with_update(
         updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
     )
 
-    with prefect.context.SettingsContext(settings=new_settings):
+    with prefect.context.SettingsContext(
+        profile=context.profile, settings=new_settings
+    ):
         yield new_settings
 
 
@@ -910,7 +913,7 @@ def load_profile(name: str) -> Profile:
         raise ValueError(f"Profile {name!r} not found.")
 
 
-def update_current_profile(settings: Dict[Setting, Any]) -> Profile:
+def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     """
     Update the persisted data for the profile currently in-use.
 
@@ -926,9 +929,12 @@ def update_current_profile(settings: Dict[Setting, Any]) -> Profile:
 
     current_profile = prefect.context.get_settings_context().profile
 
+    if not current_profile:
+        raise MissingProfileError("No profile is currently in use.")
+
     profiles = load_profiles()
     profiles.update_profile(current_profile)
-    profiles.update_profile(Profile(current_profile.name, settings=settings))
+    profiles.update_profile(Profile(name=current_profile.name, settings=settings))
     save_profiles(profiles)
 
     return profiles[current_profile.name]
@@ -936,8 +942,9 @@ def update_current_profile(settings: Dict[Setting, Any]) -> Profile:
 
 @contextmanager
 def use_profile(
-    name: str,
+    profile: Union[Profile, str],
     override_environment_variables: bool = False,
+    include_current_context: bool = True,
     initialize: bool = True,
 ):
     """
@@ -946,10 +953,13 @@ def use_profile(
     Profile contexts are confined to an async context in a single thread.
 
     Args:
-        name: The name of the profile to load. Must exist.
-        override_existing_variables: If set, variables in the profile will take
+        profile: The name of the profile to load or an instance of a Profile.
+        override_environment_variable: If set, variables in the profile will take
             precedence over current environment variables. By default, environment
             variables will override profile settings.
+        include_current_context: If set, the new settings will be constructed
+            with the current settings context as a base. If not set, the base settings
+            will be loaded from the environment and defaults.
         initialize: By default, the profile is initialized. If you would like to
             initialize the profile manually, toggle this to `False`.
 
@@ -958,11 +968,21 @@ def use_profile(
     """
     from prefect.context import SettingsContext
 
-    profiles = load_profiles()
-    profile = profiles[name]
+    if isinstance(profile, str):
+        profiles = load_profiles()
+        profile = profiles[profile]
+
+    if not isinstance(profile, Profile):
+        raise TypeError(
+            f"Unexpected type {type(profile).__name__!r} for `profile`. "
+            "Expected 'str' or 'Profile'."
+        )
+
+    # Create a copy of the profiles settings as we will mutate it
+    profile_settings = profile.settings.copy()
 
     existing_context = SettingsContext.get()
-    if existing_context:
+    if existing_context and include_current_context:
         settings = existing_context.settings
     else:
         settings = get_settings_from_env()
@@ -970,9 +990,9 @@ def use_profile(
     if not override_environment_variables:
         for key in os.environ:
             if key in SETTING_VARIABLES:
-                profile.settings.pop(SETTING_VARIABLES[key], None)
+                profile_settings.pop(SETTING_VARIABLES[key], None)
 
-    new_settings = settings.copy_with_update(updates=profile.settings)
+    new_settings = settings.copy_with_update(updates=profile_settings)
 
     with SettingsContext(profile=profile, settings=new_settings) as ctx:
         if initialize:

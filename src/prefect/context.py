@@ -165,7 +165,7 @@ class SettingsContext(ContextModel):
         settings: The complete settings model.
     """
 
-    profile: Optional[Profile]
+    profile: Profile
     settings: Settings
 
     __var__ = ContextVar("settings")
@@ -304,6 +304,6 @@ def enter_root_settings_context():
 
     profiles = prefect.settings.load_profiles()
     GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
-        name=profiles.active_name, initialize=False
+        profile=profiles.active_profile, initialize=False
     )
     GLOBAL_SETTINGS_CM.__enter__()

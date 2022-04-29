@@ -10,7 +10,7 @@ from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.cli.base import PrefectTyper, app, exit_with_error
 from prefect.client import get_client
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -36,7 +36,7 @@ async def inspect(id: UUID):
             else:
                 raise
 
-    console.print(Pretty(flow_run))
+    app.console.print(Pretty(flow_run))
 
 
 @flow_run_app.command()
@@ -88,4 +88,4 @@ async def ls(
             pendulum.instance(timestamp).diff_for_humans(),
         )
 
-    console.print(table)
+    app.console.print(table)

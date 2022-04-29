@@ -8,13 +8,7 @@ import typer
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 
 profile_app = PrefectTyper(
     name="profile", help="Commands for interacting with your Prefect profiles."
@@ -33,9 +27,9 @@ def ls():
 
     for name in profiles:
         if name == current_name:
-            console.print(f"* {name}")
+            app.console.print(f"* {name}")
         else:
-            console.print(name)
+            app.console.print(name)
 
 
 @profile_app.command()
@@ -49,7 +43,7 @@ def create(
 
     profiles = prefect.settings.load_profiles()
     if name in profiles:
-        console.print(
+        app.console.print(
             textwrap.dedent(
                 f"""
                 [red]Profile {name!r} already exists.[/red]
@@ -75,7 +69,7 @@ def create(
 
     prefect.settings.save_profiles(profiles)
 
-    console.print(
+    app.console.print(
         textwrap.dedent(
             f"""
             [green]Created profile {name!r}{from_blurb}.[/green]
@@ -158,4 +152,4 @@ def inspect(name: str):
         print(f"Profile {name!r} is empty.")
 
     for setting, value in profiles[name].settings.items():
-        console.print(f"{setting.name}='{value}'")
+        app.console.print(f"{setting.name}='{value}'")
