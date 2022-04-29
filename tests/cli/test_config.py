@@ -8,9 +8,15 @@ import prefect.context
 import prefect.settings
 from prefect.cli import app
 from prefect.settings import (
+    PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_PROFILES_PATH,
+    SETTING_VARIABLES,
+    Profile,
+    ProfilesCollection,
+    load_profiles,
+    save_profiles,
     temporary_settings,
     use_profile,
 )
@@ -34,49 +40,128 @@ def temporary_profiles_path(tmp_path):
         yield path
 
 
-def test_set_while_using_default_profile():
+def test_set_using_default_profile():
+    with use_profile("default"):
+        invoke_and_assert(
+            ["config", "set", "PREFECT_LOGGING_LEVEL=DEBUG"],
+            expected_output=(
+                """
+                Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+                Updated profile 'default'.
+                """
+            ),
+        )
+
+    profiles = load_profiles()
+    assert "default" in profiles
+    assert profiles["default"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+
+
+def test_set_using_profile_flag():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
     invoke_and_assert(
-        ["config", "set", "PREFECT_LOGGING_LEVEL='DEBUG'"],
+        ["--profile", "foo", "config", "set", "PREFECT_LOGGING_LEVEL=DEBUG"],
         expected_output=(
             """
-            Set 'PREFECT_LOGGING_LEVEL' to "'DEBUG'".
-            Updated profile 'test-session'.
+            Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+            Updated profile 'foo'.
             """
         ),
     )
 
-
-def test_view_excludes_unset_settings_by_default():
-    """Default values should be hidden by default"""
-    res = invoke_and_assert(["config", "view", "--show-sources"])
-
-    config_items = res.stdout.split("\n")
-    for item in config_items:
-        assert DEFAULT_STRING not in item
-
-    assert res.exit_code == 0
-
-
-def test_view_with_show_defaults_includes_unset_settings():
-    settings = prefect.settings.get_settings_from_env().dict()
-
-    # Force show-sources, because we are relying on it to identify defaults
-    res = invoke_and_assert(["config", "view", "--show-defaults", "--show-sources"])
-
-    # Assumes that we will have at least one default setting
-    assert DEFAULT_STRING in res.stdout
-
-    # Each setting is on its own line, so if all settings, including defaults
-    # are being shown, this should be at least as long as settings
-    printed_output = re.split(r"\nP", res.stdout.strip())
-    assert len(printed_output) >= len(settings)
-
-    assert res.exit_code == 0
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
 
 
 @pytest.mark.usefixtures("disable_terminal_wrapping")
-def test_view_shows_setting_sources_by_default(monkeypatch):
+def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
+    # Clear the environment
+    for key in SETTING_VARIABLES:
+        monkeypatch.delenv(key, raising=False)
 
+    monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
+
+    with prefect.settings.use_profile(
+        prefect.settings.Profile(
+            name="foo",
+            settings={
+                PREFECT_ORION_DATABASE_TIMEOUT: 2.0,
+                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: 1000001,
+            },
+        ),
+        include_current_context=True,
+        initialize=False,
+    ) as ctx:
+        res = invoke_and_assert(["config", "view", "--hide-sources"])
+
+        # Collect just settings that are set
+        expected = ctx.settings.dict(exclude_unset=True)
+
+    lines = res.stdout.splitlines()
+    assert lines[0] == "PREFECT_PROFILE='foo'"
+
+    # Parse the output for settings displayed, skip the first PREFECT_PROFILE line
+    printed_settings = {}
+    for line in lines[1:]:
+        setting, value = line.split("=", maxsplit=1)
+        assert (
+            setting not in printed_settings
+        ), f"Setting displayed multiple times: {setting}"
+        printed_settings[setting] = value
+
+    assert (
+        printed_settings.keys() == expected.keys()
+    ), "Only set keys should be included."
+
+    for key, value in printed_settings.items():
+        assert (
+            repr(str(expected[key])) == value
+        ), "Displayed setting does not match set value."
+
+    assert len(expected) < len(
+        SETTING_VARIABLES
+    ), "All settings were expected; we should only have a subset."
+
+
+@pytest.mark.usefixtures("disable_terminal_wrapping")
+def test_view_includes_unset_settings_with_show_defaults():
+    expected_settings = prefect.settings.get_current_settings().dict()
+
+    res = invoke_and_assert(["config", "view", "--show-defaults", "--hide-sources"])
+
+    lines = res.stdout.splitlines()
+
+    # Parse the output for settings displayed, skip the first PREFECT_PROFILE line
+    printed_settings = {}
+    for line in lines[1:]:
+        setting, value = line.split("=", maxsplit=1)
+        assert (
+            setting not in printed_settings
+        ), f"Setting displayed multiple times: {setting}"
+        printed_settings[setting] = value
+
+    assert (
+        printed_settings.keys() == SETTING_VARIABLES.keys()
+    ), "All settings should be displayed"
+
+    for key, value in printed_settings.items():
+        assert (
+            value == f"'{expected_settings[key]}'"
+        ), "Displayed setting does not match set value."
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["config", "view"],  # --show-sources is default behavior
+        ["config", "view", "--show-sources"],
+        ["config", "view", "--show-defaults"],
+    ],
+)
+@pytest.mark.usefixtures("disable_terminal_wrapping")
+def test_view_shows_setting_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 
     with prefect.settings.use_profile(
@@ -89,7 +174,7 @@ def test_view_shows_setting_sources_by_default(monkeypatch):
         ),
         include_current_context=False,
     ):
-        res = invoke_and_assert(["config", "view"])
+        res = invoke_and_assert(command)
 
     lines = res.stdout.splitlines()
 
@@ -107,9 +192,25 @@ def test_view_shows_setting_sources_by_default(monkeypatch):
     assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001' {PROFILE_STRING}" in lines
     assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5' {ENV_STRING}" in lines
 
+    if "--show-defaults" in command:
+        # Check that defaults sources are correct by checking an unset setting
+        assert (
+            f"PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' {DEFAULT_STRING}"
+            in lines
+        )
 
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["config", "view", "--hide-sources"],
+        ["config", "view", "--hide-sources", "--show-defaults"],
+    ],
+)
 @pytest.mark.usefixtures("disable_terminal_wrapping")
-def test_view_with_hide_sources_excludes_sources():
+def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
+    monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
+
     with prefect.settings.use_profile(
         prefect.settings.Profile(
             name="foo",
@@ -119,7 +220,7 @@ def test_view_with_hide_sources_excludes_sources():
             },
         ),
     ):
-        res = invoke_and_assert(["config", "view", "--hide-sources"])
+        res = invoke_and_assert(command)
 
     lines = res.stdout.splitlines()
 
@@ -128,3 +229,12 @@ def test_view_with_hide_sources_excludes_sources():
         assert not any(
             line.endswith(s) for s in [DEFAULT_STRING, PROFILE_STRING, ENV_STRING]
         ), f"Source included in line: {line}"
+
+    # Ensure that the settings that we know are set are still included
+    assert f"PREFECT_ORION_DATABASE_TIMEOUT='2.0'" in lines
+    assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001'" in lines
+    assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
+
+    if "--show-defaults" in command:
+        # Check that defaults are included correctly by checking an unset setting
+        assert f"PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0'" in lines
