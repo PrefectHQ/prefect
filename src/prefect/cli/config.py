@@ -123,7 +123,10 @@ def view(
     env_settings = prefect.settings.get_settings_from_env().dict()
     current_profile_settings = context.settings.dict()
 
-    output = [f"PREFECT_PROFILE={context.profile.name!r}"]
+    # Display the profile first
+    app.console.print(f"PREFECT_PROFILE={context.profile.name!r}")
+
+    settings_output = []
 
     # The combination of environment variables and profile settings that are in use
     profile_overrides = {
@@ -140,12 +143,12 @@ def view(
     for key, value in profile_overrides.items():
         source = "env" if env_overrides.get(key) is not None else "profile"
         source_blurb = f" (from {source})" if show_sources else ""
-        output.append(f"{key}='{value}'{source_blurb}")
+        settings_output.append(f"{key}='{value}'{source_blurb}")
 
     if show_defaults:
-        for key, value in sorted(default_settings.items()):
-            if profile_overrides.get(key) is None:
+        for key, value in default_settings.items():
+            if key not in profile_overrides:
                 source_blurb = " (from defaults)" if show_sources else ""
-                output.append(f"{key}='{value}'{source_blurb}")
+                settings_output.append(f"{key}='{value}'{source_blurb}")
 
-    app.console.print("\n".join(output))
+    app.console.print("\n".join(sorted(settings_output)))
