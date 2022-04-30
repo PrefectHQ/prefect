@@ -552,6 +552,7 @@ classes = ["SecretBase", "PrefectSecret", "EnvVarSecret"]
 title = "Snowflake Tasks"
 module = "prefect.tasks.snowflake"
 classes = ["SnowflakeQuery", "SnowflakeQueriesFromFile"]
+verified_task = true
 
 [pages.tasks.sodasql]
 title = "SodaSQL Tasks"
