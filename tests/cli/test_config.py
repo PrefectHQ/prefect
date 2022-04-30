@@ -8,6 +8,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli import app
 from prefect.settings import (
+    PREFECT_API_KEY,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_ORION_DATABASE_TIMEOUT,
@@ -73,6 +74,254 @@ def test_set_using_profile_flag():
     profiles = load_profiles()
     assert "foo" in profiles
     assert profiles["foo"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+
+
+def test_set_with_unknown_setting():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_FOO=BAR"],
+        expected_output=(
+            """
+            Unknown setting name 'PREFECT_FOO'.
+            """
+        ),
+        expected_code=1,
+    )
+
+
+@pytest.mark.usefixtures("disable_terminal_wrapping")
+def test_set_with_invalid_value_type():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_ORION_DATABASE_TIMEOUT=HELLO"],
+        expected_output=(
+            """
+            Validation error for setting 'PREFECT_ORION_DATABASE_TIMEOUT': value is not a valid float
+            Invalid setting value.
+            """
+        ),
+        expected_code=1,
+    )
+
+
+def test_set_with_unparsable_setting():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_FOO_BAR"],
+        expected_output=(
+            """
+            Failed to parse argument 'PREFECT_FOO_BAR'. Use the format 'VAR=VAL'.
+            """
+        ),
+        expected_code=1,
+    )
+
+
+def test_set_setting_with_equal_sign_in_value():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_API_KEY=foo=bar"],
+        expected_output=(
+            """
+            Set 'PREFECT_API_KEY' to 'foo=bar'.
+            Updated profile 'foo'.
+            """
+        ),
+    )
+
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {PREFECT_API_KEY: "foo=bar"}
+
+
+def test_set_multiple_settings():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "set",
+            "PREFECT_API_KEY=FOO",
+            "PREFECT_LOGGING_LEVEL=DEBUG",
+        ],
+        expected_output=(
+            """
+            Set 'PREFECT_API_KEY' to 'FOO'.
+            Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+            Updated profile 'foo'.
+            """
+        ),
+    )
+
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {
+        PREFECT_LOGGING_LEVEL: "DEBUG",
+        PREFECT_API_KEY: "FOO",
+    }
+
+
+def test_unset_retains_other_keys():
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="foo",
+                    settings={
+                        PREFECT_LOGGING_LEVEL: "DEBUG",
+                        PREFECT_API_KEY: "FOO",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "unset",
+            "PREFECT_API_KEY",
+        ],
+        expected_output=(
+            """
+            Unset 'PREFECT_API_KEY'
+            Updated profile 'foo'
+            """
+        ),
+    )
+
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+
+
+@pytest.mark.usefixtures("disable_terminal_wrapping")
+def test_unset_warns_if_present_in_environment(monkeypatch):
+    monkeypatch.setenv("PREFECT_API_KEY", "TEST")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="foo",
+                    settings={PREFECT_API_KEY: "FOO"},
+                )
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "unset",
+            "PREFECT_API_KEY",
+        ],
+        expected_output=(
+            """
+            Unset 'PREFECT_API_KEY'
+            'PREFECT_API_KEY' is also set by an environment variable. Use `unset PREFECT_API_KEY` to clear it.
+            Updated profile 'foo'
+            """
+        ),
+    )
+
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {}
+
+
+def test_unset_with_unknown_setting():
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", "PREFECT_FOO"],
+        expected_output=(
+            """
+            Unknown setting name 'PREFECT_FOO'.
+            """
+        ),
+        expected_code=1,
+    )
+
+
+def test_unset_with_setting_not_in_profile():
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="foo",
+                    settings={PREFECT_API_KEY: "FOO"},
+                )
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "unset",
+            "PREFECT_LOGGING_LEVEL",
+        ],
+        expected_output=(
+            """
+           'PREFECT_LOGGING_LEVEL' is not set in profile 'foo'.
+            """
+        ),
+        expected_code=1,
+    )
+
+
+def test_unset_multiple_settings():
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="foo",
+                    settings={
+                        PREFECT_LOGGING_LEVEL: "DEBUG",
+                        PREFECT_API_KEY: "FOO",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        [
+            "--profile",
+            "foo",
+            "config",
+            "unset",
+            "PREFECT_API_KEY",
+            "PREFECT_LOGGING_LEVEL",
+        ],
+        expected_output=(
+            """
+            Unset 'PREFECT_API_KEY'
+            Unset 'PREFECT_LOGGING_LEVEL'
+            Updated profile 'foo'
+            """
+        ),
+    )
+
+    profiles = load_profiles()
+    assert "foo" in profiles
+    assert profiles["foo"].settings == {}
 
 
 @pytest.mark.usefixtures("disable_terminal_wrapping")
