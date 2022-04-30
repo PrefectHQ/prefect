@@ -66,8 +66,8 @@ class TestSnowflakeQuery:
         # missing user
         with pytest.raises(ValueError):
             SnowflakeQuery().run(account="test", password="test")
-        # missing password
-        with pytest.raises(ValueError):
+        # missing auth
+        with pytest.raises(ValueError, match="An authentication keyword"):
             SnowflakeQuery().run(account="test", user="test")
         # missing query
         with pytest.raises(ValueError):
@@ -233,8 +233,8 @@ class TestSnowflakeQueriesFromFile:
         # missing user
         with pytest.raises(ValueError):
             SnowflakeQueriesFromFile().run(account="test", password="test")
-        # missing password
-        with pytest.raises(ValueError):
+        # missing auth
+        with pytest.raises(ValueError, match="An authentication keyword"):
             SnowflakeQuery().run(account="test", user="test")
         # missing file
         with pytest.raises(ValueError):

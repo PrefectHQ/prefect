@@ -17,9 +17,9 @@ class SnowflakeQuery(Task):
              package documentation for details
         - user (str): user name used to authenticate
         - password (str, optional): password used to authenticate.
-            password or private_key must be present
+            password or private_key must be present, unless authenticator is provided
         - private_key (bytes, optional): pem to authenticate.
-            password or private_key must be present
+            password or private_key must be present, unless authenticator is provided
         - database (str, optional): name of the default database to use
         - schema (int, optional): name of the default schema to use
         - role (str, optional): name of the default role to use
@@ -117,9 +117,9 @@ class SnowflakeQuery(Task):
                 package documentation for details
             - user (str, optional): user name used to authenticate
             - password (str, optional): password used to authenticate.
-                password or private_lkey must be present
+                password or private_key must be present, unless authenticator is provided
             - private_key (bytes, optional): pem to authenticate.
-                password or private_key must be present
+                password or private_key must be present, unless authenticator is provided
             - database (str, optional): name of the default database to use
             - schema (int, optional): name of the default schema to use
             - role (str, optional): name of the default role to use
@@ -146,12 +146,12 @@ class SnowflakeQuery(Task):
             - ValueError: if a required parameter is not supplied
             - DatabaseError: if exception occurs when executing the query
         """
+        auth_kwargs = (password, private_key, authenticator, token)
         if not account:
             raise ValueError("An account must be provided")
-        if not user:
-            raise ValueError("A user must be provided")
-        if password is None and private_key is None:
-            raise ValueError("Either password or private key must be provided")
+        if all(auth_kwarg is None for auth_kwarg in auth_kwargs):
+            raise ValueError(
+                f"An authentication keyword must be provided: {auth_kwargs}")
         if not query:
             raise ValueError("A query string must be provided")
 
@@ -203,9 +203,9 @@ class SnowflakeQueriesFromFile(Task):
              package documentation for details
         - user (str, optional): user name used to authenticate
         - password (str, optional): password used to authenticate.
-            password or private_lkey must be present
+            password or private_key must be present, unless authenticator is provided
         - private_key (bytes, optional): pem to authenticate.
-            password or private_key must be present
+            password or private_key must be present, unless authenticator is provided
         - database (str, optional): name of the default database to use
         - schema (int, optional): name of the default schema to use
         - role (str, optional): name of the default role to use
@@ -297,9 +297,9 @@ class SnowflakeQueriesFromFile(Task):
                 package documentation for details
             - user (str): user name used to authenticate
             - password (str, optional): password used to authenticate.
-                password or private_lkey must be present
+                password or private_key must be present, unless authenticator is provided
             - private_key (bytes, optional): pem to authenticate.
-                password or private_key must be present
+                password or private_key must be present, unless authenticator is provided
             - database (str, optional): name of the default database to use
             - schema (int, optional): name of the default schema to use
             - role (str, optional): name of the default role to use
@@ -325,12 +325,14 @@ class SnowflakeQueriesFromFile(Task):
             - DatabaseError: if exception occurs when executing the query
             - FileNotFoundError: if File does not exist
         """
+        auth_kwargs = (password, private_key, authenticator, token)
         if account is None:
             raise ValueError("An account must be provided")
         if user is None:
             raise ValueError("A user must be provided")
-        if password is None and private_key is None:
-            raise ValueError("Either password or private key must be provided")
+        if all(auth_kwarg is None for auth_kwarg in auth_kwargs):
+            raise ValueError(
+                f"An authentication keyword must be provided: {auth_kwargs}")
         if file_path is None:
             raise ValueError("A file path must be provided")
 
