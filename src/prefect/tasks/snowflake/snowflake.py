@@ -151,7 +151,8 @@ class SnowflakeQuery(Task):
             raise ValueError("An account must be provided")
         if all(auth_kwarg is None for auth_kwarg in auth_kwargs):
             raise ValueError(
-                f"An authentication keyword must be provided: {auth_kwargs}")
+                f"An authentication keyword must be provided: {auth_kwargs}"
+            )
         if not query:
             raise ValueError("A query string must be provided")
 
@@ -328,7 +329,8 @@ class SnowflakeQueriesFromFile(Task):
             raise ValueError("A user must be provided")
         if all(auth_kwarg is None for auth_kwarg in auth_kwargs):
             raise ValueError(
-                f"An authentication keyword must be provided: {auth_kwargs}")
+                f"An authentication keyword must be provided: {auth_kwargs}"
+            )
         if file_path is None:
             raise ValueError("A file path must be provided")
 
