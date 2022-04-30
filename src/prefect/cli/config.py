@@ -4,6 +4,7 @@ Command line interface for working with profiles
 import os
 from typing import List, Optional
 
+import pydantic
 import typer
 
 import prefect.context
@@ -18,8 +19,8 @@ config_app = PrefectTyper(name="config", help=help_message)
 app.add_typer(config_app)
 
 
-@config_app.command()
-def set(settings: List[str]):
+@config_app.command("set")
+def set_(settings: List[str]):
     """
     Change the value for a setting by setting the value in the current profile.
     """
@@ -39,6 +40,16 @@ def set(settings: List[str]):
 
     new_profile = prefect.settings.update_current_profile(parsed_settings)
 
+    try:
+        with prefect.settings.use_profile(new_profile):
+            pass
+    except pydantic.ValidationError as exc:
+        for error in exc.errors():
+            setting = error["loc"][0]
+            message = error["msg"]
+            app.console.print(f"Validation error for setting {setting!r}: {message}")
+        exit_with_error("Invalid setting value.")
+
     for setting, value in parsed_settings.items():
         app.console.print(f"Set {setting!r} to {value!r}.")
         if setting in os.environ:
@@ -51,31 +62,42 @@ def set(settings: List[str]):
 
 
 @config_app.command()
-def unset(variables: List[str]):
+def unset(settings: List[str]):
     """
     Restore the default value for a setting.
 
     Removes the setting from the current profile.
     """
     profiles = prefect.settings.load_profiles()
-    profile = prefect.context.get_settings_context()
-    env = profiles[profile.name]
+    profile = profiles[prefect.context.get_settings_context().profile.name]
+    parsed = set()
 
-    for var in variables:
-        if var not in env:
-            exit_with_error(f"Variable {var!r} not found in profile {profile.name!r}.")
-        env.pop(var)
+    for setting in settings:
+        if setting not in prefect.settings.SETTING_VARIABLES:
+            exit_with_error(f"Unknown setting name {setting!r}.")
+        # Cast to settings objects
+        parsed.add(prefect.settings.SETTING_VARIABLES[setting])
 
-    for var in variables:
-        app.console.print(f"Unset variable {var!r}")
+    for setting in parsed:
+        if setting not in profile.settings:
+            exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
-        if var in os.environ:
+    profiles.update_profile(
+        prefect.settings.Profile(
+            name=profile.name, settings={setting: None for setting in parsed}
+        )
+    )
+
+    for setting in settings:
+        app.console.print(f"Unset {setting!r}")
+
+        if setting in os.environ:
             app.console.print(
-                f"[yellow]{var} is also set by an environment variable. "
-                f"Use `unset {var}` to clear it."
+                f"[yellow]{setting!r} is also set by an environment variable. "
+                f"Use `unset {setting}` to clear it."
             )
 
-    prefect.settings.write_profiles(profiles)
+    prefect.settings.save_profiles(profiles)
     exit_with_success(f"Updated profile {profile.name!r}")
 
 
