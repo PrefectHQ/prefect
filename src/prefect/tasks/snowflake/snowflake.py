@@ -180,15 +180,11 @@ class SnowflakeQuery(Task):
 
         # connect to database, open cursor
         conn = sf.connect(**connect_params)
-        # try to execute query
-        # context manager automatically rolls back failed transactions
-        try:
-            with conn:
-                with conn.cursor(cursor_type) as cursor:
-                    executed = cursor.execute(query, params=data).fetchall()
-            return executed
-        finally:
-            conn.close()
+        # context manager automatically rolls back failed transactions and closes
+        with conn:
+            with conn.cursor(cursor_type) as cursor:
+                executed = cursor.execute(query, params=data).fetchall()
+        return executed
 
 
 class SnowflakeQueriesFromFile(Task):
@@ -364,13 +360,9 @@ class SnowflakeQueriesFromFile(Task):
 
         # try to execute query
         # context manager automatically rolls back failed transactions
-        try:
-            # load query from file
-            query = Path(file_path).read_text()
-            with conn:
-                cursor_list = conn.execute_string(query, cursor_class=cursor_type)
-                result = [cursor.fetchall() for cursor in cursor_list]
-            return result
-        # ensure connection is closed
-        finally:
-            conn.close()
+        # load query from file
+        query = Path(file_path).read_text()
+        with conn:
+            cursor_list = conn.execute_string(query, cursor_class=cursor_type)
+            result = [cursor.fetchall() for cursor in cursor_list]
+        return result
