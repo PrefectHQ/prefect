@@ -551,7 +551,7 @@ classes = ["SecretBase", "PrefectSecret", "EnvVarSecret"]
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"
 module = "prefect.tasks.snowflake"
-classes = ["SnowflakeQuery"]
+classes = ["SnowflakeQuery", "SnowflakeQueriesFromFile"]
 
 [pages.tasks.sodasql]
 title = "SodaSQL Tasks"
