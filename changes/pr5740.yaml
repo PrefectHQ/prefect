@@ -1,0 +1,6 @@
+task:
+  - "Adds 2 SFTP server tasks. 1 for SftpUpload and 1 for SftpDownload
+   - [#1234](https://github.com/PrefectHQ/prefect/pull/5740)"
+
+contributor:
+  - "[Mate Hricz](https://github.com/Matt9993)"
