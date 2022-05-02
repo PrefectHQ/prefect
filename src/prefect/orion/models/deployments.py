@@ -347,6 +347,9 @@ async def _generate_scheduled_flow_runs(
     does NOT insert generated runs into the database, in order to facilitate
     batch operations. Call `_insert_scheduled_flow_runs()` to insert these runs.
 
+    Runs include an idempotency key which prevents duplicate runs from being inserted
+    if the output from this function is used more than once.
+
     Args:
         session: a database session
         deployment_id: the id of the deployment to schedule
