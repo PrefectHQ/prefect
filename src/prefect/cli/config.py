@@ -83,9 +83,7 @@ def unset(settings: List[str]):
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
     profiles.update_profile(
-        prefect.settings.Profile(
-            name=profile.name, settings={setting: None for setting in parsed}
-        )
+        name=profile.name, settings={setting: None for setting in parsed}
     )
 
     for setting in settings:

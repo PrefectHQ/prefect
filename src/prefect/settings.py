@@ -700,6 +700,10 @@ def temporary_settings(
 
 
 class Profile(pydantic.BaseModel):
+    """
+    A user profile containing settings.
+    """
+
     name: str
     settings: Dict[Setting, Any] = Field(default_factory=dict)
     source: Optional[Path]
@@ -726,41 +730,48 @@ class Profile(pydantic.BaseModel):
 
 
 class ProfilesCollection:
+    """ "
+    A utility class for working with a collection of profiles.
+
+    Profiles in the collection must have unique names.
+
+    The collection may store the name of the active profile.
+    """
+
     def __init__(self, profiles: Iterable[Profile], active: Optional[str]) -> None:
         self.profiles_by_name = {profile.name: profile for profile in profiles}
         self.active_name = active
 
     @property
     def names(self) -> Set[str]:
+        """
+        Return a set of profile names in this collection.
+        """
         return set(self.profiles_by_name.keys())
 
     @property
     def active_profile(self) -> Optional[Profile]:
+        """
+        Retrieve the active profile in this collection.
+        """
         if self.active_name is None:
             return None
         return self[self.active_name]
 
     def set_active(self, name: Optional[str]):
+        """
+        Set the active profile name in the collection.
+
+        A null value may be passed to indicate that this collection does not determine
+        the active profile.
+        """
         if name is not None and name not in self.names:
             raise ValueError(f"Unknown profile name {name!r}.")
         self.active_name = name
 
-    def update_active_profile(self, settings: Dict[Setting, Any]) -> None:
-        if self.active_profile is None:
-            raise RuntimeError("No active profile set in collection.")
-
-        self.active_profile.source = None
-
-        new_settings = {**self.active_profile.settings, **settings}
-
-        # Drop null keys to restore to default
-        for key, value in tuple(new_settings.items()):
-            if value is None:
-                new_settings.pop(key)
-
-        self.active_profile.settings = new_settings
-
-    def update_profile(self, profile: Profile) -> None:
+    def update_profile(
+        self, name: str, settings: Mapping[Union[Dict, str], Any]
+    ) -> Profile:
         """
         Add a profile to the collection or update the existing on if the name is already
         present in this collection.
@@ -768,8 +779,14 @@ class ProfilesCollection:
         If updating an existing profile, the settings will be merged. Settings can
         be dropped from the existing profile by setting them to `None` in the new
         profile.
+
+        Returns the new profile object.
         """
-        existing = self.profiles_by_name.get(profile.name)
+        existing = self.profiles_by_name.get(name)
+
+        # Convert the input to a `Profile` to cast settings to the correct type
+        profile = Profile(name=name, settings=settings)
+
         if existing:
             new_settings = {**existing.settings, **profile.settings}
 
@@ -786,10 +803,35 @@ class ProfilesCollection:
 
         self.profiles_by_name[new_profile.name] = new_profile
 
+        return new_profile
+
+    def add_profile(self, profile: Profile) -> None:
+        """
+        Add a profile to the collection.
+
+        If the profile name already exists, an exception will be raised.
+        """
+        if profile.name in self.profiles_by_name:
+            raise ValueError(
+                f"Profile name {profile.name!r} already exists in collection."
+            )
+
+        self.profiles_by_name[profile.name] = profile
+
     def remove_profile(self, name: str) -> None:
+        """
+        Remove a profile from the collection.
+        """
         self.profiles_by_name.pop(name)
 
     def with_new_profiles(self, other: "ProfilesCollection") -> "ProfilesCollection":
+        """
+        Add profiles from another collection.
+
+        Profile name collisions will be result in the profile from the new collection.
+
+        Returns a new collection.
+        """
         return ProfilesCollection(
             [*self.profiles_by_name.values(), *other.profiles_by_name.values()],
             active=other.active_name or self.active_name,
@@ -798,6 +840,8 @@ class ProfilesCollection:
     def without_profile_source(self, path: Path) -> "ProfilesCollection":
         """
         Remove profiles that were loaded from a given path.
+
+        Returns a new collection.
         """
         return ProfilesCollection(
             [
@@ -809,6 +853,9 @@ class ProfilesCollection:
         )
 
     def to_dict(self):
+        """
+        Convert to a dictionary suitable for writing to disk.
+        """
         return {
             "active": self.active_name,
             "profiles": {
@@ -933,8 +980,12 @@ def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
         raise MissingProfileError("No profile is currently in use.")
 
     profiles = load_profiles()
-    profiles.update_profile(current_profile)
-    profiles.update_profile(Profile(name=current_profile.name, settings=settings))
+
+    # Ensure the current profile's settings are present
+    profiles.update_profile(current_profile.name, current_profile.settings)
+    # Then merge the new settings in
+    profiles.update_profile(current_profile.name, settings)
+
     save_profiles(profiles)
 
     return profiles[current_profile.name]
