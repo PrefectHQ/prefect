@@ -791,3 +791,8 @@ title = "Transform Tasks"
 module = "prefect.tasks.transform"
 classes = ["TransformCreateMaterialization"]
 verified_task = true
+
+[pages.tasks.sftp]
+title = "SFTP Tasks"
+module = "prefect.tasks.sftp"
+classes = ["SftpDownload", "SftpUpload"]
