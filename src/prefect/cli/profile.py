@@ -60,12 +60,12 @@ def create(
             exit_with_error(f"Profile {from_name!r} not found.")
 
         # Create a copy of the profile with a new name and add to the collection
-        profiles.update_profile(profiles[from_name].copy(update={"name": name}))
+        profiles.add_profile(profiles[from_name].copy(update={"name": name}))
 
         from_blurb = f" matching {from_name!r}"
     else:
         from_blurb = ""
-        profiles.update_profile(prefect.settings.Profile(name=name, settings={}))
+        profiles.add_profile(prefect.settings.Profile(name=name, settings={}))
 
     prefect.settings.save_profiles(profiles)
 
@@ -131,7 +131,7 @@ def rename(name: str, new_name: str):
     if new_name in profiles:
         exit_with_error(f"Profile {new_name!r} already exists.")
 
-    profiles.update_profile(profiles[name].copy(update={"name": new_name}))
+    profiles.add_profile(profiles[name].copy(update={"name": new_name}))
     profiles.remove_profile(name)
 
     prefect.settings.save_profiles(profiles)
