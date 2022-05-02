@@ -10,6 +10,7 @@ from prefect.orion.orchestration.global_policy import (
     SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
+    SetRunStateName,
     SetRunStateType,
     SetStartTime,
     UpdateSubflowParentTask,
@@ -22,7 +23,7 @@ from prefect.orion.schemas import core, states
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestGlobalPolicyRules:
     @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
-    async def test_rule_updates_run_state(
+    async def test_rule_updates_run_state_type(
         self, session, run_type, initialize_orchestration, proposed_state_type
     ):
         initial_state_type = None
@@ -38,6 +39,27 @@ class TestGlobalPolicyRules:
 
         run = ctx.run
         assert run.state_type == proposed_state_type
+
+    async def test_rule_updates_run_state_name(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        initial_state_type = None
+        proposed_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        async with SetRunStateName(ctx) as ctx:
+            await ctx.validate_proposed_state()
+
+        run = ctx.run
+        assert run.state_name == ctx.proposed_state.name
 
     async def test_rule_sets_scheduled_time(
         self,

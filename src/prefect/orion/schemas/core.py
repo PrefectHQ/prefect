@@ -329,7 +329,6 @@ class Deployment(ORMBaseModel):
         description="The flow runner to assign to flow runs associated with this deployment.",
     )
 
-    # flow: Flow = None
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
