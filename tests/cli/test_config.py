@@ -1,12 +1,8 @@
-import re
-import textwrap
-
 import pytest
 from typer.testing import CliRunner
 
 import prefect.context
 import prefect.settings
-from prefect.cli import app
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_LOGGING_LEVEL,
@@ -30,8 +26,6 @@ Testing Typer tutorial here: https://typer.tiangolo.com/tutorial/testing/
 DEFAULT_STRING = "(from defaults)"
 ENV_STRING = "(from env)"
 PROFILE_STRING = "(from profile)"
-
-runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
