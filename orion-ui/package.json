@@ -30,7 +30,7 @@
     "@types/faker": "^5.5.9",
     "@types/jest": "^27.4.1",
     "@types/jest-dev-server": "^5.0.0",
-    "@types/jest-environment-puppeteer": "^5.0.0",
+    "@types/jest-environment-puppeteer": "^5.0.2",
     "@types/puppeteer": "^5.4.5",
     "@types/sass-loader": "^8.0.3",
     "@vitejs/plugin-vue": "^2.3.1",
