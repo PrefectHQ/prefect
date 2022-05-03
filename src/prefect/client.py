@@ -1740,9 +1740,11 @@ class OrionClient:
 
         if self._ephemeral_app:
             self.logger.debug(
-                "Ephemeral application connecting to database at "
+                "Using ephemeral application with database at "
                 f"{PREFECT_ORION_DATABASE_CONNECTION_URL.value()}"
             )
+        else:
+            self.logger.debug(f"Connecting to API at {self.api_url}")
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
