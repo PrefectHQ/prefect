@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
-import pytest, socket
+import pytest
 from paramiko import Transport, SFTPClient
-from tasks.sftp import SftpDownload, SftpUpload
+from prefect.tasks.sftp.sftp import SftpDownload, SftpUpload
 
 
 @pytest.fixture
@@ -87,7 +87,7 @@ class TestSftpDownload:
             )
 
     # test to check if the ddl/dml query was executed
-    def test_execute_query(self, mock_conn):
+    def test_execute_download(self, mock_conn):
         """
         Tests that the SftpDownload Task can download a file.
         """
@@ -111,7 +111,7 @@ class TestSftpDownload:
 class TestSftpUpload:
     def test_construction(self):
         """
-        Tests that all required params are present for SftpDownload Task.
+        Tests that all required params are present for SftpUpload Task.
         """
         task = SftpUpload(
             host="test",
@@ -119,12 +119,14 @@ class TestSftpUpload:
             password="test",
             username="test",
             remote_path="test",
+            local_path="test",
         )
         assert task.host == "test"
         assert task.username == "test"
         assert task.password == "test"
         assert task.port_number == 22
         assert task.remote_path == "test"
+        assert task.local_path == "test"
 
     def test_required_params(self):
         """
@@ -191,20 +193,19 @@ class TestSftpUpload:
             )
 
     # test to check if the ddl/dml query was executed
-    def test_execute_query(self, mock_conn):
+    def test_execute_upload(self, mock_conn):
         """
-        Tests that the SftpDownload Task can download a file.
+        Tests that the SftpUpload Task can download a file.
         """
         connection = mock_conn
-        remote_path = "foo-home/sftp-test.csv"
-        connection().__enter__().get.return_value = remote_path
+        connection().__enter__().upload.return_value = True
 
-        sftp_upload_task = SftpDownload(
+        sftp_upload_task = SftpUpload(
             host="test",
             port_number=22,
             password="test",
             username="test",
-            remote_path=remote_path,
+            remote_path="foo-home/sftp-test.csv",
             local_path="foo-home/sftp-test.csv",
         )
         sftp_upload_task._connection = connection
