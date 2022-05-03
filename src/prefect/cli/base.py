@@ -134,7 +134,7 @@ def main(
         is_eager=True,
     ),
 ):
-    if profile:
+    if profile and not prefect.context.get_settings_context().profile.name == profile:
         settings_ctx = prefect.settings.use_profile(
             profile, override_environment_variables=True
         )

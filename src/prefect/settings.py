@@ -957,15 +957,6 @@ def load_profiles() -> ProfilesCollection:
     if user_profiles_path.exists():
         profiles = profiles.with_new_profiles(_read_profiles_from(user_profiles_path))
 
-    active_profile_from_env = os.getenv("PREFECT_PROFILE")
-    if active_profile_from_env:
-        if active_profile_from_env not in profiles.names:
-            raise ValueError(
-                "Environment variable 'PREFECT_PROFILE' is set to an unknown profile "
-                f"name: {active_profile_from_env!r}."
-            )
-        profiles.active_name = active_profile_from_env
-
     return profiles
 
 
