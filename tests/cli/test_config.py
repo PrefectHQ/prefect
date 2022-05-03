@@ -1,8 +1,8 @@
 import pytest
-from typer.testing import CliRunner
 
 import prefect.context
 import prefect.settings
+from prefect.context import use_profile
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
@@ -15,7 +15,6 @@ from prefect.settings import (
     load_profiles,
     save_profiles,
     temporary_settings,
-    use_profile,
 )
 from prefect.testing.cli import disable_terminal_wrapping, invoke_and_assert
 
@@ -326,7 +325,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
 
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 
-    with prefect.settings.use_profile(
+    with prefect.context.use_profile(
         prefect.settings.Profile(
             name="foo",
             settings={
@@ -406,7 +405,7 @@ def test_view_includes_unset_settings_with_show_defaults():
 def test_view_shows_setting_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 
-    with prefect.settings.use_profile(
+    with prefect.context.use_profile(
         prefect.settings.Profile(
             name="foo",
             settings={
@@ -453,7 +452,7 @@ def test_view_shows_setting_sources(monkeypatch, command):
 def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 
-    with prefect.settings.use_profile(
+    with prefect.context.use_profile(
         prefect.settings.Profile(
             name="foo",
             settings={

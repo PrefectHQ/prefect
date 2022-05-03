@@ -137,7 +137,7 @@ def main(
     if profile and not prefect.context.get_settings_context().profile.name == profile:
         # Generally, the profile should entered by `enter_root_settings_context`.
         # In the cases where it is not (i.e. CLI testing), we will enter it here.
-        settings_ctx = prefect.settings.use_profile(
+        settings_ctx = prefect.context.use_profile(
             profile, override_environment_variables=True
         )
         ctx.with_resource(settings_ctx)

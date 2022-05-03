@@ -41,7 +41,7 @@ def set_(settings: List[str]):
     new_profile = prefect.settings.update_current_profile(parsed_settings)
 
     try:
-        with prefect.settings.use_profile(new_profile):
+        with prefect.context.use_profile(new_profile):
             pass
     except pydantic.ValidationError as exc:
         for error in exc.errors():
