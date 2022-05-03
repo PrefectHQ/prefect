@@ -16,15 +16,12 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
-from prefect.testing.cli import disable_terminal_wrapping, invoke_and_assert
+from prefect.testing.cli import invoke_and_assert
 
-"""
-Testing Typer tutorial here: https://typer.tiangolo.com/tutorial/testing/
-"""
-
-DEFAULT_STRING = "(from defaults)"
-ENV_STRING = "(from env)"
-PROFILE_STRING = "(from profile)"
+# Source strings displayed by `prefect config view`
+FROM_DEFAULT = "(from defaults)"
+FROM_ENV = "(from env)"
+FROM_PROFILE = "(from profile)"
 
 
 @pytest.fixture(autouse=True)
@@ -425,18 +422,18 @@ def test_view_shows_setting_sources(monkeypatch, command):
     for line in lines[1:]:
         # Assert that each line ends with a source
         assert any(
-            line.endswith(s) for s in [DEFAULT_STRING, PROFILE_STRING, ENV_STRING]
+            line.endswith(s) for s in [FROM_DEFAULT, FROM_PROFILE, FROM_ENV]
         ), f"Source missing from line: {line}"
 
     # Assert that sources are correct
-    assert f"PREFECT_ORION_DATABASE_TIMEOUT='2.0' {PROFILE_STRING}" in lines
-    assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001' {PROFILE_STRING}" in lines
-    assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5' {ENV_STRING}" in lines
+    assert f"PREFECT_ORION_DATABASE_TIMEOUT='2.0' {FROM_PROFILE}" in lines
+    assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001' {FROM_PROFILE}" in lines
+    assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5' {FROM_ENV}" in lines
 
     if "--show-defaults" in command:
         # Check that defaults sources are correct by checking an unset setting
         assert (
-            f"PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' {DEFAULT_STRING}"
+            f"PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' {FROM_DEFAULT}"
             in lines
         )
 
@@ -468,7 +465,7 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
     for line in lines:
         # Assert that each line does not end with a source
         assert not any(
-            line.endswith(s) for s in [DEFAULT_STRING, PROFILE_STRING, ENV_STRING]
+            line.endswith(s) for s in [FROM_DEFAULT, FROM_PROFILE, FROM_ENV]
         ), f"Source included in line: {line}"
 
     # Ensure that the settings that we know are set are still included
