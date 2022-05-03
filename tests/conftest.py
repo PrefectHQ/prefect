@@ -196,6 +196,11 @@ def tests_profile():
         with prefect.settings.use_profile(
             profile,
             override_environment_variables=True,
+            include_current_context=False,
         ) as ctx:
+
+            assert (
+                not prefect.settings.PREFECT_API_URL.value()
+            ), "Tests cannot be run against an API"
 
             yield ctx
