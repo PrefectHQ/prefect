@@ -18,10 +18,12 @@ from prefect.context import (
 )
 from prefect.exceptions import MissingContextError
 from prefect.settings import (
+    DEFAULT_PROFILES_PATH,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
     Profile,
+    load_profile,
     temporary_settings,
     use_profile,
 )
@@ -280,7 +282,10 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.settings.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         enter_root_settings_context()
-        use_profile.assert_called_once_with(name="default", initialize=False)
+        use_profile.assert_called_once_with(
+            profile=Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            initialize=False,
+        )
         use_profile().__enter__.assert_called_once_with()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
 
@@ -310,4 +315,6 @@ class TestSettingsContext:
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setenv("PREFECT_PROFILE", "test")
         enter_root_settings_context()
-        use_profile.assert_called_once_with(name="test", initialize=False)
+        use_profile.assert_called_once_with(
+            profile=load_profile("test"), initialize=False
+        )

@@ -208,7 +208,7 @@ class TestFlowCall:
 
         global_context = prefect.context.get_settings_context()
         with prefect.context.SettingsContext(
-            profile=None, settings=global_context.settings
+            profile=global_context.profile, settings=global_context.settings
         ) as context:
             object.__setattr__(context, "initialize", mock)
 
