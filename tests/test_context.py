@@ -15,6 +15,7 @@ from prefect.context import (
     enter_root_settings_context,
     get_run_context,
     get_settings_context,
+    use_profile,
 )
 from prefect.exceptions import MissingContextError
 from prefect.settings import (
@@ -25,10 +26,8 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
-    load_profile,
     save_profiles,
     temporary_settings,
-    use_profile,
 )
 from prefect.task_runners import SequentialTaskRunner
 
@@ -273,7 +272,7 @@ class TestSettingsContext:
     def test_enter_global_profile_default(self, monkeypatch):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -301,7 +300,7 @@ class TestSettingsContext:
     ):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -319,7 +318,7 @@ class TestSettingsContext:
     def test_enter_global_profile_respects_cli(self, monkeypatch, foo_profile):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -339,7 +338,7 @@ class TestSettingsContext:
     ):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -353,7 +352,7 @@ class TestSettingsContext:
     def test_enter_global_profile_missing_cli(self, monkeypatch):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -368,7 +367,7 @@ class TestSettingsContext:
     def test_enter_global_profile_missing_environment_variables(self, monkeypatch):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
@@ -383,7 +382,7 @@ class TestSettingsContext:
     def test_enter_global_profile_is_idempotent(self, monkeypatch):
         use_profile = MagicMock()
         setup_logging = MagicMock()
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging

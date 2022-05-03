@@ -1,5 +1,6 @@
 import pytest
 
+from prefect.context import use_profile
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
@@ -10,7 +11,6 @@ from prefect.settings import (
     load_profiles,
     save_profiles,
     temporary_settings,
-    use_profile,
 )
 from prefect.testing.cli import invoke_and_assert
 

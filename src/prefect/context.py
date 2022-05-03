@@ -222,7 +222,7 @@ def get_settings_context() -> SettingsContext:
     settings that are being used.
 
     Generally, the settings that are being used are a combination of values from the
-    profile and environment. See `prefect.settings.use_profile` for more details.
+    profile and environment. See `prefect.context.use_profile` for more details.
     """
     settings_ctx = SettingsContext.get()
 
@@ -289,6 +289,61 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
+@contextmanager
+def use_profile(
+    profile: Union[Profile, str],
+    override_environment_variables: bool = False,
+    include_current_context: bool = True,
+):
+    """
+    Switch to a profile for the duration of this context.
+
+    Profile contexts are confined to an async context in a single thread.
+
+    Args:
+        profile: The name of the profile to load or an instance of a Profile.
+        override_environment_variable: If set, variables in the profile will take
+            precedence over current environment variables. By default, environment
+            variables will override profile settings.
+        include_current_context: If set, the new settings will be constructed
+            with the current settings context as a base. If not set, the use_base settings
+            will be loaded from the environment and defaults.
+        initialize: By default, the profile is initialized. If you would like to
+            initialize the profile manually, toggle this to `False`.
+
+    Yields:
+        The created `SettingsContext` object
+    """
+    if isinstance(profile, str):
+        profiles = prefect.settings.load_profiles()
+        profile = profiles[profile]
+
+    if not isinstance(profile, Profile):
+        raise TypeError(
+            f"Unexpected type {type(profile).__name__!r} for `profile`. "
+            "Expected 'str' or 'Profile'."
+        )
+
+    # Create a copy of the profiles settings as we will mutate it
+    profile_settings = profile.settings.copy()
+
+    existing_context = SettingsContext.get()
+    if existing_context and include_current_context:
+        settings = existing_context.settings
+    else:
+        settings = prefect.settings.get_settings_from_env()
+
+    if not override_environment_variables:
+        for key in os.environ:
+            if key in prefect.settings.SETTING_VARIABLES:
+                profile_settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
+
+    new_settings = settings.copy_with_update(updates=profile_settings)
+
+    with SettingsContext(profile=profile, settings=new_settings) as ctx:
+        yield ctx
+
+
 GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
 
 
@@ -331,7 +386,7 @@ def enter_root_settings_context():
             f"Prefect profile {active_name!r} set by {profile_source} not found."
         )
 
-    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
+    GLOBAL_SETTINGS_CM = use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
         override_environment_variables=profile_source == "command line argument",

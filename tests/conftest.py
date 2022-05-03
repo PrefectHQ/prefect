@@ -212,7 +212,7 @@ def testing_session_settings():
             source=__file__,
         )
 
-        with prefect.settings.use_profile(
+        with prefect.context.use_profile(
             profile,
             override_environment_variables=True,
             include_current_context=False,
