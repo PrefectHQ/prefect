@@ -19,11 +19,14 @@ from prefect.context import (
 from prefect.exceptions import MissingContextError
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
+    PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_PROFILES_PATH,
     Profile,
+    ProfilesCollection,
     load_profile,
+    save_profiles,
     temporary_settings,
     use_profile,
 )
@@ -257,7 +260,17 @@ class TestSettingsContext:
                 source=temporary_profiles_path,
             )
 
-    def test_enter_global_profile(self, monkeypatch):
+    @pytest.fixture
+    def foo_profile(self, temporary_profiles_path):
+        profile = Profile(
+            name="foo",
+            settings={PREFECT_API_KEY: "xxx"},
+            source=temporary_profiles_path,
+        )
+        save_profiles(ProfilesCollection(profiles=[profile]))
+        return profile
+
+    def test_enter_global_profile_default(self, monkeypatch):
         use_profile = MagicMock()
         setup_logging = MagicMock()
         monkeypatch.setattr("prefect.settings.use_profile", use_profile)
@@ -267,11 +280,105 @@ class TestSettingsContext:
         )
         enter_root_settings_context()
         use_profile.assert_called_once_with(
-            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH)
+            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
         setup_logging.assert_called_once()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
+
+    @pytest.mark.parametrize(
+        "cli_command",
+        [
+            # No profile name provided
+            ["prefect", "--profile"],
+            # Not called via `prefect` CLI
+            ["foobar", "--profile", "test"],
+        ],
+    )
+    def test_enter_global_profile_default_if_cli_args_do_not_match_format(
+        self, monkeypatch, cli_command
+    ):
+        use_profile = MagicMock()
+        setup_logging = MagicMock()
+        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        monkeypatch.setattr("sys.argv", cli_command)
+        enter_root_settings_context()
+        use_profile.assert_called_once_with(
+            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
+            override_environment_variables=False,
+        )
+        use_profile().__enter__.assert_called_once_with()
+        setup_logging.assert_called_once()
+        assert prefect.context.GLOBAL_SETTINGS_CM is not None
+
+    def test_enter_global_profile_respects_cli(self, monkeypatch, foo_profile):
+        use_profile = MagicMock()
+        setup_logging = MagicMock()
+        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        monkeypatch.setattr("sys.argv", ["prefect", "--profile", "foo"])
+        enter_root_settings_context()
+        use_profile.assert_called_once_with(
+            foo_profile,
+            override_environment_variables=True,
+        )
+        use_profile().__enter__.assert_called_once_with()
+        setup_logging.assert_called_once()
+        assert prefect.context.GLOBAL_SETTINGS_CM is not None
+
+    def test_enter_global_profile_respects_environment_variable(
+        self, monkeypatch, foo_profile
+    ):
+        use_profile = MagicMock()
+        setup_logging = MagicMock()
+        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        monkeypatch.setenv("PREFECT_PROFILE", "foo")
+        enter_root_settings_context()
+        use_profile.assert_called_once_with(
+            foo_profile, override_environment_variables=False
+        )
+
+    def test_enter_global_profile_missing_cli(self, monkeypatch):
+        use_profile = MagicMock()
+        setup_logging = MagicMock()
+        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        monkeypatch.setattr("sys.argv", ["prefect", "--profile", "bar"])
+        with pytest.raises(
+            ValueError,
+            match="Prefect profile 'bar' set by command line argument not found",
+        ):
+            enter_root_settings_context()
+
+    def test_enter_global_profile_missing_environment_variables(self, monkeypatch):
+        use_profile = MagicMock()
+        setup_logging = MagicMock()
+        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
+        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
+        monkeypatch.setenv("PREFECT_PROFILE", "bar")
+        with pytest.raises(
+            ValueError,
+            match="Prefect profile 'bar' set by environment variable not found",
+        ):
+            enter_root_settings_context()
 
     def test_enter_global_profile_is_idempotent(self, monkeypatch):
         use_profile = MagicMock()
@@ -287,25 +394,3 @@ class TestSettingsContext:
         use_profile.assert_called_once()
         use_profile().__enter__.assert_called_once()
         setup_logging.assert_called_once()
-
-    def test_enter_global_profile_respects_name_env_variable(
-        self, monkeypatch, temporary_profiles_path
-    ):
-        use_profile = MagicMock()
-        setup_logging = MagicMock()
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [profiles.test]
-                PREFECT_API_KEY = "xxx"
-                """
-            )
-        )
-        monkeypatch.setattr("prefect.settings.use_profile", use_profile)
-        monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
-        monkeypatch.setenv("PREFECT_PROFILE", "test")
-        enter_root_settings_context()
-        use_profile.assert_called_once_with(load_profile("test"))
