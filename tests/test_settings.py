@@ -7,6 +7,7 @@ import pytest
 import prefect.context
 import prefect.settings
 from prefect.settings import (
+    DEFAULT_PROFILES_PATH,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_DEBUG_MODE,
@@ -19,6 +20,7 @@ from prefect.settings import (
     PREFECT_ORION_UI_API_URL,
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
+    PREFECT_TEST_SETTING,
     Profile,
     ProfilesCollection,
     Settings,
@@ -27,7 +29,6 @@ from prefect.settings import (
     load_profiles,
     save_profiles,
     temporary_settings,
-    update_profile,
 )
 
 
@@ -145,10 +146,9 @@ def test_temporary_settings():
 
 
 def test_temporary_settings_can_restore_to_defaults_values():
-    assert PREFECT_TEST_MODE.value() is True
-    with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "ERROR"}):
-        with temporary_settings(restore_defaults={PREFECT_LOGGING_LEVEL}):
-            assert PREFECT_LOGGING_LEVEL.value() == PREFECT_LOGGING_LEVEL.field.default
+    with temporary_settings(updates={PREFECT_TEST_SETTING: "FOO"}):
+        with temporary_settings(restore_defaults={PREFECT_TEST_SETTING}):
+            assert PREFECT_TEST_SETTING.value() == PREFECT_TEST_SETTING.field.default
 
 
 def test_temporary_settings_restores_on_error():
@@ -196,7 +196,7 @@ def test_prefect_home_expands_tilde_in_path():
     assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
 
-class TestProfiles:
+class TestProfilesReadWrite:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
@@ -246,7 +246,7 @@ class TestProfiles:
             active="default",
         )
 
-    def test_write_profiles_does_not_include_default(self, temporary_profiles_path):
+    def test_save_profiles_does_not_include_default(self, temporary_profiles_path):
         """
         Including the default has a tendency to bake in settings the user may not want, and
         can prevent them from gaining new defaults.
@@ -254,7 +254,7 @@ class TestProfiles:
         save_profiles(ProfilesCollection(active=None, profiles=[]))
         assert "profiles.default" not in temporary_profiles_path.read_text()
 
-    def test_write_profiles_additional_profiles(self, temporary_profiles_path):
+    def test_save_profiles_additional_profiles(self, temporary_profiles_path):
         save_profiles(
             ProfilesCollection(
                 profiles=[
@@ -286,7 +286,9 @@ class TestProfiles:
         )
 
     def test_load_profile_default(self):
-        assert load_profile("default") == {}
+        assert load_profile("default") == Profile(
+            name="default", settings={}, source=DEFAULT_PROFILES_PATH
+        )
 
     def test_load_profile_missing(self):
         with pytest.raises(ValueError, match="Profile 'foo' not found."):
@@ -302,10 +304,14 @@ class TestProfiles:
                 """
             )
         )
-        assert load_profile("foo") == {
-            PREFECT_API_KEY: "bar",
-            PREFECT_DEBUG_MODE: 1,
-        }
+        assert load_profile("foo") == Profile(
+            name="foo",
+            settings={
+                PREFECT_API_KEY: "bar",
+                PREFECT_DEBUG_MODE: 1,
+            },
+            source=temporary_profiles_path,
+        )
 
     def test_load_profile_does_not_allow_nested_data(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
@@ -333,44 +339,46 @@ class TestProfiles:
         with pytest.raises(ValueError, match="Unknown setting.*'test'"):
             load_profile("foo")
 
-    def test_update_profile_adds_key(self, temporary_profiles_path):
-        update_profile(name="test", PREFECT_API_URL="hello")
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}
 
-    def test_update_profile_updates_key(self, temporary_profiles_path):
-        update_profile(name="test", PREFECT_API_URL="hello")
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}
-        update_profile(name="test", PREFECT_API_URL="goodbye")
-        assert load_profile("test") == {PREFECT_API_URL: "goodbye"}
+class TestProfilesCollection:
+    def test_update_profile_adds_key(self):
+        profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "hello"}
 
-    def test_update_profile_removes_key(self, temporary_profiles_path):
-        update_profile(name="test", PREFECT_API_URL="hello")
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}
-        update_profile(name="test", PREFECT_API_URL=None)
-        assert load_profile("test") == {}
+    def test_update_profile_updates_key(self):
+        profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "hello"}
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "goodbye"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "goodbye"}
 
-    def test_update_profile_mixed_add_and_update(self, temporary_profiles_path):
-        update_profile(name="test", PREFECT_API_URL="hello")
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}
-        update_profile(
-            name="test", PREFECT_API_URL="goodbye", PREFECT_LOGGING_LEVEL="DEBUG"
+    def test_update_profile_removes_key(self):
+        profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "hello"}
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: None})
+        assert profiles["test"].settings == {}
+
+    def test_update_profile_mixed_add_and_update(self):
+        profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "hello"}
+        profiles.update_profile(
+            name="test",
+            settings={PREFECT_API_URL: "goodbye", PREFECT_LOGGING_LEVEL: "DEBUG"},
         )
-        assert load_profile("test") == {
+        assert profiles["test"].settings == {
             PREFECT_API_URL: "goodbye",
             PREFECT_LOGGING_LEVEL: "DEBUG",
         }
 
-    def test_update_profile_retains_existing_keys(self, temporary_profiles_path):
-        update_profile(name="test", PREFECT_API_URL="hello")
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}
-        update_profile(name="test", PREFECT_LOGGING_LEVEL="DEBUG")
-        assert load_profile("test") == {
+    def test_update_profile_retains_existing_keys(self):
+        profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
+        profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
+        assert profiles["test"].settings == {PREFECT_API_URL: "hello"}
+        profiles.update_profile(name="test", settings={PREFECT_LOGGING_LEVEL: "DEBUG"})
+        assert profiles["test"].settings == {
             PREFECT_API_URL: "hello",
             PREFECT_LOGGING_LEVEL: "DEBUG",
         }
-
-    def test_update_profile_uses_current_profile_name(self, temporary_profiles_path):
-        with prefect.context.SettingsContext(settings=get_current_settings()):
-            update_profile(PREFECT_API_URL="hello")
-
-        assert load_profile("test") == {PREFECT_API_URL: "hello"}

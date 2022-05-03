@@ -136,13 +136,9 @@ def main(
 ):
     if profile:
         settings_ctx = prefect.settings.use_profile(
-            profile, override_environment_variables=True, initialize=True
+            profile, override_environment_variables=True
         )
         ctx.with_resource(settings_ctx)
-    else:
-        # If not given a profile, initialize the existing context to enable logging
-        settings_ctx = prefect.context.get_settings_context()
-        settings_ctx.initialize()
 
 
 @app.command()

@@ -4,6 +4,7 @@ Async and thread safe models for passing runtime context data.
 These contexts should never be directly mutated by the user.
 """
 import os
+import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import ContextManager, List, Optional, Set, Type, TypeVar, Union
@@ -22,7 +23,7 @@ from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
-from prefect.settings import Profile, Settings
+from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 
@@ -173,21 +174,24 @@ class SettingsContext(ContextModel):
     def __hash__(self) -> int:
         return hash(self.settings)
 
-    def initialize(self, create_home: bool = True, setup_logging: bool = True):
+    def __enter__(self):
         """
         Upon initialization, we can create the home directory contained in the settings and
         configure logging. These steps are optional. Logging can only be set up once per
         process and later attempts to configure logging will fail.
         """
-        if create_home and not os.path.exists(
-            prefect.settings.PREFECT_HOME.value_from(self.settings)
-        ):
-            os.makedirs(
-                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
+        return_value = super().__enter__()
+
+        try:
+            os.makedirs(self.settings.value_of(PREFECT_HOME), exist_ok=True)
+        except OSError:
+            warnings.warn(
+                "Failed to create the Prefect home directory at "
+                f"{self.settings.value_of(PREFECT_HOME)}",
+                stacklevel=2,
             )
 
-        if setup_logging:
-            prefect.logging.configuration.setup_logging(self.settings)
+        return return_value
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
@@ -303,7 +307,9 @@ def enter_root_settings_context():
         return  # A global context already has been entered
 
     profiles = prefect.settings.load_profiles()
-    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
-        profile=profiles.active_profile, initialize=False
-    )
-    GLOBAL_SETTINGS_CM.__enter__()
+
+    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(profiles.active_profile)
+
+    global_profile = GLOBAL_SETTINGS_CM.__enter__()
+
+    prefect.logging.configuration.setup_logging(global_profile.settings)

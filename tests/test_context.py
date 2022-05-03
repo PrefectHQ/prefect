@@ -187,11 +187,11 @@ class TestSettingsContext:
         with pytest.raises(MissingContextError, match="No settings context found"):
             get_settings_context()
 
-    def test_creates_home_if_asked(self, tmp_path):
+    def test_creates_home(self, tmp_path):
         home = tmp_path / "home"
         assert not home.exists()
         with temporary_settings(updates={PREFECT_HOME: home}):
-            get_settings_context().initialize(create_home=True)
+            pass
 
         assert home.exists()
 
@@ -213,33 +213,13 @@ class TestSettingsContext:
                 source=temporary_profiles_path,
             )
 
-    def test_settings_context_sets_up_logging_if_asked(
-        self, monkeypatch, temporary_profiles_path
-    ):
-        setup_logging = MagicMock()
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
-        temporary_profiles_path.write_text(
-            textwrap.dedent(
-                """
-                [profiles.foo]
-                PREFECT_API_URL = "test"
-                """
-            )
-        )
-        with use_profile("foo", initialize=False) as ctx:
-            ctx.initialize(setup_logging=True)
-            setup_logging.assert_called_once_with(ctx.settings)
-
-    def test_settings_context_does_not_setup_logging_if_asked(self, monkeypatch):
+    def test_settings_context_does_not_setup_logging(self, monkeypatch):
         setup_logging = MagicMock()
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
 
-        with use_profile("default", initialize=False) as ctx:
-            ctx.initialize(setup_logging=False)
+        with use_profile("default"):
             setup_logging.assert_not_called()
 
     def test_settings_context_nesting(self, temporary_profiles_path):
@@ -279,30 +259,40 @@ class TestSettingsContext:
 
     def test_enter_global_profile(self, monkeypatch):
         use_profile = MagicMock()
+        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.settings.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
         enter_root_settings_context()
         use_profile.assert_called_once_with(
-            profile=Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
-            initialize=False,
+            Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH)
         )
         use_profile().__enter__.assert_called_once_with()
+        setup_logging.assert_called_once()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
 
     def test_enter_global_profile_is_idempotent(self, monkeypatch):
         use_profile = MagicMock()
+        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.settings.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
         enter_root_settings_context()
         enter_root_settings_context()
         enter_root_settings_context()
         use_profile.assert_called_once()
         use_profile().__enter__.assert_called_once()
+        setup_logging.assert_called_once()
 
     def test_enter_global_profile_respects_name_env_variable(
         self, monkeypatch, temporary_profiles_path
     ):
         use_profile = MagicMock()
+        setup_logging = MagicMock()
         temporary_profiles_path.write_text(
             textwrap.dedent(
                 """
@@ -313,8 +303,9 @@ class TestSettingsContext:
         )
         monkeypatch.setattr("prefect.settings.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
+        monkeypatch.setattr(
+            "prefect.logging.configuration.setup_logging", setup_logging
+        )
         monkeypatch.setenv("PREFECT_PROFILE", "test")
         enter_root_settings_context()
-        use_profile.assert_called_once_with(
-            profile=load_profile("test"), initialize=False
-        )
+        use_profile.assert_called_once_with(load_profile("test"))

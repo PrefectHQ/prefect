@@ -15,7 +15,7 @@ from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(scope="session", autouse=True)
-def db():
+def db(testing_session_settings):
     return provide_database_interface()
 
 
@@ -44,6 +44,10 @@ async def setup_db(database_engine, db):
         # build the database
         await db.create_db()
         yield
+
+    except:
+
+        raise RuntimeError(f"Failed to set up the database at {database_engine.url!r}")
 
     finally:
         # tear down the database

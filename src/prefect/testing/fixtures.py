@@ -1,10 +1,11 @@
+import os
 import sys
 
 import anyio
 import httpx
 import pytest
 
-from prefect.settings import PREFECT_API_URL, temporary_settings
+from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 
 
 @pytest.fixture(scope="session")
@@ -36,6 +37,7 @@ async def hosted_orion_api():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env={**get_current_settings().to_environment_variables(), **os.environ},
     )
 
     api_url = "http://localhost:2222/api"
@@ -47,16 +49,17 @@ async def hosted_orion_api():
             with anyio.move_on_after(10):
                 while True:
                     try:
+                        print("Connecting...")
                         response = await client.get(api_url + "/admin/hello")
-                    except httpx.ConnectError:
-                        pass
+                    except httpx.ConnectError as exc:
+                        print("Connect error", exc)
                     else:
                         if response.status_code == 200:
                             break
                     await anyio.sleep(0.1)
             if response:
                 response.raise_for_status()
-            if not response:
+            if response is None:
                 raise RuntimeError(
                     "Timed out while attempting to connect to hosted test Orion."
                 )
@@ -65,7 +68,6 @@ async def hosted_orion_api():
         yield api_url
 
     finally:
-        # Cleanup the process
         try:
             process.terminate()
         except Exception:

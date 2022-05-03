@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import pathlib
 import tempfile
 import warnings
@@ -10,6 +9,15 @@ import pytest
 
 import prefect
 import prefect.settings
+from prefect.settings import (
+    PREFECT_HOME,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_ORION_ANALYTICS_ENABLED,
+    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_PROFILES_PATH,
+)
 from prefect.testing.fixtures import *
 
 from .fixtures.api import *
@@ -177,18 +185,29 @@ def tests_dir() -> pathlib.Path:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def tests_profile():
+def testing_session_settings():
     """
-    Creates a fixture for the scope of the test session that sets the PREFECT_HOME to
-    a temporary directory to avoid clobbering environments and settings that the
-    developer may have configured.
+    Creates a fixture for the scope of the test session that modifies setting defaults.
+
+    This ensures that tests are isolated from existing settings, databases, etc.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         profile = prefect.settings.Profile(
             name="test-session",
             settings={
-                prefect.settings.PREFECT_HOME: tmpdir,
-                prefect.settings.PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+                # Set PREFECT_HOME to a temporary directory to avoid clobbering
+                # environments and settings
+                PREFECT_HOME: tmpdir,
+                PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+                # Enable debug logging
+                PREFECT_LOGGING_LEVEL: "DEBUG",
+                # Disable shipping logs to the API;
+                # can be enabled by the `enable_orion_handler` mark
+                PREFECT_LOGGING_ORION_ENABLED: False,
+                # Disable services for test runs
+                PREFECT_ORION_ANALYTICS_ENABLED: False,
+                PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
+                PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
             },
             source=__file__,
         )
@@ -198,9 +217,4 @@ def tests_profile():
             override_environment_variables=True,
             include_current_context=False,
         ) as ctx:
-
-            assert (
-                not prefect.settings.PREFECT_API_URL.value()
-            ), "Tests cannot be run against an API"
-
             yield ctx

@@ -607,6 +607,15 @@ class Settings(SettingsFieldsMixin):
             }
         )
 
+    def to_environment_variables(self) -> Dict[str, str]:
+        env = {
+            setting.name: setting.value_from(self)
+            for setting in SETTING_VARIABLES.values()
+        }
+
+        # Cast to strings and drop null values
+        return {key: str(value) for key, value in env.items() if value is not None}
+
     class Config:
         frozen = True
 
@@ -754,7 +763,9 @@ class ProfilesCollection:
     The collection may store the name of the active profile.
     """
 
-    def __init__(self, profiles: Iterable[Profile], active: Optional[str]) -> None:
+    def __init__(
+        self, profiles: Iterable[Profile], active: Optional[str] = None
+    ) -> None:
         self.profiles_by_name = {profile.name: profile for profile in profiles}
         self.active_name = active
 
@@ -1012,7 +1023,6 @@ def use_profile(
     profile: Union[Profile, str],
     override_environment_variables: bool = False,
     include_current_context: bool = True,
-    initialize: bool = True,
 ):
     """
     Switch to a profile for the duration of this context.
@@ -1062,6 +1072,4 @@ def use_profile(
     new_settings = settings.copy_with_update(updates=profile_settings)
 
     with SettingsContext(profile=profile, settings=new_settings) as ctx:
-        if initialize:
-            ctx.initialize()
         yield ctx
