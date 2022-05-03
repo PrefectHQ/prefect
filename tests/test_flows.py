@@ -199,23 +199,6 @@ class TestFlowCall:
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
-    async def test_call_initializes_current_profile(self):
-        @flow
-        def foo():
-            pass
-
-        mock = MagicMock()
-
-        global_context = prefect.context.get_settings_context()
-        with prefect.context.SettingsContext(
-            profile=global_context.profile, settings=global_context.settings
-        ) as context:
-            object.__setattr__(context, "initialize", mock)
-
-            foo()
-
-        mock.assert_called_once_with()
-
     async def test_async_call_creates_flow_run_and_runs(self):
         @flow(version="test")
         async def foo(x, y=3, z=3):

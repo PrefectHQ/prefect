@@ -335,7 +335,6 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
             },
         ),
         include_current_context=True,
-        initialize=False,
     ) as ctx:
         res = invoke_and_assert(["config", "view", "--hide-sources"])
 

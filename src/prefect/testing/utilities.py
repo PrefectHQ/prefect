@@ -1,10 +1,10 @@
 """"
 Internal utilities for tests.
 """
-import os
 import sys
 import warnings
 from contextlib import ExitStack, contextmanager
+from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
 
@@ -40,11 +40,9 @@ def kubernetes_environments_equal(
 
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
-        expected = [
-            {"name": key, "value": value} for key, value in sorted(expected.items())
-        ]
-    else:
-        expected = list(sorted(expected, key=lambda item: item["name"]))
+        expected = [{"name": key, "value": value} for key, value in expected.items()]
+
+    expected = list(sorted(expected, key=lambda item: item["name"]))
 
     # Just sort the actual so the format can be tested
     if isinstance(actual, dict):
@@ -52,7 +50,22 @@ def kubernetes_environments_equal(
             "Unexpected type 'dict' for 'actual' kubernetes environment. "
             "Expected 'List[dict]'. Did you pass your arguments in the wrong order?"
         )
+
     actual = list(sorted(actual, key=lambda item: item["name"]))
+
+    print("---- Actual Kubernetes environment ----")
+    pprint(actual, width=180)
+    print()
+    print("---- Expected Kubernetes environment ----")
+    pprint(expected, width=180)
+    print()
+
+    for actual_item, expected_item in zip(actual, expected):
+        if actual_item != expected_item:
+            print("----- First difference in Kubernetes environments -----")
+            print(f"Actual: {actual_item}")
+            print(f"Expected: {expected_item}")
+            break
 
     return actual == expected
 

@@ -85,9 +85,6 @@ def enter_flow_run_engine_from_flow_call(
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
-    profile = prefect.context.get_settings_context()
-    profile.initialize()
-
     begin_run = partial(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
@@ -125,9 +122,6 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
-    profile = prefect.context.get_settings_context()
-    profile.initialize()
-
     return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
 
@@ -667,7 +661,6 @@ async def begin_task_run(
                 settings=settings,
             )
         )
-        profile.initialize(create_home=False)
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
