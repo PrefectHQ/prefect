@@ -217,8 +217,11 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
 
 def get_settings_context() -> SettingsContext:
     """
-    Returns a `SettingsContext` that contains the combination of user profile
-    settings and environment variable settings present when the context was initialized
+    Get the current settings context which contains profile information and the
+    settings that are being used.
+
+    Generally, the settings that are being used are a combination of values from the
+    profile and environment. See `prefect.settings.use_profile` for more details.
     """
     settings_ctx = SettingsContext.get()
 
