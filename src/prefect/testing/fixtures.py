@@ -49,10 +49,9 @@ async def hosted_orion_api():
             with anyio.move_on_after(10):
                 while True:
                     try:
-                        print("Connecting...")
                         response = await client.get(api_url + "/admin/hello")
-                    except httpx.ConnectError as exc:
-                        print("Connect error", exc)
+                    except httpx.ConnectError:
+                        pass
                     else:
                         if response.status_code == 200:
                             break
