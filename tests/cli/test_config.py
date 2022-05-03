@@ -5,10 +5,10 @@ import prefect.context
 import prefect.settings
 from prefect.settings import (
     PREFECT_API_KEY,
-    PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_PROFILES_PATH,
+    PREFECT_TEST_SETTING,
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
@@ -38,10 +38,10 @@ def temporary_profiles_path(tmp_path):
 def test_set_using_default_profile():
     with use_profile("default"):
         invoke_and_assert(
-            ["config", "set", "PREFECT_LOGGING_LEVEL=DEBUG"],
+            ["config", "set", "PREFECT_TEST_SETTING=DEBUG"],
             expected_output=(
                 """
-                Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+                Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
                 Updated profile 'default'.
                 """
             ),
@@ -49,17 +49,17 @@ def test_set_using_default_profile():
 
     profiles = load_profiles()
     assert "default" in profiles
-    assert profiles["default"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+    assert profiles["default"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
 def test_set_using_profile_flag():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 
     invoke_and_assert(
-        ["--profile", "foo", "config", "set", "PREFECT_LOGGING_LEVEL=DEBUG"],
+        ["--profile", "foo", "config", "set", "PREFECT_TEST_SETTING=DEBUG"],
         expected_output=(
             """
-            Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+            Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
             Updated profile 'foo'.
             """
         ),
@@ -67,7 +67,7 @@ def test_set_using_profile_flag():
 
     profiles = load_profiles()
     assert "foo" in profiles
-    assert profiles["foo"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+    assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
 def test_set_with_unknown_setting():
@@ -142,12 +142,12 @@ def test_set_multiple_settings():
             "config",
             "set",
             "PREFECT_API_KEY=FOO",
-            "PREFECT_LOGGING_LEVEL=DEBUG",
+            "PREFECT_TEST_SETTING=DEBUG",
         ],
         expected_output=(
             """
             Set 'PREFECT_API_KEY' to 'FOO'.
-            Set 'PREFECT_LOGGING_LEVEL' to 'DEBUG'.
+            Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
             Updated profile 'foo'.
             """
         ),
@@ -156,7 +156,7 @@ def test_set_multiple_settings():
     profiles = load_profiles()
     assert "foo" in profiles
     assert profiles["foo"].settings == {
-        PREFECT_LOGGING_LEVEL: "DEBUG",
+        PREFECT_TEST_SETTING: "DEBUG",
         PREFECT_API_KEY: "FOO",
     }
 
@@ -168,7 +168,7 @@ def test_unset_retains_other_keys():
                 Profile(
                     name="foo",
                     settings={
-                        PREFECT_LOGGING_LEVEL: "DEBUG",
+                        PREFECT_TEST_SETTING: "DEBUG",
                         PREFECT_API_KEY: "FOO",
                     },
                 )
@@ -187,15 +187,15 @@ def test_unset_retains_other_keys():
         ],
         expected_output=(
             """
-            Unset 'PREFECT_API_KEY'
-            Updated profile 'foo'
+            Unset 'PREFECT_API_KEY'.
+            Updated profile 'foo'.
             """
         ),
     )
 
     profiles = load_profiles()
     assert "foo" in profiles
-    assert profiles["foo"].settings == {PREFECT_LOGGING_LEVEL: "DEBUG"}
+    assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
 @pytest.mark.usefixtures("disable_terminal_wrapping")
@@ -223,9 +223,9 @@ def test_unset_warns_if_present_in_environment(monkeypatch):
         ],
         expected_output=(
             """
-            Unset 'PREFECT_API_KEY'
+            Unset 'PREFECT_API_KEY'.
             'PREFECT_API_KEY' is also set by an environment variable. Use `unset PREFECT_API_KEY` to clear it.
-            Updated profile 'foo'
+            Updated profile 'foo'.
             """
         ),
     )
@@ -268,11 +268,11 @@ def test_unset_with_setting_not_in_profile():
             "foo",
             "config",
             "unset",
-            "PREFECT_LOGGING_LEVEL",
+            "PREFECT_TEST_SETTING",
         ],
         expected_output=(
             """
-           'PREFECT_LOGGING_LEVEL' is not set in profile 'foo'.
+           'PREFECT_TEST_SETTING' is not set in profile 'foo'.
             """
         ),
         expected_code=1,
@@ -286,7 +286,7 @@ def test_unset_multiple_settings():
                 Profile(
                     name="foo",
                     settings={
-                        PREFECT_LOGGING_LEVEL: "DEBUG",
+                        PREFECT_TEST_SETTING: "DEBUG",
                         PREFECT_API_KEY: "FOO",
                     },
                 )
@@ -302,13 +302,13 @@ def test_unset_multiple_settings():
             "config",
             "unset",
             "PREFECT_API_KEY",
-            "PREFECT_LOGGING_LEVEL",
+            "PREFECT_TEST_SETTING",
         ],
         expected_output=(
             """
-            Unset 'PREFECT_API_KEY'
-            Unset 'PREFECT_LOGGING_LEVEL'
-            Updated profile 'foo'
+            Unset 'PREFECT_API_KEY'.
+            Unset 'PREFECT_TEST_SETTING'.
+            Updated profile 'foo'.
             """
         ),
     )
