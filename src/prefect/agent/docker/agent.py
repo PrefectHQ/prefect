@@ -449,7 +449,7 @@ class DockerAgent(Agent):
 
             # Ensure that we change the network mode from bridge to host/none if using
             # the special predefined network names
-            if network == "host" or network == "none":
+            if network in ("host", "none"):
                 host_config.setdefault("network_mode", network)
 
         labels = {
