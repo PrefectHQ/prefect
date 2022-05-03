@@ -13,7 +13,6 @@ from prefect.executors.base import Executor
 from prefect.utilities.importtools import import_object
 
 if TYPE_CHECKING:
-    import dask
     from distributed import Future, Event
     from dask.delayed import Delayed
     import concurrent.futures
