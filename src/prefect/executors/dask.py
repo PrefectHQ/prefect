@@ -15,6 +15,7 @@ from prefect.utilities.importtools import import_object
 if TYPE_CHECKING:
     import dask
     from distributed import Future, Event
+    from dask.delayed import Delayed
     import concurrent.futures
 
 
@@ -626,7 +627,7 @@ class LocalDaskExecutor(Executor):
 
     def submit(
         self, fn: Callable, *args: Any, extra_context: dict = None, **kwargs: Any
-    ) -> "dask.delayed":
+    ) -> "Delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
 
@@ -648,7 +649,7 @@ class LocalDaskExecutor(Executor):
         key = _make_task_key(**(extra_context or {}))
         if key is not None:
             extra_kwargs["dask_key_name"] = key
-        return dask.delayed(fn, pure=False)(*args, **kwargs, **extra_kwargs)
+        return dask.delayed(fn, pure=False)(*args, **kwargs, **extra_kwargs)  # type: ignore
 
     def wait(self, futures: Any) -> Any:
         """
