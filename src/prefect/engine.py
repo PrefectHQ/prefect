@@ -662,7 +662,8 @@ async def begin_task_run(
     async with AsyncExitStack() as stack:
         profile = stack.enter_context(
             prefect.context.SettingsContext(
-                profile=None,
+                # TODO: The profile should be shipped alongside the settings
+                profile=prefect.context.get_settings_context().profile,
                 settings=settings,
             )
         )
