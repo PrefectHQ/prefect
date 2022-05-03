@@ -217,4 +217,8 @@ def testing_session_settings():
             override_environment_variables=True,
             include_current_context=False,
         ) as ctx:
+            assert (
+                PREFECT_API_URL.value() is None
+            ), "Tests cannot be run connected to an external API."
+
             yield ctx
