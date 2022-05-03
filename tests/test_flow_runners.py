@@ -5,7 +5,7 @@ import sys
 import warnings
 from pathlib import Path
 from typing import NamedTuple
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import anyio
 import anyio.abc
@@ -42,7 +42,12 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    SETTING_VARIABLES,
+    temporary_settings,
+)
 from prefect.testing.utilities import (
     AsyncMock,
     assert_does_not_warn,
@@ -315,17 +320,16 @@ class TestFlowRunnerRegistration:
 
 
 class TestBaseFlowRunEnvironment:
-    def test_empty_by_default(self):
-        assert base_flow_run_environment() == {}
+    def test_includes_all_set_settings(self):
+        assert {
+            setting.name: setting.value()
+            for setting in SETTING_VARIABLES.values()
+            if setting.value() is not None
+        }
 
-    def test_includes_api_url_and_key_when_set(self):
-        with temporary_settings(
-            updates={PREFECT_API_KEY: "foo", PREFECT_API_URL: "bar"}
-        ):
-            assert base_flow_run_environment() == {
-                "PREFECT_API_KEY": "foo",
-                "PREFECT_API_URL": "bar",
-            }
+    def test_drops_null_settings(self):
+        with temporary_settings(updates={PREFECT_API_KEY: None}):
+            assert "PREFECT_API_KEY" not in base_flow_run_environment()
 
 
 class TestUniversalFlowRunner:
@@ -373,7 +377,7 @@ class TestSubprocessFlowRunner:
         anyio.open_process.assert_awaited_once_with(
             [sys.executable, "-m", "prefect.engine", flow_run.id.hex],
             stderr=subprocess.STDOUT,
-            env=os.environ,
+            env=ANY,
         )
 
     @pytest.mark.parametrize(
@@ -412,7 +416,7 @@ class TestSubprocessFlowRunner:
                 flow_run.id.hex,
             ],
             stderr=subprocess.STDOUT,
-            env=os.environ,
+            env=ANY,
         )
 
     async def test_creates_subprocess_with_virtualenv_command_and_env(
@@ -434,7 +438,7 @@ class TestSubprocessFlowRunner:
         # Replicate expected generation of virtual environment call
         virtualenv_path = Path("~/fakevenv").expanduser()
         python_executable = str(virtualenv_path / "bin" / "python")
-        expected_env = os.environ.copy()
+        expected_env = {**base_flow_run_environment(), **os.environ}
         expected_env["PATH"] = (
             str(virtualenv_path / "bin") + os.pathsep + expected_env["PATH"]
         )
@@ -460,6 +464,8 @@ class TestSubprocessFlowRunner:
         flow_run = await orion_client.create_flow_run_from_deployment(
             python_executable_test_deployment
         )
+
+        print("In test process:", await orion_client.read_flow_runs())
 
         happy_exit = await SubprocessFlowRunner().submit_flow_run(flow_run, fake_status)
 
@@ -1667,14 +1673,13 @@ class TestKubernetesFlowRunner:
         ]["spec"]["template"]["spec"]["serviceAccountName"]
         assert service_account_name == "foo"
 
-    async def test_default_env_includes_api_url_and_key(
+    async def test_default_env_includes_base_flow_run_environment(
         self,
         mock_k8s_client,
         mock_watch,
         mock_k8s_batch_client,
         flow_run,
         use_hosted_orion,
-        hosted_orion_api,
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
@@ -1684,18 +1689,14 @@ class TestKubernetesFlowRunner:
                 PREFECT_API_KEY: "my-api-key",
             }
         ):
+            expected_environment = base_flow_run_environment()
             await KubernetesFlowRunner().submit_flow_run(flow_run, MagicMock())
+
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
             "template"
         ]["spec"]["containers"][0]["env"]
-        assert kubernetes_environments_equal(
-            call_env,
-            [
-                {"name": "PREFECT_API_KEY", "value": "my-api-key"},
-                {"name": "PREFECT_API_URL", "value": "http://orion:4200/api"},
-            ],
-        )
+        assert kubernetes_environments_equal(call_env, expected_environment)
 
     async def test_does_not_override_user_provided_variables(
         self,

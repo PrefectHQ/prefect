@@ -182,7 +182,7 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
         logger_test_deployment
     )
 
-    await SubprocessFlowRunner(
+    assert await SubprocessFlowRunner(
         env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"}
     ).submit_flow_run(flow_run, MagicMock(spec=anyio.abc.TaskStatus))
 
