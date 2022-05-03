@@ -113,6 +113,14 @@ def debug_mode_log_level(settings, value):
         return value
 
 
+def assert_test_mode(settings, value):
+    """
+    `value_callback` for `PREFECT_TEST_SETTING` that only allows access during test mode
+    """
+    assert PREFECT_TEST_MODE.value_from(settings)
+    return value
+
+
 def default_ui_api_url(settings, value):
     """
     `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
@@ -185,6 +193,14 @@ PREFECT_TEST_MODE = Setting(
     default=False,
     description="""If `True`, places the API in test mode. This may modify
         behavior to faciliate testing. Defaults to `False`.""",
+)
+
+PREFECT_TEST_SETTING = Setting(
+    Any,
+    default=None,
+    description="""This variable only exists to faciliate testing of settings. 
+    If accessed when `PREFECT_TEST_MODE` is not set, an error will be raised.""",
+    value_callback=assert_test_mode,
 )
 
 PREFECT_API_URL = Setting(
