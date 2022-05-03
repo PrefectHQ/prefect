@@ -4,6 +4,7 @@ Async and thread safe models for passing runtime context data.
 These contexts should never be directly mutated by the user.
 """
 import os
+import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
@@ -295,8 +296,10 @@ def enter_root_settings_context():
     """
     Enter the profile that will exist as the root context for the module.
 
-    We do not initialize this profile so there are no logging/file system side effects
-    on module import. Instead, the profile is initialized lazily in `prefect.engine`.
+    The profile to use is determined with the following precedence
+    - Command line via 'prefect --profile <name>'
+    - Environment variable via 'PREFECT_PROFILE'
+    - Profiles file via the 'active' key
 
     This function is safe to call multiple times.
     """
@@ -308,8 +311,31 @@ def enter_root_settings_context():
         return  # A global context already has been entered
 
     profiles = prefect.settings.load_profiles()
+    active_name = profiles.active_name
+    profile_source = "the profiles file"
 
-    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(profiles.active_profile)
+    if "PREFECT_PROFILE" in os.environ:
+        active_name = os.environ["PREFECT_PROFILE"]
+        profile_source = "environment variable"
+
+    if (
+        sys.argv[0].endswith("prefect")
+        and len(sys.argv) >= 3
+        and sys.argv[1] == "--profile"
+    ):
+        active_name = sys.argv[2]
+        profile_source = "command line argument"
+
+    if active_name not in profiles.names:
+        raise ValueError(
+            f"Prefect profile name {active_name!r} set by {profile_source} not found."
+        )
+
+    GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
+        profiles[active_name],
+        # Override environment variables if the profile was set by the CLI
+        override_environment_variables=profile_source == "command line argument",
+    )
 
     global_profile = GLOBAL_SETTINGS_CM.__enter__()
 
