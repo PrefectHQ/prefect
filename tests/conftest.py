@@ -18,7 +18,12 @@ from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
+
+# isort: off
+# Import fixtures
+
 from prefect.testing.fixtures import *
+from prefect.testing.cli import *
 
 from .fixtures.api import *
 from .fixtures.client import *
