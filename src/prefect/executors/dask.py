@@ -64,21 +64,17 @@ def _maybe_run(event_name: str, fn: Callable, *args: Any, **kwargs: Any) -> Any:
 class DaskExecutor(Executor):
     """
     An executor that runs all functions using the `dask.distributed` scheduler.
-
     By default a temporary `distributed.LocalCluster` is created (and
     subsequently torn down) within the `start()` contextmanager. To use a
     different cluster class (e.g.
     [`dask_kubernetes.KubeCluster`](https://kubernetes.dask.org/)), you can
     specify `cluster_class`/`cluster_kwargs`.
-
     Alternatively, if you already have a dask cluster running, you can provide
     the address of the scheduler via the `address` kwarg.
-
     Note that if you have tasks with tags of the form `"dask-resource:KEY=NUM"`
     they will be parsed and passed as
     [Worker Resources](https://distributed.dask.org/en/latest/resources.html)
     of the form `{"KEY": float(NUM)}` to the Dask Scheduler.
-
     Args:
         - address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a temporary cluster will be
@@ -112,18 +108,13 @@ class DaskExecutor(Executor):
             disabled as they use the worker status events for scaling and only one
             subscriber is allowed. If you set the value to `True` or `False`, it will be
             respected regardless of the value of `adapt_kwargs`.
-
     Examples:
-
     Using a temporary local dask cluster:
-
     ```python
     executor = DaskExecutor()
     ```
-
     Using a temporary cluster running elsewhere. Any Dask cluster class should
     work, here we use [dask-cloudprovider](https://cloudprovider.dask.org):
-
     ```python
     executor = DaskExecutor(
         cluster_class="dask_cloudprovider.FargateCluster",
@@ -134,9 +125,7 @@ class DaskExecutor(Executor):
         },
     )
     ```
-
     Connecting to an existing dask cluster
-
     ```python
     executor = DaskExecutor(address="192.0.2.255:8786")
     ```
@@ -216,7 +205,6 @@ class DaskExecutor(Executor):
     def start(self) -> Iterator[None]:
         """
         Context manager for initializing execution.
-
         Creates a `dask.distributed.Client` and yields it.
         """
         if sys.platform != "win32":
@@ -274,12 +262,9 @@ class DaskExecutor(Executor):
     async def on_worker_status_changed(self, op: str, message: dict) -> None:
         """
         This method is triggered when a worker is added or removed from the cluster.
-
         This method will not be called if `watch_worker_status` is not set.
-
         We recommend not relying on this method since worker status subscription is used
         by Dask cluster implementations to manage worker state.
-
         Args:
             - op (str): Either "add" or "remove"
             - message (dict): Information about the event that the scheduler has sent
@@ -427,14 +412,12 @@ class DaskExecutor(Executor):
     ) -> "Future":
         """
         Submit a function to the executor for execution. Returns a Future object.
-
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - extra_context (dict, optional): an optional dictionary with extra information
                 about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
-
         Returns:
             - Future: a Future-like object that represents the computation of `fn(*args, **kwargs)`
         """
@@ -454,10 +437,8 @@ class DaskExecutor(Executor):
     def wait(self, futures: Any) -> Any:
         """
         Resolves the Future objects to their values. Blocks until the computation is complete.
-
         Args:
             - futures (Any): single or iterable of future-like objects to compute
-
         Returns:
             - Any: an iterable of resolved futures with similar shape to the input
         """
@@ -490,7 +471,6 @@ class DaskExecutor(Executor):
 
 def _multiprocessing_pool_initializer() -> None:
     """Initialize a process used in a `concurrent.futures.ProcessPoolExecutor`.
-
     Ensures the standard atexit handlers are run."""
     import signal
 
@@ -501,7 +481,6 @@ class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
     dask scheduler.
-
     Args:
         - scheduler (str): The local dask scheduler to use; common options are
             "threads", "processes", and "synchronous".  Defaults to "threads".
@@ -629,14 +608,12 @@ class LocalDaskExecutor(Executor):
     ) -> "dask.delayed":
         """
         Submit a function to the executor for execution. Returns a `dask.delayed` object.
-
         Args:
             - fn (Callable): function that is being submitted for execution
             - *args (Any): arguments to be passed to `fn`
             - extra_context (dict, optional): an optional dictionary with extra
                 information about the submitted task
             - **kwargs (Any): keyword arguments to be passed to `fn`
-
         Returns:
             - dask.delayed: a `dask.delayed` object that represents the
                 computation of `fn(*args, **kwargs)`
@@ -654,10 +631,8 @@ class LocalDaskExecutor(Executor):
         """
         Resolves a (potentially nested) collection of `dask.delayed` object to
         its values. Blocks until the computation is complete.
-
         Args:
             - futures (Any): iterable of `dask.delayed` objects to compute
-
         Returns:
             - Any: an iterable of resolved futures
         """

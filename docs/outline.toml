@@ -794,5 +794,5 @@ verified_task = true
 
 [pages.tasks.sftp]
 title = "SFTP Tasks"
-module = "prefect.tasks.sftp"
+module = "prefect.tasks.sftp.sftp"
 classes = ["SftpDownload", "SftpUpload"]
