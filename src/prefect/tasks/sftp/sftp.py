@@ -16,6 +16,8 @@ class SftpDownload(Task):
         - username (str): username used to authenticate.
         - password (str): password used to authenticate.
         - port_number (int): the port number to connect to the server.
+        - remote_path (str): the remote sftp file path
+        - local_path (str): the local file path to download file to
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
 
     Raises:
@@ -114,6 +116,8 @@ class SftpDownload(Task):
             - username (str): username used to authenticate.
             - password (str): password used to authenticate.
             - port_number (int): the port number to connect to the server.
+            - remote_path (str): the remote sftp file path
+            - local_path (str): the local file path to download file to
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
 
         Raises:
@@ -159,6 +163,8 @@ class SftpUpload(Task):
         - username (str): username used to authenticate.
         - password (str): password used to authenticate.
         - port_number (int): the port number to connect to the server.
+        - remote_path (str): the remote sftp file path
+        - local_path (str): the local file path to from upload
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
 
     Raises:
@@ -214,6 +220,8 @@ class SftpUpload(Task):
             - username (str): username used to authenticate.
             - password (str): password used to authenticate.
             - port_number (int): the port number to connect to the server.
+            - remote_path (str): the remote sftp file path
+            - local_path (str): the local file path to from upload
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
 
         Raises:
