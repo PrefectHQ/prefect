@@ -58,7 +58,7 @@ async def hosted_orion_api():
                     await anyio.sleep(0.1)
             if response:
                 response.raise_for_status()
-            if response is None:
+            if not response:
                 raise RuntimeError(
                     "Timed out while attempting to connect to hosted test Orion."
                 )
@@ -67,6 +67,7 @@ async def hosted_orion_api():
         yield api_url
 
     finally:
+        # Cleanup the process
         try:
             process.terminate()
         except Exception:
