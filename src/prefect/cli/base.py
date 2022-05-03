@@ -159,7 +159,7 @@ async def version():
             prefect.__version_info__["date"]
         ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
-        "Profile": prefect.context.get_settings_context().name,
+        "Profile": prefect.context.get_settings_context().profile.name,
     }
 
     is_ephemeral: Optional[bool] = None
