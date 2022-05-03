@@ -176,9 +176,7 @@ class SettingsContext(ContextModel):
 
     def __enter__(self):
         """
-        Upon initialization, we can create the home directory contained in the settings and
-        configure logging. These steps are optional. Logging can only be set up once per
-        process and later attempts to configure logging will fail.
+        Upon entrance, we ensure the home directory for the profile exists.
         """
         return_value = super().__enter__()
 
