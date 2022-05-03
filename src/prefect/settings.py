@@ -113,12 +113,14 @@ def debug_mode_log_level(settings, value):
         return value
 
 
-def assert_test_mode(settings, value):
+def only_return_value_in_test_mode(settings, value):
     """
     `value_callback` for `PREFECT_TEST_SETTING` that only allows access during test mode
     """
-    assert PREFECT_TEST_MODE.value_from(settings)
-    return value
+    if PREFECT_TEST_MODE.value_from(settings):
+        return value
+    else:
+        return None
 
 
 def default_ui_api_url(settings, value):
@@ -200,7 +202,7 @@ PREFECT_TEST_SETTING = Setting(
     default=None,
     description="""This variable only exists to faciliate testing of settings. 
     If accessed when `PREFECT_TEST_MODE` is not set, an error will be raised.""",
-    value_callback=assert_test_mode,
+    value_callback=only_return_value_in_test_mode,
 )
 
 PREFECT_API_URL = Setting(
