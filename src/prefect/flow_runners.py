@@ -221,7 +221,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    stream_output: bool = False
+    stream_output: bool = True
     condaenv: Union[str, Path] = None
     virtualenv: Path = None
 
