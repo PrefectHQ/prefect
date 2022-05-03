@@ -328,7 +328,7 @@ def enter_root_settings_context():
 
     if active_name not in profiles.names:
         raise ValueError(
-            f"Prefect profile name {active_name!r} set by {profile_source} not found."
+            f"Prefect profile {active_name!r} set by {profile_source} not found."
         )
 
     GLOBAL_SETTINGS_CM = prefect.settings.use_profile(
