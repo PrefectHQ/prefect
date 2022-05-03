@@ -13,8 +13,8 @@ def mock_conn(monkeypatch):
     connection = MagicMock()
     sftp_client.return_value = MagicMock(from_transport=connection)
 
-    monkeypatch.setattr("tasks.custom_sftp_task.SFTPClient", sftp_client)
-    monkeypatch.setattr("tasks.custom_sftp_task.Transport", transport)
+    monkeypatch.setattr("prefect.tasks.sftp.sftp.SFTPClient", sftp_client)
+    monkeypatch.setattr("prefect.tasks.sftp.sftp.Transport", transport)
 
     return sftp_conn
 

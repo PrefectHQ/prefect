@@ -244,14 +244,6 @@ class SftpUpload(Task):
 
         return result
 
-    @staticmethod
-    def uploading_info(uploaded_file_size, total_file_size):
-        print(
-            "uploaded_file_size : {} total_file_size : {}".format(
-                uploaded_file_size, total_file_size
-            )
-        )
-
     def upload(self, local_path, remote_path):
         if self._connection is None:
             self._create_connection()
@@ -260,7 +252,6 @@ class SftpUpload(Task):
             self._connection.put(
                 localpath=local_path,
                 remotepath=remote_path,
-                callback=self.uploading_info,
                 confirm=True,
             )
             return True
