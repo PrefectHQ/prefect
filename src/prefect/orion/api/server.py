@@ -4,6 +4,7 @@ Defines the Orion FastAPI app.
 
 import asyncio
 import os
+import warnings
 from functools import partial
 from typing import Dict, List, Mapping, Optional, Tuple
 
@@ -23,6 +24,7 @@ import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.server import method_paths_from_routes
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -157,18 +159,36 @@ def create_orion_api(
     if router_overrides:
         for prefix, router in router_overrides.items():
 
-            # We may want to allow this behavior in the future, but for now this will
-            # be treated an as an exception
+            # We may want to allow this behavior in the future to inject new routes, but
+            # for now this will be treated an as an exception
             if prefix not in routers:
                 raise KeyError(
                     f"Router override provided for prefix that does not exist: {prefix!r}"
                 )
 
             # Drop the existing router
-            routers.pop(prefix)
+            existing_router = routers.pop(prefix)
 
             # Replace it with a new router if provided
             if router is not None:
+
+                if prefix != router.prefix:
+                    # We may want to allow this behavior in the future, but it will
+                    # break expectations without additional routing and is banned for
+                    # now
+                    raise ValueError(
+                        f"Router override for {prefix!r} defines a new prefix "
+                        f"{router.prefix!r}."
+                    )
+
+                existing_paths = method_paths_from_routes(existing_router.routes)
+                new_paths = method_paths_from_routes(router.routes)
+                if not existing_paths.issubset(new_paths):
+                    raise ValueError(
+                        f"Router override for {prefix!r} is missing paths defined by "
+                        f"the original router: {existing_paths.difference(new_paths)}"
+                    )
+
                 routers[prefix] = router
 
     for router in routers.values():
