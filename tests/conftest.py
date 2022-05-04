@@ -9,6 +9,7 @@ import pytest
 
 import prefect
 import prefect.settings
+from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_HOME,
     PREFECT_LOGGING_LEVEL,
@@ -222,8 +223,11 @@ def testing_session_settings():
             override_environment_variables=True,
             include_current_context=False,
         ) as ctx:
+
             assert (
                 PREFECT_API_URL.value() is None
             ), "Tests cannot be run connected to an external API."
+
+            setup_logging()
 
             yield ctx

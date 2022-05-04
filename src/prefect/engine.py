@@ -34,6 +34,7 @@ from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -76,6 +77,8 @@ def enter_flow_run_engine_from_flow_call(
     This function does the heavy lifting of ensuring we can get into an async context
     for flow run execution with minimal overhead.
     """
+    setup_logging()
+
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -122,6 +125,8 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
+    setup_logging()
+
     return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
 
@@ -654,13 +659,16 @@ async def begin_task_run(
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        profile = stack.enter_context(
+        stack.enter_context(
             prefect.context.SettingsContext(
                 # TODO: The profile should be shipped alongside the settings
                 profile=prefect.context.get_settings_context().profile,
                 settings=settings,
             )
         )
+
+        # Set up logging once we have entered the context
+        setup_logging()
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
