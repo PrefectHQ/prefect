@@ -88,6 +88,15 @@ class TestCreateOrionAPI:
         assert exc.match("POST /logs/filter")
         assert exc.match("POST /logs/")
 
+    def test_checks_for_changed_prefix_during_override(self):
+        router = APIRouter(prefix="/foo")
+
+        with pytest.raises(
+            ValueError,
+            match="Router override for '/logs' defines a different prefix '/foo'",
+        ) as exc:
+            create_orion_api(router_overrides={"/logs": router})
+
     def test_only_includes_missing_paths_in_override_error(self):
         router = APIRouter(prefix="/logs")
 
