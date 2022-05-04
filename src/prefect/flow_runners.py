@@ -109,7 +109,7 @@ def base_flow_run_environment() -> Dict[str, str]:
     """
     Generate a dictionary of environment variables for a flow run job.
     """
-    return get_current_settings().to_environment_variables()
+    return get_current_settings().to_environment_variables(exclude_unset=True)
 
 
 class FlowRunner(BaseModel):
