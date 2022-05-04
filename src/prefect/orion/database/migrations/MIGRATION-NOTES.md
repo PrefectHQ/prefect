@@ -7,6 +7,21 @@ Each time a database migration is written, an entry is included here with:
 - Revision numbers for sqlite/postgres
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situtations where a branch needs to be updated before merging.
+
+## Backfill state_name columns
+
+SQLite: `db6bde582447`
+Postgres: `14dc68cc5853`
+
+Data only migration that backfills FlowRun.state_name and TaskRun.state_name.
+
+## Add state_name columns
+
+SQLite: `7f5f335cace3`
+Postgres: `605ebb4e9155`
+
+Adds FlowRun.state_name and TaskRun.state_name columns for more efficient querying.
+
 ## Add block spec id to blocks
 
 SQLite: `c8ff35f94028`

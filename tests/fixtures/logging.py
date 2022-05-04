@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.logging.handlers import OrionHandler
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 
 @pytest.fixture(autouse=True)

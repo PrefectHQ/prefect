@@ -16,18 +16,29 @@ $ python -m asyncio
 </div>
 """
 import datetime
-import warnings
+import sys
+import threading
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ContextManager,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 from uuid import UUID
 
 import anyio
 import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 
 import prefect
 import prefect.exceptions
@@ -93,13 +104,15 @@ def get_client() -> "OrionClient":
     )
 
 
-APP_LIFESPANS: Dict[int, LifespanManager] = {}
-APP_LIFESPANS_EXIT_EVENTS: Dict[int, List[anyio.Event]] = defaultdict(list)
-APP_LIFESPANS_LOCK = anyio.Lock()  # Blocks concurrent access to the above lists
+# Datastores for lifespan management, keys should be a tuple of thread and app identities.
+APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
+APP_LIFESPANS_REF_COUNTS: Dict[Tuple[int, int], int] = {}
+# Blocks concurrent access to the above dicts per thread. The index should be the thread identity.
+APP_LIFESPANS_LOCKS: Dict[int, anyio.Lock] = defaultdict(anyio.Lock)
 
 
 @asynccontextmanager
-async def app_lifespan_context(app: FastAPI):
+async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
     """
     A context manager that calls startup/shutdown hooks for the given application.
 
@@ -112,57 +125,72 @@ async def app_lifespan_context(app: FastAPI):
     startup hooks will be called before their context starts and shutdown hooks will
     only be called after their context exits.
 
-    If you have two concurrrent contexts which are used as follows:
+    A reference count is used to support nested use of clients without running
+    lifespan hooks excessively. The first client context entered will create and enter
+    a lifespan context. Each subsequent client will increment a reference count but will
+    not create a new lifespan context. When each client context exits, the reference
+    count is decremented. When the last client context exits, the lifespan will be
+    closed.
 
-    --> Context A is entered (manages a new lifespan)
-    -----> Context B is entered (uses the lifespan from A)
-    -----> Context A exits
-    -----> Context B exits
-
-    Context A will *block* until Context B exits to avoid calling shutdown hooks before
-    the context from B is complete. This means that if B depends on work that occurs
-    after the exit of A, a deadlock will occur.
+    In simple nested cases, the first client context will be the one to exit the
+    lifespan. However, if client contexts are entered concurrently they may not exit
+    in a consistent order. If the first client context was responsible for closing
+    the lifespan, it would have to wait until all other client contexts to exit to
+    avoid firing shutdown hooks while the application is in use. Waiting for the other
+    clients to exit can introduce deadlocks, so, instead, the first client will exit
+    without closing the lifespan context and reference counts will be used to ensure
+    the lifespan is closed once all of the clients are done.
     """
-    # TODO: We could push contexts onto a stack so the last context that exits is
-    #       responsible for closing the lifespan regardless of whether or not it was the
-    #       one that entered the lifespan. This would make a deadlock impossible, but
-    #       consumers of the context would no longer know if they are the one that is
-    #       responsible for closing the lifespan or not.
+    # TODO: A deadlock has been observed during multithreaded use of clients while this
+    #       lifespan context is being used. This has only been reproduced on Python 3.7
+    #       and while we hope to discourage using multiple event loops in threads, this
+    #       bug may emerge again.
+    #       See https://github.com/PrefectHQ/orion/pull/1696
+    thread_id = threading.get_ident()
 
-    # The id is used instead of the hash so each application instance is managed independently
-    key = id(app)
+    # The id of the application is used instead of the hash so each application instance
+    # is managed independently even if they share the same settings. We include the
+    # thread id since applications are managed separately per thread.
+    key = (thread_id, id(app))
 
-    async with APP_LIFESPANS_LOCK:
+    # On exception, this will be populated with exception details
+    exc_info = (None, None, None)
+
+    # Get a lock unique to this thread since anyio locks are not threadsafe
+    lock = APP_LIFESPANS_LOCKS[thread_id]
+
+    async with lock:
         if key in APP_LIFESPANS:
-            context = asyncnullcontext()
-            yield_value = None
-            # Create an event to indicate when this dependent exits its context
-            exit_event = anyio.Event()
-            APP_LIFESPANS_EXIT_EVENTS[key].append(exit_event)
+            # The lifespan is already being managed, just increment the reference count
+            APP_LIFESPANS_REF_COUNTS[key] += 1
         else:
-            yield_value = APP_LIFESPANS[key] = context = LifespanManager(app)
-            exit_event = None
+            # Create a new lifespan manager
+            APP_LIFESPANS[key] = context = LifespanManager(app)
+            APP_LIFESPANS_REF_COUNTS[key] = 1
 
-    async with context:
-        yield yield_value
+            # Ensure we enter the context before releasing the lock so startup hooks
+            # are complete before another client can be used
+            await context.__aenter__()
 
-        # If this the root context that is managing the lifespan, remove the lifespan
-        # from the cache before exiting the context so the next request does not
-        # get a lifespan that is shutting down.
-        if yield_value is not None:
-            async with APP_LIFESPANS_LOCK:
-                APP_LIFESPANS.pop(key)
+    try:
+        yield
+    except BaseException:
+        exc_info = sys.exc_info()
+        raise
+    finally:
+        # If we do not shield against anyio cancellation, the lock will return
+        # immediately and the code in its context will not run, leaving the lifespan
+        # open
+        with anyio.CancelScope(shield=True):
+            async with lock:
+                # After the consumer exits the context, decrement the reference count
+                APP_LIFESPANS_REF_COUNTS[key] -= 1
 
-                # Do not exit the lifespan context until other all other contexts
-                # depending on this lifespan have exited
-                for exit_event in APP_LIFESPANS_EXIT_EVENTS[key]:
-                    await exit_event.wait()
-
-                APP_LIFESPANS_EXIT_EVENTS[key].clear()
-
-    # After exiting the context, set the exit event
-    if exit_event:
-        exit_event.set()
+                # If this the last context to exit, close the lifespan
+                if APP_LIFESPANS_REF_COUNTS[key] <= 0:
+                    APP_LIFESPANS_REF_COUNTS.pop(key)
+                    context = APP_LIFESPANS.pop(key)
+                    await context.__aexit__(*exc_info)
 
 
 class OrionClient:
@@ -207,7 +235,9 @@ class OrionClient:
         # Context management
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
-        # Only set if this client is responsible for the lifespan of the application
+        self.manage_lifespan = True
+
+        # Only set if this client started the lifespan of the application
         self._ephemeral_lifespan: Optional[LifespanManager] = None
         self._closed = False
         self._started = False
@@ -564,7 +594,7 @@ class OrionClient:
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -623,7 +653,7 @@ class OrionClient:
                 f"/concurrency_limits/tag/{tag}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -665,7 +695,7 @@ class OrionClient:
         try:
             response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 409:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
@@ -712,7 +742,7 @@ class OrionClient:
         try:
             await self._client.patch(f"/work_queues/{id}", json=data)
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -749,7 +779,7 @@ class OrionClient:
                 json=json_data,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -775,7 +805,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"/work_queues/{id}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -823,7 +853,7 @@ class OrionClient:
                 f"/work_queues/{id}",
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -852,7 +882,7 @@ class OrionClient:
                 json=payload,
             )
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 409:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
@@ -867,7 +897,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"block_specs/{name}/versions/{version}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -1046,7 +1076,7 @@ class OrionClient:
         try:
             response = await self._client.get(f"/deployments/name/{name}")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -1184,7 +1214,7 @@ class OrionClient:
         try:
             await self._client.post(f"/blocks/{block_id}/set_default_storage_block")
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
@@ -1683,8 +1713,7 @@ class OrionClient:
         """
         Start the client.
 
-        If the client is already started, entering and exiting this context will have
-        no effect.
+        If the client is already started, this will raise an exception.
 
         If the client is already closed, this will raise an exception. Use a new client
         instance instead.
@@ -1704,7 +1733,7 @@ class OrionClient:
 
         # Enter a lifespan context if using an ephemeral application.
         # See https://github.com/encode/httpx/issues/350
-        if self._ephemeral_app:
+        if self._ephemeral_app and self.manage_lifespan:
             self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
                 app_lifespan_context(self._ephemeral_app)
             )
@@ -1719,12 +1748,9 @@ class OrionClient:
     async def __aexit__(self, *exc_info):
         """
         Shutdown the client.
-
-        If the client has been started multiple times, this will have no effect until
-        all of the contexts have been exited.
         """
         self._closed = True
-        return await self._exit_stack.aclose()
+        return await self._exit_stack.__aexit__(*exc_info)
 
     def __enter__(self):
         raise RuntimeError(

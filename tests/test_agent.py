@@ -10,7 +10,7 @@ from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner, SubprocessFlowRunner, UniversalFlowRunner
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
-from prefect.utilities.testing import AsyncMock
+from prefect.testing.utilities import AsyncMock
 
 
 @pytest.fixture

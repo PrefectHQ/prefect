@@ -1,16 +1,6 @@
-import datetime
-from uuid import uuid4
+from fastapi import status
 
-import pendulum
-import pytest
-import sqlalchemy as sa
-
-import prefect
-from prefect.orion import models, schemas
-from prefect.orion.models.concurrency_limits import (
-    read_concurrency_limit,
-    read_concurrency_limit_by_tag,
-)
+from prefect.orion import schemas
 from prefect.orion.schemas.actions import ConcurrencyLimitCreate
 
 
@@ -22,7 +12,7 @@ class TestConcurrencyLimits:
         ).dict(json_compatible=True)
 
         response = await client.post("/concurrency_limits/", json=data)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"]
 
     async def test_upserting_concurrency_limits(self, session, client):
@@ -32,7 +22,7 @@ class TestConcurrencyLimits:
         ).dict(json_compatible=True)
 
         insert_response = await client.post("/concurrency_limits/", json=insert_data)
-        assert insert_response.status_code == 200
+        assert insert_response.status_code == status.HTTP_200_OK
         assert insert_response.json()["concurrency_limit"] == 42
         first_update = insert_response.json()["updated"]
 
@@ -42,7 +32,7 @@ class TestConcurrencyLimits:
         ).dict(json_compatible=True)
 
         upsert_response = await client.post("/concurrency_limits/", json=upsert_data)
-        assert upsert_response.status_code == 200
+        assert upsert_response.status_code == status.HTTP_200_OK
         assert upsert_response.json()["concurrency_limit"] == 4242
         assert first_update < upsert_response.json()["updated"]
 

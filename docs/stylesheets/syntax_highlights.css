@@ -12,8 +12,8 @@
   --md-code-hl-punctuation-color: #1061d0;
   --md-code-hl-comment-color: #a5b4be;
   --md-code-hl-variable-color: #e90;
-  --md-code-hl-color: #EBEEF7;
-  --md-code-bg-color: #f7f7f8;
+  --md-code-hl-color: #fff4e5;
+  --md-code-bg-color: #f3f3f3;
 }
 
 .highlight .nd {

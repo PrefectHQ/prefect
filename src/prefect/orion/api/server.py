@@ -8,7 +8,7 @@ from functools import partial
 from typing import Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
-from fastapi import Depends, FastAPI, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,14 +36,19 @@ version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
 class SPAStaticFiles(StaticFiles):
-    # This class overrides the get_response method
-    # to ensure that when a resource isn't found the application still
-    # returns the index.html file. This is required for SPAs
-    # since in-app routing is handled by a single html file.
+    """
+    Implementation of `StaticFiles` for serving single page applications.
+
+    Adds `get_response` handling to ensure that when a resource isn't found the
+    application still returns the index.
+    """
+
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        if response.status_code == 404:
+
+        if response.status_code == status.HTTP_404_NOT_FOUND:
             response = await super().get_response("./index.html", scope)
+
         return response
 
 
@@ -175,6 +180,29 @@ def create_orion_api(
         )
 
     return api_app
+
+
+def create_ui_app(ephemeral: bool) -> FastAPI:
+    ui_app = FastAPI(title=UI_TITLE)
+
+    @ui_app.get("/ui-settings")
+    def ui_settings():
+        return {
+            "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+        }
+
+    if (
+        os.path.exists(prefect.__ui_static_path__)
+        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and not ephemeral
+    ):
+        ui_app.mount(
+            "/",
+            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            name="ui_root",
+        )
+
+    return ui_app
 
 
 APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
@@ -313,7 +341,7 @@ def create_app(
             }
         }
     )
-    ui_app = FastAPI(title=UI_TITLE)
+    ui_app = create_ui_app(ephemeral)
 
     # middleware
     app.add_middleware(
@@ -332,21 +360,8 @@ def create_app(
         ),
         name="static",
     )
-
-    app.mount("/api", app=api_app)
-    if (
-        os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
-        and not ephemeral
-    ):
-        ui_app.mount(
-            "/",
-            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
-            name="ui_root",
-        )
-        app.mount("/", app=ui_app, name="ui")
-    else:
-        pass  # TODO: Add a static file for a disabled or missing UI
+    app.mount("/api", app=api_app, name="api")
+    app.mount("/", app=ui_app, name="ui")
 
     def openapi():
         """
