@@ -66,6 +66,8 @@ from uuid import UUID
 
 import anyio
 
+from prefect.utilities.enum import AutoEnum, auto
+
 if TYPE_CHECKING:
     import distributed
     import ray
@@ -81,6 +83,7 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A, sync_compatible
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
 
@@ -88,10 +91,21 @@ T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
 
 
+class TaskConcurrencyType(AutoEnum):
+    SEQUENTIAL = auto()
+    CONCURRENT = auto()
+    PARALLEL = auto()
+
+
 class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger(f"task_runner.{self.name}")
         self._started: bool = False
+
+    @property
+    @abc.abstractmethod
+    def concurrency_type(self) -> TaskConcurrencyType:
+        pass
 
     @property
     def name(self):
@@ -181,6 +195,10 @@ class SequentialTaskRunner(BaseTaskRunner):
     def __init__(self) -> None:
         super().__init__()
         self._results: Dict[UUID, State] = {}
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.SEQUENTIAL
 
     async def submit(
         self,
@@ -324,6 +342,14 @@ class DaskTaskRunner(BaseTaskRunner):
 
         super().__init__()
 
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return (
+            TaskConcurrencyType.PARALLEL
+            if self.cluster_kwargs.get("processes")
+            else TaskConcurrencyType.CONCURRENT
+        )
+
     async def submit(
         self,
         task_run: TaskRun,
@@ -335,6 +361,10 @@ class DaskTaskRunner(BaseTaskRunner):
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
+
+        # Cast Prefect futures to Dask futures where possible to optimize Dask task
+        # scheduling
+        run_kwargs = await self._optimize_futures(run_kwargs)
 
         self._dask_futures[task_run.id] = self._client.submit(
             run_fn,
@@ -360,6 +390,17 @@ class DaskTaskRunner(BaseTaskRunner):
         The Dask future is for the `run_fn`, which should return a `State`.
         """
         return self._dask_futures[prefect_future.run_id]
+
+    async def _optimize_futures(self, expr):
+        async def visit_fn(expr):
+            if isinstance(expr, PrefectFuture):
+                dask_future = self._dask_futures.get(expr.run_id)
+                if dask_future is not None:
+                    return dask_future
+            # Fallback to return the expression unaltered
+            return expr
+
+        return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
     async def wait(
         self,
@@ -468,6 +509,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         self._results: Dict[UUID, Any] = {}
         self._task_run_ids: Set[UUID] = set()
         super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.CONCURRENT
 
     async def submit(
         self,
@@ -600,6 +645,10 @@ class RayTaskRunner(BaseTaskRunner):
         self._ray_refs: Dict[UUID, "ray.ObjectRef"] = {}
 
         super().__init__()
+
+    @property
+    def concurrency_type(self) -> TaskConcurrencyType:
+        return TaskConcurrencyType.PARALLEL
 
     async def submit(
         self,

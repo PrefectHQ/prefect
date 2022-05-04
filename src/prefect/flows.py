@@ -29,6 +29,7 @@ from typing_extensions import ParamSpec
 from prefect import State
 from prefect.exceptions import ParameterTypeError
 from prefect.logging import get_logger
+from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
@@ -89,6 +90,10 @@ class Flow(Generic[P, R]):
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
+
+        # Validate name if given
+        if name:
+            raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
         task_runner = task_runner or ConcurrentTaskRunner()
@@ -235,7 +240,7 @@ class Flow(Generic[P, R]):
         for key, value in parameters.items():
             try:
                 serialized_parameters[key] = jsonable_encoder(value)
-            except TypeError:
+            except (TypeError, ValueError):
                 logger.debug(
                     f"Parameter {key!r} for flow {self.name!r} is of unserializable "
                     f"type {type(value).__name__!r} and will not be stored "

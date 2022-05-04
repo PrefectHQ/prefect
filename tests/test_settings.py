@@ -1,5 +1,6 @@
 import os
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -7,9 +8,11 @@ import prefect.context
 import prefect.settings
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_ORION_DATABASE_ECHO,
+    PREFECT_ORION_UI_API_URL,
     PREFECT_TEST_MODE,
     Settings,
     get_current_settings,
@@ -18,7 +21,22 @@ from prefect.settings import (
     update_profile,
     write_profiles,
 )
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
+
+
+class TestSetting_UI_API_URL:
+    def test_ui_api_url_from_api_url(self):
+        with temporary_settings(PREFECT_API_URL="http://test/api"):
+            assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
+
+    def test_ui_api_url_from_orion_host_and_port(self):
+        with temporary_settings(
+            PREFECT_ORION_API_HOST="test", PREFECT_ORION_API_PORT="1111"
+        ):
+            assert PREFECT_ORION_UI_API_URL.value() == "http://test:1111/api"
+
+    def test_ui_api_url_from_defaults(self):
+        assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
 
 
 def test_get_value_root_setting():
@@ -122,6 +140,11 @@ def test_nested_settings(monkeypatch):
 def test_extra_loggers(value, expected):
     settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
     assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+
+
+def test_prefect_home_expands_tilde_in_path():
+    settings = Settings(PREFECT_HOME="~/test")
+    assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
 
 class TestProfiles:

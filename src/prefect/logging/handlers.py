@@ -128,7 +128,9 @@ class OrionLogWorker:
             if not self._pending_logs:
                 continue
 
-            async with get_client() as client:
+            client = get_client()
+            client.manage_lifespan = False
+            async with client:
                 try:
                     await client.create_logs(self._pending_logs)
                     self._pending_logs = []
