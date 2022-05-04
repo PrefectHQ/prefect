@@ -272,7 +272,7 @@ async def delete(deployment_id: str):
     \b
     Example:
         \b
-        $ prefect deployment inspect dfd3e220-a130-4149-9af6-8d487e02fea6
+        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6
     """
     async with get_client() as client:
         try:
