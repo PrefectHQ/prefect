@@ -262,3 +262,22 @@ async def create(path: str):
                 "View your new deployment with: "
                 f"\n\n    prefect deployment inspect {stylized_name}"
             )
+
+
+@deployment_app.command()
+async def delete(deployment_id: str):
+    """
+    Delete a deployment.
+
+    \b
+    Example:
+        \b
+        $ prefect deployment inspect dfd3e220-a130-4149-9af6-8d487e02fea6
+    """
+    async with get_client() as client:
+        try:
+            deployment = await client.delete_deployment(deployment_id)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment {deployment_id!r} not found!")
+
+    console.print(f"Deleted deployment {deployment_id}")

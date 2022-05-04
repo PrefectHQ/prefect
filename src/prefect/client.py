@@ -1098,6 +1098,27 @@ class OrionClient:
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
+    async def delete_deployment(
+        self,
+        deployment_id: UUID,
+    ):
+        """
+        Delete deployment by id.
+
+        Args:
+            deployment_id: the deployment ID of interest
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/deployments/{deployment_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         """
         Query Orion for a flow run by id.
