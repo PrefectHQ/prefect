@@ -1,14 +1,14 @@
 import pickle
-from unittest.mock import MagicMock
+import uuid
+from unittest.mock import ANY, MagicMock
 
 import pytest
-import uuid
 
 import prefect
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
-from prefect.storage import Docker, Local
 from prefect.run_configs import DockerRun, LocalRun, UniversalRun
+from prefect.storage import Docker, Local
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.graphql import GraphQLResult
 
@@ -1027,10 +1027,8 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
 
 
 def test_docker_agent_networks(api):
-    api.create_networking_config.return_value = {
-        "test-network-1": "config1",
-        "test-network-2": "config2",
-    }
+    api.create_networking_config.return_value = {"test-network-1": "config1"}
+    api.create_endpoint_config.return_value = "endpoint-config"
 
     agent = DockerAgent(networks=["test-network-1", "test-network-2"])
     agent.deploy_flow(
@@ -1054,8 +1052,126 @@ def test_docker_agent_networks(api):
 
     assert "test-network-1" in agent.networks
     assert "test-network-2" in agent.networks
-    args, kwargs = api.create_container.call_args
-    assert kwargs["networking_config"] == {
-        "test-network-1": "config1",
-        "test-network-2": "config2",
-    }
+
+    api.create_networking_config.assert_called_once_with(
+        {"test-network-1": "endpoint-config"}
+    )
+
+    _, kwargs = api.create_container.call_args
+    assert kwargs["networking_config"] == {"test-network-1": "config1"}
+
+    api.connect_container_to_network.assert_called_once_with(
+        container=ANY, net_id="test-network-2"
+    )
+
+    _, host_config_kwargs = api.create_host_config.call_args
+    assert "network_mode" not in host_config_kwargs
+
+
+def test_docker_agent_networks_no_networks(api):
+    api.create_networking_config.return_value = {"test-network-1": "config1"}
+    api.create_endpoint_config.return_value = "endpoint-config"
+
+    agent = DockerAgent(networks=[])
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert agent.networks == []
+
+    api.create_networking_config.assert_not_called()
+
+    _, kwargs = api.create_container.call_args
+    assert kwargs["networking_config"] is None
+
+    api.connect_container_to_network.assert_not_called()
+
+
+@pytest.mark.parametrize("network", ["host", "none"])
+def test_docker_agent_networks_as_modes(api, network):
+    api.create_networking_config.return_value = {network: "config1"}
+    api.create_endpoint_config.return_value = "endpoint-config"
+
+    agent = DockerAgent(networks=[network])
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert network in agent.networks
+
+    api.create_networking_config.assert_called_once_with({network: "endpoint-config"})
+
+    _, container_create_kwargs = api.create_container.call_args
+    assert container_create_kwargs["networking_config"] == {network: "config1"}
+
+    _, host_config_kwargs = api.create_host_config.call_args
+    assert host_config_kwargs["network_mode"] == network
+
+
+@pytest.mark.parametrize("network", ["host", "none"])
+def test_docker_agent_networks_as_modes_can_be_overriden_by_run_config(api, network):
+    api.create_networking_config.return_value = {network: "config1"}
+    api.create_endpoint_config.return_value = "endpoint-config"
+
+    agent = DockerAgent(networks=[network])
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": Docker(
+                            registry_url="test", image_name="name", image_tag="tag"
+                        ).serialize(),
+                        "core_version": "0.13.0",
+                    }
+                ),
+                "run_config": DockerRun(
+                    host_config={"network_mode": "foobar"}
+                ).serialize(),
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert network in agent.networks
+
+    api.create_networking_config.assert_called_once_with({network: "endpoint-config"})
+
+    _, container_create_kwargs = api.create_container.call_args
+    assert container_create_kwargs["networking_config"] == {network: "config1"}
+
+    _, host_config_kwargs = api.create_host_config.call_args
+    assert host_config_kwargs["network_mode"] == "foobar"
