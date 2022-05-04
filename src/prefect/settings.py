@@ -81,6 +81,10 @@ def get_extra_loggers(_: "Settings", value: str) -> List[str]:
     return [name.strip() for name in value.split(",")] if value else []
 
 
+def expanduser_in_path(_, value: Path) -> Path:
+    return value.expanduser()
+
+
 def debug_mode_log_level(settings, value):
     """
     `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
@@ -90,6 +94,23 @@ def debug_mode_log_level(settings, value):
         return "DEBUG"
     else:
         return value
+
+
+def default_ui_api_url(settings, value):
+    """
+    `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
+    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    """
+    if value is None:
+        # Set a default value
+        if PREFECT_API_URL.value_from(settings):
+            value = "${PREFECT_API_URL}"
+        else:
+            value = "http://${PREFECT_ORION_API_HOST}:${PREFECT_ORION_API_PORT}/api"
+
+    return template_with_settings(
+        PREFECT_ORION_API_HOST, PREFECT_ORION_API_PORT, PREFECT_API_URL
+    )(settings, value)
 
 
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
@@ -128,9 +149,10 @@ def max_log_size_smaller_than_batch_size(values):
 
 PREFECT_HOME = Setting(
     Path,
-    default=Path("~/.prefect").expanduser(),
+    default=Path("~/.prefect"),
     description="""Prefect's home directory. Defaults to `~/.prefect`. This
         directory may be created automatically when required.""",
+    value_callback=expanduser_in_path,
 )
 
 PREFECT_DEBUG_MODE = Setting(
@@ -258,7 +280,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
     description=textwrap.dedent(
-        f"""
+        """
         A database connection URL in a SQLAlchemy-compatible
         format. Orion currently supports SQLite and Postgres. Note that all
         Orion engines must use an async driver - for SQLite, use
@@ -282,13 +304,11 @@ PREFECT_ORION_DATABASE_ECHO = Setting(
     description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
 
-
 PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
     bool,
     default=True,
     description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
 )
-
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
@@ -395,6 +415,16 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
+PREFECT_ORION_UI_API_URL = Setting(
+    str,
+    default=None,
+    description="""The connection url for communication from the UI to the API. 
+    Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
+    `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
+    the aforementioned settings may be templated into the given string.""",
+    value_callback=default_ui_api_url,
+)
+
 PREFECT_ORION_ANALYTICS_ENABLED = Setting(
     bool,
     default=True,
@@ -488,7 +518,7 @@ class Settings(SettingsFieldsMixin):
     This is not recommended:
     ```python
     from prefect.settings import Settings
-    Settings().PREFECT_PROFILE_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
+    Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
     ```
     """
 

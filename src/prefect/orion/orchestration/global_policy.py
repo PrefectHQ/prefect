@@ -18,6 +18,7 @@ from prefect.orion.orchestration.rules import (
 
 COMMON_GLOBAL_TRANSFORMS = lambda: [
     SetRunStateType,
+    SetRunStateName,
     SetStartTime,
     SetEndTime,
     IncrementRunCount,
@@ -64,6 +65,17 @@ class SetRunStateType(BaseUniversalTransform):
 
         # record the new state's type
         context.run.state_type = context.proposed_state.type
+
+
+class SetRunStateName(BaseUniversalTransform):
+    """
+    Updates the state name of a run on a state transition.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+
+        # record the new state's name
+        context.run.state_name = context.proposed_state.name
 
 
 class SetStartTime(BaseUniversalTransform):

@@ -278,6 +278,12 @@ async def delete_deployment(
     Returns:
         bool: whether or not the deployment was deleted
     """
+    # delete any scheduled runs for this deployment
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    )
+    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
@@ -340,6 +346,9 @@ async def _generate_scheduled_flow_runs(
     associated scheduled states that represent scheduled flow runs. This method
     does NOT insert generated runs into the database, in order to facilitate
     batch operations. Call `_insert_scheduled_flow_runs()` to insert these runs.
+
+    Runs include an idempotency key which prevents duplicate runs from being inserted
+    if the output from this function is used more than once.
 
     Args:
         session: a database session

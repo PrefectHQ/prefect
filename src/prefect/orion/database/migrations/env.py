@@ -5,11 +5,13 @@ from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.utilities.database import get_dialect
 from prefect.utilities.asyncio import sync_compatible
 
 db_interface = provide_database_interface()
 config = context.config
 target_metadata = db_interface.Base.metadata
+dialect = get_dialect(db_interface.database_config.connection_url)
 
 
 def dry_run_migrations() -> None:
@@ -28,7 +30,19 @@ def dry_run_migrations() -> None:
         literal_binds=True,
         include_schemas=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,
+        # Only use batch statements by default on sqlite
+        #
+        # The SQLite database presents a challenge to migration
+        # tools in that it has almost no support for the ALTER statement
+        # which relational schema migrations rely upon.
+        # Migration tools are instead expected to produce copies of SQLite tables
+        # that correspond to the new structure, transfer the data from the existing
+        # table to the new one, then drop the old table.
+        #
+        # see https://alembic.sqlalchemy.org/en/latest/batch.html#batch-migrations
+        render_as_batch=dialect == "sqlite",
+        # Each migration is its own transaction
+        transaction_per_migration=True,
     )
 
     with context.begin_transaction():
@@ -47,7 +61,19 @@ def do_run_migrations(connection: AsyncEngine) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_schemas=True,
-        render_as_batch=True,
+        # Only use batch statements by default on sqlite
+        #
+        # The SQLite database presents a challenge to migration
+        # tools in that it has almost no support for the ALTER statement
+        # which relational schema migrations rely upon.
+        # Migration tools are instead expected to produce copies of SQLite tables
+        # that correspond to the new structure, transfer the data from the existing
+        # table to the new one, then drop the old table.
+        #
+        # see https://alembic.sqlalchemy.org/en/latest/batch.html#batch-migrations
+        render_as_batch=dialect == "sqlite",
+        # Each migration is its own transaction
+        transaction_per_migration=True,
     )
 
     with context.begin_transaction():

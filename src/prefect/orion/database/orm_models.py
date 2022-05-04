@@ -246,6 +246,7 @@ class ORMRun:
         index=True,
     )
     state_type = sa.Column(sa.Enum(schemas.states.StateType, name="state_type"))
+    state_name = sa.Column(sa.String, nullable=True)
     run_count = sa.Column(sa.Integer, server_default="0", default=0, nullable=False)
     expected_start_time = sa.Column(Timestamp())
     next_scheduled_start_time = sa.Column(Timestamp())
@@ -493,6 +494,10 @@ class ORMFlowRun(ORMRun):
                 "ix_flow_run__state_type",
                 "state_type",
             ),
+            sa.Index(
+                "ix_flow_run__state_name",
+                "state_name",
+            ),
         )
 
 
@@ -639,6 +644,10 @@ class ORMTaskRun(ORMRun):
             sa.Index(
                 "ix_task_run__state_type",
                 "state_type",
+            ),
+            sa.Index(
+                "ix_task_run__state_name",
+                "state_name",
             ),
         )
 

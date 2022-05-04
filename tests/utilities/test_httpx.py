@@ -1,7 +1,7 @@
 import sys
-from unittest.mock import MagicMock
 
 import pytest
+from fastapi import status
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.utilities.httpx import PrefectHttpxClient
@@ -37,7 +37,7 @@ async def test_prefect_httpx_client_retries_429s():
     response = await client.post(
         url="fake.url/fake/route", data={"evenmorefake": "data"}
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     client._httpx_send.call_count == 5
 
 

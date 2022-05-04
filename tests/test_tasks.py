@@ -13,7 +13,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
-from prefect.utilities.testing import exceptions_equal
+from prefect.testing.utilities import exceptions_equal
 
 
 def comparable_inputs(d):
@@ -316,6 +316,24 @@ class TestTaskFutures:
             return True  # Ignore failed tasks
 
         (await my_flow()).result()
+
+    async def test_async_tasks_in_sync_flows_return_sync_futures(self):
+        data = {"value": 1}
+
+        @task
+        async def get_data():
+            return data
+
+        # note this flow is purposely not async
+        @flow
+        def test_flow():
+            future = get_data()
+            assert not future.asynchronous, "The async task should return a sync future"
+            result = future.result()
+            assert result == data, "Retrieving the result returns data"
+            return result
+
+        assert test_flow().result() == data
 
 
 class TestTaskRetries:

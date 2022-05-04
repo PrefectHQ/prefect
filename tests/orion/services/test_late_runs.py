@@ -5,7 +5,7 @@ import pytest
 
 from prefect.orion import models, schemas
 from prefect.orion.services.late_runs import MarkLateRuns
-from prefect.utilities.testing import temporary_settings
+from prefect.testing.utilities import temporary_settings
 
 
 @pytest.fixture
