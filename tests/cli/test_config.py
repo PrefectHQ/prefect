@@ -409,8 +409,7 @@ def test_view_shows_setting_sources(monkeypatch, command):
                 PREFECT_ORION_DATABASE_TIMEOUT: 2.0,
                 PREFECT_LOGGING_ORION_MAX_LOG_SIZE: 1000001,
             },
-        ),
-        include_current_context=False,
+        )
     ):
         res = invoke_and_assert(command)
 
