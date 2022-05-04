@@ -177,7 +177,7 @@ def create_orion_api(
                     # break expectations without additional routing and is banned for
                     # now
                     raise ValueError(
-                        f"Router override for {prefix!r} defines a new prefix "
+                        f"Router override for {prefix!r} defines a different prefix "
                         f"{router.prefix!r}."
                     )
 
