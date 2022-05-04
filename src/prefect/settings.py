@@ -609,10 +609,43 @@ class Settings(SettingsFieldsMixin):
             }
         )
 
-    def to_environment_variables(self) -> Dict[str, str]:
+    def to_environment_variables(
+        self, include: Iterable[Setting] = None, exclude_unset: bool = False
+    ) -> Dict[str, str]:
+        """
+        Convert the settings object to environment variables.
+
+        Args:
+            include_keys: An iterable of settings to include in the return value.
+                If not set, all settings are used.
+            exclude_unset: Only include settings that have been set (i.e. the value is
+                not from the default). If set, unset keys will be dropped even if they
+                are set in `include_keys`.
+
+        Returns:
+            A dictionary of settings with values cast to strings
+        """
+        include = set(include or SETTING_VARIABLES.values())
+
+        if exclude_unset:
+            set_keys = {
+                # Collect all of the "set" keys and cast to `Setting` objects
+                SETTING_VARIABLES[key]
+                for key in self.dict(exclude_unset=True)
+            }
+            include.intersection_update(set_keys)
+
+        # Validate the types of items in `include` to prevent exclusion bugs
+        for key in include:
+            if not isinstance(key, Setting):
+                raise TypeError(
+                    "Invalid type {type(key).__name__!r} for key in `include`."
+                )
+
         env = {
             setting.name: setting.value_from(self)
             for setting in SETTING_VARIABLES.values()
+            if setting in include
         }
 
         # Cast to strings and drop null values
