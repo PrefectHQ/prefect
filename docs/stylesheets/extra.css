@@ -5,8 +5,46 @@
     /* theme */ 
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
-    --md-primary-fg-color--dark:  #115AF4;   
+    --md-primary-fg-color--dark:  #115AF4;  
   }
+
+/* code block margin and padding  */
+.highlight > pre > code {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+/* adjust clipboard button to accommodate margin and padding */
+.md-clipboard {
+    top: 1.5rem;
+    color: #a2a2a2b1;
+}
+
+.terminal:hover .md-clipboard {
+    color: #a2a2a2;
+}
+
+/* terminal code block formatting */
+.terminal {  
+    --md-code-bg-color: #252a33;
+    --md-code-fg-color: #eee;
+    line-height: 120%;
+}
+
+/* give terminal code a little more padding to look less crowded */
+.terminal > .highlight > pre > code {
+    padding-top: 30px;
+    padding-bottom: 25px;
+}
+
+.terminal button {
+    -webkit-tap-highlight-color: #a2a2a2;
+    color: #a2a2a2b1;
+    outline: none;
+}
 
 /* Image drop shadow, separates browser from background */
 img {
@@ -15,6 +53,7 @@ img {
     filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
 }
 
+/* remove margin just for the top nav logo */
 .md-logo img {
     margin-top: 0;
     margin-bottom: 0;
@@ -30,6 +69,10 @@ img {
 .md-typeset table:not([class]) th {
     padding: 0.5em 1.25em;
 }
+
+/* convenience class to keep lines from breaking
+useful for wrapping table cell text in a span
+to force column width */
 .no-wrap {
     white-space: nowrap;
 }
