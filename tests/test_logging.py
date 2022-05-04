@@ -34,10 +34,12 @@ from prefect.logging.loggers import (
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import (
+    PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_SETTINGS_PATH,
     Settings,
     temporary_settings,
 )
@@ -91,55 +93,51 @@ async def logger_test_deployment(orion_client):
 
 
 def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
-    fake_settings = prefect.settings.Settings(
-        PREFECT_LOGGING_SETTINGS_PATH=tmp_path.joinpath("does-not-exist.yaml")
-    )
-
-    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
-
-    setup_logging(fake_settings)
+    with temporary_settings(
+        {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
+    ):
+        expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
+        setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
 def test_setup_logging_allows_repeated_calls(dictConfigMock):
-    setup_logging(prefect.settings.Settings())
+    setup_logging()
     dictConfigMock.assert_called_once()
-    setup_logging(prefect.settings.Settings())
+    setup_logging()
     dictConfigMock.assert_called_once()
 
 
 def test_setup_logging_warns_on_repeated_calls_with_new_settings(dictConfigMock):
-    setup_logging(prefect.settings.Settings())
+    setup_logging()
     dictConfigMock.assert_called_once()
     with pytest.warns(
         UserWarning, match="only be setup once per process.* will be ignored"
     ):
-        setup_logging(
-            prefect.settings.Settings().copy(update={"PREFECT_LOGGING_LEVEL": "ERROR"})
-        )
+        with temporary_settings({PREFECT_LOGGING_LEVEL: "ERROR"}):
+            setup_logging()
     dictConfigMock.assert_called_once()
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     config_file = tmp_path.joinpath("exists.yaml")
     config_file.write_text("foo: bar")
-    fake_settings = Settings(PREFECT_LOGGING_SETTINGS_PATH=config_file)
 
-    setup_logging(fake_settings)
-    expected_config = load_logging_config(
-        tmp_path.joinpath("exists.yaml"), fake_settings
-    )
+    with temporary_settings({PREFECT_LOGGING_SETTINGS_PATH: config_file}):
+
+        setup_logging()
+        expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
 
     dictConfigMock.assert_called_once_with(expected_config)
 
 
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
-    fake_settings = Settings(
-        PREFECT_LOGGING_SETTINGS_PATH=tmp_path.joinpath("does-not-exist.yaml")
-    )
 
-    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
+    with temporary_settings(
+        {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
+    ):
+        expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
     env = {}
 
     # Test setting a value for a simple key
@@ -166,7 +164,10 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     for var, value in env.items():
         monkeypatch.setenv(var, value)
 
-    setup_logging(fake_settings)
+    with temporary_settings(
+        {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
+    ):
+        setup_logging()
 
     dictConfigMock.assert_called_once_with(expected_config)
 
@@ -227,14 +228,14 @@ def test_get_logger_does_not_duplicate_prefect_prefix():
 
 
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
-    fake_settings = Settings(PREFECT_LOGGING_LEVEL="WARNING")
+    with temporary_settings({PREFECT_LOGGING_LEVEL: "WARNING"}):
+        expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH)
 
-    expected_config = load_logging_config(DEFAULT_LOGGING_SETTINGS_PATH, fake_settings)
+        assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
+        assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
 
-    assert expected_config["loggers"]["prefect"]["level"] == "WARNING"
-    assert expected_config["loggers"]["prefect.extra"]["level"] == "WARNING"
+        setup_logging()
 
-    setup_logging(fake_settings)
     dictConfigMock.assert_called_once_with(expected_config)
 
 

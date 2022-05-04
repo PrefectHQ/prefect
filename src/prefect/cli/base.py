@@ -19,6 +19,7 @@ import prefect
 import prefect.context
 import prefect.settings
 from prefect.exceptions import MissingProfileError
+from prefect.logging.configuration import setup_logging
 from prefect.settings import PREFECT_TEST_MODE, Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
@@ -141,6 +142,8 @@ def main(
             profile, override_environment_variables=True
         )
         ctx.with_resource(settings_ctx)
+
+    setup_logging()
 
 
 @app.command()

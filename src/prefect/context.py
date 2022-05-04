@@ -392,6 +392,4 @@ def enter_root_settings_context():
         override_environment_variables=profile_source == "command line argument",
     )
 
-    global_profile = GLOBAL_SETTINGS_CM.__enter__()
-
-    prefect.logging.configuration.setup_logging(global_profile.settings)
+    GLOBAL_SETTINGS_CM.__enter__()
