@@ -52,6 +52,7 @@ API_ROUTERS = (
     api.block_specs.router,
     api.ui.flow_runs.router,
     api.admin.router,
+    api.root.router,
 )
 
 
