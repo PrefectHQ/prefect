@@ -74,7 +74,5 @@ To see the IDs of available storage configurations, use the `prefect storage ls`
 
 `prefect storage reset-default` resets the default storage option to temporary local storage.
 
-### S3 compatible storage
-When need there is the option to use a S3 compatible storage like minio or Scaleway.
-To get this working you would need to provide the endpoint url when creating the storage via the CLI.
-Usually the endpoint url looks something like this ```https://bucketname.s3.nl-ams.scw.cloud```.
+### S3 Endpoint URL
+When using an S3 compatible storage solution, like minio or Scaleway, or a VPC endpoint for S3, specify the endpoint URL when setting up storage via the CLI. An endpoint URL is not necessary when using AWS S3 directly.
