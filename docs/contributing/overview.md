@@ -18,6 +18,7 @@ First, you'll need to download the source code and install an editable version o
 ```bash
 # Clone the repository and switch to the 'orion' branch
 git clone https://github.com/PrefectHQ/prefect.git
+cd prefect
 git checkout orion
 # Install the package with development dependencies
 pip install -e ".[dev]"
