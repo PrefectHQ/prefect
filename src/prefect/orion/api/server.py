@@ -4,8 +4,9 @@ Defines the Orion FastAPI app.
 
 import asyncio
 import os
+import warnings
 from functools import partial
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Mapping, Optional, Tuple
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, FastAPI, Request, status
@@ -23,6 +24,7 @@ import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.server import method_paths_from_routes
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
@@ -33,6 +35,24 @@ ORION_API_VERSION = "0.3.0"
 logger = get_logger("orion")
 
 version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
+
+
+API_ROUTERS = (
+    api.flows.router,
+    api.flow_runs.router,
+    api.task_runs.router,
+    api.flow_run_states.router,
+    api.task_run_states.router,
+    api.deployments.router,
+    api.saved_searches.router,
+    api.logs.router,
+    api.concurrency_limits.router,
+    api.blocks.router,
+    api.work_queues.router,
+    api.block_specs.router,
+    api.ui.flow_runs.router,
+    api.admin.router,
+)
 
 
 class SPAStaticFiles(StaticFiles):
@@ -101,21 +121,22 @@ async def prefect_object_not_found_exception_handler(
 
 def create_orion_api(
     router_prefix: Optional[str] = "",
-    include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
     fast_api_app_kwargs: dict = None,
+    router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
 
     Args:
         router_prefix: a prefix to apply to all included routers
-        include_admin_router: whether or not to include admin routes, these routes
-            have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
+        router_overrides: a mapping of route prefixes (i.e. "/admin") to new routers
+            allowing the caller to override the default routers. If `None` is provided
+            as a value, the default router will be dropped from the application.
 
     Returns:
         a FastAPI app that serves the Orion API
@@ -133,51 +154,45 @@ def create_orion_api(
     else:
         dependencies.append(Depends(version_checker))
 
-    # api routers
-    api_app.include_router(
-        api.flows.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.flow_runs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.task_runs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.flow_run_states.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.task_run_states.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.deployments.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.saved_searches.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.logs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.blocks.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.work_queues.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.block_specs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.ui.flow_runs.router, prefix=router_prefix, dependencies=dependencies
-    )
+    routers = {router.prefix: router for router in API_ROUTERS}
 
-    if include_admin_router:
-        api_app.include_router(
-            api.admin.router, prefix=router_prefix, dependencies=dependencies
-        )
+    if router_overrides:
+        for prefix, router in router_overrides.items():
+
+            # We may want to allow this behavior in the future to inject new routes, but
+            # for now this will be treated an as an exception
+            if prefix not in routers:
+                raise KeyError(
+                    f"Router override provided for prefix that does not exist: {prefix!r}"
+                )
+
+            # Drop the existing router
+            existing_router = routers.pop(prefix)
+
+            # Replace it with a new router if provided
+            if router is not None:
+
+                if prefix != router.prefix:
+                    # We may want to allow this behavior in the future, but it will
+                    # break expectations without additional routing and is banned for
+                    # now
+                    raise ValueError(
+                        f"Router override for {prefix!r} defines a different prefix "
+                        f"{router.prefix!r}."
+                    )
+
+                existing_paths = method_paths_from_routes(existing_router.routes)
+                new_paths = method_paths_from_routes(router.routes)
+                if not existing_paths.issubset(new_paths):
+                    raise ValueError(
+                        f"Router override for {prefix!r} is missing paths defined by "
+                        f"the original router: {existing_paths.difference(new_paths)}"
+                    )
+
+                routers[prefix] = router
+
+    for router in routers.values():
+        api_app.include_router(router, prefix=router_prefix, dependencies=dependencies)
 
     return api_app
 
