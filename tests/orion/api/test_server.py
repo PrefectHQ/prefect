@@ -97,6 +97,15 @@ class TestCreateOrionAPI:
         ) as exc:
             create_orion_api(router_overrides={"/logs": router})
 
+    def test_checks_for_new_prefix_during_override(self):
+        router = APIRouter(prefix="/foo")
+
+        with pytest.raises(
+            KeyError,
+            match="Router override provided for prefix that does not exist: '/foo'",
+        ) as exc:
+            create_orion_api(router_overrides={"/foo": router})
+
     def test_only_includes_missing_paths_in_override_error(self):
         router = APIRouter(prefix="/logs")
 
