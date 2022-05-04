@@ -628,7 +628,7 @@ async def create_and_submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_storage=flow_run_context.result_storage,
-            settings=get_current_settings(),
+            profile=prefect.context.ProfileContext.get().copy(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
@@ -647,25 +647,43 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_storage: StorageBlock,
-    settings: prefect.settings.Settings,
+    profile: prefect.context.ProfileContext,
 ):
     """
     Entrypoint for task run execution.
 
     This function is intended for submission to the task runner.
 
-    This method may be called from a worker so we enter a temporary profile context
-    with the settings from submission and ensure it is initialized.
+    This method may be called from a worker so we ensure the profile context has been
+    entered. For example, with a runner that is executing tasks in the same event loop,
+    we will likely not enter the context again:
+
+    main thread:
+    --> Flow called with profile A
+    --> `begin_task_run` executes same event loop
+    --> Profile A matches and is not entered again
+
+    However, with execution on a remote environment, we are going to need to ensure the
+    settings are respected by entering the profile context:
+
+    main thread:
+    --> Flow called with profile A
+    --> `begin_task_run` is scheduled on a remote worker, profile A is serialized
+    remote worker:
+    --> Remote worker imports Prefect (may not occur)
+    --> Global profile is loaded with default settings
+    --> `begin_task_run` executes on a different event loop than the flow
+    --> Current profile is not set or does not match, profile A is entered
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        profile = stack.enter_context(
-            prefect.context.ProfileContext(
-                name=f"task-run-{task_run.name}", settings=settings, env={}
-            )
-        )
-        profile.initialize(create_home=False)
+
+        # The profile context may be null on a remote worker so we use the safe `.get`
+        # method and compare it to the profile required for this task run
+        if prefect.context.ProfileContext.get() != profile:
+            stack.enter_context(profile)
+            profile.initialize(create_home=False)
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
