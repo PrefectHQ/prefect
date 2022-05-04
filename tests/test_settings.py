@@ -21,6 +21,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
     Settings,
@@ -32,7 +33,216 @@ from prefect.settings import (
 )
 
 
-class TestSetting_UI_API_URL:
+class TestSettingsClass:
+    def test_settings_copy_with_update_does_not_mark_unset_as_set(self):
+        settings = get_current_settings()
+        set_keys = set(settings.dict(exclude_unset=True).keys())
+        new_settings = settings.copy_with_update()
+        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        assert new_set_keys == set_keys
+
+        new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
+        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        # Only the API key setting should be set
+        assert new_set_keys - set_keys == {"PREFECT_API_KEY"}
+
+    def test_settings_copy_with_update(self):
+        settings = get_current_settings()
+        assert settings.value_of(PREFECT_TEST_MODE) is True
+
+        with temporary_settings(restore_defaults={PREFECT_API_KEY}):
+            new_settings = settings.copy_with_update(
+                updates={PREFECT_LOGGING_LEVEL: "ERROR"},
+                set_defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
+            )
+            assert (
+                new_settings.value_of(PREFECT_TEST_MODE) is True
+            ), "Not changed, existing value was not default"
+            assert (
+                new_settings.value_of(PREFECT_API_KEY) == "TEST"
+            ), "Changed, existing value was default"
+            assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
+
+    def test_settings_loads_environment_variables_at_instantiation(self, monkeypatch):
+        assert PREFECT_TEST_MODE.value() is True
+
+        monkeypatch.setenv("PREFECT_TEST_MODE", "0")
+        new_settings = Settings()
+        assert PREFECT_TEST_MODE.value_from(new_settings) is False
+
+    def test_settings_to_environment_includes_all_settings_with_non_null_values(self):
+        settings = Settings()
+        assert set(settings.to_environment_variables().keys()) == {
+            key for key in SETTING_VARIABLES if getattr(settings, key) is not None
+        }
+
+    def test_settings_to_environment_casts_to_strings(self):
+        assert (
+            Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables()[
+                "PREFECT_ORION_API_PORT"
+            ]
+            == "3000"
+        )
+
+    def test_settings_to_environment_respects_includes(self):
+        include = [PREFECT_ORION_API_PORT]
+
+        assert Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables(
+            include=include
+        ) == {"PREFECT_ORION_API_PORT": "3000"}
+
+        assert include == [PREFECT_ORION_API_PORT], "Passed list should not be mutated"
+
+    def test_settings_to_environment_respects_includes(self):
+        include = [PREFECT_ORION_API_PORT]
+
+        assert Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables(
+            include=include
+        ) == {"PREFECT_ORION_API_PORT": "3000"}
+
+        assert include == [PREFECT_ORION_API_PORT], "Passed list should not be mutated"
+
+    def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
+        for key in SETTING_VARIABLES:
+            monkeypatch.delenv(key, raising=False)
+
+        assert Settings().to_environment_variables(exclude_unset=True) == {}
+
+    def test_settings_to_environment_exclude_unset_only_includes_set(self, monkeypatch):
+        for key in SETTING_VARIABLES:
+            monkeypatch.delenv(key, raising=False)
+
+        assert Settings(
+            PREFECT_DEBUG_MODE=True, PREFECT_API_KEY="Hello"
+        ).to_environment_variables(exclude_unset=True) == {
+            "PREFECT_DEBUG_MODE": "True",
+            "PREFECT_API_KEY": "Hello",
+        }
+
+    def test_settings_to_environment_exclude_unset_only_includes_set_even_if_included(
+        self, monkeypatch
+    ):
+        for key in SETTING_VARIABLES:
+            monkeypatch.delenv(key, raising=False)
+
+        include = [PREFECT_HOME, PREFECT_DEBUG_MODE, PREFECT_API_KEY]
+
+        assert Settings(
+            PREFECT_DEBUG_MODE=True, PREFECT_API_KEY="Hello"
+        ).to_environment_variables(exclude_unset=True, include=include) == {
+            "PREFECT_DEBUG_MODE": "True",
+            "PREFECT_API_KEY": "Hello",
+        }
+
+        assert include == [
+            PREFECT_HOME,
+            PREFECT_DEBUG_MODE,
+            PREFECT_API_KEY,
+        ], "Passed list should not be mutated"
+
+    @pytest.mark.parametrize("exclude_unset", [True, False])
+    def test_settings_to_environment_roundtrip(self, exclude_unset, monkeypatch):
+        settings = Settings()
+        variables = settings.to_environment_variables(exclude_unset=exclude_unset)
+        for key, value in variables.items():
+            monkeypatch.setenv(key, value)
+        new_settings = Settings()
+        assert settings.dict() == new_settings.dict()
+
+    def test_settings_to_environment_does_not_use_value_callback(sel):
+        settings = Settings(PREFECT_ORION_UI_API_URL=None)
+        # This would be cast to a non-null value if the value callback was used when
+        # generating the environment variables
+        assert "PREFECT_ORION_UI_API_URL" not in settings.to_environment_variables()
+
+
+class TestSettingAccess:
+    def test_get_value_root_setting(self):
+        with temporary_settings(
+            updates={PREFECT_API_URL: "test"}
+        ):  # Set a value so its not null
+            value = prefect.settings.PREFECT_API_URL.value()
+            value_of = get_current_settings().value_of(PREFECT_API_URL)
+            value_from = PREFECT_API_URL.value_from(get_current_settings())
+            assert value == value_of == value_from == "test"
+
+    def test_get_value_nested_setting(self):
+        value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
+        value_of = get_current_settings().value_of(PREFECT_LOGGING_LEVEL)
+        value_from = PREFECT_LOGGING_LEVEL.value_from(get_current_settings())
+        assert value == value_of == value_from
+
+    def test_test_mode_access(self):
+        assert PREFECT_TEST_MODE.value() is True
+
+    def test_settings_in_truthy_statements_use_value(self):
+        if PREFECT_TEST_MODE:
+            assert True, "Treated as truth"
+        else:
+            assert False, "Not treated as truth"
+
+        with temporary_settings(updates={PREFECT_TEST_MODE: False}):
+            if not PREFECT_TEST_MODE:
+                assert True, "Treated as truth"
+            else:
+                assert False, "Not treated as truth"
+
+        # Test with a non-boolean setting
+
+        if PREFECT_LOGGING_LEVEL:
+            assert True, "Treated as truth"
+        else:
+            assert False, "Not treated as truth"
+
+        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
+            if not PREFECT_LOGGING_LEVEL:
+                assert True, "Treated as truth"
+            else:
+                assert False, "Not treated as truth"
+
+
+class TestTemporarySettings:
+    def test_temporary_settings(self):
+        assert PREFECT_TEST_MODE.value() is True
+        with temporary_settings(updates={PREFECT_TEST_MODE: False}) as new_settings:
+            assert (
+                PREFECT_TEST_MODE.value_from(new_settings) is False
+            ), "Yields the new settings"
+            assert PREFECT_TEST_MODE.value() is False
+
+        assert PREFECT_TEST_MODE.value() is True
+
+    def test_temporary_settings_does_not_mark_unset_as_set(self):
+        settings = get_current_settings()
+        set_keys = set(settings.dict(exclude_unset=True).keys())
+        with temporary_settings() as new_settings:
+            pass
+        new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
+        assert new_set_keys == set_keys
+
+    def test_temporary_settings_can_restore_to_defaults_values(self):
+        with temporary_settings(updates={PREFECT_TEST_SETTING: "FOO"}):
+            with temporary_settings(restore_defaults={PREFECT_TEST_SETTING}):
+                assert (
+                    PREFECT_TEST_SETTING.value() == PREFECT_TEST_SETTING.field.default
+                )
+
+    def test_temporary_settings_restores_on_error(self):
+        assert PREFECT_TEST_MODE.value() is True
+
+        with pytest.raises(ValueError):
+            with temporary_settings(updates={PREFECT_TEST_MODE: False}):
+                raise ValueError()
+
+        assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
+        assert PREFECT_TEST_MODE.value() is True
+
+
+class TestSpecificSettings:
+    """
+    These tests cover the behavior of specific setting variables
+    """
+
     def test_ui_api_url_from_api_url(self):
         with temporary_settings({PREFECT_API_URL: "http://test/api"}):
             assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
@@ -46,154 +256,21 @@ class TestSetting_UI_API_URL:
     def test_ui_api_url_from_defaults(self):
         assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
 
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("foo", ["foo"]),
+            ("foo,bar", ["foo", "bar"]),
+            ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+        ],
+    )
+    def test_extra_loggers(self, value, expected):
+        settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
+        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
 
-def test_get_value_root_setting():
-    with temporary_settings(
-        updates={PREFECT_API_URL: "test"}
-    ):  # Set a value so its not null
-        value = prefect.settings.PREFECT_API_URL.value()
-        value_of = get_current_settings().value_of(PREFECT_API_URL)
-        value_from = PREFECT_API_URL.value_from(get_current_settings())
-        assert value == value_of == value_from == "test"
-
-
-def test_get_value_nested_setting():
-    value = prefect.settings.PREFECT_LOGGING_LEVEL.value()
-    value_of = get_current_settings().value_of(PREFECT_LOGGING_LEVEL)
-    value_from = PREFECT_LOGGING_LEVEL.value_from(get_current_settings())
-    assert value == value_of == value_from
-
-
-def test_settings():
-    assert PREFECT_TEST_MODE.value() is True
-
-
-def test_settings_copy_with_update_does_not_mark_unset_as_set():
-    settings = get_current_settings()
-    set_keys = set(settings.dict(exclude_unset=True).keys())
-    new_settings = settings.copy_with_update()
-    new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
-    assert new_set_keys == set_keys
-
-    new_settings = settings.copy_with_update(updates={PREFECT_API_KEY: "TEST"})
-    new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
-    # Only the API key setting should be set
-    assert new_set_keys - set_keys == {"PREFECT_API_KEY"}
-
-
-def test_temporary_settings_does_not_mark_unset_as_set():
-    settings = get_current_settings()
-    set_keys = set(settings.dict(exclude_unset=True).keys())
-    with temporary_settings() as new_settings:
-        pass
-    new_set_keys = set(new_settings.dict(exclude_unset=True).keys())
-    assert new_set_keys == set_keys
-
-
-def test_settings_copy_with_update():
-    settings = get_current_settings()
-    assert settings.value_of(PREFECT_TEST_MODE) is True
-
-    with temporary_settings(restore_defaults={PREFECT_API_KEY}):
-        new_settings = settings.copy_with_update(
-            updates={PREFECT_LOGGING_LEVEL: "ERROR"},
-            set_defaults={PREFECT_TEST_MODE: False, PREFECT_API_KEY: "TEST"},
-        )
-        assert (
-            new_settings.value_of(PREFECT_TEST_MODE) is True
-        ), "Not changed, existing value was not default"
-        assert (
-            new_settings.value_of(PREFECT_API_KEY) == "TEST"
-        ), "Changed, existing value was default"
-        assert new_settings.value_of(PREFECT_LOGGING_LEVEL) == "ERROR"
-
-
-def test_settings_in_truthy_statements_use_value():
-    if PREFECT_TEST_MODE:
-        assert True, "Treated as truth"
-    else:
-        assert False, "Not treated as truth"
-
-    with temporary_settings(updates={PREFECT_TEST_MODE: False}):
-        if not PREFECT_TEST_MODE:
-            assert True, "Treated as truth"
-        else:
-            assert False, "Not treated as truth"
-
-    # Test with a non-boolean setting
-
-    if PREFECT_LOGGING_LEVEL:
-        assert True, "Treated as truth"
-    else:
-        assert False, "Not treated as truth"
-
-    with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
-        if not PREFECT_LOGGING_LEVEL:
-            assert True, "Treated as truth"
-        else:
-            assert False, "Not treated as truth"
-
-
-def test_temporary_settings():
-    assert PREFECT_TEST_MODE.value() is True
-    with temporary_settings(updates={PREFECT_TEST_MODE: False}) as new_settings:
-        assert (
-            PREFECT_TEST_MODE.value_from(new_settings) is False
-        ), "Yields the new settings"
-        assert PREFECT_TEST_MODE.value() is False
-
-    assert PREFECT_TEST_MODE.value() is True
-
-
-def test_temporary_settings_can_restore_to_defaults_values():
-    with temporary_settings(updates={PREFECT_TEST_SETTING: "FOO"}):
-        with temporary_settings(restore_defaults={PREFECT_TEST_SETTING}):
-            assert PREFECT_TEST_SETTING.value() == PREFECT_TEST_SETTING.field.default
-
-
-def test_temporary_settings_restores_on_error():
-    assert PREFECT_TEST_MODE.value() is True
-
-    with pytest.raises(ValueError):
-        with temporary_settings(updates={PREFECT_TEST_MODE: False}):
-            raise ValueError()
-
-    assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
-    assert PREFECT_TEST_MODE.value() is True
-
-
-def test_refresh_settings(monkeypatch):
-    assert PREFECT_TEST_MODE.value() is True
-
-    monkeypatch.setenv("PREFECT_TEST_MODE", "0")
-    new_settings = Settings()
-    assert PREFECT_TEST_MODE.value_from(new_settings) is False
-
-
-def test_nested_settings(monkeypatch):
-    assert PREFECT_ORION_DATABASE_ECHO.value() is False
-
-    monkeypatch.setenv("PREFECT_ORION_DATABASE_ECHO", "1")
-    new_settings = Settings()
-    assert PREFECT_ORION_DATABASE_ECHO.value_from(new_settings) is True
-
-
-@pytest.mark.parametrize(
-    "value,expected",
-    [
-        ("foo", ["foo"]),
-        ("foo,bar", ["foo", "bar"]),
-        ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
-    ],
-)
-def test_extra_loggers(value, expected):
-    settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
-    assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
-
-
-def test_prefect_home_expands_tilde_in_path():
-    settings = Settings(PREFECT_HOME="~/test")
-    assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
+    def test_prefect_home_expands_tilde_in_path(self):
+        settings = Settings(PREFECT_HOME="~/test")
+        assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
 
 class TestProfilesReadWrite:

@@ -615,6 +615,9 @@ class Settings(SettingsFieldsMixin):
         """
         Convert the settings object to environment variables.
 
+        Note that setting values will not be run through their `value_callback` allowing
+        dynamic resolution to occur when loaded from the returned environment.
+
         Args:
             include_keys: An iterable of settings to include in the return value.
                 If not set, all settings are used.
@@ -643,8 +646,9 @@ class Settings(SettingsFieldsMixin):
                 )
 
         env = {
-            setting.name: setting.value_from(self)
-            for setting in SETTING_VARIABLES.values()
+            # Use `getattr` instead of `value_of` to avoid value callback resolution
+            key: getattr(self, key)
+            for key, setting in SETTING_VARIABLES.items()
             if setting in include
         }
 
