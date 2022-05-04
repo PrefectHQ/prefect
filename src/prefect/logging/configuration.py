@@ -27,7 +27,7 @@ PROCESS_LOGGING_CONFIG: dict = None
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 
 
-def load_logging_config(path: Path, settings: Settings) -> dict:
+def load_logging_config(path: Path) -> dict:
     """
     Loads logging configuration from a path allowing override from the environment
     """
@@ -36,7 +36,7 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
         # Substitute settings into the template in format $SETTING / ${SETTING}
         template.substitute(
             {
-                setting.name: str(setting.value_from(settings))
+                setting.name: str(setting.value())
                 for setting in SETTING_VARIABLES.values()
             }
         )
@@ -59,31 +59,25 @@ def load_logging_config(path: Path, settings: Settings) -> dict:
     return flatdict_to_dict(flat_config)
 
 
-def setup_logging(settings: Settings) -> None:
+def setup_logging() -> None:
     global PROCESS_LOGGING_CONFIG
 
     # If the user has specified a logging path and it exists we will ignore the
     # default entirely rather than dealing with complex merging
     config = load_logging_config(
         (
-            PREFECT_LOGGING_SETTINGS_PATH.value_from(settings)
-            if PREFECT_LOGGING_SETTINGS_PATH.value_from(settings).exists()
+            PREFECT_LOGGING_SETTINGS_PATH.value()
+            if PREFECT_LOGGING_SETTINGS_PATH.value().exists()
             else DEFAULT_LOGGING_SETTINGS_PATH
-        ),
-        settings,
+        )
     )
 
     if PROCESS_LOGGING_CONFIG:
         # Do not allow repeated configuration calls, only warn if the config differs
-        config_diff = {
-            key: value
-            for key, value in config.items()
-            if PROCESS_LOGGING_CONFIG[key] != value
-        }
-        if config_diff:
+        if PROCESS_LOGGING_CONFIG != config:
             warnings.warn(
                 "Logging can only be setup once per process, the new logging config "
-                f"will be ignored. The attempted changes were: {config_diff}",
+                f"will be ignored.",
                 stacklevel=2,
             )
         return
@@ -93,7 +87,7 @@ def setup_logging(settings: Settings) -> None:
     # Copy configuration of the 'prefect.extra' logger to the extra loggers
     extra_config = logging.getLogger("prefect.extra")
 
-    for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings):
+    for logger_name in PREFECT_LOGGING_EXTRA_LOGGERS.value():
         logger = logging.getLogger(logger_name)
         for handler in extra_config.handlers:
             logger.addHandler(handler)
