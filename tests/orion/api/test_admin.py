@@ -4,12 +4,6 @@ import prefect
 from prefect.orion import models
 
 
-async def test_hello_world(client):
-    response = await client.get("/admin/hello")
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json() == "👋"
-
-
 async def test_version(client):
     response = await client.get("/admin/version")
     assert response.status_code == status.HTTP_200_OK
