@@ -4,10 +4,24 @@ Utilities for the Orion API server.
 import functools
 import inspect
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Any, Callable, Coroutine, get_type_hints
+from typing import Any, Callable, Coroutine, Iterable, Set, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
+
+
+def method_paths_from_routes(routes: Iterable[APIRoute]) -> Set[str]:
+    """
+    Generate a set of strings describing the given routes in the format: <method> <path>
+
+    For example, "GET /logs/"
+    """
+    method_paths = set()
+    for route in routes:
+        for method in route.methods:
+            method_paths.add(f"{method} {route.path}")
+
+    return method_paths
 
 
 def response_scoped_dependency(dependency: Callable):
