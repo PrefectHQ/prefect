@@ -220,7 +220,6 @@ class TestSettingsContext:
         monkeypatch.setattr(
             "prefect.logging.configuration.setup_logging", setup_logging
         )
-
         with use_profile("default"):
             setup_logging.assert_not_called()
 
@@ -271,19 +270,14 @@ class TestSettingsContext:
 
     def test_enter_global_profile_default(self, monkeypatch):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         enter_root_settings_context()
         use_profile.assert_called_once_with(
             Profile(name="default", settings={}, source=DEFAULT_PROFILES_PATH),
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
-        setup_logging.assert_called_once()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
 
     @pytest.mark.parametrize(
@@ -299,12 +293,8 @@ class TestSettingsContext:
         self, monkeypatch, cli_command
     ):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         monkeypatch.setattr("sys.argv", cli_command)
         enter_root_settings_context()
         use_profile.assert_called_once_with(
@@ -312,17 +302,12 @@ class TestSettingsContext:
             override_environment_variables=False,
         )
         use_profile().__enter__.assert_called_once_with()
-        setup_logging.assert_called_once()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
 
     def test_enter_global_profile_respects_cli(self, monkeypatch, foo_profile):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         monkeypatch.setattr("sys.argv", ["prefect", "--profile", "foo"])
         enter_root_settings_context()
         use_profile.assert_called_once_with(
@@ -330,19 +315,14 @@ class TestSettingsContext:
             override_environment_variables=True,
         )
         use_profile().__enter__.assert_called_once_with()
-        setup_logging.assert_called_once()
         assert prefect.context.GLOBAL_SETTINGS_CM is not None
 
     def test_enter_global_profile_respects_environment_variable(
         self, monkeypatch, foo_profile
     ):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         monkeypatch.setenv("PREFECT_PROFILE", "foo")
         enter_root_settings_context()
         use_profile.assert_called_once_with(
@@ -351,12 +331,8 @@ class TestSettingsContext:
 
     def test_enter_global_profile_missing_cli(self, monkeypatch):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         monkeypatch.setattr("sys.argv", ["prefect", "--profile", "bar"])
         with pytest.raises(
             ValueError,
@@ -366,12 +342,8 @@ class TestSettingsContext:
 
     def test_enter_global_profile_missing_environment_variables(self, monkeypatch):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         monkeypatch.setenv("PREFECT_PROFILE", "bar")
         with pytest.raises(
             ValueError,
@@ -381,15 +353,10 @@ class TestSettingsContext:
 
     def test_enter_global_profile_is_idempotent(self, monkeypatch):
         use_profile = MagicMock()
-        setup_logging = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr(
-            "prefect.logging.configuration.setup_logging", setup_logging
-        )
         enter_root_settings_context()
         enter_root_settings_context()
         enter_root_settings_context()
         use_profile.assert_called_once()
         use_profile().__enter__.assert_called_once()
-        setup_logging.assert_called_once()
