@@ -627,7 +627,7 @@ async def create_and_submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_storage=flow_run_context.result_storage,
-            settings=get_current_settings(),
+            settings=prefect.context.SettingsContext.get().copy(),
         ),
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
@@ -646,29 +646,44 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_storage: StorageBlock,
-    settings: prefect.settings.Settings,
+    settings: prefect.context.SettingsContext,
 ):
     """
     Entrypoint for task run execution.
 
     This function is intended for submission to the task runner.
 
-    This method may be called from a worker so we enter a temporary profile context
-    with the settings from submission and ensure it is initialized.
+    This method may be called from a worker so we ensure the settings context has been
+    entered. For example, with a runner that is executing tasks in the same event loop,
+    we will likely not enter the context again because the current context already
+    matches:
+
+    main thread:
+    --> Flow called with settings A
+    --> `begin_task_run` executes same event loop
+    --> Profile A matches and is not entered again
+
+    However, with execution on a remote environment, we are going to need to ensure the
+    settings for the task run are respected by entering the context:
+
+    main thread:
+    --> Flow called with settings A
+    --> `begin_task_run` is scheduled on a remote worker, settings A is serialized
+    remote worker:
+    --> Remote worker imports Prefect (may not occur)
+    --> Global settings is loaded with default settings
+    --> `begin_task_run` executes on a different event loop than the flow
+    --> Current settings is not set or does not match, settings A is entered
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        stack.enter_context(
-            prefect.context.SettingsContext(
-                # TODO: The profile should be shipped alongside the settings
-                profile=prefect.context.get_settings_context().profile,
-                settings=settings,
-            )
-        )
 
-        # Set up logging once we have entered the context
-        setup_logging()
+        # The settings context may be null on a remote worker so we use the safe `.get`
+        # method and compare it to the settings required for this task run
+        if prefect.context.SettingsContext.get() != settings:
+            stack.enter_context(settings)
+            setup_logging()
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
