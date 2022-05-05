@@ -45,9 +45,9 @@ async def setup_db(database_engine, db):
         await db.create_db()
         yield
 
-    except:
+    except Exception as exc:
 
-        raise RuntimeError(f"Failed to set up the database at {database_engine.url!r}")
+        raise RuntimeError(f"Failed to set up the database at {database_engine.url!r}") from exc
 
     finally:
         # tear down the database
