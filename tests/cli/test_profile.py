@@ -32,7 +32,7 @@ def test_use_profile_unknown_key():
 
 def test_use_profile_sets_active():
     save_profiles(
-        ProfilesCollection(profiles=[Profile(name="foo", settings={})], active="bar")
+        ProfilesCollection(profiles=[Profile(name="foo", settings={})], active=None)
     )
 
     invoke_and_assert(
