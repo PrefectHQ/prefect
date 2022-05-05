@@ -1,5 +1,43 @@
 """
 Prefect settings management.
+
+Each setting is defined as a `Setting` type. The name of each setting is stylized in all
+caps, matching the environment variable that can be used to change the setting.
+
+All settings defined in this file are used to generate a dynamic Pydantic settings class
+called `Settings`. When insantiated, this class will load settings from environment
+variables and pull default values from the setting definitions.
+
+The current instance of `Settings` being used by the application is stored in a
+`SettingsContext` model which allows each instance of the `Settings` class to be
+accessed in an async-safe manner.
+
+Aside from environment variables, we allow settings to be changed during the runtime of
+the process using profiles. Profiles contain setting overrides that the user may
+persist without setting environment variables. Profiles are also used internally for
+managing settings during task run execution where differing settings may be used
+concurrently in the same process and during testing where we need to override settings
+to ensure their value is respected as intended.
+
+The `SettingsContext` is set when the `prefect` module is imported. This context is
+referred to as the "root" settings context for clarity. Generally, this is the only
+settings context that will be used. When this context is entered, we will instantiate
+a `Settings` object, loading settings from environment variables and defaults, then we
+will load the active profile and use it to override settings. See  `enter_root_settings_context`
+for details on determining the active profile.
+
+Another `SettingsContext` may be entered at any time to change the settings being
+used by the code within the context. Generally, users should not use this. Settings
+management should be left to Prefect application internals.
+
+Generally, settings should be accessed with `SETTING_VARIABLE.value()` which will
+pull the current `Settings` instance from the current `SettingsContext` and retrieve
+the value of the relevant setting.
+
+Accessing a setting's value will also call the `Setting.value_callback` which allows
+settings to be dynamically modified on retrieval. This allows us to make settings
+dependent on the value of other settings or perform other dynamic effects.
+
 """
 import os
 import string
