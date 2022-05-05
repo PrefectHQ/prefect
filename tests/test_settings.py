@@ -200,6 +200,35 @@ class TestSettingAccess:
             else:
                 assert False, "Not treated as truth"
 
+    def test_ui_api_url_from_api_url(self):
+        with temporary_settings({PREFECT_API_URL: "http://test/api"}):
+            assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
+
+    def test_ui_api_url_from_orion_host_and_port(self):
+        with temporary_settings(
+            {PREFECT_ORION_API_HOST: "test", PREFECT_ORION_API_PORT: "1111"}
+        ):
+            assert PREFECT_ORION_UI_API_URL.value() == "http://test:1111/api"
+
+    def test_ui_api_url_from_defaults(self):
+        assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("foo", ["foo"]),
+            ("foo,bar", ["foo", "bar"]),
+            ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+        ],
+    )
+    def test_extra_loggers(self, value, expected):
+        settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
+        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
+
+    def test_prefect_home_expands_tilde_in_path(self):
+        settings = Settings(PREFECT_HOME="~/test")
+        assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
+
 
 class TestTemporarySettings:
     def test_temporary_settings(self):
@@ -236,41 +265,6 @@ class TestTemporarySettings:
 
         assert os.environ["PREFECT_TEST_MODE"] == "1", "Does not alter os environ."
         assert PREFECT_TEST_MODE.value() is True
-
-
-class TestSpecificSettings:
-    """
-    These tests cover the behavior of specific setting variables
-    """
-
-    def test_ui_api_url_from_api_url(self):
-        with temporary_settings({PREFECT_API_URL: "http://test/api"}):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
-
-    def test_ui_api_url_from_orion_host_and_port(self):
-        with temporary_settings(
-            {PREFECT_ORION_API_HOST: "test", PREFECT_ORION_API_PORT: "1111"}
-        ):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test:1111/api"
-
-    def test_ui_api_url_from_defaults(self):
-        assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
-
-    @pytest.mark.parametrize(
-        "value,expected",
-        [
-            ("foo", ["foo"]),
-            ("foo,bar", ["foo", "bar"]),
-            ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
-        ],
-    )
-    def test_extra_loggers(self, value, expected):
-        settings = Settings(PREFECT_LOGGING_EXTRA_LOGGERS=value)
-        assert PREFECT_LOGGING_EXTRA_LOGGERS.value_from(settings) == expected
-
-    def test_prefect_home_expands_tilde_in_path(self):
-        settings = Settings(PREFECT_HOME="~/test")
-        assert PREFECT_HOME.value_from(settings) == Path("~/test").expanduser()
 
 
 class TestProfilesReadWrite:
