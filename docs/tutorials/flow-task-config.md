@@ -256,7 +256,7 @@ But if you change the argument passed to the task (here we used "Trillian" inste
 11:52:09.553 | INFO    | Flow run 'attentive-turaco' - Using task runner 'ConcurrentTaskRunner'
 11:52:09.761 | INFO    | Flow run 'attentive-turaco' - Created task run 'hello_task-e97fb216-0' for task 'hello_task'
 
-<span style="font-weight: bold;">Saying hello Marvin</span>
+Saying hello Marvin
 
 11:52:10.798 | INFO    | Task run 'hello_task-e97fb216-0' - Finished in state Completed(None)
 11:52:12.004 | INFO    | Flow run 'attentive-turaco' - Finished in state Completed('All states completed.')
@@ -275,7 +275,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Cached(messag
 11:53:06.637 | INFO    | Flow run 'imposing-stork' - Using task runner 'ConcurrentTaskRunner'
 11:53:06.846 | INFO    | Flow run 'imposing-stork' - Created task run 'hello_task-e97fb216-3' for task 'hello_task'
 
-<span style="font-weight: bold;">Saying hello Trillian</span>
+Saying hello Trillian
 
 11:53:07.787 | INFO    | Task run 'hello_task-e97fb216-3' - Finished in state Completed(None)
 11:53:09.027 | INFO    | Flow run 'imposing-stork' - Finished in state Completed('All states completed.')
