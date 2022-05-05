@@ -149,7 +149,7 @@ def hello_task(name_input):
     return "hello " + name_input
 
 @flow
-def hello_flow():
+def hello_flow(name_input):
     hello_task(name_input)
 ```
 
