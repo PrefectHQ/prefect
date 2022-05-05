@@ -372,7 +372,7 @@ def enter_root_settings_context():
         profile_source = "environment variable"
 
     if (
-        sys.argv[0].endswith("prefect")
+        sys.argv[0].endswith("/prefect")
         and len(sys.argv) >= 3
         and sys.argv[1] == "--profile"
     ):
