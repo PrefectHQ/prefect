@@ -267,7 +267,7 @@ class TestTemporarySettings:
         assert PREFECT_TEST_MODE.value() is True
 
 
-class TestProfilesReadWrite:
+class TestLoadProfiles:
     @pytest.fixture(autouse=True)
     def temporary_profiles_path(self, tmp_path):
         path = tmp_path / "profiles.toml"
@@ -315,45 +315,6 @@ class TestProfilesReadWrite:
                 ),
             ],
             active="default",
-        )
-
-    def test_save_profiles_does_not_include_default(self, temporary_profiles_path):
-        """
-        Including the default has a tendency to bake in settings the user may not want, and
-        can prevent them from gaining new defaults.
-        """
-        save_profiles(ProfilesCollection(active=None, profiles=[]))
-        assert "profiles.default" not in temporary_profiles_path.read_text()
-
-    def test_save_profiles_additional_profiles(self, temporary_profiles_path):
-        save_profiles(
-            ProfilesCollection(
-                profiles=[
-                    Profile(
-                        name="foo",
-                        settings={PREFECT_API_KEY: 1},
-                        source=temporary_profiles_path,
-                    ),
-                    Profile(
-                        name="bar",
-                        settings={PREFECT_API_KEY: 2},
-                        source=temporary_profiles_path,
-                    ),
-                ],
-                active=None,
-            )
-        )
-        assert (
-            temporary_profiles_path.read_text()
-            == textwrap.dedent(
-                """
-                [profiles.foo]
-                PREFECT_API_KEY = 1
-
-                [profiles.bar]
-                PREFECT_API_KEY = 2
-                """
-            ).lstrip()
         )
 
     def test_load_profile_default(self):
@@ -411,7 +372,179 @@ class TestProfilesReadWrite:
             load_profile("foo")
 
 
+class TestSaveProfiles:
+    @pytest.fixture(autouse=True)
+    def temporary_profiles_path(self, tmp_path):
+        path = tmp_path / "profiles.toml"
+        with temporary_settings(updates={PREFECT_PROFILES_PATH: path}):
+            yield path
+
+    def test_save_profiles_does_not_include_default(self, temporary_profiles_path):
+        """
+        Including the default has a tendency to bake in settings the user may not want, and
+        can prevent them from gaining new defaults.
+        """
+        save_profiles(ProfilesCollection(active=None, profiles=[]))
+        assert "profiles.default" not in temporary_profiles_path.read_text()
+
+    def test_save_profiles_additional_profiles(self, temporary_profiles_path):
+        save_profiles(
+            ProfilesCollection(
+                profiles=[
+                    Profile(
+                        name="foo",
+                        settings={PREFECT_API_KEY: 1},
+                        source=temporary_profiles_path,
+                    ),
+                    Profile(
+                        name="bar",
+                        settings={PREFECT_API_KEY: 2},
+                        source=temporary_profiles_path,
+                    ),
+                ],
+                active=None,
+            )
+        )
+        assert (
+            temporary_profiles_path.read_text()
+            == textwrap.dedent(
+                """
+                [profiles.foo]
+                PREFECT_API_KEY = 1
+
+                [profiles.bar]
+                PREFECT_API_KEY = 2
+                """
+            ).lstrip()
+        )
+
+
 class TestProfilesCollection:
+    def test_init_stores_single_profile(self):
+        profile = Profile(name="test", settings={})
+        profiles = ProfilesCollection(profiles=[profile])
+        assert profiles.profiles_by_name == {"test": profile}
+        assert profiles.active_name == None
+
+    def test_init_stores_multiple_profile(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar])
+        assert profiles.profiles_by_name == {"foo": foo, "bar": bar}
+        assert profiles.active_name == None
+
+    def test_init_sets_active_name(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active="foo")
+        assert profiles.active_name == "foo"
+
+    def test_init_sets_active_name_even_if_not_present(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active="foobar")
+        assert profiles.active_name == "foobar"
+
+    def test_getitem_retrieves_profiles(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar])
+        assert profiles["foo"] is foo
+        assert profiles["bar"] is bar
+
+    def test_getitem_with_invalid_key(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar])
+        with pytest.raises(KeyError):
+            profiles["test"]
+
+    def test_iter_retrieves_profile_names(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar])
+        assert tuple(sorted(profiles)) == ("bar", "foo")
+
+    def test_names_property(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active="foo")
+        assert profiles.names == {"foo", "bar"}
+
+    def test_active_profile_property(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active="foo")
+        assert profiles.active_profile == foo
+
+    def test_active_profile_property_null_active(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        assert profiles.active_profile is None
+
+    def test_active_profile_property_missing_active(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active="foobar")
+        with pytest.raises(KeyError):
+            profiles.active_profile
+
+    def test_set_active_profile(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        assert profiles.set_active("foo") is None
+        assert profiles.active_name == "foo"
+        assert profiles.active_profile is foo
+
+    def test_set_active_profile_with_missing_name(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        with pytest.raises(ValueError, match="Unknown profile name"):
+            profiles.set_active("foobar")
+
+    def test_set_active_profile_with_null_name(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        assert profiles.set_active(None) is None
+        assert profiles.active_name is None
+        assert profiles.active_profile is None
+
+    def test_add_profile(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo], active=None)
+        assert "bar" not in profiles.names
+        profiles.add_profile(bar)
+        assert "bar" in profiles.names
+        assert profiles["bar"] is bar
+
+    def test_add_profile_already_exists(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        with pytest.raises(ValueError, match="already exists in collection"):
+            profiles.add_profile(bar)
+
+    def test_remove_profiles(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        assert "bar" in profiles
+        profiles.remove_profile("bar")
+        assert "bar" not in profiles
+
+    def test_remove_profile_does_not_exist(self):
+        foo = Profile(name="foo", settings={})
+        bar = Profile(name="bar", settings={})
+        profiles = ProfilesCollection(profiles=[foo], active=None)
+        assert "bar" not in profiles.names
+        with pytest.raises(KeyError):
+            profiles.remove_profile("bar")
+
     def test_update_profile_adds_key(self):
         profiles = ProfilesCollection(profiles=[Profile(name="test", settings={})])
         profiles.update_profile(name="test", settings={PREFECT_API_URL: "hello"})
@@ -453,3 +586,80 @@ class TestProfilesCollection:
             PREFECT_API_URL: "hello",
             PREFECT_LOGGING_LEVEL: "DEBUG",
         }
+
+    def test_without_profile_source(self):
+        foo = Profile(name="foo", settings={}, source=Path("/foo"))
+        bar = Profile(name="bar", settings={}, source=Path("/bar"))
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        new_profiles = profiles.without_profile_source(Path("/foo"))
+        assert new_profiles.names == {"bar"}
+        assert profiles.names == {"foo", "bar"}, "Original object not mutated"
+
+    def test_without_profile_source_retains_nulls(self):
+        foo = Profile(name="foo", settings={}, source=Path("/foo"))
+        bar = Profile(name="bar", settings={}, source=None)
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        new_profiles = profiles.without_profile_source(Path("/foo"))
+        assert new_profiles.names == {"bar"}
+        assert profiles.names == {"foo", "bar"}, "Original object not mutated"
+
+    def test_without_profile_source_handles_null_input(self):
+        foo = Profile(name="foo", settings={}, source=Path("/foo"))
+        bar = Profile(name="bar", settings={}, source=None)
+        profiles = ProfilesCollection(profiles=[foo, bar], active=None)
+        new_profiles = profiles.without_profile_source(None)
+        assert new_profiles.names == {"foo"}
+        assert profiles.names == {"foo", "bar"}, "Original object not mutated"
+
+    def test_equality(self):
+        foo = Profile(name="foo", settings={}, source=Path("/foo"))
+        bar = Profile(name="bar", settings={}, source=Path("/bar"))
+
+        assert ProfilesCollection(profiles=[foo, bar]) == ProfilesCollection(
+            profiles=[foo, bar]
+        ), "Same definition should be equal"
+
+        assert ProfilesCollection(
+            profiles=[foo, bar], active=None
+        ) == ProfilesCollection(
+            profiles=[foo, bar]
+        ), "Explicit and implicit null active should be equal"
+
+        assert ProfilesCollection(
+            profiles=[foo, bar], active="foo"
+        ) != ProfilesCollection(
+            profiles=[foo, bar]
+        ), "One null active should be inequal"
+
+        assert ProfilesCollection(
+            profiles=[foo, bar], active="foo"
+        ) != ProfilesCollection(
+            profiles=[foo, bar], active="bar"
+        ), "Different active should be inequal"
+
+        assert ProfilesCollection(profiles=[foo, bar]) == ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={}, source=Path("/foo")),
+                Profile(name="bar", settings={}, source=Path("/bar")),
+            ]
+        ), "Comparison of profiles should use equality not identity"
+
+        assert ProfilesCollection(profiles=[foo, bar]) != ProfilesCollection(
+            profiles=[foo]
+        ), "Missing profile should be inequal"
+
+        assert ProfilesCollection(profiles=[foo, bar]) != ProfilesCollection(
+            profiles=[
+                foo,
+                Profile(
+                    name="bar", settings={PREFECT_API_KEY: "test"}, source=Path("/bar")
+                ),
+            ]
+        ), "Changed profile settings should be inequal"
+
+        assert ProfilesCollection(profiles=[foo, bar]) != ProfilesCollection(
+            profiles=[
+                foo,
+                Profile(name="bar", settings={}, source=Path("/new-path")),
+            ]
+        ), "Changed profile source should be inequal"
