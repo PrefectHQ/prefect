@@ -967,7 +967,7 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
 
 def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
     """
-    Write profilesin the given collection to a path as TOML.
+    Write profiles in the given collection to a path as TOML.
 
     Any existing data not present in the given `profiles` will be deleted.
     """
