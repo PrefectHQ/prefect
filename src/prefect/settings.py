@@ -836,7 +836,7 @@ class ProfilesCollection:
         self.active_name = name
 
     def update_profile(
-        self, name: str, settings: Mapping[Union[Dict, str], Any]
+        self, name: str, settings: Mapping[Union[Dict, str], Any], source: Path = None
     ) -> Profile:
         """
         Add a profile to the collection or update the existing on if the name is already
@@ -851,7 +851,7 @@ class ProfilesCollection:
         existing = self.profiles_by_name.get(name)
 
         # Convert the input to a `Profile` to cast settings to the correct type
-        profile = Profile(name=name, settings=settings)
+        profile = Profile(name=name, settings=settings, source=source)
 
         if existing:
             new_settings = {**existing.settings, **profile.settings}
@@ -862,7 +862,9 @@ class ProfilesCollection:
                     new_settings.pop(key)
 
             new_profile = Profile(
-                name=profile.name, settings=new_settings, source=profile.source
+                name=profile.name,
+                settings=new_settings,
+                source=source or profile.source,
             )
         else:
             new_profile = profile
@@ -890,20 +892,7 @@ class ProfilesCollection:
         """
         self.profiles_by_name.pop(name)
 
-    def with_new_profiles(self, other: "ProfilesCollection") -> "ProfilesCollection":
-        """
-        Add profiles from another collection.
-
-        Profile name collisions will be result in the profile from the new collection.
-
-        Returns a new collection.
-        """
-        return ProfilesCollection(
-            [*self.profiles_by_name.values(), *other.profiles_by_name.values()],
-            active=other.active_name or self.active_name,
-        )
-
-    def without_profile_source(self, path: Path) -> "ProfilesCollection":
+    def without_profile_source(self, path: Optional[Path]) -> "ProfilesCollection":
         """
         Remove profiles that were loaded from a given path.
 
@@ -992,7 +981,19 @@ def load_profiles() -> ProfilesCollection:
 
     user_profiles_path = PREFECT_PROFILES_PATH.value()
     if user_profiles_path.exists():
-        profiles = profiles.with_new_profiles(_read_profiles_from(user_profiles_path))
+        user_profiles = _read_profiles_from(user_profiles_path)
+
+        # Merge all of the user profiles with the defaults
+        for name in user_profiles:
+            profiles.update_profile(
+                name,
+                settings=user_profiles[name].settings,
+                source=user_profiles[name].source,
+            )
+
+        # Include the active key if set
+        if user_profiles.active_name:
+            profiles.set_active(user_profiles.active_name)
 
     return profiles
 
