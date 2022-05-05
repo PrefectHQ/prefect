@@ -308,7 +308,7 @@ class TestSettingsContext:
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr("sys.argv", ["prefect", "--profile", "foo"])
+        monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "foo"])
         enter_root_settings_context()
         use_profile.assert_called_once_with(
             foo_profile,
@@ -333,7 +333,7 @@ class TestSettingsContext:
         use_profile = MagicMock()
         monkeypatch.setattr("prefect.context.use_profile", use_profile)
         monkeypatch.setattr("prefect.context.GLOBAL_SETTINGS_CM", None)
-        monkeypatch.setattr("sys.argv", ["prefect", "--profile", "bar"])
+        monkeypatch.setattr("sys.argv", ["/prefect", "--profile", "bar"])
         with pytest.raises(
             ValueError,
             match="Prefect profile 'bar' set by command line argument not found",
