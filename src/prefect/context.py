@@ -308,8 +308,6 @@ def use_profile(
         include_current_context: If set, the new settings will be constructed
             with the current settings context as a base. If not set, the use_base settings
             will be loaded from the environment and defaults.
-        initialize: By default, the profile is initialized. If you would like to
-            initialize the profile manually, toggle this to `False`.
 
     Yields:
         The created `SettingsContext` object
