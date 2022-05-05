@@ -15,6 +15,7 @@ from . import (
     work_queues,
     block_specs,
     ui,
+    root,
     # Server relies on all of the above routes
     server,
 )

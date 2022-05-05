@@ -15,12 +15,6 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/hello")
-async def hello():
-    """Say hello!"""
-    return "👋"
-
-
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
     """Get the current Orion settings"""
