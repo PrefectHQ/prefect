@@ -180,7 +180,7 @@ def test_caching():
 In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
 
 <div class="terminal">
-```bash
+```bash hl_lines="2"
 >>> test_caching()
 running an expensive operation
 >>> test_caching()
