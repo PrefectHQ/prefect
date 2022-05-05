@@ -592,6 +592,7 @@ class Settings(SettingsFieldsMixin):
                 given settings will be overridden.
             set_defaults: A mapping of settings to new default values. Existing values for
                 the given settings will only be overridden if they were not set.
+            restore_defaults: An iterable of settings to restore to their default values.
 
         Returns:
             A new `Settings` object.
