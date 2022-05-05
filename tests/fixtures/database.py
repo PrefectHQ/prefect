@@ -46,8 +46,10 @@ async def setup_db(database_engine, db):
         yield
 
     except Exception as exc:
-
-        raise RuntimeError(f"Failed to set up the database at {database_engine.url!r}") from exc
+        # Re-raise with a message containing the url
+        raise RuntimeError(
+            f"Failed to set up the database at {database_engine.url!r}"
+        ) from exc
 
     finally:
         # tear down the database
