@@ -293,7 +293,7 @@ class OrionClient:
         """
         Send a GET request to /hello for testing purposes.
         """
-        return await self._client.get("/admin/hello")
+        return await self._client.get("/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """

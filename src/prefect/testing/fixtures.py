@@ -47,7 +47,7 @@ async def hosted_orion_api():
             with anyio.move_on_after(10):
                 while True:
                     try:
-                        response = await client.get(api_url + "/admin/hello")
+                        response = await client.get(api_url + "/health")
                     except httpx.ConnectError:
                         pass
                     else:

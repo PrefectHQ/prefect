@@ -30,7 +30,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.3.0"
+ORION_API_VERSION = "0.3.1"
 
 logger = get_logger("orion")
 
@@ -52,6 +52,7 @@ API_ROUTERS = (
     api.block_specs.router,
     api.ui.flow_runs.router,
     api.admin.router,
+    api.root.router,
 )
 
 
