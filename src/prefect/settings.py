@@ -201,7 +201,7 @@ PREFECT_TEST_SETTING = Setting(
     Any,
     default=None,
     description="""This variable only exists to faciliate testing of settings. 
-    If accessed when `PREFECT_TEST_MODE` is not set, an error will be raised.""",
+    If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.""",
     value_callback=only_return_value_in_test_mode,
 )
 
