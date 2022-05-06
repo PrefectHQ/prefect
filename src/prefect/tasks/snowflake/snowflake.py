@@ -40,7 +40,7 @@ class SnowflakeQuery(Task):
             is set to oauth, default to None.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor.
-    """
+    """  # noqa
 
     def __init__(
         self,
@@ -145,7 +145,7 @@ class SnowflakeQuery(Task):
         Raises:
             - ValueError: If a required parameter is not supplied.
             - DatabaseError: If exception occurs when executing the query.
-        """
+        """  # noqa
         auth_kwargs = (password, private_key, authenticator, token)
         if not account:
             raise ValueError("An account must be provided")
@@ -221,7 +221,7 @@ class SnowflakeQueriesFromFile(Task):
             is set to oauth, default to None.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor.
-    """
+    """  # noqa
 
     def __init__(
         self,
