@@ -92,7 +92,7 @@ jobs:
 
       - name: Build test images
         if: ${{ matrix.docker-images }}
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           context: .
           # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
