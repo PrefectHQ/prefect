@@ -149,7 +149,7 @@ def hello_task(name_input):
     return "hello " + name_input
 
 @flow
-def hello_flow():
+def hello_flow(name_input):
     hello_task(name_input)
 ```
 
@@ -179,8 +179,8 @@ def test_caching():
 
 In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash hl_lines="2"
 >>> test_caching()
 running an expensive operation
 >>> test_caching()
@@ -223,10 +223,10 @@ def hello_world():
 
 You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> hello_world()
-variable 'future' is type &#60;class 'prefect.futures.PrefectFuture'&#62;
+variable 'future' is type <class 'prefect.futures.PrefectFuture'>
 ```
 </div>
 
@@ -246,10 +246,10 @@ def hello_world():
     print_result(future)
 ```
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> hello_world()
-&#60;class 'str'&#62;
+<class 'str'>
 Hello Marvin!
 ```
 </div>
