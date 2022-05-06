@@ -154,7 +154,7 @@ The following examples illustrate each of these cases:
 
     @flow
     def always_succeeds_flow():
-        return "bar
+        return "bar"
 
     @flow
     def always_fails_flow():
