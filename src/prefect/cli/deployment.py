@@ -265,7 +265,7 @@ async def create(path: str):
 
 
 @deployment_app.command()
-async def delete(deployment_id: str):
+async def delete(deployment_id: UUID):
     """
     Delete a deployment.
 
