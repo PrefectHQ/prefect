@@ -5,7 +5,10 @@ import pytest
 
 from prefect.orion import models, schemas
 from prefect.orion.services.late_runs import MarkLateRuns
-from prefect.testing.utilities import temporary_settings
+from prefect.settings import (
+    PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
+    temporary_settings,
+)
 
 
 @pytest.fixture
@@ -70,7 +73,9 @@ async def test_marks_late_run_at_buffer(session, late_run):
         late_run.next_scheduled_start_time == st
     ), "Next scheduled time is set by orchestration rules correctly"
 
-    with temporary_settings(PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS=60):
+    with temporary_settings(
+        updates={PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS: 60}
+    ):
         await MarkLateRuns().start(loops=1)
 
     await session.refresh(late_run)
@@ -86,7 +91,9 @@ async def test_does_not_mark_run_late_if_within_buffer(session, late_run):
         late_run.next_scheduled_start_time == st
     ), "Next scheduled time is set by orchestration rules correctly"
 
-    with temporary_settings(PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS=61):
+    with temporary_settings(
+        updates={PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS: 61}
+    ):
         await MarkLateRuns().start(loops=1)
 
     await session.refresh(late_run)

@@ -1,10 +1,11 @@
+import os
 import sys
 
 import anyio
 import httpx
 import pytest
 
-from prefect.testing.utilities import temporary_settings
+from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 
 
 @pytest.fixture(scope="session")
@@ -36,6 +37,7 @@ async def hosted_orion_api():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env={**get_current_settings().to_environment_variables(), **os.environ},
     )
 
     api_url = "http://localhost:2222/api"
@@ -79,5 +81,5 @@ def use_hosted_orion(hosted_orion_api):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
     """
-    with temporary_settings(PREFECT_API_URL=hosted_orion_api):
+    with temporary_settings({PREFECT_API_URL: hosted_orion_api}):
         yield hosted_orion_api

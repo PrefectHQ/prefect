@@ -43,9 +43,10 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, get_current_settings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
@@ -108,12 +109,7 @@ def base_flow_run_environment() -> Dict[str, str]:
     """
     Generate a dictionary of environment variables for a flow run job.
     """
-    SETTINGS = {PREFECT_API_KEY, PREFECT_API_URL}
-
-    env = {setting.name: setting.value() for setting in SETTINGS}
-
-    # Cast to strings and drop null values
-    return {key: str(value) for key, value in env.items() if value is not None}
+    return get_current_settings().to_environment_variables(exclude_unset=True)
 
 
 class FlowRunner(BaseModel):
@@ -221,7 +217,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    stream_output: bool = False
+    stream_output: bool = True
     condaenv: Union[str, Path] = None
     virtualenv: Path = None
 

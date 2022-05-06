@@ -17,8 +17,10 @@ from click.exceptions import ClickException
 
 import prefect
 import prefect.context
+import prefect.settings
 from prefect.exceptions import MissingProfileError
-from prefect.settings import Setting
+from prefect.logging.configuration import setup_logging
+from prefect.settings import PREFECT_TEST_MODE, Setting
 from prefect.utilities.asyncio import is_async_fn, sync_compatible
 
 T = TypeVar("T")
@@ -62,6 +64,8 @@ def with_cli_exception_handling(fn):
         except MissingProfileError as exc:
             exit_with_error(exc)
         except Exception:
+            if PREFECT_TEST_MODE.value():
+                raise  # Reraise exceptions during test mode
             traceback.print_exc()
             exit_with_error("An exception occurred.")
 
@@ -100,14 +104,14 @@ class PrefectTyper(typer.Typer):
 
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
-console = rich.console.Console(highlight=False)
+app.console = rich.console.Console(highlight=False)
 
 
 def version_callback(value: bool):
     if value:
         import prefect
 
-        console.print(prefect.__version__)
+        app.console.print(prefect.__version__)
         raise typer.Exit()
 
 
@@ -131,16 +135,15 @@ def main(
         is_eager=True,
     ),
 ):
-    if profile:
-        profile_ctx = prefect.context.profile(
-            profile, override_existing_variables=True, initialize=True
+    if profile and not prefect.context.get_settings_context().profile.name == profile:
+        # Generally, the profile should entered by `enter_root_settings_context`.
+        # In the cases where it is not (i.e. CLI testing), we will enter it here.
+        settings_ctx = prefect.context.use_profile(
+            profile, override_environment_variables=True
         )
+        ctx.with_resource(settings_ctx)
 
-        ctx.with_resource(profile_ctx)
-    else:
-        # If not given a profile, initialize the global one
-        profile_ctx = prefect.context.get_profile_context()
-        profile_ctx.initialize()
+    setup_logging()
 
 
 @app.command()
@@ -161,7 +164,7 @@ async def version():
             prefect.__version_info__["date"]
         ).to_day_datetime_string(),
         "OS/Arch": f"{sys.platform}/{platform.machine()}",
-        "Profile": prefect.context.get_profile_context().name,
+        "Profile": prefect.context.get_settings_context().profile.name,
     }
 
     is_ephemeral: Optional[bool] = None
@@ -185,10 +188,10 @@ async def version():
         for key, value in object.items():
             key += ":"
             if isinstance(value, dict):
-                console.print(key)
+                app.console.print(key)
                 return display(value, nesting + 2)
             prefix = " " * nesting
-            console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
 
     display(version_info)
 
@@ -198,7 +201,7 @@ def exit_with_error(message, code=1, **kwargs):
     Utility to print a stylized error message and exit with a non-zero code
     """
     kwargs.setdefault("style", "red")
-    console.print(message, **kwargs)
+    app.console.print(message, **kwargs)
     raise typer.Exit(code)
 
 
@@ -207,5 +210,5 @@ def exit_with_success(message, **kwargs):
     Utility to print a stylized success message and exit with a zero code
     """
     kwargs.setdefault("style", "green")
-    console.print(message, **kwargs)
+    app.console.print(message, **kwargs)
     raise typer.Exit(0)
