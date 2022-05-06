@@ -333,14 +333,23 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_unregistered_storage_collision(
         self, orion_client, tmp_path
     ):
-        block = FileStorageBlock(base_path=str(tmp_path))
+        """
+        Regression test for bug where dynamically generated block names would collide
+        resulting in an `ObjectAlreadyExists` error
+        """
 
-        spec = DeploymentSpec(
-            flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
-        )
-        deployment_id_1 = await spec.create_deployment(client=orion_client)
-        deployment_id_2 = await spec.create_deployment(client=orion_client)
-        deployment_id_3 = await spec.create_deployment(client=orion_client)
+        def make_spec():
+            # A unique instance is required for each test or the id will be
+            # cached on the object
+            block = FileStorageBlock(base_path=str(tmp_path))
+
+            return DeploymentSpec(
+                flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+            )
+
+        deployment_id_1 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_2 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_3 = await make_spec().create_deployment(client=orion_client)
 
         # Check that the flow is retrievable
         async def check_retrievable(deployment_id):
