@@ -280,4 +280,4 @@ async def delete(deployment_id: UUID):
         except ObjectNotFound:
             exit_with_error(f"Deployment {deployment_id!r} not found!")
 
-    console.print(f"Deleted deployment {deployment_id}")
+    exit_with_success(f"Deleted deployment '{deployment_id}'.")
