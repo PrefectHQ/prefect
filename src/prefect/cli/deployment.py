@@ -278,6 +278,6 @@ async def delete(deployment_id: UUID):
         try:
             deployment = await client.delete_deployment(deployment_id)
         except ObjectNotFound:
-            exit_with_error(f"Deployment {deployment_id!r} not found!")
+            exit_with_error(f"Deployment '{deployment_id}' not found!")
 
     exit_with_success(f"Deleted deployment '{deployment_id}'.")
