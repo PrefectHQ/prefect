@@ -246,11 +246,6 @@ def create_app(
     if cache_key in APP_CACHE and not ignore_cache:
         return APP_CACHE[cache_key]
 
-    if not ephemeral:
-        # Initialize the profile to configure logging
-        profile = prefect.context.get_profile_context()
-        profile.initialize()
-
     # TODO: Move these startup functions out of this closure into the top-level or
     #       another dedicated location
     async def run_migrations():

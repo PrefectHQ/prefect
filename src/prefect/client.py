@@ -58,6 +58,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.asyncio import asyncnullcontext
 from prefect.utilities.httpx import PrefectHttpxClient
@@ -96,10 +97,9 @@ def inject_client(fn):
 
 
 def get_client() -> "OrionClient":
-    profile = prefect.context.get_profile_context()
-
+    ctx = prefect.context.get_settings_context()
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(profile.settings, ephemeral=True),
+        PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
         api_key=PREFECT_API_KEY.value(),
     )
 
@@ -1737,6 +1737,14 @@ class OrionClient:
             self._ephemeral_lifespan = await self._exit_stack.enter_async_context(
                 app_lifespan_context(self._ephemeral_app)
             )
+
+        if self._ephemeral_app:
+            self.logger.debug(
+                "Using ephemeral application with database at "
+                f"{PREFECT_ORION_DATABASE_CONNECTION_URL.value()}"
+            )
+        else:
+            self.logger.debug(f"Connecting to API at {self.api_url}")
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)

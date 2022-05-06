@@ -5,7 +5,7 @@ from prefect.client import get_client
 
 
 @pytest.fixture
-async def orion_client(clear_db):
+async def orion_client(testing_session_settings):
     async with get_client() as client:
         yield client
 

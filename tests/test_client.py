@@ -24,8 +24,14 @@ from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_ORION_DATABASE_MIGRATE_ON_START,
+    temporary_settings,
+)
 from prefect.tasks import task
-from prefect.testing.utilities import AsyncMock, exceptions_equal, temporary_settings
+from prefect.testing.utilities import AsyncMock, exceptions_equal
 
 
 class TestGetClient:
@@ -37,7 +43,7 @@ class TestGetClient:
 
     def test_get_client_cache_uses_profile_settings(self):
         client = get_client()
-        with temporary_settings(PREFECT_LOGGING_LEVEL="FOO"):
+        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "FOO"}):
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
@@ -169,7 +175,7 @@ class TestClientContextManager:
         threads = [
             threading.Thread(
                 target=anyio.run,
-                args=(enter_client, prefect.context.ProfileContext.get().copy()),
+                args=(enter_client, prefect.context.SettingsContext.get().copy()),
             )
             for _ in range(100)
         ]
@@ -222,7 +228,7 @@ class TestClientContextManager:
                 target=anyio.run,
                 args=(
                     enter_client_many_times,
-                    prefect.context.ProfileContext.get().copy(),
+                    prefect.context.SettingsContext.get().copy(),
                 ),
             )
             for _ in range(100)
@@ -348,7 +354,7 @@ class TestClientContextManager:
 
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
-    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=enabled):
+    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: enabled}):
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
@@ -365,7 +371,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
 async def test_client_does_not_run_migrations_for_hosted_app(
     hosted_orion_api, monkeypatch
 ):
-    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=True):
+    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.orion.database.interface.OrionDBInterface.create_db", mock
@@ -953,7 +959,7 @@ class TestClientAPIKey:
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
-        with temporary_settings(PREFECT_API_KEY="test"):
+        with temporary_settings(updates={PREFECT_API_KEY: "test"}):
             client = get_client()
 
         assert client._client.headers["Authorization"] == "Bearer test"
