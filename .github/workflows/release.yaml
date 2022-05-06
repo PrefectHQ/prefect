@@ -72,7 +72,7 @@ jobs:
 
       - name: Generate image metadata
         id: metadata
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: prefecthq/prefect
           tags: |
