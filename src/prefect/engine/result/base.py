@@ -28,7 +28,7 @@ from typing import Any, Callable
 
 from prefect.engine.serializers import PickleSerializer, Serializer
 from prefect.utilities import logging
-from hashlib import md5
+from hashlib import sha256
 
 
 # Subclass of `NotImplementedError` to make it easier to distinguish this error
@@ -115,7 +115,7 @@ class Result:
 
     def default_location(self, **kwargs) -> str:
         # ensures deterministic result path
-        tokenized = md5(str(kwargs).encode("utf8")).hexdigest()
+        tokenized = sha256(str(kwargs).encode("utf8")).hexdigest()
         date = kwargs.pop("today", "").replace("-", "/")
         location = f"{date}/{tokenized}.prefect_result"
         return location
