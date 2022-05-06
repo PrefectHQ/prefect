@@ -30,7 +30,7 @@ class OrionLogWorker:
     Manages the submission of logs to Orion in a background thread.
     """
 
-    def __init__(self, profile_context: prefect.context.ProfileContext) -> None:
+    def __init__(self, profile_context: prefect.context.SettingsContext) -> None:
         self.profile_context = profile_context.copy()
 
         self._queue: queue.Queue[dict] = queue.Queue()
@@ -225,9 +225,9 @@ class OrionHandler(logging.Handler):
     the background.
     """
 
-    workers: Dict[prefect.context.ProfileContext, OrionLogWorker] = {}
+    workers: Dict[prefect.context.SettingsContext, OrionLogWorker] = {}
 
-    def get_worker(self, context: prefect.context.ProfileContext) -> OrionLogWorker:
+    def get_worker(self, context: prefect.context.SettingsContext) -> OrionLogWorker:
         if context not in self.workers:
             worker = self.workers[context] = OrionLogWorker(context)
             worker.start()
@@ -249,7 +249,7 @@ class OrionHandler(logging.Handler):
         Send a log to the `OrionLogWorker`
         """
         try:
-            profile = prefect.context.get_profile_context()
+            profile = prefect.context.get_settings_context()
 
             if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle

@@ -12,14 +12,13 @@ from rich.table import Table
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_API_URL,
+    PREFECT_CLOUD_URL,
+    update_current_profile,
 )
-from prefect.settings import PREFECT_API_KEY, PREFECT_CLOUD_URL, update_profile
 
 cloud_app = PrefectTyper(
     name="cloud", help="Commands for interacting with Prefect Cloud"
@@ -41,7 +40,7 @@ def build_url_from_workspace(workspace: Dict) -> str:
 
 def confirm_logged_in():
     if not PREFECT_API_KEY:
-        profile = prefect.context.get_profile_context()
+        profile = prefect.context.get_settings_context()
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
             "Please login with `prefect cloud login --key <API_KEY>`."
@@ -49,10 +48,9 @@ def confirm_logged_in():
 
 
 def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
-    profile = prefect.context.get_profile_context()
     return CloudClient(
-        host=host or PREFECT_CLOUD_URL.value_from(profile.settings),
-        api_key=api_key or PREFECT_API_KEY.value_from(profile.settings),
+        host=host or PREFECT_CLOUD_URL.value(),
+        api_key=api_key or PREFECT_API_KEY.value(),
     )
 
 
@@ -150,7 +148,7 @@ def select_workspace(workspaces: Iterable[str]) -> str:
     selected_workspace = None
 
     with Live(
-        build_table(current_idx, workspaces), auto_refresh=False, console=console
+        build_table(current_idx, workspaces), auto_refresh=False, console=app.console
     ) as live:
         while selected_workspace is None:
             key = readchar.readkey()
@@ -211,15 +209,16 @@ async def login(
             "Leave `--workspace` blank to select a workspace."
         )
 
-    update_profile(
-        PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle]),
-        PREFECT_API_KEY=key,
+    profile = update_current_profile(
+        {
+            PREFECT_API_URL: build_url_from_workspace(workspaces[workspace_handle]),
+            PREFECT_API_KEY: key,
+        }
     )
 
-    profile = prefect.context.get_profile_context()
     exit_with_success(
         "Successfully logged in and set workspace to "
-        f"{workspace_handle!r} in profile: {profile.name!r}."
+        f"{workspace_handle!r} in profile {profile.name!r}."
     )
 
 
@@ -230,11 +229,8 @@ async def logout():
     Removes PREFECT_API_URL and PREFECT_API_KEY from profile.
     """
     confirm_logged_in()
-
-    update_profile(PREFECT_API_URL=None, PREFECT_API_KEY=None)
-
-    profile = prefect.context.get_profile_context()
-    exit_with_success(f"Successfully logged out in profile {profile.name!r}")
+    profile = update_current_profile({PREFECT_API_URL: None, PREFECT_API_KEY: None})
+    exit_with_success(f"Successfully logged out in profile {profile.name!r}.")
 
 
 @workspace_app.command()
@@ -266,11 +262,10 @@ async def set(
             "Leave `--workspace` blank to select a workspace."
         )
 
-    update_profile(
-        PREFECT_API_URL=build_url_from_workspace(workspaces[workspace_handle])
+    profile = update_current_profile(
+        {PREFECT_API_URL: build_url_from_workspace(workspaces[workspace_handle])}
     )
 
-    profile = prefect.context.get_profile_context()
     exit_with_success(
-        f"Successfully set workspace to {workspace_handle!r} in profile: {profile.name!r}."
+        f"Successfully set workspace to {workspace_handle!r} in profile {profile.name!r}."
     )
