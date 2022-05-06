@@ -6,16 +6,7 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Mapping,
-    NamedTuple,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, NamedTuple, Optional, Union
 from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
@@ -33,8 +24,8 @@ import prefect
 from prefect.exceptions import (
     AuthorizationError,
     ClientError,
-    VersionLockMismatchSignal,
     ObjectNotFoundError,
+    VersionLockMismatchSignal,
 )
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import (
@@ -1247,17 +1238,26 @@ class Client:
                 version=tr.version,
                 task_id=tr.task.id,
                 task_slug=tr.task.slug,
-                state=State.deserialize(tr.serialized_state),
+                state=State.deserialize(tr.serialized_state)
+                if tr.serialized_state
+                else prefect.engine.state.Pending(),
             )
             for tr in result.task_runs
         ]
+
+        state = (
+            prefect.engine.state.State.deserialize(result.serialized_state)
+            if result.serialized_state
+            else prefect.engine.state.Pending()
+        )
+
         return FlowRunInfoResult(
             id=result.id,
             name=result.name,
             flow_id=result.flow_id,
             version=result.version,
             task_runs=task_runs,
-            state=State.deserialize(result.serialized_state),
+            state=state,
             scheduled_start_time=pendulum.parse(result.scheduled_start_time),  # type: ignore
             project=ProjectInfo(
                 id=result.flow.project.id, name=result.flow.project.name
@@ -1483,7 +1483,12 @@ class Client:
 
         task_run_info = result.data.get_or_create_task_run_info
 
-        state = prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+        state = (
+            prefect.engine.state.State.deserialize(task_run_info.serialized_state)
+            if task_run_info.serialized_state
+            else prefect.engine.state.Pending()
+        )
+
         return TaskRunInfoResult(
             id=task_run_info.id,
             task_id=task_id,

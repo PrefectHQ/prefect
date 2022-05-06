@@ -1,6 +1,0 @@
-
-fix:
-  - "Fix docker-in-docker issue in DockerAgent on windows - [#5657](https://github.com/PrefectHQ/prefect/pull/5657)"
-
-contributor:
-  - "[limx0](https://github.com/limx0)"
