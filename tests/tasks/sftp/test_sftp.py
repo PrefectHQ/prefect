@@ -16,7 +16,7 @@ def mock_conn(monkeypatch):
     monkeypatch.setattr("prefect.tasks.sftp.sftp.SFTPClient", sftp_client)
     monkeypatch.setattr("prefect.tasks.sftp.sftp.Transport", transport)
 
-    return sftp_conn
+    return sftp_conn, sftp_client
 
 
 class TestSftpDownload:
@@ -92,8 +92,8 @@ class TestSftpDownload:
         Tests that the SftpDownload Task can download a file.
         """
         remote_path = "foo-home/sftp-test.csv"
-        connection = mock_conn
-        connection().__enter__().get.return_value = remote_path
+        connection = mock_conn[0]
+        connection().__enter__().get.return_value = True
 
         sftp_download_task = SftpDownload(
             host="test",
@@ -103,9 +103,12 @@ class TestSftpDownload:
             remote_path=remote_path,
         )
         sftp_download_task._connection = connection
-
-        output = sftp_download_task.run()
-        assert output == True
+        sftp_download_task._connection.get.return_value = True
+        sftp_download_task._connection.stat.return_value = True
+        sftp_download_task.run()
+        sftp_download_task._connection.get.assert_called_once()
+        sftp_download_task._connection.stat.assert_called_once()
+        connection.assert_called_once()
 
 
 class TestSftpUpload:
@@ -197,8 +200,8 @@ class TestSftpUpload:
         """
         Tests that the SftpUpload Task can download a file.
         """
-        connection = mock_conn
-        connection().__enter__().upload.return_value = True
+        connection = mock_conn[0]
+        connection().__enter__().put.return_value = True
 
         sftp_upload_task = SftpUpload(
             host="test",
@@ -210,5 +213,5 @@ class TestSftpUpload:
         )
         sftp_upload_task._connection = connection
 
-        output = sftp_upload_task.run()
-        assert output == True
+        sftp_upload_task.run()
+        connection.assert_called_once()

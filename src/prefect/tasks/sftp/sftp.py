@@ -1,6 +1,6 @@
-import errno, time
+import errno
 import os.path
-from paramiko import Transport, SFTPClient
+from paramiko import Transport, SFTPClient, SFTPError
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -12,17 +12,17 @@ class SftpDownload(Task):
     Downloads remote file into sftp_downloads/ folder by default
 
     Args:
-        - host (str): name of the host to use.
-        - username (str): username used to authenticate.
-        - password (str): password used to authenticate.
-        - port_number (int): the port number to connect to the server.
-        - remote_path (str): the remote sftp file path
-        - local_path (str): the local file path to download file to
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
+        - host (str): Name of the host to use.
+        - username (str): Username used to authenticate.
+        - password (str): Password used to authenticate.
+        - port_number (int): The port to connect to the server.
+        - remote_path (str): The remote sftp file path.
+        - local_path (str): The local file path to download file to.
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task constructor.
 
     Raises:
-        - ValueError: if a required parameter is not supplied.
-        - ClientError: if exception occurs when connecting/downloading from the server.
+        - ValueError: Raised if a required parameter is not supplied.
+        - ClientError: Raised if exception occurs when connecting/downloading from the server.
     """
 
     def __init__(
@@ -53,52 +53,22 @@ class SftpDownload(Task):
         self._connection = SFTPClient.from_transport(transport)
         self.logger.info(f"connected to {self.host}, {self.port_number}")
 
-    def file_exists(self, remote_path: str) -> bool:
+    def file_exists(self, remote_path: str):
         """
         Checks if file exists in remote path or not.
 
         Args:
-            - remote_path (str): checks if the specified remote
-            file path exists on the sftp server
+            - remote_path (str): Remote file path to check if file exists.
 
         """
-        res: bool = True
         try:
-            self.logger.info("remote path : ", remote_path)
+            self.logger.info(f"remote path : {remote_path}")
             self._connection.stat(remote_path)
-            res = True
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                res = False
-            raise
-        finally:
-            return res
-
-    def download(self, remote_path: str, local_path: str, retry: int = 5) -> bool:
-        """
-        Downloads file/files from the specified remote_path to a local_path
-
-        Args:
-            - remote_path (str): the remote sftp file path
-            - local_path (str): the local file path to download file to
-            - retry (int): number of retries for download process
-
-        """
-        # first check if local path exists or not
-        local_dir = "/".join(local_path.split("/")[:-1]) + "/"
-        if not os.path.isdir(local_dir):
-            os.mkdir(local_dir)
-
-        # check remote_path
-        if self.file_exists(remote_path) or retry == 0:
-            self._connection.get(remote_path, local_path, callback=None)
-            return True
-        elif retry > 0:
-            time.sleep(5)
-            retry = retry - 1
-            self.download(remote_path, local_path, retry=retry)
-
-        return False
+        except SFTPError as e:
+            self.logger.debug(
+                f"The specified file on this '{remote_path}' remote_path does not exists."
+            )
+            raise e
 
     @defaults_from_attrs(
         "host", "username", "password", "port_number", "remote_path", "local_path"
@@ -111,21 +81,21 @@ class SftpDownload(Task):
         port_number: int = None,
         remote_path: str = None,
         local_path: str = None,
-    ) -> bool:
+    ):
         """
         Task for downloading files from an SFTP server.
 
         Args:
-            - host (str): name of the host to use.
-            - username (str): username used to authenticate.
-            - password (str): password used to authenticate.
-            - port_number (int): the port number to connect to the server.
-            - remote_path (str): the remote sftp file path
-            - local_path (str): the local file path to download file to
+            - host (str): Name of the host to use.
+            - username (str): Username used to authenticate.
+            - password (str): Password used to authenticate.
+            - port_number (int): The port to connect to the server.
+            - remote_path (str): The remote sftp file path.
+            - local_path (str): The local file path to download file to.
 
         Raises:
-            - ValueError: if a required parameter is not supplied.
-            - ClientError: if exception occurs when connecting/downloading from the server.
+            - ValueError: Raised if a required parameter is not supplied.
+            - ClientError: Raised if exception occurs when connecting/downloading from the server.
         """
         if not host:
             raise ValueError("A host name must be provided")
@@ -148,13 +118,20 @@ class SftpDownload(Task):
         # first init connection to SFTP server
         self._create_connection()
 
-        # download specified file/files
-        result = self.download(self.remote_path, self.local_path)
+        # check if local path exists or not
+        local_dir = "/".join(self.local_path.split("/")[:-1]) + "/"
+        if not os.path.isdir(local_dir):
+            os.mkdir(local_dir)
 
-        # close sftp server connection
-        self._connection.close()
+        try:
+            self.file_exists(remote_path)
+            self._connection.get(remote_path, local_path, callback=None)
+        except IOError or SFTPError as e:
+            raise e
 
-        return result
+        finally:
+            # close sftp server connection
+            self._connection.close()
 
 
 class SftpUpload(Task):
@@ -162,17 +139,17 @@ class SftpUpload(Task):
     Task for uploading files to an SFTP server.
 
     Args:
-        - host (str): name of the host to use.
-        - username (str): username used to authenticate.
-        - password (str): password used to authenticate.
-        - port_number (int): the port number to connect to the server.
-        - remote_path (str): the remote sftp file path
-        - local_path (str): the local file path to from upload
-        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
+        - host (str): Name of the host to use.
+        - username (str): Username used to authenticate.
+        - password (str): Password used to authenticate.
+        - port_number (int): The port number to connect to the server.
+        - remote_path (str): The remote sftp file path.
+        - local_path (str): The local file path to from upload.
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the Task constructor.
 
     Raises:
-        - ValueError: if a required parameter is not supplied.
-        - ClientError: if exception occurs when connecting/uploading to the server.
+        - ValueError: Raised if a required parameter is not supplied.
+        - ClientError: Raised if exception occurs when connecting/uploading to the server.
     """
 
     def __init__(
@@ -214,21 +191,21 @@ class SftpUpload(Task):
         port_number: int = None,
         remote_path: str = None,
         local_path: str = None,
-    ) -> bool:
+    ):
         """
         Task for uploading files to an SFTP server.
 
         Args:
-            - host (str): name of the host to use.
-            - username (str): username used to authenticate.
-            - password (str): password used to authenticate.
-            - port_number (int): the port number to connect to the server.
-            - remote_path (str): the remote sftp file path
-            - local_path (str): the local file path to from upload
+            - host (str): Name of the host to use.
+            - username (str): Username used to authenticate.
+            - password (str): Password used to authenticate.
+            - port_number (int): The port number to connect to the server.
+            - remote_path (str): The remote sftp file path.
+            - local_path (str): The local file path to upload from.
 
         Raises:
-            - ValueError: if a required parameter is not supplied.
-            - ClientError: if exception occurs when connecting/downloading from the server.
+            - ValueError: Raised if a required parameter is not supplied.
+            - ClientError: Raised if exception occurs when connecting/uploading from the server.
         """
         if not host:
             raise ValueError("A host name must be provided")
@@ -246,35 +223,18 @@ class SftpUpload(Task):
         # first init connection to SFTP server
         self._create_connection()
 
-        # download specified file/files
-        result = self.upload(self.local_path, self.remote_path)
-
-        # close sftp server connection
-        self._connection.close()
-
-        return result
-
-    def upload(self, local_path: str, remote_path: str) -> bool:
-        """
-        Uploads file to an SFTP remote server from the local path
-        to the specified remote path.
-        Args:
-            - local_path (str): the local file path to from upload
-            - remote_path (str): the remote sftp file path
-
-        Returns:
-            - bool: True/False
-        """
-        if self._connection is None:
-            self._create_connection()
-
+        # upload
         try:
             self._connection.put(
                 localpath=local_path,
                 remotepath=remote_path,
                 confirm=True,
             )
-            return True
+
         except IOError as e:
-            print(str(e))
-            return False
+            if e.errno == errno.ENOENT:
+                raise
+
+        finally:
+            # close sftp server connection
+            self._connection.close()
