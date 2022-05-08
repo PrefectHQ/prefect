@@ -3,6 +3,7 @@ Command line interface for working with deployments.
 """
 import traceback
 from typing import List
+from uuid import UUID
 
 import pendulum
 from rich.pretty import Pretty
