@@ -254,6 +254,14 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_ORION_DATABASE_PASSWORD = Setting(
+    str,
+    default=None,
+    description="""Password to orion database, intended to be used via templating for the database connection url.
+    Usage: postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion
+    Defaults to None."""
+)
+
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
     default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
@@ -273,7 +281,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
         Defaults to a sqlite database stored in the Prefect home directory.
         """
     ),
-    value_callback=template_with_settings(PREFECT_HOME),
+    value_callback=template_with_settings(PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD),
 )
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
