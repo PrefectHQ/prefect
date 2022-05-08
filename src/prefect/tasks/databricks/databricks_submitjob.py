@@ -486,7 +486,7 @@ class DatabricksRunNow(Task):
             might be a floating point number).
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
-    
+
     Examples:
         There are two ways to instantiate this task.
 
@@ -699,7 +699,7 @@ class DatabricksRunNow(Task):
             retry_limit=databricks_retry_limit,
             retry_delay=databricks_retry_delay,
         )
-    
+
         run_now_json = json or {}
         # Necessary be cause `_handle_databricks_task_execution` reads
         # `polling_periods_seconds` off of the task instance
