@@ -1,3 +1,5 @@
+from typing import Dict, Optional
+
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -7,27 +9,8 @@ from prefect.tasks.databricks.databricks_hook import DatabricksHook
 class DatabricksGetJobID(Task):
     """
     Finds a job_id corresponding to a job name on Databricks using the
-    `api/2.1/jobs/list
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsList>`_
+    [api/2.1/jobs/list](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsList)
     API endpoint.
-
-    You can use the task to feed in the job_id for DatabricksRunNow
-    For example:
-
-    ```
-    conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
-    get_job_id = DatabricksGetJobID(databricks_conn_secret=conn)
-    dbx_job_id = get_job_id(job_name="dbx")
-
-    notebook_run = DatabricksRunNow(
-        job_id = dbx_job_id,
-        notebook_params=notebook_params,
-        python_params=python_params,
-        spark_submit_params=spark_submit_params,
-        jar_params=jar_params
-    )
-    notebook_run(databricks_conn_secret=conn)
-    ```
 
     Args:
         - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
@@ -54,11 +37,27 @@ class DatabricksGetJobID(Task):
 
     Returns:
         - job_id (int): Job id of the job name.
-    """
 
+    Examples:
+        You can use the task to feed in the job_id for DatabricksRunNow
+        ```
+        conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
+        get_job_id = DatabricksGetJobID(databricks_conn_secret=conn)
+        dbx_job_id = get_job_id(job_name="dbx")
+
+        notebook_run = DatabricksRunNow(
+            job_id=dbx_job_id,
+            notebook_params=notebook_params,
+            python_params=python_params,
+            spark_submit_params=spark_submit_params,
+            jar_params=jar_params
+        )
+        notebook_run(databricks_conn_secret=conn)
+        ```
+    """
     def __init__(
         self,
-        databricks_conn_secret: dict = None,
+        databricks_conn_secret: Optional[Dict[str, str]] = None,
         search_limit: int = 25,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -82,8 +81,8 @@ class DatabricksGetJobID(Task):
     )
     def run(
         self,
-        job_name: str = None,
-        databricks_conn_secret: dict = None,
+        job_name: str,
+        databricks_conn_secret: Optional[Dict[str, str]] = None,
         search_limit: int = 25,
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -107,6 +106,7 @@ class DatabricksGetJobID(Task):
                 string using `PrefectSecret`.
             - search_limit (int, optional): Controls the number of jobs to return per API call,
                 This value must be greater than 0 and less or equal to 25.
+                this run. By default the task will poll every 30 seconds.
             - polling_period_seconds (int, optional): Controls the rate which we poll for the result of
                 this run. By default the task will poll every 30 seconds.
             - databricks_retry_limit (int, optional): Amount of times retry if the Databricks backend is
@@ -117,25 +117,15 @@ class DatabricksGetJobID(Task):
         Returns:
             - job_id (int): Job id of the job name.
         """
-
-        if job_name is None:
-            raise ValueError("A job name must be provided.")
-
-        self.databricks_conn_secret = databricks_conn_secret
-
         # Initialize Databricks Connections
-        hook = self._get_hook()
+        hook = DatabricksHook(
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
 
         # Fetch Job ID
         self.logger.info("Searching for job_ids with name: %s ", job_name)
-        job_id = hook.get_job_id_by_name(job_name=job_name, limit=self.search_limit)
-        self.logger.info("%s completed successfully.", self.name)
+        job_id = hook.get_job_id_by_name(job_name=job_name, limit=search_limit)
 
         return job_id
-
-    def _get_hook(self):
-        return DatabricksHook(
-            self.databricks_conn_secret,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-        )
