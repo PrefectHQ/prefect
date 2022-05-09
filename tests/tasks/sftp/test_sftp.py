@@ -110,9 +110,6 @@ class TestSftpDownload:
         with Flow(name="test") as f:
             sftp_download_task._connection = connection
         out = f.run()
-        local_path = "sftp_downloads/" + remote_path.split("/")[-1]
-        local_dir = "/".join(local_path.split("/")[:-1]) + "/"
-        assert os.path.isdir(local_dir)
         assert out.is_successful()
 
 
