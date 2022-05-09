@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 import pytest
+import os
 from paramiko import Transport, SFTPClient
 from prefect.tasks.sftp.sftp import SftpDownload, SftpUpload
 
@@ -88,6 +89,8 @@ class TestSftpDownload:
 
     # test to check if the ddl/dml query was executed
     def test_execute_download(self, mock_conn):
+        from prefect import Flow
+
         """
         Tests that the SftpDownload Task can download a file.
         """
@@ -95,6 +98,7 @@ class TestSftpDownload:
         connection = mock_conn[0]
         connection().__enter__().get.return_value = True
 
+        # init the SFTPDownload Task
         sftp_download_task = SftpDownload(
             host="test",
             port_number=22,
@@ -102,13 +106,14 @@ class TestSftpDownload:
             username="test",
             remote_path=remote_path,
         )
-        sftp_download_task._connection = connection
-        sftp_download_task._connection.get.return_value = True
-        sftp_download_task._connection.stat.return_value = True
-        sftp_download_task.run()
-        sftp_download_task._connection.get.assert_called_once()
-        sftp_download_task._connection.stat.assert_called_once()
-        connection.assert_called_once()
+
+        with Flow(name="test") as f:
+            sftp_download_task._connection = connection
+        out = f.run()
+        local_path = "sftp_downloads/" + remote_path.split("/")[-1]
+        local_dir = "/".join(local_path.split("/")[:-1]) + "/"
+        assert os.path.isdir(local_dir)
+        assert out.is_successful()
 
 
 class TestSftpUpload:

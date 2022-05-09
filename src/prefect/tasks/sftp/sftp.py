@@ -1,4 +1,3 @@
-import errno
 import os.path
 from paramiko import Transport, SFTPClient, SFTPError
 
@@ -123,15 +122,11 @@ class SftpDownload(Task):
         if not os.path.isdir(local_dir):
             os.mkdir(local_dir)
 
-        try:
-            self.file_exists(remote_path)
-            self._connection.get(remote_path, local_path, callback=None)
-        except IOError or SFTPError as e:
-            raise e
+        self.file_exists(remote_path)
+        self._connection.get(remote_path, local_path, callback=None)
 
-        finally:
-            # close sftp server connection
-            self._connection.close()
+        # close sftp server connection
+        self._connection.close()
 
 
 class SftpUpload(Task):
@@ -224,17 +219,11 @@ class SftpUpload(Task):
         self._create_connection()
 
         # upload
-        try:
-            self._connection.put(
-                localpath=local_path,
-                remotepath=remote_path,
-                confirm=True,
-            )
+        self._connection.put(
+            localpath=local_path,
+            remotepath=remote_path,
+            confirm=True,
+        )
 
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                raise
-
-        finally:
-            # close sftp server connection
-            self._connection.close()
+        # close sftp server connection
+        self._connection.close()
