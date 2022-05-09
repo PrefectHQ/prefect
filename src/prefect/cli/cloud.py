@@ -40,7 +40,7 @@ def build_url_from_workspace(workspace: Dict) -> str:
 
 def confirm_logged_in():
     if not PREFECT_API_KEY:
-        profile = prefect.context.get_settings_context()
+        profile = prefect.context.get_settings_context().profile
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
             "Please login with `prefect cloud login --key <API_KEY>`."
