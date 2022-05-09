@@ -1,4 +1,6 @@
 import os.path
+import contextlib
+from typing import Optional
 from paramiko import Transport, SFTPClient, SFTPError
 
 from prefect import Task
@@ -42,17 +44,19 @@ class SftpDownload(Task):
         self.local_path = local_path
         super().__init__(**kwargs)
 
-    def _create_connection(self) -> None:
+    def _create_connection(self) -> Optional[SFTPClient]:
         """
-        Initialise the connection with the SFTP server
-        :return: None
+        Initialise The connection with the SFTP server
+        :return: Optional[SFTPClient]
         """
         transport = Transport(sock=(self.host, self.port_number))
         transport.connect(username=self.username, password=self.password)
-        self._connection = SFTPClient.from_transport(transport)
+        # self._connection = SFTPClient.from_transport(transport)
+        connection = SFTPClient.from_transport(transport)
         self.logger.info(f"connected to {self.host}, {self.port_number}")
+        return connection
 
-    def file_exists(self, remote_path: str):
+    def file_exists(self, remote_path: str, conn: SFTPClient):
         """
         Checks if file exists in remote path or not.
 
@@ -62,7 +66,7 @@ class SftpDownload(Task):
         """
         try:
             self.logger.info(f"remote path : {remote_path}")
-            self._connection.stat(remote_path)
+            conn.stat(remote_path)
         except SFTPError as e:
             self.logger.debug(
                 f"The specified file on this '{remote_path}' remote_path does not exists."
@@ -114,19 +118,14 @@ class SftpDownload(Task):
             else local_path
         )
 
-        # first init connection to SFTP server
-        self._create_connection()
-
         # check if local path exists or not
         local_dir = "/".join(self.local_path.split("/")[:-1]) + "/"
         if not os.path.isdir(local_dir):
             os.mkdir(local_dir)
 
-        self.file_exists(remote_path)
-        self._connection.get(remote_path, local_path, callback=None)
-
-        # close sftp server connection
-        self._connection.close()
+        with contextlib.closing(self._create_connection()) as conn:
+            self.file_exists(remote_path, conn)
+            conn.get(remote_path, local_path, callback=None)
 
 
 class SftpUpload(Task):
@@ -165,15 +164,16 @@ class SftpUpload(Task):
         self.local_path = local_path
         super().__init__(**kwargs)
 
-    def _create_connection(self) -> None:
+    def _create_connection(self) -> Optional[SFTPClient]:
         """
-        Initialise the connection with the SFTP server
-        :return: None
+        Initialise The connection with the SFTP server
+        :return: Optional[SFTPClient]
         """
         transport = Transport(sock=(self.host, self.port_number))
         transport.connect(username=self.username, password=self.password)
-        self._connection = SFTPClient.from_transport(transport)
+        connection = SFTPClient.from_transport(transport)
         self.logger.info(f"connected to {self.host}, {self.port_number}")
+        return connection
 
     @defaults_from_attrs(
         "host", "username", "password", "port_number", "remote_path", "local_path"
@@ -215,15 +215,9 @@ class SftpUpload(Task):
         if not local_path:
             raise ValueError("A local_path must be provided")
 
-        # first init connection to SFTP server
-        self._create_connection()
-
-        # upload
-        self._connection.put(
-            localpath=local_path,
-            remotepath=remote_path,
-            confirm=True,
-        )
-
-        # close sftp server connection
-        self._connection.close()
+        with contextlib.closing(self._create_connection()) as conn:
+            conn.put(
+                localpath=local_path,
+                remotepath=remote_path,
+                confirm=True,
+            )
