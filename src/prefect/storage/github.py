@@ -41,6 +41,10 @@ class GitHub(Storage):
             this storage.
         - base_url(str, optional): the Github REST api url for the repo. If not specified,
             https://api.github.com is used.
+        - timeout(int, optional): the Github REST api timeout. If not specified,
+            15 is used.
+        - retry(optional): the Github REST api retry for the repo. If not specified,
+            defaults to the default branch for the repo.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -51,6 +55,8 @@ class GitHub(Storage):
         ref: str = None,
         access_token_secret: str = None,
         base_url: str = None,
+        timeout: int = 15,
+        retry = None,
         **kwargs: Any,
     ) -> None:
         self.repo = repo
@@ -58,6 +64,8 @@ class GitHub(Storage):
         self.ref = ref
         self.access_token_secret = access_token_secret
         self.base_url = base_url
+        self.timeout = timeout
+        self.retry = retry
 
         super().__init__(**kwargs)
 
@@ -166,6 +174,6 @@ class GitHub(Storage):
                 access_token = os.getenv("GITHUB_ACCESS_TOKEN")
 
         if self.base_url:
-            return Github(login_or_token=access_token, base_url=self.base_url)
+            return Github(login_or_token=access_token, base_url=self.base_url, timeout=self.timeout, retry=self.retry)
         else:
             return Github(access_token)
