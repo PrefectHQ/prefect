@@ -69,7 +69,6 @@ def test_login_updates_profile(monkeypatch):
         invoke_and_assert(
             ["cloud", "login", "--key", API_KEY],
             expected_code=0,
-            # TODO - why is there a new expected line here?
             expected_output=f"Successfully logged in and set workspace to {FULL_HANDLE!r} in profile \n{cloud_profile!r}.",
         )
 
@@ -120,7 +119,6 @@ def test_cannot_logout_if_you_are_not_logged_in():
         invoke_and_assert(
             ["cloud", "logout"],
             expected_code=1,
-            # TODO - random new line here
             expected_output=f"Currently not authenticated in profile {cloud_profile!r}. "
             "Please login with `prefect \ncloud login --key <API_KEY>`.",
         )
@@ -136,7 +134,6 @@ def test_cannot_set_workspace_if_you_are_not_logged_in():
         invoke_and_assert(
             ["cloud", "workspace", "set", "--workspace", f"{FULL_HANDLE}"],
             expected_code=1,
-            # TODO - random new line here
             expected_output=f"Currently not authenticated in profile {cloud_profile!r}. "
             "Please login with `prefect \ncloud login --key <API_KEY>`.",
         )
