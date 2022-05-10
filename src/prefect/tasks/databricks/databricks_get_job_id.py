@@ -1,9 +1,8 @@
 from typing import Dict, Optional
 
 from prefect import Task
-from prefect.utilities.tasks import defaults_from_attrs
-
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
+from prefect.utilities.tasks import defaults_from_attrs
 
 
 class DatabricksGetJobID(Task):
@@ -55,6 +54,7 @@ class DatabricksGetJobID(Task):
         notebook_run(databricks_conn_secret=conn)
         ```
     """
+
     def __init__(
         self,
         databricks_conn_secret: Optional[Dict[str, str]] = None,
@@ -118,14 +118,18 @@ class DatabricksGetJobID(Task):
             - job_id (int): Job id of the job name.
         """
         # Initialize Databricks Connections
-        hook = DatabricksHook(
-            databricks_conn_secret,
-            retry_limit=databricks_retry_limit,
-            retry_delay=databricks_retry_delay,
-        )
+        hook = self._get_hook()
 
         # Fetch Job ID
         self.logger.info("Searching for job_ids with name: %s ", job_name)
         job_id = hook.get_job_id_by_name(job_name=job_name, limit=search_limit)
 
         return job_id
+
+    def _get_hook(self):
+        # this is a function so it's easier to mock in testing
+        return DatabricksHook(
+            self.databricks_conn_secret,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+        )

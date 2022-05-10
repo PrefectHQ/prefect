@@ -1,9 +1,9 @@
 import time
-from typing import Any, Dict, List, Union, Optional
 from enum import Enum
-from pydantic import parse_obj_as
+from typing import Any, Dict, List, Optional, Union
 
 import six
+from pydantic import parse_obj_as
 
 import prefect
 from prefect import Task
@@ -13,7 +13,7 @@ from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
-    JobTaskSettings,
+    JobTaskSettings
 )
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -590,6 +590,17 @@ class DatabricksRunNow(Task):
 
         super().__init__(**kwargs)
 
+    @staticmethod
+    def _get_hook(
+        databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
+    ):
+        # this is a function so it's easier to mock in testing
+        return DatabricksHook(
+            databricks_conn_secret,
+            retry_limit=databricks_retry_limit,
+            retry_delay=databricks_retry_delay,
+        )
+
     @defaults_from_attrs(
         "databricks_conn_secret",
         "job_id",
@@ -694,10 +705,8 @@ class DatabricksRunNow(Task):
         self.databricks_conn_secret = databricks_conn_secret
 
         # Initialize Databricks Connections
-        hook = DatabricksHook(
-            databricks_conn_secret,
-            retry_limit=databricks_retry_limit,
-            retry_delay=databricks_retry_delay,
+        hook = self._get_hook(
+            databricks_conn_secret, databricks_retry_limit, databricks_retry_delay
         )
 
         run_now_json = json or {}
