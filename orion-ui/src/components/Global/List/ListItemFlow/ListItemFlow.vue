@@ -45,10 +45,9 @@
     Deployment,
     DeploymentPanel,
     DeploymentsApi,
-    FlowRunsApi,
-    canKey
+    FlowRunsApi
   } from '@prefecthq/orion-design'
-  import { computed, inject } from 'vue'
+  import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
   import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -57,12 +56,12 @@
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { Buckets } from '@/typings/run_history'
+  import { can } from '@/utilities/permissions'
 
   const props = defineProps<{ item: Flow }>()
 
   const filtersStore = useFiltersStore()
   const router = useRouter()
-  const can = inject(canKey)
 
   const crumbs: Crumb[] = [{ text: props.item.name, action: openFlowPanel }]
 
