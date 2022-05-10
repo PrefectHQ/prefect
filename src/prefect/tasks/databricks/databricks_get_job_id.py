@@ -38,7 +38,7 @@ class DatabricksGetJobID(Task):
         - job_id (int): Job id of the job name.
 
     Examples:
-        You can use the task to feed in the job_id for DatabricksRunNow
+        You can use the task to feed in the `job_id` for `DatabricksRunNow`.
         ```
         conn = PrefectSecret('DATABRICKS_CONNECTION_STRING')
         get_job_id = DatabricksGetJobID(databricks_conn_secret=conn)
