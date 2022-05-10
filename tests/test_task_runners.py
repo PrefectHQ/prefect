@@ -3,22 +3,27 @@ import sys
 import time
 import warnings
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import cloudpickle
 import distributed
 import pytest
 
+import prefect
+
+# Import the local 'tests' module to pickle to ray workers
+import tests
 from prefect import flow, task
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import DataDocument, State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
+    RayTaskRunner,
     SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
-from prefect.utilities.testing import TaskRunnerTests, parameterize_with_fixtures
 
 if sys.version_info[1] >= 10:
     RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
