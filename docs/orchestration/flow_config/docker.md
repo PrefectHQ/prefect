@@ -58,19 +58,21 @@ Every release of Prefect comes with a few built-in images. These images are all
 named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect), but have
 a few different tag options:
 
-| Tag              |     Prefect Version      | Python Version |
-| ---------------- | :----------------------: | -------------: |
-| latest           | most recent PyPi version |            3.7 |
-| master           |       master build       |            3.7 |
-| latest-python3.9 | most recent PyPi version |            3.9 |
-| latest-python3.8 | most recent PyPi version |            3.8 |
-| latest-python3.7 | most recent PyPi version |            3.7 |
-| X.Y.Z            |          X.Y.Z           |            3.7 |
-| X.Y.Z-python3.9  |          X.Y.Z           |            3.9 |
-| X.Y.Z-python3.8  |          X.Y.Z           |            3.8 |
-| X.Y.Z-python3.7  |          X.Y.Z           |            3.7 |
-| core             | most recent PyPi version |            3.8 |
-| core-X.Y.Z       |          X.Y.Z           |            3.8 |
+| Tag               |     Prefect Version      | Python Version  |
+| ----------------  | :----------------------: | -------------:  |
+| latest            | most recent PyPi version |            3.7  |
+| master            |       master build       |            3.7  |
+| latest-python3.10 | most recent PyPi version |            3.10 |
+| latest-python3.9  | most recent PyPi version |            3.9  |
+| latest-python3.8  | most recent PyPi version |            3.8  |
+| latest-python3.7  | most recent PyPi version |            3.7  |
+| X.Y.Z             |          X.Y.Z           |            3.7  |
+| X.Y.Z-python3.10  |          X.Y.Z           |            3.10 |
+| X.Y.Z-python3.9   |          X.Y.Z           |            3.9  |
+| X.Y.Z-python3.8   |          X.Y.Z           |            3.8  |
+| X.Y.Z-python3.7   |          X.Y.Z           |            3.7  |
+| core              | most recent PyPi version |            3.8  |
+| core-X.Y.Z        |          X.Y.Z           |            3.8  |
 
 The images can be broken into a few categories:
 
