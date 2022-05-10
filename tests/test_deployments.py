@@ -374,6 +374,22 @@ class TestCreateDeploymentFromSpec:
         assert flow.name == expected_flow.name
         assert flow.version == expected_flow.version
 
+    async def test_create_deployment_with_registered_storage_by_id(
+        self, orion_client, tmp_remote_storage_block
+    ):
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            flow_storage=tmp_remote_storage_block,
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
+
     async def test_create_deployment_with_default_storage(
         self, orion_client, remote_default_storage
     ):
