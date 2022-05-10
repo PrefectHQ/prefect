@@ -57,7 +57,10 @@ def get_unauthorized_mock_cloud_client(*args, **kwargs):
 
 
 def mock_select_workspace(workspaces):
-    """Mocks a user selecting a workspace via keyboard input. Will return the first workspace."""
+    """
+    Mocks a user selecting a workspace via keyboard input.
+    Will return the first workspace.
+    """
     return list(workspaces)[0]
 
 
