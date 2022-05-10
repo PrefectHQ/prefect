@@ -31,12 +31,6 @@ cloud_app.add_typer(workspace_app)
 app.add_typer(cloud_app)
 
 
-class CloudUnauthorizedError(PrefectException):
-    """
-    Raised when the client receives a 401 or 403 from the Cloud API.
-    """
-
-
 def build_url_from_workspace(workspace: Dict) -> str:
     return (
         f"{PREFECT_CLOUD_URL.value()}"
@@ -59,6 +53,12 @@ def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
         host=host or PREFECT_CLOUD_URL.value(),
         api_key=api_key or PREFECT_API_KEY.value(),
     )
+
+
+class CloudUnauthorizedError(PrefectException):
+    """
+    Raised when the CloudClient receives a 401 or 403 from the Cloud API.
+    """
 
 
 class CloudClient:
