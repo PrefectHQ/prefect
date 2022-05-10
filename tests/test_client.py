@@ -471,6 +471,27 @@ async def test_read_deployment_by_name(orion_client):
     assert lookup.schedule == schedule
 
 
+async def test_create_then_delete_deployment(orion_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+    flow_data = DataDocument.encode("cloudpickle", foo)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        flow_data=flow_data,
+        schedule=schedule,
+    )
+
+    await orion_client.delete_deployment(deployment_id)
+    with pytest.raises(httpx.HTTPStatusError, match="404"):
+        await orion_client.read_deployment(deployment_id)
+
+
 async def test_read_nonexistent_deployment_by_name(orion_client):
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_deployment_by_name("not-a-real-deployment")
