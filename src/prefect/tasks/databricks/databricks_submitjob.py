@@ -13,7 +13,7 @@ from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForGroup,
     AccessControlRequestForUser,
-    JobTaskSettings
+    JobTaskSettings,
 )
 from prefect.utilities.tasks import defaults_from_attrs
 
