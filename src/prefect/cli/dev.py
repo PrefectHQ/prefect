@@ -19,7 +19,6 @@ from prefect.cli.base import (
     PrefectTyper,
     SettingsOption,
     app,
-    console,
     exit_with_error,
     exit_with_success,
 )
@@ -64,7 +63,7 @@ def build_docs(
     schema["info"] = {}
     with open(schema_path, "w") as f:
         json.dump(schema, f)
-    console.print(f"OpenAPI schema written to {schema_path}")
+    app.console.print(f"OpenAPI schema written to {schema_path}")
 
 
 BUILD_UI_HELP = f"""
@@ -81,22 +80,22 @@ def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
-            console.print("Installing npm packages...")
+            app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "ci", "install"])
 
-            console.print("Building for distribution...")
+            app.console.print("Building for distribution...")
             env = os.environ.copy()
             env["ORION_UI_SERVE_BASE"] = "/"
             subprocess.check_output(["npm", "run", "build"], env=env)
 
         if os.path.exists(prefect.__ui_static_path__):
-            console.print("Removing existing build files...")
+            app.console.print("Removing existing build files...")
             shutil.rmtree(prefect.__ui_static_path__)
 
-        console.print("Copying build into src...")
+        app.console.print("Copying build into src...")
         shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
 
-    console.print("Complete!")
+    app.console.print("Complete!")
 
 
 @dev_app.command()
@@ -106,10 +105,10 @@ async def ui():
     """
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
-            console.print("Installing npm packages...")
+            app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"])
 
-            console.print("Starting UI development server...")
+            app.console.print("Starting UI development server...")
             await open_process_and_stream_output(command=["npm", "run", "serve"])
 
 
@@ -142,7 +141,7 @@ async def api(
         str(prefect.__module_path__),
     ]
 
-    console.print(f"Running: {' '.join(command)}")
+    app.console.print(f"Running: {' '.join(command)}")
 
     await open_process_and_stream_output(command=command, env=server_env)
 
@@ -153,12 +152,12 @@ async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     Starts a hot-reloading development agent process.
     """
     # Delayed import since this is only a 'dev' dependency
-    import watchgod
+    import watchfiles
 
-    console.print("Creating hot-reloading agent process...")
-    await watchgod.arun_process(
+    app.console.print("Creating hot-reloading agent process...")
+    await watchfiles.arun_process(
         prefect.__module_path__,
-        start_agent,
+        target=start_agent,
         kwargs=dict(hide_welcome=False, api=api_url),
     )
 

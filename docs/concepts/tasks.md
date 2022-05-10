@@ -1,3 +1,23 @@
+---
+description: Prefect tasks are functions that represents a discrete unit of work in a Prefect workflow.
+tags:
+    - tasks
+    - task runs
+    - functions
+    - retries
+    - caching
+    - cache keys
+    - cache key functions
+    - tags
+    - results
+    - async
+    - asynchronous execution
+    - concurrent execution
+    - concurrency
+    - concurrency limits
+    - task concurrency
+---
+
 # Tasks
 
 A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows, using regular Python statements and functions. Tasks enable you to encapsulate elements of your workflow logic in observable units that can be reused across flows and subflows. 
@@ -129,7 +149,7 @@ def hello_task(name_input):
     return "hello " + name_input
 
 @flow
-def hello_flow():
+def hello_flow(name_input):
     hello_task(name_input)
 ```
 
@@ -159,8 +179,8 @@ def test_caching():
 
 In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash hl_lines="2"
 >>> test_caching()
 running an expensive operation
 >>> test_caching()
@@ -182,6 +202,8 @@ def cached_task():
     return 42
 ```
 
+See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
+
 ## Using results from tasks
 
 By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. 
@@ -201,10 +223,10 @@ def hello_world():
 
 You'll see that, in the context of a flow, the variable `future` is a `PrefectFuture`.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> hello_world()
-variable 'future' is type &#60;class 'prefect.futures.PrefectFuture'&#62;
+variable 'future' is type <class 'prefect.futures.PrefectFuture'>
 ```
 </div>
 
@@ -224,10 +246,10 @@ def hello_world():
     print_result(future)
 ```
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> hello_world()
-&#60;class 'str'&#62;
+<class 'str'>
 Hello Marvin!
 ```
 </div>

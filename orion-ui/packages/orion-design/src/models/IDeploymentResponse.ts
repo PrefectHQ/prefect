@@ -14,5 +14,5 @@ export type IDeploymentResponse = {
   is_schedule_active: boolean | null,
   parameters: Record<string, string>,
   tags: string[] | null,
-  flow_runner: IFlowRunnerResponse,
+  flow_runner: IFlowRunnerResponse | null,
 }

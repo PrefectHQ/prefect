@@ -1,5 +1,31 @@
 # Orion Release Notes
 
+## 2.0b3
+
+New features:
+
+- Adds Twitter Collection.
+- Adds Great Expectations Collection.
+
+Includes some minor improvements:
+
+- Improved filter expression display and syntax in the UI.
+- Flow runs can be queried more flexibly and performantly.
+- Improved results persistence handling.
+- Adds code examples to schedules documentation.
+- Added a unit testing utility, `prefect_test_harness`.
+- Various documentation updates.
+
+Fixes some bugs:
+
+- The Scheduler no longer crashes on misconfigured schedules.
+- The MarkLateRuns service no longer marks runs as `Late` several seconds too early.
+- Dashboard filters including flow/task run states can now be saved.
+- Flow runs can no longer transition from terminal states. The engine will no longer try to set the final state of a flow run twice.
+- Scheduled flow runs are now deleted when their corresponding deployment is deleted.
+- Work queues created in the UI now work the same as those created with the CLI.
+- Kubernetes flow runners now correctly inject credentials into the execution environment.
+- Work queues created via the UI now function correctly.
 
 ## 2.0b2
 

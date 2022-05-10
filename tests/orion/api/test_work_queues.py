@@ -2,10 +2,10 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
-from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ class TestCreateWorkQueue:
             name="My WorkQueue", filter=schemas.core.QueueFilter(tags=["foo", "bar"])
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My WorkQueue"
         assert response.json()["filter"]["tags"] == ["foo", "bar"]
         assert pendulum.parse(response.json()["created"]) >= now
@@ -52,7 +52,19 @@ class TestCreateWorkQueue:
             name=work_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
-        assert response.status_code == 409
+        assert response.status_code == status.HTTP_409_CONFLICT
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            r"work%queue",
+        ],
+    )
+    async def test_create_work_queue_with_invalid_characters_fails(self, client, name):
+        response = await client.post("/work_queues/", json=dict(name=name))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert b"contains an invalid character" in response.content
 
 
 class TestUpdateWorkQueue:
@@ -80,7 +92,7 @@ class TestUpdateWorkQueue:
         )
         response = await client.patch(f"/work_queues/{work_queue_id}", json=new_data)
 
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"/work_queues/{work_queue_id}")
 
@@ -91,28 +103,35 @@ class TestUpdateWorkQueue:
 class TestReadWorkQueue:
     async def test_read_work_queue(self, client, work_queue):
         response = await client.get(f"/work_queues/{work_queue.id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == "My WorkQueue"
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadWorkQueueByName:
     async def test_read_work_queue_by_name(self, client, work_queue):
         response = await client.get(f"/work_queues/name/{work_queue.name}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(work_queue.id)
         assert response.json()["name"] == work_queue.name
 
     async def test_read_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/name/some-made-up-work-queue")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize(
-        "name", ["work queue", "work/queue", "work:queue", "work\\queue", "work👍queue"]
+        "name",
+        [
+            "work queue",
+            "work:queue",
+            "work\\queue",
+            "work👍queue",
+            "work|queue",
+        ],
     )
     async def test_read_work_queue_by_name_with_nonstandard_characters(
         self, client, name
@@ -121,8 +140,22 @@ class TestReadWorkQueueByName:
         work_queue_id = response.json()["id"]
 
         response = await client.get(f"/work_queues/name/{name}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == work_queue_id
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "work/queue",
+            "work%queue",
+        ],
+    )
+    async def test_read_work_queue_by_name_with_invalid_characters_fails(
+        self, client, name
+    ):
+
+        response = await client.get(f"/work_queues/name/{name}")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadWorkQueues:
@@ -145,24 +178,24 @@ class TestReadWorkQueues:
 
     async def test_read_work_queues(self, work_queues, client):
         response = await client.post("/work_queues/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
     async def test_read_work_queues_applies_limit(self, work_queues, client):
         response = await client.post("/work_queues/filter", json=dict(limit=1))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
 
     async def test_read_work_queues_offset(self, work_queues, client, session):
         response = await client.post("/work_queues/filter", json=dict(offset=1))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         # ordered by name by default
         assert response.json()[0]["name"] == "My WorkQueue Y"
 
     async def test_read_work_queues_returns_empty_list(self, client):
         response = await client.post("/work_queues/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
 
@@ -238,7 +271,7 @@ class TestReadWorkQueueRuns:
         self, client, work_queue, flow_run_1_id, flow_run_2_id
     ):
         response = await client.post(f"/work_queues/{work_queue.id}/get_runs")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert {res["id"] for res in response.json()} == {
             str(flow_run_1_id),
             str(flow_run_2_id),
@@ -250,7 +283,7 @@ class TestReadWorkQueueRuns:
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=1)
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert {res["id"] for res in response.json()} == {
             str(flow_run_2_id),
         }
@@ -262,13 +295,13 @@ class TestReadWorkQueueRuns:
         assert response.status_code == 422
 
     async def test_read_work_queue_runs_respects_scheduled_before(
-        self, client, work_queue, flow_run_2_id
+        self, client, work_queue
     ):
         response = await client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=str(pendulum.now("UTC").subtract(years=2000))),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
     async def test_read_work_queue_runs_updates_agent_last_activity_time(
@@ -285,7 +318,7 @@ class TestReadWorkQueueRuns:
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(agent_id=str(fake_agent_id)),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert {res["id"] for res in response.json()} == {
             str(flow_run_1_id),
             str(flow_run_2_id),
@@ -298,17 +331,17 @@ class TestReadWorkQueueRuns:
 
     async def test_read_work_queue_runs_handles_non_existent_work_queue(self, client):
         response = await client.post(f"/work_queues/{uuid4()}/get_runs")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestDeleteWorkQueue:
     async def test_delete_work_queue(self, client, work_queue):
         response = await client.delete(f"/work_queues/{work_queue.id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"/work_queues/{work_queue.id}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_work_queue_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/work_queues/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND

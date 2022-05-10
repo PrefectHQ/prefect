@@ -1,13 +1,12 @@
-from typing import List
 from uuid import uuid4
 
 import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, data, responses, states
 from prefect.orion.schemas.core import TaskRunResult
@@ -23,7 +22,7 @@ class TestCreateFlowRun:
                 state=states.Pending(),
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["id"]
         assert response.json()["state"]["type"] == "PENDING"
@@ -64,7 +63,7 @@ class TestCreateFlowRun:
                 state=states.Completed(timestamp=pendulum.now().add(months=1)),
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 201
+        assert response.status_code == status.HTTP_201_CREATED
 
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
@@ -92,8 +91,8 @@ class TestCreateFlowRun:
                 json_compatible=True
             ),
         )
-        assert response1.status_code == 201
-        assert response2.status_code == 201
+        assert response1.status_code == status.HTTP_201_CREATED
+        assert response2.status_code == status.HTTP_201_CREATED
         assert response1.json()["flow_id"] == str(flow.id)
         assert response2.json()["flow_id"] == str(flow.id)
         assert response1.json()["id"] != response2.json()["id"]
@@ -114,7 +113,7 @@ class TestCreateFlowRun:
         assert response1.status_code == 201
 
         response2 = await client.post("/flow_runs/", json=data)
-        assert response2.status_code == 200
+        assert response2.status_code == status.HTTP_200_OK
         assert response1.json()["id"] == response2.json()["id"]
 
     async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
@@ -137,13 +136,13 @@ class TestCreateFlowRun:
         response1 = await client.post(
             "/flow_runs/", json=data.dict(json_compatible=True)
         )
-        assert response1.status_code == 201
+        assert response1.status_code == status.HTTP_201_CREATED
 
         response2 = await client.post(
             "/flow_runs/",
             json=data2.dict(json_compatible=True),
         )
-        assert response2.status_code == 201
+        assert response2.status_code == status.HTTP_201_CREATED
         assert response1.json()["id"] != response2.json()["id"]
 
     async def test_create_flow_run_with_subflow_information(
@@ -216,7 +215,7 @@ class TestUpdateFlowRun:
                 flow_runner=core.FlowRunnerSettings(type="test", config={"foo": "bar"}),
             ).dict(json_compatible=True),
         )
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
@@ -240,7 +239,7 @@ class TestUpdateFlowRun:
             f"flow_runs/{flow_run.id}",
             json={},
         )
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
@@ -251,14 +250,14 @@ class TestUpdateFlowRun:
             f"flow_runs/{str(uuid4())}",
             json={},
         )
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, flow_run, client):
         # make sure we we can read the flow run correctly
         response = await client.get(f"/flow_runs/{flow_run.id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == str(flow_run.id)
         assert response.json()["flow_id"] == str(flow.id)
 
@@ -277,7 +276,7 @@ class TestReadFlowRun:
 
     async def test_read_flow_run_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/flow_runs/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestReadFlowRuns:
@@ -305,7 +304,7 @@ class TestReadFlowRuns:
 
     async def test_read_flow_runs(self, flow_runs, client):
         response = await client.post("/flow_runs/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
@@ -315,7 +314,7 @@ class TestReadFlowRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
     async def test_read_flow_runs_applies_flow_run_filter(
@@ -327,7 +326,7 @@ class TestReadFlowRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
 
@@ -348,18 +347,18 @@ class TestReadFlowRuns:
             ).dict(json_compatible=True)
         )
         response = await client.post("/flow_runs/filter", json=flow_run_filter)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
         response = await client.post("/flow_runs/filter", json=dict(limit=1))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
 
     async def test_read_flow_runs_returns_empty_list(self, client):
         response = await client.post("/flow_runs/filter")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
 
     async def test_read_flow_runs_applies_sort(self, session, flow, client):
@@ -368,6 +367,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                name="Flow Run 1",
                 state=schemas.states.State(
                     type="SCHEDULED",
                     timestamp=now.subtract(minutes=1),
@@ -378,6 +378,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                name="Flow Run 2",
                 state=schemas.states.State(
                     type="SCHEDULED",
                     timestamp=now.add(minutes=1),
@@ -392,7 +393,7 @@ class TestReadFlowRuns:
                 limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(flow_run_1.id)
 
         response = await client.post(
@@ -403,7 +404,7 @@ class TestReadFlowRuns:
                 sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value,
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(flow_run_2.id)
 
         response = await client.post(
@@ -412,7 +413,7 @@ class TestReadFlowRuns:
                 limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(flow_run_2.id)
 
         response = await client.post(
@@ -423,8 +424,28 @@ class TestReadFlowRuns:
                 sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value,
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_ASC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.FlowRunSort.NAME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_2.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
@@ -433,7 +454,7 @@ class TestReadFlowRuns:
         self, sort, flow_run, client
     ):
         response = await client.post("/flow_runs/filter", json=dict(sort=sort))
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
 
@@ -481,7 +502,7 @@ class TestReadFlowRunGraph:
 
     async def test_read_flow_run_graph(self, flow_run, client):
         response = await client.get(f"/flow_runs/{flow_run.id}/graph")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
     async def test_read_flow_run_graph_returns_dependencies(self, graph_data, client):
         response = await client.get(f"/flow_runs/{graph_data.id}/graph")
@@ -528,11 +549,11 @@ class TestDeleteFlowRuns:
         )
         assert run is None
         response = await client.get(f"/flow_runs/{flow_run_id}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_flow_run_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/flow_runs/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestSetFlowRunState:
@@ -585,14 +606,14 @@ class TestSetFlowRunState:
                 )
             ),
         )
-        assert response1.status_code == 201
+        assert response1.status_code == status.HTTP_201_CREATED
 
         # trying to enter a running state fails
         response2 = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(state=dict(type="RUNNING", name="Running")),
         )
-        assert response2.status_code == 200
+        assert response2.status_code == status.HTTP_200_OK
         assert response2.json()["status"] == "WAIT"
 
         # trying to enter a running state succeeds with force=True
@@ -600,7 +621,7 @@ class TestSetFlowRunState:
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(state=dict(type="RUNNING", name="Running"), force=True),
         )
-        assert response2.status_code == 201
+        assert response2.status_code == status.HTTP_201_CREATED
         assert response2.json()["status"] == "ACCEPT"
 
 
@@ -614,5 +635,5 @@ class TestFlowRunHistory:
                 history_interval_seconds=0.9,
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"History interval must not be less than 1 second" in response.content

@@ -11,7 +11,7 @@
 
     <div class="recent-flow-runs-panel-section__counts">
       <template v-for="(subscription, type) in subscriptions" :key="type">
-        <FilterButtonCard :route="dashboardRoute" :count="subscription?.response.value" :label="type" :filters="typeFilter(type)" />
+        <FilterButtonCard :route="dashboardRoute" :count="subscription?.response" :label="type" :filters="typeFilter(type)" />
       </template>
     </div>
   </PanelSection>
@@ -33,7 +33,7 @@
   const props = defineProps<{
     baseFilter: Required<Filter>,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
-    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+    flowRunsApi: FlowRunsApi,
   }>()
 
   const router = useRouter()
@@ -44,14 +44,14 @@
       object: 'flow_run',
       property: 'start_date',
       type: 'date',
-      operation: 'newer',
+      operation: 'last',
       value: '1w',
     },
     {
       object: 'flow_run',
       property: 'start_date',
       type: 'date',
-      operation: 'upcoming',
+      operation: 'next',
       value: '1w',
     },
   ])
@@ -96,12 +96,12 @@
   }
 
   const subscriptions = {
-    COMPLETED: useSubscription(props.getFlowRunsCount, [typeUnionFilter('COMPLETED')], options),
-    RUNNING: useSubscription(props.getFlowRunsCount, [typeUnionFilter('RUNNING')], options),
-    SCHEDULED: useSubscription(props.getFlowRunsCount, [typeUnionFilter('SCHEDULED')], options),
-    PENDING: useSubscription(props.getFlowRunsCount, [typeUnionFilter('PENDING')], options),
-    FAILED: useSubscription(props.getFlowRunsCount, [typeUnionFilter('FAILED')], options),
-    CANCELLED: useSubscription(props.getFlowRunsCount, [typeUnionFilter('CANCELLED')], options),
+    COMPLETED: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('COMPLETED')], options),
+    RUNNING: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('RUNNING')], options),
+    SCHEDULED: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('SCHEDULED')], options),
+    PENDING: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('PENDING')], options),
+    FAILED: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('FAILED')], options),
+    CANCELLED: useSubscription(props.flowRunsApi.getFlowRunsCount, [typeUnionFilter('CANCELLED')], options),
   }
 </script>
 
