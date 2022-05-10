@@ -65,6 +65,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
+    ObjectAlreadyExists,
     SpecValidationError,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
@@ -281,11 +282,17 @@ class DeploymentSpec(PrefectBaseModel):
                 self.flow_storage._block_spec_version,
             )
 
-            self.flow_storage._block_id = await client.create_block(
-                self.flow_storage,
-                block_spec_id=block_spec.id,
-                name=f"{self.flow_name}-{self.name}",
-            )
+            block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
+            i = 0
+            while not self.flow_storage._block_id:
+                try:
+                    self.flow_storage._block_id = await client.create_block(
+                        self.flow_storage,
+                        block_spec_id=block_spec.id,
+                        name=f"{block_name}-{i}",
+                    )
+                except ObjectAlreadyExists:
+                    i += 1
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)
