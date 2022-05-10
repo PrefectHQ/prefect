@@ -3,6 +3,7 @@ Command line interface for working with deployments.
 """
 import traceback
 from typing import List
+from uuid import UUID
 
 import pendulum
 from rich.pretty import Pretty
@@ -266,3 +267,22 @@ async def create(path: str):
         exit_with_error(f"Failed to create {failed} out of {len(specs)} deployments.")
     else:
         exit_with_success(f"Created {len(specs)} deployments!")
+
+
+@deployment_app.command()
+async def delete(deployment_id: UUID):
+    """
+    Delete a deployment.
+
+    \b
+    Example:
+        \b
+        $ prefect deployment delete dfd3e220-a130-4149-9af6-8d487e02fea6
+    """
+    async with get_client() as client:
+        try:
+            await client.delete_deployment(deployment_id)
+        except ObjectNotFound:
+            exit_with_error(f"Deployment '{deployment_id}' not found!")
+
+    exit_with_success(f"Deleted deployment '{deployment_id}'.")
