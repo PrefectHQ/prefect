@@ -56,6 +56,7 @@
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { Buckets } from '@/typings/run_history'
+  import { can } from '@/utilities/permissions'
 
   const props = defineProps<{ item: Flow }>()
 
@@ -134,6 +135,7 @@
       openDeploymentPanel,
       deploymentsApi: deploymentsApi as DeploymentsApi,
       flowRunsApi: flowRunsApi as FlowRunsApi,
+      can,
     })
   }
 
