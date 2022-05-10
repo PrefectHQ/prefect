@@ -48,6 +48,9 @@ def test_my_favorite_flow():
     assert my_favorite_flow().result() == 42
 ```
 
+!!! note Session scoped fixture
+    In this example, the fixture is scoped to run once for the entire test session. In most cases, you will not need a clean database for each test and just want to isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so we recommend scoping the fixture to the session. If you need to isolate some tests fully, you can use the test harness again to create a fresh database.
+
 ## Unit testing tasks
 
 To test an individual task, you can create a flow inside of your test:
@@ -76,6 +79,3 @@ from my_tasks import my_favorite_task
 def test_my_favorite_task():
     assert my_favorite_task.fn() == 42
 ```
-
-!!! note Session scoped fixture
-    In this example, the fixture is scoped to run once for the entire test session. In most cases, you will not need a clean database for each test and just want to isolate your test runs to a test database. Creating a new test database per test creates significant overhead, so we recommend scoping the fixture to the session. If you need to isolate some tests fully, you can use the test harness again to create a fresh database.
