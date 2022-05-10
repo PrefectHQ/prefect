@@ -33,6 +33,7 @@
   import { deploymentsApiKey } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
   import { flowRunsApiKey } from '@/services/FlowRunsApi'
+  import { canKey } from '@/types/permissions'
   import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
@@ -40,9 +41,9 @@
   const props = defineProps<{ flow: Flow }>()
 
   const route = inject(workspaceDashboardKey)
+  const can = inject(canKey)
 
   const crumbs: Crumb[] = [{ text: props.flow.name, action: openFlowPanel }]
-
 
   const countFilter = computed<UnionFilters>(() => ({
     flows: {
@@ -66,6 +67,7 @@
       openDeploymentPanel,
       deploymentsApi,
       flowRunsApi,
+      can,
     })
   }
 
