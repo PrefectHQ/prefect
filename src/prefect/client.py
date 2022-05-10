@@ -1136,7 +1136,7 @@ class OrionClient:
         Delete deployment by id.
 
         Args:
-            deployment_id: the deployment ID of interest
+            deployment_id: The deployment id of interest.
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
             httpx.RequestError: If requests fails
