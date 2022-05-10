@@ -242,12 +242,15 @@ class State(IDBaseModel, Generic[R]):
         `MyCompletedState("my message", type=COMPLETED)`
         """
 
+        display_message = f"{self.message!r}" if self.message else ""
+
         display_type = (
             f", type={self.type}"
             if self.type.value.lower() != self.name.lower()
             else ""
         )
-        return f"{self.name}({self.message!r}{display_type})"
+
+        return f"{self.name}({display_message}{display_type})"
 
     def __hash__(self) -> int:
         return hash(

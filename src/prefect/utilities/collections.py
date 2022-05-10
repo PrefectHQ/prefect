@@ -153,7 +153,6 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
-@dataclass
 class Quote(Generic[T]):
     """
     Simple wrapper to mark an expression as a different type so it will not be coerced
@@ -161,10 +160,11 @@ class Quote(Generic[T]):
     the flow assume that state.
     """
 
-    expr: T
+    def __init__(self, data: T) -> None:
+        self.data = data
 
     def unquote(self) -> T:
-        return self.expr
+        return self.data
 
 
 def quote(expr: T) -> Quote[T]:
@@ -246,3 +246,65 @@ async def visit_collection(
     else:
         result = await visit_fn(expr)
         return result if return_data else None
+
+
+M = TypeVar("M", bound=pydantic.BaseModel)
+
+
+class PartialModel(Generic[M]):
+    """
+    A utility for creating a Pydantic model in several steps.
+
+    Fields may be set at initialization, via attribute assignment, or at finalization
+    when the concrete model is returned.
+
+    Pydantic validation does not occur until finalization.
+
+    Each field can only be set once and a `ValueError` will be raised on assignment if
+    a field already has a value.
+
+    Example:
+        >>> class MyModel(pydantic.BaseModel):
+        >>>     x: int
+        >>>     y: str
+        >>>     z: float
+        >>>
+        >>> partial_model = PartialModel(MyModel, x=1)
+        >>> partial_model.y = "two"
+        >>> model = partial_model.finalize(z=3.0)
+    """
+
+    def __init__(self, __model_cls: M, **kwargs: Any) -> None:
+        self.fields = kwargs
+        # Set fields first to avoid issues if `fields` is also set on the `model_cls`
+        # in our custom `setattr` implementation.
+        self.model_cls = __model_cls
+
+        for name in kwargs.keys():
+            self.raise_if_not_in_model(name)
+
+    def finalize(self, **kwargs: Any) -> T:
+        for name in kwargs.keys():
+            self.raise_if_already_set(name)
+            self.raise_if_not_in_model(name)
+        return self.model_cls(**self.fields, **kwargs)
+
+    def raise_if_already_set(self, name):
+        if name in self.fields:
+            raise ValueError(f"Field {name!r} has already been set.")
+
+    def raise_if_not_in_model(self, name):
+        if name not in self.model_cls.__fields__:
+            raise ValueError(f"Field {name!r} is not present in the model.")
+
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        if __name in {"fields", "model_cls"}:
+            return super().__setattr__(__name, __value)
+
+        self.raise_if_already_set(__name)
+        self.raise_if_not_in_model(__name)
+        self.fields[__name] = __value
+
+    def __repr__(self) -> str:
+        dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
+        return f"PartialModel({self.model_cls.__name__}{dsp_fields})"

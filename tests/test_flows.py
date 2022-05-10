@@ -10,16 +10,17 @@ import pytest
 
 import prefect.context
 from prefect import flow, get_run_logger, tags, task
+from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
+from prefect.testing.utilities import exceptions_equal
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.testing import exceptions_equal
 
 
 class TestFlow:
@@ -80,6 +81,20 @@ class TestFlow:
             match="Flow function is not compatible with `validate_parameters`",
         ):
             Flow(fn=my_fn)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/flow",
+            r"my%flow",
+            "my<flow",
+            "my>flow",
+            "my&flow",
+        ],
+    )
+    def test_invalid_name(self, name):
+        with pytest.raises(InvalidNameError, match="contains an invalid character"):
+            Flow(fn=lambda: 1, name=name)
 
 
 class TestDecorator:
@@ -183,23 +198,6 @@ class TestFlowCall:
         assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
-
-    async def test_call_initializes_current_profile(self):
-        @flow
-        def foo():
-            pass
-
-        mock = MagicMock()
-
-        global_profile = prefect.context.get_profile_context()
-        with prefect.context.ProfileContext(
-            name="test", settings=global_profile.settings, env=global_profile.env
-        ) as profile:
-            object.__setattr__(profile, "initialize", mock)
-
-            foo()
-
-        mock.assert_called_once_with()
 
     async def test_async_call_creates_flow_run_and_runs(self):
         @flow(version="test")
@@ -435,7 +433,7 @@ class TestFlowCall:
             second.result()
 
 
-class TestSubflowRuns:
+class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
@@ -869,6 +867,19 @@ class TestFlowParameterTypes:
 
         assert my_flow().result() == data
 
+    def test_flow_parameters_can_be_unserializable_types_that_raise_value_error(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        data = Exception
+        # When passing some parameter types, jsonable_encoder will raise a ValueError
+        # for a missing a __dict__ attribute instead of a TypeError.
+        # This was notably encountered when using numpy arrays as an
+        # input type but applies to exception classes as well.
+        # See #1638.
+        assert my_flow(data).result() == data
+
     def test_subflow_parameters_can_be_pydantic_types(self):
         @flow
         def my_flow():
@@ -1103,3 +1114,81 @@ class TestSubflowRunLogs:
             logs[log_messages.index("Hello smaller world!")].flow_run_id
             == subflow_run_id
         )
+
+
+class TestFlowResults:
+    async def test_flow_results_default_to_temporary_directory(self, orion_client):
+        @flow
+        def foo():
+            return 6
+
+        state = foo()
+
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+
+        server_state = flow_run.state
+        assert isinstance(server_state.data, DataDocument)
+        document = server_state.data.decode()
+        assert document["block_id"] is None
+        assert document["data"].startswith(str(TempStorageBlock().basepath()))
+
+        retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
+        assert retrieved_result == state.result()
+
+    async def test_flow_results_use_server_default(
+        self, local_storage_block, orion_client
+    ):
+        @flow
+        def foo():
+            return 6
+
+        await orion_client.set_default_storage_block(local_storage_block._block_id)
+
+        state = foo()
+        assert state.result() == 6
+
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+
+        server_state = flow_run.state
+        assert isinstance(server_state.data, DataDocument)
+        document = server_state.data.decode()
+        assert document["block_id"] == local_storage_block._block_id
+        assert document["data"].startswith(str(local_storage_block.basepath()))
+
+        retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
+        assert retrieved_result == state.result()
+
+    async def test_subflow_results_use_parent_flow_run_value_by_default(
+        self, local_storage_block, orion_client
+    ):
+        @flow
+        async def foo():
+            # Change the default storage on the server, bar() will not use it
+            await orion_client.set_default_storage_block(local_storage_block._block_id)
+            return bar()
+
+        @flow
+        def bar():
+            return 6
+
+        parent_state = await foo()
+        child_state = parent_state.result()
+
+        parent_flow_run = await orion_client.read_flow_run(
+            parent_state.state_details.flow_run_id
+        )
+        child_flow_run = await orion_client.read_flow_run(
+            child_state.state_details.flow_run_id
+        )
+
+        parent_document = parent_flow_run.state.data.decode()
+        child_document = child_flow_run.state.data.decode()
+        assert (
+            parent_document["block_id"] == child_document["block_id"]
+        ), "Parent and child used the same block"
+        assert (
+            child_document["block_id"] != local_storage_block._block_id
+        ), "Storage block to use is determined at flow start time"
+
+        retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)
+        assert retrieved_result == child_state.result()

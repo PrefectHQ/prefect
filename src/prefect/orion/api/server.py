@@ -4,11 +4,12 @@ Defines the Orion FastAPI app.
 
 import asyncio
 import os
+import warnings
 from functools import partial
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Mapping, Optional, Tuple
 
 import sqlalchemy as sa
-from fastapi import Depends, FastAPI, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,27 +24,52 @@ import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import CheckVersionCompatibility
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.server import method_paths_from_routes
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.3.0"
+ORION_API_VERSION = "0.3.1"
 
 logger = get_logger("orion")
 
 version_checker = CheckVersionCompatibility(ORION_API_VERSION, logger)
 
 
+API_ROUTERS = (
+    api.flows.router,
+    api.flow_runs.router,
+    api.task_runs.router,
+    api.flow_run_states.router,
+    api.task_run_states.router,
+    api.deployments.router,
+    api.saved_searches.router,
+    api.logs.router,
+    api.concurrency_limits.router,
+    api.blocks.router,
+    api.work_queues.router,
+    api.block_specs.router,
+    api.ui.flow_runs.router,
+    api.admin.router,
+    api.root.router,
+)
+
+
 class SPAStaticFiles(StaticFiles):
-    # This class overrides the get_response method
-    # to ensure that when a resource isn't found the application still
-    # returns the index.html file. This is required for SPAs
-    # since in-app routing is handled by a single html file.
+    """
+    Implementation of `StaticFiles` for serving single page applications.
+
+    Adds `get_response` handling to ensure that when a resource isn't found the
+    application still returns the index.
+    """
+
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
-        if response.status_code == 404:
+
+        if response.status_code == status.HTTP_404_NOT_FOUND:
             response = await super().get_response("./index.html", scope)
+
         return response
 
 
@@ -96,21 +122,22 @@ async def prefect_object_not_found_exception_handler(
 
 def create_orion_api(
     router_prefix: Optional[str] = "",
-    include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
     fast_api_app_kwargs: dict = None,
+    router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
 
     Args:
         router_prefix: a prefix to apply to all included routers
-        include_admin_router: whether or not to include admin routes, these routes
-            have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
+        router_overrides: a mapping of route prefixes (i.e. "/admin") to new routers
+            allowing the caller to override the default routers. If `None` is provided
+            as a value, the default router will be dropped from the application.
 
     Returns:
         a FastAPI app that serves the Orion API
@@ -128,50 +155,70 @@ def create_orion_api(
     else:
         dependencies.append(Depends(version_checker))
 
-    # api routers
-    api_app.include_router(
-        api.flows.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.flow_runs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.task_runs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.flow_run_states.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.task_run_states.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.deployments.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.saved_searches.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.logs.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.concurrency_limits.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.blocks.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.work_queues.router, prefix=router_prefix, dependencies=dependencies
-    )
-    api_app.include_router(
-        api.block_specs.router, prefix=router_prefix, dependencies=dependencies
-    )
+    routers = {router.prefix: router for router in API_ROUTERS}
 
-    if include_admin_router:
-        api_app.include_router(
-            api.admin.router, prefix=router_prefix, dependencies=dependencies
-        )
+    if router_overrides:
+        for prefix, router in router_overrides.items():
+
+            # We may want to allow this behavior in the future to inject new routes, but
+            # for now this will be treated an as an exception
+            if prefix not in routers:
+                raise KeyError(
+                    f"Router override provided for prefix that does not exist: {prefix!r}"
+                )
+
+            # Drop the existing router
+            existing_router = routers.pop(prefix)
+
+            # Replace it with a new router if provided
+            if router is not None:
+
+                if prefix != router.prefix:
+                    # We may want to allow this behavior in the future, but it will
+                    # break expectations without additional routing and is banned for
+                    # now
+                    raise ValueError(
+                        f"Router override for {prefix!r} defines a different prefix "
+                        f"{router.prefix!r}."
+                    )
+
+                existing_paths = method_paths_from_routes(existing_router.routes)
+                new_paths = method_paths_from_routes(router.routes)
+                if not existing_paths.issubset(new_paths):
+                    raise ValueError(
+                        f"Router override for {prefix!r} is missing paths defined by "
+                        f"the original router: {existing_paths.difference(new_paths)}"
+                    )
+
+                routers[prefix] = router
+
+    for router in routers.values():
+        api_app.include_router(router, prefix=router_prefix, dependencies=dependencies)
 
     return api_app
+
+
+def create_ui_app(ephemeral: bool) -> FastAPI:
+    ui_app = FastAPI(title=UI_TITLE)
+
+    @ui_app.get("/ui-settings")
+    def ui_settings():
+        return {
+            "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+        }
+
+    if (
+        os.path.exists(prefect.__ui_static_path__)
+        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and not ephemeral
+    ):
+        ui_app.mount(
+            "/",
+            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            name="ui_root",
+        )
+
+    return ui_app
 
 
 APP_CACHE: Dict[Tuple[prefect.settings.Settings, bool], FastAPI] = {}
@@ -198,11 +245,6 @@ def create_app(
 
     if cache_key in APP_CACHE and not ignore_cache:
         return APP_CACHE[cache_key]
-
-    if not ephemeral:
-        # Initialize the profile to configure logging
-        profile = prefect.context.get_profile_context()
-        profile.initialize()
 
     # TODO: Move these startup functions out of this closure into the top-level or
     #       another dedicated location
@@ -310,7 +352,7 @@ def create_app(
             }
         }
     )
-    ui_app = FastAPI(title=UI_TITLE)
+    ui_app = create_ui_app(ephemeral)
 
     # middleware
     app.add_middleware(
@@ -329,21 +371,8 @@ def create_app(
         ),
         name="static",
     )
-
-    app.mount("/api", app=api_app)
-    if (
-        os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
-        and not ephemeral
-    ):
-        ui_app.mount(
-            "/",
-            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
-            name="ui_root",
-        )
-        app.mount("/", app=ui_app, name="ui")
-    else:
-        pass  # TODO: Add a static file for a disabled or missing UI
+    app.mount("/api", app=api_app, name="api")
+    app.mount("/", app=ui_app, name="ui")
 
     def openapi():
         """

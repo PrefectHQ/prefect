@@ -1,20 +1,34 @@
+import subprocess
+import sys
+import time
+import warnings
 from unittest.mock import MagicMock
 
+import cloudpickle
 import distributed
 import pytest
 
 from prefect import flow, task
+from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.states import DataDocument, State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
     SequentialTaskRunner,
+    TaskConcurrencyType,
 )
+from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
 from prefect.utilities.testing import TaskRunnerTests, parameterize_with_fixtures
+
+if sys.version_info[1] >= 10:
+    RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
+else:
+    RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
 
 
 @pytest.fixture
 @pytest.mark.service("dask")
-def dask_task_runner_with_existing_cluster():
+def dask_task_runner_with_existing_cluster(use_hosted_orion):
     """
     Generate a dask task runner that's connected to a local cluster
     """
@@ -22,6 +36,94 @@ def dask_task_runner_with_existing_cluster():
         with distributed.Client(cluster) as client:
             address = client.scheduler.address
             yield DaskTaskRunner(address=address)
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.service("ray")
+def machine_ray_instance():
+    """
+    Starts a ray instance for the current machine
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    subprocess.check_call(
+        ["ray", "start", "--head", "--include-dashboard", "False"],
+        cwd=str(prefect.__root_path__),
+    )
+    try:
+        yield "ray://127.0.0.1:10001"
+    finally:
+        subprocess.check_call(["ray", "stop"])
+
+
+@pytest.fixture
+@pytest.mark.service("ray")
+def ray_task_runner_with_existing_cluster(
+    machine_ray_instance,
+    use_hosted_orion,
+    hosted_orion_api,
+):
+    """
+    Generate a ray task runner that's connected to a ray instance running in a separate
+    process.
+
+    This tests connection via `ray://` which is a client-based connection.
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    yield RayTaskRunner(
+        address=machine_ray_instance,
+        init_kwargs={
+            "runtime_env": {
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
+            }
+        },
+    )
+
+
+@pytest.fixture(scope="module")
+@pytest.mark.service("ray")
+def inprocess_ray_cluster():
+    """
+    Starts a ray cluster in-process
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+    cluster_utils = pytest.importorskip("ray.cluster_utils")
+
+    cluster = cluster_utils.Cluster(initialize_head=True)
+    try:
+        cluster.add_node()  # We need to add a second node for parallelism
+        yield cluster
+    finally:
+        cluster.shutdown()
+
+
+@pytest.fixture
+@pytest.mark.service("ray")
+def ray_task_runner_with_inprocess_cluster(
+    inprocess_ray_cluster,
+    use_hosted_orion,
+    hosted_orion_api,
+):
+    """
+    Generate a ray task runner that's connected to an in-process cluster.
+
+    This tests connection via 'localhost' which is not a client-based connection.
+    """
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    yield RayTaskRunner(
+        address=inprocess_ray_cluster.address,
+        init_kwargs={
+            "runtime_env": {
+                # Ship the 'tests' module to the workers or they will not be able to
+                # deserialize test tasks / flows
+                "py_modules": [tests]
+            }
+        },
+    )
 
 
 @pytest.fixture
@@ -69,6 +171,20 @@ def default_concurrent_task_runner():
     yield ConcurrentTaskRunner()
 
 
+@pytest.fixture
+@pytest.mark.service("ray")
+def default_ray_task_runner():
+    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
+
+    with warnings.catch_warnings():
+        # Ray does not properly close resources and we do not want their warnings to
+        # bubble into our test suite
+        # https://github.com/ray-project/ray/pull/22419
+        warnings.simplefilter("ignore", ResourceWarning)
+
+        yield RayTaskRunner()
+
+
 async def test_task_runner_cannot_be_started_while_running():
     async with SequentialTaskRunner().start() as task_runner:
         with pytest.raises(RuntimeError, match="already started"):
@@ -76,19 +192,28 @@ async def test_task_runner_cannot_be_started_while_running():
                 pass
 
 
-class TestSequentialTaskRunner(TaskRunnerTests):
+class TestSequentialTaskRunner(TaskRunnerStandardTestSuite):
     @pytest.fixture
     def task_runner(self):
         yield SequentialTaskRunner()
 
 
-class TestConcurrentTaskRunner(TaskRunnerTests):
+class TestConcurrentTaskRunner(TaskRunnerStandardTestSuite):
     @pytest.fixture
     def task_runner(self):
         yield ConcurrentTaskRunner()
 
+    def get_sleep_time(self) -> float:
+        """
+        Return an amount of time to sleep for concurrency tests
 
-class TestDaskTaskRunner(TaskRunnerTests):
+        The concurrent task runner is prone to flaking on concurrency tests
+        """
+        return 2.0
+
+
+@pytest.mark.service("dask")
+class TestDaskTaskRunner(TaskRunnerStandardTestSuite):
     @pytest.fixture(
         params=[
             default_dask_task_runner,
@@ -101,6 +226,96 @@ class TestDaskTaskRunner(TaskRunnerTests):
         yield request.getfixturevalue(
             request.param._pytestfixturefunction.name or request.param.__name__
         )
+
+    async def test_is_pickleable_after_start(self, task_runner):
+        """
+        The task_runner must be picklable as it is attached to `PrefectFuture` objects
+        Reimplemented to set Dask client as default to allow unpickling
+        """
+        task_runner.client_kwargs["set_as_default"] = True
+        async with task_runner.start():
+            pickled = cloudpickle.dumps(task_runner)
+            unpickled = cloudpickle.loads(pickled)
+            assert isinstance(unpickled, type(task_runner))
+
+    @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
+    async def test_wait_captures_exceptions_as_crashed_state(
+        self, task_runner, exception
+    ):
+        """
+        Dask wraps the exception, interrupts will result in "Cancelled" tasks
+        or "Killed" workers while normal errors will result in the raw error with Dask.
+        We care more about the crash detection and
+        lack of re-raise here than the equality of the exception.
+        """
+        if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
+            pytest.skip(
+                f"This will abort the run for {task_runner.concurrency_type} task runners."
+            )
+
+        task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
+
+        async def fake_orchestrate_task_run():
+            raise exception
+
+        async with task_runner.start():
+            future = await task_runner.submit(
+                task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
+            )
+
+            state = await task_runner.wait(future, 5)
+            assert state is not None, "wait timed out"
+            assert isinstance(state, State), "wait should return a state"
+            assert state.name == "Crashed"
+
+
+@pytest.mark.service("ray")
+class TestRayTaskRunner(TaskRunnerStandardTestSuite):
+    @pytest.fixture(
+        params=[
+            default_ray_task_runner,
+            ray_task_runner_with_existing_cluster,
+            ray_task_runner_with_inprocess_cluster,
+        ]
+    )
+    def task_runner(self, request):
+        yield request.getfixturevalue(
+            request.param._pytestfixturefunction.name or request.param.__name__
+        )
+
+    # Ray wraps the exception, interrupts will result in "Cancelled" tasks
+    # or "Killed" workers while normal errors will result in a "RayTaskError".
+    # We care more about the crash detection and
+    # lack of re-raise here than the equality of the exception.
+    @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
+    async def test_wait_captures_exceptions_as_crashed_state(
+        self, task_runner, exception
+    ):
+        """
+        Ray wraps the exception, interrupts will result in "Cancelled" tasks
+        or "Killed" workers while normal errors will result in a "RayTaskError".
+        We care more about the crash detection and
+        lack of re-raise here than the equality of the exception.
+        """
+        if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
+            pytest.skip(
+                f"This will raise for {task_runner.concurrency_type} task runners."
+            )
+
+        task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
+
+        async def fake_orchestrate_task_run():
+            raise exception
+
+        async with task_runner.start():
+            future = await task_runner.submit(
+                task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
+            )
+
+            state = await task_runner.wait(future, 5)
+            assert state is not None, "wait timed out"
+            assert isinstance(state, State), "wait should return a state"
+            assert state.name == "Crashed"
 
 
 class TestDaskTaskRunnerConfig:
@@ -233,3 +448,41 @@ class TestDaskTaskRunnerConfig:
             task_state, subflow_state = parent_flow().result()
             assert task_state.result() == "a"
             assert subflow_state.result() == "a"
+
+    @pytest.mark.service("dask")
+    async def test_converts_prefect_futures_to_dask_futures(self):
+        task_run_1 = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="1")
+        task_run_2 = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="2")
+
+        async def fake_orchestrate_task_run(example_kwarg):
+            return State(
+                type=StateType.COMPLETED,
+                data=DataDocument.encode("cloudpickle", example_kwarg),
+            )
+
+        async with DaskTaskRunner().start() as task_runner:
+            fut_1 = await task_runner.submit(
+                task_run=task_run_1,
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs=dict(example_kwarg=1),
+            )
+
+            original_submit = task_runner._client.submit
+            mock = task_runner._client.submit = MagicMock(side_effect=original_submit)
+
+            fut_2 = await task_runner.submit(
+                task_run=task_run_2,
+                run_fn=fake_orchestrate_task_run,
+                run_kwargs=dict(example_kwarg=fut_1),
+            )
+
+            called_with = mock.call_args[1].get("example_kwarg")
+            assert isinstance(
+                called_with, distributed.Future
+            ), "Prefect future converted to Dask future"
+            assert called_with == task_runner._get_dask_future(fut_1)
+
+            state_1 = await task_runner.wait(fut_1, 5)
+
+            state_2 = await task_runner.wait(fut_2, 5)
+            assert state_2.result() == state_1, "Dask converted the future to the state"

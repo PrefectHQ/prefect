@@ -2,7 +2,7 @@
   <m-panel class="work-queue-edit-panel">
     <template #title>
       <i class="pi pi-robot-line pi-1x" />
-      <span class="ml-1">New Work Queue</span>
+      <span class="ml-1">Edit Work Queue</span>
     </template>
 
     <m-loader :loading="saving" class="work-queue-edit-panel__loader" />
@@ -10,7 +10,8 @@
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
-        :get-deployments="getDeployments"
+        :deployments-api="deploymentsApi"
+        :can="can"
         @remove="remove"
       />
     </section>
@@ -33,6 +34,7 @@
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
+  import { Can } from '@/types/permissions'
   import { closePanel, exitPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
@@ -41,9 +43,9 @@
     workQueue: WorkQueue,
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
-    getDeployments: DeploymentsApi['getDeployments'],
-    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
-    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
+    deploymentsApi: DeploymentsApi,
+    workQueuesApi: WorkQueuesApi,
+    can: Can,
   }>()
 
   const saving = ref(false)
@@ -52,7 +54,7 @@
   async function update(): Promise<void> {
     try {
       saving.value = true
-      await props.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
+      await props.workQueuesApi.updateWorkQueue(props.workQueue.id, workQueueFormValues.value.getWorkQueueRequest())
       await props.workQueueSubscription.refresh()
       props.workQueuesListSubscription.refresh()
       showToast('Updated Work Queue', 'success')
@@ -68,7 +70,7 @@
   async function remove(id: string): Promise<void> {
     try {
       saving.value = true
-      await props.deleteWorkQueue(id)
+      await props.workQueuesApi.deleteWorkQueue(id)
       props.workQueuesListSubscription.refresh()
       showToast('Deleted Work Queue', 'success')
       exitPanel()

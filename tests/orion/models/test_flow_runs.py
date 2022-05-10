@@ -1036,6 +1036,50 @@ class TestReadFlowRuns:
         )
         assert result[0].id == flow_run_2.id
 
+    @pytest.mark.filterwarnings(
+        # SQLAlchemy will create an unawaited coroutine on attribute access failure
+        "ignore:coroutine '.*' was never awaited"
+    )
+    async def test_read_flow_runs_with_only_one_column(self, flow_runs, db, session):
+        # clear the session to erase cached versions of these flow runs and
+        # force all data to be reloaded
+        session.expunge_all()
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session, columns=[db.FlowRun.id]
+        )
+
+        assert {r.id for r in result} == {fr.id for fr in flow_runs}
+
+        # name and state_type were not loaded and raise an error
+        # because the async session is closed
+        for r in result:
+            with pytest.raises(sa.exc.MissingGreenlet):
+                r.name
+            with pytest.raises(sa.exc.MissingGreenlet):
+                r.state_type
+
+    @pytest.mark.filterwarnings(
+        # SQLAlchemy will create an unawaited coroutine on attribute access failure
+        "ignore:coroutine '.*' was never awaited"
+    )
+    async def test_read_flow_runs_with_only_two_columns(self, flow_runs, db, session):
+        # clear the session to erase cached versions of these flow runs and
+        # force all data to be reloaded
+        session.expunge_all()
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session, columns=[db.FlowRun.id, db.FlowRun.name]
+        )
+        assert {r.id for r in result} == {fr.id for fr in flow_runs}
+        assert {r.name for r in result} == {fr.name for fr in flow_runs}
+
+        # state_type was not loaded and raises an error
+        # because the async session is closed
+        for r in result:
+            with pytest.raises(sa.exc.MissingGreenlet):
+                r.state_type
+
 
 class TestReadFlowRunTaskRunDependencies:
     async def test_read_task_run_dependencies(self, flow_run, session):

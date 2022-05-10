@@ -2,18 +2,18 @@
 Command line interface for working with concurrency limits.
 """
 import pendulum
-from rich.console import Group
+
+try:
+    from rich.console import Group
+except ImportError:
+    # Name changed in https://github.com/Textualize/rich/blob/master/CHANGELOG.md#1100---2022-01-09
+    from rich.console import RenderGroup as Group
+
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
 
@@ -39,7 +39,7 @@ async def create(tag: str, concurrency_limit: int):
         )
         result = await client.read_concurrency_limit_by_tag(tag)
 
-    console.print(Pretty(result))
+    app.console.print(Pretty(result))
 
 
 @concurrency_limit_app.command()
@@ -78,7 +78,7 @@ async def inspect(tag: str):
         cl_table,
         trid_table,
     )
-    console.print(Panel(group, expand=False))
+    app.console.print(Panel(group, expand=False))
 
 
 @concurrency_limit_app.command()
@@ -108,7 +108,7 @@ async def ls(limit: int = 15, offset: int = 0):
             str(len(cl.active_slots)),
         )
 
-    console.print(table)
+    app.console.print(table)
 
 
 @concurrency_limit_app.command()

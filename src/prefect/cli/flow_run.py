@@ -4,14 +4,13 @@ Command line interface for working with flow runs
 from typing import List
 from uuid import UUID
 
-import fastapi
 import httpx
 import pendulum
-import typer
+from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.cli.base import PrefectTyper, app, exit_with_error
 from prefect.client import get_client
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -32,12 +31,12 @@ async def inspect(id: UUID):
         try:
             flow_run = await client.read_flow_run(id)
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
                 exit_with_error(f"Flow run {id!r} not found!")
             else:
                 raise
 
-    console.print(Pretty(flow_run))
+    app.console.print(Pretty(flow_run))
 
 
 @flow_run_app.command()
@@ -89,4 +88,4 @@ async def ls(
             pendulum.instance(timestamp).diff_for_humans(),
         )
 
-    console.print(table)
+    app.console.print(table)

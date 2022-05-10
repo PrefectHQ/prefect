@@ -1,6 +1,6 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.65",
+    "version": "0.1.78",
     "private": false,
     "keywords": [
         "prefect",
@@ -8,19 +8,8 @@
         "orion"
     ],
     "scripts": {
-        "dev": "vue-tsc & vite build --watch & npm run dev-components & npm run dev-models & npm run dev-services & npm run dev-utilities",
-        "build": "vue-tsc && vite build && npm run build-components && npm run build-models && npm run build-services && npm run build-utilities",
-        "build-components": "vite build --mode components",
-        "build-models": "vite build --mode models",
-        "build-services": "vite build --mode services",
-        "build-stores": "vite build --mode stores",
-        "build-utilities": "vite build --mode utilities",
-        "dev-components": "vite build --mode components --watch",
-        "dev-models": "vite build --mode models --watch",
-        "dev-services": "vite build --mode services --watch",
-        "dev-stores": "vite build --mode stores --watch",
-        "dev-utilities": "vite build --mode utilities --watch",
-        "postbuild": "node scripts/fix-types.js",
+        "dev": "vue-tsc -w & tsc-alias -w & vite build -w",
+        "build": "vue-tsc && tsc-alias && vite build",
         "lint:fix": "eslint src --fix --debug"
     },
     "main": "./dist/orion-design.umd.js",
@@ -30,56 +19,27 @@
             "import": "./dist/orion-design.es.js",
             "require": "./dist/orion-design.umd.js"
         },
-        "./components": {
-            "import": "./dist/orion-design-components.es.js",
-            "require": "./dist/orion-design-components.umd.js"
-        },
-        "./models": {
-            "import": "./dist/orion-design-models.es.js",
-            "require": "./dist/orion-design-models.umd.js"
-        },
-        "./services": {
-            "import": "./dist/orion-design-services.es.js",
-            "require": "./dist/orion-design-services.umd.js"
-        },
-        "./stores": {
-            "import": "./dist/orion-design-stores.es.js",
-            "require": "./dist/orion-design-stores.umd.js"
-        },
-        "./utilities": {
-            "import": "./dist/orion-design-utilities.es.js",
-            "require": "./dist/orion-design-utilities.umd.js"
-        },
         "./dist/style.css": "./dist/style.css"
     },
     "files": [
         "dist"
     ],
-    "types": "./dist/index.d.ts",
+    "types": "./dist/types/index.d.ts",
     "dependencies": {
-        "@prefecthq/vue-compositions": "0.1.18",
-        "axios": "^0.24.0",
-        "core-js": "^3.6.5",
-        "d3": "^7.0.0"
+        "axios": "^0.24.0"
     },
     "devDependencies": {
         "@prefecthq/eslint-config": "1.0.14",
-        "@types/d3": "^7.0.0",
-        "@types/expect-puppeteer": "^4.4.7",
-        "@types/jest": "^27.4.0",
-        "@types/jest-environment-puppeteer": "^5.0.0",
-        "@types/node": "^15.14.1",
-        "@types/puppeteer": "^5.4.4",
+        "@prefecthq/vue-compositions": "0.1.21",
         "@vitejs/plugin-vue": "^1.2.5",
         "date-fns": "^2.25.0",
         "date-fns-tz": "^1.3.0",
         "eslint": "^8.6.0",
-        "replace": "^1.2.1",
         "sass": "^1.35.2",
+        "tsc-alias": "1.6.5",
         "typescript": "^4.1.6",
         "vite": "^2.4.2",
-        "vue-class-component": "^8.0.0-0",
-        "vue-tsc": "^0.30.1"
+        "vue-tsc": "0.33.9"
     },
     "peerDependencies": {
         "@prefecthq/miter-design": "^0.1.30",

@@ -4,11 +4,11 @@ Async and thread safe models for passing runtime context data.
 These contexts should never be directly mutated by the user.
 """
 import os
-import threading
+import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import ContextManager, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -17,13 +17,14 @@ from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging.configuration
 import prefect.settings
+from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
-from prefect.settings import Settings
+from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 
@@ -94,7 +95,8 @@ class FlowRunContext(RunContext):
     Attributes:
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
-        task_runner: The task_runner instance being used for the flow run
+        task_runner: The task runner instance being used for the flow run
+        result_storage: A block to used to persist run state data
         task_run_futures: A list of futures for task runs created within this flow run
         subflow_states: A list of states for flow runs created within this flow run
         sync_portal: A blocking portal for sync task/flow runs in an async flow
@@ -104,6 +106,7 @@ class FlowRunContext(RunContext):
     flow: Flow
     flow_run: FlowRun
     task_runner: BaseTaskRunner
+    result_storage: StorageBlock
 
     # Tracking created objects
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
@@ -125,10 +128,12 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
+        result_storage: A block to used to persist run state data
     """
 
     task: Task
     task_run: TaskRun
+    result_storage: StorageBlock
 
     __var__ = ContextVar("task_run")
 
@@ -149,6 +154,43 @@ class TagsContext(ContextModel):
         return cls.__var__.get(TagsContext())
 
     __var__ = ContextVar("tags")
+
+
+class SettingsContext(ContextModel):
+    """
+    The context for a Prefect settings.
+
+    This allows for safe concurrent access and modification of settings.
+
+    Attributes:
+        profile: The profile that is in use.
+        settings: The complete settings model.
+    """
+
+    profile: Profile
+    settings: Settings
+
+    __var__ = ContextVar("settings")
+
+    def __hash__(self) -> int:
+        return hash(self.settings)
+
+    def __enter__(self):
+        """
+        Upon entrance, we ensure the home directory for the profile exists.
+        """
+        return_value = super().__enter__()
+
+        try:
+            os.makedirs(self.settings.value_of(PREFECT_HOME), exist_ok=True)
+        except OSError:
+            warnings.warn(
+                "Failed to create the Prefect home directory at "
+                f"{self.settings.value_of(PREFECT_HOME)}",
+                stacklevel=2,
+            )
+
+        return return_value
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
@@ -172,6 +214,22 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     raise MissingContextError(
         "No run context available. You are not in a flow or task run context."
     )
+
+
+def get_settings_context() -> SettingsContext:
+    """
+    Get the current settings context which contains profile information and the
+    settings that are being used.
+
+    Generally, the settings that are being used are a combination of values from the
+    profile and environment. See `prefect.context.use_profile` for more details.
+    """
+    settings_ctx = SettingsContext.get()
+
+    if not settings_ctx:
+        raise MissingContextError("No settings context found.")
+
+    return settings_ctx
 
 
 @contextmanager
@@ -231,108 +289,11 @@ def tags(*new_tags: str) -> Set[str]:
         yield new_tags
 
 
-class ProfileContext(ContextModel):
-    """
-    The context for a Prefect settings profile.
-
-    Attributes:
-        name: The name of the profile
-        settings: The complete settings model
-        env: The environment variables set in this profile configuration and their
-            current values. These may differ from the profile configuration if the
-            user has overridden them explicitly.
-    """
-
-    name: str
-    settings: Settings
-    env: Dict[str, str]
-
-    __var__ = ContextVar("profile")
-
-    def __hash__(self) -> int:
-        return hash(
-            (
-                self.name,
-                self.settings,
-                tuple((key, value) for key, value in self.env.items()),
-            )
-        )
-
-    def initialize(self, create_home: bool = True, setup_logging: bool = True):
-        """
-        Upon initialization, we can create the home directory contained in the settings and
-        configure logging. These steps are optional. Logging can only be set up once per
-        process and later attempts to configure logging will fail.
-        """
-        if create_home and not os.path.exists(
-            prefect.settings.PREFECT_HOME.value_from(self.settings)
-        ):
-            os.makedirs(
-                prefect.settings.PREFECT_HOME.value_from(self.settings), exist_ok=True
-            )
-
-        if setup_logging:
-            prefect.logging.configuration.setup_logging(self.settings)
-
-
-def get_profile_context() -> ProfileContext:
-    profile_ctx = ProfileContext.get()
-
-    if not profile_ctx:
-        raise MissingContextError("No profile context found.")
-
-    return profile_ctx
-
-
-_PROFILE_ENV_LOCK = threading.Lock()
-
-
 @contextmanager
-def temporary_environ(
-    variables, override_existing: bool = True, warn_on_override: bool = False
-):
-    """
-    Temporarily override default values in os.environ.
-
-    Yields a dictionary of the key/value pairs matching the provided keys.
-    """
-    old_env = os.environ.copy()
-
-    if override_existing:
-        overrides = set(old_env.keys()).intersection(variables.keys())
-        if overrides and warn_on_override:
-            warnings.warn(
-                f"The following environment variables will be temporarily overwritten: {', '.join(overrides)}",
-                stacklevel=3,
-            )
-
-    try:
-        for var, value in variables.items():
-            if value is None and var in os.environ and override_existing:
-                # Allow setting `None` to remove items
-                os.environ.pop(var)
-                continue
-
-            value = str(value)
-
-            if var not in old_env or override_existing:
-                os.environ[var] = value
-            else:
-                os.environ.setdefault(var, value)
-
-        yield {var: os.environ.get(var) for var in variables}
-
-    finally:
-        for var in variables:
-            if old_env.get(var):
-                os.environ[var] = old_env[var]
-            else:
-                os.environ.pop(var, None)
-
-
-@contextmanager
-def profile(
-    name: str, override_existing_variables: bool = False, initialize: bool = True
+def use_profile(
+    profile: Union[Profile, str],
+    override_environment_variables: bool = False,
+    include_current_context: bool = True,
 ):
     """
     Switch to a profile for the duration of this context.
@@ -340,52 +301,93 @@ def profile(
     Profile contexts are confined to an async context in a single thread.
 
     Args:
-        name: The name of the profile to load. Must exist.
-        override_existing_variables: If set, variables in the profile will take
+        profile: The name of the profile to load or an instance of a Profile.
+        override_environment_variable: If set, variables in the profile will take
             precedence over current environment variables. By default, environment
             variables will override profile settings.
-        initialize: By default, the profile is initialized. If you would like to
-            initialize the profile manually, toggle this to `False`.
+        include_current_context: If set, the new settings will be constructed
+            with the current settings context as a base. If not set, the use_base settings
+            will be loaded from the environment and defaults.
 
     Yields:
-        The created `ProfileContext` object
+        The created `SettingsContext` object
     """
-    from prefect.context import ProfileContext
+    if isinstance(profile, str):
+        profiles = prefect.settings.load_profiles()
+        profile = profiles[profile]
 
-    env = prefect.settings.load_profile(name)
+    if not isinstance(profile, Profile):
+        raise TypeError(
+            f"Unexpected type {type(profile).__name__!r} for `profile`. "
+            "Expected 'str' or 'Profile'."
+        )
 
-    # Prevent multiple threads from mutating the environment concurrently
-    with _PROFILE_ENV_LOCK:
-        with temporary_environ(
-            env, override_existing=override_existing_variables, warn_on_override=True
-        ):
-            settings = prefect.settings.get_settings_from_env()
+    # Create a copy of the profiles settings as we will mutate it
+    profile_settings = profile.settings.copy()
 
-    with ProfileContext(name=name, settings=settings, env=env) as ctx:
-        if initialize:
-            ctx.initialize()
+    existing_context = SettingsContext.get()
+    if existing_context and include_current_context:
+        settings = existing_context.settings
+    else:
+        settings = prefect.settings.get_settings_from_env()
+
+    if not override_environment_variables:
+        for key in os.environ:
+            if key in prefect.settings.SETTING_VARIABLES:
+                profile_settings.pop(prefect.settings.SETTING_VARIABLES[key], None)
+
+    new_settings = settings.copy_with_update(updates=profile_settings)
+
+    with SettingsContext(profile=profile, settings=new_settings) as ctx:
         yield ctx
 
 
-GLOBAL_PROFILE_CM: ContextManager[ProfileContext] = None
+GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
 
 
-def enter_global_profile():
+def enter_root_settings_context():
     """
     Enter the profile that will exist as the root context for the module.
 
-    We do not initialize this profile so there are no logging/file system side effects
-    on module import. Instead, the profile is initialized lazily in `prefect.engine`.
+    The profile to use is determined with the following precedence
+    - Command line via 'prefect --profile <name>'
+    - Environment variable via 'PREFECT_PROFILE'
+    - Profiles file via the 'active' key
 
     This function is safe to call multiple times.
     """
     # We set a global variable because otherwise the context object will be garbage
     # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_PROFILE_CM
+    global GLOBAL_SETTINGS_CM
 
-    if GLOBAL_PROFILE_CM:
+    if GLOBAL_SETTINGS_CM:
         return  # A global context already has been entered
 
-    name = prefect.settings.get_active_profile(name_only=True)
-    GLOBAL_PROFILE_CM = profile(name=name, initialize=False)
-    GLOBAL_PROFILE_CM.__enter__()
+    profiles = prefect.settings.load_profiles()
+    active_name = profiles.active_name
+    profile_source = "the profiles file"
+
+    if "PREFECT_PROFILE" in os.environ:
+        active_name = os.environ["PREFECT_PROFILE"]
+        profile_source = "environment variable"
+
+    if (
+        sys.argv[0].endswith("/prefect")
+        and len(sys.argv) >= 3
+        and sys.argv[1] == "--profile"
+    ):
+        active_name = sys.argv[2]
+        profile_source = "command line argument"
+
+    if active_name not in profiles.names:
+        raise ValueError(
+            f"Prefect profile {active_name!r} set by {profile_source} not found."
+        )
+
+    GLOBAL_SETTINGS_CM = use_profile(
+        profiles[active_name],
+        # Override environment variables if the profile was set by the CLI
+        override_environment_variables=profile_source == "command line argument",
+    )
+
+    GLOBAL_SETTINGS_CM.__enter__()

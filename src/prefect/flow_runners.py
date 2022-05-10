@@ -43,9 +43,10 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, get_current_settings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.enum import AutoEnum
@@ -104,6 +105,13 @@ def get_prefect_image_name(
     return f"prefecthq/prefect:{tag}"
 
 
+def base_flow_run_environment() -> Dict[str, str]:
+    """
+    Generate a dictionary of environment variables for a flow run job.
+    """
+    return get_current_settings().to_environment_variables(exclude_unset=True)
+
+
 class FlowRunner(BaseModel):
     """
     Flow runners are responsible for creating infrastructure for flow runs and starting
@@ -133,7 +141,7 @@ class FlowRunner(BaseModel):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
         """
         Implementations should:
@@ -209,7 +217,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    stream_output: bool = False
+    stream_output: bool = True
     condaenv: Union[str, Path] = None
     virtualenv: Path = None
 
@@ -235,7 +243,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_status: TaskStatus,
+        task_status: TaskStatus = None,
     ) -> Optional[bool]:
 
         if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
@@ -258,7 +266,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         )
 
         # Mark this submission as successful
-        task_status.started()
+        if task_status:
+            task_status.started()
 
         # Wait for the process to exit
         # - We must the output stream so the buffer does not fill
@@ -281,8 +290,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     def _generate_command_and_environment(
         self, flow_run_id: UUID
     ) -> Tuple[Sequence[str], Dict[str, str]]:
-        # Copy the base environment
-        env = os.environ.copy()
+        # Include the base environment and current process environment
+        env = {**base_flow_run_environment(), **os.environ}
 
         # Set up defaults
         command = []
@@ -466,6 +475,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Start the container
         container.start()
 
+        docker_client.close()
+
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
@@ -614,6 +625,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
         result = container.wait()
+        docker_client.close()
         return result.get("StatusCode") == 0
 
     @property
@@ -636,7 +648,18 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_client(self):
         try:
-            docker_client = self._docker.from_env()
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = self._docker.from_env()
+
         except self._docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
@@ -707,21 +730,19 @@ class DockerFlowRunner(UniversalFlowRunner):
                 return {"host.docker.internal": "host-gateway"}
 
     def _get_environment_variables(self, network_mode):
-        env = self.env.copy()
+        env = {**base_flow_run_environment(), **self.env}
 
-        # Set the container to connect to the same API as the flow runner by default
+        # If the API URL has been set by the base environment rather than the flow
+        # runner config, update the value to ensure connectivity when using a bridge
+        # network by update local connections to use the docker internal host unless the
+        # network mode is "host" where localhost is available already.
 
-        if PREFECT_API_URL:
-            api_url = PREFECT_API_URL.value()
-
-            # Update local connections to use the docker internal host unless the
-            # network mode is "host" where localhost is available
-            if network_mode != "host":
-                api_url = api_url.replace("localhost", "host.docker.internal").replace(
-                    "127.0.0.1", "host.docker.internal"
-                )
-
-            env.setdefault("PREFECT_API_URL", api_url)
+        if "PREFECT_API_URL" not in self.env and network_mode != "host":
+            env["PREFECT_API_URL"] = (
+                env["PREFECT_API_URL"]
+                .replace("localhost", "host.docker.internal")
+                .replace("127.0.0.1", "host.docker.internal")
+            )
 
         return env
 
@@ -756,6 +777,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     Attributes:
         image: An optional string specifying the tag of a Docker image to use for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
+        service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
@@ -766,6 +788,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     image: str = Field(default_factory=get_prefect_image_name)
     namespace: str = "default"
+    service_account_name: str = None
     labels: Dict[str, str] = None
     image_pull_policy: KubernetesImagePullPolicy = None
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
@@ -940,9 +963,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         return labels
 
     def _get_environment_variables(self):
-        env = self.env.copy()
-        env.setdefault("PREFECT_API_URL", "http://orion:4200/api")
-        return env
+        return {**base_flow_run_environment(), **self.env}
 
     def _create_and_start_job(self, flow_run: FlowRun) -> str:
         k8s_env = [
@@ -973,6 +994,11 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 "backoff_limit": 4,
             },
         )
+
+        if self.service_account_name:
+            job_settings["spec"]["template"]["spec"][
+                "serviceAccountName"
+            ] = self.service_account_name
 
         if self.image_pull_policy:
             job_settings["spec"]["template"]["spec"]["containers"][0][

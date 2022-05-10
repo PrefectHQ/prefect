@@ -1,10 +1,12 @@
 <template>
   <div class="filter-bar" :class="classes.root">
-    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissable="!disabled" @click="show('search')" />
+    <FiltersSearch class="filter-bar__search" :placeholder="placeholderText" :dismissible="!disabled" @click="show('search')" />
 
-    <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
-      <i class="pi pi-star-line" />
-    </button>
+    <template v-if="can.create.saved_search">
+      <button type="button" class="filter-bar__button" :class="classes.saveButton" @click="toggle('save')">
+        <i class="pi pi-star-line" />
+      </button>
+    </template>
 
     <button type="button" class="filter-bar__button" :class="classes.filtersButton" @click="toggle('filters')">
       <i class="pi pi-filter-3-line" />
@@ -20,13 +22,13 @@
     </teleport>
 
     <transition-group name="filter-bar-transition" mode="out-in">
-      <template v-if="isOpen('search')">
+      <template v-if="isOpen('search') && can.read.saved_search">
         <div key="search" class="filter-bar__menu filter-bar__menu-search">
           <FiltersSearchMenu @close="toggle('search')" />
         </div>
       </template>
 
-      <template v-if="isOpen('save')">
+      <template v-if="isOpen('save') && can.create.saved_search">
         <div key="save" class="filter-bar__menu filter-bar__menu--save">
           <FiltersSaveMenu class="filter-bar_menu-content" @close="close" />
         </div>
@@ -43,15 +45,17 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+  import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
   import FiltersMenu from '@/components/FiltersMenu.vue'
   import FiltersSaveMenu from '@/components/FiltersSaveMenu.vue'
   import FiltersSearch  from '@/components/FiltersSearch.vue'
   import FiltersSearchMenu from '@/components/FiltersSearchMenu.vue'
   import { FilterService } from '@/services/FilterService'
-  import { getSearchesKey, searchApi } from '@/services/SearchApi'
+  import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
+  import { canKey } from '@/types/permissions'
   import { isSame } from '@/utilities/arrays'
+  import { inject } from '@/utilities/inject'
   import { media } from '@/utilities/media'
 
   type Menu = 'none' | 'search' | 'save' | 'filters'
@@ -60,15 +64,16 @@
     disabled?: boolean,
   }>()
 
+  const can = inject(canKey)
   const menu = ref<Menu>('none')
   const detached = ref(false)
   const overlay = computed(() => menu.value !== 'none')
   const placeholderText = computed(()=> props.disabled ? '' : 'Search...')
 
   const filtersStore = useFiltersStore()
-  const getSearches = inject(getSearchesKey, searchApi.getSearches)
-  const searchesSubscription = useSubscription(getSearches)
-  const savedSearches = computed(() => searchesSubscription.response.value ?? [])
+  const searchApi = inject(searchApiKey)!
+  const searchesSubscription = useSubscription(searchApi.getSearches)
+  const savedSearches = computed(() => searchesSubscription.response ?? [])
 
   const usingSavedSearch = computed(() => {
     const stringFilters = FilterService.stringify(filtersStore.all)

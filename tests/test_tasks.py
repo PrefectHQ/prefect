@@ -13,7 +13,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
-from prefect.utilities.testing import exceptions_equal
+from prefect.testing.utilities import exceptions_equal
 
 
 def comparable_inputs(d):
@@ -317,6 +317,24 @@ class TestTaskFutures:
 
         (await my_flow()).result()
 
+    async def test_async_tasks_in_sync_flows_return_sync_futures(self):
+        data = {"value": 1}
+
+        @task
+        async def get_data():
+            return data
+
+        # note this flow is purposely not async
+        @flow
+        def test_flow():
+            future = get_data()
+            assert not future.asynchronous, "The async task should return a sync future"
+            result = future.result()
+            assert result == data, "Retrieving the result returns data"
+            return result
+
+        assert test_flow().result() == data
+
 
 class TestTaskRetries:
     """
@@ -511,6 +529,32 @@ class TestTaskCaching:
         assert fourth_state.name == "Cached"
         assert third_state.result() == "something"
         assert fourth_state.result() == "something"
+
+    def test_cache_key_fn_receives_resolved_futures(self):
+        def check_args(context, params):
+            assert params["x"] == "something"
+            assert len(params) == 1
+            return params["x"]
+
+        @task
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=check_args)
+        def bar(x):
+            return x
+
+        @flow
+        def my_flow():
+            future = foo("something")
+            return bar(future).wait(), bar(future).wait()
+
+        first_state, second_state = my_flow().result()
+        assert first_state.name == "Completed"
+        assert first_state.result() == "something"
+
+        assert second_state.name == "Cached"
+        assert second_state.result() == "something"
 
     def test_cache_key_fn_arg_inputs_are_stable(self):
         def stringed_inputs(context, args):

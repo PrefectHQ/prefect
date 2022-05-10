@@ -14,13 +14,7 @@ from rich.table import Table
 
 import prefect
 from prefect.blocks.core import get_block_class
-from prefect.cli.base import (
-    PrefectTyper,
-    app,
-    console,
-    exit_with_error,
-    exit_with_success,
-)
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -52,12 +46,12 @@ async def create():
     for spec in unconfigurable:
         specs.remove(spec)
 
-    console.print("Found the following storage types:")
+    app.console.print("Found the following storage types:")
     for i, spec in enumerate(specs):
-        console.print(f"{i}) {spec.name}")
+        app.console.print(f"{i}) {spec.name}")
         description = spec.fields["description"]
         if description:
-            console.print(textwrap.indent(description, prefix="    "))
+            app.console.print(textwrap.indent(description, prefix="    "))
 
     selection = typer.prompt("Select a storage type to create", type=int)
 
@@ -67,7 +61,7 @@ async def create():
         exit_with_error(f"Invalid selection {selection!r}")
 
     property_specs = spec.fields["properties"]
-    console.print(
+    app.console.print(
         f"You've selected {spec.name}. It has {len(property_specs)} option(s). "
     )
 
@@ -101,13 +95,13 @@ async def create():
 
     block_cls = get_block_class(spec.name, spec.version)
 
-    console.print("Validating configuration...")
+    app.console.print("Validating configuration...")
     try:
         block = block_cls(**properties)
     except Exception as exc:
         exit_with_error(f"Validation failed! {str(exc)}")
 
-    console.print("Registering storage with server...")
+    app.console.print("Registering storage with server...")
     block_id = None
     while not block_id:
         async with get_client() as client:
@@ -116,10 +110,10 @@ async def create():
                     block=block, block_spec_id=spec.id, name=name
                 )
             except ObjectAlreadyExists:
-                console.print(f"[red]The name {name!r} is already taken.[/]")
+                app.console.print(f"[red]The name {name!r} is already taken.[/]")
                 name = typer.prompt("Choose a new name for this storage configuration")
 
-    console.print(
+    app.console.print(
         f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
     )
 
@@ -136,7 +130,7 @@ async def create():
                 exit_with_success(f"Set default storage to {name!r}.")
 
             else:
-                console.print(
+                app.console.print(
                     "Default left unchanged. Use `prefect storage set-default "
                     f"{block_id}` to set this as the default storage at a later time."
                 )
@@ -187,7 +181,9 @@ async def ls():
             block.block_spec.name,
             block.block_spec.version,
             block.name,
-            Emoji("duck") if str(block.id) == default_storage_block.get("id") else None,
+            Emoji("white_check_mark")
+            if str(block.id) == default_storage_block.get("id")
+            else None,
         )
 
     if not default_storage_block:
@@ -196,4 +192,4 @@ async def ls():
             "\nSet a default with `prefect storage set-default <id>`"
         )
 
-    console.print(table)
+    app.console.print(table)

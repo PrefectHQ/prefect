@@ -53,18 +53,20 @@
       <m-button miter @click="close">
         Close
       </m-button>
-      <m-button miter @click="open">
-        <i class="pi pi-xs pi-pencil-line mr-1" /> Edit
-      </m-button>
-      <template v-if="workQueue?.isPaused">
-        <m-button color="primary" miter @click="resume">
-          <i class="pi pi-xs pi-play-line mr-1" /> Resume
+      <template v-if="can.update.work_queue">
+        <m-button miter @click="open">
+          <i class="pi pi-xs pi-pencil-line mr-1" /> Edit
         </m-button>
-      </template>
-      <template v-else>
-        <m-button color="primary" miter :loading="saving" @click="pause">
-          <i class="pi pi-xs pi-pause-line mr-1" /> Pause
-        </m-button>
+        <template v-if="workQueue?.isPaused">
+          <m-button color="primary" miter @click="resume">
+            <i class="pi pi-xs pi-play-line mr-1" /> Resume
+          </m-button>
+        </template>
+        <template v-else>
+          <m-button color="primary" miter :loading="saving" @click="pause">
+            <i class="pi pi-xs pi-pause-line mr-1" /> Pause
+          </m-button>
+        </template>
       </template>
     </template>
   </m-panel>
@@ -77,6 +79,7 @@
   import WorkQueuePausedTag from '@/components/WorkQueuePausedTag.vue'
   import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
+  import { Can } from '@/types/permissions'
   import { WorkQueuesListSubscription, WorkQueueSubscription } from '@/utilities/subscriptions'
 
   const props = defineProps<{
@@ -85,20 +88,20 @@
     workQueueSubscription: WorkQueueSubscription,
     workQueuesListSubscription: WorkQueuesListSubscription,
     openWorkQueueEditPanel: (workQueue: WorkQueue) => void,
-    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
-    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
+    workQueuesApi: WorkQueuesApi,
+    can: Can,
   }>()
 
   const saving = ref(false)
 
-  const loading = computed(() => props.workQueueSubscription.loading.value && props.workQueueSubscription.response.value === undefined)
-  const workQueue = computed(() => props.workQueueSubscription.response.value ?? null)
+  const loading = computed(() => props.workQueueSubscription.loading && props.workQueueSubscription.response === undefined)
+  const workQueue = computed(() => props.workQueueSubscription.response ?? null)
   const concurrencyLimit = computed(() => workQueue.value?.concurrencyLimit ? workQueue.value.concurrencyLimit.toLocaleString() : 'No Limit')
   const createdDate = computed(() => workQueue.value?.created ? workQueue.value.created.toISOString() : null)
 
   async function pause(): Promise<void> {
     saving.value = true
-    await props.pauseWorkQueue(props.workQueueId)
+    await props.workQueuesApi.pauseWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()
@@ -108,7 +111,7 @@
 
   async function resume(): Promise<void> {
     saving.value = true
-    await props.resumeWorkQueue(props.workQueueId)
+    await props.workQueuesApi.resumeWorkQueue(props.workQueueId)
     await props.workQueueSubscription.refresh()
 
     props.workQueuesListSubscription.refresh()

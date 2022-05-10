@@ -8,9 +8,7 @@ import router from './router'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
 // Global components
-import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
-import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue'
@@ -45,9 +43,7 @@ async function start(): Promise<void> {
 
   const app = createApp(App).use(MiterDesign).use(router).use(api).use(createPinia())
 
-  app.component('ButtonCard', ButtonCard)
   app.component('ButtonRounded', ButtonRounded)
-  app.component('Drawer', Drawer)
   app.component('List', List)
   app.component('ListItem', ListItem)
   app.component('ListItemDeployment', ListItemDeployment)

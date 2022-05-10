@@ -18,7 +18,6 @@ from prefect.cli.base import (
     PrefectTyper,
     SettingsOption,
     app,
-    console,
     exit_with_error,
     exit_with_success,
 )
@@ -154,7 +153,7 @@ async def start(
     base_url = f"http://{host}:{port}"
 
     async with anyio.create_task_group() as tg:
-        console.print("Starting...")
+        app.console.print("Starting...")
         await tg.start(
             partial(
                 open_process_and_stream_output,
@@ -171,10 +170,10 @@ async def start(
             )
         )
 
-        console.print(generate_welcome_blub(base_url, ui_enabled=ui))
-        console.print("\n")
+        app.console.print(generate_welcome_blub(base_url, ui_enabled=ui))
+        app.console.print("\n")
 
-    console.print("Orion stopped!")
+    app.console.print("Orion stopped!")
 
 
 @orion_app.command()
@@ -212,10 +211,10 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
         )
         if not confirm:
             exit_with_error("Database reset aborted")
-    console.print("Resetting Orion database...")
-    console.print("Dropping tables...")
+    app.console.print("Resetting Orion database...")
+    app.console.print("Dropping tables...")
     await db.drop_db()
-    console.print("Creating tables...")
+    app.console.print("Creating tables...")
     await db.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
 
@@ -239,9 +238,9 @@ async def upgrade(
         if not confirm:
             exit_with_error("Database upgrade aborted!")
 
-    console.print("Running upgrade migrations ...")
+    app.console.print("Running upgrade migrations ...")
     await run_sync_in_worker_thread(alembic_upgrade, revision=revision, dry_run=dry_run)
-    console.print("Migrations succeeded!")
+    app.console.print("Migrations succeeded!")
     exit_with_success("Orion database upgraded!")
 
 
@@ -266,11 +265,11 @@ async def downgrade(
         if not confirm:
             exit_with_error("Database downgrade aborted!")
 
-    console.print("Running downgrade migrations ...")
+    app.console.print("Running downgrade migrations ...")
     await run_sync_in_worker_thread(
         alembic_downgrade, revision=revision, dry_run=dry_run
     )
-    console.print("Migrations succeeded!")
+    app.console.print("Migrations succeeded!")
     exit_with_success("Orion database downgraded!")
 
 
@@ -278,7 +277,7 @@ async def downgrade(
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
-    console.print("Running migration file creation ...")
+    app.console.print("Running migration file creation ...")
     await run_sync_in_worker_thread(
         alembic_revision,
         message=message,
@@ -291,6 +290,6 @@ async def revision(message: str = None, autogenerate: bool = False):
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 
-    console.print("Stamping database with revision ...")
+    app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
     exit_with_success("Stamping database with revision succeeded!")

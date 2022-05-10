@@ -3,37 +3,58 @@ Fixtures that create a small distributed storage API, including a storage block
 """
 import subprocess
 import sys
-import time
 from typing import Any, Optional
 
 import anyio
 import httpx
 import pytest
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, status
 from fastapi.exceptions import RequestValidationError
 
-from prefect.blocks.storage import KVServerStorageBlock
+from prefect.blocks.storage import KVServerStorageBlock, LocalStorageBlock
 from prefect.orion import models
 from prefect.orion.api.server import validation_exception_handler
-from prefect.orion.schemas.actions import BlockCreate, BlockSpecCreate
 
-app = FastAPI(exception_handlers={RequestValidationError: validation_exception_handler})
+
+@pytest.fixture
+async def local_storage_block_id(tmp_path, orion_client):
+    # Local storage in a temporary directory that exists for the lifetime of a test
+    block = LocalStorageBlock(storage_path=str(tmp_path))
+    block_spec = await orion_client.read_block_spec_by_name(
+        block._block_spec_name, block._block_spec_version
+    )
+    block_id = await orion_client.create_block(
+        block, block_spec_id=block_spec.id, name="test"
+    )
+    return block_id
+
+
+@pytest.fixture
+async def local_storage_block(local_storage_block_id, orion_client):
+    return await orion_client.read_block(local_storage_block_id)
+
+
+# Key-value storage API ----------------------------------------------------------------
+
+kv_api_app = FastAPI(
+    exception_handlers={RequestValidationError: validation_exception_handler}
+)
 
 STORAGE = {}
 
 
-@app.get("/storage/{key}")
+@kv_api_app.get("/storage/{key}")
 async def read_key(key: str):
     result = STORAGE.get(key)
     return result
 
 
-@app.post("/storage/{key}")
+@kv_api_app.post("/storage/{key}")
 async def write_key(key, value: Optional[Any] = Body(None)):
     STORAGE[key] = value
 
 
-@app.get("/debug")
+@kv_api_app.get("/debug")
 async def read_all():
     return STORAGE
 
@@ -46,7 +67,7 @@ async def run_storage_server():
     process = subprocess.Popen(
         [
             "uvicorn",
-            "tests.fixtures.storage:app",
+            "tests.fixtures.storage:kv_api_app",
             "--host",
             "0.0.0.0",  # required for access across networked docker containers in CI
             "--port",
@@ -66,7 +87,7 @@ async def run_storage_server():
                     except httpx.ConnectError:
                         pass
                     else:
-                        if response.status_code == 200:
+                        if response.status_code == status.HTTP_200_OK:
                             break
                     await anyio.sleep(0.1)
             if response:
@@ -80,13 +101,14 @@ async def run_storage_server():
         yield
 
     finally:
-        # Cleanup the process
-        try:
+        while process.returncode is None:
+            # Terminate the process
             process.terminate()
-            await process.aclose()
-            process.kill()
-        except Exception:
-            pass  # May already be terminated
+            # Ensure any remaining communication occurs — otherwise the process can be left
+            # running
+            process.communicate()
+            # Poll for a return code
+            process.poll()
 
 
 @pytest.fixture

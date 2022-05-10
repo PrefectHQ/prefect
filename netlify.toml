@@ -11,7 +11,8 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
+&& pip install git+https://${MARVIN_GITHUB_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
 && prefect dev build-docs  \
-&& mkdocs build
+&& mkdocs build --config-file mkdocs.insiders.yml
 """
 publish = "site"

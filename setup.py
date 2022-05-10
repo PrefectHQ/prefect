@@ -9,7 +9,6 @@ setup(
     # Package metadata
     name="prefect",
     description="Workflow orchestration and management.",
-    license="Prefect Community License",
     author="Prefect Technologies, Inc.",
     author_email="help@prefect.io",
     url="https://github.com/PrefectHQ/prefect/tree/orion",

@@ -30,19 +30,50 @@ It can be used inline with pip if newlines are converted to spaces:
 import re
 import sys
 
+LOWER_BOUND_RE = re.compile(
+    r"""
+    ^([\w\d_\-\[\]]+)   # Capture the name of the package at start of string
+    .*                  # Ignore any non-lower bound version specifications
+    (?:>=|==|~=)        # Begin parsing a version with a lower bound like equality
+    \s*                 # Allow arbitrary whitespace between the equality and version
+    ([\d*\.?]+)         # Capture versions of arbitrary length X.Y.Z...
+    """,
+    re.VERBOSE,
+)
 
-def generate_lower_bounds(input_path):
-    with open(input_path, "r") as f:
-        for line in f:
-            pkg_data = re.split(">=|,|==", line.replace("~", ">"), maxsplit=1)
 
-            if len(pkg_data) == 1:
-                # There is no versioning for this requirement
-                print(pkg_data[0].strip())
-            else:
-                print(pkg_data[0].strip() + "==" + pkg_data[1].strip())
+def generate_lower_bounds(input_file):
+    for line in input_file:
+        output_line = ""
+
+        # Split the package name and versions from the conditional section
+        requirement_package, _, requirement_condition = line.partition(";")
+
+        # Parse the package name and lower bound
+        lower_bound_match = LOWER_BOUND_RE.match(requirement_package)
+
+        if not lower_bound_match:
+            # There is no versioning for this requirement, just include it as-is
+            output_line += requirement_package.strip()
+        else:
+            capture_groups = lower_bound_match.groups()
+
+            # Pin to the lowest version
+            package_name, lower_bound_version = (
+                capture_groups[0].strip(),
+                capture_groups[1].strip(),
+            )
+            output_line += f"{package_name}=={lower_bound_version}"
+
+        # Include the condition unaltered
+        if requirement_condition:
+            output_line += f"; {requirement_condition.strip()}"
+
+        yield output_line
 
 
 if __name__ == "__main__":
     input_path = sys.argv[1] if len(sys.argv) > 1 else "requirements.txt"
-    generate_lower_bounds(input_path)
+    with open(input_path, "r") as input_file:
+        for line in generate_lower_bounds(input_file):
+            print(line)

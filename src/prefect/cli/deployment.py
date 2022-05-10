@@ -1,26 +1,21 @@
 """
 Command line interface for working with deployments.
 """
-import sys
-from pathlib import Path
+import traceback
 from typing import List
 
 import pendulum
-import typer
-from rich.padding import Padding
 from rich.pretty import Pretty
 from rich.table import Table
-from rich.traceback import Traceback
 
-from prefect.cli.base import PrefectTyper, app, console, exit_with_error
+from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
 from prefect.client import get_client
 from prefect.deployments import (
-    create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import FlowScriptError, ObjectNotFound
+from prefect.exceptions import ObjectNotFound, ScriptError, SpecValidationError
 from prefect.orion.schemas.filters import FlowFilter
 
 deployment_app = PrefectTyper(
@@ -34,6 +29,14 @@ def assert_deployment_name_format(name: str) -> None:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
+
+
+def exception_traceback(exc: Exception) -> str:
+    """
+    Convert an exception to a printable string with a traceback
+    """
+    tb = traceback.TracebackException.from_exception(exc)
+    return "".join(list(tb.format()))
 
 
 @deployment_app.command()
@@ -64,7 +67,8 @@ async def inspect(name: str):
         except ObjectNotFound:
             exit_with_error(f"Deployment {name!r} not found!")
 
-    console.print(Pretty(deployment))
+    deployment_json = deployment.dict(json_compatible=True)
+    app.console.print(Pretty(deployment_json))
 
 
 @deployment_app.command()
@@ -100,7 +104,7 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
             str(deployment.id),
         )
 
-    console.print(table)
+    app.console.print(table)
 
 
 @deployment_app.command()
@@ -119,7 +123,7 @@ async def run(name: str):
             exit_with_error(f"Deployment {name!r} not found!")
         flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
-    console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
+    app.console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()
@@ -136,24 +140,21 @@ async def execute(name: str):
 
     async with get_client() as client:
         deployment = await client.read_deployment_by_name(name)
+        app.console.print("Loading flow from deployed location...")
         flow = await load_flow_from_deployment(deployment, client=client)
         parameters = deployment.parameters or {}
 
-    flow(**parameters)
+    app.console.print("Running flow...")
+    state = flow(**parameters)
+
+    if state.is_failed():
+        exit_with_error("Flow run failed!")
+    else:
+        exit_with_success("Flow run completed!")
 
 
 @deployment_app.command()
-async def create(
-    path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        writable=False,
-        readable=True,
-        resolve_path=False,
-    ),
-):
+async def create(path: str):
     """
     Create or update a deployment from a file.
 
@@ -197,47 +198,71 @@ async def create(
           flow_location: "./my_other_flowflow.py"
         ```
     """
-    if path.name.endswith(".py"):
+    if path.endswith(".py"):
         from_msg = "python script"
         loader = deployment_specs_from_script
 
-    elif path.name.endswith(".yaml") or path.name.endswith(".yml"):
+    elif path.endswith(".yaml") or path.endswith(".yml"):
         from_msg = "yaml file"
         loader = deployment_specs_from_yaml
 
     else:
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
-    console.print(f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]...")
+    app.console.print(
+        f"Loading deployment specifications from {from_msg} at [green]{str(path)!r}[/]..."
+    )
     try:
         specs = loader(path)
-    except Exception as exc:
-        console.print_exception()
-        exit_with_error(
-            f"Encountered exception while loading specifications from {str(path)!r}"
-        )
+    except ScriptError as exc:
+        app.console.print(exc)
+        app.console.print(exception_traceback(exc.user_exc))
+        exit_with_error(f"Failed to load specifications from {str(path)!r}")
 
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
-    for spec in specs:
-        traceback = None
+    failed = 0
+    for spec, src in specs.items():
         try:
-            await create_deployment_from_spec(spec)
+            await spec.validate()
+        except SpecValidationError as exc:
+            app.console.print(
+                f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
+                style="red",
+            )
+            failed += 1
+            continue  # Attempt to create the next deployment
 
-        except FlowScriptError as exc:
-            traceback = exc.rich_user_traceback()
+        stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
+
+        try:
+            app.console.print(
+                f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
+            )
+            source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
+            app.console.print(
+                f"Deploying {source} using {spec.flow_storage._block_spec_name}..."
+            )
+            await spec.create_deployment(validate=False)
         except Exception as exc:
-            traceback = Traceback.from_exception(*sys.exc_info())
-
-        stylized_name = f"deployment [bold blue]{spec.name!r}[/]"
-        if spec.flow_name:
-            stylized_name += f" for flow [blue]{spec.flow_name!r}[/]"
+            app.console.print(exception_traceback(exc))
+            app.console.print(
+                f"Failed to create deployment {stylized_name}", style="red"
+            )
+            failed += 1
+            continue  # Attempt to create the next deployment
         else:
-            stylized_name += f" for flow at [blue]{spec.flow_location!r}[/]"
+            app.console.print(f"Created deployment {stylized_name}.")
 
-        if traceback:
-            console.print(f"Failed to create {stylized_name}", style="red")
-            console.print(Padding(traceback, (1, 4, 1, 4)))
-        else:
-            console.print(f"Created {stylized_name}", style="green")
+            # TODO: Check for an API url and link to the UI instead if a hosted API
+            #       exists
+            app.console.print(
+                "View your new deployment with: "
+                f"\n\n    prefect deployment inspect {stylized_name}"
+            )
+
+    if failed:
+        exit_with_error(f"Failed to create {failed} out of {len(specs)} deployments.")
+    else:
+        exit_with_success(f"Created {len(specs)} deployments!")

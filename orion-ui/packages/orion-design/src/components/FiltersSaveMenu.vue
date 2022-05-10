@@ -38,11 +38,12 @@
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/miter-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject, ref } from 'vue'
+  import { computed, ref } from 'vue'
   import FilterTags from '@/components/FilterTags.vue'
-  import { searchApi, createSearchKey, getSearchesKey } from '@/services/SearchApi'
+  import { searchApiKey } from '@/services/SearchApi'
   import { useFiltersStore } from '@/stores/filters'
   import { Filter } from '@/types/filters'
+  import { inject } from '@/utilities/inject'
   import { omit } from '@/utilities/object'
 
   const emit = defineEmits<{
@@ -54,16 +55,15 @@
   const loading = ref(false)
   const disabled = computed(() => loading.value || name.value.length === 0)
 
-  const createSearch = inject(createSearchKey, searchApi.createSearch)
-  const getSearches = inject(getSearchesKey, searchApi.getSearches)
-  const searchesSubscription = useSubscription(getSearches)
+  const searchApi = inject(searchApiKey)
+  const searchesSubscription = useSubscription(searchApi.getSearches)
 
   function save(): void {
     loading.value = true
 
     const payload = filtersStore.all.map(filter => omit(filter, ['id'])) as Filter[]
 
-    createSearch(name.value, payload)
+    searchApi.createSearch(name.value, payload)
       .then(() => {
         showToast('Saved search', 'success')
 
@@ -138,5 +138,9 @@
   display: flex;
   gap: var(--m-1);
   justify-content: space-between;
+}
+
+.filters-save-menu .filter-tags__tags {
+  flex-wrap: wrap;
 }
 </style>

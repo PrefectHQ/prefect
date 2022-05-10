@@ -1,7 +1,7 @@
 import pytest
 
 from prefect.logging.handlers import OrionHandler
-from prefect.utilities.testing import temporary_settings
+from prefect.settings import PREFECT_LOGGING_ORION_ENABLED, temporary_settings
 
 
 @pytest.fixture(autouse=True)
@@ -27,7 +27,7 @@ def enable_orion_handler_if_marked(request):
     """
     marker = request.node.get_closest_marker("enable_orion_handler")
     if marker is not None:
-        with temporary_settings(PREFECT_LOGGING_ORION_ENABLED="True"):
+        with temporary_settings(updates={PREFECT_LOGGING_ORION_ENABLED: True}):
             yield True
     else:
         yield False

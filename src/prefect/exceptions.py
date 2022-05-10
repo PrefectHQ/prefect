@@ -1,7 +1,40 @@
 """
 Prefect-specific exceptions.
 """
+from types import ModuleType, TracebackType
+from typing import Iterable, Optional
+
 from rich.traceback import Traceback
+
+import prefect
+
+
+def _trim_traceback(
+    tb: TracebackType, remove_modules: Iterable[ModuleType]
+) -> Optional[TracebackType]:
+    """
+    Utility to remove frames from specific modules from a traceback.
+
+    Only frames from the front of the traceback are removed. Once a traceback frame
+    is reached that does not originate from `remove_modules`, it is returned.
+
+    Args:
+        tb: The traceback to trim.
+        remove_modules: An iterable of module objects to remove.
+
+    Returns:
+        A traceback, or `None` if all traceback frames originate from an excluded module
+
+    """
+    strip_paths = [module.__file__ for module in remove_modules]
+
+    while tb and any(
+        module_path in str(tb.tb_frame.f_globals.get("__file__", ""))
+        for module_path in strip_paths
+    ):
+        tb = tb.tb_next
+
+    return tb
 
 
 class PrefectException(Exception):
@@ -26,6 +59,53 @@ class UnspecifiedFlowError(PrefectException):
     """
 
     pass
+
+
+class MissingDeploymentError(PrefectException):
+    """
+    Raised when a given deployment name is not found in the expected script.
+    """
+
+    pass
+
+
+class UnspecifiedDeploymentError(PrefectException):
+    """
+    Raised when multiple deployments are found in the expected script and no name is given.
+    """
+
+    pass
+
+
+class SpecValidationError(PrefectException, ValueError):
+    """
+    Raised when a value for a specification is inorrect
+    """
+
+    pass
+
+
+class ScriptError(PrefectException):
+    """
+    Raised when a script errors during evaluation while attempting to load data
+    """
+
+    def __init__(
+        self,
+        user_exc: Exception,
+        path: str,
+    ) -> None:
+        message = f"Script at {str(path)!r} encountered an exception"
+        super().__init__(message)
+        self.user_exc = user_exc
+
+        import runpy
+
+        # Strip script run information from the traceback
+        self.user_exc.__traceback__ = _trim_traceback(
+            self.user_exc.__traceback__,
+            remove_modules=[prefect.utilities.importtools, runpy],
+        )
 
 
 class FlowScriptError(PrefectException):
@@ -110,6 +190,14 @@ class ReservedArgumentError(PrefectException, TypeError):
     """
     Raised when a function used with Prefect has an argument with a name that is
     reserved for a Prefect feature
+    """
+
+    pass
+
+
+class InvalidNameError(PrefectException, ValueError):
+    """
+    Raised when a name contains characters that are not permitted.
     """
 
     pass

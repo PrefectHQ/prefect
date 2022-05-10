@@ -10,7 +10,8 @@
     <section>
       <WorkQueueForm
         v-model:values="workQueueFormValues"
-        :get-deployments="getDeployments"
+        :deployments-api="deploymentsApi"
+        :can="can"
       />
     </section>
 
@@ -31,65 +32,67 @@
   import WorkQueueEditPanel from '@/components/WorkQueueEditPanel.vue'
   import WorkQueueForm from '@/components/WorkQueueForm.vue'
   import WorkQueuePanel from '@/components/WorkQueuePanel.vue'
+  import { isExistingHandleError } from '@/models/ExistingHandleError'
   import { WorkQueue } from '@/models/WorkQueue'
   import { WorkQueueFormValues } from '@/models/WorkQueueFormValues'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { WorkQueuesApi } from '@/services/WorkQueuesApi'
+  import { Can } from '@/types/permissions'
   import { exitPanel, showPanel } from '@/utilities/panels'
   import { WorkQueuesListSubscription } from '@/utilities/subscriptions'
   import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     workQueuesListSubscription: WorkQueuesListSubscription,
-    pauseWorkQueue: WorkQueuesApi['pauseWorkQueue'],
-    resumeWorkQueue: WorkQueuesApi['resumeWorkQueue'],
-    updateWorkQueue: WorkQueuesApi['updateWorkQueue'],
-    deleteWorkQueue: WorkQueuesApi['deleteWorkQueue'],
-    getWorkQueue: WorkQueuesApi['getWorkQueue'],
-    getDeployments: DeploymentsApi['getDeployments'],
-    createWorkQueue: WorkQueuesApi['createWorkQueue'],
+    workQueuesApi: WorkQueuesApi,
+    deploymentsApi: DeploymentsApi,
+    can: Can,
   }>()
 
   const saving = ref(false)
   const workQueueFormValues = ref(new WorkQueueFormValues())
 
   function openWorkQueueEditPanel(workQueue: WorkQueue): void {
-    const workQueueSubscription = useSubscription(props.getWorkQueue, [workQueue.id])
+    const workQueueSubscription = useSubscription(props.workQueuesApi.getWorkQueue, [workQueue.id])
 
     showPanel(WorkQueueEditPanel, {
       workQueue,
       workQueueSubscription,
       workQueuesListSubscription: props.workQueuesListSubscription,
-      getDeployments: props.getDeployments,
-      updateWorkQueue: props.updateWorkQueue,
-      deleteWorkQueue: props.deleteWorkQueue,
+      workQueuesApi: props.workQueuesApi,
+      deploymentsApi: props.deploymentsApi,
+      can: props.can,
     })
   }
 
   function openWorkQueuePanel(workQueueId: string): void {
-    const workQueueSubscription = useSubscription(props.getWorkQueue, [workQueueId])
+    const workQueueSubscription = useSubscription(props.workQueuesApi.getWorkQueue, [workQueueId])
 
     showPanel(WorkQueuePanel, {
       workQueueId,
       workQueueSubscription,
       openWorkQueueEditPanel,
       workQueuesListSubscription: props.workQueuesListSubscription,
-      pauseWorkQueue: props.pauseWorkQueue,
-      resumeWorkQueue: props.resumeWorkQueue,
+      workQueuesApi: props.workQueuesApi,
+      can: props.can,
     })
   }
 
   async function createWorkQueue(): Promise<void> {
     try {
       saving.value = true
-      const workQueue = await props.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
+      const workQueue = await props.workQueuesApi.createWorkQueue(workQueueFormValues.value.getWorkQueueRequest())
       props.workQueuesListSubscription.refresh()
       showToast('Created Work Queue', 'success')
       exitPanel()
       openWorkQueuePanel(workQueue.id)
     } catch (err) {
+      if (isExistingHandleError(err)) {
+        showToast(err.response.data.detail, 'error')
+      } else {
+        showToast('Error with creating work queue', 'error')
+      }
       console.warn('error with creating work queue', err)
-      showToast('Error with creating work queue', 'error')
     } finally {
       saving.value = false
     }
