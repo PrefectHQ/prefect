@@ -117,7 +117,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    flow_storage: Optional[StorageBlock] = None
+    flow_storage: Optional[Union[StorageBlock, UUID]] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -230,6 +230,9 @@ class DeploymentSpec(PrefectBaseModel):
             self.flow_storage or await client.get_default_storage_block()
         )
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
+
+        if isinstance(self.flow_storage, UUID):
+            self.flow_storage = await client.read_block(self.flow_storage)
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
             local_machine_message = (
