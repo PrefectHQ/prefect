@@ -20,7 +20,7 @@
 
 <script lang="ts" setup>
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, inject as vueInject } from 'vue'
+  import { computed } from 'vue'
   import BreadCrumbs from '@/components/BreadCrumbs.vue'
   import DeploymentPanel from '@/components/DeploymentPanel.vue'
   import FlowPanel from '@/components/FlowPanel.vue'
@@ -36,7 +36,6 @@
   import { inject } from '@/utilities/inject'
   import { showPanel } from '@/utilities/panels'
   import { toPluralString } from '@/utilities/strings'
-  import { deploymentsListSubscriptionKey, flowsListSubscriptionKey } from '@/utilities/subscriptions'
 
   const props = defineProps<{ flow: Flow }>()
 
@@ -60,9 +59,6 @@
   const deploymentsCountSubscription = useSubscription(deploymentsApi.getDeploymentsCount, [countFilter])
   const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
 
-  const flowsListSubscription = vueInject(flowsListSubscriptionKey)
-  const deploymentsListSubscription = vueInject(deploymentsListSubscriptionKey)
-
   function openFlowPanel(): void {
     showPanel(FlowPanel, {
       flow: props.flow,
@@ -79,8 +75,6 @@
       dashboardRoute: route,
       deploymentsApi,
       flowRunsApi,
-      flowsListSubscription,
-      deploymentsListSubscription,
     })
   }
 </script>
