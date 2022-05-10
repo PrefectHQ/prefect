@@ -44,12 +44,14 @@ async def run_sync_in_worker_thread(
     Runs a sync function in a new worker thread so that the main thread's event loop
     is not blocked
 
-    Unlike the anyio function, this ensures that context variables are copied into the
-    worker thread.
+    Unlike the anyio function, this defaults to a cancellable thread and does not allow
+    passing arguments to the anyio function so users can pass kwargs to their function.
+
+    Note that cancellation of threads will not result in interrupted computation, the
+    thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    context = copy_context()  # Pass the context to the worker thread
-    return await anyio.to_thread.run_sync(context.run, call, cancellable=True)
+    return await anyio.to_thread.run_sync(call, cancellable=True)
 
 
 def run_async_from_worker_thread(
