@@ -13,6 +13,7 @@ from rich.table import Table
 import prefect.context
 import prefect.settings
 from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.exceptions import PrefectException
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -40,7 +41,7 @@ def build_url_from_workspace(workspace: Dict) -> str:
 
 def confirm_logged_in():
     if not PREFECT_API_KEY:
-        profile = prefect.context.get_settings_context()
+        profile = prefect.context.get_settings_context().profile
         exit_with_error(
             f"Currently not authenticated in profile {profile.name!r}. "
             "Please login with `prefect cloud login --key <API_KEY>`."
@@ -52,6 +53,12 @@ def get_cloud_client(host: str = None, api_key: str = None) -> "CloudClient":
         host=host or PREFECT_CLOUD_URL.value(),
         api_key=api_key or PREFECT_API_KEY.value(),
     )
+
+
+class CloudUnauthorizedError(PrefectException):
+    """
+    Raised when the CloudClient receives a 401 or 403 from the Cloud API.
+    """
 
 
 class CloudClient:
@@ -97,9 +104,7 @@ class CloudClient:
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,
             ):
-                exit_with_error(
-                    "Unable to authenticate. Please ensure your credentials are correct."
-                )
+                raise CloudUnauthorizedError
             else:
                 raise exc
 
@@ -193,7 +198,12 @@ async def login(
     """
 
     async with get_cloud_client(api_key=key) as client:
-        workspaces = await client.read_workspaces()
+        try:
+            workspaces = await client.read_workspaces()
+        except CloudUnauthorizedError:
+            exit_with_error(
+                "Unable to authenticate. Please ensure your credentials are correct."
+            )
 
     workspaces = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
@@ -246,8 +256,12 @@ async def set(
     confirm_logged_in()
 
     async with get_cloud_client() as client:
-        workspaces = await client.read_workspaces()
-
+        try:
+            workspaces = await client.read_workspaces()
+        except CloudUnauthorizedError:
+            exit_with_error(
+                "Unable to authenticate. Please ensure your credentials are correct."
+            )
     workspaces = {
         f"{workspace['account_handle']}/{workspace['workspace_handle']}": workspace
         for workspace in workspaces
