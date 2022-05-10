@@ -18,8 +18,8 @@
       <DetailsKeyValue label="Tags" stacked>
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
-      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, getFlowRunsCount }" />
-      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, getDeployments, getDeploymentsCount, createDeploymentFlowRun, getFlowRunsCount }" />
+      <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, flowRunsApi }" />
+      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, deploymentsApi }" />
     </div>
 
     <template #actions="{ close }">
@@ -47,10 +47,8 @@
 
   const props = defineProps<{
     flow: Flow,
-    getDeployments: DeploymentsApi['getDeployments'],
-    getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
-    createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
-    getFlowRunsCount: FlowRunsApi['getFlowRunsCount'],
+    deploymentsApi: DeploymentsApi,
+    flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()

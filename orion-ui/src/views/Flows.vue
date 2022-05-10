@@ -17,7 +17,7 @@
         </m-input>
         <TagsInput v-model:tags="tags" />
       </div>
-      <FlowsPageFlowList :flows="flows" />
+      <FlowsPageFlowList :flows="flows" @bottom="loadMoreFlows" />
     </template>
   </div>
 </template>
@@ -28,13 +28,14 @@
     FlowsPageFlowList,
     PageHeader,
     UnionFilters,
-    flowsApi,
     workspaceDashboardKey,
     FlowsPageFlowListEmptyState,
-    Require
+    Require,
+    useUnionFiltersSubscription
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
+  import { flowsApi } from '@/services/flowsApi'
 
   // todo: create a routes object with methods like nebula has
   provide(workspaceDashboardKey, {
@@ -69,11 +70,15 @@
   }
 
   const countFlowsSubscription = useSubscription(flowsApi.getFlowsCount, [{}], subscriptionOptions)
-  const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
+  const flowsSubscription = useUnionFiltersSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
 
-  const flows = computed(() => flowsSubscription.response.value ?? [])
-  const empty = computed(() => countFlowsSubscription.response.value === 0)
-  const loading = computed(() => countFlowsSubscription.response.value === undefined || flowsSubscription.response.value === undefined)
+  const flows = computed(() => flowsSubscription.response ?? [])
+  const empty = computed(() => countFlowsSubscription.response === 0)
+  const loading = computed(() => !countFlowsSubscription.executed || !flowsSubscription.executed)
+
+  function loadMoreFlows(): void {
+    flowsSubscription.loadMore()
+  }
 </script>
 
 <style lang="scss" scoped>

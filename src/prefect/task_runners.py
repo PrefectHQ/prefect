@@ -66,6 +66,8 @@ from uuid import UUID
 
 import anyio
 
+from prefect.utilities.enum import AutoEnum, auto
+
 if TYPE_CHECKING:
     import distributed
     from anyio.abc import TaskGroup
@@ -78,6 +80,7 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.enum import AutoEnum, auto
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
@@ -357,7 +360,22 @@ class DaskTaskRunner(BaseTaskRunner):
                 "The task runner must be started before submitting work."
             )
 
-        self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
+        # Cast Prefect futures to Dask futures where possible to optimize Dask task
+        # scheduling
+        run_kwargs = await self._optimize_futures(run_kwargs)
+
+        self._dask_futures[task_run.id] = self._client.submit(
+            run_fn,
+            # Dask displays the text up to the first '-' as the name, include the
+            # task run id to ensure the key is unique.
+            key=f"{task_run.name}-{task_run.id.hex}",
+            # Dask defaults to treating functions are pure, but we set this here for
+            # explicit expectations. If this task run is submitted to Dask twice, the
+            # result of the first run should be returned. Subsequent runs would return
+            # `Abort` exceptions if they were submitted again.
+            pure=True,
+            **run_kwargs,
+        )
 
         return PrefectFuture(
             task_run=task_run, task_runner=self, asynchronous=asynchronous
@@ -370,6 +388,17 @@ class DaskTaskRunner(BaseTaskRunner):
         The Dask future is for the `run_fn`, which should return a `State`.
         """
         return self._dask_futures[prefect_future.run_id]
+
+    async def _optimize_futures(self, expr):
+        async def visit_fn(expr):
+            if isinstance(expr, PrefectFuture):
+                dask_future = self._dask_futures.get(expr.run_id)
+                if dask_future is not None:
+                    return dask_future
+            # Fallback to return the expression unaltered
+            return expr
+
+        return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
     async def wait(
         self,

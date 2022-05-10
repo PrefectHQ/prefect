@@ -22,9 +22,11 @@
               Paused
             </span>
           </template>
-          <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
-            Quick Run
-          </m-button>
+          <template v-if="can.create.flow_run">
+            <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
+              Quick Run
+            </m-button>
+          </template>
         </button>
       </template>
     </template>
@@ -38,27 +40,29 @@
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { canKey } from '@/types/permissions'
+  import { inject } from '@/utilities/inject'
   import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     filter: UnionFilters,
-    getDeployments: DeploymentsApi['getDeployments'],
-    getDeploymentsCount: DeploymentsApi['getDeploymentsCount'],
-    createDeploymentFlowRun: DeploymentsApi['createDeploymentFlowRun'],
+    deploymentsApi: DeploymentsApi,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 
+  const can = inject(canKey)
+
   const filter = computed(() => props.filter)
 
-  const deploymentsCountSubscription = useSubscription(props.getDeploymentsCount, [filter])
-  const deploymentsCount = computed(() => deploymentsCountSubscription.response.value ?? 0)
+  const deploymentsCountSubscription = useSubscription(props.deploymentsApi.getDeploymentsCount, [filter])
+  const deploymentsCount = computed(() => deploymentsCountSubscription.response ?? 0)
 
-  const deploymentsSubscription = useSubscription(props.getDeployments, [filter])
-  const deployments = computed(() => deploymentsSubscription.response.value ?? [])
-  const noDeployments = computed(() => deploymentsSubscription.response.value?.length === 0)
+  const deploymentsSubscription = useSubscription(props.deploymentsApi.getDeployments, [filter])
+  const deployments = computed(() => deploymentsSubscription.response ?? [])
+  const noDeployments = computed(() => deploymentsSubscription.response?.length === 0)
 
   function run(deployment: Deployment): void {
-    props.createDeploymentFlowRun(deployment.id, {
+    props.deploymentsApi.createDeploymentFlowRun(deployment.id, {
       state: {
         type: 'SCHEDULED',
         message: 'Quick run through UI',

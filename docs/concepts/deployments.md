@@ -1,3 +1,16 @@
+---
+description: Prefect flow deployments encapsulate a flow, allowing it to be scheduled and triggered via API.
+tags:
+    - Orion
+    - work queues
+    - agents
+    - orchestration
+    - flow runs
+    - deployments
+    - schedules
+    - tags
+---
+
 # Deployments
 
 A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. 
@@ -171,19 +184,32 @@ DeploymentSpec(
 Deployment specifications can also be written in YAML and refer to the flow's location instead of the flow object:
 
 ```yaml
-- name: hello-world-daily
-    flow_location: ./path/to/flow.py
-    flow_name: hello-world
-    tags:
-    - foo
-    - bar
-    parameters:
-        name: "Earth"
-    schedule:
-        interval: 3600
+name: hello-world-daily
+flow_location: ./path/to/flow.py
+flow_name: hello-world
+tags:
+- foo
+- bar
+parameters:
+    name: "Earth"
+schedule:
+    interval: 3600
 ```
 
 A deployment specification file or flow definition may include multiple deployment specifications, each representing settings for a different deployment for a flow. Each deployment specification for a given flow must have a unique name &mdash; Orion does not support duplicate instances of flow_name/deployment_name. You can, however, include deployment specifications for multiple different flows in a single deployment file.
+
+!!! note "Writing multiple specifications in a single file"
+    Multiple deployment specifications can be defined in a single file by using the `---` YAML document separator.
+
+    For example:
+
+    ```yaml
+    name: first-deployment
+    flow_location: ./path/to/first/flow.py
+    ---
+    name: second-deployment
+    flow_location: ./path/to/second/flow.py
+    ```
 
 ## Creating deployments 
 

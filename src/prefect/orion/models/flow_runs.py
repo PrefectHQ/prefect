@@ -12,6 +12,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.orm import load_only
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -217,6 +218,7 @@ async def _apply_flow_run_filters(
 async def read_flow_runs(
     session: sa.orm.Session,
     db: OrionDBInterface,
+    columns: List = None,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -230,6 +232,7 @@ async def read_flow_runs(
 
     Args:
         session: a database session
+        columns: a list of the flow run ORM columns to load, for performance
         flow_filter: only select flow runs whose flows match these filters
         flow_run_filter: only select flow runs match these filters
         task_run_filter: only select flow runs whose task runs match these filters
@@ -241,8 +244,10 @@ async def read_flow_runs(
     Returns:
         List[db.FlowRun]: flow runs
     """
-
     query = select(db.FlowRun).order_by(sort.as_sql_sort(db))
+
+    if columns:
+        query = query.options(load_only(*columns))
 
     query = await _apply_flow_run_filters(
         query,
