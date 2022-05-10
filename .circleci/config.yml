@@ -563,6 +563,7 @@ workflows:
       - test_37
       - test_38
       - test_39
+      - test_310
       - test_lower_prefect
       - test_vanilla_prefect
       - test_task_library
