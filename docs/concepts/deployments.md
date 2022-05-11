@@ -410,6 +410,13 @@ DeploymentSpec(
     flow_storage=FileStorageBlock(base_path="s3://your-bucket/foo"),
     tags=["foo"],
 )
+
+DeploymentSpec(
+    flow_location="/path/to/hello_flow.py",
+    name="hello-world-s3-storage",
+    flow_storage="169da97c-3b43-4cb6-a0d8-4319d2e36689",
+    tags=["bar"],
+)
 ```
 
 If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the deployment will attempt to use local storage.
