@@ -41,12 +41,12 @@ class TestPrefectHttpxClient:
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxClient()
         retry_response = Response(
-            429,
+            status.HTTP_429_TOO_MANY_REQUESTS,
             headers={"Retry-After": "0"},
             request=Request("a test request", "fake.url/fake/route"),
         )
         success_response = Response(
-            200,
+            status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
         base_client_send.side_effect = [
@@ -69,7 +69,7 @@ class TestPrefectHttpxClient:
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
         retry_response = Response(
-            429,
+            status.HTTP_429_TOO_MANY_REQUESTS,
             headers={"Retry-After": "0"},
             request=Request("a test request", "fake.url/fake/route"),
         )
@@ -94,13 +94,13 @@ class TestPrefectHttpxClient:
 
         client = PrefectHttpxClient()
         retry_response = Response(
-            429,
+            status.HTTP_429_TOO_MANY_REQUESTS,
             headers={"Retry-After": "5"},
             request=Request("a test request", "fake.url/fake/route"),
         )
 
         success_response = Response(
-            200,
+            status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
 
@@ -125,12 +125,12 @@ class TestPrefectHttpxClient:
 
         client = PrefectHttpxClient()
         retry_response = Response(
-            429,
+            status.HTTP_429_TOO_MANY_REQUESTS,
             request=Request("a test request", "fake.url/fake/route"),
         )
 
         success_response = Response(
-            200,
+            status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
 
@@ -159,13 +159,13 @@ class TestPrefectHttpxClient:
 
         def make_retry_response(retry_after):
             return Response(
-                429,
+                status.HTTP_429_TOO_MANY_REQUESTS,
                 headers={"Retry-After": str(retry_after)},
                 request=Request("a test request", "fake.url/fake/route"),
             )
 
         success_response = Response(
-            200,
+            status.HTTP_200_OK,
             request=Request("a test request", "fake.url/fake/route"),
         )
 

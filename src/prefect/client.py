@@ -211,7 +211,10 @@ class PrefectHttpxClient(httpx.AsyncClient):
         retry_count = 0
         response = await super().send(*args, **kwargs)
 
-        while response.status_code == 429 and retry_count < self.RETRY_MAX:
+        while (
+            response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+            and retry_count < self.RETRY_MAX
+        ):
             retry_count += 1
 
             # Respect the "Retry-After" header, falling back to an exponential back-off
