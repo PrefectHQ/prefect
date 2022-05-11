@@ -1,14 +1,33 @@
+import json
 from dataclasses import dataclass
 
 import pydantic
 import pytest
 
 from prefect.utilities.collections import (
+    AutoEnum,
     PartialModel,
     dict_to_flatdict,
     flatdict_to_dict,
     visit_collection,
 )
+
+
+class Color(AutoEnum):
+    RED = AutoEnum.auto()
+    BLUE = AutoEnum.auto()
+
+
+class TestAutoEnum:
+    async def test_autoenum_generates_string_values(self):
+        assert Color.RED.value == "RED"
+        assert Color.BLUE.value == "BLUE"
+
+    async def test_autoenum_repr(self):
+        assert repr(Color.RED) == str(Color.RED) == "Color.RED"
+
+    async def test_autoenum_can_be_json_serialized_with_default_encoder(self):
+        json.dumps(Color.RED) == "RED"
 
 
 class TestFlatDict:
