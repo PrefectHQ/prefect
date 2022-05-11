@@ -32,14 +32,14 @@ Current storage types include:
 | [Azure Blob Storage](#azure-blob-storage) | Store data in an Azure Blob Storage container. |
 | [File Storage](#file-storage) | Store data as a file on local or remote file systems. |
 | [Google Cloud Storage](#google-cloud-storage) | Store data in a Google Cloud Platform (GCP) Cloud Storage bucket. |
-| [KV Server Storage](#key-value-storage) | Store data by sending requests to a KV server. |
+| [KV Server Storage](#key-value-storage) | Store data in a KV server. For testing only. |
 | [Local Storage](#local-storage) | Store data in a run's local file system. |
 | [AWS S3 Storage](#aws-s3-storage) | Store data in an AWS S3 bucket. |
 | [Temporary Local Storage](#temporary-local-storage) | Store data in a temporary directory in a run's local file system. (Default) |
 
 Select a storage type and follow the prompts to complete configuration. You should have details of your storage on hand to complete configuration.
 
-<div class='termy'>
+<div class='terminal'>
 ```bash
 $ prefect storage create
 Found the following storage types:
@@ -65,7 +65,7 @@ Select a storage type to create:
 
 You can configure the default storage configuration by using the `prefect storage set-default` CLI command, passing the ID of the storage you want to use.
 
-<div class='termy'>
+<div class='terminal'>
 ```
 $ prefect storage set-default 61354abf-7cc8-4c2c-b890-78b1f985a9fb
 Updated default storage!
@@ -133,12 +133,9 @@ You can use the following options to configure an GCP Cloud Storage container fo
 
 ### Key-Value Storage
 
-You can use the following options to configure a self-hosted key-value store for persisting Prefect flow run and result data. We recommend using KV storage for testing only.
+Uses a self-hosted key-value store for persisting Prefect flow run and result data for testing only.
 
-| Setting | Description |
-| --- | --- |
-| API Address | API endpoint for the KV store. |
-| Name | Name that Prefect uses to identify this storage configuration. |
+Not for end user use.
 
 ### Local Storage
 
