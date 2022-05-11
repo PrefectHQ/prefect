@@ -141,11 +141,10 @@ A `DeploymentSpec` object has the following required parameters:
 | --------- | ----------- |
 | `name` | String specifying the name of the deployment. |
 | `flow` | The flow object to associate with the deployment. |
-| `flow_location` | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
+| <span class="no-wrap">`flow_location`</span> | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
 | `flow_name` | String specifying the name of the flow to deploy. |
-| `flow_runner` | Specifies the [flow runner](/api-ref/prefect/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) used for flow runs. |
+| `flow_runner` | Specifies the [flow runner](/api-ref/prefect/flow-runners/) used for flow runs. |
 | `flow_storage` | A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance specifying the [storage](/concepts/storage/) to be used for the flow definition and results. |
-| <span class="no-wrap">`push_to_server`</span> | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
 | `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
 | `schedule` | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
 | `tags` | List containing tags to assign to the deployment. |
@@ -154,7 +153,7 @@ Either the flow object or location must be provided.
 
 If a flow location is provided, the script at the given location will be run when the deployment is created to load metadata about the flow. 
 
-The flow definition for the deployment is stored in the default [storage](/concepts/storage/) configured for the Prefect API server or Prefect Cloud workspace, unless you specify a different storage with `flow_storage`.
+The flow definition for the deployment is stored in the default [storage](/concepts/storage/) configured for the Prefect API server or Prefect Cloud workspace, unless you specify a different storage with `flow_storage`. If you have no default storage set on the API, local file storage will be used by default.
 
 ## Deployment specifications as code
 
@@ -380,7 +379,7 @@ DeploymentSpec(
 
 ### Configuring flow runners
 
-You can configure a [flow runner](/concepts/flow-runners/) or [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) to be used for flow runs created by the deployment.
+You can configure a [flow runner](/concepts/flow-runners/) to be used for flow runs created by the deployment.
 
 ```Python
 # filename: hello_deployment.py
@@ -393,13 +392,6 @@ DeploymentSpec(
     name="hello-world-subprocess",
     flow_runner=SubprocessFlowRunner(),
     tags=["foo"],
-)
-
-DeploymentSpec(
-    flow_location="/path/to/hello_flow.py",
-    name="hello-world-flow-runner-settings",
-    flow_runner=FlowRunnerSettings(type="subprocess", config={"env": {"test": "test"}}),
-    tags=["earth"],
 )
 ```
 
@@ -418,15 +410,8 @@ DeploymentSpec(
     flow_storage=FileStorageBlock(base_path="s3://your-bucket/foo"),
     tags=["foo"],
 )
-
-DeploymentSpec(
-    flow_location="/path/to/hello_flow.py",
-    name="hello-world-storage-id",
-    flow_storage='d4982121-b9e3-4b47-97ca-9a1b6b747c49',
-    tags=["earth"],
-)
 ```
 
-If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the flow will attempt to use local storage.
+If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the deployment will attempt to use local storage.
 
 If creating a deployment that specifies a `FileStorageBlock`, without an ID of existing storage, it will be registered as a new storage configuration with the server.
