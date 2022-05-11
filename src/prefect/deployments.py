@@ -102,19 +102,14 @@ class DeploymentSpec(PrefectBaseModel):
         flow_name: The name of the flow to associated with the deployment. Only required
             if loading the flow from a `flow_location` with multiple flows. Inferred
             from `flow` if provided.
-        flow_runner: The [flow runner](/api-ref/prefect/flow-runners/) or
-            [FlowRunnerSettings](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings)
-            to be used for flow runs.
+        flow_runner: The [flow runner](/api-ref/prefect/flow-runners/) to be used for
+            flow runs.
         flow_storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
             providing the [storage](/concepts/storage/) to be used for the flow
             definition and results.
         parameters: An optional dictionary of default parameters to set on flow runs
             from this deployment. If defined in Python, the values should be Pydantic
             compatible objects.
-        push_to_server: By default, the flow text will be loaded from the flow location
-            and stored on the server instead of locally. This allows the flow to be
-            compatible with all flow runners. If disabled, only an agent on the same
-            machine will be able to run the deployment.
         schedule: An optional schedule instance to use with the deployment.
         tags: An optional set of tags to assign to the deployment.
     """
