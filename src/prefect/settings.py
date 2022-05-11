@@ -214,7 +214,7 @@ def max_log_size_smaller_than_batch_size(values):
 
 PREFECT_HOME = Setting(
     Path,
-    default=Path("~/.prefect"),
+    default=Path("~") / ".prefect",
     description="""Prefect's home directory. Defaults to `~/.prefect`. This
         directory may be created automatically when required.""",
     value_callback=expanduser_in_path,
@@ -238,7 +238,7 @@ PREFECT_TEST_MODE = Setting(
 PREFECT_TEST_SETTING = Setting(
     Any,
     default=None,
-    description="""This variable only exists to faciliate testing of settings. 
+    description="""This variable only exists to faciliate testing of settings.
     If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.""",
     value_callback=only_return_value_in_test_mode,
 )
@@ -269,7 +269,7 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 
 PREFECT_PROFILES_PATH = Setting(
     Path,
-    default=Path("${PREFECT_HOME}/profiles.toml"),
+    default=Path("${PREFECT_HOME}") / "profiles.toml",
     description="""The path to a profiles configuration files.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
@@ -290,7 +290,7 @@ PREFECT_LOGGING_SERVER_LEVEL = Setting(
 
 PREFECT_LOGGING_SETTINGS_PATH = Setting(
     Path,
-    default=Path("${PREFECT_HOME}/logging.yml"),
+    default=Path("${PREFECT_HOME}") / "logging.yml",
     description=f"""The path to a custom YAML logging configuration file. If
     no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
     value_callback=template_with_settings(PREFECT_HOME),
@@ -351,7 +351,7 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
-    default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
+    default="sqlite+aiosqlite:////" + str(Path("${PREFECT_HOME}") / "orion.db"),
     description=textwrap.dedent(
         """
         A database connection URL in a SQLAlchemy-compatible
@@ -491,7 +491,7 @@ PREFECT_ORION_UI_ENABLED = Setting(
 PREFECT_ORION_UI_API_URL = Setting(
     str,
     default=None,
-    description="""The connection url for communication from the UI to the API. 
+    description="""The connection url for communication from the UI to the API.
     Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
     `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
     the aforementioned settings may be templated into the given string.""",
