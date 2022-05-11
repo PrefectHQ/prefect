@@ -147,7 +147,6 @@ nav:
                 - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
-                - 'prefect.utilities.enum': api-ref/prefect/utilities/enum.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
         - Orion Python API:
