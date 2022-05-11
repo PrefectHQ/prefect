@@ -83,6 +83,7 @@ class NewCluster(BaseModel):
     driver_instance_pool_id: Optional[str] = None
     instance_pool_id: Optional[str] = None
     policy_id: Optional[str] = None
+    data_security_mode: Optional[str] = None
 
 
 class NotebookTask(BaseModel):
