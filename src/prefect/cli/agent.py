@@ -1,16 +1,14 @@
 """
 Command line interface for working with agent services
 """
-import os
 from uuid import UUID
 
 import anyio
-import httpx
 import typer
-from fastapi import status
 
 from prefect.agent import OrionAgent
-from prefect.cli.base import PrefectTyper, SettingsOption, app, exit_with_error
+from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli.root import app
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
