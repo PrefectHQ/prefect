@@ -3,6 +3,7 @@ Command line interface for working with Orion
 """
 import json
 import os
+import platform
 import shutil
 import subprocess
 import textwrap
@@ -193,11 +194,22 @@ async def start(
 
 
 @dev_app.command()
-def build_image(platform: str = "amd64"):
+def build_image(
+    arch: str = typer.Option(
+        None,
+        help=(
+            "The architecture to build the container for. "
+            "Defaults to the architecture of the host Python which is currently: "
+            f"{platform.machine()}"
+        ),
+    )
+):
     """
     Build a docker image for development.
     """
     tag = get_prefect_image_name()
+
+    arch = arch or platform.machine()
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
     # as it comes
@@ -210,7 +222,7 @@ def build_image(platform: str = "amd64"):
                 "--tag",
                 tag,
                 "--platform",
-                f"linux/{platform}",
+                f"linux/{arch}",
                 "--build-arg",
                 "PREFECT_EXTRAS=[dev]",
             ]
