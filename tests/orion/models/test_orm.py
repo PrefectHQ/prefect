@@ -210,9 +210,19 @@ class TestFlowRun:
         await session.execute(sa.delete(db.FlowRunState))
 
         now = pendulum.now("UTC")
-        flow_run.set_state(db.FlowRunState(**schemas.states.Pending(timestamp=now).dict()))
-        flow_run.set_state(db.FlowRunState(**schemas.states.Running(timestamp=now.add(minutes=1)).dict()))
-        flow_run.set_state(db.FlowRunState(**schemas.states.Completed(timestamp=now.add(minutes=2)).dict()))
+        flow_run.set_state(
+            db.FlowRunState(**schemas.states.Pending(timestamp=now).dict())
+        )
+        flow_run.set_state(
+            db.FlowRunState(
+                **schemas.states.Running(timestamp=now.add(minutes=1)).dict()
+            )
+        )
+        flow_run.set_state(
+            db.FlowRunState(
+                **schemas.states.Completed(timestamp=now.add(minutes=2)).dict()
+            )
+        )
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.FlowRun, flow_run_id)
@@ -346,9 +356,19 @@ class TestTaskRun:
         await session.execute(sa.delete(db.TaskRunState))
 
         now = pendulum.now("UTC")
-        task_run.set_state(db.TaskRunState(**schemas.states.Pending(timestamp=now).dict()))
-        task_run.set_state(db.TaskRunState(**schemas.states.Running(timestamp=now.add(minutes=1)).dict()))
-        task_run.set_state(db.TaskRunState(**schemas.states.Completed(timestamp=now.add(minutes=2)).dict()))
+        task_run.set_state(
+            db.TaskRunState(**schemas.states.Pending(timestamp=now).dict())
+        )
+        task_run.set_state(
+            db.TaskRunState(
+                **schemas.states.Running(timestamp=now.add(minutes=1)).dict()
+            )
+        )
+        task_run.set_state(
+            db.TaskRunState(
+                **schemas.states.Completed(timestamp=now.add(minutes=2)).dict()
+            )
+        )
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.TaskRun, task_run_id)

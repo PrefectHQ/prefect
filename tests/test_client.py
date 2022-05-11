@@ -199,8 +199,7 @@ class TestClientContextManager:
             async with OrionClient(app):
                 await anyio.sleep(random.random())
 
-        fail_window = 15 if sys.platform == "win32" else 5
-        with anyio.fail_after(fail_window):
+        with anyio.fail_after(15):
             async with anyio.create_task_group() as tg:
                 for _ in range(1000):
                     tg.start_soon(enter_client)
