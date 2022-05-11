@@ -2,6 +2,7 @@
 Command line interface for managing storage settings
 """
 import textwrap
+from itertools import filterfalse
 from typing import List
 from uuid import UUID
 
@@ -35,6 +36,8 @@ async def create():
         specs = await client.read_block_specs("STORAGE")
     unconfigurable = set()
 
+    specs = list(filterfalse(lambda s: s.name == "KV Server Storage", specs))
+
     for spec in specs:
         for property, property_spec in spec.fields["properties"].items():
             if (
@@ -46,22 +49,8 @@ async def create():
     for spec in unconfigurable:
         specs.remove(spec)
 
-    # KV Server Storage is for internal use only. We move it to the end and then
-    # pop it from list of possible storage types that are shown to users. It can
-    # be accessed from the CLI using the number max(user_facing_options)+1.
-    contains_kv_ss = False
-    for i, spec in enumerate(specs):
-        if spec.name == "KV Server Storage":
-            specs[i], specs[-1] = specs[-1], specs[i]
-            contains_kv_ss = True
-            break
-
-    user_specs = specs.copy()
-    if contains_kv_ss:
-        user_specs.pop()
-
     app.console.print("Found the following storage types:")
-    for i, spec in enumerate(user_specs):
+    for i, spec in enumerate(specs):
         app.console.print(f"{i}) {spec.name}")
         short_description = spec.fields["description"].strip().splitlines()[0]
         if short_description:
