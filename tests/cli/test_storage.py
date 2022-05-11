@@ -17,6 +17,24 @@ EXISTING_STORAGE_OPTIONS = {
 def get_first_menu_and_fail(number_string: str = "99999999"):
     """
     Utility function to get output of first step of `prefect storage create` and exit
+
+    Output as of May 11, 2022 (note - last line is in red)
+    ---------
+    Found the following storage types:
+    0) Azure Blob Storage
+        Store data in an Azure blob storage container.
+    1) File Storage
+        Store data as a file on local or remote file systems.
+    2) Google Cloud Storage
+        Store data in a GCS bucket.
+    3) Temporary Local Storage
+        Store data in a temporary directory in a run's local file system.
+    4) Local Storage
+        Store data in a run's local file system.
+    5) S3 Storage
+        Store data in an AWS S3 bucket.
+    Select a storage type to create: 99999999
+    \x1b[31mInvalid selection 99999999\x1b[0m
     """
     command = ["storage", "create"]
     runner = CliRunner()
