@@ -10,7 +10,9 @@ from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import PrefectTyper, app, exit_with_error
+from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
+from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
