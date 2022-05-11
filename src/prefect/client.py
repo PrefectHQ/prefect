@@ -15,6 +15,7 @@ $ python -m asyncio
 ```
 </div>
 """
+
 import datetime
 import sys
 import threading
@@ -39,6 +40,7 @@ import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
+from httpx._models import Response
 
 import prefect
 import prefect.exceptions
@@ -61,7 +63,6 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.asyncio import asyncnullcontext
-from prefect.utilities.httpx import PrefectHttpxClient
 
 if TYPE_CHECKING:
     from prefect.flow_runners import FlowRunner
@@ -191,6 +192,44 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                     APP_LIFESPANS_REF_COUNTS.pop(key)
                     context = APP_LIFESPANS.pop(key)
                     await context.__aexit__(*exc_info)
+
+
+class PrefectHttpxClient(httpx.AsyncClient):
+    """
+    A Prefect wrapper for the async httpx client with support for CloudFlare-style
+    rate limiting.
+
+    Additionally, this client will always call `raise_for_status` on responses.
+
+    For more details on rate limit headers, see:
+    - https://support.cloudflare.com/hc/en-us/articles/115001635128-Configuring-Rate-Limiting-from-UI
+    """
+
+    RETRY_MAX = 5
+
+    async def send(self, *args, **kwargs) -> Response:
+        retry_count = 0
+        response = await super().send(*args, **kwargs)
+
+        while response.status_code == 429 and retry_count < self.RETRY_MAX:
+            retry_count += 1
+
+            # Respect the "Retry-After" header, falling back to an exponential back-off
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                retry_seconds = float(retry_after)
+            else:
+                retry_seconds = 2**retry_count
+
+            await anyio.sleep(retry_seconds)
+            response = await super().send(*args, **kwargs)
+
+        # Always raise bad responses
+        # NOTE: We may want to remove this and handle responses per route in the
+        #       `OrionClient`
+        response.raise_for_status()
+
+        return response
 
 
 class OrionClient:
