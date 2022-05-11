@@ -209,6 +209,8 @@ def build_image(
     """
     tag = get_prefect_image_name()
 
+    # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
+    #       default can be set in the function signature
     arch = arch or platform.machine()
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
