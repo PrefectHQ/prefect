@@ -41,6 +41,7 @@ dependent on the value of other settings or perform other dynamic effects.
 """
 import os
 import string
+import sys
 import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
@@ -349,9 +350,11 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+SQLITE_PREFIX = "sqlite+aiosqlite:///" + "/" if sys.platform != "win32" else ""
+
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
-    default="sqlite+aiosqlite:////" + str(Path("${PREFECT_HOME}") / "orion.db"),
+    default=SQLITE_PREFIX + str(Path("${PREFECT_HOME}") / "orion.db"),
     description=textwrap.dedent(
         """
         A database connection URL in a SQLAlchemy-compatible
