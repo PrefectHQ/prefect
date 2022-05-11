@@ -350,11 +350,10 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-SQLITE_PREFIX = "sqlite+aiosqlite:///" + ("/" if sys.platform != "win32" else "")
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
-    default=SQLITE_PREFIX + str(Path("${PREFECT_HOME}") / "orion.db"),
+    default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
     description=textwrap.dedent(
         """
         A database connection URL in a SQLAlchemy-compatible

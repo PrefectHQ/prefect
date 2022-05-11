@@ -132,15 +132,21 @@ nav:
                 - 'prefect.blocks.storage': api-ref/prefect/blocks/storage.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
-                - 'prefect.cli.base': api-ref/prefect/cli/base.md
+                - 'prefect.cli.cloud': api-ref/prefect/cli/cloud.md
+                - 'prefect.cli.concurrency_limit': api-ref/prefect/cli/concurrency_limit.md
+                - 'prefect.cli.config': api-ref/prefect/cli/config.md
+                - 'prefect.cli.dev': api-ref/prefect/cli/dev.md
+                - 'prefect.cli.profile': api-ref/prefect/cli/profile.md
+                - 'prefect.cli.storage': api-ref/prefect/cli/storage.md
+                - 'prefect.cli.work_queue': api-ref/prefect/cli/work_queue.md
+                - 'prefect.cli.root': api-ref/prefect/cli/root.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
-                - 'prefect.cli.flow-run': api-ref/prefect/cli/flow-run.md
+                - 'prefect.cli.flow_run': api-ref/prefect/cli/flow_run.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
             - 'Utilities':
                 - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
-                - 'prefect.utilities.enum': api-ref/prefect/utilities/enum.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
         - Orion Python API:

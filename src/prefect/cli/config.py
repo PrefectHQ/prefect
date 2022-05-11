@@ -9,7 +9,9 @@ import typer
 
 import prefect.context
 import prefect.settings
-from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.root import app
 
 help_message = """
     Commands for interacting with Prefect settings.
