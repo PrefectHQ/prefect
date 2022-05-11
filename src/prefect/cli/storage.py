@@ -54,6 +54,7 @@ async def create():
         if spec.name == "KV Server Storage":
             specs[i], specs[-1] = specs[-1], specs[i]
             contains_kv_ss = True
+            break
 
     user_specs = specs.copy()
     if contains_kv_ss:
