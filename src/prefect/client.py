@@ -40,7 +40,7 @@ import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
-from httpx._models import Response
+from httpx import Response
 
 import prefect
 import prefect.exceptions
