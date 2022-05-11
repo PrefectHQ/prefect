@@ -7,14 +7,14 @@ from uuid import UUID
 
 import pydantic
 import typer
-from fastapi import status
-from httpx import HTTPStatusError
 from rich.emoji import Emoji
 from rich.table import Table
 
 import prefect
 from prefect.blocks.core import get_block_class
-from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
