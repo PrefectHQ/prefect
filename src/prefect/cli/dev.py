@@ -199,8 +199,8 @@ def build_image(
         None,
         help=(
             "The architecture to build the container for. "
-            "Defaults to the architecture of the host Python which is currently: "
-            f"{platform.machine()}"
+            "Defaults to the architecture of the host Python. "
+            f"[default: {platform.machine()}]"
         ),
     )
 ):
