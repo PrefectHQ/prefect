@@ -36,6 +36,10 @@ async def test_create_schedules_from_deployment(flow, session, flow_function):
     expected_dates = await deployment.schedule.get_dates(service.max_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
+    assert all(
+        [r.state_name == "Scheduled" for r in runs]
+    ), "Scheduler sets flow_run.state_name"
+
 
 async def test_create_schedule_respects_max_future_time(flow, session, flow_function):
     deployment = await models.deployments.create_deployment(

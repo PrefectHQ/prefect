@@ -390,6 +390,7 @@ async def _generate_scheduled_flow_runs(
                     message="Flow run scheduled",
                 ).dict(),
                 "state_type": schemas.states.StateType.SCHEDULED,
+                "state_name": "Scheduled",
                 "next_scheduled_start_time": date,
                 "expected_start_time": date,
             }
