@@ -48,7 +48,7 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, get_current_settings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.enum import AutoEnum
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     import docker
