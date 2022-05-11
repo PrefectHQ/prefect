@@ -47,5 +47,5 @@ def disable_terminal_wrapping(monkeypatch):
     output of a CLI command. Wrapping can be disabled by using this fixture.
     """
     monkeypatch.setattr(
-        "prefect.cli.base.app.console", rich.console.Console(soft_wrap=True)
+        "prefect.cli.root.app.console", rich.console.Console(soft_wrap=True)
     )
