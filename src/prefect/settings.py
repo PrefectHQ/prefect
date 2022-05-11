@@ -350,7 +350,7 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
-SQLITE_PREFIX = "sqlite+aiosqlite:///" + "/" if sys.platform != "win32" else ""
+SQLITE_PREFIX = "sqlite+aiosqlite:///" + ("/" if sys.platform != "win32" else "")
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
