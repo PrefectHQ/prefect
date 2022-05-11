@@ -14,18 +14,21 @@ def invoke_and_assert(
     expected_output: str = None,
     expected_code: int = 0,
     echo: bool = True,
+    user_input=None,
 ) -> Result:
     """
     Test utility for the Prefect CLI application.
     """
     runner = CliRunner()
-    result = runner.invoke(app, command, catch_exceptions=False)
+    result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
     if echo:
         print(result.stdout)
 
     if expected_code is not None:
-        assert result.exit_code == expected_code
+        assert (
+            result.exit_code == expected_code
+        ), f"Actual exit code: {result.exit_code!r}"
 
     if expected_output is not None:
         output = result.stdout.strip()
