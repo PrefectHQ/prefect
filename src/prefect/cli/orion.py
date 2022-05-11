@@ -2,25 +2,22 @@
 Command line interface for working with Orion
 """
 import os
-import subprocess
-import sys
 import textwrap
 from functools import partial
 from string import Template
-from typing import Any, Sequence, Union
 
 import anyio
 import anyio.abc
 import typer
 
 import prefect
-from prefect.cli.base import (
-    PrefectTyper,
-    SettingsOption,
-    app,
+from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    open_process_and_stream_output,
 )
+from prefect.cli.root import app
 from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -95,38 +92,6 @@ def generate_welcome_blub(base_url, ui_enabled: bool):
         blurb += visit_dashboard
 
     return blurb
-
-
-async def open_process_and_stream_output(
-    command: Union[str, Sequence[str]],
-    task_status: anyio.abc.TaskStatus = None,
-    **kwargs: Any,
-) -> None:
-    """
-    Opens a subprocess and streams standard output and error
-
-    Args:
-        command: The command to open a subprocess with.
-        task_status: Enables this coroutine function to be used with `task_group.start`
-            The task will report itself as started once the process is started.
-        **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
-    """
-    process = await anyio.open_process(
-        command, stderr=sys.stderr, stdout=sys.stdout, **kwargs
-    )
-    if task_status:
-        task_status.started()
-
-    try:
-        await process.wait()
-    finally:
-        with anyio.CancelScope(shield=True):
-            try:
-                process.terminate()
-            except Exception:
-                pass  # Process may already be terminated
-
-            await process.aclose()
 
 
 @orion_app.command()
