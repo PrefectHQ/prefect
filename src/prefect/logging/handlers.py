@@ -73,21 +73,33 @@ class OrionLogWorker:
         Runs until the `stop_event` is set.
         """
         # Initialize prefect in this new thread, but do not reconfigure logging
-        with self.profile_context:
-            while not self._stop_event.is_set():
-                # Wait until flush is called or the batch interval is reached
-                self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
-                self._flush_event.clear()
+        try:
+            with self.profile_context:
+                while not self._stop_event.is_set():
+                    # Wait until flush is called or the batch interval is reached
+                    self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
+                    self._flush_event.clear()
 
-                anyio.run(self.send_logs)
+                    anyio.run(self.send_logs)
 
-                # Notify watchers that logs were sent
-                self._send_logs_finished_event.set()
-                self._send_logs_finished_event.clear()
+                    # Notify watchers that logs were sent
+                    self._send_logs_finished_event.set()
+                    self._send_logs_finished_event.clear()
 
-            # After the stop event, we are exiting...
-            # Try to send any remaining logs
-            anyio.run(self.send_logs, True)
+                # After the stop event, we are exiting...
+                # Try to send any remaining logs
+                anyio.run(self.send_logs, True)
+
+        except Exception:
+            if logging.raiseExceptions and sys.stderr:
+                sys.stderr.write("--- Orion logging error ---\n")
+                sys.stderr.write("The log worker encountered a fatal error.\n")
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.write(self.worker_info())
+
+        finally:
+            # Set the finished event so anyone waiting on worker completion does not
+            # continue to block if an exception is encountered
             self._send_logs_finished_event.set()
 
     async def send_logs(self, exiting: bool = False) -> None:
