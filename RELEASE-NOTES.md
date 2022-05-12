@@ -73,7 +73,7 @@ We've eradicated some bugs, replacing them with good behavior:
 - Deployments defined in YAML can be created again
 - Deployment deletion cleans up scheduled runs
 
-### Internal optimizations
+### Optimizations and refactors
 
 You might not see these fixes in your day-to-day, but we're dedicated to improving performance and maintaining our reputation as maintainers of an approachable and clean project.
 
