@@ -1,9 +1,9 @@
 """
-[Flow Runners](/concepts/flow-runners/) in Prefect are responsible for creating and 
-monitoring infrastructure for flow runs associated with deployments. 
+[Flow Runners](/concepts/flow-runners/) in Prefect are responsible for creating and
+monitoring infrastructure for flow runs associated with deployments.
 
-A flow runner can only be used with a deployment. When you run a flow directly by 
-calling the flow yourself, you are responsible for the environment in which the flow 
+A flow runner can only be used with a deployment. When you run a flow directly by
+calling the flow yourself, you are responsible for the environment in which the flow
 executes.
 
 For usage details, see the [Flow Runners](/concepts/flow-runners/) documentation.
@@ -49,7 +49,6 @@ from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, get_current_settings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.collections import AutoEnum
-from prefect.utilities.compat import ThreadedChildWatcher
 
 if TYPE_CHECKING:
     import docker
@@ -246,7 +245,13 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         task_status: TaskStatus = None,
     ) -> Optional[bool]:
 
-        if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
+        if (
+            sys.version_info < (3, 8)
+            and sniffio.current_async_library() == "asyncio"
+            and sys.platform != "win32"
+        ):
+            from prefect.utilities.compat import ThreadedChildWatcher
+
             # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
             # lead to errors in tests on unix as the previous default `SafeChildWatcher`
             # is not compatible with threaded event loops.
