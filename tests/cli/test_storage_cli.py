@@ -4,7 +4,7 @@ import click.testing
 from typer.testing import CliRunner
 
 from prefect.cli import app
-from prefect.testing.cli import invoke_and_assert_in, invoke_and_assert_not_in
+from prefect.testing.cli import invoke_and_assert
 
 EXISTING_STORAGE_OPTIONS = {
     "Azure Blob Storage",
@@ -50,11 +50,11 @@ def test_get_first_menu_and_fail():
     Invalid selection {INVALID_OPTION}
     """
     command = ["storage", "create"]
-    invoke_and_assert_in(
+    invoke_and_assert(
         command=command,
-        desired_contents=(part_one, part_two),
-        expected_code=1,
         user_input=f"{INVALID_OPTION}\n",
+        expected_output_contains=(part_one, part_two),
+        expected_code=1,
     )
 
 
@@ -65,8 +65,6 @@ def test_invalid_number_selection_fails():
     """
     result = get_first_menu_and_fail()
     lines = result.stdout.splitlines()
-    # Strange string addition are due to coloring, I believe
-    # assert lines[-1] == f"\x1b[31mInvalid selection {INVALID_OPTION}\x1b[0m"
     assert lines[-1] == f"Invalid selection {INVALID_OPTION}"
     assert result.exit_code == 1
 
@@ -95,9 +93,9 @@ def test_storage_create_hides_kv_ss():
     """
     undesired_contents = "KV Server Storage"
 
-    invoke_and_assert_not_in(
+    invoke_and_assert(
         command=["storage", "create"],
-        undesired_contents=undesired_contents,
-        expected_code=1,
         user_input=f"{INVALID_OPTION}\n",
+        expected_output_does_not_contain=undesired_contents,
+        expected_code=1,
     )
