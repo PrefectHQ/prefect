@@ -1,11 +1,10 @@
 import textwrap
-from typing import Any, List
+from typing import Iterable, List, Union
 
 import pytest
 import rich
 from typer.testing import CliRunner, Result
 
-import prefect.cli
 from prefect.cli import app
 
 
@@ -45,7 +44,7 @@ def invoke_and_assert(
 
 def invoke_and_assert_in(
     command: List[str],
-    desired_contents: str = None,
+    desired_contents: Union[str, Iterable[str]] = None,
     expected_code: int = 0,
     echo: bool = True,
     user_input=None,
@@ -66,21 +65,35 @@ def invoke_and_assert_in(
         ), f"Actual exit code: {result.exit_code!r}"
 
     if desired_contents is not None:
-        output = result.stdout.strip()
-        desired_contents = textwrap.dedent(desired_contents).strip()
 
-        print("------ expected ------")
-        print(desired_contents)
-        print()
+        def check_contents(content):
+            output = result.stdout.strip()
+            content = textwrap.dedent(content).strip()
 
-        assert desired_contents in output, "Desired contents not found in CLI ouput"
+            print("------ expected ------")
+            print(content)
+            print()
+
+            if len(content) > 15:
+                display_content = content[:15] + "..."
+            else:
+                display_content = content
+            assert (
+                content in output
+            ), f"Desired contents '{display_content} not found in CLI ouput"
+
+        if isinstance(desired_contents, str):
+            check_contents(desired_contents)
+        else:
+            for contents in desired_contents:
+                check_contents(contents)
 
     return result
 
 
 def invoke_and_assert_not_in(
     command: List[str],
-    undesired_contents: str = None,
+    undesired_contents: Union[str, Iterable[str]] = None,
     expected_code: int = 0,
     echo: bool = True,
     user_input=None,
@@ -101,14 +114,28 @@ def invoke_and_assert_not_in(
         ), f"Actual exit code: {result.exit_code!r}"
 
     if undesired_contents is not None:
-        output = result.stdout.strip()
-        undesired_contents = textwrap.dedent(undesired_contents).strip()
 
-        print("------ expected ------")
-        print(undesired_contents)
-        print()
+        def check_contents(content):
+            output = result.stdout.strip()
+            content = textwrap.dedent(content).strip()
 
-        assert undesired_contents not in output, "Undesired contents found in CLI ouput"
+            print("------ expected ------")
+            print(content)
+            print()
+
+            if len(content) > 15:
+                display_content = content[:15] + "..."
+            else:
+                display_content = content
+            assert (
+                content not in output
+            ), f"Undesired contents '{display_content} found in CLI ouput"
+
+        if isinstance(undesired_contents, str):
+            check_contents(undesired_contents)
+        else:
+            for contents in undesired_contents:
+                check_contents(contents)
 
     return result
 
