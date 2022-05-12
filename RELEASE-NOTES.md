@@ -81,8 +81,8 @@ You might not see these fixes in your day-to-day, but we're dedicated to improvi
 - The `state_name` is attached to run models for improved query performance
 - Lifespan management for the epehemeral Orion application is now robust to deadlocks
 - The `hello` route has moved out of the `admin` namespace so it is available on Prefect Cloud
-- Profile management was rewritten, improving readability and performance
-- Lower-bounds dependency parsing has been improved
+- Improved readability and performance of profile management code
+- Improved lower-bounds dependency parsing
 - Tests are better isolated and will not run against a remote API
 - Improved representation of Prefect `Setting` objects
 - Added extensive tests for `prefect config` and `prefect profile` commands
