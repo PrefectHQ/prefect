@@ -1,5 +1,63 @@
 # Orion Release Notes
 
+## 2.0b4
+
+We're really busy over here at Prefect! We've been getting lots of great feedback from early adopters. There's a lot of work going on behind the scenes as we work on building some exciting new features that will be exclusive to v2, but we want to keep the enhancements flowing to our users. In that spirit, there are a lot of quality-of-life improvements here!
+
+While most of the development of Prefect v2 is still happening internally, we're incredibly excited to be getting contributions in our open source repository. Big shoutout to our new contributors since the last release:
+
+- @dannysepler
+- @ColeMurray
+- @albarrentine
+- @mkarbo
+
+### Flow and task runners
+
+- The Kubernetes flow runner supports configuration of a service account name
+- The Dask task runner has improved display of task keys in the Dask dashboard
+- The Dask task runner now submits the execution graph to Dask allowing optimization by the Dask scheduler
+
+### Windows compatibility
+
+We've excited to announce that we've begun work on Windows compatibility. Our full test suite isn't passing yet, but we've got basic functionality working on Windows. We expect the majority of the edge cases to be addresed by the next release.
+
+### Documentation improvements
+
+We've added some new documentation and made lots of improvements to existing documents
+
+- New documentation for associating conda environments with separate Prefect profiles
+...
+
+### CLI
+
+- Deployments can be deleted from the CLI
+- The CLI displays help by default
+- `prefect version` is robust to server connection errors
+- `prefect config view` shows sources by default
+- `prefect deployment create` exits with a non-zero exit code if one of the deployments fails to be created
+
+### Bug squashing
+
+We've eradicated some bugs, replacing them with good behavior: 
+
+- Flow runs are now robust to log worker failure
+- Deployment creation is now robust to `ObjectAlreadyExists` errors
+- Futures from async tasks in sync flows are now marked as synchronous
+- "~" in user-provided values for `PREFECT_HOME` are expanded
+- Deployments defined in YAML can be created again
+- Deployment deletion cleans up scheduled runs
+
+### Internal optimizations
+
+You might not see these fixes in your day-to-day, but we're dedicated to improving performance and maintaining our reputation as maintainers of an approachable and clean project.
+
+- The `state_name` is attached to run models for improved query performance
+- Lifespan management for the epehemeral Orion application is now robust to deadlocks
+- The `hello` route has moved out of the `admin` namespace so it is available on Cloud
+- Profile management was rewritten, improving readability and performance
+- Lower-bounds dependency parsing has been improved
+- Tests are better isolated and will not run against a remote API
+
 ## 2.0b3
 
 New features:
