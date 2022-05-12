@@ -71,7 +71,7 @@ We've eradicated some bugs, replacing them with good behavior:
 - Deployment creation is now robust to `ObjectAlreadyExists` errors
 - Futures from async tasks in sync flows are now marked as synchronous
 - Tildes (~) in user-provided paths for `PREFECT_HOME` are expanded
-- Deployments defined in YAML can be created again
+- Fixed parsing of deployments defined in YAML
 - Deployment deletion cleans up scheduled runs
 
 ### Optimizations and refactors
