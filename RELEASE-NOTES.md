@@ -27,10 +27,15 @@ We've excited to announce that we've begun work on Windows compatibility. Our fu
 
 ### Documentation improvements
 
-We've added some new documentation and made lots of improvements to existing documents
+We've added some new documentation and made lots of improvements to existing documents:
 
-- New documentation for associating conda environments with separate Prefect profiles
-...
+- Added documentation for associating conda environments with separate Prefect profiles
+- Added storage steps and advanced examples to Deployments tutorial
+- Expanded documentation of storage options
+- Added workspace details to the Cloud documentation
+- Improved schedules documentation with examples 
+- Revised Kubernetes tutorial to include work queue setup 
+- Improved tutorial examples of task caching
 
 ### CLI
 
