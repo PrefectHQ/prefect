@@ -197,13 +197,40 @@ async def deployment(session, flow, flow_function):
 
 
 @pytest.fixture
-async def block_schema(session):
+async def block_type_x(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
+    )
+    await session.commit()
+    return block_type
+
+
+@pytest.fixture
+async def block_type_y(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="y")
+    )
+    await session.commit()
+    return block_type
+
+
+@pytest.fixture
+async def block_type_z(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="z")
+    )
+    await session.commit()
+    return block_type
+
+
+@pytest.fixture
+async def block_schema(session, block_type_x):
     block_schema = await models.block_schemas.create_block_schema(
         session=session,
-        block_schema=schemas.core.BlockSchema(
-            name="x",
-            version="1.0",
+        block_schema=schemas.actions.BlockSchemaCreate(
             type="abc",
+            fields={},
+            block_type_id=block_type_x.id,
         ),
     )
     await session.commit()
@@ -211,11 +238,14 @@ async def block_schema(session):
 
 
 @pytest.fixture
-async def block_document(session, block_schema):
+async def block_document(session, block_schema, block_type_x):
     block_document = await models.block_documents.create_block_document(
         session=session,
-        block_document=schemas.core.BlockDocument(
-            block_schema_id=block_schema.id, name="Block 1"
+        block_document=schemas.actions.BlockDocumentCreate(
+            block_schema_id=block_schema.id,
+            name="Block 1",
+            block_type_id=block_type_x.id,
+            data=dict(),
         ),
     )
     await session.commit()

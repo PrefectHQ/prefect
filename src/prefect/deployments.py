@@ -60,6 +60,7 @@ import yaml
 from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
+from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
@@ -226,9 +227,10 @@ class DeploymentSpec(PrefectBaseModel):
         # TODO: Some of these checks may be retained in the future, but will use block
         # capabilities instead of types to check for compatibility with flow runners
 
-        self.flow_storage = (
-            self.flow_storage or await client.get_default_storage_block()
-        )
+        if self.flow_storage is None:
+            default_block_document = await client.get_default_storage_block_document()
+            if default_block_document:
+                self.flow_storage = Block.from_block_document(default_block_document)
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
@@ -276,16 +278,18 @@ class DeploymentSpec(PrefectBaseModel):
         # Ensure the storage is a registered block for later retrieval
 
         if not self.flow_storage._block_document_id:
-            block_schema = await client.read_block_schema_by_name(
-                self.flow_storage._block_schema_name,
-                self.flow_storage._block_schema_version,
+            block_schema = await client.read_block_schema_by_checksum(
+                self.flow_storage.calculate_schema_checksum()
             )
 
-            self.flow_storage._block_document_id = await client.create_block(
-                self.flow_storage,
-                block_schema_id=block_schema.id,
-                name=f"{self.flow_name}-{self.name}",
+            block_document = await client.create_block_document(
+                block_document=self.flow_storage.to_block_document(
+                    name=f"{self.flow_name}-{self.name}",
+                    block_schema_id=block_schema.id,
+                    block_type_id=block_schema.block_type_id,
+                ),
             )
+            self.flow_storage._block_document_id = block_document.id
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)

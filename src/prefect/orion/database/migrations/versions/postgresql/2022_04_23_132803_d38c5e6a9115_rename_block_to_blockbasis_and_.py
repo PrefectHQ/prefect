@@ -1,7 +1,7 @@
 """Rename Block to BlockDocument and BlockSpec to BlockSchema
 
 Revision ID: d38c5e6a9115
-Revises: 2e7e1428ffce
+Revises: 14dc68cc5853
 Create Date: 2022-04-19 13:28:03.661481
 
 """
