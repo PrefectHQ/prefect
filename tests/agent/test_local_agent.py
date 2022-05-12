@@ -109,7 +109,6 @@ def test_populate_env_vars(monkeypatch, backend, config_with_api_key):
             "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
             "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         }
     )
 

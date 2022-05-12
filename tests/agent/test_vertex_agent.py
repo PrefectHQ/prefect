@@ -77,7 +77,6 @@ class TestEnvVars:
         "PREFECT__CONTEXT__FLOW_ID": "flow-id",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-        "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
         "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
     }
 
@@ -275,10 +274,6 @@ class TestDeployFlow:
                             {
                                 "name": "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS",
                                 "value": "prefect.engine.cloud.CloudFlowRunner",
-                            },
-                            {
-                                "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
-                                "value": "prefect.engine.cloud.CloudTaskRunner",
                             },
                             {"name": "PREFECT__LOGGING__LOG_TO_CLOUD", "value": "true"},
                             {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},

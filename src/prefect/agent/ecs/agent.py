@@ -519,7 +519,6 @@ class ECSAgent(Agent):
             {
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
