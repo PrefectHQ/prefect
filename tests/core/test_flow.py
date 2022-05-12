@@ -1369,6 +1369,17 @@ class TestFlowVisualize:
         assert "label=x style=dashed" in graph.source
         assert "label=y style=dashed" in graph.source
 
+    def test_viz_can_handle_mapped_lambdas(self):
+        # See: https://github.com/PrefectHQ/prefect/issues/5656
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                res = AddTask(name="<lambda>").map(x=Task(name="a_list_task"), y=8)
+            graph = f.visualize()
+        assert 'label="<lambda> <map>" shape=box' in graph.source
+
     def test_viz_can_handle_skipped_mapped_tasks(self):
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))

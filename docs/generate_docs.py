@@ -476,7 +476,7 @@ def process_examples(footer=""):
         conflicts = set(flows).intersection(new_flows)
         if conflicts:
             raise ValueError(
-                "Example flows must have unique names, found duplicate flows: {conflicts}"
+                f"Example flows must have unique names, found duplicate flows: {conflicts}"
             )
         flows.update(new_flows)
         with open(

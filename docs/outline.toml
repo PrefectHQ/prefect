@@ -792,6 +792,11 @@ module = "prefect.tasks.transform"
 classes = ["TransformCreateMaterialization"]
 verified_task = true
 
+[pages.tasks.Hightouch]
+title = "Hightouch Tasks"
+module = "prefect.tasks.hightouch"
+classes = ["HightouchRunSync"]
+
 [pages.tasks.sftp]
 title = "SFTP Tasks"
 module = "prefect.tasks.sftp.sftp"

@@ -195,7 +195,7 @@ jobs:
           command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.7-3.9
+  # Run unit tests in Python 3.7-3.10
   # ----------------------------------
 
   test_37:
@@ -258,7 +258,7 @@ jobs:
 
   test_39:
     docker:
-      - image: python:3.9.0
+      - image: python:3.9
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -280,6 +280,38 @@ jobs:
       - run:
           name: Install Prefect
           # All extras cannot be tested because they do not support 3.9 yet, until then
+          # we will just guarantee that we pass the core test suite
+          # See https://github.com/PrefectHQ/prefect/pull/3441#issuecomment-708419324
+          command: pip install ".[test]"
+
+      - run:
+          name: Run tests
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
+
+  test_310:
+    docker:
+      - image: python:3.10
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Install zsh for tests
+          command: apt-get update && apt-get install -y zsh
+
+      - run:
+          name: Install graphviz
+          command: apt-get update && apt-get install -y graphviz
+
+      - run:
+          name: Upgrade pip
+          command: pip install "pip==20.2.4"
+
+      - run:
+          name: Install Prefect
+          # All extras cannot be tested because they do not support 3.10 yet, until then
           # we will just guarantee that we pass the core test suite
           # See https://github.com/PrefectHQ/prefect/pull/3441#issuecomment-708419324
           command: pip install ".[test]"
@@ -407,7 +439,7 @@ jobs:
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
-            
+
   build_core_docker_image:
     docker:
       - image: docker
@@ -463,7 +495,7 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
-                  
+
   promote_server_artifacts:
     docker:
       - image: docker
@@ -531,6 +563,7 @@ workflows:
       - test_37
       - test_38
       - test_39
+      - test_310
       - test_lower_prefect
       - test_vanilla_prefect
       - test_task_library
@@ -576,6 +609,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.10'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
           filters:
             branches:
@@ -584,6 +625,14 @@ workflows:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
           python_version: '3.9'
+          tag_latest: true
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_core_docker_image:
+          python_version: '3.10'
           tag_latest: true
           filters:
             branches:
@@ -623,6 +672,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
+      - build_docker_image:
+          python_version: '3.10'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^1.0rc[0-9]$/
       - release_to_pypi:
           filters:
             branches:
@@ -631,6 +688,13 @@ workflows:
               only: /^1.0rc[0-9]$/
       - build_core_docker_image:
           python_version: '3.9'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^1.0rc[0-9]$/
+      - build_core_docker_image:
+          python_version: '3.10'
           filters:
             branches:
               ignore: /.*/

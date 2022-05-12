@@ -67,10 +67,10 @@ class InitScriptInfo(BaseModel):
 
 
 class NewCluster(BaseModel):
-    autoscale: AutoScale
     spark_version: str
     node_type_id: str
     spark_conf: Dict = Field(default_factory=dict)
+    autoscale: Optional[AutoScale] = None
     num_workers: Optional[int] = None
     aws_attributes: Optional[AwsAttributes] = None
     driver_node_type_id: Optional[str] = None
@@ -82,6 +82,7 @@ class NewCluster(BaseModel):
     enable_elastic_disk: Optional[bool] = None
     driver_instance_pool_id: Optional[str] = None
     instance_pool_id: Optional[str] = None
+    policy_id: Optional[str] = None
 
 
 class NotebookTask(BaseModel):
