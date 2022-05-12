@@ -4,12 +4,14 @@
 
 We're really busy over here at Prefect! We've been getting lots of great feedback from early adopters. There's a lot of work going on behind the scenes as we work on building some exciting new features that will be exclusive to v2, but we want to keep the enhancements flowing to our users. In that spirit, there are a lot of quality-of-life improvements here!
 
-While most of the development of Prefect v2 is still happening internally, we're incredibly excited to be getting contributions in our open source repository. Big shoutout to our new contributors since the last release:
+While most of the development of Prefect v2 is still happening internally, we're incredibly excited to be getting contributions in our open source repository. Big shoutout to our contributors for this last release:
 
 - @dannysepler
 - @ColeMurray
 - @albarrentine
 - @mkarbo
+- @AlessandroLollo
+
 
 ### Flow and task runners
 
@@ -20,6 +22,10 @@ While most of the development of Prefect v2 is still happening internally, we're
 - The Dask task runner now submits the execution graph to Dask allowing optimization by the Dask scheduler
 
 Note that the Dask and Ray task runners will be moving out of the core Prefect library into dedicated `prefect-ray` and `prefect-dask` collections with the next release. This will reduce the number of dependencies we require for most use-cases. Since we now have concurrent execution built-in to the core library, these packages do not need to be bundled with Prefect. We're looking forward to building additional tasks and flows specific to Ray and Dask in their respective collections.
+
+### Collections
+
+Speaking of collections, we've received our first user-contributed collection for `cubejs`. Check it out at https://github.com/AlessandroLollo/prefect-cubejs.
 
 ### Windows compatibility
 
