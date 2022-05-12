@@ -17,11 +17,11 @@ While most of the development of Prefect 2.0 is still happening internally, we'r
 
 - Flow runners now pass all altered settings to their child jobs instead of just the API key and URL
 - The Kubernetes flow runner supports configuration of a service account name
-- The Subprocess flow runner streams output by default, matching the other flow runners
+- The subprocess flow runner streams output by default, matching the other flow runners
 - The Dask task runner has improved display of task keys in the Dask dashboard
 - The Dask task runner now submits the execution graph to Dask allowing optimization by the Dask scheduler
 
-Note that the Dask and Ray task runners will be moving out of the core Prefect library into dedicated `prefect-ray` and `prefect-dask` collections with the next release. This will reduce the number of dependencies we require for most use-cases. Since we now have concurrent execution built-in to the core library, these packages do not need to be bundled with Prefect. We're looking forward to building additional tasks and flows specific to Ray and Dask in their respective collections.
+Note that the Dask and Ray task runners will be moving out of the core Prefect library into dedicated `prefect-ray` and `prefect-dask` collections with the next release. This will reduce the number of dependencies we require for most use cases. Since we now have concurrent execution built in to the core library, these packages do not need to be bundled with Prefect. We're looking forward to building additional tasks and flows specific to Ray and Dask in their respective collections.
 
 ### Collections
 
@@ -33,22 +33,22 @@ The following collections have also been recently released:
 - [`prefect-twitter`](https://github.com/PrefectHQ/prefect-twitter)
 - [`prefect-github`](https://github.com/PrefectHQ/prefect-github)
 
-You can see a list of all available collection in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
+You can see a list of all available collections in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
 
 ### Windows compatibility
 
-We've excited to announce that we've begun work on Windows compatibility. Our full test suite isn't passing yet, but we've got basic functionality working on Windows. We expect the majority of the edge cases to be addresed by the next release.
+We've excited to announce that we've begun work on Windows compatibility. Our full test suite isn't passing yet, but we've got basic functionality working on Windows. We expect the majority of the edge cases to be addressed in an upcoming release.
 
 ### Documentation improvements
 
-We've added some new documentation and made lots of improvements to existing documents:
+We've added some new documentation and made lots of improvements to existing documentation and tutorials:
 
 - Added documentation for associating conda environments with separate Prefect profiles
-- Added storage steps and advanced examples to Deployments tutorial
+- Added storage steps and advanced examples to the Deployments tutorial
 - Expanded documentation of storage options
-- Added workspace details to the Cloud documentation
+- Added workspace details to the Prefect Cloud documentation
 - Improved schedules documentation with examples 
-- Revised Kubernetes tutorial to include work queue setup 
+- Revised the Kubernetes tutorial to include work queue setup 
 - Improved tutorial examples of task caching
 
 ### CLI
@@ -80,7 +80,7 @@ You might not see these fixes in your day-to-day, but we're dedicated to improvi
 
 - The `state_name` is attached to run models for improved query performance
 - Lifespan management for the epehemeral Orion application is now robust to deadlocks
-- The `hello` route has moved out of the `admin` namespace so it is available on Cloud
+- The `hello` route has moved out of the `admin` namespace so it is available on Prefect Cloud
 - Profile management was rewritten, improving readability and performance
 - Lower-bounds dependency parsing has been improved
 - Tests are better isolated and will not run against a remote API
