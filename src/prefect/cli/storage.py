@@ -36,6 +36,7 @@ async def create():
         specs = await client.read_block_specs("STORAGE")
     unconfigurable = set()
 
+    # KV Server Storage is for internal use only and should not be exposed to users
     specs = list(filterfalse(lambda s: s.name == "KV Server Storage", specs))
 
     for spec in specs:
