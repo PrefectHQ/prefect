@@ -14,8 +14,11 @@ While most of the development of Prefect v2 is still happening internally, we're
 ### Flow and task runners
 
 - The Kubernetes flow runner supports configuration of a service account name
+- The Subprocess flow runner streams output by default, matching the other flow runners
 - The Dask task runner has improved display of task keys in the Dask dashboard
 - The Dask task runner now submits the execution graph to Dask allowing optimization by the Dask scheduler
+
+Note that the Dask and Ray task runners will be moving out of the core Prefect library into dedicated `prefect-ray` and `prefect-dask` collections with the next release. This will reduce the number of dependencies we require for most use-cases. Since we now have concurrent execution built-in to the core library, these packages do not need to be bundled with Prefect. We're looking forward to building additional tasks and flows specific to Ray and Dask in their respective collections.
 
 ### Windows compatibility
 
