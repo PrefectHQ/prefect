@@ -51,12 +51,13 @@ async def create():
         specs.remove(spec)
 
     app.console.print("Found the following storage types:")
+
     for i, spec in enumerate(specs):
         app.console.print(f"{i}) {spec.name}")
-        short_description = (
-            spec.fields.get("description", "").strip().splitlines()[0]
-            or "<no description>"
-        )
+        if spec.fields.get("description") and not spec.fields["description"].isspace():
+            short_description = spec.fields["description"].strip().splitlines()[0]
+        else:
+            short_description = "<no description>"
         app.console.print(textwrap.indent(short_description, prefix="    "))
 
     selection = typer.prompt("Select a storage type to create", type=int)
