@@ -1,9 +1,9 @@
-name: Python tests
+name: Windows tests
 
 on:
   pull_request:
     paths:
-      - .github/workflows/python-tests.yaml
+      - .github/workflows/windows-tests.yaml
       - "**/*.py"
       - requirements.txt
       - requirements-dev.txt
