@@ -730,20 +730,47 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
-class ORMBlockSchema:
+class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
-    version = sa.Column(sa.String, nullable=False)
+    logo_url = sa.Column(sa.String, nullable=True)
+    documentation_url = sa.Column(sa.String, nullable=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_block_type__name",
+                "name",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
+class ORMBlockSchema:
+    checksum = sa.Column(sa.String, nullable=False, index=True)
     type = sa.Column(sa.String, nullable=True, index=True)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+
+    @declared_attr
+    def block_type_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
         return (
             sa.Index("ix_block_schema__type", "type"),
             sa.Index(
-                "uq_block_schema__name_version",
-                "name",
-                "version",
+                "uq_block_schema__checksum",
+                "checksum",
                 unique=True,
             ),
         )
@@ -756,6 +783,18 @@ class ORMBlockDocument:
     is_default_storage_block_document = sa.Column(
         sa.Boolean, server_default="0", index=True
     )
+
+    @declared_attr
+    def block_type_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="joined")
 
     @declared_attr
     def block_schema_id(cls):
@@ -773,8 +812,8 @@ class ORMBlockDocument:
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block__schema_id_name",
-                "block_schema_id",
+                "uq_block__type_id_name",
+                "block_type_id",
                 "name",
                 unique=True,
             ),
@@ -895,6 +934,7 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
+        block_type_mixin: block_type orm mixin, combined with Base orm class
         block_schema_mixin: block_schema orm mixin, combined with Base orm class
         block_document_mixin: block_document orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
@@ -917,6 +957,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_document_mixin=ORMBlockDocument,
         configuration_mixin=ORMConfiguration,
@@ -961,6 +1002,7 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
+            block_type_mixin=block_type_mixin,
             block_schema_mixin=block_schema_mixin,
             block_document_mixin=block_document_mixin,
             configuration_mixin=configuration_mixin,
@@ -999,6 +1041,7 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
+        block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_document_mixin=ORMBlockDocument,
         configuration_mixin=ORMConfiguration,
@@ -1044,6 +1087,9 @@ class BaseORMConfiguration(ABC):
         class Agent(agent_mixin, self.Base):
             pass
 
+        class BlockType(block_type_mixin, self.Base):
+            pass
+
         class BlockSchema(block_schema_mixin, self.Base):
             pass
 
@@ -1065,6 +1111,7 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
+        self.BlockType = BlockType
         self.BlockSchema = BlockSchema
         self.BlockDocument = BlockDocument
         self.Configuration = Configuration
@@ -1091,9 +1138,14 @@ class BaseORMConfiguration(ABC):
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
 
     @property
+    def block_type_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockType"""
+        return [self.BlockType.name]
+
+    @property
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
-        return [self.BlockSchema.name, self.BlockSchema.version]
+        return [self.BlockSchema.checksum]
 
     @property
     def flow_unique_upsert_columns(self):

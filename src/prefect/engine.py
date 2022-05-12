@@ -27,6 +27,7 @@ from anyio import start_blocking_portal
 
 import prefect
 import prefect.context
+from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
@@ -276,7 +277,14 @@ async def begin_flow_run(
             flow.task_runner.start()
         )
 
-        result_storage = await client.get_default_storage_block()
+        default_storage_block_document = (
+            await client.get_default_storage_block_document()
+        )
+        result_storage = (
+            Block.from_block_document(default_storage_block_document)
+            if default_storage_block_document is not None
+            else None
+        )
         if not result_storage:
             logger.warning(
                 "No default storage is configured on the server. Results from this "

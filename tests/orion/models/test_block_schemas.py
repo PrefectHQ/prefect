@@ -1,152 +1,106 @@
+import hashlib
+import json
+
 import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.utilities.hashing import hash_objects
 
-
-@pytest.fixture
-async def block_schema(session):
-    model = await models.block_schemas.create_block_schema(
-        session=session,
-        block_schema=schemas.core.BlockSchema(
-            name="test-block-spec", version="1.0", type="notification"
-        ),
-    )
-    await session.commit()
-    return model
+EMPTY_OBJECT_CHECKSUM = f"sha256:{hash_objects({}, hash_algo=hashlib.sha256)}"
 
 
 class TestCreateBlockSchema:
-    async def test_create_block_schema(self, session):
+    async def test_create_block_schema(self, session, block_type_x):
         block_schema = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type=None,
+                fields={},
+                block_type_id=block_type_x.id,
             ),
         )
-        assert block_schema.name == "x"
-        assert block_schema.version == "1.0"
         assert block_schema.type is None
         assert block_schema.fields == {}
+        assert block_schema.checksum == EMPTY_OBJECT_CHECKSUM
+        assert block_schema.block_type_id == block_type_x.id
 
         db_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema.id
         )
 
-        assert db_block_schema.name == block_schema.name
-        assert db_block_schema.version == block_schema.version
+        assert db_block_schema.checksum == block_schema.checksum
         assert db_block_schema.type == block_schema.type
         assert db_block_schema.fields == block_schema.fields
+        assert db_block_schema.block_type_id == block_schema.block_type_id
 
-    async def test_create_block_schema_unique_name_and_version(self, session):
+    async def test_create_block_schema_unique_checksum(self, session, block_type_x):
         await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type=None,
+                fields={},
+                block_type_id=block_type_x.id,
             ),
         )
 
         with pytest.raises(sa.exc.IntegrityError):
             await models.block_schemas.create_block_schema(
                 session=session,
-                block_schema=schemas.core.BlockSchema(
-                    name="x",
-                    version="1.0",
+                block_schema=schemas.actions.BlockSchemaCreate(
                     type=None,
+                    fields={},
+                    block_type_id=block_type_x.id,
                 ),
             )
 
 
 class TestReadBlockSchemas:
-    async def test_read_block_schema_by_name_and_version(self, session):
+    async def test_read_block_schema_by_checksum(self, session, block_type_x):
         block_schema = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type=None,
+                fields={},
+                block_type_id=block_type_x.id,
             ),
         )
 
-        db_block_schema = (
-            await models.block_schemas.read_block_schema_by_name_and_version(
-                session=session, name="x", version="1.0"
-            )
+        db_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=EMPTY_OBJECT_CHECKSUM
         )
 
         assert db_block_schema.id == block_schema.id
-        assert db_block_schema.name == block_schema.name
-        assert db_block_schema.version == block_schema.version
+        assert db_block_schema.checksum == block_schema.checksum
         assert db_block_schema.type == block_schema.type
         assert db_block_schema.fields == block_schema.fields
+        assert db_block_schema.block_type_id == block_schema.block_type_id
 
-    async def test_read_block_schemas_by_name(self, session):
+    async def test_read_block_schemas_by_type(self, session, block_type_x):
         block_schema_1 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
-                type=None,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                type="abc",
+                fields={},
+                block_type_id=block_type_x.id,
             ),
         )
 
         block_schema_2 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="y",
-                version="1.0",
-                type=None,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                type="abc",
+                fields={"x": {"type": "int"}},
+                block_type_id=block_type_x.id,
             ),
         )
 
         block_schema_3 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="2.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type=None,
-            ),
-        )
-
-        db_block_schema = await models.block_schemas.read_block_schemas(
-            session=session, name="x"
-        )
-
-        assert len(db_block_schema) == 2
-        assert db_block_schema[0].id == block_schema_1.id
-        assert db_block_schema[0].version == block_schema_1.version
-        assert db_block_schema[1].id == block_schema_3.id
-        assert db_block_schema[1].version == block_schema_3.version
-
-    async def test_read_block_schemas_by_type(self, session):
-        block_schema_1 = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
-                type="abc",
-            ),
-        )
-
-        block_schema_2 = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="y",
-                version="1.0",
-                type="abc",
-            ),
-        )
-
-        block_schema_3 = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="2.0",
-                type=None,
+                fields={"y": {"type": "int"}},
+                block_type_id=block_type_x.id,
             ),
         )
 
@@ -158,42 +112,44 @@ class TestReadBlockSchemas:
         assert db_block_schema[0].id == block_schema_1.id
         assert db_block_schema[1].id == block_schema_2.id
 
-    async def test_read_block_schemas_by_type_and_name(self, session):
+    async def test_read_block_schemas_by_type_and_name(
+        self, session, block_type_x, block_type_y, block_type_z
+    ):
         block_schema_1 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="1.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type="abc",
+                fields={},
+                block_type_id=block_type_x.id,
             ),
         )
 
         block_schema_2 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="y",
-                version="1.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type="abc",
+                fields={"x": {"type": "int"}},
+                block_type_id=block_type_y.id,
             ),
         )
 
         block_schema_3 = await models.block_schemas.create_block_schema(
             session=session,
-            block_schema=schemas.core.BlockSchema(
-                name="x",
-                version="2.0",
+            block_schema=schemas.actions.BlockSchemaCreate(
                 type=None,
+                fields={"y": {"type": "int"}},
+                block_type_id=block_type_x.id,
             ),
         )
 
         db_block_schema = await models.block_schemas.read_block_schemas(
-            session=session, block_schema_type="abc", name="x"
+            session=session, block_schema_type="abc", block_type_id=block_type_x.id
         )
         assert len(db_block_schema) == 1
         assert db_block_schema[0].id == block_schema_1.id
 
         db_block_schema = await models.block_schemas.read_block_schemas(
-            session=session, block_schema_type="abc", name="z"
+            session=session, block_schema_type="abc", block_type_id=block_type_z.id
         )
         assert len(db_block_schema) == 0
 

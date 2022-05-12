@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import coolname
-from pydantic import Field, validator
+from pydantic import Field, HttpUrl, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -346,14 +346,15 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockSchema(ORMBaseModel):
-    """An ORM representation of a block schema."""
+class BlockType(ORMBaseModel):
+    """An ORM representation of a block type"""
 
-    name: str = Field(..., description="The block schema's name")
-    version: str = Field(..., description="The block schema's version")
-    type: str = Field(None, description="The block schema's type")
-    fields: dict = Field(
-        default_factory=dict, description="The block schema's field schema"
+    name: str = Field(..., description="A block type's name")
+    logo_url: Optional[HttpUrl] = Field(
+        None, description="Web URL for the block type's logo"
+    )
+    documentation_url: Optional[HttpUrl] = Field(
+        None, description="Web URL for the block type's documentation"
     )
 
     @validator("name", check_fields=False)
@@ -361,13 +362,19 @@ class BlockSchema(ORMBaseModel):
         raise_on_invalid_name(v)
         return v
 
-    @validator("version", check_fields=False)
-    def validate_version_characters(cls, v):
-        if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
-                f"Version contains an invalid character {INVALID_CHARACTERS}."
-            )
-        return v
+
+class BlockSchema(ORMBaseModel):
+    """An ORM representation of a block schema."""
+
+    checksum: str = Field(..., description="The block schema's unique checksum")
+    type: str = Field(None, description="The block schema's type")
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        None, description="The associated block type"
+    )
 
 
 class BlockDocument(ORMBaseModel):
@@ -378,6 +385,10 @@ class BlockDocument(ORMBaseModel):
     block_schema_id: UUID = Field(..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
         None, description="The associated block schema"
+    )
+    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        None, description="The associated block type"
     )
 
     @validator("name", check_fields=False)
@@ -397,6 +408,8 @@ class BlockDocument(ORMBaseModel):
             data=await orm_block_document.decrypt_data(session=session),
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
+            block_type_id=orm_block_document.block_type_id,
+            block_type=orm_block_document.block_type,
         )
 
 

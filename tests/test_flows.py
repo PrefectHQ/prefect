@@ -20,6 +20,7 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import exceptions_equal
+from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
 
@@ -110,9 +111,9 @@ class TestDecorator:
         assert my_flow.fn() == "bar"
 
     def test_flow_decorator_sets_default_version(self):
-        my_flow = flow(file_hash)
+        my_flow = flow(flatdict_to_dict)
 
-        assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
+        assert my_flow.version == file_hash(flatdict_to_dict.__globals__["__file__"])
 
 
 class TestFlowWithOptions:
@@ -1142,7 +1143,7 @@ class TestFlowResults:
         def foo():
             return 6
 
-        await orion_client.set_default_storage_block(
+        await orion_client.set_default_storage_block_document(
             local_storage_block._block_document_id
         )
 
@@ -1166,7 +1167,7 @@ class TestFlowResults:
         @flow
         async def foo():
             # Change the default storage on the server, bar() will not use it
-            await orion_client.set_default_storage_block(
+            await orion_client.set_default_storage_block_document(
                 local_storage_block._block_document_id
             )
             return bar()

@@ -2,6 +2,7 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
+from typing import Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -14,13 +15,14 @@ from prefect.orion.database.interface import OrionDBInterface
 @inject_db
 async def create_block_document(
     session: sa.orm.Session,
-    block_document: schemas.core.BlockDocument,
+    block_document: schemas.actions.BlockDocumentCreate,
     db: OrionDBInterface,
 ):
 
     orm_block = db.BlockDocument(
         name=block_document.name,
         block_schema_id=block_document.block_schema_id,
+        block_type_id=block_document.block_type_id,
     )
 
     # encrypt the data and store in block document
@@ -57,26 +59,28 @@ async def read_block_document_by_id(
 async def read_block_document_by_name(
     session: sa.orm.Session,
     name: str,
-    block_schema_name: str,
+    block_type_name: str,
     db: OrionDBInterface,
-    block_schema_version: str = None,
+    block_schema_checksum: Optional[str] = None,
 ):
     """
-    Read a block document with the given name and block schema name. If a block schema version
-    is provided, it is matched as well, otherwise the latest matching version is returned.
+    Read a block document with the given name and block type name. If a block schema checksum
+    is provided, it is matched as well.
     """
     where_clause = [
         db.BlockDocument.name == name,
-        db.BlockSchema.name == block_schema_name,
+        db.BlockType.name == block_type_name,
     ]
-    if block_schema_version is not None:
-        where_clause.append(db.BlockSchema.version == block_schema_version)
+
+    if block_schema_checksum is not None:
+        where_clause.append(db.BlockSchema.checksum == block_schema_checksum)
 
     query = (
         sa.select(db.BlockDocument)
         .join(db.BlockSchema, db.BlockSchema.id == db.BlockDocument.block_schema_id)
+        .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
         .where(sa.and_(*where_clause))
-        .order_by(db.BlockSchema.version.desc())
+        .order_by(db.BlockDocument.created.desc())
         .limit(1)
     )
     result = await session.execute(query)
@@ -88,9 +92,10 @@ async def read_block_document_by_name(
 async def read_block_documents(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    block_schema_type: str = None,
-    offset: int = None,
-    limit: int = None,
+    block_type_id: Optional[UUID] = None,
+    block_schema_type: Optional[str] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ):
     """
     Read block documents with an optional limit and offset
@@ -99,10 +104,12 @@ async def read_block_documents(
     query = (
         sa.select(db.BlockDocument)
         .join(db.BlockSchema, db.BlockSchema.id == db.BlockDocument.block_schema_id)
-        .order_by(
-            db.BlockSchema.name, db.BlockSchema.version.desc(), db.BlockDocument.name
-        )
+        .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
+        .order_by(db.BlockType.name, db.BlockDocument.name)
     )
+
+    if block_type_id is not None:
+        query = query.where(db.BlockDocument.block_type_id == block_type_id)
 
     if block_schema_type is not None:
         query = query.where(db.BlockSchema.type == block_schema_type)

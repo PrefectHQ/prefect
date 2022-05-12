@@ -44,13 +44,18 @@ import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks.core import Block, create_block_from_block_document
+from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
-from prefect.orion.schemas.core import QueueFilter, TaskRun
+from prefect.orion.schemas.actions import (
+    BlockDocumentUpdate,
+    LogCreate,
+    WorkQueueCreate,
+    WorkQueueUpdate,
+)
+from prefect.orion.schemas.core import BlockDocument, QueueFilter, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -858,46 +863,38 @@ class OrionClient:
             else:
                 raise
 
-    async def create_block(
+    async def create_block_document(
         self,
-        block: prefect.blocks.core.Block,
-        block_schema_id: UUID = None,
-        name: str = None,
-    ) -> Optional[UUID]:
+        block_document: schemas.actions.BlockDocumentCreate,
+    ) -> BlockDocument:
         """
-        Create a block in Orion. This data is used to configure a corresponding
+        Create a block document in Orion. This data is used to configure a corresponding
         Block.
         """
-
-        api_block = block.to_block_document(name=name, block_schema_id=block_schema_id)
-
-        # Drop fields that are not compliant with `CreateBlock`
-        payload = api_block.dict(
-            json_compatible=True, exclude={"block_schema", "id"}, exclude_unset=True
-        )
-
         try:
             response = await self._client.post(
                 "/block_documents/",
-                json=payload,
+                json=block_document.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    exclude={"id", "block_schema", "block_type"},
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        return UUID(response.json().get("id"))
+        return BlockDocument.parse_obj(response.json())
 
-    async def read_block_schema_by_name(
-        self, name: str, version: str
+    async def read_block_schema_by_checksum(
+        self, checksum: str
     ) -> schemas.core.BlockSchema:
         """
-        Look up a block schema by name and version
+        Look up a block schema checksum
         """
         try:
-            response = await self._client.get(
-                f"block_schemas/{name}/versions/{version}"
-            )
+            response = await self._client.get(f"/block_schemas/checksum/{checksum}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -923,78 +920,70 @@ class OrionClient:
         )
         return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
-    async def read_block(self, block_document_id: UUID):
+    async def read_block_document(self, block_document_id: UUID):
         """
-        Read the block with the specified name that corresponds to a
-        specific block schema name and version.
+        Read the block document with the specified ID.
 
         Args:
-            block_document_id (UUID): the block document id
+            block_document_id: the block document id
 
         Raises:
             httpx.RequestError: if the block document was not found for any reason
 
         Returns:
-            A hydrated block or None.
+            A block document or None.
         """
         response = await self._client.get(f"/block_documents/{block_document_id}")
-        return create_block_from_block_document(response.json())
+        return BlockDocument.parse_obj(response.json())
 
-    async def read_block_by_name(
+    async def read_block_document_by_name(
         self,
         name: str,
-        block_schema_name: str,
-        block_schema_version: str,
+        block_type_name: str,
     ):
         """
-        Read the block with the specified name that corresponds to a
-        specific block schema name and version.
+        Read the block document with the specified name that corresponds to a
+        specific block type name.
 
         Args:
-            name (str): The block name.
-            block_schema_name (str): the block schema name
-            block_schema_version (str): the block schema version. If not provided,
-                the most recent matching version will be returned.
+            name: The block document name.
+            block_type_name: The block type name
 
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
-            A hydrated block or None.
+            A block document or None.
         """
         response = await self._client.get(
-            f"/block_schemas/{block_schema_name}/versions/{block_schema_version}/block/{name}",
+            f"/block_types/name/{block_type_name}/block_documents/name/{name}",
         )
-        return create_block_from_block_document(response.json())
+        return BlockDocument.parse_obj(response.json())
 
-    async def read_blocks(
+    async def read_block_documents(
         self,
-        block_schema_type: str = None,
-        offset: int = None,
-        limit: int = None,
-        as_json: bool = False,
-    ) -> List[Union[prefect.blocks.core.Block, Dict[str, Any]]]:
+        block_schema_type: Optional[str] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+    ):
         """
-        Read blocks
+        Read block documents
 
         Args:
-            block_schema_type (str): an optional block schema type
-            offset (int): an offset
-            limit (int): the number of blocks to return
-            as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
+            block_schema_type: an optional block schema type
+            offset: an offset
+            limit: the number of blocks to return
+            as_json: if False, fully hydrated Blocks are loaded. Otherwise,
                 JSON is returned from the API.
 
         Returns:
-            A list of blocks
+            A list of block documents
         """
         response = await self._client.post(
             f"/block_documents/filter",
             json=dict(block_schema_type=block_schema_type, offset=offset, limit=limit),
         )
-        json_result = response.json()
-        if as_json:
-            return json_result
-        return [create_block_from_block_document(b) for b in json_result]
+        return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
     async def create_deployment(
         self,
@@ -1192,9 +1181,7 @@ class OrionClient:
         response = await self._client.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
-    async def get_default_storage_block(
-        self, as_json: bool = False
-    ) -> Optional[Union[Block, Dict[str, Any]]]:
+    async def get_default_storage_block_document(self) -> Optional[BlockDocument]:
         """Returns the default storage block
 
         Args:
@@ -1210,11 +1197,9 @@ class OrionClient:
         )
         if not response.content:
             return None
-        if as_json:
-            return response.json()
-        return create_block_from_block_document(response.json())
+        return BlockDocument.parse_obj(response.json())
 
-    async def set_default_storage_block(self, block_document_id: UUID):
+    async def set_default_storage_block_document(self, block_document_id: UUID):
         try:
             await self._client.post(
                 f"/block_documents/{block_document_id}/set_default_storage_block_document"
@@ -1225,7 +1210,7 @@ class OrionClient:
             else:
                 raise
 
-    async def clear_default_storage_block(self):
+    async def clear_default_storage_block_document(self):
         await self._client.post(
             f"/block_documents/clear_default_storage_block_document"
         )
@@ -1242,7 +1227,7 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-        block = block or await self.get_default_storage_block()
+        block = block or await self.get_default_storage_block_document()
         if not block:
             raise ValueError(
                 "No storage block was provided and no default storage block is set "
@@ -1273,7 +1258,9 @@ class OrionClient:
         embedded_datadoc = block_document["data"]
         block_document_id = block_document["block_document_id"]
         if block_document_id is not None:
-            storage_block = await self.read_block(block_document_id)
+            storage_block = Block.from_block_document(
+                await self.read_block_document(block_document_id)
+            )
         else:
             storage_block = TempStorageBlock()
         return await storage_block.read(embedded_datadoc)

@@ -14,6 +14,7 @@ from . import (
     concurrency_limits,
     work_queues,
     block_schemas,
+    block_types,
     ui,
     root,
     # Server relies on all of the above routes
