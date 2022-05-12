@@ -4,20 +4,9 @@ Routes for interacting with block schema objects.
 from typing import List
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
-from fastapi import (
-    Body,
-    Depends,
-    HTTPException,
-    Path,
-    Query,
-    Response,
-    responses,
-    status,
-)
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
-from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
@@ -42,7 +31,7 @@ async def create_block_schema(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            detail=f'Block schema "{block_schema.name}/{block_schema.version}" already exists.',
+            detail="Identical block schema already exists.",
         )
 
     return model
@@ -86,87 +75,32 @@ async def read_block_schemas(
     return result
 
 
-@router.get("/{name}/versions")
-async def read_block_schemas_by_name(
-    name: str = Path(..., description="The block schema name"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.core.BlockSchema]:
-    """
-    Read all block schema versions by name
-    """
-    result = await models.block_schemas.read_block_schemas(session=session, name=name)
-    return result
-
-
-@router.get("/{name}/versions/{version}")
-async def read_block_schema_by_name_and_version(
-    name: str = Path(..., description="The block schema name"),
-    version: str = Path(..., description="The block schema version"),
+@router.get("/{id}")
+async def read_block_schema_by_id(
+    block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.BlockSchema:
     """
-    Read a block schema by name and version
+    Get a block schema by id.
     """
-    result = await models.block_schemas.read_block_schema_by_name_and_version(
-        session=session, name=name, version=version
+    block_schema = await models.block_schemas.read_block_schema(
+        session=session, block_schema_id=block_schema_id
     )
-
-    if not result:
+    if not block_schema:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block schema not found")
+    return block_schema
 
-    return result
 
-
-@router.get("/{name}/block/{block_document_name}")
-async def read_latest_block_document_by_name(
-    block_schema_name: str = Path(
-        ..., description="The block schema name", alias="name"
+@router.get("/checksum/{checksum}")
+async def read_block_schema_by_checksum(
+    block_schema_checksum: str = Path(
+        ..., description="The block schema checksum", alias="checksum"
     ),
-    block_document_name: str = Path(..., description="The block document name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.BlockDocument:
-    """
-    Read the latest block document version that matches the provided block document name and name
-    """
-    model = await models.block_documents.read_block_document_by_name(
-        session=session,
-        name=block_document_name,
-        block_schema_name=block_schema_name,
-        version=None,
+):
+    block_schema = await models.block_schemas.read_block_schema_by_checksum(
+        session=session, checksum=block_schema_checksum
     )
-
-    if not model:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="Block document not found"
-        )
-
-    return await schemas.core.BlockDocument.from_orm_model(model)
-
-
-@router.get("/{name}/versions/{version}/block/{block_document_name}")
-async def read_block_by_name(
-    block_schema_name: str = Path(
-        ..., description="The block schema name", alias="name"
-    ),
-    block_schema_version: str = Path(
-        ..., description="The block schema version", alias="version"
-    ),
-    block_document_name: str = Path(..., description="The block document name"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.BlockDocument:
-    """
-    Reads a block document corresponding to a specific block schema and version
-    """
-    model = await models.block_documents.read_block_document_by_name(
-        session=session,
-        name=block_document_name,
-        block_schema_name=block_schema_name,
-        version=block_schema_version,
-    )
-
-    if not model:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail="Block document not found"
-        )
-
-    return await schemas.core.BlockDocument.from_orm_model(model)
+    if not block_schema:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block schema not found")
+    return block_schema

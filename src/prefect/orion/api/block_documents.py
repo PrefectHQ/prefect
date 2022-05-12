@@ -4,11 +4,9 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
-import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, responses, status
 
-from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface

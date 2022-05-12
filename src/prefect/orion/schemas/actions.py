@@ -151,10 +151,25 @@ class ConcurrencyLimitCreate(
     """Data used by the Orion API to create a concurrency limit."""
 
 
+class BlockTypeCreate(
+    schemas.core.BlockType.subclass(
+        name="BlockTypeCreate", include_fields=["name", "logo_url", "documentation_url"]
+    )
+):
+    """Data used by the Orion API to create a block type."""
+
+
+class BlockTypeUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a block type."""
+
+    logo_url: Optional[str]
+    documentation_url: Optional[str]
+
+
 class BlockSchemaCreate(
     schemas.core.BlockSchema.subclass(
         name="BlockSchemaCreate",
-        include_fields=["name", "version", "type", "fields"],
+        include_fields=["type", "fields", "block_type_id"],
     )
 ):
     """Data used by the Orion API to create a block schema."""
@@ -163,7 +178,7 @@ class BlockSchemaCreate(
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
-        include_fields=["name", "data", "block_schema_id"],
+        include_fields=["name", "data", "block_schema_id", "block_type_id"],
     )
 ):
     """Data used by the Orion API to create a block document."""
