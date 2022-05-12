@@ -53,7 +53,10 @@ async def create():
     app.console.print("Found the following storage types:")
     for i, spec in enumerate(specs):
         app.console.print(f"{i}) {spec.name}")
-        short_description = spec.fields["description"].strip().splitlines()[0]
+        if spec.fields.get("description") is not None:
+            short_description = spec.fields["description"].strip().splitlines()[0]
+        else:
+            short_description = "<no description>"
         if short_description:
             app.console.print(textwrap.indent(short_description, prefix="    "))
 
