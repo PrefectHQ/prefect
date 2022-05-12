@@ -31,6 +31,7 @@ The following collections have also been recently released:
 
 - [`prefect-great-expectations`](https://github.com/PrefectHQ/prefect-great-expectations)
 - [`prefect-twitter`](https://github.com/PrefectHQ/prefect-twitter)
+- [`prefect-github`](https://github.com/PrefectHQ/prefect-github)
 
 You can see a list of all available collection in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
 
