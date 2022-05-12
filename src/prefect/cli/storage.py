@@ -2,6 +2,7 @@
 Command line interface for managing storage settings
 """
 import textwrap
+from itertools import filterfalse
 from typing import List
 from uuid import UUID
 
@@ -33,8 +34,11 @@ async def create():
     """Create a new storage configuration."""
     async with get_client() as client:
         specs = await client.read_block_specs("STORAGE")
-
     unconfigurable = set()
+
+    # KV Server Storage is for internal use only and should not be exposed to users
+    specs = list(filterfalse(lambda s: s.name == "KV Server Storage", specs))
+
     for spec in specs:
         for property, property_spec in spec.fields["properties"].items():
             if (
@@ -47,14 +51,16 @@ async def create():
         specs.remove(spec)
 
     app.console.print("Found the following storage types:")
+
     for i, spec in enumerate(specs):
         app.console.print(f"{i}) {spec.name}")
-        description = spec.fields["description"]
-        if description:
-            app.console.print(textwrap.indent(description, prefix="    "))
+        if spec.fields.get("description") and not spec.fields["description"].isspace():
+            short_description = spec.fields["description"].strip().splitlines()[0]
+        else:
+            short_description = "<no description>"
+        app.console.print(textwrap.indent(short_description, prefix="    "))
 
     selection = typer.prompt("Select a storage type to create", type=int)
-
     try:
         spec = specs[selection]
     except:
@@ -64,7 +70,6 @@ async def create():
     app.console.print(
         f"You've selected {spec.name}. It has {len(property_specs)} option(s). "
     )
-
     properties = {}
     required_properties = spec.fields.get("required", property_specs.keys())
     for property, property_spec in property_specs.items():
