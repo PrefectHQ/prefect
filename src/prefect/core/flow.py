@@ -1183,7 +1183,7 @@ class Flow:
         self,
         parameters: Dict[str, Any] = None,
         run_on_schedule: bool = None,
-        runner_cls: type = None,
+        runner_cls: type = prefect.engine.flow_runner.FlowRunner,
         **kwargs: Any,
     ) -> Union["prefect.engine.state.State", None]:
         """
@@ -1199,7 +1199,9 @@ class Flow:
             - run_on_schedule (bool, optional): whether to run this flow on its schedule, or
                 run a single execution; if not provided, will default to the value set in your
                 user config
-            - runner_cls (type): an optional FlowRunner class (will use the default if not provided)
+            - runner_cls (type): an optional FlowRunner class. If `None` the default will
+                be loaded from the config. Otherwise, this uses the default local flow
+                runner implementation.
             - **kwargs: additional keyword arguments; if any provided keywords match known
                 parameter names, they will be used as such. Otherwise they will be passed to
                 the `FlowRunner.run()` method
