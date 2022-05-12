@@ -89,12 +89,7 @@ You might not see these fixes in your day-to-day, but we're dedicated to improvi
 
 ## 2.0b3
 
-New features:
-
-- Adds Twitter Collection.
-- Adds Great Expectations Collection.
-
-Includes some minor improvements:
+### Improvements
 
 - Improved filter expression display and syntax in the UI.
 - Flow runs can be queried more flexibly and performantly.
@@ -103,7 +98,7 @@ Includes some minor improvements:
 - Added a unit testing utility, `prefect_test_harness`.
 - Various documentation updates.
 
-Fixes some bugs:
+### Bug fixes
 
 - The Scheduler no longer crashes on misconfigured schedules.
 - The MarkLateRuns service no longer marks runs as `Late` several seconds too early.
@@ -116,12 +111,13 @@ Fixes some bugs:
 
 ## 2.0b2
 
-Includes some minor improvements:
+
+### Improvements
 
 - Docker flow runners can connect to local API applications on Linux without binding to `0.0.0.0`.
 - Adds `with_options` method to flows allowing override of settings e.g. the task runner.
 
-Fixes some bugs:
+### Bug fixes
 
 - The CLI no longer displays tracebacks on sucessful exit.
 - Returning pandas objects from tasks does not error.
