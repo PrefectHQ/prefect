@@ -25,7 +25,7 @@ Note that the Dask and Ray task runners will be moving out of the core Prefect l
 
 ### Collections
 
-Speaking of collections, we've received our first user-contributed collection for `cubejs`. Check it out at https://github.com/AlessandroLollo/prefect-cubejs.
+Speaking of collections, we've received our first [user-contributed collection](https://github.com/AlessandroLollo/prefect-cubejs) for [Cube.js](https://cube.dev/). Check it out.
 
 The following collections have also been recently released:
 
