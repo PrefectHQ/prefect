@@ -32,7 +32,7 @@ async def many_flow_run_states(flow, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=pendulum.now("UTC"),
+                    timestamp=pendulum.now("UTC").add(minutes=i),
                 ).dict(),
             )
             for i in range(3)
@@ -71,7 +71,7 @@ async def many_task_run_states(flow_run, session, db):
                         1: schemas.states.StateType.RUNNING,
                         2: schemas.states.StateType.COMPLETED,
                     }[i],
-                    timestamp=pendulum.now("UTC"),
+                    timestamp=pendulum.now("UTC").add(minutes=i),
                 ).dict(),
             )
             for i in range(3)
@@ -209,9 +209,20 @@ class TestFlowRun:
         # delete all states
         await session.execute(sa.delete(db.FlowRunState))
 
-        flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
-        flow_run.set_state(db.FlowRunState(**schemas.states.Running().dict()))
-        flow_run.set_state(db.FlowRunState(**schemas.states.Completed().dict()))
+        now = pendulum.now("UTC")
+        flow_run.set_state(
+            db.FlowRunState(**schemas.states.Pending(timestamp=now).dict())
+        )
+        flow_run.set_state(
+            db.FlowRunState(
+                **schemas.states.Running(timestamp=now.add(minutes=1)).dict()
+            )
+        )
+        flow_run.set_state(
+            db.FlowRunState(
+                **schemas.states.Completed(timestamp=now.add(minutes=2)).dict()
+            )
+        )
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.FlowRun, flow_run_id)
@@ -344,9 +355,20 @@ class TestTaskRun:
         # delete all states
         await session.execute(sa.delete(db.TaskRunState))
 
-        task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
-        task_run.set_state(db.TaskRunState(**schemas.states.Running().dict()))
-        task_run.set_state(db.TaskRunState(**schemas.states.Completed().dict()))
+        now = pendulum.now("UTC")
+        task_run.set_state(
+            db.TaskRunState(**schemas.states.Pending(timestamp=now).dict())
+        )
+        task_run.set_state(
+            db.TaskRunState(
+                **schemas.states.Running(timestamp=now.add(minutes=1)).dict()
+            )
+        )
+        task_run.set_state(
+            db.TaskRunState(
+                **schemas.states.Completed(timestamp=now.add(minutes=2)).dict()
+            )
+        )
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.TaskRun, task_run_id)

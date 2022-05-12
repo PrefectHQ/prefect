@@ -1,4 +1,5 @@
 import random
+import sys
 import threading
 from dataclasses import dataclass
 from datetime import timedelta
@@ -198,7 +199,7 @@ class TestClientContextManager:
             async with OrionClient(app):
                 await anyio.sleep(random.random())
 
-        with anyio.fail_after(5):
+        with anyio.fail_after(15):
             async with anyio.create_task_group() as tg:
                 for _ in range(1000):
                     tg.start_soon(enter_client)
