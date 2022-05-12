@@ -158,7 +158,7 @@ def event_loop(request):
     """
     policy = asyncio.get_event_loop_policy()
 
-    if sys.version_info < (3, 8):
+    if sys.version_info < (3, 8) and sys.platform != "win32":
         from prefect.utilities.compat import ThreadedChildWatcher
 
         # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
