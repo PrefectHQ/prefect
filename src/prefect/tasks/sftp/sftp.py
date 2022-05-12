@@ -62,6 +62,7 @@ class SftpDownload(Task):
 
         Args:
             - remote_path (str): Remote file path to check if file exists.
+            - conn (SFTPClient): The connection object for the SFTP server.
 
         """
         try:
