@@ -27,6 +27,13 @@ Note that the Dask and Ray task runners will be moving out of the core Prefect l
 
 Speaking of collections, we've received our first user-contributed collection for `cubejs`. Check it out at https://github.com/AlessandroLollo/prefect-cubejs.
 
+The following collections have also been recently released:
+
+- [`prefect-great-expectations`](https://github.com/PrefectHQ/prefect-great-expectations)
+- [`prefect-twitter`](https://github.com/PrefectHQ/prefect-twitter)
+
+You can see a list of all available collection in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
+
 ### Windows compatibility
 
 We've excited to announce that we've begun work on Windows compatibility. Our full test suite isn't passing yet, but we've got basic functionality working on Windows. We expect the majority of the edge cases to be addresed by the next release.
