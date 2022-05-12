@@ -47,6 +47,7 @@ We've added some new documentation and made lots of improvements to existing doc
 - `prefect config set` allows setting values that contain equal signs
 - `prefect config set` validates setting types before saving them
 - `prefect profile inpect` displays settings in a profile instead of duplicating prefect config view behavior
+- Improved output of `prefect storage create`
 
 ### Bug squashing
 
