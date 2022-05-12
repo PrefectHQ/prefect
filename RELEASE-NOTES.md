@@ -13,6 +13,7 @@ While most of the development of Prefect v2 is still happening internally, we're
 
 ### Flow and task runners
 
+- Flow runners now pass all altered settings to their child jobs instead of just the API key and URL
 - The Kubernetes flow runner supports configuration of a service account name
 - The Subprocess flow runner streams output by default, matching the other flow runners
 - The Dask task runner has improved display of task keys in the Dask dashboard
@@ -38,6 +39,9 @@ We've added some new documentation and made lots of improvements to existing doc
 - `prefect version` is robust to server connection errors
 - `prefect config view` shows sources by default
 - `prefect deployment create` exits with a non-zero exit code if one of the deployments fails to be created
+- `prefect config set` allows setting values that contain equal signs
+- `prefect config set` validates setting types before saving them
+- `prefect profile inpect` displays settings in a profile instead of duplicating prefect config view behavior
 
 ### Bug squashing
 
@@ -60,6 +64,9 @@ You might not see these fixes in your day-to-day, but we're dedicated to improvi
 - Profile management was rewritten, improving readability and performance
 - Lower-bounds dependency parsing has been improved
 - Tests are better isolated and will not run against a remote API
+- Improved representation of Prefect `Setting` objects
+- Added extensive tests for `prefect config` and `prefect profile` commands
+- Moved testing utilities and fixtures to the core library for consumption by collections
 
 ## 2.0b3
 
