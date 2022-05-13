@@ -288,7 +288,7 @@ class DeploymentSpec(PrefectBaseModel):
 
             block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
             i = 0
-            while not self.flow_storage._block_id:
+            while not self.flow_storage._block_document_id:
                 try:
                     block_document = await client.create_block_document(
                         block_document=self.flow_storage.to_block_document(
