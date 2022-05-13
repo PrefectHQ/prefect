@@ -296,6 +296,7 @@ class TestOrionHandler:
         # instances may be using it
         mock_log_worker().stop.assert_not_called()
 
+    @pytest.mark.flaky
     async def test_logs_can_still_be_sent_after_close(
         self, logger, handler, flow_run, orion_client
     ):
