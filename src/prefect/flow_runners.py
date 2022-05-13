@@ -21,6 +21,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     List,
     Optional,
@@ -798,6 +799,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     image_pull_policy: KubernetesImagePullPolicy = None
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
     stream_output: bool = True
+    extra_container_config: Optional[Dict[str, Any]] = None
+    extra_pod_config: Optional[Dict[str, Any]] = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -1009,6 +1012,15 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             job_settings["spec"]["template"]["spec"]["containers"][0][
                 "imagePullPolicy"
             ] = self.image_pull_policy.value
+
+        extra_container_config = self.extra_container_config or {}
+        extra_pod_config = self.extra_pod_config or {}
+
+        for key, value in extra_container_config.items():
+            job_settings["spec"]["template"]["spec"]["containers"][0][key] = value
+
+        for key, value in extra_pod_config.items():
+            job_settings["spec"]["template"]["spec"][key] = value
 
         self.logger.info(
             f"Flow run {flow_run.name!r} has job settings = {job_settings}"
