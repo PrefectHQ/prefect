@@ -66,7 +66,7 @@ async def create():
         else:
             short_description = "<no description>"
         app.console.print(textwrap.indent(short_description, prefix="    "))
-        
+
     selection = typer.prompt("Select a storage type to create", type=int)
     try:
         schema = schemas[selection]
