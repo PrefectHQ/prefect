@@ -1,4 +1,5 @@
 flake8
+flaky
 ipython
 jinja2
 mkdocs
