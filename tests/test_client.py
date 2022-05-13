@@ -1,20 +1,24 @@
-import uuid
+import random
+import sys
+import threading
 from dataclasses import dataclass
 from datetime import timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from uuid import UUID
 
 import anyio
 import httpx
 import pendulum
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
+from httpx import AsyncClient, HTTPStatusError, Request, Response
 from pydantic import BaseModel
 
+import prefect.context
 import prefect.exceptions
 from prefect import flow
-from prefect.client import OrionClient, get_client
+from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -22,8 +26,163 @@ from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.settings import (
+    PREFECT_API_KEY,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_ORION_DATABASE_MIGRATE_ON_START,
+    temporary_settings,
+)
 from prefect.tasks import task
-from prefect.utilities.testing import AsyncMock, exceptions_equal, temporary_settings
+from prefect.testing.utilities import AsyncMock, exceptions_equal
+
+
+class TestPrefectHttpxClient:
+    async def test_prefect_httpx_client_retries_429s(self, monkeypatch):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "0"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            success_response,
+        ]
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 4
+
+    async def test_prefect_httpx_client_retries_429s_up_to_five_times(
+        self, monkeypatch
+    ):
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "0"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        # Return more than 6 retry responses
+        base_client_send.side_effect = [retry_response] * 7
+
+        with pytest.raises(HTTPStatusError, match="429"):
+            await client.post(
+                url="fake.url/fake/route",
+                data={"evenmorefake": "data"},
+            )
+
+        # 5 retries + 1 first attempt
+        assert base_client_send.call_count == 6
+
+    async def test_prefect_httpx_client_respects_retry_header(self, monkeypatch):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "5"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            retry_response,
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_awaited_once_with(5)
+
+    async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
+        self, monkeypatch
+    ):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_has_awaits([call(2), call(4), call(8)])
+
+    async def test_prefect_httpx_client_respects_retry_header_per_response(
+        self, monkeypatch
+    ):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+
+        def make_retry_response(retry_after):
+            return Response(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                headers={"Retry-After": str(retry_after)},
+                request=Request("a test request", "fake.url/fake/route"),
+            )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            make_retry_response(5),
+            make_retry_response(0),
+            make_retry_response(10),
+            make_retry_response(2.0),
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 
 
 class TestGetClient:
@@ -35,7 +194,7 @@ class TestGetClient:
 
     def test_get_client_cache_uses_profile_settings(self):
         client = get_client()
-        with temporary_settings(PREFECT_LOGGING_LEVEL="FOO"):
+        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "FOO"}):
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
@@ -106,7 +265,7 @@ class TestClientContextManager:
         assert startup.call_count == 2
         assert shutdown.call_count == 2
 
-    async def test_client_context_lifespan_is_robust_to_concurrent_usage(self):
+    async def test_client_context_lifespan_is_robust_to_async_concurrency(self):
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
@@ -152,6 +311,144 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(context):
+            # We must re-enter the profile context in the new thread
+            with context:
+                # Use random sleeps to interleave clients
+                await anyio.sleep(random.random())
+                async with OrionClient(app):
+                    await anyio.sleep(random.random())
+
+        threads = [
+            threading.Thread(
+                target=anyio.run,
+                args=(enter_client, prefect.context.SettingsContext.get().copy()),
+            )
+            for _ in range(100)
+        ]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(3)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client():
+            # Use random sleeps to interleave clients
+            await anyio.sleep(random.random())
+            async with OrionClient(app):
+                await anyio.sleep(random.random())
+
+        with anyio.fail_after(15):
+            async with anyio.create_task_group() as tg:
+                for _ in range(1000):
+                    tg.start_soon(enter_client)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client():
+            # Use random sleeps to interleave clients
+            await anyio.sleep(random.random())
+            async with OrionClient(app):
+                await anyio.sleep(random.random())
+
+        async def enter_client_many_times(context):
+            # We must re-enter the profile context in the new thread
+            with context:
+                async with anyio.create_task_group() as tg:
+                    for _ in range(100):
+                        tg.start_soon(enter_client)
+
+        threads = [
+            threading.Thread(
+                target=anyio.run,
+                args=(
+                    enter_client_many_times,
+                    prefect.context.SettingsContext.get().copy(),
+                ),
+            )
+            for _ in range(100)
+        ]
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(3)
+
+        assert startup.call_count == shutdown.call_count
+        assert startup.call_count > 0
+
+    async def test_client_context_lifespan_is_robust_to_dependency_deadlocks(self):
+        """
+        If you have two concurrrent contexts which are used as follows:
+
+        --> Context A is entered (manages a new lifespan)
+        -----> Context B is entered (uses the lifespan from A)
+        -----> Context A exits
+        -----> Context B exits
+
+        We must ensure that the lifespan shutdown hooks are not called on exit of A and
+        wait for all clients to be done consuming them (e.g. after B exits). We must
+        also ensure that we do not deadlock by having dependent waits during this
+        interleaved case.
+        """
+        startup = MagicMock(side_effect=lambda: print("Startup called!"))
+        shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
+
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        one_started = anyio.Event()
+        one_exited = anyio.Event()
+        two_started = anyio.Event()
+
+        async def one():
+            async with OrionClient(app):
+                print("Started one")
+                one_started.set()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Waiting for two to start...")
+                await two_started.wait()
+                # Exit after two has started
+                print("Exiting one...")
+            one_exited.set()
+
+        async def two():
+            await one_started.wait()
+            # Enter after one has started but before one has exited
+            async with OrionClient(app):
+                print("Started two")
+                two_started.set()
+                # Wait for one to exit, this creates an interleaved dependency
+                await one_exited.wait()
+                startup.assert_called_once()
+                shutdown.assert_not_called()
+                print("Exiting two...")
+
+        # Run concurrently
+        with anyio.fail_after(5):  # Kill if a deadlock occurs
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(one)
+                tg.start_soon(two)
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
@@ -165,6 +462,41 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        async def enter_client(task_status):
+            async with OrionClient(app):
+                task_status.started()
+                await anyio.sleep_forever()
+
+        async with anyio.create_task_group() as tg:
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+            await tg.start(enter_client)
+
+            tg.cancel_scope.cancel()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
+    async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
+        startup, shutdown = MagicMock(), MagicMock()
+        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+
+        with pytest.raises(ValueError):
+            async with OrionClient(app):
+                try:
+                    async with OrionClient(app):
+                        raise ValueError()
+                finally:
+                    # Shutdown not called yet, will be handled by the outermost ctx
+                    shutdown.assert_not_called()
+
+        startup.assert_called_once()
+        shutdown.assert_called_once()
+
     async def test_with_without_async_raises_helpful_error(self):
         with pytest.raises(RuntimeError, match="must be entered with an async context"):
             with OrionClient("http://foo.test"):
@@ -173,7 +505,7 @@ class TestClientContextManager:
 
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
-    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=enabled):
+    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: enabled}):
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
@@ -190,7 +522,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
 async def test_client_does_not_run_migrations_for_hosted_app(
     hosted_orion_api, monkeypatch
 ):
-    with temporary_settings(PREFECT_ORION_DATABASE_MIGRATE_ON_START=True):
+    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.orion.database.interface.OrionDBInterface.create_db", mock
@@ -692,14 +1024,14 @@ class TestClientAPIVersionRequests:
     async def test_default_requests_succeeds(self):
         async with get_client() as client:
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_no_api_version_header_succeeds(self):
         async with get_client() as client:
             # remove default header X-PREFECT-API-VERSION
             client._client.headers = {}
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_major_version(
         self, app, major_version, minor_version, patch_version
@@ -707,13 +1039,17 @@ class TestClientAPIVersionRequests:
         # higher client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client major version fails
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
     async def test_minor_version(
@@ -722,13 +1058,17 @@ class TestClientAPIVersionRequests:
         # higher client minor version fails
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
     async def test_patch_version(
@@ -737,20 +1077,24 @@ class TestClientAPIVersionRequests:
         # higher client patch version fails
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400"):
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ):
                 await client.hello()
 
         # lower client minor version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         async with OrionClient(app, api_version=api_version) as client:
             res = await client.hello()
-            assert res.status_code == 200
+            assert res.status_code == status.HTTP_200_OK
 
     async def test_invalid_header(self, app):
         # Invalid header is rejected
         api_version = "not a real version header"
         async with OrionClient(app, api_version=api_version) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="400") as e:
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
+            ) as e:
                 await client.hello()
             assert (
                 "Invalid X-PREFECT-API-VERSION header format."
@@ -776,16 +1120,18 @@ class TestClientAPIKey:
         api_key = "validAPIkey"
         async with OrionClient(test_app, api_key=api_key) as client:
             res = await client._client.get("/check_for_auth_header")
-        assert res.status_code == 200
+        assert res.status_code == status.HTTP_200_OK
         assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
         async with OrionClient(test_app) as client:
-            with pytest.raises(httpx.HTTPStatusError, match="403") as e:
+            with pytest.raises(
+                httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
+            ) as e:
                 await client._client.get("/check_for_auth_header")
 
     async def test_get_client_includes_api_key_from_context(self):
-        with temporary_settings(PREFECT_API_KEY="test"):
+        with temporary_settings(updates={PREFECT_API_KEY: "test"}):
             client = get_client()
 
         assert client._client.headers["Authorization"] == "Bearer test"
@@ -794,7 +1140,7 @@ class TestClientAPIKey:
 class TestClientWorkQueues:
     @pytest.fixture
     async def deployment(self, orion_client):
-        foo = flow(lambda: None)
+        foo = flow(lambda: None, name="foo")
         flow_id = await orion_client.create_flow(foo)
         schedule = IntervalSchedule(interval=timedelta(days=1))
         flow_data = DataDocument.encode("cloudpickle", foo)

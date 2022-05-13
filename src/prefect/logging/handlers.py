@@ -30,7 +30,7 @@ class OrionLogWorker:
     Manages the submission of logs to Orion in a background thread.
     """
 
-    def __init__(self, profile_context: prefect.context.ProfileContext) -> None:
+    def __init__(self, profile_context: prefect.context.SettingsContext) -> None:
         self.profile_context = profile_context.copy()
 
         self._queue: queue.Queue[dict] = queue.Queue()
@@ -73,21 +73,33 @@ class OrionLogWorker:
         Runs until the `stop_event` is set.
         """
         # Initialize prefect in this new thread, but do not reconfigure logging
-        with self.profile_context:
-            while not self._stop_event.is_set():
-                # Wait until flush is called or the batch interval is reached
-                self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
-                self._flush_event.clear()
+        try:
+            with self.profile_context:
+                while not self._stop_event.is_set():
+                    # Wait until flush is called or the batch interval is reached
+                    self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
+                    self._flush_event.clear()
 
-                anyio.run(self.send_logs)
+                    anyio.run(self.send_logs)
 
-                # Notify watchers that logs were sent
-                self._send_logs_finished_event.set()
-                self._send_logs_finished_event.clear()
+                    # Notify watchers that logs were sent
+                    self._send_logs_finished_event.set()
+                    self._send_logs_finished_event.clear()
 
-            # After the stop event, we are exiting...
-            # Try to send any remaining logs
-            anyio.run(self.send_logs, True)
+                # After the stop event, we are exiting...
+                # Try to send any remaining logs
+                anyio.run(self.send_logs, True)
+
+        except Exception:
+            if logging.raiseExceptions and sys.stderr:
+                sys.stderr.write("--- Orion logging error ---\n")
+                sys.stderr.write("The log worker encountered a fatal error.\n")
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.write(self.worker_info())
+
+        finally:
+            # Set the finished event so anyone waiting on worker completion does not
+            # continue to block if an exception is encountered
             self._send_logs_finished_event.set()
 
     async def send_logs(self, exiting: bool = False) -> None:
@@ -128,7 +140,9 @@ class OrionLogWorker:
             if not self._pending_logs:
                 continue
 
-            async with get_client() as client:
+            client = get_client()
+            client.manage_lifespan = False
+            async with client:
                 try:
                     await client.create_logs(self._pending_logs)
                     self._pending_logs = []
@@ -223,9 +237,9 @@ class OrionHandler(logging.Handler):
     the background.
     """
 
-    workers: Dict[prefect.context.ProfileContext, OrionLogWorker] = {}
+    workers: Dict[prefect.context.SettingsContext, OrionLogWorker] = {}
 
-    def get_worker(self, context: prefect.context.ProfileContext) -> OrionLogWorker:
+    def get_worker(self, context: prefect.context.SettingsContext) -> OrionLogWorker:
         if context not in self.workers:
             worker = self.workers[context] = OrionLogWorker(context)
             worker.start()
@@ -247,7 +261,7 @@ class OrionHandler(logging.Handler):
         Send a log to the `OrionLogWorker`
         """
         try:
-            profile = prefect.context.get_profile_context()
+            profile = prefect.context.get_settings_context()
 
             if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle

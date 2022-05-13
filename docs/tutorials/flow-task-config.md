@@ -89,11 +89,11 @@ def validation_flow(x: int, y: str):
 
 Let's now run this flow, but provide values that don't perfectly conform to the type hints provided:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> validation_flow(x="42", y=100)
-Received a &#60;class 'int'&#62; with value 42
-Received a &#60;class 'str'&#62; with value 100
+Received a <class 'int'> with value 42
+Received a <class 'str'> with value 100
 ```
 </div>
 
@@ -115,10 +115,10 @@ def model_validator(model: Model):
     printer(model)
 ```
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> model_validator({"a": 42, "b": 0, "c": 55})
-Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
+Received a <class '__main__.Model'> with value a=42 b=0.0 c='55'
 ```
 </div>
 
@@ -184,8 +184,8 @@ def test_retries():
 
 If you run `test_retries()`, the `failure()` task always raises an error, but will run a total of three times.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = test_retries()
 13:48:40.570 | Beginning flow run 'red-orca' for flow 'test-retries'...
 13:48:40.570 | Starting task runner `SequentialTaskRunner`...
@@ -249,14 +249,14 @@ Run the flow a few times in a row passing the same name (in this case we used "M
 
 But if you change the argument passed to the task (here we used "Trillian" instead of "Marvin"), the task runs again, as demonstrated by printing the message "Saying hello Trillian".
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> hello_flow("Marvin")
 11:52:09.553 | INFO    | prefect.engine - Created flow run 'attentive-turaco' for flow 'hello-flow'
 11:52:09.553 | INFO    | Flow run 'attentive-turaco' - Using task runner 'ConcurrentTaskRunner'
 11:52:09.761 | INFO    | Flow run 'attentive-turaco' - Created task run 'hello_task-e97fb216-0' for task 'hello_task'
 
-<span style="font-weight: bold;">Saying hello Marvin</span>
+Saying hello Marvin
 
 11:52:10.798 | INFO    | Task run 'hello_task-e97fb216-0' - Finished in state Completed(None)
 11:52:12.004 | INFO    | Flow run 'attentive-turaco' - Finished in state Completed('All states completed.')
@@ -275,7 +275,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Cached(messag
 11:53:06.637 | INFO    | Flow run 'imposing-stork' - Using task runner 'ConcurrentTaskRunner'
 11:53:06.846 | INFO    | Flow run 'imposing-stork' - Created task run 'hello_task-e97fb216-3' for task 'hello_task'
 
-<span style="font-weight: bold;">Saying hello Trillian</span>
+Saying hello Trillian
 
 11:53:07.787 | INFO    | Task run 'hello_task-e97fb216-3' - Finished in state Completed(None)
 11:53:09.027 | INFO    | Flow run 'imposing-stork' - Finished in state Completed('All states completed.')
@@ -321,15 +321,15 @@ Notice that if we call `test_caching()` with the value `[2,2]`, the long running
 
 But if you then call `test_caching([2,3])`, which results in the cache key string "5", `cached_task()` runs.
 
-<div class='termy'>
-```
+<div class='terminal'>
+```bash
 >>> test_caching([2,2])
 13:52:52.072 | INFO    | prefect.engine - Created flow run 'saffron-lemur' for flow 'test-caching'
 13:52:52.072 | INFO    | Flow run 'saffron-lemur' - Using task runner 'ConcurrentTaskRunner'
 13:52:52.293 | INFO    | Flow run 'saffron-lemur' - Created task run 'cached_task-64beb460-0' for task 'cached_task'
 {'nums': [2, 2]}
 
-<span style="font-weight: bold;">running an expensive operation</span>
+running an expensive operation
 
 13:52:55.724 | INFO    | Task run 'cached_task-64beb460-0' - Finished in state Completed(None)
 13:52:56.135 | INFO    | Flow run 'saffron-lemur' - Finished in state Completed('All states completed.')
@@ -359,7 +359,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Cached(messag
 13:53:26.343 | INFO    | Flow run 'chestnut-jackal' - Created task run 'cached_task-64beb460-3' for task 'cached_task'
 {'nums': [2, 3]}
 
-<span style="font-weight: bold;">running an expensive operation</span>
+running an expensive operation
 
 13:53:29.715 | INFO    | Task run 'cached_task-64beb460-3' - Finished in state Completed(None)
 13:53:30.070 | INFO    | Flow run 'chestnut-jackal' - Finished in state Completed('All states completed.')

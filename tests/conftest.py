@@ -1,22 +1,36 @@
 import asyncio
 import logging
 import pathlib
+import tempfile
 import warnings
 from typing import Set
 
 import pytest
 
-# Initialize logging
 import prefect
+import prefect.settings
+from prefect.logging.configuration import setup_logging
+from prefect.settings import (
+    PREFECT_HOME,
+    PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_ORION_ANALYTICS_ENABLED,
+    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
+    PREFECT_PROFILES_PATH,
+)
+
+# isort: off
+# Import fixtures
+
+from prefect.testing.fixtures import *
+from prefect.testing.cli import *
 
 from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.database import *
 from .fixtures.logging import *
 from .fixtures.storage import *
-
-profile = prefect.context.get_profile_context()
-profile.initialize()
 
 
 def pytest_addoption(parser):
@@ -144,7 +158,7 @@ def event_loop(request):
     """
     policy = asyncio.get_event_loop_policy()
 
-    if sys.version_info < (3, 8):
+    if sys.version_info < (3, 8) and sys.platform != "win32":
         from prefect.utilities.compat import ThreadedChildWatcher
 
         # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
@@ -171,6 +185,49 @@ def event_loop(request):
     policy.set_event_loop(loop)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
+
+
+@pytest.fixture(scope="session", autouse=True)
+def testing_session_settings():
+    """
+    Creates a fixture for the scope of the test session that modifies setting defaults.
+
+    This ensures that tests are isolated from existing settings, databases, etc.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        profile = prefect.settings.Profile(
+            name="test-session",
+            settings={
+                # Set PREFECT_HOME to a temporary directory to avoid clobbering
+                # environments and settings
+                PREFECT_HOME: tmpdir,
+                PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+                # Enable debug logging
+                PREFECT_LOGGING_LEVEL: "DEBUG",
+                # Disable shipping logs to the API;
+                # can be enabled by the `enable_orion_handler` mark
+                PREFECT_LOGGING_ORION_ENABLED: False,
+                # Disable services for test runs
+                PREFECT_ORION_ANALYTICS_ENABLED: False,
+                PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
+                PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
+            },
+            source=__file__,
+        )
+
+        with prefect.context.use_profile(
+            profile,
+            override_environment_variables=True,
+            include_current_context=False,
+        ) as ctx:
+
+            assert (
+                PREFECT_API_URL.value() is None
+            ), "Tests cannot be run connected to an external API."
+
+            setup_logging()
+
+            yield ctx

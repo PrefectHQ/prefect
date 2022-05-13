@@ -1,12 +1,65 @@
 """
 Prefect settings management.
+
+Each setting is defined as a `Setting` type. The name of each setting is stylized in all
+caps, matching the environment variable that can be used to change the setting.
+
+All settings defined in this file are used to generate a dynamic Pydantic settings class
+called `Settings`. When insantiated, this class will load settings from environment
+variables and pull default values from the setting definitions.
+
+The current instance of `Settings` being used by the application is stored in a
+`SettingsContext` model which allows each instance of the `Settings` class to be
+accessed in an async-safe manner.
+
+Aside from environment variables, we allow settings to be changed during the runtime of
+the process using profiles. Profiles contain setting overrides that the user may
+persist without setting environment variables. Profiles are also used internally for
+managing settings during task run execution where differing settings may be used
+concurrently in the same process and during testing where we need to override settings
+to ensure their value is respected as intended.
+
+The `SettingsContext` is set when the `prefect` module is imported. This context is
+referred to as the "root" settings context for clarity. Generally, this is the only
+settings context that will be used. When this context is entered, we will instantiate
+a `Settings` object, loading settings from environment variables and defaults, then we
+will load the active profile and use it to override settings. See  `enter_root_settings_context`
+for details on determining the active profile.
+
+Another `SettingsContext` may be entered at any time to change the settings being
+used by the code within the context. Generally, users should not use this. Settings
+management should be left to Prefect application internals.
+
+Generally, settings should be accessed with `SETTING_VARIABLE.value()` which will
+pull the current `Settings` instance from the current `SettingsContext` and retrieve
+the value of the relevant setting.
+
+Accessing a setting's value will also call the `Setting.value_callback` which allows
+settings to be dynamically modified on retrieval. This allows us to make settings
+dependent on the value of other settings or perform other dynamic effects.
+
 """
 import os
 import string
+import sys
 import textwrap
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Dict, Generic, List, Optional, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 import toml
@@ -15,6 +68,9 @@ from pydantic import BaseSettings, Field, create_model, root_validator
 from prefect.exceptions import MissingProfileError
 
 T = TypeVar("T")
+
+
+DEFAULT_PROFILES_PATH = Path(__file__).parent.joinpath("profiles.toml")
 
 
 class Setting(Generic[T]):
@@ -61,7 +117,7 @@ class Setting(Generic[T]):
         return settings.value_of(self)
 
     def __repr__(self) -> str:
-        return f"Setting({self.type.__name__}, {self.field!r})"
+        return f"<{self.name}: {self.type.__name__}>"
 
     def __bool__(self) -> bool:
         """
@@ -81,6 +137,10 @@ def get_extra_loggers(_: "Settings", value: str) -> List[str]:
     return [name.strip() for name in value.split(",")] if value else []
 
 
+def expanduser_in_path(_, value: Path) -> Path:
+    return value.expanduser()
+
+
 def debug_mode_log_level(settings, value):
     """
     `value_callback` for `PREFECT_LOGGING_LEVEL` that overrides the log level to DEBUG
@@ -90,6 +150,33 @@ def debug_mode_log_level(settings, value):
         return "DEBUG"
     else:
         return value
+
+
+def only_return_value_in_test_mode(settings, value):
+    """
+    `value_callback` for `PREFECT_TEST_SETTING` that only allows access during test mode
+    """
+    if PREFECT_TEST_MODE.value_from(settings):
+        return value
+    else:
+        return None
+
+
+def default_ui_api_url(settings, value):
+    """
+    `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
+    `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
+    """
+    if value is None:
+        # Set a default value
+        if PREFECT_API_URL.value_from(settings):
+            value = "${PREFECT_API_URL}"
+        else:
+            value = "http://${PREFECT_ORION_API_HOST}:${PREFECT_ORION_API_PORT}/api"
+
+    return template_with_settings(
+        PREFECT_ORION_API_HOST, PREFECT_ORION_API_PORT, PREFECT_API_URL
+    )(settings, value)
 
 
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
@@ -128,9 +215,10 @@ def max_log_size_smaller_than_batch_size(values):
 
 PREFECT_HOME = Setting(
     Path,
-    default=Path("~/.prefect").expanduser(),
+    default=Path("~") / ".prefect",
     description="""Prefect's home directory. Defaults to `~/.prefect`. This
         directory may be created automatically when required.""",
+    value_callback=expanduser_in_path,
 )
 
 PREFECT_DEBUG_MODE = Setting(
@@ -146,6 +234,14 @@ PREFECT_TEST_MODE = Setting(
     default=False,
     description="""If `True`, places the API in test mode. This may modify
         behavior to faciliate testing. Defaults to `False`.""",
+)
+
+PREFECT_TEST_SETTING = Setting(
+    Any,
+    default=None,
+    description="""This variable only exists to faciliate testing of settings.
+    If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.""",
+    value_callback=only_return_value_in_test_mode,
 )
 
 PREFECT_API_URL = Setting(
@@ -174,7 +270,7 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 
 PREFECT_PROFILES_PATH = Setting(
     Path,
-    default=Path("${PREFECT_HOME}/profiles.toml"),
+    default=Path("${PREFECT_HOME}") / "profiles.toml",
     description="""The path to a profiles configuration files.""",
     value_callback=template_with_settings(PREFECT_HOME),
 )
@@ -195,7 +291,7 @@ PREFECT_LOGGING_SERVER_LEVEL = Setting(
 
 PREFECT_LOGGING_SETTINGS_PATH = Setting(
     Path,
-    default=Path("${PREFECT_HOME}/logging.yml"),
+    default=Path("${PREFECT_HOME}") / "logging.yml",
     description=f"""The path to a custom YAML logging configuration file. If
     no file is found, the default `logging.yml` is used. Defaults to a logging.yml in the Prefect home directory.""",
     value_callback=template_with_settings(PREFECT_HOME),
@@ -254,11 +350,12 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
-    default="sqlite+aiosqlite:////${PREFECT_HOME}/orion.db",
+    default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
     description=textwrap.dedent(
-        f"""
+        """
         A database connection URL in a SQLAlchemy-compatible
         format. Orion currently supports SQLite and Postgres. Note that all
         Orion engines must use an async driver - for SQLite, use
@@ -282,13 +379,11 @@ PREFECT_ORION_DATABASE_ECHO = Setting(
     description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
 )
 
-
 PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
     bool,
     default=True,
     description="If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually.",
 )
-
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
@@ -395,6 +490,16 @@ PREFECT_ORION_UI_ENABLED = Setting(
     description="""Whether or not to serve the Orion UI.""",
 )
 
+PREFECT_ORION_UI_API_URL = Setting(
+    str,
+    default=None,
+    description="""The connection url for communication from the UI to the API.
+    Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
+    `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
+    the aforementioned settings may be templated into the given string.""",
+    value_callback=default_ui_api_url,
+)
+
 PREFECT_ORION_ANALYTICS_ENABLED = Setting(
     bool,
     default=True,
@@ -420,9 +525,10 @@ SETTING_VARIABLES = {
 }
 
 # Populate names in settings objects from assignments above
+# Uses `__` to avoid setting these as global variables which can lead to sneaky bugs
 
-for name, setting in SETTING_VARIABLES.items():
-    setting.name = name
+for __name, __setting in SETTING_VARIABLES.items():
+    __setting.name = __name
 
 # Define the pydantic model for loading from the environment / validating settings
 
@@ -488,7 +594,7 @@ class Settings(SettingsFieldsMixin):
     This is not recommended:
     ```python
     from prefect.settings import Settings
-    Settings().PREFECT_PROFILE_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
+    Settings().PREFECT_PROFILES_PATH  # PosixPath('${PREFECT_HOME}/profiles.toml')
     ```
     """
 
@@ -512,6 +618,84 @@ class Settings(SettingsFieldsMixin):
         values = max_log_size_smaller_than_batch_size(values)
         return values
 
+    def copy_with_update(
+        self,
+        updates: Mapping[Setting, Any] = None,
+        set_defaults: Mapping[Setting, Any] = None,
+        restore_defaults: Iterable[Setting] = None,
+    ) -> "Settings":
+        """
+        Create a new `Settings` object with validation.
+
+        Arguments:
+            updates: A mapping of settings to new values. Existing values for the
+                given settings will be overridden.
+            set_defaults: A mapping of settings to new default values. Existing values for
+                the given settings will only be overridden if they were not set.
+            restore_defaults: An iterable of settings to restore to their default values.
+
+        Returns:
+            A new `Settings` object.
+        """
+        updates = updates or {}
+        set_defaults = set_defaults or {}
+        restore_defaults = restore_defaults or set()
+        restore_defaults_names = {setting.name for setting in restore_defaults}
+
+        return self.__class__(
+            **{
+                **{setting.name: value for setting, value in set_defaults.items()},
+                **self.dict(exclude_unset=True, exclude=restore_defaults_names),
+                **{setting.name: value for setting, value in updates.items()},
+            }
+        )
+
+    def to_environment_variables(
+        self, include: Iterable[Setting] = None, exclude_unset: bool = False
+    ) -> Dict[str, str]:
+        """
+        Convert the settings object to environment variables.
+
+        Note that setting values will not be run through their `value_callback` allowing
+        dynamic resolution to occur when loaded from the returned environment.
+
+        Args:
+            include_keys: An iterable of settings to include in the return value.
+                If not set, all settings are used.
+            exclude_unset: Only include settings that have been set (i.e. the value is
+                not from the default). If set, unset keys will be dropped even if they
+                are set in `include_keys`.
+
+        Returns:
+            A dictionary of settings with values cast to strings
+        """
+        include = set(include or SETTING_VARIABLES.values())
+
+        if exclude_unset:
+            set_keys = {
+                # Collect all of the "set" keys and cast to `Setting` objects
+                SETTING_VARIABLES[key]
+                for key in self.dict(exclude_unset=True)
+            }
+            include.intersection_update(set_keys)
+
+        # Validate the types of items in `include` to prevent exclusion bugs
+        for key in include:
+            if not isinstance(key, Setting):
+                raise TypeError(
+                    "Invalid type {type(key).__name__!r} for key in `include`."
+                )
+
+        env = {
+            # Use `getattr` instead of `value_of` to avoid value callback resolution
+            key: getattr(self, key)
+            for key, setting in SETTING_VARIABLES.items()
+            if setting in include
+        }
+
+        # Cast to strings and drop null values
+        return {key: str(value) for key, value in env.items() if value is not None}
+
     class Config:
         frozen = True
 
@@ -526,11 +710,16 @@ _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 def get_current_settings() -> Settings:
     """
-    Returns a settings object populated with values from the current profile.
+    Returns a settings object populated with values from the current profile or, if no
+    profile is active, the environment.
     """
-    from prefect.context import get_profile_context
+    from prefect.context import SettingsContext
 
-    return get_profile_context().settings
+    profile = SettingsContext.get()
+    if profile is not None:
+        return profile.settings
+
+    return get_settings_from_env()
 
 
 def get_settings_from_env() -> Settings:
@@ -574,143 +763,328 @@ def get_default_settings() -> Settings:
     return _DEFAULTS_CACHE
 
 
-def get_active_profile(name_only: bool = False):
-    active_profile = load_profiles(active_only=True)
-    if name_only:
-        return list(active_profile.keys()).pop()
-    else:
-        return active_profile
-
-
-def set_active_profile(name: str):
-    all_profiles = load_profiles(ignore_defaults=True)
-    return write_profiles(all_profiles, active_profile=name)
-
-
-def load_profiles(
-    ignore_defaults: bool = False, active_only: bool = False
-) -> Dict[str, Dict[str, str]]:
+@contextmanager
+def temporary_settings(
+    updates: Mapping[Setting, Any] = None,
+    set_defaults: Mapping[Setting, Any] = None,
+    restore_defaults: Iterable[Setting] = None,
+) -> Settings:
     """
-    Load all profiles from the profiles path.
+    Temporarily override the current settings by entering a new profile.
+
+    See `Settings.copy_with_update` for details on different argument behavior.
+
+    Example:
+        >>> from prefect.settings import PREFECT_API_URL
+        >>>
+        >>> with temporary_settings(updates={PREFECT_API_URL: "foo"}):
+        >>>    assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(set_defaults={PREFECT_API_URL: "bar"}):
+        >>>         assert PREFECT_API_URL.value() == "foo"
+        >>>
+        >>>    with temporary_settings(restore_defaults={PREFECT_API_URL}):
+        >>>         assert PREFECT_API_URL.value() is None
+        >>>
+        >>>         with temporary_settings(set_defaults={PREFECT_API_URL: "bar"})
+        >>>             assert PREFECT_API_URL.value() == "bar"
+        >>> assert PREFECT_API_URL.value() is None
     """
-    if all([ignore_defaults, active_only]):
-        raise ValueError("Only one of ignore_defaults and active_only can be True.")
+    import prefect.context
 
-    path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
+    context = prefect.context.get_settings_context()
 
-    if not ignore_defaults:
-        default_path = Path(__file__).parent.joinpath("profiles.toml")
-        default_profile_config = toml.loads(default_path.read_text())
-        active_profile = default_profile_config["active"]
-        profiles = default_profile_config["profiles"]
-    else:
-        profiles = {}
-        active_profile = None
+    new_settings = context.settings.copy_with_update(
+        updates=updates, set_defaults=set_defaults, restore_defaults=restore_defaults
+    )
 
-    # if user as a profiles.toml, load it
-    if path.exists():
-        user_profile_config = toml.loads(path.read_text())
-        profiles = {**profiles, **user_profile_config.get("profiles", {})}
-        active_profile = user_profile_config.get("active") or active_profile
-
-    env_profile = os.getenv("PREFECT_PROFILE")
-    if env_profile:
-        active_profile = env_profile
-
-    if active_only:
-        if active_profile not in profiles:
-            raise MissingProfileError(f"Active profile {active_profile!r} not found.")
-
-        return {active_profile: profiles[active_profile]}
-    else:
-        return profiles
+    with prefect.context.SettingsContext(
+        profile=context.profile, settings=new_settings
+    ):
+        yield new_settings
 
 
-def write_profiles(profiles: dict, active_profile: str = None):
+class Profile(pydantic.BaseModel):
     """
-    Writes all non-default profiles to the profiles path.
-
-    Existing data will be lost.
-
-    Asserts that all variables are known settings names.
+    A user profile containing settings.
     """
-    path = PREFECT_PROFILES_PATH.value_from(get_settings_from_env())
 
-    for profile, variables in profiles.items():
-        unknown_keys = set(variables).difference(SETTING_VARIABLES)
-        if unknown_keys:
+    name: str
+    settings: Dict[Setting, Any] = Field(default_factory=dict)
+    source: Optional[Path]
+
+    @pydantic.validator("settings", pre=True)
+    def map_names_to_settings(cls, value):
+        if value is None:
+            return value
+
+        # Cast string setting names to variables
+        validated = {}
+        for setting, val in value.items():
+            if isinstance(setting, str) and setting in SETTING_VARIABLES:
+                validated[SETTING_VARIABLES[setting]] = val
+            elif isinstance(setting, Setting):
+                validated[setting] = val
+            else:
+                raise ValueError(f"Unknown setting {setting!r}.")
+
+        return validated
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class ProfilesCollection:
+    """ "
+    A utility class for working with a collection of profiles.
+
+    Profiles in the collection must have unique names.
+
+    The collection may store the name of the active profile.
+    """
+
+    def __init__(
+        self, profiles: Iterable[Profile], active: Optional[str] = None
+    ) -> None:
+        self.profiles_by_name = {profile.name: profile for profile in profiles}
+        self.active_name = active
+
+    @property
+    def names(self) -> Set[str]:
+        """
+        Return a set of profile names in this collection.
+        """
+        return set(self.profiles_by_name.keys())
+
+    @property
+    def active_profile(self) -> Optional[Profile]:
+        """
+        Retrieve the active profile in this collection.
+        """
+        if self.active_name is None:
+            return None
+        return self[self.active_name]
+
+    def set_active(self, name: Optional[str]):
+        """
+        Set the active profile name in the collection.
+
+        A null value may be passed to indicate that this collection does not determine
+        the active profile.
+        """
+        if name is not None and name not in self.names:
+            raise ValueError(f"Unknown profile name {name!r}.")
+        self.active_name = name
+
+    def update_profile(
+        self, name: str, settings: Mapping[Union[Dict, str], Any], source: Path = None
+    ) -> Profile:
+        """
+        Add a profile to the collection or update the existing on if the name is already
+        present in this collection.
+
+        If updating an existing profile, the settings will be merged. Settings can
+        be dropped from the existing profile by setting them to `None` in the new
+        profile.
+
+        Returns the new profile object.
+        """
+        existing = self.profiles_by_name.get(name)
+
+        # Convert the input to a `Profile` to cast settings to the correct type
+        profile = Profile(name=name, settings=settings, source=source)
+
+        if existing:
+            new_settings = {**existing.settings, **profile.settings}
+
+            # Drop null keys to restore to default
+            for key, value in tuple(new_settings.items()):
+                if value is None:
+                    new_settings.pop(key)
+
+            new_profile = Profile(
+                name=profile.name,
+                settings=new_settings,
+                source=source or profile.source,
+            )
+        else:
+            new_profile = profile
+
+        self.profiles_by_name[new_profile.name] = new_profile
+
+        return new_profile
+
+    def add_profile(self, profile: Profile) -> None:
+        """
+        Add a profile to the collection.
+
+        If the profile name already exists, an exception will be raised.
+        """
+        if profile.name in self.profiles_by_name:
             raise ValueError(
-                f"Unknown setting(s) found in profile {profile!r}: {unknown_keys}"
+                f"Profile name {profile.name!r} already exists in collection."
             )
 
-    profiles = {"profiles": profiles}
+        self.profiles_by_name[profile.name] = profile
 
-    if active_profile is None:
-        # preserve current active profile
-        active_profile = get_active_profile(name_only=True)
+    def remove_profile(self, name: str) -> None:
+        """
+        Remove a profile from the collection.
+        """
+        self.profiles_by_name.pop(name)
 
-    profiles["active"] = active_profile
-    return path.write_text(toml.dumps(profiles))
+    def without_profile_source(self, path: Optional[Path]) -> "ProfilesCollection":
+        """
+        Remove profiles that were loaded from a given path.
+
+        Returns a new collection.
+        """
+        return ProfilesCollection(
+            [
+                profile
+                for profile in self.profiles_by_name.values()
+                if profile.source != path
+            ],
+            active=self.active_name,
+        )
+
+    def to_dict(self):
+        """
+        Convert to a dictionary suitable for writing to disk.
+        """
+        return {
+            "active": self.active_name,
+            "profiles": {
+                profile.name: {
+                    setting.name: value for setting, value in profile.settings.items()
+                }
+                for profile in self.profiles_by_name.values()
+            },
+        }
+
+    def __getitem__(self, name: str) -> Profile:
+        return self.profiles_by_name[name]
+
+    def __iter__(self):
+        return self.profiles_by_name.__iter__()
+
+    def __eq__(self, __o: object) -> bool:
+        if not isinstance(__o, ProfilesCollection):
+            return False
+
+        return (
+            self.profiles_by_name == __o.profiles_by_name
+            and self.active_name == __o.active_name
+        )
+
+    def __repr__(self) -> str:
+        return f"ProfilesCollection(profiles={list(self.profiles_by_name.values())!r}, active={self.active_name!r})>"
 
 
-def load_profile(name: str) -> Dict[str, str]:
+def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
-    Loads a profile from the TOML file.
+    Read profiles from a path into a new `ProfilesCollection`.
 
-    Asserts that all variables are valid string key/value pairs and that keys are valid
-    setting names.
+    Profiles are expected to be written in TOML with the following schema:
+        ```
+        active = <name: Optional[str]>
+
+        [profiles.<name: str>]
+        <SETTING: str> = <value: Any>
+        ```
+    """
+    contents = toml.loads(path.read_text())
+    active_profile = contents.get("active")
+    raw_profiles = contents.get("profiles", {})
+
+    profiles = [
+        Profile(name=name, settings=settings, source=path)
+        for name, settings in raw_profiles.items()
+    ]
+
+    return ProfilesCollection(profiles, active=active_profile)
+
+
+def _write_profiles_to(path: Path, profiles: ProfilesCollection) -> None:
+    """
+    Write profiles in the given collection to a path as TOML.
+
+    Any existing data not present in the given `profiles` will be deleted.
+    """
+    return path.write_text(toml.dumps(profiles.to_dict()))
+
+
+def load_profiles() -> ProfilesCollection:
+    """
+    Load all profiles from the default and current profile paths.
+    """
+    profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
+
+    user_profiles_path = PREFECT_PROFILES_PATH.value()
+    if user_profiles_path.exists():
+        user_profiles = _read_profiles_from(user_profiles_path)
+
+        # Merge all of the user profiles with the defaults
+        for name in user_profiles:
+            profiles.update_profile(
+                name,
+                settings=user_profiles[name].settings,
+                source=user_profiles[name].source,
+            )
+
+        # Include the active key if set
+        if user_profiles.active_name:
+            profiles.set_active(user_profiles.active_name)
+
+    return profiles
+
+
+def save_profiles(profiles: ProfilesCollection) -> None:
+    """
+    Writes all non-default profiles to the current profiles path.
+    """
+    profiles_path = PREFECT_PROFILES_PATH.value()
+    profiles = profiles.without_profile_source(DEFAULT_PROFILES_PATH)
+    return _write_profiles_to(profiles_path, profiles)
+
+
+def load_profile(name: str) -> Profile:
+    """
+    Load a single profile by name.
     """
     profiles = load_profiles()
-
-    if name not in profiles:
-        raise MissingProfileError(f"Profile {name!r} not found.")
-
-    variables = profiles[name]
-    for var, value in variables.items():
-        try:
-            variables[var] = str(value)
-        except Exception as exc:
-            raise TypeError(
-                f"Invalid value {value!r} for variable {var!r}: Cannot be coerced to string."
-            ) from exc
-
-    unknown_keys = set(variables).difference(SETTING_VARIABLES)
-    if unknown_keys:
-        raise ValueError(f"Unknown setting(s) found in profile: {unknown_keys}")
-
-    return variables
+    try:
+        return profiles[name]
+    except KeyError:
+        raise ValueError(f"Profile {name!r} not found.")
 
 
-def update_profile(name: str = None, **values) -> Dict[str, str]:
+def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     """
-    Update a profile, adding or updating key value pairs.
+    Update the persisted data for the profile currently in-use.
 
-    If the profile does not exist, it will be created.
+    If the profile does not exist in the profiles file, it will be created.
 
-    This function is not thread safe.
-
-    Args:
-        name: The profile to update. If not set, the current profile name will be used.
-        **values: Key and value pairs to update. To unset keys, set them to `None`.
+    Given settings will be merged with the existing settings as described in
+    `ProfilesCollection.update_profile`.
 
     Returns:
-        The new settings for the profile
+        The new profile.
     """
-    if name is None:
-        import prefect.context
+    import prefect.context
 
-        name = prefect.context.get_profile_context().name
+    current_profile = prefect.context.get_settings_context().profile
+
+    if not current_profile:
+        raise MissingProfileError("No profile is currently in use.")
 
     profiles = load_profiles()
-    settings = profiles.get(name, {})
-    settings.update(values)
 
-    for key, value in tuple(settings.items()):
-        if value is None:
-            settings.pop(key)
+    # Ensure the current profile's settings are present
+    profiles.update_profile(current_profile.name, current_profile.settings)
+    # Then merge the new settings in
+    profiles.update_profile(current_profile.name, settings)
 
-    profiles[name] = settings
+    save_profiles(profiles)
 
-    write_profiles(profiles)
-
-    return settings
+    return profiles[current_profile.name]

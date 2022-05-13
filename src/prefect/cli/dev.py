@@ -3,6 +3,7 @@ Command line interface for working with Orion
 """
 import json
 import os
+import platform
 import shutil
 import subprocess
 import textwrap
@@ -14,19 +15,16 @@ import anyio
 import typer
 
 import prefect
-from prefect.cli.agent import start as start_agent
-from prefect.cli.base import (
-    PrefectTyper,
-    SettingsOption,
-    app,
-    console,
+from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    open_process_and_stream_output,
 )
-from prefect.cli.orion import open_process_and_stream_output
+from prefect.cli.agent import start as start_agent
+from prefect.cli.root import app
 from prefect.flow_runners import get_prefect_image_name
 from prefect.orion.api.server import create_app
-from prefect.orion.database.dependencies import provide_database_interface
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_ORION_API_HOST,
@@ -64,7 +62,7 @@ def build_docs(
     schema["info"] = {}
     with open(schema_path, "w") as f:
         json.dump(schema, f)
-    console.print(f"OpenAPI schema written to {schema_path}")
+    app.console.print(f"OpenAPI schema written to {schema_path}")
 
 
 BUILD_UI_HELP = f"""
@@ -81,22 +79,22 @@ def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
-            console.print("Installing npm packages...")
+            app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "ci", "install"])
 
-            console.print("Building for distribution...")
+            app.console.print("Building for distribution...")
             env = os.environ.copy()
             env["ORION_UI_SERVE_BASE"] = "/"
             subprocess.check_output(["npm", "run", "build"], env=env)
 
         if os.path.exists(prefect.__ui_static_path__):
-            console.print("Removing existing build files...")
+            app.console.print("Removing existing build files...")
             shutil.rmtree(prefect.__ui_static_path__)
 
-        console.print("Copying build into src...")
+        app.console.print("Copying build into src...")
         shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
 
-    console.print("Complete!")
+    app.console.print("Complete!")
 
 
 @dev_app.command()
@@ -106,10 +104,10 @@ async def ui():
     """
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
-            console.print("Installing npm packages...")
+            app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"])
 
-            console.print("Starting UI development server...")
+            app.console.print("Starting UI development server...")
             await open_process_and_stream_output(command=["npm", "run", "serve"])
 
 
@@ -142,7 +140,7 @@ async def api(
         str(prefect.__module_path__),
     ]
 
-    console.print(f"Running: {' '.join(command)}")
+    app.console.print(f"Running: {' '.join(command)}")
 
     await open_process_and_stream_output(command=command, env=server_env)
 
@@ -153,12 +151,12 @@ async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
     Starts a hot-reloading development agent process.
     """
     # Delayed import since this is only a 'dev' dependency
-    import watchgod
+    import watchfiles
 
-    console.print("Creating hot-reloading agent process...")
-    await watchgod.arun_process(
+    app.console.print("Creating hot-reloading agent process...")
+    await watchfiles.arun_process(
         prefect.__module_path__,
-        start_agent,
+        target=start_agent,
         kwargs=dict(hide_welcome=False, api=api_url),
     )
 
@@ -196,11 +194,24 @@ async def start(
 
 
 @dev_app.command()
-def build_image(platform: str = "amd64"):
+def build_image(
+    arch: str = typer.Option(
+        None,
+        help=(
+            "The architecture to build the container for. "
+            "Defaults to the architecture of the host Python. "
+            f"[default: {platform.machine()}]"
+        ),
+    )
+):
     """
     Build a docker image for development.
     """
     tag = get_prefect_image_name()
+
+    # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
+    #       default can be set in the function signature
+    arch = arch or platform.machine()
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
     # as it comes
@@ -213,7 +224,7 @@ def build_image(platform: str = "amd64"):
                 "--tag",
                 tag,
                 "--platform",
-                f"linux/{platform}",
+                f"linux/{arch}",
                 "--build-arg",
                 "PREFECT_EXTRAS=[dev]",
             ]

@@ -1,9 +1,9 @@
 """
-[Flow Runners](/concepts/flow-runners/) in Prefect are responsible for creating and 
-monitoring infrastructure for flow runs associated with deployments. 
+[Flow Runners](/concepts/flow-runners/) in Prefect are responsible for creating and
+monitoring infrastructure for flow runs associated with deployments.
 
-A flow runner can only be used with a deployment. When you run a flow directly by 
-calling the flow yourself, you are responsible for the environment in which the flow 
+A flow runner can only be used with a deployment. When you run a flow directly by
+calling the flow yourself, you are responsible for the environment in which the flow
 executes.
 
 For usage details, see the [Flow Runners](/concepts/flow-runners/) documentation.
@@ -43,12 +43,12 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
-from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, get_current_settings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.compat import ThreadedChildWatcher
-from prefect.utilities.enum import AutoEnum
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     import docker
@@ -108,12 +108,7 @@ def base_flow_run_environment() -> Dict[str, str]:
     """
     Generate a dictionary of environment variables for a flow run job.
     """
-    SETTINGS = {PREFECT_API_KEY, PREFECT_API_URL}
-
-    env = {setting.name: setting.value() for setting in SETTINGS}
-
-    # Cast to strings and drop null values
-    return {key: str(value) for key, value in env.items() if value is not None}
+    return get_current_settings().to_environment_variables(exclude_unset=True)
 
 
 class FlowRunner(BaseModel):
@@ -221,7 +216,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    stream_output: bool = False
+    stream_output: bool = True
     condaenv: Union[str, Path] = None
     virtualenv: Path = None
 
@@ -250,7 +245,13 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         task_status: TaskStatus = None,
     ) -> Optional[bool]:
 
-        if sys.version_info < (3, 8) and sniffio.current_async_library() == "asyncio":
+        if (
+            sys.version_info < (3, 8)
+            and sniffio.current_async_library() == "asyncio"
+            and sys.platform != "win32"
+        ):
+            from prefect.utilities.compat import ThreadedChildWatcher
+
             # Python < 3.8 does not use a `ThreadedChildWatcher` by default which can
             # lead to errors in tests on unix as the previous default `SafeChildWatcher`
             # is not compatible with threaded event loops.
@@ -479,6 +480,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Start the container
         container.start()
 
+        docker_client.close()
+
         return container.id
 
     def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
@@ -627,6 +630,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
         result = container.wait()
+        docker_client.close()
         return result.get("StatusCode") == 0
 
     @property
@@ -649,7 +653,18 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_client(self):
         try:
-            docker_client = self._docker.from_env()
+
+            with warnings.catch_warnings():
+                # Silence warnings due to use of deprecated methods within dockerpy
+                # See https://github.com/docker/docker-py/pull/2931
+                warnings.filterwarnings(
+                    "ignore",
+                    message="distutils Version classes are deprecated.*",
+                    category=DeprecationWarning,
+                )
+
+                docker_client = self._docker.from_env()
+
         except self._docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 

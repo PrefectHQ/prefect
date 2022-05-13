@@ -22,9 +22,11 @@
               Paused
             </span>
           </template>
-          <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
-            Quick Run
-          </m-button>
+          <template v-if="can.create.flow_run">
+            <m-button outlined class="text--grey-80" @click.stop="run(deployment)">
+              Quick Run
+            </m-button>
+          </template>
         </button>
       </template>
     </template>
@@ -38,11 +40,13 @@
   import { Deployment } from '@/models/Deployment'
   import { DeploymentsApi } from '@/services/DeploymentsApi'
   import { UnionFilters } from '@/services/Filter'
+  import { Can } from '@/types/permissions'
   import { showToast } from '@/utilities/toasts'
 
   const props = defineProps<{
     filter: UnionFilters,
     deploymentsApi: DeploymentsApi,
+    can: Can,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 

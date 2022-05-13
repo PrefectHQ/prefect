@@ -24,7 +24,6 @@ from uuid import UUID, uuid4
 import anyio
 import pendulum
 from anyio import start_blocking_portal
-from anyio.abc import BlockingPortal
 
 import prefect
 import prefect.context
@@ -35,6 +34,7 @@ from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
+from prefect.logging.configuration import setup_logging
 from prefect.logging.handlers import OrionHandler
 from prefect.logging.loggers import (
     flow_run_logger,
@@ -62,7 +62,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import visit_collection
+from prefect.utilities.collections import PartialModel, Quote, visit_collection
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -77,6 +77,8 @@ def enter_flow_run_engine_from_flow_call(
     This function does the heavy lifting of ensuring we can get into an async context
     for flow run execution with minimal overhead.
     """
+    setup_logging()
+
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -85,9 +87,6 @@ def enter_flow_run_engine_from_flow_call(
 
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
-
-    profile = prefect.context.get_profile_context()
-    profile.initialize()
 
     begin_run = partial(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
@@ -126,8 +125,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     Additionally, this assumes that the caller is always in a context without an event
     loop as this should be called from a fresh process.
     """
-    profile = prefect.context.get_profile_context()
-    profile.initialize()
+    setup_logging()
 
     return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
@@ -259,6 +257,9 @@ async def begin_flow_run(
         The final state of the run
     """
     logger = flow_run_logger(flow_run, flow)
+
+    flow_run_context = PartialModel(FlowRunContext)
+
     async with AsyncExitStack() as stack:
 
         await stack.enter_async_context(
@@ -266,12 +267,14 @@ async def begin_flow_run(
         )
 
         # If the flow is async, we need to provide a portal so sync tasks can run
-        sync_portal = (
+        flow_run_context.sync_portal = (
             stack.enter_context(start_blocking_portal()) if flow.isasync else None
         )
 
         logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
-        task_runner = await stack.enter_async_context(flow.task_runner.start())
+        flow_run_context.task_runner = await stack.enter_async_context(
+            flow.task_runner.start()
+        )
 
         result_storage = await client.get_default_storage_block()
         if not result_storage:
@@ -281,15 +284,14 @@ async def begin_flow_run(
                 "environment."
             )
             result_storage = TempStorageBlock()
+        flow_run_context.result_storage = result_storage
 
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
-            task_runner=task_runner,
             client=client,
-            sync_portal=sync_portal,
-            result_storage=result_storage,
+            partial_flow_run_context=flow_run_context,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -378,10 +380,13 @@ async def create_and_begin_subflow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
-            task_runner=task_runner,
             client=client,
-            sync_portal=parent_flow_run_context.sync_portal,
-            result_storage=parent_flow_run_context.result_storage,
+            partial_flow_run_context=PartialModel(
+                FlowRunContext,
+                sync_portal=parent_flow_run_context.sync_portal,
+                result_storage=parent_flow_run_context.result_storage,
+                task_runner=task_runner,
+            ),
         )
 
     # Display the full state (including the result) if debugging
@@ -401,14 +406,12 @@ async def create_and_begin_subflow_run(
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    task_runner: BaseTaskRunner,
     parameters: Dict[str, Any],
     client: OrionClient,
-    sync_portal: BlockingPortal,
-    result_storage: StorageBlock,
+    partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
     """
-    Executes a flow run
+    Executes a flow run.
 
     Note on flow timeouts:
         Since async flows are run directly in the main event loop, timeout behavior will
@@ -435,17 +438,15 @@ async def orchestrate_flow_run(
         if flow.timeout_seconds
         else nullcontext()
     )
+    flow_run_context = None
 
     try:
         with timeout_context as timeout_scope:
-            with FlowRunContext(
+            with partial_flow_run_context.finalize(
                 flow=flow,
                 flow_run=flow_run,
                 client=client,
-                task_runner=task_runner,
-                sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
-                result_storage=result_storage,
             ) as flow_run_context:
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
@@ -501,7 +502,7 @@ async def orchestrate_flow_run(
             await client.persist_data(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
-            if state.data is not None
+            if state.data is not None and flow_run_context
             else None
         ),
     )
@@ -626,9 +627,9 @@ async def create_and_submit_task_run(
             parameters=parameters,
             wait_for=wait_for,
             result_storage=flow_run_context.result_storage,
-            settings=get_current_settings(),
+            settings=prefect.context.SettingsContext.get().copy(),
         ),
-        asynchronous=task.isasync,
+        asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
     logger.debug(f"Submitted task run {task_run.name!r} to task runner")
@@ -645,25 +646,44 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_storage: StorageBlock,
-    settings: prefect.settings.Settings,
+    settings: prefect.context.SettingsContext,
 ):
     """
     Entrypoint for task run execution.
 
     This function is intended for submission to the task runner.
 
-    This method may be called from a worker so we enter a temporary profile context
-    with the settings from submission and ensure it is initialized.
+    This method may be called from a worker so we ensure the settings context has been
+    entered. For example, with a runner that is executing tasks in the same event loop,
+    we will likely not enter the context again because the current context already
+    matches:
+
+    main thread:
+    --> Flow called with settings A
+    --> `begin_task_run` executes same event loop
+    --> Profile A matches and is not entered again
+
+    However, with execution on a remote environment, we are going to need to ensure the
+    settings for the task run are respected by entering the context:
+
+    main thread:
+    --> Flow called with settings A
+    --> `begin_task_run` is scheduled on a remote worker, settings A is serialized
+    remote worker:
+    --> Remote worker imports Prefect (may not occur)
+    --> Global settings is loaded with default settings
+    --> `begin_task_run` executes on a different event loop than the flow
+    --> Current settings is not set or does not match, settings A is entered
     """
     flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-        profile = stack.enter_context(
-            prefect.context.ProfileContext(
-                name=f"task-run-{task_run.name}", settings=settings, env={}
-            )
-        )
-        profile.initialize(create_home=False)
+
+        # The settings context may be null on a remote worker so we use the safe `.get`
+        # method and compare it to the settings required for this task run
+        if prefect.context.SettingsContext.get() != settings:
+            stack.enter_context(settings)
+            setup_logging()
 
         if flow_run_context:
             # Accessible if on a worker that is running in the same thread as the flow
@@ -739,9 +759,9 @@ async def orchestrate_task_run(
 
     try:
         # Resolve futures in parameters into data
-        resolved_parameters = await resolve_upstream_task_futures(parameters)
+        resolved_parameters = await resolve_inputs(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_upstream_task_futures(wait_for, return_data=False)
+        await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
         return await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -909,11 +929,12 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         raise exc from None
 
 
-async def resolve_upstream_task_futures(
+async def resolve_inputs(
     parameters: Dict[str, Any], return_data: bool = True
 ) -> Dict[str, Any]:
     """
-    Resolve any `PrefectFuture` types nested in parameters into data.
+    Resolve any `Quote`, `PrefectFuture`, or `State` types nested in parameters into
+    data.
 
     Returns:
         A copy of the parameters with resolved data
@@ -923,19 +944,24 @@ async def resolve_upstream_task_futures(
     """
 
     async def visit_fn(expr):
-        # Resolves futures into data, raising if they are not completed after `wait` is
-        # called.
-        if isinstance(expr, PrefectFuture):
+        state = None
+
+        if isinstance(expr, Quote):
+            return expr.unquote()
+        elif isinstance(expr, PrefectFuture):
             state = await expr._wait()
-            if not state.is_completed():
-                raise UpstreamTaskError(
-                    f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
-                )
-            # Only load the state data if requested
-            if return_data:
-                return state.result()
+        elif isinstance(expr, State):
+            state = expr
         else:
             return expr
+
+        if not state.is_completed():
+            raise UpstreamTaskError(
+                f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
+            )
+
+        # Only retrieve the result if requested as it may be expensive
+        return state.result() if return_data else None
 
     return await visit_collection(
         parameters,

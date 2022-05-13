@@ -2,26 +2,22 @@
 Command line interface for working with Orion
 """
 import os
-import subprocess
-import sys
 import textwrap
 from functools import partial
 from string import Template
-from typing import Any, Sequence, Union
 
 import anyio
 import anyio.abc
 import typer
 
 import prefect
-from prefect.cli.base import (
-    PrefectTyper,
-    SettingsOption,
-    app,
-    console,
+from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    open_process_and_stream_output,
 )
+from prefect.cli.root import app
 from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
@@ -98,38 +94,6 @@ def generate_welcome_blub(base_url, ui_enabled: bool):
     return blurb
 
 
-async def open_process_and_stream_output(
-    command: Union[str, Sequence[str]],
-    task_status: anyio.abc.TaskStatus = None,
-    **kwargs: Any,
-) -> None:
-    """
-    Opens a subprocess and streams standard output and error
-
-    Args:
-        command: The command to open a subprocess with.
-        task_status: Enables this coroutine function to be used with `task_group.start`
-            The task will report itself as started once the process is started.
-        **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
-    """
-    process = await anyio.open_process(
-        command, stderr=sys.stderr, stdout=sys.stdout, **kwargs
-    )
-    if task_status:
-        task_status.started()
-
-    try:
-        await process.wait()
-    finally:
-        with anyio.CancelScope(shield=True):
-            try:
-                process.terminate()
-            except Exception:
-                pass  # Process may already be terminated
-
-            await process.aclose()
-
-
 @orion_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
@@ -154,7 +118,7 @@ async def start(
     base_url = f"http://{host}:{port}"
 
     async with anyio.create_task_group() as tg:
-        console.print("Starting...")
+        app.console.print("Starting...")
         await tg.start(
             partial(
                 open_process_and_stream_output,
@@ -171,10 +135,10 @@ async def start(
             )
         )
 
-        console.print(generate_welcome_blub(base_url, ui_enabled=ui))
-        console.print("\n")
+        app.console.print(generate_welcome_blub(base_url, ui_enabled=ui))
+        app.console.print("\n")
 
-    console.print("Orion stopped!")
+    app.console.print("Orion stopped!")
 
 
 @orion_app.command()
@@ -212,10 +176,10 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
         )
         if not confirm:
             exit_with_error("Database reset aborted")
-    console.print("Resetting Orion database...")
-    console.print("Dropping tables...")
+    app.console.print("Resetting Orion database...")
+    app.console.print("Dropping tables...")
     await db.drop_db()
-    console.print("Creating tables...")
+    app.console.print("Creating tables...")
     await db.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
 
@@ -239,9 +203,9 @@ async def upgrade(
         if not confirm:
             exit_with_error("Database upgrade aborted!")
 
-    console.print("Running upgrade migrations ...")
+    app.console.print("Running upgrade migrations ...")
     await run_sync_in_worker_thread(alembic_upgrade, revision=revision, dry_run=dry_run)
-    console.print("Migrations succeeded!")
+    app.console.print("Migrations succeeded!")
     exit_with_success("Orion database upgraded!")
 
 
@@ -266,11 +230,11 @@ async def downgrade(
         if not confirm:
             exit_with_error("Database downgrade aborted!")
 
-    console.print("Running downgrade migrations ...")
+    app.console.print("Running downgrade migrations ...")
     await run_sync_in_worker_thread(
         alembic_downgrade, revision=revision, dry_run=dry_run
     )
-    console.print("Migrations succeeded!")
+    app.console.print("Migrations succeeded!")
     exit_with_success("Orion database downgraded!")
 
 
@@ -278,7 +242,7 @@ async def downgrade(
 async def revision(message: str = None, autogenerate: bool = False):
     """Create a new migration for the Orion database"""
 
-    console.print("Running migration file creation ...")
+    app.console.print("Running migration file creation ...")
     await run_sync_in_worker_thread(
         alembic_revision,
         message=message,
@@ -291,6 +255,6 @@ async def revision(message: str = None, autogenerate: bool = False):
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 
-    console.print("Stamping database with revision ...")
+    app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
     exit_with_success("Stamping database with revision succeeded!")
