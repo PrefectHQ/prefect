@@ -1,13 +1,96 @@
 # Orion Release Notes
 
+## 2.0b4
+
+We're really busy over here at Prefect! We've been getting great feedback from early adopters. There's a lot of work going on behind the scenes as we work on building some exciting new features that will be exclusive to Prefect 2.0, but we want to keep the enhancements flowing to you. In that spirit, there are a lot of quality-of-life improvements here!
+
+While most of the development of Prefect 2.0 is still happening internally, we're incredibly excited to be getting contributions in our open source repository. Big shoutout to our contributors for this last release:
+
+- @dannysepler
+- @ColeMurray
+- @albarrentine
+- @mkarbo
+- @AlessandroLollo
+
+
+### Flow and task runners
+
+- Flow runners now pass all altered settings to their jobs instead of just the API key and URL
+- The Kubernetes flow runner supports configuration of a service account name
+- The subprocess flow runner streams output by default to match the other flow runners
+- The Dask task runner has improved display of task keys in the Dask dashboard
+- The Dask task runner now submits the execution graph to Dask allowing optimization by the Dask scheduler
+
+Note that the Dask and Ray task runners will be moving out of the core Prefect library into dedicated `prefect-ray` and `prefect-dask` collections with the next release. This will reduce the number of dependencies we require for most use cases. Since we now have concurrent execution built in to the core library, these packages do not need to be bundled with Prefect. We're looking forward to building additional tasks and flows specific to Ray and Dask in their respective collections.
+
+### Collections
+
+Speaking of collections, we've received our first [user-contributed collection](https://github.com/AlessandroLollo/prefect-cubejs). It includes tasks for [Cube.js](https://cube.dev/), check it out!
+
+The following collections have also been recently released:
+
+- [`prefect-great-expectations`](https://github.com/PrefectHQ/prefect-great-expectations)
+- [`prefect-twitter`](https://github.com/PrefectHQ/prefect-twitter)
+- [`prefect-github`](https://github.com/PrefectHQ/prefect-github)
+
+You can see a list of all available collections in the [Prefect Collections Catalog](https://orion-docs.prefect.io/collections/catalog/).
+
+### Windows compatibility
+
+We've excited to announce that we've begun work on Windows compatibility. Our full test suite isn't passing yet, but we have core features working on Windows. We expect the majority of the edge cases to be addressed in an upcoming release.
+
+### Documentation improvements
+
+We've added some new documentation and made lots of improvements to existing documentation and tutorials:
+
+- Added documentation for associating conda environments with separate Prefect profiles
+- Added storage steps and advanced examples to the Deployments tutorial
+- Expanded documentation of storage options
+- Added workspace details to the Prefect Cloud documentation
+- Improved schedules documentation with examples
+- Revised the Kubernetes tutorial to include work queue setup
+- Improved tutorial examples of task caching
+
+### CLI
+
+- Deployments can be deleted from the CLI
+- The CLI displays help by default
+- `prefect version` is robust to server connection errors
+- `prefect config view` shows sources by default
+- `prefect deployment create` exits with a non-zero exit code if one of the deployments fails to be created
+- `prefect config set` allows setting values that contain equal signs
+- `prefect config set` validates setting types before saving them
+- `prefect profile inpect` displays settings in a profile instead of duplicating prefect config view behavior
+- `prefect storage create` trims long descriptions
+
+### Bug squashing
+
+We've eradicated some bugs, replacing them with good behavior:
+
+- Flow runs are now robust to log worker failure
+- Deployment creation is now robust to `ObjectAlreadyExists` errors
+- Futures from async tasks in sync flows are now marked as synchronous
+- Tildes (~) in user-provided paths for `PREFECT_HOME` are expanded
+- Fixed parsing of deployments defined in YAML
+- Deployment deletion cleans up scheduled runs
+
+### Optimizations and refactors
+
+You might not see these fixes in your day-to-day, but we're dedicated to improving performance and maintaining our reputation as maintainers of an approachable and clean project.
+
+- The `state_name` is attached to run models for improved query performance
+- Lifespan management for the ephemeral Orion application is now robust to deadlocks
+- The `hello` route has moved out of the `admin` namespace so it is available on Prefect Cloud
+- Improved readability and performance of profile management code
+- Improved lower-bounds dependency parsing
+- Tests are better isolated and will not run against a remote API
+- Improved representation of Prefect `Setting` objects
+- Added extensive tests for `prefect config` and `prefect profile` commands
+- Moved testing utilities and fixtures to the core library for consumption by collections
+
 ## 2.0b3
 
-New features:
-
-- Adds Twitter Collection.
-- Adds Great Expectations Collection.
-
-Includes some minor improvements:
+### Improvements
 
 - Improved filter expression display and syntax in the UI.
 - Flow runs can be queried more flexibly and performantly.
@@ -16,7 +99,7 @@ Includes some minor improvements:
 - Added a unit testing utility, `prefect_test_harness`.
 - Various documentation updates.
 
-Fixes some bugs:
+### Bug fixes
 
 - The Scheduler no longer crashes on misconfigured schedules.
 - The MarkLateRuns service no longer marks runs as `Late` several seconds too early.
@@ -29,12 +112,13 @@ Fixes some bugs:
 
 ## 2.0b2
 
-Includes some minor improvements:
+
+### Improvements
 
 - Docker flow runners can connect to local API applications on Linux without binding to `0.0.0.0`.
 - Adds `with_options` method to flows allowing override of settings e.g. the task runner.
 
-Fixes some bugs:
+### Bug fixes
 
 - The CLI no longer displays tracebacks on sucessful exit.
 - Returning pandas objects from tasks does not error.
@@ -46,7 +130,7 @@ We are excited to introduce this branch as [Prefect 2.0](https://www.prefect.io/
 
 This is the first release that's compatible with Prefect Cloud 2.0's beta API - more exciting news to come on that soon!
 
-### Expanded UI 
+### Expanded UI
 Through our technical preview phase, our focus has been on establishing the right [concepts](https://orion-docs.prefect.io/concepts/overview/) and making them accessible through the CLI and API. Now that some of those concepts have matured, we've made them more accessible and tangible through UI representations. This release adds some very important concepts to the UI:
 
 **Flows and deployments**
@@ -143,7 +227,7 @@ You can now can run the Orion API, UI, and agent on Kubernetes. We've included a
 ### Run flows on Kubernetes
 With the Kubernetes [flow runner](https://orion-docs.prefect.io/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.
 
-Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://orion-docs.prefect.io/tutorials/kubernetes-flow-runner/) tutorial. 
+Learn more about running Orion and flows on Kubernetes in the [Running flows in Kubernetes](https://orion-docs.prefect.io/tutorials/kubernetes-flow-runner/) tutorial.
 
 ## 2.0a10
 
@@ -153,7 +237,7 @@ Speed up your flow runs with the new Concurrent Task Runner. Whether your code 
 
 ### Task run concurrency limits
 
-When running a flow using a task runner that enables concurrent execution, or running many flows across multiple execution environments, you may want to limit the number of certain tasks that can run at the same time. 
+When running a flow using a task runner that enables concurrent execution, or running many flows across multiple execution environments, you may want to limit the number of certain tasks that can run at the same time.
 
 Concurrency limits are set and enforced with task run tags. For example, perhaps you want to ensure that, across all of your flows, there are no more than three open connections to your production database at once. You can do so by creating a “prod-db” tag and applying it to all of the tasks that open a connection to that database. Then, you can create a concurrency limit with `prefect concurrency-limit create prod-db 3`. Now, Orion will ensure that no more than 3 task runs with the “prod-db” tag will run at the same time. Check out [the documentation](https://orion-docs.prefect.io/concepts/tasks/) for more information about task run concurrency limits and other task level concepts.
 
