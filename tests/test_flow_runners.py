@@ -1673,6 +1673,32 @@ class TestKubernetesFlowRunner:
         ]["spec"]["template"]["spec"]["serviceAccountName"]
         assert service_account_name == "foo"
 
+    async def test_uses_extra_config_settings(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+        extra_container_config = {"foo": "bar"}
+        extra_pod_config = {"imagePullSecrets": [{"name": "bar"}]}
+
+        await KubernetesFlowRunner(
+            extra_container_config=extra_container_config,
+            extra_pod_config=extra_pod_config,
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        spec = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]
+
+        container = spec["containers"][0]
+        assert container["foo"] == "bar"
+
+        assert spec["imagePullSecrets"] == [{"name": "bar"}]
+
     async def test_default_env_includes_base_flow_run_environment(
         self,
         mock_k8s_client,
