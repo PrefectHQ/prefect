@@ -227,7 +227,7 @@ class TempStorageBlock(StorageBlock):
 class LocalStorageBlock(StorageBlock):
     """Store data in a run's local file system."""
 
-    _block_type_name = "Local Storage Block"
+    _block_type_name = "Local Storage"
 
     storage_path: Optional[str]
 

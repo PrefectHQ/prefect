@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.sql.expression import ColumnElement
 
-from prefect.utilities.enum import AutoEnum
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.orion.database.interface import OrionDBInterface

@@ -371,6 +371,39 @@ class TestCreateDeploymentFromSpec:
         assert flow.name == expected_flow.name
         assert flow.version == expected_flow.version
 
+    async def test_create_deployment_with_unregistered_storage_collision(
+        self, orion_client, tmp_path
+    ):
+        """
+        Regression test for bug where dynamically generated block names would collide
+        resulting in an `ObjectAlreadyExists` error
+        """
+
+        def make_spec():
+            # A unique instance is required for each test or the id will be
+            # cached on the object
+            block = FileStorageBlock(base_path=str(tmp_path))
+
+            return DeploymentSpec(
+                flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+            )
+
+        deployment_id_1 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_2 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_3 = await make_spec().create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+        async def check_retrievable(deployment_id):
+            deployment = await orion_client.read_deployment(deployment_id)
+            flow = await load_flow_from_deployment(deployment, client=orion_client)
+            expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+            assert flow.name == expected_flow.name
+            assert flow.version == expected_flow.version
+
+        await check_retrievable(deployment_id_1)
+        await check_retrievable(deployment_id_2)
+        await check_retrievable(deployment_id_3)
+
     async def test_create_deployment_with_registered_storage(
         self, orion_client, tmp_remote_storage_block_id
     ):
@@ -380,6 +413,26 @@ class TestCreateDeploymentFromSpec:
 
         spec = DeploymentSpec(
             flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
+
+    async def test_create_deployment_with_registered_storage_by_id(
+        self, orion_client, tmp_remote_storage_block_id
+    ):
+
+        tmp_remote_storage_block = Block.from_block_document(
+            await orion_client.read_block_document(tmp_remote_storage_block_id)
+        )
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            flow_storage=tmp_remote_storage_block,
         )
         deployment_id = await spec.create_deployment(client=orion_client)
 
