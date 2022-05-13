@@ -1072,7 +1072,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
                 access_control_list=[
-                    entry.dict() for entry in access_control_list or []
+                    entry.json() for entry in access_control_list or []
                 ],
             )
         )

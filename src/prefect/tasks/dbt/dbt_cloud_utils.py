@@ -104,7 +104,7 @@ def trigger_job_run(
             accountId=account_id, jobId=job_id, apiDomain=domain
         ),
         headers={"Authorization": f"Bearer {token}", **USER_AGENT_HEADER},
-        data=data,
+        json=data,
     )
 
     if trigger_request.status_code != 200:

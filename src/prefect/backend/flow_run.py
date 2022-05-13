@@ -1,5 +1,7 @@
 import logging
 import time
+
+from datetime import timedelta
 from typing import Dict, Iterable, Iterator, List, NamedTuple, Optional, Tuple, cast
 
 import pendulum
@@ -17,11 +19,16 @@ from prefect.utilities.logging import get_logger
 logger = get_logger("backend.flow_run")
 
 
-def stream_flow_run_logs(flow_run_id: str) -> None:
+def stream_flow_run_logs(
+    flow_run_id: str, max_duration: timedelta = timedelta(hours=12)
+) -> None:
     """
     Basic wrapper for `watch_flow_run` to print the logs of the run
+    Args:
+        - flow_run_id: The flow run to stream logs from
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours.
     """
-    for log in watch_flow_run(flow_run_id):
+    for log in watch_flow_run(flow_run_id, max_duration=max_duration):
         level_name = logging.getLevelName(log.level)
         timestamp = log.timestamp.in_tz(tz="local")
         # Uses `print` instead of the logger to prevent duplicate timestamps
@@ -34,6 +41,7 @@ def watch_flow_run(
     flow_run_id: str,
     stream_states: bool = True,
     stream_logs: bool = True,
+    max_duration: timedelta = timedelta(hours=12),
 ) -> Iterator["FlowRunLog"]:
     """
     Watch execution of a flow run displaying state changes. This function will yield
@@ -46,9 +54,13 @@ def watch_flow_run(
         - flow_run_id: The flow run to watch
         - stream_states: If set, flow run state changes will be streamed as logs
         - stream_logs: If set, logs will be streamed from the flow run
+        - max_duration: Duration to wait for flow run to complete. Defaults to 12 hours
 
     Yields:
         FlowRunLog: Sorted log entries
+
+    Raises:
+        - RuntimeError: if flow runtime exceeds `max_duration`
 
     """
 
@@ -91,10 +103,12 @@ def watch_flow_run(
 
         # Get a rounded time elapsed for display purposes
         total_time_elapsed_rounded = round(total_time_elapsed / 5) * 5
-        # Check for a really long run
-        if total_time_elapsed > 60 * 60 * 12:
+        # Check whether run has exceeded `max_duration`
+        if total_time_elapsed_rounded > int(max_duration.total_seconds()):
             raise RuntimeError(
-                "`watch_flow_run` timed out after 12 hours of waiting for completion. "
+                f"`watch_flow_run` timed out after "
+                f"{24 * max_duration.days + round(max_duration.seconds / (60 * 60), 1)} "
+                "hours of waiting for completion. "
                 f"Your flow run is still in state: {flow_run.state}"
             )
 
