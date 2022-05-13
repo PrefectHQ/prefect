@@ -788,6 +788,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
         stream_output: If set, stream output from the container to local standard output.
+        extra_container_config: if set, will apply (mapped values) to template for all job containers.
+        extra_pod_config: if set, will apply (mapped values) to spec for job.
     """
 
     typename: Literal["kubernetes"] = "kubernetes"
