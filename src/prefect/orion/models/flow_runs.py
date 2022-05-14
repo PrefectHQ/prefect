@@ -28,6 +28,7 @@ from prefect.orion.orchestration.rules import (
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.schemas.responses import SetStateStatus
 
 
 @inject_db
@@ -452,5 +453,11 @@ async def set_flow_run_state(
         status=context.response_status,
         details=context.response_details,
     )
+
+    # if the state was accepted, check for any alert policies
+    if result.status == SetStateStatus.ACCEPT:
+        await models.flow_run_alert_policies.queue_flow_run_alerts(
+            session=session, flow_run=run
+        )
 
     return result

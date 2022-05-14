@@ -1,8 +1,8 @@
 """
 Reduced schemas for accepting API actions.
 """
-
-from typing import Optional
+from typing import List, Optional
+from uuid import UUID
 
 import coolname
 from pydantic import Field
@@ -47,7 +47,7 @@ class DeploymentCreate(
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
         name="FlowRunUpdate",
-        include_fields=["flow_version", "parameters", "name", "flow_runner"],
+        include_fields=["flow_version", "parameters", "name", "flow_runner", "tags"],
     )
 ):
     """Data used by the Orion API to update a flow run."""
@@ -237,3 +237,35 @@ class WorkQueueUpdate(
     """Data used by the Orion API to update a work queue."""
 
     name: Optional[str] = Field(None, description="The name of the work queue.")
+
+
+class FlowRunAlertPolicyCreate(
+    schemas.core.FlowRunAlertPolicy.subclass(
+        "FlowRunAlertPolicyUpdate",
+        include_fields=[
+            "name",
+            "is_active",
+            "state_names",
+            "tags",
+            "block_document_id",
+        ],
+    )
+):
+    """Data used by the Orion API to create a flow run alert policy."""
+
+
+class FlowRunAlertPolicyUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a flow run alert policy."""
+
+    name: str = Field(None, description="A name for the alert policy")
+    is_active: bool = Field(None, description="Whether the policy is currently active")
+    state_names: List[str] = Field(
+        None, description="The flow run states that trigger alerts"
+    )
+    tags: List[str] = Field(
+        None,
+        description="The flow run tags that trigger alerts (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        None, description="The block document ID used for sending alerts"
+    )
