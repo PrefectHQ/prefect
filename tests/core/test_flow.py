@@ -1976,6 +1976,38 @@ class TestSerializedHash:
         assert hashes[0]  # Ensure we don't have an empty string or None
         assert len(set(hashes)) == 1
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8),
+        reason="Positional-Only arguments are only supported in Python 3.8+",
+    )
+    def test_task_positional_only_arguments(self, tmpdir):
+        contents = textwrap.dedent(
+            """
+        from prefect import task, Flow
+
+        @task
+        def dummy_task(a, b, /):
+            pass
+
+        with Flow("example-flow") as flow:
+            dummy_task()
+
+        if __name__ == "__main__":
+            flow.run()
+        """
+        )
+        script = tmpdir.join("flow.py")
+        script.write_text(contents, encoding="utf-8")
+
+        result = subprocess.run([sys.executable, str(script)], capture_output=True)
+        error_message = (
+            "TypeError: Prefect passes arguments to task as keyword arguments. "
+            "Positional-Only arguments found : ['a', 'b']"
+        )
+
+        assert result.returncode == 1
+        assert error_message in result.stderr.decode()
+
     def test_task_order_is_deterministic(self):
         def my_fake_task(foo):
             pass

@@ -659,6 +659,18 @@ class Task(metaclass=TaskMetaclass):
             - Task: a new Task instance
         """
         new = self.copy(**(task_args or {}))
+
+        positional_args = [
+            name
+            for name, parameter in inspect.signature(new).parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Prefect passes arguments to task as keyword arguments. "
+                f"Positional-Only arguments found : {positional_args}"
+            )
+
         new.bind(
             *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
