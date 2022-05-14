@@ -4,7 +4,7 @@ Intended for internal use by the Orion API.
 """
 
 from uuid import UUID
-from prefect.orion.utilities.database import json_has_any_key
+from prefect.orion.utilities.database import json_has_any_key, UUID as UUIDTypeDecorator
 import textwrap
 import sqlalchemy as sa
 from sqlalchemy import delete, select
@@ -184,7 +184,10 @@ async def queue_flow_run_alerts(
             db.FlowRunAlertQueue.flow_run_state_id,
         ],
         # ... by selecting from any alert policy that matches the criteria
-        sa.select(db.FlowRunAlertPolicy.id, sa.literal(flow_run.state_id))
+        sa.select(
+            db.FlowRunAlertPolicy.id,
+            sa.cast(sa.literal(str(flow_run.state_id)), UUIDTypeDecorator),
+        )
         .select_from(db.FlowRunAlertPolicy)
         .where(
             sa.and_(
