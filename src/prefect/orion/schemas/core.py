@@ -118,6 +118,8 @@ class FlowRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current flow run state."
     )
+    state_name: str = Field(None, description="The name of the current flow run state.")
+
     run_count: int = Field(
         0, description="The number of times the flow run was executed."
     )
@@ -259,6 +261,7 @@ class TaskRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current task run state."
     )
+    state_name: str = Field(None, description="The name of the current task run state.")
     run_count: int = Field(
         0, description="The number of times the task run has been executed."
     )
@@ -555,6 +558,23 @@ class WorkQueue(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
         return v
+
+
+class FlowRunAlertPolicy(ORMBaseModel):
+    """An ORM representation of a flow run notification."""
+
+    name: str = Field(..., description="A name for the alert policy")
+    is_active: bool = Field(True, description="Whether the policy is currently active")
+    state_names: List[str] = Field(
+        ..., description="The flow run states that trigger alerts"
+    )
+    tags: List[str] = Field(
+        ...,
+        description="The flow run tags that trigger alerts (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        ..., description="The block document ID used for sending alerts"
+    )
 
 
 class Agent(ORMBaseModel):
