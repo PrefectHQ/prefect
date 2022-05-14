@@ -61,6 +61,7 @@ class ORMBase:
         server_default=GenerateUUID(),
         default=uuid.uuid4,
     )
+
     created = sa.Column(
         Timestamp(),
         nullable=False,
@@ -914,6 +915,40 @@ class ORMAgent:
         return (sa.UniqueConstraint("name"),)
 
 
+@declarative_mixin
+class ORMFlowRunAlertPolicy:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
+    state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
+    tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)
+    message_template = sa.Column(sa.String, nullable=True)
+
+    @declared_attr
+    def block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_document(cls):
+        return sa.orm.relationship(
+            "BlockDocument",
+            lazy="joined",
+            foreign_keys=[cls.block_document_id],
+        )
+
+
+@declarative_mixin
+class ORMFlowRunAlertQueue:
+    # these are both foreign keys but there is no need to enforce that constraint
+    # as this is just a queue for service workers; if the keys don't match at the
+    # time work is pulled, the work can be discarded
+    flow_run_alert_policy_id = sa.Column(UUID, nullable=False)
+    flow_run_state_id = sa.Column(UUID, nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
@@ -1044,6 +1079,8 @@ class BaseORMConfiguration(ABC):
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_document_mixin=ORMBlockDocument,
+        flow_run_alert_policy_mixin=ORMFlowRunAlertPolicy,
+        flow_run_alert_queue_mixin=ORMFlowRunAlertQueue,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -1096,6 +1133,12 @@ class BaseORMConfiguration(ABC):
         class BlockDocument(block_document_mixin, self.Base):
             pass
 
+        class FlowRunAlertPolicy(flow_run_alert_policy_mixin, self.Base):
+            pass
+
+        class FlowRunAlertQueue(flow_run_alert_queue_mixin, self.Base):
+            pass
+
         class Configuration(configuration_mixin, self.Base):
             pass
 
@@ -1114,6 +1157,8 @@ class BaseORMConfiguration(ABC):
         self.BlockType = BlockType
         self.BlockSchema = BlockSchema
         self.BlockDocument = BlockDocument
+        self.FlowRunAlertPolicy = FlowRunAlertPolicy
+        self.FlowRunAlertQueue = FlowRunAlertQueue
         self.Configuration = Configuration
 
     @property

@@ -516,6 +516,11 @@ PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
     description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
 )
 
+PREFECT_ORION_SERVICES_FLOW_RUN_ALERTS_ENABLED = Setting(
+    bool,
+    default=True,
+    description="Whether or not to start the flow run alerts service in the Orion application. If disabled, you will need to run this service separately to send flow run alerts.",
+)
 # Collect all defined settings
 
 SETTING_VARIABLES = {

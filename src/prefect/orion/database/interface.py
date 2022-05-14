@@ -162,6 +162,16 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.BlockDocument
 
     @property
+    def FlowRunAlertPolicy(self):
+        """A flow run alert policy model"""
+        return self.orm.FlowRunAlertPolicy
+
+    @property
+    def FlowRunAlertQueue(self):
+        """A flow run alert queue model"""
+        return self.orm.FlowRunAlertQueue
+
+    @property
     def Configuration(self):
         """An configuration model"""
         return self.orm.Configuration
