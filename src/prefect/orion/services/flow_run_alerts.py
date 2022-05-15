@@ -142,7 +142,7 @@ class FlowRunAlerts(LoopService):
                         for k in models.flow_run_alert_policies.TEMPLATE_KWARGS
                     }
                 )
-                await block.send(message)
+                await block.notify(body=message)
 
                 self.logger.debug(
                     f"Successfully sent alert for flow run {alert.flow_run_id}"
