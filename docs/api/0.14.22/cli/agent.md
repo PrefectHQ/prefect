@@ -155,13 +155,13 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  install  Generate a supervisord.conf file for a Local agent
+  install  Generate a deployment.yml file for a Kubernetes Agent
   start    Start a Kubernetes agent
 ```
 
 ### kubernetes install
 ```
-Generate a supervisord.conf file for a Local agent
+Generate a deployment.yml file for a Kubernetes Agent
 
 Options:
   -t, --token TEXT               A Prefect Cloud API token with RUNNER scope.
