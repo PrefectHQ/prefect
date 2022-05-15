@@ -18,7 +18,7 @@ class NotificationBlock(Block):
     _block_schema_type: Optional[str] = "NOTIFICATION"
 
     @abstractmethod
-    async def send(self, data: Any):
+    async def notify(self, body: str, title: str = None):
         """
         Send a notification
         """
@@ -34,5 +34,5 @@ class DebugPrintNotification(NotificationBlock):
     # singleton block name
     _block_document_name = "Debug Print Notification"
 
-    async def send(self, data: Any):
+    async def notify(self, data: Any):
         print(data)
