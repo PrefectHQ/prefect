@@ -1,2 +1,2 @@
-fix:
+enhancement:
   - "Make artifacts optional in StartFlowRun - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)"
