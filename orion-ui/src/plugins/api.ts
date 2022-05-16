@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-member-accessibility */
+/* eslint-disable max-classes-per-file */
 import {
   UnionFilters,
   FlowsFilter,
@@ -8,6 +10,7 @@ import {
   TaskRunsHistoryFilter
 } from '@prefecthq/orion-design'
 import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
+import { UiSettings } from '@/services/uiSettings'
 
 export interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT',
@@ -234,13 +237,10 @@ export interface QueryConfig {
   options?: QueryOptions,
 }
 
-const base_url = 'http://127.0.0.1:4200/api'
-
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
   private readonly endpointRegex: RegExp = /{\w+}/gm
   readonly endpoint: Endpoint
-  readonly base_url: string = base_url
 
   private watcher?: WatchStopHandle
 
@@ -345,13 +345,10 @@ export class Query {
     }
   }
 
-  private get route(): string {
-    return this.base_url + this.endpoint.url
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
-    let { route } = this
+    const apiUrl = await UiSettings.get('apiUrl')
+    let route = apiUrl + this.endpoint.url
     const body = JSON.parse(JSON.stringify(this.body)) || {}
 
     if (this.endpoint.interpolate) {
@@ -418,7 +415,6 @@ export class Query {
 }
 
 export class Api {
-  readonly base_url: string = base_url
   static readonly queries: Map<number, Query> = new Map()
 
   static startPolling(): void {
