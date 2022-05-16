@@ -14,9 +14,22 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-
+from prefect.orion.models.flow_run_alert_policies
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
+FLOW_RUN_ALERT_TEMPLATE_KWARGS = [
+    "flow_run_alert_policy_id",
+    "flow_run_alert_policy_name",
+    "flow_id",
+    "flow_name",
+    "flow_run_id",
+    "flow_run_name",
+    "flow_run_parameters",
+    "flow_run_state_type",
+    "flow_run_state_name",
+    "flow_run_state_timestamp",
+    "flow_run_state_message",
+]
 
 def raise_on_invalid_name(name: str) -> None:
     """
@@ -575,6 +588,7 @@ class FlowRunAlertPolicy(ORMBaseModel):
     block_document_id: UUID = Field(
         ..., description="The block document ID used for sending alerts"
     )
+    # message_template: str = Field(None, description=f'A templatable alert message. Valid variables include: {FLOW_RUN_ALERT_TEMPLATE_KWARGS.join(",")}')
 
 
 class Agent(ORMBaseModel):

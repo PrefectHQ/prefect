@@ -13,23 +13,10 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
-TEMPLATE_KWARGS = [
-    "flow_run_alert_policy_id",
-    "flow_run_alert_policy_name",
-    "flow_id",
-    "flow_name",
-    "flow_run_id",
-    "flow_run_name",
-    "flow_run_parameters",
-    "flow_run_state_type",
-    "flow_run_state_name",
-    "flow_run_state_timestamp",
-    "flow_run_state_message",
-]
 
 DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
     """
-    Flow run {flow_name}/{flow_run_name} entered state {flow_run_state_name} at {flow_run_state_timestamp}.
+    Flow run {flow_name}/{flow_run_name} entered state `{flow_run_state_name}` at {flow_run_state_timestamp}.
 
     Flow ID: {flow_id}
     Flow run ID: {flow_run_id}
