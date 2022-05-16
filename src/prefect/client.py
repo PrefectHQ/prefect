@@ -975,7 +975,13 @@ class OrionClient:
         Returns:
             A block document or None.
         """
-        response = await self._client.get(f"/block_documents/{block_document_id}")
+        try:
+            response = await self._client.get(f"/block_documents/{block_document_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return BlockDocument.parse_obj(response.json())
 
     async def read_block_document_by_name(
@@ -997,9 +1003,15 @@ class OrionClient:
         Returns:
             A block document or None.
         """
-        response = await self._client.get(
-            f"/block_types/name/{block_type_name}/block_documents/name/{name}",
-        )
+        try:
+            response = await self._client.get(
+                f"/block_types/name/{block_type_name}/block_documents/name/{name}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return BlockDocument.parse_obj(response.json())
 
     async def read_block_documents(
