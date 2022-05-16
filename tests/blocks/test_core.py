@@ -184,7 +184,7 @@ class TestAPICompatibility:
         assert my_block._block_document_id == block_document.id
         assert my_block._block_type_id == block_document.block_type_id
         assert my_block._block_schema_id == block_document.block_schema_id
-        assert my_block.foo == block_document.data["foo"]
+        assert my_block.foo == "bar"
 
     async def test_create_block_from_nonexistant_name(self, block_class):
         with pytest.raises(

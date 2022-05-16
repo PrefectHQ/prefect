@@ -254,7 +254,7 @@ async def block_document(session, block_schema, block_type_x):
         ),
     )
     await session.commit()
-    return await schemas.core.BlockDocument.from_orm_model(session, block_document)
+    return block_document
 
 
 async def commit_task_run_state(
