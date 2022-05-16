@@ -1,7 +1,7 @@
 import { snakeCase, RunHistory, FlowRun, StateHistory, mocker } from '@prefecthq/orion-design'
 import { addSeconds, isBefore, isWithinInterval } from 'date-fns'
 import { belongsTo, createServer, JSONAPISerializer, Model } from 'miragejs'
-import { server } from './utilities/api'
+import { UiSettings } from './services/uiSettings'
 import { unique } from './utilities/arrays'
 
 export function startServer(): ReturnType<typeof createServer> {
@@ -28,8 +28,8 @@ export function startServer(): ReturnType<typeof createServer> {
         },
       }),
     },
-    routes() {
-      this.urlPrefix = server
+    async routes() {
+      this.urlPrefix = await UiSettings.get('apiUrl')
 
       this.get('/flow_runs/:id', (schema, request) => {
         return schema.db.flowRuns.find(request.params.id)
