@@ -313,6 +313,8 @@ class StartFlowRun(Task):
             for; if not provided, defaults to now
         - poll_interval (timedelta): the time to wait between each check if the flow is finished.
                 Has to be >= 3 seconds. Used only if `wait=True`. Defaults to 10 seconds.
+        - create_artifact_link (bool, optional): whether to create a link artifact
+            to the child flow run page.  Defaults to `True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
 
@@ -327,6 +329,7 @@ class StartFlowRun(Task):
         run_name: str = None,
         scheduled_start_time: datetime.datetime = None,
         poll_interval: timedelta = timedelta(seconds=10),
+        create_artifact_link: bool = True,
         **kwargs: Any,
     ):
         self.flow_name = flow_name
@@ -472,7 +475,8 @@ class StartFlowRun(Task):
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
         run_link = client.get_cloud_url("flow-run", flow_run_id)
-        create_link_artifact(urlparse(run_link).path)
+        if self.create_artifact_link:
+            create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:
