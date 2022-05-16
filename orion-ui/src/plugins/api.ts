@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-member-accessibility */
+/* eslint-disable max-classes-per-file */
 import {
   UnionFilters,
   FlowsFilter,
@@ -8,6 +10,7 @@ import {
   TaskRunsHistoryFilter
 } from '@prefecthq/orion-design'
 import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
+import { UiSettings } from '@/services/uiSettings'
 
 export interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT',
@@ -234,7 +237,7 @@ export interface QueryConfig {
   options?: QueryOptions,
 }
 
-const base_url = 'http://127.0.0.1:4200/api'
+const base_url = await UiSettings.get('apiUrl')
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
