@@ -397,28 +397,47 @@ DeploymentSpec(
 
 ### Configuring storage
 
-You can specify or configure a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance, providing the [storage](/concepts/storage/) to be used for the flow definition and results. You can provide the specification of a storage block or the ID of storage already configured for a Prefect API server instance or Prefect Cloud (as configured for your execution environment).
+You can specify or configure a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance, providing the [storage](/concepts/storage/) to be used for the flow definition and results. 
+
+You can provide the specification of a storage block or the ID of storage already configured for a Prefect API server instance or Prefect Cloud (as configured for your execution environment).
 
 ```Python
-# filename: hello_deployment.py
-from prefect.deployments import DeploymentSpec
-from prefect.blocks.storage import FileStorageBlock
+from prefect import flow, get_run_logger
 
+@flow
+def hello_storage():
+    logger = get_run_logger()
+    logger.info(f"Uses a storage block on the flow runner!")
+
+from prefect.deployments import DeploymentSpec
+from prefect.blocks.storage import S3StorageBlock
+
+# configure an S3StorageBlock instance 
 DeploymentSpec(
-    flow_location="/path/to/hello_flow.py",
-    name="hello-world-file-storage",
-    flow_storage=FileStorageBlock(base_path="s3://your-bucket/foo"),
-    tags=["foo"],
+    flow=hello_storage,
+    name="storage instance test",
+    flow_storage=S3StorageBlock(
+        bucket="bucket-full-of-sunshine",
+        aws_access_key_id="XXXXXXXXXXXXXXXXXXXX",
+        aws_secret_access_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",),
+    tags=["storage","tutorial"],
 )
 
+# specify an existing storage configuration by ID
 DeploymentSpec(
-    flow_location="/path/to/hello_flow.py",
-    name="hello-world-s3-storage",
-    flow_storage="169da97c-3b43-4cb6-a0d8-4319d2e36689",
-    tags=["bar"],
+    flow=hello_storage,
+    name="storage id test",
+    flow_storage="8cc24b10-0a4e-4b71-acc6-0ed0b923b5c2",
+    tags=["storage","tutorial"],
 )
 ```
 
 If `flow_storage` is not specified, the default storage will be pulled from the server. If the server does not have a default, the deployment will attempt to use local storage.
 
-If creating a deployment that specifies a `FileStorageBlock`, without an ID of existing storage, it will be registered as a new storage configuration with the server.
+If creating a deployment that specifies the configuration for a [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance without an ID of existing storage, it will be registered as a new storage configuration with the server.
+
+!!! note "Storage definitions create new storage blocks"
+
+    Currently, if you specify the configuration for a storage block instance on the deployment, Prefect creates a new instance of that storage configuration each time you create or update the deployment, even if an identical configuration already exists.
+
+    If you specify the ID of an existing storage configuration, Prefect uses that configuration and does not create a new one.
