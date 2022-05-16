@@ -41,6 +41,19 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 
 @pytest.fixture
+def tmp_path():
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        fname = f.name
+    try:
+        yield f
+    finally:
+        import shutil
+        shutil.rmtree(f.name)
+
+
+
+@pytest.fixture
 async def tmp_remote_storage_block(tmp_path, orion_client):
 
     block = FileStorageBlock(base_path=str(tmp_path))
@@ -342,6 +355,7 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_unregistered_storage(
         self, orion_client, tmp_path
     ):
+
         block = FileStorageBlock(base_path=str(tmp_path))
 
         spec = DeploymentSpec(
