@@ -155,13 +155,13 @@ Options:
   --help  Show this message and exit.
 
 Commands:
-  install  Generate a deployment.yml file for a Kubernetes Agent
+  install  Generate a deployment.yml file for a Kubernetes agent
   start    Start a Kubernetes agent
 ```
 
 ### kubernetes install
 ```
-Generate a deployment.yml file for a Kubernetes Agent
+Generate a deployment.yml file for a Kubernetes agent
 
 Options:
   -t, --token TEXT               A Prefect Cloud API token with RUNNER scope.

@@ -326,7 +326,7 @@ def start(image_pull_secrets=None, **kwargs):
 )
 @click.option("--backend", "-b", help="Prefect backend to use for this agent.")
 def install(label, env, **kwargs):
-    """Generate a deployment.yml file for a Kubernetes Agent"""
+    """Generate a deployment.yml file for a Kubernetes agent"""
     from prefect.agent.kubernetes import KubernetesAgent
 
     deployment = KubernetesAgent.generate_deployment_yaml(
