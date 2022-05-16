@@ -153,7 +153,7 @@ class AirbyteConnectionTask(Task):
         self.airbyte_server_port = airbyte_server_port
         self.airbyte_api_version = airbyte_api_version
         self.connection_id = connection_id
-        
+
         if isinstance(stream_output, str):
             stream_output = logging.getLevelName(stream_output)
             if not isinstance(stream_output, int):
