@@ -179,6 +179,9 @@ class Block(BaseModel, ABC):
         will be looked up in the block registry based on the corresponding block schema
         of the provided block document.
 
+        Args:
+            block_document: The block document used to instantiate a block.
+
         Raises:
             ValueError: If the provided block document doesn't have a corresponding block
                 schema.
@@ -205,7 +208,22 @@ class Block(BaseModel, ABC):
         return block
 
     @classmethod
-    async def from_name(cls, name: str):
+    async def load(cls, name: str):
+        """
+        Retrieves data from the block document with the given name for the block type
+        that corresponds with the current class and returns an instantated version of
+        the current class with the data stored in the block document.
+
+        Args:
+            name: The name of the block document.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+        """
         async with prefect.client.get_client() as client:
             block_type_name = cls._block_type_name or cls.__name__
             try:
@@ -215,5 +233,5 @@ class Block(BaseModel, ABC):
             except prefect.exceptions.ObjectNotFound as e:
                 raise ValueError(
                     f"Unable to find block document named {name} for block type {cls._block_type_name or cls.__name__}"
-                )
+                ) from e
         return cls.from_block_document(block_document)
