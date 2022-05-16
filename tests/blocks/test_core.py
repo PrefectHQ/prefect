@@ -177,8 +177,8 @@ class TestAPICompatibility:
         assert block_schema.fields == block_class.schema()
         assert block_schema.type == block_class._block_schema_type
 
-    async def test_create_block_from_name(self, block_class, block_document):
-        my_block = await block_class.from_name(block_document.name)
+    async def test_block_load(self, block_class, block_document):
+        my_block = await block_class.load(block_document.name)
 
         assert my_block._block_document_name == block_document.name
         assert my_block._block_document_id == block_document.id
@@ -191,4 +191,4 @@ class TestAPICompatibility:
             ValueError,
             match="Unable to find block document named blocky for block type x",
         ):
-            await block_class.from_name("blocky")
+            await block_class.load("blocky")
