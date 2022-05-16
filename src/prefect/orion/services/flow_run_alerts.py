@@ -34,9 +34,12 @@ class FlowRunAlerts(LoopService):
         async with session:
             async with session.begin():
                 while True:
-                    alerts = await self.get_queued_flow_run_alerts(
-                        session=session, db=db, n_alerts=self.batch_size
+
+                    alerts = await db.get_flow_run_alerts_from_queue(
+                        session=session,
+                        limit=self.batch_size,
                     )
+                    self.logger.debug(f"Got {len(alerts)} alerts from queue.")
 
                     # if no alerts were found, exit the tight loop and sleep
                     if not alerts:
@@ -45,75 +48,6 @@ class FlowRunAlerts(LoopService):
                     await self.send_flow_run_alerts(
                         session=session, db=db, alerts=alerts
                     )
-
-            self.logger.info(f"Finished sending flow run alerts.")
-
-    @inject_db
-    async def get_queued_flow_run_alerts(
-        self,
-        session: sa.orm.session,
-        db: OrionDBInterface,
-        n_alerts: int = 1,
-    ):
-        queued_alerts = (
-            sa.delete(db.FlowRunAlertQueue)
-            .returning(
-                db.FlowRunAlertQueue.flow_run_alert_policy_id,
-                db.FlowRunAlertQueue.flow_run_state_id,
-            )
-            .where(
-                db.FlowRunAlertQueue.id.in_(
-                    sa.select(db.FlowRunAlertQueue.id)
-                    .select_from(db.FlowRunAlertQueue)
-                    .order_by(db.FlowRunAlertQueue.updated)
-                    .limit(n_alerts)
-                    .with_for_update(skip_locked=True)
-                )
-            )
-            .cte("queued_alerts")
-        )
-
-        alert_details_stmt = (
-            sa.select(
-                db.FlowRunAlertPolicy.id.label("flow_run_alert_policy_id"),
-                db.FlowRunAlertPolicy.name.label("flow_run_alert_policy_name"),
-                db.FlowRunAlertPolicy.message_template.label(
-                    "flow_run_alert_policy_message_template"
-                ),
-                db.FlowRunAlertPolicy.block_document_id,
-                db.Flow.id.label("flow_id"),
-                db.Flow.name.label("flow_name"),
-                db.FlowRun.id.label("flow_run_id"),
-                db.FlowRun.name.label("flow_run_name"),
-                db.FlowRun.parameters.label("flow_run_parameters"),
-                db.FlowRunState.type.label("flow_run_state_type"),
-                db.FlowRunState.name.label("flow_run_state_name"),
-                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
-                db.FlowRunState.message.label("flow_run_state_message"),
-            )
-            .select_from(queued_alerts)
-            .join(
-                db.FlowRunAlertPolicy,
-                queued_alerts.c.flow_run_alert_policy_id == db.FlowRunAlertPolicy.id,
-            )
-            .join(
-                db.FlowRunState,
-                queued_alerts.c.flow_run_state_id == db.FlowRunState.id,
-            )
-            .join(
-                db.FlowRun,
-                db.FlowRunState.flow_run_id == db.FlowRun.id,
-            )
-            .join(
-                db.Flow,
-                db.FlowRun.flow_id == db.Flow.id,
-            )
-        )
-
-        result = await session.execute(alert_details_stmt)
-        alerts = result.fetchall()
-        self.logger.debug(f"Got {len(alerts)} alerts from queue.")
-        return alerts
 
     @inject_db
     async def send_flow_run_alerts(
@@ -137,15 +71,13 @@ class FlowRunAlerts(LoopService):
                     or models.flow_run_alert_policies.DEFAULT_MESSAGE_TEMPLATE
                 )
                 message = message_template.format(
-                    **{
-                        k: alert[k]
-                        for k in models.flow_run_alert_policies.TEMPLATE_KWARGS
-                    }
+                    **{k: alert[k] for k in schemas.core.FLOW_RUN_ALERT_TEMPLATE_KWARGS}
                 )
                 await block.notify(body=message)
 
                 self.logger.debug(
-                    f"Successfully sent alert for flow run {alert.flow_run_id}"
+                    f"Successfully sent alert for flow run {alert.flow_run_id} "
+                    f"from policy {alert.flow_run_alert_policy_id}"
                 )
 
             except Exception as exc:

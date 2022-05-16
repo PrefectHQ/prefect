@@ -5,6 +5,7 @@ from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.orm_models import BaseORMConfiguration
 from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.utilities.asyncio import run_sync_in_worker_thread
+import sqlalchemy as sa
 
 
 class DBSingleton(type):
@@ -255,3 +256,8 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def json_arr_agg(self, json_array):
         return self.queries.json_arr_agg(json_array)
+
+    def get_flow_run_alerts_from_queue(self, session: sa.orm.Session, limit: int):
+        return self.queries.get_flow_run_alerts_from_queue(
+            session=session, db=self, limit=limit
+        )
