@@ -1,14 +1,15 @@
 import hashlib
 import json
 from abc import ABC
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from multiprocessing.sharedctypes import Value
+from typing import Dict, Optional, Type
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, HttpUrl
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.hashing import hash_objects, stable_hash
+from prefect.utilities.hashing import hash_objects
 
 BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
 
@@ -171,12 +172,15 @@ class Block(BaseModel, ABC):
             documentation_url=cls._documentation_url,
         )
 
-    @staticmethod
-    def from_block_document(block_document: BlockDocument):
+    @classmethod
+    def from_block_document(cls, block_document: BlockDocument):
         """
         Instantiates a block from a given block document. The corresponding block class
         will be looked up in the block registry based on the corresponding block schema
         of the provided block document.
+
+        Args:
+            block_document: The block document used to instantiate a block.
 
         Raises:
             ValueError: If the provided block document doesn't have a corresponding block
@@ -189,12 +193,45 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "Unable to determine block schema for provided block document"
             )
-        block_schema_cls = get_block_class(
-            checksum=block_document.block_schema.checksum,
+        block_schema_cls = (
+            cls
+            if cls.__name__ != "Block"
+            else get_block_class(
+                checksum=block_document.block_schema.checksum,
+            )
         )
         block = block_schema_cls(**block_document.data)
         block._block_document_id = block_document.id
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
-        block._block_name = block_document.name
+        block._block_document_name = block_document.name
         return block
+
+    @classmethod
+    async def load(cls, name: str):
+        """
+        Retrieves data from the block document with the given name for the block type
+        that corresponds with the current class and returns an instantated version of
+        the current class with the data stored in the block document.
+
+        Args:
+            name: The name of the block document.
+
+        Raises:
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+        """
+        async with prefect.client.get_client() as client:
+            block_type_name = cls._block_type_name or cls.__name__
+            try:
+                block_document = await client.read_block_document_by_name(
+                    name=name, block_type_name=block_type_name
+                )
+            except prefect.exceptions.ObjectNotFound as e:
+                raise ValueError(
+                    f"Unable to find block document named {name} for block type {cls._block_type_name or cls.__name__}"
+                ) from e
+        return cls.from_block_document(block_document)

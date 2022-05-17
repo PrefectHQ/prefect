@@ -66,6 +66,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
+    ObjectAlreadyExists,
     SpecValidationError,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
@@ -118,7 +119,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    flow_storage: Optional[StorageBlock] = None
+    flow_storage: Optional[Union[StorageBlock, UUID]] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -233,6 +234,9 @@ class DeploymentSpec(PrefectBaseModel):
                 self.flow_storage = Block.from_block_document(default_block_document)
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
+        if isinstance(self.flow_storage, UUID):
+            self.flow_storage = await client.read_block(self.flow_storage)
+
         if isinstance(self.flow_runner, SubprocessFlowRunner):
             local_machine_message = (
                 "this deployment will only be usable from the current machine."
@@ -282,14 +286,20 @@ class DeploymentSpec(PrefectBaseModel):
                 self.flow_storage.calculate_schema_checksum()
             )
 
-            block_document = await client.create_block_document(
-                block_document=self.flow_storage.to_block_document(
-                    name=f"{self.flow_name}-{self.name}",
-                    block_schema_id=block_schema.id,
-                    block_type_id=block_schema.block_type_id,
-                ),
-            )
-            self.flow_storage._block_document_id = block_document.id
+            block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
+            i = 0
+            while not self.flow_storage._block_document_id:
+                try:
+                    block_document = await client.create_block_document(
+                        block_document=self.flow_storage.to_block_document(
+                            name=f"{self.flow_name}-{self.name}-{self.flow.version}-{i}",
+                            block_schema_id=block_schema.id,
+                            block_type_id=block_schema.block_type_id,
+                        )
+                    )
+                    self.flow_storage._block_document_id = block_document.id
+                except ObjectAlreadyExists:
+                    i += 1
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)
