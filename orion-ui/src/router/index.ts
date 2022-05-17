@@ -60,6 +60,11 @@ const routeRecords: AppRouteRecord[] = [
     component: (): RouteComponent => import('@/pages/Queue.vue'),
   },
   {
+    name: 'settings',
+    path: '/settings',
+    component: (): RouteComponent => import('@/pages/Settings.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: '404',
     component: (): RouteComponent => import('@/pages/404.vue'),
