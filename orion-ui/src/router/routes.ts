@@ -1,39 +1,27 @@
-import { RouteLocationRaw, RouteRecordName } from 'vue-router'
-
-export const routeNames = [
-  '404',
-  'deployment',
-  'deployments',
-  'flow-run',
-  'flow-runs',
-  'flow',
-  'flows',
-  'create-queue',
-  'queue',
-  'queues',
-  'root',
-  'settings',
-] as const
-
-export type NamedRoute = typeof routeNames[number]
-
-export function isNamedRoute(route?: RouteRecordName | null): route is NamedRoute {
-  return typeof route === 'string' && routeNames.map(x => x as string).includes(route)
-}
-
-export type AppRouteLocation = Exclude<RouteLocationRaw, string> & { name: NamedRoute }
+import { RouteLocationRaw, RouteRecordName, RouteRecordRaw } from 'vue-router'
 
 const routes = {
-  deployment: (id: string) => ({ name: 'deployment', params: { id } }),
-  deployments: () => ({ name: 'deployments' }),
-  flow: (id: string) => ({ name: 'flow', params: { id } }),
-  flowRun: (id: string) => ({ name: 'flow-run', params: { id } }),
-  flowRuns: () => ({ name: 'flow-runs' }),
-  flows: () => ({ name: 'flows' }),
-  queue: (id: string) => ({ name: 'queue', params: { id } }),
-  queueCreate: () => ({ name: 'create-queue' }),
-  queues: () => ({ name: 'queues' }),
-  settings: (): AppRouteLocation => ({ name: 'settings' }),
+  root: () => ({ name: 'root' }) as const,
+  404: () => ({ name: '404' }) as const,
+  deployment: (id: string) => ({ name: 'deployment', params: { id } }) as const,
+  deployments: () => ({ name: 'deployments' }) as const,
+  flow: (id: string) => ({ name: 'flow', params: { id } }) as const,
+  flowRun: (id: string) => ({ name: 'flow-run', params: { id } }) as const,
+  flowRuns: () => ({ name: 'flow-runs' }) as const,
+  flows: () => ({ name: 'flows' }) as const,
+  queue: (id: string) => ({ name: 'queue', params: { id } }) as const,
+  queueCreate: () => ({ name: 'create-queue' }) as const,
+  queues: () => ({ name: 'queues' }) as const,
+  settings: () => ({ name: 'settings' }) as const,
 }
 
 export default routes
+
+export type NamedRoute = ReturnType<typeof routes[keyof typeof routes]>['name']
+
+export function isNamedRoute(route?: RouteRecordName | null): route is NamedRoute {
+  return typeof route === 'string' && Object.keys(routes).includes(route)
+}
+
+export type AppRouteLocation = Omit<RouteLocationRaw, 'name'> & { name: NamedRoute }
+export type AppRouteRecord = Omit<RouteRecordRaw, 'name' | 'children'> & { name: NamedRoute, children?: AppRouteRecord[] }

@@ -1,10 +1,8 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
 import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import FlowRunsPage from '@/pages/FlowRuns.vue'
-import routes, { routeNames, NamedRoute } from '@/router/routes'
+import routes, { NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
-
-type AppRouteRecord = RouteRecordRaw & { name: NamedRoute }
 
 const routeRecords: AppRouteRecord[] = [
   {
@@ -73,7 +71,7 @@ const routeRecords: AppRouteRecord[] = [
 
 const router = createRouter({
   history: createWebHistory(BASE_URL()),
-  routes: routeRecords,
+  routes: routeRecords as RouteRecordRaw[],
 })
 
 router.beforeEach(async (to, from) => {
@@ -85,5 +83,5 @@ router.afterEach((to, from) => {
 })
 
 export default router
-export { routes, routeNames }
-export type { NamedRoute }
+export { routes }
+export type { NamedRoute, AppRouteLocation, AppRouteRecord }
