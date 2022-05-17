@@ -1,0 +1,5 @@
+fix:
+  - "add data_security_mode - [#5778](https://github.com/PrefectHQ/prefect/pull/5778)"
+
+contributor:
+  - "[Robert Phamle](https://github.com/rphamle)"
