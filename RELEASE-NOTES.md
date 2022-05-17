@@ -2,7 +2,7 @@
 
 ## 2.0b5
 
-This release includes a couple small improvements that we want to deliver immediately instead of bundling them with the next big release.
+This release includes some small improvements that we want to deliver immediately instead of bundling them with the next big release.
 
 The `prefect.testing` module is now correctly included in the package on PyPI.
 
