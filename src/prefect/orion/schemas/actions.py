@@ -241,7 +241,7 @@ class WorkQueueUpdate(
 
 class FlowRunAlertPolicyCreate(
     schemas.core.FlowRunAlertPolicy.subclass(
-        "FlowRunAlertPolicyUpdate",
+        "FlowRunAlertPolicyCreate",
         include_fields=[
             "name",
             "is_active",
