@@ -30,9 +30,8 @@
 </script>
 
 <style lang="scss">
-.app {
-  background-color: var(--grey-10);
-  min-height: 100vh;
+.app { @apply
+  bg-slate-200
+  text-slate-900;
 }
-
 </style>
