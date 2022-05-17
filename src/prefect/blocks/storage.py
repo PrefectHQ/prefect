@@ -81,8 +81,7 @@ class FileStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         # Check for missing remote storage dependency
         try:
-            with fsspec.open(self.base_path + "check"):
-                pass
+            fsspec.open(self.base_path + "check")
         except ImportError as exc:
             # The path is a remote file system that uses a lib that is not installed
             exc_message = str(exc).rstrip(".")
@@ -136,9 +135,6 @@ class FileStorageBlock(StorageBlock):
             return await run_sync_in_worker_thread(self._read_sync, ff)
 
     def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
-        if ff.fs.exists(ff.path) and self.key_type == "hash":
-            return  # Do not write on hash collision
-
         ff.write(data)
 
     def _read_sync(self, ff: fsspec.core.OpenFile) -> bytes:
