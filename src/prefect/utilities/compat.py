@@ -15,7 +15,6 @@ if sys.version_info < (3, 9):
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
 
-
 else:
     from asyncio import to_thread as asyncio_to_thread
 
@@ -116,7 +115,6 @@ if sys.version_info < (3, 8) and sys.platform != "win32":
                 loop.call_soon_threadsafe(callback, pid, returncode, *args)
 
             self._threads.pop(expected_pid)
-
 
 elif sys.platform != "win32":
     from asyncio import ThreadedChildWatcher
