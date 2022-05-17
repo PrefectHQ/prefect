@@ -64,7 +64,6 @@ const router = createRouter({
   routes: routeRecords,
 })
 
-
 router.beforeEach(async (to, from) => {
   return await RouteGuardExecutioner.before(to, from)
 })
