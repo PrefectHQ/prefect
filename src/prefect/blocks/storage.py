@@ -15,7 +15,6 @@ import httpx
 import pendulum
 import pydantic
 from azure.storage.blob import BlobServiceClient
-from google.cloud import storage as gcs
 from google.oauth2 import service_account
 from typing_extensions import Literal
 
@@ -24,6 +23,10 @@ from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore::DeprecationWarning")
+    from google.cloud import storage as gcs
 
 # Storage block "key" type which should match for read/write in each implementation
 T = TypeVar("T")
