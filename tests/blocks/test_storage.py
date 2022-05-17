@@ -1,6 +1,8 @@
 import os.path
+import sys
 import uuid
 from itertools import product
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
@@ -134,7 +136,8 @@ class TestFileStorageBlock:
         elif key_type == "uuid":
             assert uuid.UUID(key)
         elif key_type == "timestamp":
-            assert pendulum.parse(key)
+            # keys are not allowed in windows paths
+            assert pendulum.parse(key.replace("_", ":"))
 
         assert (tmp_path / key).exists()
 
@@ -157,9 +160,15 @@ class TestFileStorageBlock:
         with pytest.raises(ImportError, match="Install s3fs"):
             await block.read("test")
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix specific paths")
     async def test_adds_trailing_slash(self):
         block = storage.FileStorageBlock(base_path="/tmp/test")
         assert block.base_path == "/tmp/test/"
+
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows specific paths")
+    async def test_adds_trailing_sep(self):
+        block = storage.FileStorageBlock(base_path="\\tmp\\test")
+        assert block.base_path == "\\tmp\\test\\"
 
     async def test_includes_options_on_open(self, monkeypatch):
         mock = MagicMock()
@@ -188,8 +197,8 @@ class TestFileStorageBlock:
 
 
 def test_local_storage_block_expands_home_directories():
-    storage_path = "~/.prefect"
-    local_storage_block = storage.LocalStorageBlock(storage_path=storage_path)
+    storage_path = Path("~") / ".prefect"
+    local_storage_block = storage.LocalStorageBlock(storage_path=str(storage_path))
     # The path includes ~ still in the block's settings so that it is portable across systems
     assert "~" in str(local_storage_block.storage_path)
     basepath = str(local_storage_block.basepath())
