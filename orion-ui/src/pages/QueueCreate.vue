@@ -1,6 +1,6 @@
 <template>
-  <div class="queues">
-    Queues
+  <div class="new-queue">
+    New Queue
   </div>
 </template>
 
@@ -9,5 +9,5 @@
 </script>
 
 <style>
-.queues {}
+.new-queue {}
 </style>
