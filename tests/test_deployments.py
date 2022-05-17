@@ -44,12 +44,14 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 def tmp_path():
     import tempfile
 
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        fname = f.name
     try:
-        return f
+        directory = tempfile.TemporaryDirectory()
+        return directory.name
     finally:
-        os.remove(f.name)
+        try:
+            directory.cleanup()
+        except:
+            pass
 
 
 @pytest.fixture
