@@ -1,12 +1,14 @@
 import { RouteLocationRaw, RouteRecordName } from 'vue-router'
 
 export const routeNames = [
+  '404',
   'deployment',
   'deployments',
   'flow-run',
   'flow-runs',
   'flow',
   'flows',
+  'create-queue',
   'queue',
   'queues',
   'root',
@@ -29,7 +31,7 @@ const routes = {
   flowRuns: () => ({ name: 'flow-runs' }),
   flows: () => ({ name: 'flows' }),
   queue: (id: string) => ({ name: 'queue', params: { id } }),
-  queueCreate: () => ({ name: 'queue-create' }),
+  queueCreate: () => ({ name: 'create-queue' }),
   queues: () => ({ name: 'queues' }),
   settings: (): AppRouteLocation => ({ name: 'settings' }),
 }
