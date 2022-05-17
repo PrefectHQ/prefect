@@ -46,6 +46,13 @@ const routeRecords: AppRouteRecord[] = [
     name: 'queues',
     path: '/queues',
     component: (): RouteComponent => import('@/pages/Queues.vue'),
+    children: [
+      {
+        name: 'create-queue',
+        path: 'new',
+        component: (): RouteComponent => import('@/pages/QueueCreate.vue'),
+      },
+    ],
   },
   {
     name: 'queue',
