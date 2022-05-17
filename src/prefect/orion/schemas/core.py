@@ -14,7 +14,7 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-from prefect.orion.models.flow_run_alert_policies
+
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_ALERT_TEMPLATE_KWARGS = [
@@ -30,6 +30,7 @@ FLOW_RUN_ALERT_TEMPLATE_KWARGS = [
     "flow_run_state_timestamp",
     "flow_run_state_message",
 ]
+
 
 def raise_on_invalid_name(name: str) -> None:
     """
