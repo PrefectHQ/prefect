@@ -536,7 +536,7 @@ def start(
     no_server_port,
     use_volume,
     volume_path,
-    hide_welcome
+    hide_welcome,
 ):
     """
     This command spins up all infrastructure and services for the Prefect Core server
