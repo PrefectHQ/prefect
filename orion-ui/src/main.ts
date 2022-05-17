@@ -5,15 +5,11 @@ import './registerServiceWorker'
 import router from './router'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
-// Global components
-import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
-import RadarNode from '@/components/Radar/Nodes/Node.vue'
-import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 
 // styles
 import '@prefecthq/prefect-design/dist/style.css'
 import '@prefecthq/orion-design/dist/style.css'
-import '@/styles/main.scss'
+import '@/styles/style.css'
 
 const storageKey = 'orion-color-mode'
 const storedMode = localStorage.getItem(storageKey)?.toLowerCase()
@@ -30,11 +26,6 @@ async function start(): Promise<void> {
   }
 
   const app = createApp(App).use(router).use(createPinia())
-
-  app.component('RadarNode', RadarNode)
-  app.component('RadarFlowRunNode', RadarFlowRunNode)
-  app.component('RadarOverflowNode', RadarOverflowNode)
-
 
   app.mount('#app')
 }
