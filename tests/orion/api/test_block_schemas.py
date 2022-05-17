@@ -112,7 +112,9 @@ class TestReadBlockSchema:
         }
 
     async def test_read_block_schemas_by_type(self, session, client, block_schemas):
-        result = await client.post(f"/block_schemas/filter", json=dict(type="abc"))
+        result = await client.post(
+            f"/block_schemas/filter", json=dict(block_schema_type="abc")
+        )
         api_schemas = pydantic.parse_obj_as(
             List[schemas.core.BlockSchema], result.json()
         )
