@@ -2,20 +2,20 @@
 Command line interface for managing storage settings
 """
 import textwrap
-from operator import attrgetter
+from itertools import filterfalse
 from typing import List
 from uuid import UUID
 
 import pydantic
 import typer
-from fastapi import status
-from httpx import HTTPStatusError
 from rich.emoji import Emoji
 from rich.table import Table
 
 import prefect
 from prefect.blocks.core import get_block_class
-from prefect.cli.base import PrefectTyper, app, exit_with_error, exit_with_success
+from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
@@ -34,8 +34,13 @@ async def create():
     """Create a new storage configuration."""
     async with get_client() as client:
         schemas = await client.read_block_schemas("STORAGE")
-
     unconfigurable = set()
+
+    # KV Server Storage is for internal use only and should not be exposed to users
+    schemas = list(
+        filterfalse(lambda s: s.block_type.name == "KV Server Storage", schemas)
+    )
+
     for schema in schemas:
         for property, property_spec in schema.fields["properties"].items():
             if (
@@ -47,17 +52,22 @@ async def create():
     for schema in unconfigurable:
         schemas.remove(schema)
 
-    schemas = sorted(schemas, key=attrgetter("created"))
+    schemas = sorted(schemas, key=lambda s: s.block_type.name)
 
     app.console.print("Found the following storage types:")
+
     for i, schema in enumerate(schemas):
         app.console.print(f"{i}) {schema.block_type.name}")
-        description = schema.fields["description"]
-        if description:
-            app.console.print(textwrap.indent(description, prefix="    "))
+        if (
+            schema.fields.get("description")
+            and not schema.fields["description"].isspace()
+        ):
+            short_description = schema.fields["description"].strip().splitlines()[0]
+        else:
+            short_description = "<no description>"
+        app.console.print(textwrap.indent(short_description, prefix="    "))
 
     selection = typer.prompt("Select a storage type to create", type=int)
-
     try:
         schema = schemas[selection]
     except:
@@ -67,7 +77,6 @@ async def create():
     app.console.print(
         f"You've selected {schema.block_type.name}. It has {len(property_specs)} option(s). "
     )
-
     properties = {}
     required_properties = schema.fields.get("required", property_specs.keys())
     for property, property_spec in property_specs.items():
