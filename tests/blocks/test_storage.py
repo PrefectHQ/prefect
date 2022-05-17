@@ -136,7 +136,7 @@ class TestFileStorageBlock:
         elif key_type == "uuid":
             assert uuid.UUID(key)
         elif key_type == "timestamp":
-            # keys are not allowed in windows paths
+            # colons are not allowed in windows paths
             assert pendulum.parse(key.replace("_", ":"))
 
         assert (tmp_path / key).exists()
