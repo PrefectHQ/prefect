@@ -1,5 +1,5 @@
 <template>
-  <div class="new-queue">
+  <div class="queue-create">
     New Queue
   </div>
 </template>
@@ -9,5 +9,5 @@
 </script>
 
 <style>
-.new-queue {}
+.queue-create {}
 </style>
