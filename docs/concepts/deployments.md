@@ -420,7 +420,7 @@ DeploymentSpec(
         bucket="bucket-full-of-sunshine",
         aws_access_key_id="XXXXXXXXXXXXXXXXXXXX",
         aws_secret_access_key="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-        ),
+    ),
     tags=["storage","tutorial"],
 )
 
