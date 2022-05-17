@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import warnings
 from abc import abstractmethod
 from functools import partial
@@ -115,7 +116,10 @@ class FileStorageBlock(StorageBlock):
         elif self.key_type == "hash":
             return stable_hash(data)
         elif self.key_type == "timestamp":
-            return pendulum.now().isoformat()
+            if sys.platform != "win32":
+                return pendulum.now().isoformat()
+            else:
+                return pendulum.now().isoformat().replace(":", "_")
         else:
             raise ValueError(f"Unknown key type {self.key_type!r}")
 
