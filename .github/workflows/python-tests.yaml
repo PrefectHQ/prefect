@@ -1,5 +1,10 @@
 name: Python tests
 
+env:
+  # enable colored output
+  # https://github.com/pytest-dev/pytest/issues/7443
+  PY_COLORS: 1
+
 on:
   pull_request:
     paths:
