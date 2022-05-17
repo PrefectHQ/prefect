@@ -257,7 +257,7 @@ class OrionDBInterface(metaclass=DBSingleton):
     def json_arr_agg(self, json_array):
         return self.queries.json_arr_agg(json_array)
 
-    def get_flow_run_alerts_from_queue(self, session: sa.orm.Session, limit: int):
-        return self.queries.get_flow_run_alerts_from_queue(
+    async def get_flow_run_alerts_from_queue(self, session: sa.orm.Session, limit: int):
+        return await self.queries.get_flow_run_alerts_from_queue(
             session=session, db=self, limit=limit
         )

@@ -34,7 +34,6 @@ class FlowRunAlerts(LoopService):
         async with session:
             async with session.begin():
                 while True:
-
                     alerts = await db.get_flow_run_alerts_from_queue(
                         session=session,
                         limit=self.batch_size,

@@ -373,15 +373,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         # delete the alerts
         delete_stmt = (
             sa.delete(db.FlowRunAlertQueue)
-            .where(
-                db.FlowRunAlertQueue.id.in_(
-                    sa.select(db.FlowRunAlertQueue.id)
-                    .order_by(db.FlowRunAlertQueue.updated)
-                    .limit(limit)
-                )
-            )
-            .execution_options(synchronize_session=False)
+            .where(db.FlowRunAlertQueue.id.in_([a.queue_id for a in alerts]))
+            .execution_options(synchronize_session="fetch")
         )
+
         await session.execute(delete_stmt)
 
         return alerts
