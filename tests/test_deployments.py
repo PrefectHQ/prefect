@@ -48,11 +48,11 @@ async def tmp_remote_storage_block_id(tmp_path, orion_client):
     block = FileStorageBlock(base_path=str(tmp_path))
 
     block_schema = await orion_client.read_block_schema_by_checksum(
-        block.calculate_schema_checksum()
+        block._calculate_schema_checksum()
     )
 
     block_document = await orion_client.create_block_document(
-        block.to_block_document(
+        block._to_block_document(
             name="test",
             block_schema_id=block_schema.id,
             block_type_id=block_schema.block_type_id,
@@ -66,10 +66,10 @@ async def tmp_local_storage_block(tmp_path, orion_client):
 
     block = LocalStorageBlock(storage_path=str(tmp_path))
     block_schema = await orion_client.read_block_schema_by_checksum(
-        block.calculate_schema_checksum()
+        block._calculate_schema_checksum()
     )
     block_document = await orion_client.create_block_document(
-        block.to_block_document(
+        block._to_block_document(
             name="test",
             block_schema_id=block_schema.id,
             block_type_id=block_schema.block_type_id,
@@ -259,7 +259,7 @@ class TestDeploymentSpec:
 
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
         await spec.validate()
-        assert spec.flow_storage == Block.from_block_document(
+        assert spec.flow_storage == Block._from_block_document(
             await orion_client.get_default_storage_block_document()
         )
 
@@ -339,7 +339,7 @@ class TestDeploymentSpec:
         self, orion_client, flow_runner, tmp_remote_storage_block_id
     ):
         await orion_client.clear_default_storage_block_document()
-        block = Block.from_block_document(
+        block = Block._from_block_document(
             await orion_client.read_block_document(tmp_remote_storage_block_id)
         )
 
@@ -407,7 +407,7 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_registered_storage(
         self, orion_client, tmp_remote_storage_block_id
     ):
-        block = Block.from_block_document(
+        block = Block._from_block_document(
             await orion_client.read_block_document(tmp_remote_storage_block_id)
         )
 
@@ -427,7 +427,7 @@ class TestCreateDeploymentFromSpec:
         self, orion_client, tmp_remote_storage_block_id
     ):
 
-        tmp_remote_storage_block = Block.from_block_document(
+        tmp_remote_storage_block = Block._from_block_document(
             await orion_client.read_block_document(tmp_remote_storage_block_id)
         )
         spec = DeploymentSpec(
