@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from typing import Any, Optional
 
-
 from prefect.blocks.core import Block, register_block
 
 

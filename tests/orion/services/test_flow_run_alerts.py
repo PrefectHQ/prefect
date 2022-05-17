@@ -1,9 +1,9 @@
 import pytest
+import sqlalchemy as sa
 
 from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
 from prefect.orion.services.flow_run_alerts import FlowRunAlerts
-import sqlalchemy as sa
 
 
 @pytest.fixture(autouse=True)

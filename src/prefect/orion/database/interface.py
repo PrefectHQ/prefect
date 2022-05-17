@@ -1,11 +1,12 @@
 import datetime
 
+import sqlalchemy as sa
+
 from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.orm_models import BaseORMConfiguration
 from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.utilities.asyncio import run_sync_in_worker_thread
-import sqlalchemy as sa
 
 
 class DBSingleton(type):

@@ -26,9 +26,9 @@ from prefect.orion.orchestration.rules import (
     OrchestrationResult,
 )
 from prefect.orion.schemas.core import TaskRunResult
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.schemas.responses import SetStateStatus
 
 
 @inject_db

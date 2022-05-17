@@ -1,6 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import TYPE_CHECKING, Hashable, Tuple, List
+from typing import TYPE_CHECKING, Hashable, List, Tuple
 
 import pendulum
 import sqlalchemy as sa
