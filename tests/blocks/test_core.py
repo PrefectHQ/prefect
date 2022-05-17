@@ -1,3 +1,4 @@
+from typing import Type
 from uuid import uuid4
 
 import pytest
@@ -122,6 +123,25 @@ class TestAPICompatibility:
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_x.id
 
+    def test_from_block_document_with_unregistered_block(self):
+        class BlockyMcBlock(Block):
+            fizz: str
+
+        block_schema_id = uuid4()
+        block_type_id = uuid4()
+        api_block = BlockyMcBlock(fizz="buzz").to_block_document(
+            name="super important config",
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
+        )
+
+        block = BlockyMcBlock.from_block_document(api_block)
+        assert type(block) == BlockyMcBlock
+        assert block.fizz == "buzz"
+        assert block._block_schema_id == block_schema_id
+        assert block._block_document_id == api_block.id
+        assert block._block_type_id == block_type_id
+
     def test_create_block_document_from_block(self, block_type_x):
         @register_block
         class MakesALottaAttributes(Block):
@@ -140,3 +160,35 @@ class TestAPICompatibility:
         assert "real_field" in api_block.data
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
+
+    def test_create_block_type_from_block(self, block_class: Type[Block]):
+        block_type = block_class.to_block_type()
+
+        assert block_type.name == block_class.__name__
+        assert block_type.logo_url == block_class._logo_url
+        assert block_type.documentation_url == block_class._documentation_url
+
+    def test_create_block_schema_from_block(
+        self, block_class: Type[Block], block_type_x
+    ):
+        block_schema = block_class.to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.checksum == block_class.calculate_schema_checksum()
+        assert block_schema.fields == block_class.schema()
+        assert block_schema.type == block_class._block_schema_type
+
+    async def test_block_load(self, block_class, block_document):
+        my_block = await block_class.load(block_document.name)
+
+        assert my_block._block_document_name == block_document.name
+        assert my_block._block_document_id == block_document.id
+        assert my_block._block_type_id == block_document.block_type_id
+        assert my_block._block_schema_id == block_document.block_schema_id
+        assert my_block.foo == "bar"
+
+    async def test_create_block_from_nonexistant_name(self, block_class):
+        with pytest.raises(
+            ValueError,
+            match="Unable to find block document named blocky for block type x",
+        ):
+            await block_class.load("blocky")

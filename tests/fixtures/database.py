@@ -229,7 +229,12 @@ async def block_schema(session, block_type_x):
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
             type="abc",
-            fields={},
+            fields={
+                "title": "x",
+                "type": "object",
+                "properties": {"foo": {"title": "Foo", "type": "string"}},
+                "required": ["foo"],
+            },
             block_type_id=block_type_x.id,
         ),
     )
@@ -245,7 +250,7 @@ async def block_document(session, block_schema, block_type_x):
             block_schema_id=block_schema.id,
             name="Block 1",
             block_type_id=block_type_x.id,
-            data=dict(),
+            data=dict(foo="bar"),
         ),
     )
     await session.commit()
