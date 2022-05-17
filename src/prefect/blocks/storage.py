@@ -25,7 +25,7 @@ from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
 
 with warnings.catch_warnings():
-    warnings.simplefilter("ignore::DeprecationWarning")
+    warnings.simplefilter("ignore", category=DeprecationWarning)
     from google.cloud import storage as gcs
 
 # Storage block "key" type which should match for read/write in each implementation
