@@ -1,26 +1,42 @@
 {
-    "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true
-    },
-    "cSpell.words": [
-        "composables",
-        "datetime",
-        "dismissable",
-        "emperical",
-        "idempotency",
-        "pinia",
-        "prefecthq",
-        "subflow",
-        "timeframe",
-        "vite",
-        "Vuex"
-    ],
-    "cSpell.flagWords": [
-        "canceled"
-    ],
-    "files.exclude": {
-        "node_modules": true,
-        "packages": true,
-        "dist": true
-    },
+  "editor.formatOnSave": false,
+  "javascript.format.enable": false,
+  "eslint.alwaysShowStatus": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  },
+  "eslint.options": {
+    "extensions": [
+      "*.html",
+      "*.js",
+      "*.vue",
+      "*.jsx",
+      "*.json",
+      "*.ts"
+    ]
+  },
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "cSpell.words": [
+    "kubernetes",
+    "pinia",
+    "prefecthq",
+    "rrule",
+    "semibold",
+    "subflow",
+    "tailwindcss",
+    "vite",
+    "vitejs"
+  ],
+  "search.exclude": {
+    "**/dist": true
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    "node_modules": true,
+    "dist": true
+  },
+  "css.customData": [
+    "./.vscode/css-data.json"
+  ]
 }
