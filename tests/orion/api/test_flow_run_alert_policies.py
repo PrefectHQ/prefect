@@ -1,9 +1,9 @@
 from uuid import uuid4
-import sqlalchemy as sa
+
 import pytest
+import sqlalchemy as sa
 
 from prefect.blocks.notifications import DebugPrintNotification
-
 from prefect.orion import models, schemas
 from prefect.orion.schemas.core import FlowRunAlertPolicy
 

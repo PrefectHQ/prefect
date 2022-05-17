@@ -1,12 +1,12 @@
 """
 A service that checks for flow run alerts and sends them.
 """
-from typing import List
-from prefect.blocks.core import Block
 import asyncio
+from typing import List
 
 import sqlalchemy as sa
 
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
