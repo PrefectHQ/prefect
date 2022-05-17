@@ -272,7 +272,7 @@ def create_app(
         session = await db.session()
         async with session:
             for block_class in BLOCK_REGISTRY.values():
-                # each block schema gets its own transaction˝
+                # each block schema gets its own transaction
                 async with session.begin():
                     try:
                         block_type = await create_block_type(
