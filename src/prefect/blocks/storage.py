@@ -81,7 +81,8 @@ class FileStorageBlock(StorageBlock):
     def block_initialization(self) -> None:
         # Check for missing remote storage dependency
         try:
-            fsspec.open(self.base_path + "check")
+            with fsspec.open(self.base_path + "check"):
+                pass
         except ImportError as exc:
             # The path is a remote file system that uses a lib that is not installed
             exc_message = str(exc).rstrip(".")
@@ -121,29 +122,27 @@ class FileStorageBlock(StorageBlock):
 
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
-        file = fsspec.open(self.base_path + key, "wb", **self.options)
+        with fsspec.open(self.base_path + key, "wb", **self.options) as ff:
 
-        # TODO: Some file systems support async and would require passing the current
-        #       event loop in `self.options`. This would probably be better for
-        #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
+            # TODO: Some file systems support async and would require passing the current
+            #       event loop in `self.options`. This would probably be better for
+            #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
 
-        await run_sync_in_worker_thread(self._write_sync, file, data)
+            await run_sync_in_worker_thread(self._write_sync, ff, data)
         return key
 
     async def read(self, key: str) -> bytes:
-        file = fsspec.open(self.base_path + key, "rb", **self.options)
-        return await run_sync_in_worker_thread(self._read_sync, file)
+        with fsspec.open(self.base_path + key, "rb", **self.options) as ff:
+            return await run_sync_in_worker_thread(self._read_sync, ff)
 
-    def _write_sync(self, file: fsspec.core.OpenFile, data: bytes) -> None:
-        if file.fs.exists(file.path) and self.key_type == "hash":
+    def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
+        if ff.fs.exists(ff.path) and self.key_type == "hash":
             return  # Do not write on hash collision
 
-        with file as io:
-            io.write(data)
+        ff.write(data)
 
-    def _read_sync(self, file: fsspec.core.OpenFile) -> bytes:
-        with file as io:
-            return io.read()
+    def _read_sync(self, ff: fsspec.core.OpenFile) -> bytes:
+        return ff.read()
 
 
 @register_block("S3 Storage", version="1.0")

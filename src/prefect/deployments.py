@@ -2,7 +2,7 @@
 Objects for specifying deployments and utilities for loading flows from deployments.
 
 The primary object is the `DeploymentSpec` which can be used to define a deployment.
-Once a specification is written, it can be used with the Orion client or CLI to create 
+Once a specification is written, it can be used with the Orion client or CLI to create
 a deployment in the backend.
 
 Examples:
@@ -45,6 +45,7 @@ Examples:
     ```
 """
 
+import os
 import pathlib
 import sys
 import warnings
@@ -582,10 +583,16 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         mode="wt" if isinstance(script_contents, str) else "wb",
         prefix=f"flow-script-{flow_name}",
         suffix=".py",
+        delete=False,
     ) as tmpfile:
         tmpfile.write(script_contents)
         tmpfile.flush()
+    try:
         flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
+    finally:
+        # windows compat
+        tmpfile.close()
+        os.remove(tmpfile.name)
     return flow
 
 

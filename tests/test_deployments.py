@@ -43,14 +43,13 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 @pytest.fixture
 def tmp_path():
     import tempfile
+
     with tempfile.NamedTemporaryFile(delete=False) as f:
         fname = f.name
     try:
-        yield f
+        return f
     finally:
-        import shutil
-        shutil.rmtree(f.name)
-
+        os.remove(f.name)
 
 
 @pytest.fixture
