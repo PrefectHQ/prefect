@@ -156,6 +156,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         queued_alerts = (
             sa.delete(db.FlowRunAlertQueue)
             .returning(
+                db.FlowRunAlertQueue.id,
                 db.FlowRunAlertQueue.flow_run_alert_policy_id,
                 db.FlowRunAlertQueue.flow_run_state_id,
             )
@@ -173,7 +174,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
         alert_details_stmt = (
             sa.select(
-                queued_alerts.id.label("queue_id"),
+                queued_alerts.c.id.label("queue_id"),
                 db.FlowRunAlertPolicy.id.label("flow_run_alert_policy_id"),
                 db.FlowRunAlertPolicy.name.label("flow_run_alert_policy_name"),
                 db.FlowRunAlertPolicy.message_template.label(
@@ -209,7 +210,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             )
         )
 
-        result = session.execute(alert_details_stmt)
+        result = await session.execute(alert_details_stmt)
         return result.fetchall()
 
 

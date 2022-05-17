@@ -72,7 +72,7 @@ class FlowRunAlerts(LoopService):
                 message = message_template.format(
                     **{k: alert[k] for k in schemas.core.FLOW_RUN_ALERT_TEMPLATE_KWARGS}
                 )
-                await block.notify(body=message)
+                await block.notify(data=message)
 
                 self.logger.debug(
                     f"Successfully sent alert for flow run {alert.flow_run_id} "
