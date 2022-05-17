@@ -1,5 +1,13 @@
 # Prefect Release Notes
 
+## 2.0b5
+
+This release includes some small improvements that we want to deliver immediately instead of bundling them with the next big release.
+
+The `prefect.testing` module is now correctly included in the package on PyPI.
+
+The Prefect UI no longer uses a hard-coded API URL pointing at `localhost`. Instead, the URL is pulled from the `PREFECT_ORION_UI_API_URL` setting. This setting defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value, the aforementioned settings may be templated into the given string.
+
 ## 2.0b4
 
 We're really busy over here at Prefect! We've been getting great feedback from early adopters. There's a lot of work going on behind the scenes as we work on building some exciting new features that will be exclusive to Prefect 2.0, but we want to keep the enhancements flowing to you. In that spirit, there are a lot of quality-of-life improvements here!
