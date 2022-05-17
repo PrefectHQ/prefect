@@ -119,6 +119,7 @@ class FileStorageBlock(StorageBlock):
         elif self.key_type == "hash":
             return stable_hash(data)
         elif self.key_type == "timestamp":
+            # colons are not allowed in windows paths
             if sys.platform != "win32":
                 return pendulum.now().isoformat()
             else:
