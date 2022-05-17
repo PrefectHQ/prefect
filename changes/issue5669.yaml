@@ -1,5 +1,0 @@
-enhancement:
-- "Add ability to set a `max_duration` timeout in `wait_for_flow_run` task - [#5669](https://github.com/PrefectHQ/prefect/issues/5669)"
-
-contributor:
-- "[Anders Segerberg](https://github.com/gtasegerberg)"

@@ -22,9 +22,20 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
     </div>
 </div>
 
-We’re excited to announce that Prefect Core is officially Prefect 1.0! 
 
-For a smooth transition of your flows to this release, check out our [Upgrading to Prefect 1.0](/orchestration/faq/upgrading_1.0) guide and [Changelog](/api/latest/changelog/).
+Prefect Core is now Prefect 1.0! Check [this blog post](https://www.prefect.io/blog/prefect-core-is-now-prefect-1-0/) to learn more.
+
+When we say Prefect 1.0, we mean it as a generation of a product, not as a specific release. This distinction is important since we are actively working on a new generation of Prefect based on [the Orion engine](https://www.prefect.io/blog/announcing-prefect-orion) &mdash; [Prefect 2.0](https://www.prefect.io/blog/introducing-prefect-2-0/)! The documentation for Prefect 2.0 is available on [orion-docs.prefect.io](https://orion-docs.prefect.io). 
+
+If you use a previous version of Prefect (before the 1.0 release), you may either:
+
+- Transition your flows to the latest 1.0 release &mdash; for more details, check out our [Upgrading to Prefect 1.0](/orchestration/faq/upgrading_1.0) guide and [Changelog](/api/latest/changelog/).
+- Start using Prefect 2.0 already! You can even sign up for a free [Cloud 2.0](https://orion-docs.prefect.io/ui/cloud/) account on [beta.prefect.io](https://beta.prefect.io/).
+
+
+If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
+
+
 
 <div class="features">
 <div class="feature">

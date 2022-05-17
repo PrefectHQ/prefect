@@ -1,5 +1,0 @@
-fix:
-  - 'Fixes bug parsing a parameter that includes an equals ("=") sign [#5716](https://github.com/PrefectHQ/prefect/pull/5716)'
-
-contributor:
-  - '[oscarwyatt](https://github.com/oscarwyatt)'
