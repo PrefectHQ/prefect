@@ -1,5 +1,5 @@
 <template>
-  <div class="application" data-teleport-target="app">
+  <div class="app" data-teleport-target="app">
     <suspense>
       <router-view class="application__router-view" />
     </suspense>
@@ -34,5 +34,4 @@
   background-color: var(--grey-10);
   min-height: 100vh;
 }
-
 </style>
