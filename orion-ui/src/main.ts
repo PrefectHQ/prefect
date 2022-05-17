@@ -2,7 +2,6 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
-import api from './plugins/api'
 import router from './router'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
 
@@ -30,7 +29,7 @@ async function start(): Promise<void> {
     startServer()
   }
 
-  const app = createApp(App).use(router).use(api).use(createPinia())
+  const app = createApp(App).use(router).use(createPinia())
 
   app.component('RadarNode', RadarNode)
   app.component('RadarFlowRunNode', RadarFlowRunNode)
