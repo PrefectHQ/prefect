@@ -184,17 +184,6 @@ class TestFileStorageBlock:
         await block.read(key)
         mock.assert_called_with(f"/tmp/test/{key}", "rb", test=1, foo="bar")
 
-    async def test_hash_key_does_not_overwrite(self, tmp_path):
-        block = storage.FileStorageBlock(base_path=tmp_path, key_type="hash")
-
-        key1 = await block.write(b"test")
-        mtime1 = os.path.getmtime(tmp_path / key1)
-        key2 = await block.write(b"test")
-        mtime2 = os.path.getmtime(tmp_path / key2)
-
-        assert key1 == key2
-        assert mtime2 == mtime1, "Should not write contents again"
-
 
 def test_local_storage_block_expands_home_directories():
     storage_path = Path("~") / ".prefect"
