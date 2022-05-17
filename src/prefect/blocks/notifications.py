@@ -17,7 +17,7 @@ class NotificationBlock(Block):
     _block_schema_type: Optional[str] = "NOTIFICATION"
 
     @abstractmethod
-    async def notify(self, body: str, title: str = None):
+    async def notify(self, data: Any):
         """
         Send a notification
         """
