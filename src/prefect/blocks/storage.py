@@ -129,7 +129,7 @@ class FileStorageBlock(StorageBlock):
             # colons are not allowed in windows paths
             if (
                 sys.platform == "win32"
-                and type(fsspec.open(self.base_path)) == LocalFileSystem
+                and type(fsspec.open(self.base_path).fs) == LocalFileSystem
             ):
                 return pendulum.now().isoformat().replace(":", "_")
             else:
