@@ -2,6 +2,7 @@
 Command line interface for managing storage settings
 """
 import textwrap
+from itertools import filterfalse
 from typing import List
 from uuid import UUID
 
@@ -32,41 +33,52 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 async def create():
     """Create a new storage configuration."""
     async with get_client() as client:
-        specs = await client.read_block_specs("STORAGE")
-
+        schemas = await client.read_block_schemas("STORAGE")
     unconfigurable = set()
-    for spec in specs:
-        for property, property_spec in spec.fields["properties"].items():
+
+    # KV Server Storage is for internal use only and should not be exposed to users
+    schemas = list(
+        filterfalse(lambda s: s.block_type.name == "KV Server Storage", schemas)
+    )
+
+    for schema in schemas:
+        for property, property_spec in schema.fields["properties"].items():
             if (
                 property_spec["type"] == "object"
-                and property in spec.fields["required"]
+                and property in schema.fields["required"]
             ):
-                unconfigurable.add(spec)
+                unconfigurable.add(schema)
 
-    for spec in unconfigurable:
-        specs.remove(spec)
+    for schema in unconfigurable:
+        schemas.remove(schema)
+
+    schemas = sorted(schemas, key=lambda s: s.block_type.name)
 
     app.console.print("Found the following storage types:")
-    for i, spec in enumerate(specs):
-        app.console.print(f"{i}) {spec.name}")
-        description = spec.fields["description"]
-        if description:
-            app.console.print(textwrap.indent(description, prefix="    "))
+
+    for i, schema in enumerate(schemas):
+        app.console.print(f"{i}) {schema.block_type.name}")
+        if (
+            schema.fields.get("description")
+            and not schema.fields["description"].isspace()
+        ):
+            short_description = schema.fields["description"].strip().splitlines()[0]
+        else:
+            short_description = "<no description>"
+        app.console.print(textwrap.indent(short_description, prefix="    "))
 
     selection = typer.prompt("Select a storage type to create", type=int)
-
     try:
-        spec = specs[selection]
+        schema = schemas[selection]
     except:
         exit_with_error(f"Invalid selection {selection!r}")
 
-    property_specs = spec.fields["properties"]
+    property_specs = schema.fields["properties"]
     app.console.print(
-        f"You've selected {spec.name}. It has {len(property_specs)} option(s). "
+        f"You've selected {schema.block_type.name}. It has {len(property_specs)} option(s). "
     )
-
     properties = {}
-    required_properties = spec.fields.get("required", property_specs.keys())
+    required_properties = schema.fields.get("required", property_specs.keys())
     for property, property_spec in property_specs.items():
         required = property in required_properties
         optional = " (optional)" if not required else ""
@@ -93,7 +105,7 @@ async def create():
 
     name = typer.prompt("Choose a name for this storage configuration")
 
-    block_cls = get_block_class(spec.name, spec.version)
+    block_cls = get_block_class(schema.checksum)
 
     app.console.print("Validating configuration...")
     try:
@@ -102,23 +114,28 @@ async def create():
         exit_with_error(f"Validation failed! {str(exc)}")
 
     app.console.print("Registering storage with server...")
-    block_id = None
-    while not block_id:
+    block_document_id = None
+    while not block_document_id:
         async with get_client() as client:
             try:
-                block_id = await client.create_block(
-                    block=block, block_spec_id=spec.id, name=name
+                block_document = await client.create_block_document(
+                    block_document=block._to_block_document(
+                        name=name,
+                        block_schema_id=schema.id,
+                        block_type_id=schema.block_type_id,
+                    ),
                 )
+                block_document_id = block_document.id
             except ObjectAlreadyExists:
                 app.console.print(f"[red]The name {name!r} is already taken.[/]")
                 name = typer.prompt("Choose a new name for this storage configuration")
 
     app.console.print(
-        f"[green]Registered storage {name!r} with identifier '{block_id}'.[/]"
+        f"[green]Registered storage {name!r} with identifier '{block_document_id}'.[/]"
     )
 
     async with get_client() as client:
-        if not await client.get_default_storage_block(as_json=True):
+        if not await client.get_default_storage_block_document():
             set_default = typer.confirm(
                 "You do not have a default storage configuration. "
                 "Would you like to set this as your default storage?",
@@ -126,25 +143,25 @@ async def create():
             )
 
             if set_default:
-                await client.set_default_storage_block(block_id)
+                await client.set_default_storage_block_document(block_document_id)
                 exit_with_success(f"Set default storage to {name!r}.")
 
             else:
                 app.console.print(
                     "Default left unchanged. Use `prefect storage set-default "
-                    f"{block_id}` to set this as the default storage at a later time."
+                    f"{block_document_id}` to set this as the default storage at a later time."
                 )
 
 
 @storage_config_app.command()
-async def set_default(storage_block_id: UUID):
+async def set_default(storage_block_document_id: UUID):
     """Change the default storage option."""
 
     async with get_client() as client:
         try:
-            await client.set_default_storage_block(storage_block_id)
+            await client.set_default_storage_block_document(storage_block_document_id)
         except ObjectNotFound:
-            exit_with_error(f"No storage found for id: {storage_block_id}!")
+            exit_with_error(f"No storage found for id: {storage_block_document_id}!")
 
     exit_with_success("Updated default storage!")
 
@@ -153,7 +170,7 @@ async def set_default(storage_block_id: UUID):
 async def reset_default():
     """Reset the default storage option."""
     async with get_client() as client:
-        await client.clear_default_storage_block()
+        await client.clear_default_storage_block_document()
     exit_with_success("Cleared default storage!")
 
 
@@ -164,29 +181,31 @@ async def ls():
     table = Table(title="Configured Storage")
     table.add_column("ID", style="cyan", justify="right", no_wrap=True)
     table.add_column("Storage Type", style="cyan")
-    table.add_column("Storage Version", style="cyan")
+    table.add_column("Storage Schema Checksum", style="cyan")
     table.add_column("Name", style="green")
     table.add_column("Server Default", width=15)
 
     async with get_client() as client:
-        json_blocks = await client.read_blocks(block_spec_type="STORAGE", as_json=True)
-        default_storage_block = (
-            await client.get_default_storage_block(as_json=True) or {}
+        block_documents = await client.read_block_documents(block_schema_type="STORAGE")
+        default_storage_block_document = (
+            await client.get_default_storage_block_document()
         )
-    blocks = pydantic.parse_obj_as(List[prefect.orion.schemas.core.Block], json_blocks)
 
-    for block in blocks:
+    for block_document in block_documents:
+        is_default_storage_block_document = (
+            False
+            if default_storage_block_document is None
+            else block_document.id == default_storage_block_document.id
+        )
         table.add_row(
-            str(block.id),
-            block.block_spec.name,
-            block.block_spec.version,
-            block.name,
-            Emoji("white_check_mark")
-            if str(block.id) == default_storage_block.get("id")
-            else None,
+            str(block_document.id),
+            block_document.block_schema.block_type.name,
+            block_document.block_schema.checksum,
+            block_document.name,
+            Emoji("white_check_mark") if is_default_storage_block_document else None,
         )
 
-    if not default_storage_block:
+    if not default_storage_block_document:
         table.caption = (
             "No default storage is set. Temporary local storage will be used."
             "\nSet a default with `prefect storage set-default <id>`"

@@ -42,7 +42,7 @@ class StorageBlock(Block, Generic[T]):
     The type `T` should be JSON serializable.
     """
 
-    _block_spec_type: Optional[str] = "STORAGE"
+    _block_schema_type: Optional[str] = "STORAGE"
 
     @abstractmethod
     async def write(self, data: bytes) -> T:
@@ -58,7 +58,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("File Storage", version="1.0")
+@register_block
 class FileStorageBlock(StorageBlock):
     """
     Store data as a file on local or remote file systems.
@@ -72,6 +72,8 @@ class FileStorageBlock(StorageBlock):
     storing duplicates. If you always want to store a new file, you can use "uuid" or
     "timestamp".
     """
+
+    _block_type_name = "File Storage"
 
     base_path: str = pydantic.Field(..., description="The folder to write files in.")
     key_type: Literal["hash", "uuid", "timestamp"] = pydantic.Field(
@@ -151,9 +153,11 @@ class FileStorageBlock(StorageBlock):
             return io.read()
 
 
-@register_block("S3 Storage", version="1.0")
+@register_block
 class S3StorageBlock(StorageBlock):
     """Store data in an AWS S3 bucket."""
+
+    _block_type_name = "S3 Storage"
 
     bucket: str
     aws_access_key_id: Optional[str] = None
@@ -195,9 +199,11 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("Temporary Local Storage", version="1.0")
+@register_block
 class TempStorageBlock(StorageBlock):
     """Store data in a temporary directory in a run's local file system."""
+
+    _block_type_name = "Temporary Local Storage"
 
     def block_initialization(self) -> None:
         pass
@@ -222,9 +228,11 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("Local Storage", version="1.0")
+@register_block
 class LocalStorageBlock(StorageBlock):
     """Store data in a run's local file system."""
+
+    _block_type_name = "Local Storage"
 
     storage_path: Optional[str]
 
@@ -255,9 +263,11 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("Google Cloud Storage", version="1.0")
+@register_block
 class GoogleCloudStorageBlock(StorageBlock):
     """Store data in a GCS bucket."""
+
+    _block_type_name = "Google Cloud Storage"
 
     bucket: str
     project: Optional[str]
@@ -288,9 +298,11 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("Azure Blob Storage", version="1.0")
+@register_block
 class AzureBlobStorageBlock(StorageBlock):
     """Store data in an Azure blob storage container."""
+
+    _block_type_name = "Azure Blob Storage"
 
     container: str
     connection_string: str
@@ -318,11 +330,13 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("KV Server Storage", version="1.0")
+@register_block
 class KVServerStorageBlock(StorageBlock):
     """
     Store data by sending requests to a KV server.
     """
+
+    _block_type_name = "KV Server Storage"
 
     api_address: str
 

@@ -995,7 +995,7 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
     """
     contents = toml.loads(path.read_text())
     active_profile = contents.get("active")
-    raw_profiles = contents["profiles"]
+    raw_profiles = contents.get("profiles", {})
 
     profiles = [
         Profile(name=name, settings=settings, source=path)

@@ -29,13 +29,13 @@ FS_STORAGE_BLOCKS = [
 ]
 
 
-async def test_storage_block_spec_type():
-    assert storage.StorageBlock._block_spec_type == "STORAGE"
+async def test_storage_block_schema_type():
+    assert storage.StorageBlock._block_schema_type == "STORAGE"
 
     class MyStorageBlock(storage.StorageBlock):
         pass
 
-    assert MyStorageBlock._block_spec_type == "STORAGE"
+    assert MyStorageBlock._block_schema_type == "STORAGE"
 
 
 @pytest.mark.parametrize(

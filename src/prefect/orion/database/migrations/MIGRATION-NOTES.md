@@ -6,8 +6,12 @@ Each time a database migration is written, an entry is included here with:
 - Concerns about upgrade / downgrade (if any)
 - Revision numbers for sqlite/postgres
 
-This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situtations where a branch needs to be updated before merging.
+This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+## Rename Block to BlockDocument and BlockSpec to BlockSchema
+
+SQLite: `fd966d4ad99c`
+Postgres: `d38c5e6a9115`
 ## Backfill state_name columns
 
 SQLite: `db6bde582447`
