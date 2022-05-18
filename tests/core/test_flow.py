@@ -1978,22 +1978,17 @@ class TestSerializedHash:
 
     @pytest.mark.skipif(
         sys.version_info < (3, 8),
-        reason="Positional-Only arguments are only supported in Python 3.8+",
+        reason="Positional-Only parameters are only supported in Python 3.8+",
     )
     def test_task_positional_only_arguments(self, tmpdir):
         contents = textwrap.dedent(
             """
-        from prefect import task, Flow
+        from prefect import task
 
         @task
         def dummy_task(a, b, /):
             pass
 
-        with Flow("example-flow") as flow:
-            dummy_task()
-
-        if __name__ == "__main__":
-            flow.run()
         """
         )
         script = tmpdir.join("flow.py")
@@ -2001,8 +1996,8 @@ class TestSerializedHash:
 
         result = subprocess.run([sys.executable, str(script)], capture_output=True)
         error_message = (
-            "TypeError: Prefect passes arguments to task as keyword arguments. "
-            "Positional-Only arguments found : ['a', 'b']"
+            "Found positional-only parameters in the function signature for task dummy_task: ['a', 'b']. "
+            "Prefect passes arguments using keywords and does not support positional-only parameters."
         )
 
         assert result.returncode == 1
