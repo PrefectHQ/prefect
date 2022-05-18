@@ -16,11 +16,11 @@ async def notifier_block(orion_client):
 
     block = DebugPrintNotification()
     schema = await orion_client.read_block_schema_by_checksum(
-        block.calculate_schema_checksum()
+        block._calculate_schema_checksum()
     )
 
     return await orion_client.create_block_document(
-        block.to_block_document(
+        block._to_block_document(
             name="Debug Print Notification", block_schema_id=schema.id
         )
     )
