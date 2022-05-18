@@ -129,18 +129,18 @@ class FileStorageBlock(StorageBlock):
 
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
-        with fsspec.open(self.base_path + key, "wb", **self.options) as ff:
+        ff = fsspec.open(self.base_path + key, "wb", **self.options)
 
-            # TODO: Some file systems support async and would require passing the current
-            #       event loop in `self.options`. This would probably be better for
-            #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
+        # TODO: Some file systems support async and would require passing the current
+        #       event loop in `self.options`. This would probably be better for
+        #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
 
-            await run_sync_in_worker_thread(self._write_sync, ff, data)
+        await run_sync_in_worker_thread(self._write_sync, ff, data)
         return key
 
     async def read(self, key: str) -> bytes:
-        with fsspec.open(self.base_path + key, "rb", **self.options) as ff:
-            return await run_sync_in_worker_thread(self._read_sync, ff)
+        ff = fsspec.open(self.base_path + key, "rb", **self.options)
+        return await run_sync_in_worker_thread(self._read_sync, ff)
 
     def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
         with ff as io:
