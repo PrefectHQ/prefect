@@ -116,7 +116,7 @@ class FileStorageBlock(StorageBlock):
                 return value + "/"
         return value
 
-    def _create_key(self, data: bytes, path: str = None):
+    def _create_key(self, data: bytes):
         """
         Method for determining the filename to write to; depends on
         key type, OS, and filesystem type.
@@ -127,7 +127,10 @@ class FileStorageBlock(StorageBlock):
             return stable_hash(data)
         elif self.key_type == "timestamp":
             # colons are not allowed in windows paths
-            if sys.platform == "win32" and type(fsspec.open(path)) == LocalFileSystem:
+            if (
+                sys.platform == "win32"
+                and type(fsspec.open(self.base_path)) == LocalFileSystem
+            ):
                 return pendulum.now().isoformat().replace(":", "_")
             else:
                 return pendulum.now().isoformat()
@@ -136,7 +139,7 @@ class FileStorageBlock(StorageBlock):
 
     async def write(self, data: bytes) -> str:
         path = self.base_path + key
-        key = self._create_key(data, path=path)
+        key = self._create_key(data)
         ff = fsspec.open(path, "wb", **self.options)
 
         # TODO: Some file systems support async and would require passing the current
