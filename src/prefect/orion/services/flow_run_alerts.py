@@ -83,10 +83,10 @@ class FlowRunAlerts(LoopService):
                     f"from policy {alert.flow_run_alert_policy_id}"
                 )
 
-            except Exception as exc:
-                self.logger.error(
+            except Exception:
+                self.logger.exception(
                     f"Error sending alert for policy {alert.flow_run_alert_policy_id} "
-                    f"on flow run {alert.flow_run_id}:\n{exc}"
+                    f"on flow run {alert.flow_run_id}:"
                 )
 
 
