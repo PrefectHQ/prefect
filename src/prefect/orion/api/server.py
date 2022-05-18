@@ -273,7 +273,7 @@ def create_app(
         session = await db.session()
         async with session:
             for block_class in BLOCK_REGISTRY.values():
-                # each block schema gets its own transaction˝
+                # each block schema gets its own transaction
                 async with session.begin():
                     try:
                         block_type = await create_block_type(
@@ -289,7 +289,7 @@ def create_app(
                         block_class._block_type_id = block_type.id
                         await create_block_schema(
                             session=session,
-                            block_schema=block_class.to_block_schema(),
+                            block_schema=block_class._to_block_schema(),
                             override=should_override,
                         )
                     except sa.exc.IntegrityError:

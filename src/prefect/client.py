@@ -1333,7 +1333,7 @@ class OrionClient:
         embedded_datadoc = block_document["data"]
         block_document_id = block_document["block_document_id"]
         if block_document_id is not None:
-            storage_block = Block.from_block_document(
+            storage_block = Block._from_block_document(
                 await self.read_block_document(block_document_id)
             )
         else:
