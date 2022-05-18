@@ -1,7 +1,7 @@
 aiofiles >= 0.7.0
 aiosqlite >= 0.17.0
 alembic >= 1.7.5
-anyio >= 3.2.1
+anyio >= 3.4.0
 asgi-lifespan >= 1.0
 asyncpg >= 0.23
 azure-storage-blob >= 12.9.0

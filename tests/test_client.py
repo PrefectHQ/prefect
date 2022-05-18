@@ -1,8 +1,9 @@
 import random
+import sys
 import threading
 from dataclasses import dataclass
 from datetime import timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from uuid import UUID
 
 import anyio
@@ -11,12 +12,13 @@ import pendulum
 import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
+from httpx import AsyncClient, HTTPStatusError, Request, Response
 from pydantic import BaseModel
 
 import prefect.context
 import prefect.exceptions
 from prefect import flow
-from prefect.client import OrionClient, get_client
+from prefect.client import OrionClient, PrefectHttpxClient, get_client
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -32,6 +34,155 @@ from prefect.settings import (
 )
 from prefect.tasks import task
 from prefect.testing.utilities import AsyncMock, exceptions_equal
+
+
+class TestPrefectHttpxClient:
+    async def test_prefect_httpx_client_retries_429s(self, monkeypatch):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "0"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            success_response,
+        ]
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 4
+
+    async def test_prefect_httpx_client_retries_429s_up_to_five_times(
+        self, monkeypatch
+    ):
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "0"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        # Return more than 6 retry responses
+        base_client_send.side_effect = [retry_response] * 7
+
+        with pytest.raises(HTTPStatusError, match="429"):
+            await client.post(
+                url="fake.url/fake/route",
+                data={"evenmorefake": "data"},
+            )
+
+        # 5 retries + 1 first attempt
+        assert base_client_send.call_count == 6
+
+    async def test_prefect_httpx_client_respects_retry_header(self, monkeypatch):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": "5"},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            retry_response,
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_awaited_once_with(5)
+
+    async def test_prefect_httpx_client_falls_back_to_exponential_backoff(
+        self, monkeypatch
+    ):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_has_awaits([call(2), call(4), call(8)])
+
+    async def test_prefect_httpx_client_respects_retry_header_per_response(
+        self, monkeypatch
+    ):
+        sleep = AsyncMock()
+        monkeypatch.setattr(anyio, "sleep", sleep)
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxClient()
+
+        def make_retry_response(retry_after):
+            return Response(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                headers={"Retry-After": str(retry_after)},
+                request=Request("a test request", "fake.url/fake/route"),
+            )
+
+        success_response = Response(
+            status.HTTP_200_OK,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        base_client_send.side_effect = [
+            make_retry_response(5),
+            make_retry_response(0),
+            make_retry_response(10),
+            make_retry_response(2.0),
+            success_response,
+        ]
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        sleep.assert_has_awaits([call(5), call(0), call(10), call(2.0)])
 
 
 class TestGetClient:
@@ -198,7 +349,7 @@ class TestClientContextManager:
             async with OrionClient(app):
                 await anyio.sleep(random.random())
 
-        with anyio.fail_after(5):
+        with anyio.fail_after(15):
             async with anyio.create_task_group() as tg:
                 for _ in range(1000):
                     tg.start_soon(enter_client)
@@ -469,6 +620,27 @@ async def test_read_deployment_by_name(orion_client):
     assert lookup.name == "test-deployment"
     assert lookup.flow_data == flow_data
     assert lookup.schedule == schedule
+
+
+async def test_create_then_delete_deployment(orion_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+    flow_data = DataDocument.encode("cloudpickle", foo)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        flow_data=flow_data,
+        schedule=schedule,
+    )
+
+    await orion_client.delete_deployment(deployment_id)
+    with pytest.raises(httpx.HTTPStatusError, match="404"):
+        await orion_client.read_deployment(deployment_id)
 
 
 async def test_read_nonexistent_deployment_by_name(orion_client):

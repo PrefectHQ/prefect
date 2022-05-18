@@ -10,7 +10,7 @@ from typing_extensions import Literal
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.utilities.enum import AutoEnum
+from prefect.utilities.collections import AutoEnum
 
 
 class SetStateStatus(AutoEnum):
