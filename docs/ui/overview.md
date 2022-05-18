@@ -7,7 +7,7 @@ tags:
     - Prefect Cloud
 ---
 
-# Prefect UI & Cloud Overview
+# Prefect UI & Prefect Cloud Overview
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 

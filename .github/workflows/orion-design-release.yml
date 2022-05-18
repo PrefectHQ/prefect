@@ -8,10 +8,16 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   version-change-check:
     name: Check package version
     runs-on: ubuntu-latest
+    permissions:
+      actions: write # for cancel-action
+      contents: read
 
     steps: 
       - uses: actions/checkout@v3
@@ -44,10 +50,6 @@ jobs:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
     
-      - name: Install orion-ui dependencies
-        working-directory: ./orion-ui
-        run: npm ci install
-      
       - name: Install orion-design dependencies
         working-directory: ./orion-ui/packages/orion-design
         run: npm ci install

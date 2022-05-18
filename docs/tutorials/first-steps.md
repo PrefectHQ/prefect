@@ -33,13 +33,13 @@ def my_favorite_function():
 
 Running a Prefect workflow manually is as easy as calling the annotated function. In this case, we run the `my_favorite_function()` snippet shown above:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = my_favorite_function()
-15:27:42.543 | INFO    | prefect.engine - Created flow run 'stimulating-cockle' for flow 'my-favorite-function'
-15:27:42.543 | INFO    | Flow run 'stimulating-cockle' - Using task runner 'ConcurrentTaskRunner'
+15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
+15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
 This function doesn't do much
-15:27:42.652 | INFO    | Flow run 'stimulating-cockle' - Finished in state Completed(None)
+15:27:42.652 | INFO    | Flow run 'olive-poodle' - Finished in state Completed(None)
 ```
 </div>
 
@@ -51,8 +51,8 @@ For clarity in future tutorial examples, we may not show these messages in resul
 
 Next, print `state`, which shows the result returned by the `my_favorite_function()` flow.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> print(state)
 Completed(None)
 ```
@@ -65,8 +65,8 @@ In this case, the state of `my_favorite_function()` is "Completed", with no furt
 
 If you want to see the data returned by the flow, access it via the `.result()` method on the `State` object.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> print(state.result())
 42
 ```
@@ -89,8 +89,8 @@ You can pass any parameters needed by your flow function, and you can pass [para
 
 For now, run the `call_api()` flow, passing a valid URL as a parameter. In this case, we're sending a POST request to an API that should return valid JSON in the response.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = call_api("http://time.jsontest.com/")
 14:33:48.770 | INFO    | prefect.engine - Created flow run 'bronze-lyrebird' for flow 'call-api'
 14:33:48.770 | INFO    | Flow run 'bronze-lyrebird' - Using task runner 'ConcurrentTaskRunner'
@@ -100,8 +100,8 @@ For now, run the `call_api()` flow, passing a valid URL as a parameter. In this 
 
 Again, Prefect Orion automatically orchestrates the flow run. Again, print the state and note the "Completed" state matches what Prefect Orion prints in your terminal.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> print(state)
 Completed(None)
 ```
@@ -109,8 +109,8 @@ Completed(None)
 
 As you did previously, print the `result()` to see the JSON returned by the API call:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> print(state.result())
 {'date': '02-24-2022', 'milliseconds_since_epoch': 1645731229114, 'time': '07:33:49 PM'}
 ```
@@ -120,8 +120,8 @@ As you did previously, print the `result()` to see the JSON returned by the API 
 
 What happens if the Python function encounters an error while your flow is running? To see what happens whenever our flow does not complete successfully, let's intentionally run the `call_api()` flow above with a bad value for the URL:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = call_api("foo")
 14:34:35.687 | INFO    | prefect.engine - Created flow run 'purring-swine' for flow 'call-api'
 14:34:35.687 | INFO    | Flow run 'purring-swine' - Using task runner 'ConcurrentTaskRunner'
@@ -159,8 +159,8 @@ In this situation, the call to `requests.get()` encounters an exception, but the
 
 However, in contrast to the 'COMPLETED' state, we now encounter a 'FAILED' state signaling that something unexpected happened during execution.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> print(state)
 Failed('Flow run encountered an exception.')
 ```
@@ -197,8 +197,8 @@ def api_flow(url):
 As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  We can then
 call our flow function &mdash; now called `api_flow()` &mdash; just as before and see the printed output. Prefect manages all the relevant intermediate states.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = api_flow("https://catfact.ninja/fact")
 15:10:17.955 | INFO    | prefect.engine - Created flow run 'jasper-ammonite' for flow 'api-flow'
 15:10:17.955 | INFO    | Flow run 'jasper-ammonite' - Using task runner 'ConcurrentTaskRunner'
@@ -235,8 +235,8 @@ def api_flow(url):
 
 You should end up printing out an interesting fact:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> state = api_flow("https://catfact.ninja/fact")
 15:12:40.847 | INFO    | prefect.engine - Created flow run 'funny-guillemot' for flow 'api-flow'
 15:12:40.847 | INFO    | Flow run 'funny-guillemot' - Using task runner 'ConcurrentTaskRunner'
@@ -278,8 +278,8 @@ def main_flow():
 
 Whenever we run `main_flow` as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but you can also inspect it independently in the UI!
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> flow_state = main_flow()
 15:16:18.344 | INFO    | prefect.engine - Created flow run 'teal-goose' for flow 'main-flow'
 15:16:18.345 | INFO    | Flow run 'teal-goose' - Using task runner 'ConcurrentTaskRunner'
@@ -292,8 +292,8 @@ I am a subgraph that shows up in lots of places!
 
 You can confirm this for yourself by spinning up the UI using the `prefect orion start` CLI command from your terminal:
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 $ prefect orion start
 ```
 </div>
@@ -325,8 +325,8 @@ async def async_flow(url):
 
 If we run this in the REPL, the output looks just like previous runs.
 
-<div class="termy">
-```
+<div class="terminal">
+```bash
 >>> asyncio.run(async_flow("https://catfact.ninja/fact"))
 16:41:50.298 | INFO    | prefect.engine - Created flow run 'dashing-elephant' for flow 'async-flow'
 16:41:50.298 | INFO    | Flow run 'dashing-elephant' - Using task runner 'ConcurrentTaskRunner'
@@ -334,7 +334,9 @@ If we run this in the REPL, the output looks just like previous runs.
 200
 16:41:50.582 | INFO    | Task run 'call_api-190c7484-0' - Finished in state Completed(None)
 16:41:50.890 | INFO    | Flow run 'dashing-elephant' - Finished in state Completed('All states completed.')
-Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}, task_run_id=1a50b4df-a505-4a2f-8d28-3d1bf7db206e)], flow_run_id=42d2bd19-8c3b-4dd1-b494-52cc764acc3d)
+Completed(message='All states completed.', type=COMPLETED, result=[Completed(message=None, type=COMPLETED, 
+result={'fact': 'Cats have about 130,000 hairs per square inch (20,155 hairs per square centimeter).', 'length': 83}, 
+task_run_id=1a50b4df-a505-4a2f-8d28-3d1bf7db206e)], flow_run_id=42d2bd19-8c3b-4dd1-b494-52cc764acc3d)
 ```
 </div>
 

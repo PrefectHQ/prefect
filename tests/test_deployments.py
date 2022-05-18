@@ -128,6 +128,33 @@ class TestDeploymentSpec:
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
 
+    async def test_raises_validation_error_on_missing_flow_name(
+        self, remote_default_storage
+    ):
+        spec = DeploymentSpec(
+            name="test",
+            flow_location=TEST_FILES_DIR / "multiple_flows.py",
+            flow_name="shall-not-be-found",
+        )
+        assert spec.flow is None
+        assert spec.flow_name == "shall-not-be-found"
+        with pytest.raises(SpecValidationError, match="'shall-not-be-found' not found"):
+            await spec.validate()
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "my/deployment",
+            r"my%deployment",
+            "my>deployment",
+            "my<deployment",
+            "my&deployment",
+        ],
+    )
+    def test_invalid_name(self, name):
+        with pytest.raises(ValidationError, match="contains an invalid character"):
+            DeploymentSpec(name=name)
+
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
         @flow
         def foo():
@@ -330,6 +357,39 @@ class TestCreateDeploymentFromSpec:
         assert flow.name == expected_flow.name
         assert flow.version == expected_flow.version
 
+    async def test_create_deployment_with_unregistered_storage_collision(
+        self, orion_client, tmp_path
+    ):
+        """
+        Regression test for bug where dynamically generated block names would collide
+        resulting in an `ObjectAlreadyExists` error
+        """
+
+        def make_spec():
+            # A unique instance is required for each test or the id will be
+            # cached on the object
+            block = FileStorageBlock(base_path=str(tmp_path))
+
+            return DeploymentSpec(
+                flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
+            )
+
+        deployment_id_1 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_2 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_3 = await make_spec().create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
+        async def check_retrievable(deployment_id):
+            deployment = await orion_client.read_deployment(deployment_id)
+            flow = await load_flow_from_deployment(deployment, client=orion_client)
+            expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+            assert flow.name == expected_flow.name
+            assert flow.version == expected_flow.version
+
+        await check_retrievable(deployment_id_1)
+        await check_retrievable(deployment_id_2)
+        await check_retrievable(deployment_id_3)
+
     async def test_create_deployment_with_registered_storage(
         self, orion_client, tmp_remote_storage_block
     ):
@@ -341,7 +401,22 @@ class TestCreateDeploymentFromSpec:
         deployment_id = await spec.create_deployment(client=orion_client)
 
         # Check that the flow is retrievable
+        deployment = await orion_client.read_deployment(deployment_id)
+        flow = await load_flow_from_deployment(deployment, client=orion_client)
+        expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
+        assert flow.name == expected_flow.name
+        assert flow.version == expected_flow.version
 
+    async def test_create_deployment_with_registered_storage_by_id(
+        self, orion_client, tmp_remote_storage_block
+    ):
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            flow_storage=tmp_remote_storage_block,
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        # Check that the flow is retrievable
         deployment = await orion_client.read_deployment(deployment_id)
         flow = await load_flow_from_deployment(deployment, client=orion_client)
         expected_flow = load_flow_from_script(TEST_FILES_DIR / "single_flow.py")
@@ -473,8 +548,14 @@ class TestDeploymentSpecFromFile:
     async def test_spec_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "single-deployment.yaml")
         assert len(specs) == 1
-        spec = list(specs)[0]
+        spec = list(specs.keys())[0]
+
+        src = specs[spec]
+        assert src["file"] == str(TEST_FILES_DIR / "single-deployment.yaml")
+        assert src["line"] == 1
+
         await spec.validate()
+
         assert spec.name == "hello-world-deployment"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
@@ -484,19 +565,28 @@ class TestDeploymentSpecFromFile:
     async def test_multiple_specs_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "multiple-deployments.yaml")
         assert len(specs) == 2
-        for spec in specs:
-            await spec.validate()
         specs_by_name = {spec.name: spec for spec in specs}
         assert set(specs_by_name.keys()) == {
             "hello-sun-deployment",
             "hello-moon-deployment",
         }
+
         sun_deploy = specs_by_name["hello-sun-deployment"]
         moon_deploy = specs_by_name["hello-moon-deployment"]
         assert sun_deploy.flow_location == str(TEST_FILES_DIR / "multiple_flows.py")
         assert sun_deploy.flow_name == "hello-sun"
         assert moon_deploy.flow_location == str(TEST_FILES_DIR / "multiple_flows.py")
         assert moon_deploy.flow_name == "hello-moon"
+
+        sun_src = specs[sun_deploy]
+        moon_src = specs[moon_deploy]
+        assert sun_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
+        assert moon_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
+        assert sun_src["line"] == 1
+        assert moon_src["line"] == 5
+
+        for spec in specs:
+            await spec.validate()
 
     async def test_loading_spec_does_not_raise_until_flow_is_loaded(self):
         specs = deployment_specs_from_yaml(

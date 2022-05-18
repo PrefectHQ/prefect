@@ -32,16 +32,16 @@ Examples:
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object
     ```yaml
-    - name: my-first-deployment
-      flow_location: ./path-to-the-flow-script.py
-      flow_name: hello-world
-      tags:
-        - foo
-        - bar
-      parameters:
-        name: "Earth"
-      schedule:
-        interval: 3600
+    name: my-first-deployment
+    flow_location: ./path-to-the-flow-script.py
+    flow_name: hello-world
+    tags:
+    - foo
+    - bar
+    parameters:
+      name: "Earth"
+    schedule:
+      interval: 3600
     ```
 """
 
@@ -65,6 +65,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
+    ObjectAlreadyExists,
     SpecValidationError,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
@@ -77,6 +78,7 @@ from prefect.flow_runners import (
 )
 from prefect.flows import Flow
 from prefect.orion import schemas
+from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -96,15 +98,16 @@ class DeploymentSpec(PrefectBaseModel):
     Args:
         name: The name of the deployment
         flow: The flow object to associate with the deployment
+        flow_location: The path to a script containing the flow to associate with the
+            deployment. Inferred from `flow` if provided.
         flow_name: The name of the flow to associated with the deployment. Only required
             if loading the flow from a `flow_location` with multiple flows. Inferred
             from `flow` if provided.
-        flow_location: The path to a script containing the flow to associate with the
-            deployment. Inferred from `flow` if provided.
-        push_to_server: By default, the flow text will be loaded from the flow location
-            and stored on the server instead of locally. This allows the flow to be
-            compatible with all flow runners. If disabled, only an agent on the same
-            machine will be able to run the deployment.
+        flow_runner: The [flow runner](/api-ref/prefect/flow-runners/) to be used for
+            flow runs.
+        flow_storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
+            providing the [storage](/concepts/storage/) to be used for the flow
+            definition and results.
         parameters: An optional dictionary of default parameters to set on flow runs
             from this deployment. If defined in Python, the values should be Pydantic
             compatible objects.
@@ -116,7 +119,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    flow_storage: Optional[StorageBlock] = None
+    flow_storage: Optional[Union[StorageBlock, UUID]] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -153,7 +156,10 @@ class DeploymentSpec(PrefectBaseModel):
         # Load the flow from the flow location
 
         if self.flow_location and not self.flow:
-            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            try:
+                self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            except MissingFlowError as exc:
+                raise SpecValidationError(str(exc)) from exc
 
         # Infer the flow location from the flow
 
@@ -227,6 +233,9 @@ class DeploymentSpec(PrefectBaseModel):
         )
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
+        if isinstance(self.flow_storage, UUID):
+            self.flow_storage = await client.read_block(self.flow_storage)
+
         if isinstance(self.flow_runner, SubprocessFlowRunner):
             local_machine_message = (
                 "this deployment will only be usable from the current machine."
@@ -277,11 +286,17 @@ class DeploymentSpec(PrefectBaseModel):
                 self.flow_storage._block_spec_version,
             )
 
-            self.flow_storage._block_id = await client.create_block(
-                self.flow_storage,
-                block_spec_id=block_spec.id,
-                name=f"{self.flow_name}-{self.name}",
-            )
+            block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
+            i = 0
+            while not self.flow_storage._block_id:
+                try:
+                    self.flow_storage._block_id = await client.create_block(
+                        self.flow_storage,
+                        block_spec_id=block_spec.id,
+                        name=f"{block_name}-{i}",
+                    )
+                except ObjectAlreadyExists:
+                    i += 1
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)
@@ -303,6 +318,11 @@ class DeploymentSpec(PrefectBaseModel):
         return deployment_id
 
     # Pydantic -------------------------------------------------------------------------
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
     class Config:
         arbitrary_types_allowed = True
@@ -491,14 +511,22 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     Load deployment specifications from a yaml file.
     """
     with fsspec.open(path, "r") as f:
-        contents = yaml.safe_load(f.read())
+        contents = f.read()
 
-    # Load deployments relative to the yaml file's directory
-    with tmpchdir(path):
-        if isinstance(contents, list):
-            specs = {DeploymentSpec.parse_obj(spec) for spec in contents}
-        else:
-            specs = {DeploymentSpec.parse_obj(contents)}
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
+
+    specs = {}
+
+    for node in nodes:
+        line = node.start_mark.line + 1
+
+        # Load deployments relative to the yaml file's directory
+        with tmpchdir(path):
+            raw_spec = yaml.safe_load(yaml.serialize(node))
+            spec = DeploymentSpec.parse_obj(raw_spec)
+
+        specs[spec] = {"file": str(path), "line": line}
 
     return specs
 

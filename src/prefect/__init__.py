@@ -31,4 +31,4 @@ import prefect.serializers
 # Initialize the process level profile at import time
 import prefect.context
 
-prefect.context.enter_global_profile()
+prefect.context.enter_root_settings_context()

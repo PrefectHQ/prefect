@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { deploymentsApiKey, FilterBar, filtersDefaultObjectKey, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey } from '@prefecthq/orion-design'
+  import { deploymentsApiKey, FilterBar, filtersDefaultObjectKey, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey, canKey } from '@prefecthq/orion-design'
   import { computed, provide } from 'vue'
   import { useRoute } from 'vue-router'
   import NavBar from '@/components/NavBar.vue'
@@ -22,6 +22,7 @@
   import { searchApi } from '@/services/searchApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+  import { can } from '@/utilities/permissions'
 
   const route = useRoute()
 
@@ -33,6 +34,7 @@
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
   provide(filtersDefaultObjectKey, 'flow_run')
+  provide(canKey, can)
 
   const filtersVisible = computed(() => route.meta.filters?.visible ?? false)
   const filtersDisabled = computed(() => route.meta.filters?.disabled ?? false)

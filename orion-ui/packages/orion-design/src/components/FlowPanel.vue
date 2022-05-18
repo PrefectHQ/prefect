@@ -19,7 +19,7 @@
         <m-tags :tags="flow.tags" />
       </DetailsKeyValue>
       <RecentFlowRunsPanelSection v-bind="{ baseFilter, dashboardRoute, flowRunsApi }" />
-      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, deploymentsApi }" />
+      <DeploymentsPanelSection v-bind="{ filter, openDeploymentPanel, dashboardRoute, deploymentsApi, can }" />
     </div>
 
     <template #actions="{ close }">
@@ -43,6 +43,7 @@
   import { UnionFilters } from '@/services/Filter'
   import { FlowRunsApi } from '@/services/FlowRunsApi'
   import { Filter } from '@/types/filters'
+  import { Can } from '@/types/permissions'
   import { formatDateTimeNumericInTimeZone } from '@/utilities/dates'
 
   const props = defineProps<{
@@ -50,6 +51,7 @@
     deploymentsApi: DeploymentsApi,
     flowRunsApi: FlowRunsApi,
     dashboardRoute: Exclude<RouteLocationRaw, string>,
+    can: Can,
     openDeploymentPanel: (deployment: Deployment) => void,
   }>()
 

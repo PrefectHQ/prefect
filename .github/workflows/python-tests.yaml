@@ -1,5 +1,10 @@
 name: Python tests
 
+env:
+  # enable colored output
+  # https://github.com/pytest-dev/pytest/issues/7443
+  PY_COLORS: 1
+
 on:
   pull_request:
     paths:
@@ -7,9 +12,26 @@ on:
       - "**/*.py"
       - requirements.txt
       - requirements-dev.txt
+      - setup.cfg
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   run-tests-sqlite:
@@ -42,6 +64,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    timeout-minutes: 20
+
     steps:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
@@ -53,26 +77,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: ${{ matrix.docker-images }}
-        uses: docker/setup-buildx-action@v1
-
-      - name: Build test images
-        if: ${{ matrix.docker-images }}
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
-          #       so that CI test runs are faster
-          build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }}
-            PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
-          outputs: type=docker,dest=/tmp/image.tar
-
-      - name: Test Docker image
-        if: ${{ matrix.docker-images }}
-        run: |
-          docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+        uses: docker/setup-buildx-action@v2
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
@@ -89,6 +94,25 @@ jobs:
           ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
           mv requirements-lower.txt requirements.txt
           mv requirements-dev-lower.txt requirements-dev.txt
+
+      - name: Build test images
+        if: ${{ matrix.docker-images }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
+          #       so that CI test runs are faster
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test Docker image
+        if: ${{ matrix.docker-images }}
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
 
       - name: Install packages
         run: |
@@ -132,6 +156,8 @@ jobs:
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v3

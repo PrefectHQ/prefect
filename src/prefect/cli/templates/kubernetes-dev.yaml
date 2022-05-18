@@ -20,7 +20,7 @@ spec:
             - -c
             - >-
               pip install -e /opt/prefect/repo\[dev\] &&
-              prefect dev start
+              prefect dev start --no-ui
           imagePullPolicy: "IfNotPresent"
           ports:
             - containerPort: 4200

@@ -1,16 +1,14 @@
 """
 Command line interface for working with agent services
 """
-import os
 from uuid import UUID
 
 import anyio
-import httpx
 import typer
-from fastapi import status
 
 from prefect.agent import OrionAgent
-from prefect.cli.base import PrefectTyper, SettingsOption, app, console, exit_with_error
+from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli.root import app
 from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
 
 agent_app = PrefectTyper(
@@ -51,9 +49,9 @@ async def start(
 
     if not hide_welcome:
         if api:
-            console.print(f"Starting agent connected to {api}...")
+            app.console.print(f"Starting agent connected to {api}...")
         else:
-            console.print("Starting agent with ephemeral API...")
+            app.console.print("Starting agent with ephemeral API...")
 
     running = True
     async with OrionAgent(
@@ -61,8 +59,8 @@ async def start(
         work_queue_name=work_queue_name,
     ) as agent:
         if not hide_welcome:
-            console.print(ascii_name)
-            console.print(
+            app.console.print(ascii_name)
+            app.console.print(
                 f"Agent started! Looking for work from queue '{work_queue}'..."
             )
 
@@ -73,4 +71,4 @@ async def start(
                 running = False
             await anyio.sleep(PREFECT_AGENT_QUERY_INTERVAL.value())
 
-    console.print("Agent stopped!")
+    app.console.print("Agent stopped!")
