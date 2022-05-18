@@ -19,7 +19,7 @@ def register_block(block: Type["Block"]):
     Register a block class for later use. Blocks can be retrieved via
     block schema checksum.
     """
-    schema_checksum = block.calculate_schema_checksum()
+    schema_checksum = block._calculate_schema_checksum()
     BLOCK_REGISTRY[schema_checksum] = block
     return block
 
@@ -80,7 +80,7 @@ class Block(BaseModel, ABC):
     _block_document_name: Optional[str] = None
 
     @classmethod
-    def calculate_schema_checksum(cls):
+    def _calculate_schema_checksum(cls):
         """
         Generates a unique hash for the underlying schema of block.
         """
@@ -90,7 +90,7 @@ class Block(BaseModel, ABC):
         else:
             return f"sha256:{checksum}"
 
-    def to_block_document(
+    def _to_block_document(
         self,
         name: Optional[str] = None,
         block_schema_id: Optional[UUID] = None,
@@ -128,14 +128,14 @@ class Block(BaseModel, ABC):
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
             data=self.dict(include=data_keys),
-            block_schema=self.to_block_schema(
+            block_schema=self._to_block_schema(
                 block_type_id=block_type_id or self._block_type_id,
             ),
-            block_type=self.to_block_type(),
+            block_type=self._to_block_type(),
         )
 
     @classmethod
-    def to_block_schema(cls, block_type_id: Optional[UUID] = None) -> BlockSchema:
+    def _to_block_schema(cls, block_type_id: Optional[UUID] = None) -> BlockSchema:
         """
         Creates the corresponding block schema of the block.
         The corresponding block_type_id must either be passed into
@@ -150,15 +150,15 @@ class Block(BaseModel, ABC):
         fields = cls.schema()
         return BlockSchema(
             id=cls._block_schema_id or uuid4(),
-            checksum=cls.calculate_schema_checksum(),
+            checksum=cls._calculate_schema_checksum(),
             type=cls._block_schema_type,
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
-            block_type=cls.to_block_type(),
+            block_type=cls._to_block_type(),
         )
 
     @classmethod
-    def to_block_type(cls) -> BlockType:
+    def _to_block_type(cls) -> BlockType:
         """
         Creates the corresponding block type of the block.
 
@@ -173,7 +173,7 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def from_block_document(cls, block_document: BlockDocument):
+    def _from_block_document(cls, block_document: BlockDocument):
         """
         Instantiates a block from a given block document. The corresponding block class
         will be looked up in the block registry based on the corresponding block schema
@@ -234,4 +234,4 @@ class Block(BaseModel, ABC):
                 raise ValueError(
                     f"Unable to find block document named {name} for block type {cls._block_type_name or cls.__name__}"
                 ) from e
-        return cls.from_block_document(block_document)
+        return cls._from_block_document(block_document)

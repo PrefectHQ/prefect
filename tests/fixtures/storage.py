@@ -22,10 +22,10 @@ async def local_storage_block_document_id(tmp_path, orion_client):
     # Local storage in a temporary directory that exists for the lifetime of a test
     block = LocalStorageBlock(storage_path=str(tmp_path))
     block_schema = await orion_client.read_block_schema_by_checksum(
-        checksum=block.calculate_schema_checksum()
+        checksum=block._calculate_schema_checksum()
     )
     block_document = await orion_client.create_block_document(
-        block_document=block.to_block_document(
+        block_document=block._to_block_document(
             name="test",
             block_schema_id=block_schema.id,
             block_type_id=block_schema.block_type_id,
@@ -36,7 +36,7 @@ async def local_storage_block_document_id(tmp_path, orion_client):
 
 @pytest.fixture
 async def local_storage_block(local_storage_block_document_id, orion_client):
-    return Block.from_block_document(
+    return Block._from_block_document(
         await orion_client.read_block_document(local_storage_block_document_id)
     )
 
@@ -125,12 +125,12 @@ async def set_up_kv_storage(session, run_storage_server):
     (useful for distributed flow or task runner tests)
     """
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=KVServerStorageBlock.to_block_type(), override=True
+        session=session, block_type=KVServerStorageBlock._to_block_type(), override=True
     )
 
     block_schema = await models.block_schemas.create_block_schema(
         session=session,
-        block_schema=KVServerStorageBlock.to_block_schema(block_type_id=block_type.id),
+        block_schema=KVServerStorageBlock._to_block_schema(block_type_id=block_type.id),
         override=True,
     )
 
@@ -138,7 +138,7 @@ async def set_up_kv_storage(session, run_storage_server):
         session=session,
         block_document=KVServerStorageBlock(
             api_address="http://127.0.0.1:1234/storage"
-        ).to_block_document(
+        )._to_block_document(
             name="test-storage-block",
             block_schema_id=block_schema.id,
             block_type_id=block_schema.block_type_id,

@@ -119,7 +119,7 @@ async def create():
         async with get_client() as client:
             try:
                 block_document = await client.create_block_document(
-                    block_document=block.to_block_document(
+                    block_document=block._to_block_document(
                         name=name,
                         block_schema_id=schema.id,
                         block_type_id=schema.block_type_id,
