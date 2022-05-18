@@ -1,5 +1,7 @@
 import datetime
 
+import sqlalchemy as sa
+
 from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.orm_models import BaseORMConfiguration
@@ -162,6 +164,16 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.BlockDocument
 
     @property
+    def FlowRunAlertPolicy(self):
+        """A flow run alert policy model"""
+        return self.orm.FlowRunAlertPolicy
+
+    @property
+    def FlowRunAlertQueue(self):
+        """A flow run alert queue model"""
+        return self.orm.FlowRunAlertQueue
+
+    @property
     def Configuration(self):
         """An configuration model"""
         return self.orm.Configuration
@@ -245,3 +257,8 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def json_arr_agg(self, json_array):
         return self.queries.json_arr_agg(json_array)
+
+    async def get_flow_run_alerts_from_queue(self, session: sa.orm.Session, limit: int):
+        return await self.queries.get_flow_run_alerts_from_queue(
+            session=session, db=self, limit=limit
+        )
