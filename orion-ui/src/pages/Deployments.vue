@@ -22,7 +22,6 @@
   const deployments = computed(() => deploymentsSubscription.response ?? [])
 </script>
 
-
 <style>
 .deployments {}
 </style>
