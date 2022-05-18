@@ -1,5 +1,6 @@
 import enum
 import inspect
+import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -749,7 +750,8 @@ class TestFlowTimeouts:
         await anyio.sleep(1)
 
         assert not canary_file.exists()
-        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
+        tolerance = 1.5 if sys.platform != "win32" else 1.9  # windows is slow
+        assert t1 - t0 < tolerance, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """

@@ -73,7 +73,7 @@ def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
     """
-    Sync entrypoint for flow calls
+    Sync entrypoint for flow calls.
 
     This function does the heavy lifting of ensuring we can get into an async context
     for flow run execution with minimal overhead.
