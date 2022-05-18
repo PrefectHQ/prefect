@@ -15,6 +15,7 @@ import httpx
 import pendulum
 import pydantic
 from azure.storage.blob import BlobServiceClient
+from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
 from typing_extensions import Literal
 
@@ -115,23 +116,28 @@ class FileStorageBlock(StorageBlock):
                 return value + "/"
         return value
 
-    def _create_key(self, data: bytes):
+    def _create_key(self, data: bytes, path: str = None):
+        """
+        Method for determining the filename to write to; depends on
+        key type, OS, and filesystem type.
+        """
         if self.key_type == "uuid":
             return uuid4().hex
         elif self.key_type == "hash":
             return stable_hash(data)
         elif self.key_type == "timestamp":
             # colons are not allowed in windows paths
-            if sys.platform != "win32":
-                return pendulum.now().isoformat()
-            else:
+            if sys.platform == "win32" and type(fsspec.open(path)) == LocalFileSystem:
                 return pendulum.now().isoformat().replace(":", "_")
+            else:
+                return pendulum.now().isoformat()
         else:
             raise ValueError(f"Unknown key type {self.key_type!r}")
 
     async def write(self, data: bytes) -> str:
-        key = self._create_key(data)
-        ff = fsspec.open(self.base_path + key, "wb", **self.options)
+        path = self.base_path + key
+        key = self._create_key(data, path=path)
+        ff = fsspec.open(path, "wb", **self.options)
 
         # TODO: Some file systems support async and would require passing the current
         #       event loop in `self.options`. This would probably be better for
