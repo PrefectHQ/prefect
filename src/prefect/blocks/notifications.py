@@ -7,11 +7,6 @@ from prefect.blocks.core import Block, register_block
 class NotificationBlock(Block):
     """
     A `Block` base class for sending notifications.
-
-    Implementers must provide methods to read and write bytes. When data is persisted,
-    an object of type `T` is returned that may be later be used to retrieve the data.
-
-    The type `T` should be JSON serializable.
     """
 
     _block_schema_type: Optional[str] = "NOTIFICATION"
