@@ -45,10 +45,10 @@ class TestAPICompatibility:
         )
 
         with pytest.raises(ValueError, match="(No block schema exists)"):
-            get_block_class(self.MyBlock.calculate_schema_checksum())
+            get_block_class(self.MyBlock._calculate_schema_checksum())
 
     def test_create_api_block_schema(self, block_type_x):
-        block_schema = self.MyRegisteredBlock.to_block_schema(
+        block_schema = self.MyRegisteredBlock._to_block_schema(
             block_type_id=block_type_x.id
         )
         assert block_schema.type is None
@@ -76,13 +76,13 @@ class TestAPICompatibility:
                 self.evil_fake_field = "evil fake data"
 
         my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
-        block_schema = my_block.to_block_schema(block_type_id=block_type_x.id)
+        block_schema = my_block._to_block_schema(block_type_id=block_type_x.id)
         assert "real_field" in block_schema.fields["properties"].keys()
         assert "authentic_field" in block_schema.fields["properties"].keys()
         assert "evil_fake_field" not in block_schema.fields["properties"].keys()
 
     def test_create_api_block_schema_with_different_registered_name(self, block_type_x):
-        block_schema = self.MyOtherRegisteredBlock.to_block_schema(
+        block_schema = self.MyOtherRegisteredBlock._to_block_schema(
             block_type_id=block_type_x.id
         )
         assert (
@@ -103,20 +103,20 @@ class TestAPICompatibility:
 
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
-            self.MyRegisteredBlock(x="x").to_block_document()
+            self.MyRegisteredBlock(x="x")._to_block_document()
         with pytest.raises(ValueError, match="(No block schema ID provided)"):
-            self.MyRegisteredBlock(x="x").to_block_document(name="block")
-        assert self.MyRegisteredBlock(x="x").to_block_document(
+            self.MyRegisteredBlock(x="x")._to_block_document(name="block")
+        assert self.MyRegisteredBlock(x="x")._to_block_document(
             name="block", block_schema_id=uuid4(), block_type_id=block_type_x.id
         )
 
     def test_from_block_document(self, block_type_x):
         block_schema_id = uuid4()
-        api_block = self.MyRegisteredBlock(x="x").to_block_document(
+        api_block = self.MyRegisteredBlock(x="x")._to_block_document(
             name="block", block_schema_id=block_schema_id, block_type_id=block_type_x.id
         )
 
-        block = Block.from_block_document(api_block)
+        block = Block._from_block_document(api_block)
         assert type(block) == self.MyRegisteredBlock
         assert block.x == "x"
         assert block._block_schema_id == block_schema_id
@@ -129,13 +129,13 @@ class TestAPICompatibility:
 
         block_schema_id = uuid4()
         block_type_id = uuid4()
-        api_block = BlockyMcBlock(fizz="buzz").to_block_document(
+        api_block = BlockyMcBlock(fizz="buzz")._to_block_document(
             name="super important config",
             block_schema_id=block_schema_id,
             block_type_id=block_type_id,
         )
 
-        block = BlockyMcBlock.from_block_document(api_block)
+        block = BlockyMcBlock._from_block_document(api_block)
         assert type(block) == BlockyMcBlock
         assert block.fizz == "buzz"
         assert block._block_schema_id == block_schema_id
@@ -152,7 +152,7 @@ class TestAPICompatibility:
                 self.evil_fake_field = "evil fake data"
 
         my_block = MakesALottaAttributes(real_field="hello", authentic_field="marvin")
-        api_block = my_block.to_block_document(
+        api_block = my_block._to_block_document(
             name="a corrupted api block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
@@ -162,7 +162,7 @@ class TestAPICompatibility:
         assert "evil_fake_field" not in api_block.data
 
     def test_create_block_type_from_block(self, block_class: Type[Block]):
-        block_type = block_class.to_block_type()
+        block_type = block_class._to_block_type()
 
         assert block_type.name == block_class.__name__
         assert block_type.logo_url == block_class._logo_url
@@ -171,9 +171,9 @@ class TestAPICompatibility:
     def test_create_block_schema_from_block(
         self, block_class: Type[Block], block_type_x
     ):
-        block_schema = block_class.to_block_schema(block_type_id=block_type_x.id)
+        block_schema = block_class._to_block_schema(block_type_id=block_type_x.id)
 
-        assert block_schema.checksum == block_class.calculate_schema_checksum()
+        assert block_schema.checksum == block_class._calculate_schema_checksum()
         assert block_schema.fields == block_class.schema()
         assert block_schema.type == block_class._block_schema_type
 

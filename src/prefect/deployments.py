@@ -231,7 +231,7 @@ class DeploymentSpec(PrefectBaseModel):
         if self.flow_storage is None:
             default_block_document = await client.get_default_storage_block_document()
             if default_block_document:
-                self.flow_storage = Block.from_block_document(default_block_document)
+                self.flow_storage = Block._from_block_document(default_block_document)
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
         if isinstance(self.flow_storage, UUID):
@@ -283,7 +283,7 @@ class DeploymentSpec(PrefectBaseModel):
 
         if not self.flow_storage._block_document_id:
             block_schema = await client.read_block_schema_by_checksum(
-                self.flow_storage.calculate_schema_checksum()
+                self.flow_storage._calculate_schema_checksum()
             )
 
             block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
@@ -291,7 +291,7 @@ class DeploymentSpec(PrefectBaseModel):
             while not self.flow_storage._block_document_id:
                 try:
                     block_document = await client.create_block_document(
-                        block_document=self.flow_storage.to_block_document(
+                        block_document=self.flow_storage._to_block_document(
                             name=f"{self.flow_name}-{self.name}-{self.flow.version}-{i}",
                             block_schema_id=block_schema.id,
                             block_type_id=block_schema.block_type_id,

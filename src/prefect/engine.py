@@ -281,7 +281,7 @@ async def begin_flow_run(
             await client.get_default_storage_block_document()
         )
         result_storage = (
-            Block.from_block_document(default_storage_block_document)
+            Block._from_block_document(default_storage_block_document)
             if default_storage_block_document is not None
             else None
         )
