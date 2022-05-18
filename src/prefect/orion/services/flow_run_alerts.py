@@ -63,7 +63,7 @@ class FlowRunAlerts(LoopService):
                         f"from policy {alert.flow_run_alert_policy_id}"
                     )
                     continue
-                block = Block.from_block_document(
+                block = Block._from_block_document(
                     await schemas.core.BlockDocument.from_orm_model(
                         session=session, orm_block_document=orm_block_document
                     )
