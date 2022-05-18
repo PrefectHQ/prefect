@@ -41,20 +41,6 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 
 @pytest.fixture
-def tmp_path():
-    import tempfile
-
-    try:
-        directory = tempfile.TemporaryDirectory()
-        return directory.name
-    finally:
-        try:
-            directory.cleanup()
-        except:
-            pass
-
-
-@pytest.fixture
 async def tmp_remote_storage_block(tmp_path, orion_client):
 
     block = FileStorageBlock(base_path=str(tmp_path))
