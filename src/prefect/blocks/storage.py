@@ -138,9 +138,8 @@ class FileStorageBlock(StorageBlock):
             raise ValueError(f"Unknown key type {self.key_type!r}")
 
     async def write(self, data: bytes) -> str:
-        path = self.base_path + key
         key = self._create_key(data)
-        ff = fsspec.open(path, "wb", **self.options)
+        ff = fsspec.open(self.base_path + key, "wb", **self.options)
 
         # TODO: Some file systems support async and would require passing the current
         #       event loop in `self.options`. This would probably be better for
