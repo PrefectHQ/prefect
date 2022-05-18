@@ -31,7 +31,7 @@ async def all_states_policy(session, notifier_block):
     policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
         session=session,
         flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
+            name="My EVERYTHING Policy",
             state_names=[],
             tags=[],
             block_document_id=notifier_block.id,
@@ -61,7 +61,7 @@ async def completed_etl_policy(session, notifier_block):
     policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
         session=session,
         flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
+            name="My Success ETL Policy",
             state_names=["Completed"],
             tags=["ETL"],
             block_document_id=notifier_block.id,
@@ -76,7 +76,7 @@ async def failed_policy(session, notifier_block):
     policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
         session=session,
         flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
+            name="My Failed Policy",
             state_names=["Failed"],
             tags=[],
             block_document_id=notifier_block.id,
