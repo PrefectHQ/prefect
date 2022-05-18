@@ -66,7 +66,7 @@ from uuid import UUID
 
 import anyio
 
-from prefect.utilities.enum import AutoEnum, auto
+from prefect.utilities.collections import AutoEnum, auto
 
 if TYPE_CHECKING:
     import distributed

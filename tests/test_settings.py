@@ -289,6 +289,22 @@ class TestLoadProfiles:
         assert load_profiles()["foo"].settings == {PREFECT_API_KEY: "bar"}
         assert isinstance(load_profiles()["default"].settings, dict)
 
+    def test_load_profiles_only_active_key(self, temporary_profiles_path):
+        temporary_profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "default"
+                """
+            )
+        )
+        assert load_profiles().active_name == "default"
+        assert isinstance(load_profiles()["default"].settings, dict)
+
+    def test_load_profiles_empty_file(self, temporary_profiles_path):
+        temporary_profiles_path.touch()
+        assert load_profiles().active_name == "default"
+        assert isinstance(load_profiles()["default"].settings, dict)
+
     def test_load_profiles_with_default(self, temporary_profiles_path):
         temporary_profiles_path.write_text(
             textwrap.dedent(

@@ -60,11 +60,13 @@ import yaml
 from pydantic import Field, validator
 
 import prefect.orion.schemas as schemas
+from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
+    ObjectAlreadyExists,
     SpecValidationError,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
@@ -97,15 +99,16 @@ class DeploymentSpec(PrefectBaseModel):
     Args:
         name: The name of the deployment
         flow: The flow object to associate with the deployment
+        flow_location: The path to a script containing the flow to associate with the
+            deployment. Inferred from `flow` if provided.
         flow_name: The name of the flow to associated with the deployment. Only required
             if loading the flow from a `flow_location` with multiple flows. Inferred
             from `flow` if provided.
-        flow_location: The path to a script containing the flow to associate with the
-            deployment. Inferred from `flow` if provided.
-        push_to_server: By default, the flow text will be loaded from the flow location
-            and stored on the server instead of locally. This allows the flow to be
-            compatible with all flow runners. If disabled, only an agent on the same
-            machine will be able to run the deployment.
+        flow_runner: The [flow runner](/api-ref/prefect/flow-runners/) to be used for
+            flow runs.
+        flow_storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
+            providing the [storage](/concepts/storage/) to be used for the flow
+            definition and results.
         parameters: An optional dictionary of default parameters to set on flow runs
             from this deployment. If defined in Python, the values should be Pydantic
             compatible objects.
@@ -117,7 +120,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
-    flow_storage: Optional[StorageBlock] = None
+    flow_storage: Optional[Union[StorageBlock, UUID]] = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -226,10 +229,14 @@ class DeploymentSpec(PrefectBaseModel):
         # TODO: Some of these checks may be retained in the future, but will use block
         # capabilities instead of types to check for compatibility with flow runners
 
-        self.flow_storage = (
-            self.flow_storage or await client.get_default_storage_block()
-        )
+        if self.flow_storage is None:
+            default_block_document = await client.get_default_storage_block_document()
+            if default_block_document:
+                self.flow_storage = Block._from_block_document(default_block_document)
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
+
+        if isinstance(self.flow_storage, UUID):
+            self.flow_storage = await client.read_block(self.flow_storage)
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
             local_machine_message = (
@@ -275,23 +282,34 @@ class DeploymentSpec(PrefectBaseModel):
 
         # Ensure the storage is a registered block for later retrieval
 
-        if not self.flow_storage._block_id:
-            block_spec = await client.read_block_spec_by_name(
-                self.flow_storage._block_spec_name,
-                self.flow_storage._block_spec_version,
+        if not self.flow_storage._block_document_id:
+            block_schema = await client.read_block_schema_by_checksum(
+                self.flow_storage._calculate_schema_checksum()
             )
 
-            self.flow_storage._block_id = await client.create_block(
-                self.flow_storage,
-                block_spec_id=block_spec.id,
-                name=f"{self.flow_name}-{self.name}",
-            )
+            block_name = f"{self.flow_name}-{self.name}-{self.flow.version}"
+            i = 0
+            while not self.flow_storage._block_document_id:
+                try:
+                    block_document = await client.create_block_document(
+                        block_document=self.flow_storage._to_block_document(
+                            name=f"{self.flow_name}-{self.name}-{self.flow.version}-{i}",
+                            block_schema_id=block_schema.id,
+                            block_type_id=block_schema.block_type_id,
+                        )
+                    )
+                    self.flow_storage._block_document_id = block_document.id
+                except ObjectAlreadyExists:
+                    i += 1
 
         # Write the flow to storage
         storage_token = await self.flow_storage.write(flow_bytes)
         flow_data = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": self.flow_storage._block_id},
+            data={
+                "data": storage_token,
+                "block_document_id": self.flow_storage._block_document_id,
+            },
         )
 
         deployment_id = await client.create_deployment(

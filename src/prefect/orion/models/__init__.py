@@ -1,6 +1,7 @@
 from . import (
-    block_specs,
-    blocks,
+    block_documents,
+    block_schemas,
+    block_types,
     configuration,
     deployments,
     concurrency_limits,
