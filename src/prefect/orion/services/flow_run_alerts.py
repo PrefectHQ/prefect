@@ -58,6 +58,10 @@ class FlowRunAlerts(LoopService):
                     db.BlockDocument, alert.block_document_id
                 )
                 if orm_block_document is None:
+                    self.logger.error(
+                        f"Missing block document {alert.block_document_id} "
+                        f"from policy {alert.flow_run_alert_policy_id}"
+                    )
                     continue
                 block = Block.from_block_document(
                     await schemas.core.BlockDocument.from_orm_model(
@@ -80,7 +84,10 @@ class FlowRunAlerts(LoopService):
                 )
 
             except Exception as exc:
-                self.logger.error(f"Error sending alert: {exc}")
+                self.logger.error(
+                    f"Error sending alert for policy {alert.flow_run_alert_policy_id} "
+                    f"on flow run {alert.flow_run_id}:\n{exc}"
+                )
 
 
 if __name__ == "__main__":
