@@ -197,27 +197,64 @@ async def deployment(session, flow, flow_function):
 
 
 @pytest.fixture
-async def block_spec(session):
-    block_spec = await models.block_specs.create_block_spec(
-        session=session,
-        block_spec=schemas.core.BlockSpec(
-            name="x",
-            version="1.0",
-            type="abc",
-        ),
+async def block_type_x(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="x")
     )
     await session.commit()
-    return block_spec
+    return block_type
 
 
 @pytest.fixture
-async def block(session, block_spec):
-    block = await models.blocks.create_block(
-        session=session,
-        block=schemas.core.Block(block_spec_id=block_spec.id, name="Block 1"),
+async def block_type_y(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="y")
     )
     await session.commit()
-    return block
+    return block_type
+
+
+@pytest.fixture
+async def block_type_z(session):
+    block_type = await models.block_types.create_block_type(
+        session=session, block_type=schemas.actions.BlockTypeCreate(name="z")
+    )
+    await session.commit()
+    return block_type
+
+
+@pytest.fixture
+async def block_schema(session, block_type_x):
+    block_schema = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            type="abc",
+            fields={
+                "title": "x",
+                "type": "object",
+                "properties": {"foo": {"title": "Foo", "type": "string"}},
+                "required": ["foo"],
+            },
+            block_type_id=block_type_x.id,
+        ),
+    )
+    await session.commit()
+    return block_schema
+
+
+@pytest.fixture
+async def block_document(session, block_schema, block_type_x):
+    block_document = await models.block_documents.create_block_document(
+        session=session,
+        block_document=schemas.actions.BlockDocumentCreate(
+            block_schema_id=block_schema.id,
+            name="Block 1",
+            block_type_id=block_type_x.id,
+            data=dict(foo="bar"),
+        ),
+    )
+    await session.commit()
+    return block_document
 
 
 async def commit_task_run_state(
