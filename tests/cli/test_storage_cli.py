@@ -24,7 +24,7 @@ def get_first_menu_and_fail() -> click.testing.Result:
     """
     command = ["storage", "create"]
     runner = CliRunner()
-    result = runner.invoke(app, command, input=INVALID_OPTION, catch_exceptions=True)
+    result = runner.invoke(app, command, input=INVALID_OPTION, catch_exceptions=False)
 
     return result
 

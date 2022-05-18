@@ -70,7 +70,7 @@ def invoke_and_assert(
     """
 
     runner = CliRunner()
-    result = runner.invoke(app, command, catch_exceptions=True, input=user_input)
+    result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
     if echo:
         print("------ CLI output ------")
