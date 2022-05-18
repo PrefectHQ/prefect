@@ -49,7 +49,7 @@ To configure your flow to use the `DaskTaskRunner`, import it from [`prefect.tas
 
 ```python hl_lines="4"
 from prefect import flow
-from prefect.task_runner import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 @flow(task_runner=DaskTaskRunner(address="http://my-dask-cluster"))
 def my_flow():
