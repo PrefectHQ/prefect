@@ -143,10 +143,12 @@ class FileStorageBlock(StorageBlock):
             return await run_sync_in_worker_thread(self._read_sync, ff)
 
     def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
-        ff.write(data)
+        with ff as io:
+            io.write(data)
 
     def _read_sync(self, ff: fsspec.core.OpenFile) -> bytes:
-        return ff.read()
+        with ff as io:
+            return io.read()
 
 
 @register_block("S3 Storage", version="1.0")
