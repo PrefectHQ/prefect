@@ -36,15 +36,15 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
-    def test_version_none_if_interactively_defined(self):
-        "Defining functions interactively does not set __file__ global"
+    def test_version_none_if_source_file_cannot_be_determined(self, monkeypatch):
+        """
+        `getsourcefile` will return `None` when functions are defined interactively
+        """
+        monkeypatch.setattr(
+            "prefect.flows.inspect.getsourcefile", MagicMock(return_value=None)
+        )
 
-        def ipython_function():
-            pass
-
-        del ipython_function.__globals__["__file__"]
-
-        f = Flow(name="test", fn=ipython_function)
+        f = Flow(name="test", fn=lambda **kwargs: 42)
         assert f.version is None
 
     def test_raises_on_bad_funcs(self):
