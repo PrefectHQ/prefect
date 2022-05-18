@@ -16,7 +16,6 @@
   const subscriptionOptions = {
     interval: 30000,
   }
-
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
   const flows = computed(() => flowsSubscription.response ?? [])
 </script>
