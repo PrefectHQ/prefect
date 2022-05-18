@@ -454,8 +454,9 @@ async def set_flow_run_state(
         details=context.response_details,
     )
 
-    # if the state was accepted, check for any alert policies
-    if result.status == SetStateStatus.ACCEPT:
+    # if a new state is being set (either ACCEPTED from user or REJECTED
+    # and set by the server), check for any alert policies
+    if result.status in (SetStateStatus.ACCEPT, SetStateStatus.REJECT):
         await models.flow_run_alert_policies.queue_flow_run_alerts(
             session=session, flow_run=run
         )
