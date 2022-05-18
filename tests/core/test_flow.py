@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import random
+import re
 import sys
 import tempfile
 import time
@@ -1991,17 +1992,14 @@ class TestSerializedHash:
 
         """
         )
-        script = tmpdir.join("flow.py")
-        script.write_text(contents, encoding="utf-8")
 
-        result = subprocess.run([sys.executable, str(script)], capture_output=True)
         error_message = (
             "Found positional-only parameters in the function signature for task dummy_task: ['a', 'b']. "
             "Prefect passes arguments using keywords and does not support positional-only parameters."
         )
 
-        assert result.returncode == 1
-        assert error_message in result.stderr.decode()
+        with pytest.raises(TypeError, match=re.escape(error_message)):
+            exec(contents)
 
     def test_task_order_is_deterministic(self):
         def my_fake_task(foo):
