@@ -154,7 +154,7 @@ Sometimes, imports are slow. We'd like to keep the `prefect` module import times
 
 #### API Versioning
 
-The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and interact entirely via an API. Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor and patch versions.
+The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and interact entirely via an API. Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
 
 For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch version `1`.
 
