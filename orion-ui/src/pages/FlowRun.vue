@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRunsFilter, TaskRun } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -71,7 +71,7 @@
 
   const taskRunsOffset = ref<number>(0)
   const taskRunsLimit = ref<number>(1)
-  const taskRunsFilter = computed<TaskRunsFilter>(() => {
+  const taskRunsFilter = computed<FlowRunsFilter>(() => {
     return {
       flow_runs: {
         id: {
@@ -80,7 +80,7 @@
       },
       offset: taskRunsOffset.value,
       limit: taskRunsLimit.value,
-      sort: 'END_TIME_DSC',
+      sort: 'END_TIME_DESC',
     }
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
@@ -95,4 +95,3 @@
 .flow-run {}
 </style>
 
-9c1e4096-a9b6-442d-b79c-69c9f942b329
