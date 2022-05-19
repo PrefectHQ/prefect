@@ -264,7 +264,10 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         self.logger.debug(f"Using command: {' '.join(command)}")
 
-        if isinstance(command, list):
+        # passing a string to open_process is equivalent to shell=True
+        # which is generally necessary for Unix-like commands on Windows
+        # but otherwise should be avoided
+        if isinstance(command, list) and sys.platform == "win32":
             command = " ".join(command)
         process_context = await anyio.open_process(
             command,
