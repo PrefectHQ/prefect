@@ -48,10 +48,18 @@
   <div>
     {{ flowRunGraph }}
   </div>
+
+  <div>
+    Sub Flow Runs
+  </div>
+
+  <div>
+    {{ subFlowRuns }}
+  </div>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -134,6 +142,23 @@
   const nextRunPage = (): void => {
     taskRunsOffset.value +=logsLimit.value
   }
+
+  const subFlowRunsFilter = computed<UnionFilters>(() => {
+    const value: UnionFilters = {
+      sort: 'EXPECTED_START_TIME_DESC',
+      flow_runs: {
+        id: { any_: [flowRunId.value] },
+      },
+      task_runs: {
+        subflow_runs: { exists_: true },
+      },
+    }
+
+    return value
+  })
+
+  const subFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [subFlowRunsFilter])
+  const subFlowRuns = computed(()=> subFlowRunsSubscription.response ?? '')
 </script>
 
 <style>
