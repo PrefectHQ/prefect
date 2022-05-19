@@ -14,15 +14,24 @@
   <PButton @click="nextLogsPage">
     Next log
   </PButton>
+
+  <div>Task Runs</div>
+  <div v-for="taskRun in taskRuns" :key="taskRun.id">
+    {{ taskRun }}
+  </div>
+  <PButton @click="nextRunPage">
+    Next run
+  </PButton>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRunsFilter, TaskRun } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, ref } from 'vue'
   import { logsApi } from '@/services/logsApi'
+  import { taskRunsApi } from '@/services/taskRunsApi'
 
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
@@ -38,7 +47,7 @@
   const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
-  const filter = computed<LogsRequestFilter>(() => {
+  const logsFilter = computed<LogsRequestFilter>(() => {
     return {
       logs: {
         flow_run_id: {
@@ -53,14 +62,37 @@
       sort: 'TIMESTAMP_DESC',
     }
   })
-  const subscription = useSubscription(logsApi.getLogs, [filter], options)
-  const logs = computed<Log[]>(() => subscription.response ?? [])
+  const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
+  const logs = computed<Log[]>(() => logsSubscription.response ?? [])
   // for demo only!
   const nextLogsPage = (): void => {
     logsOffset.value +=logsLimit.value
+  }
+
+  const taskRunsOffset = ref<number>(0)
+  const taskRunsLimit = ref<number>(1)
+  const taskRunsFilter = computed<TaskRunsFilter>(() => {
+    return {
+      flow_runs: {
+        id: {
+          any_: [flowRunId.value],
+        },
+      },
+      offset: taskRunsOffset.value,
+      limit: taskRunsLimit.value,
+      sort: 'END_TIME_DSC',
+    }
+  })
+  const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
+  const taskRuns = computed<TaskRun[]>(() => subscription.response ?? [])
+  // for demo only!
+  const nextRunPage = (): void => {
+    taskRunsOffset.value +=logsLimit.value
   }
 </script>
 
 <style>
 .flow-run {}
 </style>
+
+9c1e4096-a9b6-442d-b79c-69c9f942b329
