@@ -111,7 +111,7 @@ class Flow(Generic[P, R]):
         if not version:
             try:
                 version = file_hash(flow_file)
-            except FileNotFoundError:
+            except (FileNotFoundError, TypeError, OSError):
                 pass  # `getsourcefile` can return null values and "<stdin>" for objects in repls
         self.version = version
 
