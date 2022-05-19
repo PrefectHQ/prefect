@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { deploymentsApiKey, filtersDefaultObjectKey, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey, canKey } from '@prefecthq/orion-design'
+  import { deploymentsApiKey, flowRunsApiKey, flowsApiKey, logsApiKey, searchApiKey, taskRunsApiKey, workQueuesApiKey, canKey } from '@prefecthq/orion-design'
   import { provide } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -25,7 +25,6 @@
   provide(searchApiKey, searchApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
-  provide(filtersDefaultObjectKey, 'flow_run')
   provide(canKey, can)
 </script>
 
