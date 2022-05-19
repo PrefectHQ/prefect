@@ -264,6 +264,8 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         self.logger.debug(f"Using command: {' '.join(command)}")
 
+        if isinstance(command, list):
+            command = " ".join(command)
         process_context = await anyio.open_process(
             command,
             stderr=subprocess.STDOUT,
