@@ -37,7 +37,7 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
-    @pytest.mark.parametrize("sourcefile", [None, "<stdin>", "ipython-24243"])
+    @pytest.mark.parametrize("sourcefile", [None, "<stdin>", "ipython-24243", "<ipython-input-1-d31e8a6792d4>"])
     def test_version_none_if_source_file_cannot_be_determined(
         self, monkeypatch, sourcefile
     ):
