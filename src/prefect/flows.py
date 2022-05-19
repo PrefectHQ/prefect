@@ -108,7 +108,12 @@ class Flow(Generic[P, R]):
 
         # Version defaults to a hash of the function's file
         flow_file = inspect.getsourcefile(self.fn)
-        self.version = version or (file_hash(flow_file) if flow_file else None)
+        if not version:
+            try:
+                version = file_hash(flow_file)
+            except:
+                version = None
+        self.version = version
 
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 
