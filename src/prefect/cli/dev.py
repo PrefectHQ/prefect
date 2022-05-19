@@ -80,12 +80,12 @@ def build_ui():
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "ci", "install"])
+            subprocess.check_output(["npm", "ci", "install"], shell=True)
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
             env["ORION_UI_SERVE_BASE"] = "/"
-            subprocess.check_output(["npm", "run", "build"], env=env)
+            subprocess.check_output(["npm", "run", "build"], env=env, shell=True)
 
         if os.path.exists(prefect.__ui_static_path__):
             app.console.print("Removing existing build files...")
