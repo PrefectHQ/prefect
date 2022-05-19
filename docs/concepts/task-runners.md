@@ -17,43 +17,80 @@ Task runners are responsible for running Prefect tasks. Each flow has a task run
 
 Depending on the task runner you use, the tasks within your flow can run sequentially, concurrently, or in parallel. The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner), which will run your tasks concurrently. 
 
-Prefect currently provides the following task runners: 
+Prefect currently provides the following built-in task runners: 
 
-- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently.
+- [`ConcurrentTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.ConcurrentTaskRunner) runs tasks concurrently, allowing tasks to switch when blocking on IO. Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 - [`SequentialTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.SequentialTaskRunner) runs tasks sequentially. 
-- [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
-- [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
+
+In addition, the following Prefect-developed task runners for parallel or distributed task execution may be installed as [Prefect Collections](/collections/overview/). 
+
+- [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
+- [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
 ## Using a task runner
 
-While all flows require a task runner to execute tasks, you do not need to specify a task runner unless your tasks require specific execution. If you do not specify a task runner, Prefect uses the default `ConcurrentTaskRunner`.
+While all flows require a task runner to execute tasks, you do not need to specify a task runner unless your tasks require specific execution. Prefect automatically creates a task execution graph based on task dependencies detected in your flow definition.
 
-To configure your flow to use a specific task runner, import task runners from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign them when the flow is defined.
+If you do not specify a task runner, Prefect uses the default `ConcurrentTaskRunner`.
 
-```python hl_lines="2 4"
-from prefect import flow
+To configure your flow to use a specific task runner, import a task runner and assign it as an argument on the flow when the flow is defined.
+
+For example, you can specify the `SequentialTaskRunner` to ensure tasks are executed in order.
+
+```python hl_lines="2 8"
+from prefect import flow, task
 from prefect.task_runners import SequentialTaskRunner
 
+@task
+def stop_at_floor(floor):
+    print(f"elevator stops on floor {floor}")
+
 @flow(task_runner=SequentialTaskRunner())
-def my_flow():
-    pass
+def elevator():
+    for floor in range(1,10):
+        stop_at_floor(floor)
 ```
 
-If you specify an uninitialized task runner class, a task runner instance of that type is created with the default settings. You can also pass additional configuration parameters for task runners that accept parameters, such as [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) and [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner).
+`ConcurrentTaskRunner` allows tasks to switch when blocking.
+
+```python hl_lines="2 11"
+from prefect import flow, task
+from prefect.task_runners import ConcurrentTaskRunner
+import time
+
+@task
+def stop_at_floor(floor):
+    print(f"elevator moving to floor {floor}")
+    time.sleep(floor)
+    print(f"elevator stops on floor {floor}")
+
+@flow(task_runner=ConcurrentTaskRunner())
+def elevator():
+    for floor in range(10,0,-1):
+        stop_at_floor(floor)
+```
+
+If you specify an uninitialized task runner class, a task runner instance of that type is created with the default settings. You can also pass additional configuration parameters for task runners that accept parameters, such as [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) and [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/).
 
 ## Running tasks on Dask
 
-The [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via the `address` kwarg.
+The [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via an `address` argument.
 
-To configure your flow to use the `DaskTaskRunner`, import it from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign it as the task runner when the flow is defined.
+To configure your flow to use the `DaskTaskRunner`:
+
+1. Make sure the `prefect-dask` collection is installed: `pip install prefect-dask`.
+2. In your flow code, import `DaskTaskRunner` from `prefect_dask.task_runners`.
+3. Assign it as the task runner when the flow is defined using the `task_runner=DaskTaskRunner` argument.
+
+For example, this flow uses the `DaskTaskRunner` configured to access an existing Dask cluster at `http://my-dask-cluster`.
 
 ```python hl_lines="4"
 from prefect import flow
-from prefect.task_runner import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @flow(task_runner=DaskTaskRunner(address="http://my-dask-cluster"))
 def my_flow():
-    pass
+    ...
 ```
 
 `DaskTaskRunner` accepts the following optional parameters:
@@ -71,11 +108,8 @@ def my_flow():
     in scripts must be guarded with `if __name__ == "__main__":` or you will encounter 
     warnings and errors.
 
-If you don't provide the `address` of a Dask scheduler, a temporary local cluster will be created automatically.
-The number of workers used is based on the number of cores on your machine. The
-default should provide a mix of processes and threads that should work well for
-most workloads. If you want to specify this explicitly, you can pass
-`n_workers` or `threads_per_worker` to `cluster_kwargs`.
+If you don't provide the `address` of a Dask scheduler, Prefect creates a temporary local cluster automatically. The number of workers used is based on the number of cores on your machine. The default provides a mix of processes and threads that should work well for
+most workloads. If you want to specify this explicitly, you can pass values for `n_workers` or `threads_per_worker` to `cluster_kwargs`.
 
 ```python
 # Use 4 worker processes, each with 2 threads
@@ -86,21 +120,17 @@ DaskTaskRunner(
 
 ### Using a temporary cluster
 
-The `DaskTaskRunner` is capable of creating a temporary cluster using any of
-[Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html).
-This can be useful when you want each flow run to have its own Dask cluster,
-allowing for adaptive scaling per-flow.
+The `DaskTaskRunner` is capable of creating a temporary cluster using any of [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html). This can be useful when you want each flow run to have its own Dask cluster, allowing for per-flow adaptive scaling.
 
-To configure, you need to provide a `cluster_class`. This can be either a
-string specifying the import path to the cluster class (for example,
-`"dask_cloudprovider.aws.FargateCluster"`), the cluster class itself, or a
-function for creating a custom cluster. You can also configure
-`cluster_kwargs`, which takes a dictionary of keyword arguments to pass to
-`cluster_class` when starting the flow run.
+To configure, you need to provide a `cluster_class`. This can be:
 
-For example, to configure a flow to use a temporary
-`dask_cloudprovider.aws.FargateCluster` with 4 workers running with an image
-named `my-prefect-image`:
+- A string specifying the import path to the cluster class (for example, `"dask_cloudprovider.aws.FargateCluster"`)
+- The cluster class itself
+- A function for creating a custom cluster. 
+
+You can also configure `cluster_kwargs`, which takes a dictionary of keyword arguments to pass to `cluster_class` when starting the flow run.
+
+For example, to configure a flow to use a temporary `dask_cloudprovider.aws.FargateCluster` with 4 workers running with an image named `my-prefect-image`:
 
 ```python
 DaskTaskRunner(
@@ -122,7 +152,7 @@ when compared to using a temporary cluster (as described above):
 - Multiple flow runs may compete for resources. Dask tries to do a good job
   sharing resources between tasks, but you may still run into issues.
 
-That said, you may prefer managing a single long running cluster. 
+That said, you may prefer managing a single long-running cluster. 
 
 To configure a `DaskTaskRunner` to connect to an existing cluster, pass in the address of the
 scheduler to the `address` argument:
@@ -166,7 +196,7 @@ For example, we can set the [priority](http://distributed.dask.org/en/stable/pri
 ```python
 import dask
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def show(x):
@@ -187,7 +217,7 @@ Another common use case is [resource](http://distributed.dask.org/en/stable/reso
 ```python
 import dask
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def show(x):
@@ -216,15 +246,23 @@ def my_flow():
 
 ## Running tasks on Ray
 
-The [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via the `address` kwarg.
+The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
+
+To configure your flow to use the `RayTaskRunner`:
+
+1. Make sure the `prefect-ray` collection is installed: `pip install prefect-ray`.
+2. In your flow code, import `RayTaskRunner` from `prefect_ray.task_runners`.
+3. Assign it as the task runner when the flow is defined using the `task_runner=RayTaskRunner` argument.
+
+For example, this flow uses the `RayTaskRunner` configured to access an existing Ray instance at `ray://192.0.2.255:8786`.
 
 ```python hl_lines="4"
 from prefect import flow
-from prefect.task_runners import RayTaskRunner
+from prefect_ray.task_runners import RayTaskRunner
 
 @flow(task_runner=RayTaskRunner(address="ray://192.0.2.255:8786"))
 def my_flow():
-    pass 
+    ... 
 ```
 
 `RayTaskRunner` accepts the following optional parameters:
@@ -234,14 +272,16 @@ def my_flow():
 | address | Address of a currently running Ray instance, starting with the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI. |
 | init_kwargs | Additional kwargs to use when calling `ray.init`. |
 
-Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, a temporary instance will be created automatically.
+Note that Ray Client uses the [ray://](https://docs.ray.io/en/master/cluster/ray-client.html) URI to indicate the address of a Ray instance. If you don't provide the `address` of a Ray instance, Prefect creates a temporary instance automatically.
 
 !!! warning "Ray environment limitations"
     While we're excited about adding support for parallel task execution via Ray to Prefect, there are some inherent limitations with Ray you should be aware of:
     
     Ray currently does not support Python 3.10.
 
-    Ray currently does not support non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See [the Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
+    Ray support for non-x86/64 architectures such as ARM/M1 processors with installation from `pip` alone and will be skipped during installation of Prefect. It is possible to manually install the blocking component with `conda`. See the [Ray documentation](https://docs.ray.io/en/latest/ray-overview/installation.html#m1-mac-apple-silicon-support) for instructions.
+
+    See the [Ray installation documentation](https://docs.ray.io/en/latest/ray-overview/installation.html) for further compatibility information.
 
 ## Running tasks sequentially
 
@@ -273,11 +313,12 @@ glass_tower()
 
 Each flow can only have a single task runner, but sometimes you may want a subset of your tasks to run using a specific task runner. In this case, you can create [subflows](/concepts/flows/#subflows) for tasks that need to use a different task runner.
 
-For example, you can have a flow (`sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a subflow (`dask_subflow`) to run those tasks using the `DaskTaskRunner`.
+For example, you can have a flow (in the example below called `sequential_flow`) that runs its tasks locally using the `SequentialTaskRunner`. If you have some tasks that can run more efficiently in parallel on a Dask cluster, you could create a subflow (such as `dask_subflow`) to run those tasks using the `DaskTaskRunner`.
 
 ```python
 from prefect import flow, task
-from prefect.task_runners import DaskTaskRunner, SequentialTaskRunner
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask.task_runners import DaskTaskRunner
 
 @task
 def hello_local():
@@ -302,7 +343,7 @@ sequential_flow()
 
 This script outputs the following logs demonstrating the temporary Dask task runner:
 
-<div class="termy">
+<div class="terminal">
 ```
 13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'sequential-flow'...
 13:46:58.866 | Starting task runner `SequentialTaskRunner`...
