@@ -7,6 +7,20 @@
     {{ flowRunDetails }}
   </div>
 
+  <div v-if="flowRunDetails?.flowId">
+    <div>
+      Flow Run Flow
+    </div>
+    {{ flowRunFlow }}
+  </div>
+
+  <div v-if="flowRunDeploymentId">
+    <div>
+      Flow Run Deployment
+    </div>
+    {{ flowRunDeployment }}
+  </div>
+
   <div>
     Logs
   </div>
@@ -29,20 +43,31 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, FlowRun } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, ref } from 'vue'
+  import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
+  import { flowsApi } from '@/services/flowsApi'
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
+  const longIntervalOptions: SubscriptionOptions = { interval:  50000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
-  const flowRunDetails = computed(()=> flowRunDetailsSubscription.response ?? [])
+  const flowRunDetails = computed(()=> flowRunDetailsSubscription.response)
+
+  const flowRunFlowId = computed(()=> flowRunDetails.value?.flowId)
+  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], longIntervalOptions) : null)
+  const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
+
+  const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
+  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], longIntervalOptions) : null)
+  const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
 
   const logLevelOptions = [
     { label: 'Critical only', value: 50 },
@@ -55,6 +80,7 @@
   const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
+  const logsSort = ref<string>('TIMESTAMP_DESC')
   const logsFilter = computed<LogsRequestFilter>(() => {
     return {
       logs: {
@@ -67,7 +93,7 @@
       },
       offset: logsOffset.value,
       limit: logsLimit.value,
-      sort: 'TIMESTAMP_DESC',
+      sort: logsSort.value,
     }
   })
   const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
