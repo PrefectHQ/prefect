@@ -303,9 +303,10 @@ class DatabricksSubmitRun(Task):
         Task run method.
 
         Args:
-            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
-                String. Structure must be a string of valid JSON. To use token based authentication, provide
-                the key `token` in the string for the connection and create the key `host`.
+            - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks
+                Connection String. Structure must be a string of valid JSON. To use token based,
+                authentication provide the key `token` in the string for the connection and
+                create the key `host`.
                 `PREFECT__CONTEXT__SECRETS__DATABRICKS_CONNECTION_STRING=
                 '{"host": "abcdef.xyz", "login": "ghijklmn", "password": "opqrst"}'`
                 OR
@@ -744,8 +745,8 @@ class DatabricksSubmitMultitaskRun(Task):
     the execution of multiple Databricks tasks within the Databricks job run. Note: Databricks
     tasks are distinct from Prefect tasks. All tasks configured will run as a single Prefect task.
 
-    For more information about the arguments of this task, refer to the [Databricks
-    submit run API documentation](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit)
+    For more information about the arguments of this task, refer to the [Databricks submit run API
+    documentation](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit)
 
     Args:
         - databricks_conn_secret (dict, optional): Dictionary representation of the Databricks Connection
