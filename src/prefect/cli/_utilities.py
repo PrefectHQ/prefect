@@ -69,8 +69,10 @@ async def open_process_and_stream_output(
             The task will report itself as started once the process is started.
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
+    if isinstance(command, list):
+        command = " ".join(command)
     process = await anyio.open_process(
-        command, stderr=sys.stderr, stdout=sys.stdout, shell=True, **kwargs
+        command, stderr=sys.stderr, stdout=sys.stdout, **kwargs
     )
     if task_status:
         task_status.started()
