@@ -40,6 +40,14 @@
   <PButton @click="nextRunPage">
     Next run
   </PButton>
+
+  <div>
+    Flow Run Graph
+  </div>
+
+  <div>
+    {{ flowRunGraph }}
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -68,6 +76,9 @@
   const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
   const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], longIntervalOptions) : null)
   const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
+
+  const flowRunGraphSubscription = useSubscription(flowRunsApi.getFlowRunsGraph, [flowRunId], options)
+  const flowRunGraph = computed(()=> flowRunGraphSubscription.response ?? '')
 
   const logLevelOptions = [
     { label: 'Critical only', value: 50 },
