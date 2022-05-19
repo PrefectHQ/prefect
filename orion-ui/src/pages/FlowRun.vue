@@ -4,6 +4,10 @@
   </div>
 
   <div>
+    {{ flowRunDetails }}
+  </div>
+
+  <div>
     Logs
   </div>
 
@@ -25,16 +29,20 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, FlowRun } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
   import { computed, ref } from 'vue'
+  import { flowRunsApi } from '@/services/flowRunsApi'
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
+
+  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
+  const flowRunDetails = computed(()=> flowRunDetailsSubscription.response ?? [])
 
   const logLevelOptions = [
     { label: 'Critical only', value: 50 },
