@@ -25,7 +25,9 @@
   import { logsApi } from '@/services/logsApi'
 
   const flowRunId = useRouteParam('id')
-  const levelOptions = [
+  const options: SubscriptionOptions = { interval:  5000 }
+
+  const logLevelOptions = [
     { label: 'Critical only', value: 50 },
     { label: 'Error and above', value: 40 },
     { label: 'Warning and above', value: 30 },
@@ -33,14 +35,9 @@
     { label: 'Debug and above', value: 10 },
     { label: 'All log levels', value: 0 },
   ] as const
-
-  const levelFilter = ref<typeof levelOptions[number]['value']>(0)
-
+  const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
-  const nextLogsPage = (): void => {
-    logsOffset.value +=logsLimit.value
-  }
   const filter = computed<LogsRequestFilter>(() => {
     return {
       logs: {
@@ -48,18 +45,20 @@
           any_: [flowRunId.value],
         },
         level: {
-          ge_: levelFilter.value,
+          ge_: logLevelFilter.value,
         },
       },
       offset: logsOffset.value,
       limit: logsLimit.value,
+      sort: 'TIMESTAMP_DESC',
     }
   })
-
-  const options: SubscriptionOptions = { interval:  5000 }
-
   const subscription = useSubscription(logsApi.getLogs, [filter], options)
   const logs = computed<Log[]>(() => subscription.response ?? [])
+  // for demo only!
+  const nextLogsPage = (): void => {
+    logsOffset.value +=logsLimit.value
+  }
 </script>
 
 <style>
