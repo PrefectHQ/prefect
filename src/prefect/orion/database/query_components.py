@@ -1,10 +1,13 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Hashable, Tuple
+from typing import TYPE_CHECKING, Hashable, List, Tuple
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
+
+if TYPE_CHECKING:
+    from prefect.orion.database.interface import OrionDBInterface
 
 
 class BaseQueryComponents(ABC):
@@ -66,6 +69,12 @@ class BaseQueryComponents(ABC):
         insert_flow_run_states,
     ):
         ...
+
+    @abstractmethod
+    async def get_flow_run_alerts_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ):
+        """Database-specific implementation of reading alerts from the queue and deleting them"""
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -139,6 +148,70 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    async def get_flow_run_alerts_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ) -> List:
+
+        queued_alerts = (
+            sa.delete(db.FlowRunAlertQueue)
+            .returning(
+                db.FlowRunAlertQueue.id,
+                db.FlowRunAlertQueue.flow_run_alert_policy_id,
+                db.FlowRunAlertQueue.flow_run_state_id,
+            )
+            .where(
+                db.FlowRunAlertQueue.id.in_(
+                    sa.select(db.FlowRunAlertQueue.id)
+                    .select_from(db.FlowRunAlertQueue)
+                    .order_by(db.FlowRunAlertQueue.updated)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .cte("queued_alerts")
+        )
+
+        alert_details_stmt = (
+            sa.select(
+                queued_alerts.c.id.label("queue_id"),
+                db.FlowRunAlertPolicy.id.label("flow_run_alert_policy_id"),
+                db.FlowRunAlertPolicy.name.label("flow_run_alert_policy_name"),
+                db.FlowRunAlertPolicy.message_template.label(
+                    "flow_run_alert_policy_message_template"
+                ),
+                db.FlowRunAlertPolicy.block_document_id,
+                db.Flow.id.label("flow_id"),
+                db.Flow.name.label("flow_name"),
+                db.FlowRun.id.label("flow_run_id"),
+                db.FlowRun.name.label("flow_run_name"),
+                db.FlowRun.parameters.label("flow_run_parameters"),
+                db.FlowRunState.type.label("flow_run_state_type"),
+                db.FlowRunState.name.label("flow_run_state_name"),
+                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                db.FlowRunState.message.label("flow_run_state_message"),
+            )
+            .select_from(queued_alerts)
+            .join(
+                db.FlowRunAlertPolicy,
+                queued_alerts.c.flow_run_alert_policy_id == db.FlowRunAlertPolicy.id,
+            )
+            .join(
+                db.FlowRunState,
+                queued_alerts.c.flow_run_state_id == db.FlowRunState.id,
+            )
+            .join(
+                db.FlowRun,
+                db.FlowRunState.flow_run_id == db.FlowRun.id,
+            )
+            .join(
+                db.Flow,
+                db.FlowRun.flow_id == db.Flow.id,
+            )
+        )
+
+        result = await session.execute(alert_details_stmt)
+        return result.fetchall()
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -243,3 +316,68 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    async def get_flow_run_alerts_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ) -> List:
+        """
+        Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
+        so instead we issue two queries; one to get queued alerts and a second to delete
+        them. This *could* introduce race conditions if multiple queue workers are
+        running.
+        """
+
+        alert_details_stmt = (
+            sa.select(
+                db.FlowRunAlertQueue.id.label("queue_id"),
+                db.FlowRunAlertPolicy.id.label("flow_run_alert_policy_id"),
+                db.FlowRunAlertPolicy.name.label("flow_run_alert_policy_name"),
+                db.FlowRunAlertPolicy.message_template.label(
+                    "flow_run_alert_policy_message_template"
+                ),
+                db.FlowRunAlertPolicy.block_document_id,
+                db.Flow.id.label("flow_id"),
+                db.Flow.name.label("flow_name"),
+                db.FlowRun.id.label("flow_run_id"),
+                db.FlowRun.name.label("flow_run_name"),
+                db.FlowRun.parameters.label("flow_run_parameters"),
+                db.FlowRunState.type.label("flow_run_state_type"),
+                db.FlowRunState.name.label("flow_run_state_name"),
+                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                db.FlowRunState.message.label("flow_run_state_message"),
+            )
+            .select_from(db.FlowRunAlertQueue)
+            .join(
+                db.FlowRunAlertPolicy,
+                db.FlowRunAlertQueue.flow_run_alert_policy_id
+                == db.FlowRunAlertPolicy.id,
+            )
+            .join(
+                db.FlowRunState,
+                db.FlowRunAlertQueue.flow_run_state_id == db.FlowRunState.id,
+            )
+            .join(
+                db.FlowRun,
+                db.FlowRunState.flow_run_id == db.FlowRun.id,
+            )
+            .join(
+                db.Flow,
+                db.FlowRun.flow_id == db.Flow.id,
+            )
+            .order_by(db.FlowRunAlertQueue.updated)
+            .limit(limit)
+        )
+
+        result = await session.execute(alert_details_stmt)
+        alerts = result.fetchall()
+
+        # delete the alerts
+        delete_stmt = (
+            sa.delete(db.FlowRunAlertQueue)
+            .where(db.FlowRunAlertQueue.id.in_([a.queue_id for a in alerts]))
+            .execution_options(synchronize_session="fetch")
+        )
+
+        await session.execute(delete_stmt)
+
+        return alerts

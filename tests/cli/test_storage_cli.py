@@ -45,15 +45,14 @@ def test_get_first_menu_and_fail():
         Store data in a run's local file system.
     """
 
-    part_two = f"""
-    Select a storage type to create: 99999999
-    Invalid selection {INVALID_OPTION}
-    """
+    part_two = "Select a storage type to create: 99999999"
+    part_three = f"Invalid selection {INVALID_OPTION}"
+
     command = ["storage", "create"]
     invoke_and_assert(
         command=command,
         user_input=f"{INVALID_OPTION}\n",
-        expected_output_contains=(part_one, part_two),
+        expected_output_contains=(part_one, part_two, part_three),
         expected_code=1,
     )
 
@@ -65,7 +64,7 @@ def test_invalid_number_selection_fails():
     """
     result = get_first_menu_and_fail()
     lines = result.stdout.splitlines()
-    assert lines[-1] == f"Invalid selection {INVALID_OPTION}"
+    assert f"Invalid selection {INVALID_OPTION}" in lines[-1]
     assert result.exit_code == 1
 
 
