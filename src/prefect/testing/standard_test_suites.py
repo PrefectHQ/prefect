@@ -50,12 +50,6 @@ class TaskRunnerStandardTestSuite(ABC):
     def task_runner(self) -> BaseTaskRunner:
         pass
 
-    def get_sleep_time(self) -> float:
-        """
-        Return an amount of time to sleep for concurrency tests
-        """
-        return 0.5
-
     async def test_successful_flow_run(self, task_runner):
         @task
         def task_a():

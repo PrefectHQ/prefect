@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import warnings
 from abc import abstractmethod
 from functools import partial
@@ -14,7 +15,7 @@ import httpx
 import pendulum
 import pydantic
 from azure.storage.blob import BlobServiceClient
-from google.cloud import storage as gcs
+from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
 from typing_extensions import Literal
 
@@ -23,6 +24,10 @@ from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=DeprecationWarning)
+    from google.cloud import storage as gcs
 
 # Storage block "key" type which should match for read/write in each implementation
 T = TypeVar("T")
@@ -38,7 +43,7 @@ class StorageBlock(Block, Generic[T]):
     The type `T` should be JSON serializable.
     """
 
-    _block_spec_type: Optional[str] = "STORAGE"
+    _block_schema_type: Optional[str] = "STORAGE"
 
     @abstractmethod
     async def write(self, data: bytes) -> T:
@@ -54,7 +59,7 @@ class StorageBlock(Block, Generic[T]):
         """
 
 
-@register_block("File Storage", version="1.0")
+@register_block
 class FileStorageBlock(StorageBlock):
     """
     Store data as a file on local or remote file systems.
@@ -68,6 +73,8 @@ class FileStorageBlock(StorageBlock):
     storing duplicates. If you always want to store a new file, you can use "uuid" or
     "timestamp".
     """
+
+    _block_type_name = "File Storage"
 
     base_path: str = pydantic.Field(..., description="The folder to write files in.")
     key_type: Literal["hash", "uuid", "timestamp"] = pydantic.Field(
@@ -110,45 +117,55 @@ class FileStorageBlock(StorageBlock):
         return value
 
     def _create_key(self, data: bytes):
+        """
+        Method for determining the filename to write to; depends on
+        key type, OS, and filesystem type.
+        """
         if self.key_type == "uuid":
             return uuid4().hex
         elif self.key_type == "hash":
             return stable_hash(data)
         elif self.key_type == "timestamp":
-            return pendulum.now().isoformat()
+            # colons are not allowed in windows paths
+            if (
+                sys.platform == "win32"
+                and type(fsspec.open(self.base_path).fs) == LocalFileSystem
+            ):
+                return pendulum.now().isoformat().replace(":", "_")
+            else:
+                return pendulum.now().isoformat()
         else:
             raise ValueError(f"Unknown key type {self.key_type!r}")
 
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
-        file = fsspec.open(self.base_path + key, "wb", **self.options)
+        ff = fsspec.open(self.base_path + key, "wb", **self.options)
 
         # TODO: Some file systems support async and would require passing the current
         #       event loop in `self.options`. This would probably be better for
         #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
 
-        await run_sync_in_worker_thread(self._write_sync, file, data)
+        await run_sync_in_worker_thread(self._write_sync, ff, data)
         return key
 
     async def read(self, key: str) -> bytes:
-        file = fsspec.open(self.base_path + key, "rb", **self.options)
-        return await run_sync_in_worker_thread(self._read_sync, file)
+        ff = fsspec.open(self.base_path + key, "rb", **self.options)
+        return await run_sync_in_worker_thread(self._read_sync, ff)
 
-    def _write_sync(self, file: fsspec.core.OpenFile, data: bytes) -> None:
-        if file.fs.exists(file.path) and self.key_type == "hash":
-            return  # Do not write on hash collision
-
-        with file as io:
+    def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
+        with ff as io:
             io.write(data)
 
-    def _read_sync(self, file: fsspec.core.OpenFile) -> bytes:
-        with file as io:
+    def _read_sync(self, ff: fsspec.core.OpenFile) -> bytes:
+        with ff as io:
             return io.read()
 
 
-@register_block("S3 Storage", version="1.0")
+@register_block
 class S3StorageBlock(StorageBlock):
     """Store data in an AWS S3 bucket."""
+
+    _block_type_name = "S3 Storage"
 
     bucket: str
     aws_access_key_id: Optional[str] = None
@@ -190,9 +207,11 @@ class S3StorageBlock(StorageBlock):
         return output
 
 
-@register_block("Temporary Local Storage", version="1.0")
+@register_block
 class TempStorageBlock(StorageBlock):
     """Store data in a temporary directory in a run's local file system."""
+
+    _block_type_name = "Temporary Local Storage"
 
     def block_initialization(self) -> None:
         pass
@@ -217,9 +236,11 @@ class TempStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("Local Storage", version="1.0")
+@register_block
 class LocalStorageBlock(StorageBlock):
     """Store data in a run's local file system."""
+
+    _block_type_name = "Local Storage"
 
     storage_path: Optional[str]
 
@@ -250,9 +271,11 @@ class LocalStorageBlock(StorageBlock):
             return await fp.read()
 
 
-@register_block("Google Cloud Storage", version="1.0")
+@register_block
 class GoogleCloudStorageBlock(StorageBlock):
     """Store data in a GCS bucket."""
+
+    _block_type_name = "Google Cloud Storage"
 
     bucket: str
     project: Optional[str]
@@ -283,9 +306,11 @@ class GoogleCloudStorageBlock(StorageBlock):
         return key
 
 
-@register_block("Azure Blob Storage", version="1.0")
+@register_block
 class AzureBlobStorageBlock(StorageBlock):
     """Store data in an Azure blob storage container."""
+
+    _block_type_name = "Azure Blob Storage"
 
     container: str
     connection_string: str
@@ -313,11 +338,13 @@ class AzureBlobStorageBlock(StorageBlock):
         return key
 
 
-@register_block("KV Server Storage", version="1.0")
+@register_block
 class KVServerStorageBlock(StorageBlock):
     """
     Store data by sending requests to a KV server.
     """
+
+    _block_type_name = "KV Server Storage"
 
     api_address: str
 

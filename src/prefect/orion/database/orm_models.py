@@ -61,6 +61,7 @@ class ORMBase:
         server_default=GenerateUUID(),
         default=uuid.uuid4,
     )
+
     created = sa.Column(
         Timestamp(),
         nullable=False,
@@ -730,49 +731,90 @@ class ORMConcurrencyLimit:
 
 
 @declarative_mixin
-class ORMBlockSpec:
+class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
-    version = sa.Column(sa.String, nullable=False)
-    type = sa.Column(sa.String, nullable=True, index=True)
-    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    logo_url = sa.Column(sa.String, nullable=True)
+    documentation_url = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def __table_args__(cls):
         return (
-            sa.Index("ix_block_spec__type", "type"),
             sa.Index(
-                "uq_block_spec__name_version",
+                "uq_block_type__name",
                 "name",
-                "version",
                 unique=True,
             ),
         )
 
 
 @declarative_mixin
-class ORMBlock:
-    name = sa.Column(sa.String, nullable=False, index=True)
-    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
-    is_default_storage_block = sa.Column(sa.Boolean, server_default="0", index=True)
+class ORMBlockSchema:
+    checksum = sa.Column(sa.String, nullable=False, index=True)
+    type = sa.Column(sa.String, nullable=True, index=True)
+    fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
 
     @declared_attr
-    def block_spec_id(cls):
+    def block_type_id(cls):
         return sa.Column(
             UUID(),
-            sa.ForeignKey("block_spec.id", ondelete="cascade"),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
             nullable=False,
         )
 
     @declared_attr
-    def block_spec(cls):
-        return sa.orm.relationship("BlockSpec", lazy="joined")
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="joined")
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index("ix_block_schema__type", "type"),
+            sa.Index(
+                "uq_block_schema__checksum",
+                "checksum",
+                unique=True,
+            ),
+        )
+
+
+@declarative_mixin
+class ORMBlockDocument:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_default_storage_block_document = sa.Column(
+        sa.Boolean, server_default="0", index=True
+    )
+
+    @declared_attr
+    def block_type_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_type.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_type(cls):
+        return sa.orm.relationship("BlockType", lazy="joined")
+
+    @declared_attr
+    def block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_schema(cls):
+        return sa.orm.relationship("BlockSchema", lazy="joined")
 
     @declared_attr
     def __table_args__(cls):
         return (
             sa.Index(
-                "uq_block__spec_id_name",
-                "block_spec_id",
+                "uq_block__type_id_name",
+                "block_type_id",
                 "name",
                 unique=True,
             ),
@@ -873,6 +915,40 @@ class ORMAgent:
         return (sa.UniqueConstraint("name"),)
 
 
+@declarative_mixin
+class ORMFlowRunAlertPolicy:
+    name = sa.Column(sa.String, nullable=False, index=True)
+    is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
+    state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
+    tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)
+    message_template = sa.Column(sa.String, nullable=True)
+
+    @declared_attr
+    def block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def block_document(cls):
+        return sa.orm.relationship(
+            "BlockDocument",
+            lazy="joined",
+            foreign_keys=[cls.block_document_id],
+        )
+
+
+@declarative_mixin
+class ORMFlowRunAlertQueue:
+    # these are both foreign keys but there is no need to enforce that constraint
+    # as this is just a queue for service workers; if the keys don't match at the
+    # time work is pulled, the work can be discarded
+    flow_run_alert_policy_id = sa.Column(UUID, nullable=False)
+    flow_run_state_id = sa.Column(UUID, nullable=False)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
@@ -893,8 +969,9 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
-        block_spec_mixin: block_spec orm mixin, combined with Base orm class
-        block_mixin: block orm mixin, combined with Base orm class
+        block_type_mixin: block_type orm mixin, combined with Base orm class
+        block_schema_mixin: block_schema orm mixin, combined with Base orm class
+        block_document_mixin: block_document orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
@@ -915,8 +992,9 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_spec_mixin=ORMBlockSpec,
-        block_mixin=ORMBlock,
+        block_type_mixin=ORMBlockType,
+        block_schema_mixin=ORMBlockSchema,
+        block_document_mixin=ORMBlockDocument,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -959,8 +1037,9 @@ class BaseORMConfiguration(ABC):
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
-            block_spec_mixin=block_spec_mixin,
-            block_mixin=block_mixin,
+            block_type_mixin=block_type_mixin,
+            block_schema_mixin=block_schema_mixin,
+            block_document_mixin=block_document_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -997,8 +1076,11 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
-        block_spec_mixin=ORMBlockSpec,
-        block_mixin=ORMBlock,
+        block_type_mixin=ORMBlockType,
+        block_schema_mixin=ORMBlockSchema,
+        block_document_mixin=ORMBlockDocument,
+        flow_run_alert_policy_mixin=ORMFlowRunAlertPolicy,
+        flow_run_alert_queue_mixin=ORMFlowRunAlertQueue,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -1042,10 +1124,19 @@ class BaseORMConfiguration(ABC):
         class Agent(agent_mixin, self.Base):
             pass
 
-        class BlockSpec(block_spec_mixin, self.Base):
+        class BlockType(block_type_mixin, self.Base):
             pass
 
-        class Block(block_mixin, self.Base):
+        class BlockSchema(block_schema_mixin, self.Base):
+            pass
+
+        class BlockDocument(block_document_mixin, self.Base):
+            pass
+
+        class FlowRunAlertPolicy(flow_run_alert_policy_mixin, self.Base):
+            pass
+
+        class FlowRunAlertQueue(flow_run_alert_queue_mixin, self.Base):
             pass
 
         class Configuration(configuration_mixin, self.Base):
@@ -1063,8 +1154,11 @@ class BaseORMConfiguration(ABC):
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkQueue = WorkQueue
         self.Agent = Agent
-        self.BlockSpec = BlockSpec
-        self.Block = Block
+        self.BlockType = BlockType
+        self.BlockSchema = BlockSchema
+        self.BlockDocument = BlockDocument
+        self.FlowRunAlertPolicy = FlowRunAlertPolicy
+        self.FlowRunAlertQueue = FlowRunAlertQueue
         self.Configuration = Configuration
 
     @property
@@ -1089,9 +1183,14 @@ class BaseORMConfiguration(ABC):
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
 
     @property
-    def block_spec_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockSpec"""
-        return [self.BlockSpec.name, self.BlockSpec.version]
+    def block_type_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockType"""
+        return [self.BlockType.name]
+
+    @property
+    def block_schema_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSchema"""
+        return [self.BlockSchema.checksum]
 
     @property
     def flow_unique_upsert_columns(self):
