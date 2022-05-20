@@ -3,9 +3,7 @@
     Settings
   </div>
 
-  <div>
-    {{ engineSettings }}
-  </div>
+  <SettingsCodeBlock :engine-settings="engineSettings" />
 
   <div>
     Version
@@ -16,6 +14,7 @@
 </template>
 
 <script lang="ts" setup>
+  import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
   import { adminApi } from '@/services/adminApi'
 
   const engineSettings = await adminApi.getSettings()
