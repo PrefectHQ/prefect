@@ -785,6 +785,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         service_account_name: An optional string specifying which Kubernetes service account to use.
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
+        job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         restart_policy: The Kubernetes restart policy to use for jobs.
         stream_output: If set, stream output from the container to local standard output.
     """
