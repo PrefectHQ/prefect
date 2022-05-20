@@ -796,6 +796,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     service_account_name: str = None
     labels: Dict[str, str] = None
     image_pull_policy: KubernetesImagePullPolicy = None
+    job_watch_timeout_seconds: int = 5
+    pod_watch_timeout_seconds: int = 5
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
     stream_output: bool = True
 
@@ -872,7 +874,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             func=self.client.list_namespaced_pod,
             namespace=self.namespace,
             label_selector=f"job-name={job_name}",
-            timeout_seconds=5,  # TODO: Make configurable?
+            timeout_seconds=self.pod_watch_timeout_seconds,
         ):
             if event["object"].status.phase == "Running":
                 watch.stop()
@@ -905,7 +907,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             func=self.batch_client.list_namespaced_job,
             field_selector=f"metadata.name={job_name}",
             namespace=self.namespace,
-            timeout_seconds=5,  # TODO: Make configurable?
+            timeout_seconds=self.job_watch_timeout_seconds,
         ):
             if event["object"].status.completion_time:
                 watch.stop()
