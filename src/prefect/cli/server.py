@@ -508,6 +508,12 @@ def config_cmd(
     is_flag=True,
     hidden=True,
 )
+@click.option(
+    "--hide-welcome",
+    help="Pass this flag to hide the ASCII welcome message",
+    is_flag=True,
+    hidden=True,
+)
 def start(
     version,
     ui_version,
@@ -530,6 +536,7 @@ def start(
     no_server_port,
     use_volume,
     volume_path,
+    hide_welcome,
 ):
     """
     This command spins up all infrastructure and services for the Prefect Core server
@@ -576,6 +583,7 @@ def start(
     \b
         --detach, -d                Detached mode. Runs Server containers in the background
         --skip-pull                 Flag to skip pulling new images (if available)
+        --hide-welcome              Flag to hide the ASCII welcome message
     """
     # set external postgres flag if the user has provided `--postgres-url`
     if postgres_url is not None:
@@ -647,7 +655,8 @@ def start(
                     # Create a default tenant if no tenant exists
                     if not client.get_available_tenants():
                         client.create_tenant(name="default")
-                    print(ascii_welcome(ui_port=str(ui_port)))
+                    if not hide_welcome:
+                        print(ascii_welcome(ui_port=str(ui_port)))
                 except Exception:
                     time.sleep(0.5)
                     pass

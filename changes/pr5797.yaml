@@ -1,0 +1,5 @@
+enhancement:
+  - "Add flag to prevent printing ASCII welcome message [5619](https://github.com/PrefectHQ/prefect/issues/5619)"
+
+contributor:
+  - "[Jaakko Lappalainen](https://github.com/jkklapp)"
