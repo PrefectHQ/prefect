@@ -7,18 +7,31 @@ from prefect.utilities.hashing import file_hash, stable_hash, to_qualified_name
 
 
 @pytest.mark.parametrize(
-    "inputs,expected",
+    "inputs,hash_algo,expected",
     [
-        (("hello",), "5d41402abc4b2a76b9719d911017c592"),
-        (("goodbye",), "69faab6268350295550de7d587bc323d"),
-        ((b"goodbye",), "69faab6268350295550de7d587bc323d"),
-        (("hello", "goodbye"), "441add4718519b71e42d329a834d6d5e"),
-        (("hello", b"goodbye"), "441add4718519b71e42d329a834d6d5e"),
-        (("goodbye", "hello"), "c04d8ccb6b9368703e62be93358094f9"),
+        (("hello",), None, "5d41402abc4b2a76b9719d911017c592"),
+        (("goodbye",), None, "69faab6268350295550de7d587bc323d"),
+        ((b"goodbye",), None, "69faab6268350295550de7d587bc323d"),
+        (("hello", "goodbye"), None, "441add4718519b71e42d329a834d6d5e"),
+        (("hello", b"goodbye"), None, "441add4718519b71e42d329a834d6d5e"),
+        (("goodbye", "hello"), None, "c04d8ccb6b9368703e62be93358094f9"),
+        (
+            ("goodbye", "hello"),
+            hashlib.sha256,
+            "b0ea3cd336c7962e2be976c5ee262bb986df79ea32d1fda1872cf146d982a641",
+        ),
+        (
+            ("hello", b"goodbye"),
+            hashlib.sha256,
+            "3e4dc8cb9fce3f3e0aea6905faf58fd5baba4981c4f043ae03f58ef6a331de2f",
+        ),
     ],
 )
-def test_stable_hash(inputs, expected):
-    assert stable_hash(*inputs) == expected
+def test_stable_hash(inputs, hash_algo, expected):
+    if hash_algo is None:
+        assert stable_hash(*inputs) == expected
+    else:
+        assert stable_hash(*inputs, hash_algo=hash_algo) == expected
 
 
 def my_fn():

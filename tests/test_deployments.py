@@ -3,10 +3,12 @@ import textwrap
 from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
+from venv import create
 
 import pytest
 from pydantic import ValidationError
 
+from prefect.blocks.core import Block
 from prefect.blocks.storage import FileStorageBlock, LocalStorageBlock
 from prefect.deployments import (
     DeploymentSpec,
@@ -41,37 +43,45 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 
 @pytest.fixture
-async def tmp_remote_storage_block(tmp_path, orion_client):
+async def tmp_remote_storage_block_id(tmp_path, orion_client):
 
     block = FileStorageBlock(base_path=str(tmp_path))
 
-    block_spec = await orion_client.read_block_spec_by_name(
-        block._block_spec_name, block._block_spec_version
+    block_schema = await orion_client.read_block_schema_by_checksum(
+        block._calculate_schema_checksum()
     )
 
-    block_id = await orion_client.create_block(
-        block, block_spec_id=block_spec.id, name="test"
+    block_document = await orion_client.create_block_document(
+        block._to_block_document(
+            name="test",
+            block_schema_id=block_schema.id,
+            block_type_id=block_schema.block_type_id,
+        )
     )
-    return block_id
+    return block_document.id
 
 
 @pytest.fixture
 async def tmp_local_storage_block(tmp_path, orion_client):
 
     block = LocalStorageBlock(storage_path=str(tmp_path))
-    block_spec = await orion_client.read_block_spec_by_name(
-        block._block_spec_name, block._block_spec_version
+    block_schema = await orion_client.read_block_schema_by_checksum(
+        block._calculate_schema_checksum()
     )
-    block_id = await orion_client.create_block(
-        block, block_spec_id=block_spec.id, name="test"
+    block_document = await orion_client.create_block_document(
+        block._to_block_document(
+            name="test",
+            block_schema_id=block_schema.id,
+            block_type_id=block_schema.block_type_id,
+        )
     )
-    return block_id
+    return block_document.id
 
 
 @pytest.fixture
-async def remote_default_storage(orion_client, tmp_remote_storage_block):
+async def remote_default_storage(orion_client, tmp_remote_storage_block_id):
     # A "remote" default storage is required for the default flow runner type
-    await orion_client.set_default_storage_block(tmp_remote_storage_block)
+    await orion_client.set_default_storage_block_document(tmp_remote_storage_block_id)
 
 
 class TestDeploymentSpec:
@@ -197,7 +207,7 @@ class TestDeploymentSpec:
     async def test_does_not_allow_default_flow_runner_without_storage(
         self, orion_client
     ):
-        await orion_client.clear_default_storage_block()
+        await orion_client.clear_default_storage_block_document()
 
         @flow
         def foo():
@@ -216,7 +226,7 @@ class TestDeploymentSpec:
     async def test_does_not_allow_remote_flow_runner_without_storage(
         self, orion_client, flow_runner
     ):
-        await orion_client.clear_default_storage_block()
+        await orion_client.clear_default_storage_block_document()
 
         @flow
         def foo():
@@ -249,7 +259,9 @@ class TestDeploymentSpec:
 
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
         await spec.validate()
-        assert spec.flow_storage == (await orion_client.get_default_storage_block())
+        assert spec.flow_storage == Block._from_block_document(
+            await orion_client.get_default_storage_block_document()
+        )
 
     @pytest.mark.parametrize(
         "flow_runner",
@@ -265,7 +277,7 @@ class TestDeploymentSpec:
         flow_runner,
         tmp_local_storage_block,
     ):
-        await orion_client.set_default_storage_block(tmp_local_storage_block)
+        await orion_client.set_default_storage_block_document(tmp_local_storage_block)
 
         @flow
         def foo():
@@ -286,7 +298,7 @@ class TestDeploymentSpec:
         flow_runner,
         tmp_local_storage_block,
     ):
-        await orion_client.set_default_storage_block(tmp_local_storage_block)
+        await orion_client.set_default_storage_block_document(tmp_local_storage_block)
 
         @flow
         def foo():
@@ -303,7 +315,7 @@ class TestDeploymentSpec:
         flow_runner,
         tmp_local_storage_block,
     ):
-        await orion_client.set_default_storage_block(tmp_local_storage_block)
+        await orion_client.set_default_storage_block_document(tmp_local_storage_block)
 
         @flow
         def foo():
@@ -324,10 +336,12 @@ class TestDeploymentSpec:
         ],
     )
     async def test_allows_any_flow_runner_with_explicit_remote_storage(
-        self, orion_client, flow_runner, tmp_remote_storage_block
+        self, orion_client, flow_runner, tmp_remote_storage_block_id
     ):
-        await orion_client.clear_default_storage_block()
-        block = await orion_client.read_block(tmp_remote_storage_block)
+        await orion_client.clear_default_storage_block_document()
+        block = Block._from_block_document(
+            await orion_client.read_block_document(tmp_remote_storage_block_id)
+        )
 
         @flow
         def foo():
@@ -342,6 +356,7 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_unregistered_storage(
         self, orion_client, tmp_path
     ):
+
         block = FileStorageBlock(base_path=str(tmp_path))
 
         spec = DeploymentSpec(
@@ -391,9 +406,11 @@ class TestCreateDeploymentFromSpec:
         await check_retrievable(deployment_id_3)
 
     async def test_create_deployment_with_registered_storage(
-        self, orion_client, tmp_remote_storage_block
+        self, orion_client, tmp_remote_storage_block_id
     ):
-        block = await orion_client.read_block(tmp_remote_storage_block)
+        block = Block._from_block_document(
+            await orion_client.read_block_document(tmp_remote_storage_block_id)
+        )
 
         spec = DeploymentSpec(
             flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
@@ -408,8 +425,12 @@ class TestCreateDeploymentFromSpec:
         assert flow.version == expected_flow.version
 
     async def test_create_deployment_with_registered_storage_by_id(
-        self, orion_client, tmp_remote_storage_block
+        self, orion_client, tmp_remote_storage_block_id
     ):
+
+        tmp_remote_storage_block = Block._from_block_document(
+            await orion_client.read_block_document(tmp_remote_storage_block_id)
+        )
         spec = DeploymentSpec(
             flow_location=TEST_FILES_DIR / "single_flow.py",
             flow_storage=tmp_remote_storage_block,
