@@ -583,7 +583,7 @@ def start(
     \b
         --detach, -d                Detached mode. Runs Server containers in the background
         --skip-pull                 Flag to skip pulling new images (if available)
-        --hide-welcome              Flag to hide the artful ASCII welcome message
+        --hide-welcome              Flag to hide the ASCII welcome message
     """
     # set external postgres flag if the user has provided `--postgres-url`
     if postgres_url is not None:
