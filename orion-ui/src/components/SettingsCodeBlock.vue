@@ -17,12 +17,9 @@
     engineSettings: Settings,
   }>()
 
-  const settingSections = Object.entries(props.engineSettings)
+  const settingSections = computed(()=>Object.entries(props.engineSettings))
 </script>
 
 <style>
-.settings-block { @apply
-  overscroll-contain
-  m-4
-}
+.settings-block {}
 </style>
