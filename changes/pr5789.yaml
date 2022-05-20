@@ -1,0 +1,5 @@
+enhancement:
+  - "Raise error when positional-only parameters are present in function signature - [#5789](https://github.com/PrefectHQ/prefect/pull/5789)"
+
+contributor:
+  - "[Karthikeyan Singaravelan](https://github.com/tirkarthi)"

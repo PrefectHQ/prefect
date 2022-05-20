@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import random
+import re
 import sys
 import tempfile
 import time
@@ -1975,6 +1976,30 @@ class TestSerializedHash:
 
         assert hashes[0]  # Ensure we don't have an empty string or None
         assert len(set(hashes)) == 1
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8),
+        reason="Positional-Only parameters are only supported in Python 3.8+",
+    )
+    def test_task_positional_only_arguments(self, tmpdir):
+        contents = textwrap.dedent(
+            """
+        from prefect import task
+
+        @task
+        def dummy_task(a, b, /):
+            pass
+
+        """
+        )
+
+        error_message = (
+            "Found positional-only parameters in the function signature for task dummy_task: ['a', 'b']. "
+            "Prefect passes arguments using keywords and does not support positional-only parameters."
+        )
+
+        with pytest.raises(TypeError, match=re.escape(error_message)):
+            exec(contents)
 
     def test_task_order_is_deterministic(self):
         def my_fake_task(foo):

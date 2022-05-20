@@ -312,6 +312,7 @@ class Task(metaclass=TaskMetaclass):
     Raises:
         - TypeError: if `tags` is of type `str`
         - TypeError: if `timeout` is not of type `int`
+        - TypeError: if positional-only parameters are present in task's signature
     """
 
     def __init__(
@@ -348,6 +349,18 @@ class Task(metaclass=TaskMetaclass):
 
         self.name = name or type(self).__name__
         self.slug = slug
+
+        positional_args = [
+            name
+            for name, parameter in self.__signature__.parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Found positional-only parameters in the function signature for "
+                f"task {self.name}: {positional_args}. Prefect passes arguments "
+                "using keywords and does not support positional-only parameters."
+            )
 
         self.logger = logging.get_logger(self.name)
 
@@ -659,6 +672,18 @@ class Task(metaclass=TaskMetaclass):
             - Task: a new Task instance
         """
         new = self.copy(**(task_args or {}))
+
+        positional_args = [
+            name
+            for name, parameter in inspect.signature(new).parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Prefect passes arguments to task as keyword arguments. "
+                f"Positional-Only arguments found : {positional_args}"
+            )
+
         new.bind(
             *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
