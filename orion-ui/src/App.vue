@@ -50,7 +50,7 @@
   provide(settingsRouteKey, routes.settings)
 </script>
 
-<style lang="scss">
+<style>
 .app { @apply
   text-slate-900;
   display: grid;
