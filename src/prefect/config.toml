@@ -97,6 +97,12 @@ tenant_id = ""
         # Separate loop interval for resource managers
         loop_interval = 60
 
+    [cloud.rate_limiting]
+    backoff_s = 180
+    backoff_multiplier = 10
+    backoff_exponent = 2
+    max_retries = 6
+
 
 [logging]
 # The logging level: NOTSET, DEBUG, INFO, WARNING, ERROR, or CRITICAL
