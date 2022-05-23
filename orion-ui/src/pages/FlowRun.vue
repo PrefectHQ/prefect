@@ -1,65 +1,67 @@
 <template>
-  <div class="flow-run">
-    Flow run {{ flowRunId }}
-  </div>
+  <p-layout-default class="flow-run">
+    <template #header>
+      Flow run {{ flowRunId }}
+    </template>
 
-  <div>
-    {{ flowRunDetails }}
-  </div>
-
-  <div v-if="flowRunDetails?.flowId">
     <div>
-      Flow Run Flow
+      {{ flowRunDetails }}
     </div>
-    {{ flowRunFlow }}
-  </div>
 
-  <div v-if="flowRunDeploymentId">
+    <div v-if="flowRunDetails?.flowId">
+      <div>
+        Flow Run Flow
+      </div>
+      {{ flowRunFlow }}
+    </div>
+
+    <div v-if="flowRunDeploymentId">
+      <div>
+        Flow Run Deployment
+      </div>
+      {{ flowRunDeployment }}
+    </div>
+
     <div>
-      Flow Run Deployment
+      Logs
     </div>
-    {{ flowRunDeployment }}
-  </div>
 
-  <div>
-    Logs
-  </div>
+    <div v-for="log in logs" :key="log.id">
+      {{ logs }}
+    </div>
 
-  <div v-for="log in logs" :key="log.id">
-    {{ logs }}
-  </div>
+    <PButton @click="nextLogsPage">
+      Next log
+    </PButton>
 
-  <PButton @click="nextLogsPage">
-    Next log
-  </PButton>
+    <div>Task Runs</div>
+    <div v-for="taskRun in taskRuns" :key="taskRun.id">
+      {{ taskRun }}
+    </div>
+    <PButton @click="nextRunPage">
+      Next run
+    </PButton>
 
-  <div>Task Runs</div>
-  <div v-for="taskRun in taskRuns" :key="taskRun.id">
-    {{ taskRun }}
-  </div>
-  <PButton @click="nextRunPage">
-    Next run
-  </PButton>
+    <div>
+      Flow Run Graph
+    </div>
 
-  <div>
-    Flow Run Graph
-  </div>
+    <div>
+      {{ flowRunGraph }}
+    </div>
 
-  <div>
-    {{ flowRunGraph }}
-  </div>
+    <div>
+      Sub Flow Runs
+    </div>
 
-  <div>
-    Sub Flow Runs
-  </div>
-
-  <div>
-    {{ subFlowRuns }}
-  </div>
+    <div>
+      {{ subFlowRuns }}
+    </div>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -99,22 +101,20 @@
   const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
-  const logsSort = ref<string>('TIMESTAMP_DESC')
-  const logsFilter = computed<LogsRequestFilter>(() => {
-    return {
-      logs: {
-        flow_run_id: {
-          any_: [flowRunId.value],
-        },
-        level: {
-          ge_: logLevelFilter.value,
-        },
+  const logsSort = ref<LogsRequestSort>('TIMESTAMP_DESC')
+  const logsFilter = computed<LogsRequestFilter>(() => ({
+    logs: {
+      flow_run_id: {
+        any_: [flowRunId.value],
       },
-      offset: logsOffset.value,
-      limit: logsLimit.value,
-      sort: logsSort.value,
-    }
-  })
+      level: {
+        ge_: logLevelFilter.value,
+      },
+    },
+    offset: logsOffset.value,
+    limit: logsLimit.value,
+    sort: logsSort.value,
+  }))
   const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
   const logs = computed<Log[]>(() => logsSubscription.response ?? [])
   // for demo only!
@@ -160,8 +160,4 @@
   const subFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [subFlowRunsFilter])
   const subFlowRuns = computed(()=> subFlowRunsSubscription.response ?? '')
 </script>
-
-<style>
-.flow-run {}
-</style>
 
