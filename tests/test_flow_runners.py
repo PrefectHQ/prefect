@@ -374,8 +374,11 @@ class TestSubprocessFlowRunner:
         with pytest.raises(RuntimeError, match="Exit without streaming"):
             await SubprocessFlowRunner().submit_flow_run(flow_run, MagicMock())
 
+        command = [sys.executable, "-m", "prefect.engine", flow_run.id.hex]
+        if sys.platform == "win32":
+            command = " ".join(command)
         anyio.open_process.assert_awaited_once_with(
-            [sys.executable, "-m", "prefect.engine", flow_run.id.hex],
+            command,
             stderr=subprocess.STDOUT,
             env=ANY,
         )
@@ -405,16 +408,19 @@ class TestSubprocessFlowRunner:
             else ["--prefix", str(condaenv.expanduser().resolve())]
         )
 
+        command = [
+            "conda",
+            "run",
+            *name_or_prefix,
+            "python",
+            "-m",
+            "prefect.engine",
+            flow_run.id.hex,
+        ]
+        if sys.platform == "win32":
+            command = " ".join(command)
         anyio.open_process.assert_awaited_once_with(
-            [
-                "conda",
-                "run",
-                *name_or_prefix,
-                "python",
-                "-m",
-                "prefect.engine",
-                flow_run.id.hex,
-            ],
+            command,
             stderr=subprocess.STDOUT,
             env=ANY,
         )
@@ -445,13 +451,16 @@ class TestSubprocessFlowRunner:
         expected_env.pop("PYTHONHOME")
         expected_env["VIRTUAL_ENV"] = str(virtualenv_path)
 
+        command = [
+            python_executable,
+            "-m",
+            "prefect.engine",
+            flow_run.id.hex,
+        ]
+        if sys.platform == "win32":
+            command = " ".join(command)
         anyio.open_process.assert_awaited_once_with(
-            [
-                python_executable,
-                "-m",
-                "prefect.engine",
-                flow_run.id.hex,
-            ],
+            command,
             stderr=subprocess.STDOUT,
             env=expected_env,
         )

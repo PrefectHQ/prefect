@@ -1,13 +1,11 @@
 <template>
-  <div class="queue-create">
-    New Queue
-  </div>
+  <p-layout-default class="queue-create">
+    <template #header>
+      New Queue
+    </template>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-
+//
 </script>
-
-<style>
-.queue-create {}
-</style>
