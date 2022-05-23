@@ -1,6 +1,8 @@
+import pdb
 import random
 import sys
 import threading
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
@@ -19,6 +21,7 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -1250,3 +1253,30 @@ class TestClientWorkQueues:
         output = await orion_client.get_runs_in_work_queue(queue_id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+
+async def test_create_then_delete_flow_run(orion_client):
+    @flow
+    def foo():
+        """
+        Sleep long enough to have time to be seen, then deleted
+        """
+        time.sleep(15)
+
+    # Create flow run and make sure it is actually running
+    flow_id = await orion_client.create_flow(foo)
+    flow_run = await orion_client.create_flow_run(
+        foo, name="flow-run-to-delete", flow_runner=UniversalFlowRunner()
+    )
+    assert isinstance(flow_run, schemas.core.FlowRun)
+    lookup = await orion_client.read_flow_run(flow_run.id)
+    assert isinstance(lookup, schemas.core.FlowRun)
+
+    # Delete flow and make sure it's deleted
+    await orion_client.delete_flow_run_by_id(flow_run.id)
+    with pytest.raises(HTTPStatusError, match="404"):
+        await orion_client.read_flow_run(flow_run.id)
+
+    # Check that a trying to delete the deleted flow run raises an error
+    with pytest.raises(ObjectNotFound):
+        await orion_client.delete_flow_run_by_id(flow_run.id)
