@@ -281,24 +281,26 @@ class GoogleCloudStorageBlock(StorageBlock):
     project: Optional[str]
     service_account_info: Optional[Dict[str, str]]
 
-    def block_initialization(self) -> None:
+    def _get_storage_client(self):
         if self.service_account_info:
             credentials = service_account.Credentials.from_service_account_info(
                 self.service_account_info
             )
-            self.storage_client = gcs.Client(
+            return gcs.Client(
                 project=self.project or credentials.project_id, credentials=credentials
             )
         else:
-            self.storage_client = gcs.Client(project=self.project)
+            return gcs.Client(project=self.project)
 
     async def read(self, key: str) -> bytes:
-        bucket = self.storage_client.bucket(self.bucket)
+        storage_client = self._get_storage_client()
+        bucket = storage_client.bucket(self.bucket)
         blob = bucket.blob(key)
         return await run_sync_in_worker_thread(blob.download_as_bytes)
 
     async def write(self, data: bytes) -> str:
-        bucket = self.storage_client.bucket(self.bucket)
+        storage_client = self._get_storage_client()
+        bucket = storage_client.bucket(self.bucket)
         key = str(uuid4())
         blob = bucket.blob(key)
         upload = partial(blob.upload_from_string, data)
