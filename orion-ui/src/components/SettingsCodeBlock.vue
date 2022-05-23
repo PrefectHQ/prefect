@@ -1,7 +1,7 @@
 <template>
-  <div v-if="settingSections" class="settings-block">
+  <div class="settings-block">
     <PCode multiline>
-      <div v-for="section, index in settingSections" :key="index">
+      <div v-for="(section, index) in settingSections" :key="index">
         {{ section[0] }}: {{ section[1] }}
       </div>
     </PCode>
@@ -17,7 +17,7 @@
     engineSettings: Settings,
   }>()
 
-  const settingSections = computed(()=>Object.entries(props.engineSettings))
+  const settingSections = computed(() => Object.entries(props.engineSettings))
 </script>
 
 <style>
