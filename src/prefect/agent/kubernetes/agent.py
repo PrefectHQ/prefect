@@ -479,7 +479,8 @@ class KubernetesAgent(Agent):
 
         identifier = uuid.uuid4().hex[:8]
 
-        job_name = f"prefect-job-{identifier}"
+        job_name = _get_or_create(job, "metadata.name", "prefect-job")
+        job_name = f"{job_name}-{identifier}"
 
         # Populate job metadata for identification
         k8s_labels = {
