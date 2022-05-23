@@ -1,10 +1,10 @@
+import { plugin as PrefectDesign } from '@prefecthq/prefect-design'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
 import { VITE_PREFECT_USE_MIRAGEJS } from './utilities/meta'
-
 
 // styles
 import '@prefecthq/prefect-design/dist/style.css'
@@ -25,7 +25,11 @@ async function start(): Promise<void> {
     startServer()
   }
 
-  const app = createApp(App).use(router).use(createPinia())
+  const app = createApp(App)
+
+  app.use(router)
+  app.use(createPinia())
+  app.use(PrefectDesign)
 
   app.mount('#app')
 }

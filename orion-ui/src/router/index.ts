@@ -1,7 +1,7 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
 import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
 import FlowRunsPage from '@/pages/FlowRuns.vue'
-import routes, { NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
+import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
 
 const routeRecords: AppRouteRecord[] = [

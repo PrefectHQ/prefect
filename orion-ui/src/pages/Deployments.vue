@@ -1,11 +1,13 @@
 <template>
-  <div class="deployments">
-    Deployments
-  </div>
+  <p-layout-default class="deployments">
+    <template #header>
+      Deployments
+    </template>
 
-  <div v-for="deployment in deployments" :key="deployment.id">
-    {{ deployment }}
-  </div>
+    <div v-for="deployment in deployments" :key="deployment.id">
+      {{ deployment }}
+    </div>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
@@ -20,7 +22,3 @@
   const deploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [filter], subscriptionOptions)
   const deployments = computed(() => deploymentsSubscription.response ?? [])
 </script>
-
-<style>
-.deployments {}
-</style>
