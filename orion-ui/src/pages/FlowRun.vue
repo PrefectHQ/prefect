@@ -1,8 +1,14 @@
 <template>
-  <p-layout-default class="flow-run">
+  <p-layout-well class="flow-run">
     <template #header>
       Flow run {{ flowRunId }}
     </template>
+
+    <p-tabs :tabs="tabs">
+      <template #sub-flow-runs>
+        <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
+      </template>
+    </p-tabs>
 
     <div>
       {{ flowRunDetails }}
@@ -57,11 +63,11 @@
     <div>
       {{ subFlowRuns }}
     </div>
-  </p-layout-default>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -72,19 +78,33 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
+  const tabs = ['Logs', 'Task Runs', 'Sub Flow Runs']
+
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
-  const longIntervalOptions: SubscriptionOptions = { interval:  50000 }
+  const subscriptionOptions: SubscriptionOptions = { interval:  50000 }
+
+  const flowRunFilter = computed<UnionFilters>(() => ({
+    flow_runs: {
+      id: {
+        any_: [flowRunId.value],
+      },
+    },
+  }))
+
+  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunFilter], subscriptionOptions)
+  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const selectedFlowRuns = ref([])
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRunDetails = computed(()=> flowRunDetailsSubscription.response)
 
   const flowRunFlowId = computed(()=> flowRunDetails.value?.flowId)
-  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], longIntervalOptions) : null)
+  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], subscriptionOptions) : null)
   const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
 
   const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
-  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], longIntervalOptions) : null)
+  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], subscriptionOptions) : null)
   const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
 
   const flowRunGraphSubscription = useSubscription(flowRunsApi.getFlowRunsGraph, [flowRunId], options)
