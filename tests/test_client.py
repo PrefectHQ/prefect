@@ -1264,7 +1264,6 @@ async def test_create_then_delete_flow_run(orion_client):
         time.sleep(15)
 
     # Create flow run and make sure it is actually running
-    flow_id = await orion_client.create_flow(foo)
     flow_run = await orion_client.create_flow_run(
         foo, name="flow-run-to-delete", flow_runner=UniversalFlowRunner()
     )
