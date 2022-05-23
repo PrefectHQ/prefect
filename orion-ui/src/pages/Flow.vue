@@ -1,5 +1,5 @@
 <template>
-  <p-layout class="flow">
+  <p-layout-default class="flow">
     <template #header>
       Flow {{ flowId }}
     </template>
@@ -17,7 +17,7 @@
     <div v-for="deployment in flowDeployments" :key="deployment.id">
       {{ deployment }}
     </div>
-  </p-layout>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
