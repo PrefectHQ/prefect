@@ -1,11 +1,13 @@
 <template>
-  <div class="queues">
-    Queues
-  </div>
+  <p-layout-default class="queues">
+    <template #header>
+      Queues
+    </template>
 
-  <div v-for="queue in queues" :key="queue.id">
-    {{ queue }}
-  </div>
+    <div v-for="queue in queues" :key="queue.id">
+      {{ queue }}
+    </div>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
@@ -20,7 +22,3 @@
   const queuesSubscription = useSubscription(workQueuesApi.getWorkQueues, [filter], subscriptionOptions)
   const queues = computed(() => queuesSubscription.response ?? [])
 </script>
-
-<style>
-.queues {}
-</style>

@@ -1,6 +1,6 @@
 import { RouteLocationRaw, RouteRecordName, RouteRecordRaw } from 'vue-router'
 
-const routes = {
+export const routes = {
   root: () => ({ name: 'root' }) as const,
   404: () => ({ name: '404' }) as const,
   deployment: (id: string) => ({ name: 'deployment', params: { id } }) as const,
@@ -14,8 +14,6 @@ const routes = {
   queues: () => ({ name: 'queues' }) as const,
   settings: () => ({ name: 'settings' }) as const,
 }
-
-export default routes
 
 export type NamedRoute = ReturnType<typeof routes[keyof typeof routes]>['name']
 
