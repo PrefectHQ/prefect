@@ -898,6 +898,14 @@ class TestK8sAgentRunConfig:
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
 
+    def test_generate_job_spec_uses_job_template_name_provided_in_run_config(self):
+        template = self.read_default_template()
+        template.setdefault("metadata", {})["name"] = "custom-job-name"
+
+        flow_run = self.build_flow_run(KubernetesRun(job_template=template))
+        job = self.agent.generate_job_spec(flow_run)
+        assert re.match(r"custom-job-name-[a-f0-9]{8}", job["metadata"]["name"])
+
     def test_generate_job_spec_uses_job_template_path_provided_in_run_config(
         self, tmpdir, monkeypatch
     ):
