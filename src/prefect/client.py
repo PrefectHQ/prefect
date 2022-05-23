@@ -585,42 +585,24 @@ class OrionClient:
 
     async def delete_flow_run_by_id(
         self,
-        id: UUID,
+        flow_run_id: UUID,
     ) -> None:
+        """
+        Delete a flow run by UUID.
+
+        Args:
+            flow_run_id: The flow run UUID of interest.
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
         try:
-            await self._client.delete(f"/flow_runs/{id}"),
+            await self._client.delete(f"/flow_runs/{flow_run_id}"),
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-
-    async def delete_flow_run_by_name(
-        self,
-        name: str,
-    ) -> None:
-
-        flow_runs = await self._client.delete(f"/flow_runs/filter")
-        print(flow_runs)
-
-        # try:
-        #     # flow_runs = await self.read_flow_runs()
-        #     for run in flow_runs:
-        #         if run.name == name:
-        #             try:
-        #                 await self._client.delete(
-        #                     f"/flow_runs/{run.id}"
-        #                 ),
-        #             except httpx.HTTPStatusError as e:
-        #                 if e.response.status_code == status.HTTP_404_NOT_FOUND:
-        #                     raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-        #                 else:
-        #                     raise
-        #             return
-        #     # raise prefect.exceptions.ObjectNotFound("")
-        #     raise Exception("Object not found")
-        # except httpx.HTTPStatusError as e:
-        #     raise
 
     async def create_concurrency_limit(
         self,
