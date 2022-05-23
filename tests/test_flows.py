@@ -37,12 +37,18 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
-    def test_version_none_if_source_file_cannot_be_determined(self, monkeypatch):
+    @pytest.mark.parametrize(
+        "sourcefile", [None, "<stdin>", "<ipython-input-1-d31e8a6792d4>"]
+    )
+    def test_version_none_if_source_file_cannot_be_determined(
+        self, monkeypatch, sourcefile
+    ):
         """
-        `getsourcefile` will return `None` when functions are defined interactively
+        `getsourcefile` will return `None` when functions are defined interactively,
+        or other values on Windows.
         """
         monkeypatch.setattr(
-            "prefect.flows.inspect.getsourcefile", MagicMock(return_value=None)
+            "prefect.flows.inspect.getsourcefile", MagicMock(return_value=sourcefile)
         )
 
         f = Flow(name="test", fn=lambda **kwargs: 42)
