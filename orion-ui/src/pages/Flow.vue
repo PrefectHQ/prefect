@@ -1,5 +1,5 @@
 <template>
-  <p-layout-well class="flow">
+  <p-layout class="flow">
     <template #header>
       Flow {{ flowId }}
     </template>
@@ -17,9 +17,7 @@
     <div v-for="deployment in flowDeployments" :key="deployment.id">
       {{ deployment }}
     </div>
-
-    <p>Flow Sub Runs</p>
-  </p-layout-well>
+  </p-layout>
 </template>
 
 <script lang="ts" setup>
@@ -36,13 +34,13 @@
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
   const flowDetails = computed(() => flowSubscription.response ?? [])
 
-  const flowFilter = computed<UnionFilters>(() => ({
+  const flowDeploymentFilter = computed<UnionFilters>(() => ({
     flows: {
       id: {
         any_: [flowId.value],
       },
     },
   }))
-  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowFilter], subscriptionOptions)
+  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 </script>
