@@ -4,12 +4,6 @@
       Flow {{ flowId }}
     </template>
 
-    <p-tabs :tabs="tabs">
-      <template #sub-flow-runs>
-        <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
-      </template>
-    </p-tabs>
-
     <div>
       Flow Details
     </div>
@@ -29,14 +23,11 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, FlowRunList } from '@prefecthq/orion-design'
+  import { useRouteParam, UnionFilters } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
-
-  const tabs = ['Logs', 'Task Runs', 'Sub Flow Runs']
 
   const flowId = useRouteParam('id')
   const subscriptionOptions = {
@@ -54,8 +45,4 @@
   }))
   const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
-
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowFilter], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
-  const selectedFlowRuns = ref([])
 </script>
