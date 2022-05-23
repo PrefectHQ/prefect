@@ -14,6 +14,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
@@ -91,3 +92,20 @@ async def ls(
         )
 
     app.console.print(table)
+
+
+@flow_run_app.command()
+async def delete(id: UUID):
+    """
+    Delete a flow run by UUID.
+
+    IMPORTANT: deleting a flow run does stop the
+    execution of your flow on your infrastructure.
+    """
+    async with get_client() as client:
+        try:
+            await client.delete_flow_run_by_id(id)
+        except ObjectNotFound as exc:
+            exit_with_error(f"Flow run {id!r} not found!")
+
+    app.console.print(Pretty(f"Successfully deleted flow run {id!r}."))
