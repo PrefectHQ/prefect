@@ -5,9 +5,7 @@
 
   <SettingsCodeBlock :engine-settings="engineSettings" />
 
-  <div>
-    Version
-  </div>
+  <div>Version</div>
   <div>
     {{ version }}
   </div>
@@ -18,7 +16,7 @@
   import { adminApi } from '@/services/adminApi'
 
   const engineSettings = await adminApi.getSettings()
-  const  version  = await adminApi.getVersion()
+  const version = await adminApi.getVersion()
 </script>
 
 <style>
