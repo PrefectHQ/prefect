@@ -1,14 +1,18 @@
 <template>
-  <div class="settings">
-    Settings
-  </div>
+  <p-layout-default class="settings">
+    <template #header>
+      Settings
+    </template>
 
-  <SettingsCodeBlock :engine-settings="engineSettings" />
+    <template #content>
+      <SettingsCodeBlock :engine-settings="engineSettings" />
 
-  <div>Version</div>
-  <div>
-    {{ version }}
-  </div>
+      <div>Version</div>
+      <div>
+        {{ version }}
+      </div>
+    </template>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
@@ -22,3 +26,4 @@
 <style>
 .settings {}
 </style>
+

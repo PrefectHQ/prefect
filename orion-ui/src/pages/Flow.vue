@@ -1,21 +1,23 @@
 <template>
-  <div class="flow">
-    Flow {{ flowId }}
-  </div>
+  <p-layout-default class="flow">
+    <template #header>
+      Flow {{ flowId }}
+    </template>
 
-  <div>
-    Flow Details
-  </div>
-  <div>
-    {{ flowDetails }}
-  </div>
+    <div>
+      Flow Details
+    </div>
+    <div>
+      {{ flowDetails }}
+    </div>
 
-  <div>
-    Flow Deployments
-  </div>
-  <div v-for="deployment in flowDeployments" :key="deployment.id">
-    {{ deployment }}
-  </div>
+    <div>
+      Flow Deployments
+    </div>
+    <div v-for="deployment in flowDeployments" :key="deployment.id">
+      {{ deployment }}
+    </div>
+  </p-layout-default>
 </template>
 
 <script lang="ts" setup>
@@ -42,7 +44,3 @@
   const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 </script>
-
-<style>
-.flow {}
-</style>
