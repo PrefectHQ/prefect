@@ -52,7 +52,6 @@
 
 <style lang="scss">
 .app { @apply
-  bg-slate-200
   text-slate-900;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);

@@ -1,8 +1,14 @@
 <template>
-  <p-layout-default class="flow">
+  <p-layout-well class="flow">
     <template #header>
       Flow {{ flowId }}
     </template>
+
+    <p-tabs :tabs="tabs">
+      <template #sub-flow-runs>
+        <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
+      </template>
+    </p-tabs>
 
     <div>
       Flow Details
@@ -19,8 +25,7 @@
     </div>
 
     <p>Flow Sub Runs</p>
-    <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
-  </p-layout-default>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
@@ -30,6 +35,8 @@
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
+
+  const tabs = ['Logs', 'Task Runs', 'Sub Flow Runs']
 
   const flowId = useRouteParam('id')
   const subscriptionOptions = {
