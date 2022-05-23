@@ -11,7 +11,7 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
@@ -108,4 +108,4 @@ async def delete(id: UUID):
         except ObjectNotFound as exc:
             exit_with_error(f"Flow run {id!r} not found!")
 
-    app.console.print(Pretty(f"Successfully deleted flow run {id!r}."))
+    exit_with_success(f"Successfully deleted flow run {id!r}.")
