@@ -86,7 +86,7 @@ async def update_block_data(
 ):
     result = await models.blocks.update_block(
         session=session,
-        block_id=id,
+        block_id=block_id,
         block=block,
     )
 
