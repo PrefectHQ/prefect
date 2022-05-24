@@ -51,7 +51,7 @@ async def create():
 
     for schema in unconfigurable:
         schemas.remove(schema)
-    
+
     if not schemas:
         exit_with_error(f"No storage types are available. ")
 
