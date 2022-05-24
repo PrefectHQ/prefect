@@ -1,12 +1,9 @@
 """
 Prefect-specific exceptions.
 """
-import pdb
 from types import ModuleType, TracebackType
 from typing import Iterable, Optional
 
-from fastapi import Response
-from httpx import HTTPStatusError
 from rich.traceback import Traceback
 
 import prefect
