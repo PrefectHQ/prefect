@@ -9,12 +9,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { Settings } from '@prefecthq/orion-design'
+  import { OrionSettings } from '@prefecthq/orion-design'
   import { PCode } from '@prefecthq/prefect-design'
   import { defineProps, computed } from 'vue'
 
   const props = defineProps<{
-    engineSettings: Settings,
+    engineSettings: OrionSettings,
   }>()
 
   const settingSections = computed(() => Object.entries(props.engineSettings))
