@@ -1,5 +1,5 @@
 task:
-  - "Adds 2 SFTP server tasks. 1 for SftpUpload and 1 for SftpDownload
+  - Adds SFTP server tasks for SftpUpload and SftpDownload [#1234](https://github.com/PrefectHQ/prefect/pull/5740)
    - [#1234](https://github.com/PrefectHQ/prefect/pull/5740)"
 
 contributor:
