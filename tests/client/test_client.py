@@ -2,7 +2,7 @@ import datetime
 import json
 from pathlib import Path
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import marshmallow
 import pendulum
@@ -263,8 +263,12 @@ def test_client_requests_use_retries(monkeypatch):
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
     )
-    HTTPAdapter.assert_called_once_with(max_retries=Retry())
-    Session().mount.assert_called_once_with("https://", HTTPAdapter())
+    HTTPAdapter.assert_called_with(max_retries=Retry())
+    assert HTTPAdapter.call_count == 2
+    Session().mount.assert_has_calls([
+        call("https://", HTTPAdapter()),
+        call("http://", HTTPAdapter())
+    ])
 
 
 def test_client_posts_to_api_server(patch_post):
