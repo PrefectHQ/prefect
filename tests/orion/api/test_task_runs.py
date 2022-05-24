@@ -192,6 +192,7 @@ class TestReadTaskRuns:
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
+                name="Task Run 1",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now.subtract(minutes=5),
@@ -201,6 +202,7 @@ class TestReadTaskRuns:
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
+                name="Task Run 2",
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now.add(minutes=5),
@@ -228,6 +230,28 @@ class TestReadTaskRuns:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(task_run_1.id)
+
+        # name asc
+        response = await client.post(
+            "/task_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.NAME_ASC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(task_run_1.id)
+
+        # name desc
+        response = await client.post(
+            "/task_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.NAME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(task_run_2.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
