@@ -4,6 +4,9 @@ import uuid
 import requests
 from requests import RequestException
 
+import logging
+from typing import Union
+
 from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
@@ -118,6 +121,11 @@ class AirbyteConnectionTask(Task):
             Defaults to v1.
         - connection_id (str, optional): Default connection id to
             use for sync jobs, if none is specified to `run`.
+        - stream_output (Union[bool, int, str], optional): specifies whether this task should log
+            the output as it occurs, and at what logging level. If `True` is passed,
+            the logging level defaults to `INFO`; otherwise, any integer or string
+            value that's passed will be treated as the log level, provided
+            the `logging` library can successfully interpret it.
         - **kwargs (Any, optional): additional kwargs to pass to the
             base Task constructor
     """
@@ -138,12 +146,23 @@ class AirbyteConnectionTask(Task):
         airbyte_server_port: int = 8000,
         airbyte_api_version: str = "v1",
         connection_id: str = None,
+        stream_output: Union[bool, int, str] = False,
         **kwargs,
     ):
         self.airbyte_server_host = airbyte_server_host
         self.airbyte_server_port = airbyte_server_port
         self.airbyte_api_version = airbyte_api_version
         self.connection_id = connection_id
+
+        if isinstance(stream_output, str):
+            stream_output = logging.getLevelName(stream_output)
+            if not isinstance(stream_output, int):
+                raise TypeError(
+                    f"'stream_output': {stream_output} is not a valid log level"
+                )
+
+        self.stream_output = logging.INFO if stream_output is True else stream_output
+
         super().__init__(**kwargs)
 
     def _get_connection_status(self, session, airbyte_base_url, connection_id):
@@ -154,7 +173,7 @@ class AirbyteConnectionTask(Task):
             response = session.post(
                 get_connection_url, json={"connectionId": connection_id}
             )
-            self.logger.info(response.json())
+            self.logger.log(level=self.stream_output, msg=response.json())
 
             response.raise_for_status()
 
@@ -177,7 +196,7 @@ class AirbyteConnectionTask(Task):
                         "status": connection_status,
                     },
                 )
-                self.logger.info(response2.json())
+                self.logger.log(level=self.stream_output, msg=response2.json())
 
                 if response2.status_code == 200:
                     self.logger.info("Schedule removed ok.")
@@ -211,7 +230,7 @@ class AirbyteConnectionTask(Task):
                 get_connection_url, json={"connectionId": connection_id}
             )
             if response.status_code == 200:
-                self.logger.info(response.json())
+                self.logger.log(level=self.stream_output, msg=response.json())
                 job_id = response.json()["job"]["id"]
                 job_created_at = response.json()["job"]["createdAt"]
                 return job_id, job_created_at
@@ -233,7 +252,7 @@ class AirbyteConnectionTask(Task):
         try:
             response = session.post(get_connection_url, json={"id": job_id})
             if response.status_code == 200:
-                self.logger.info(response.json())
+                self.logger.log(level=self.stream_output, msg=response.json())
                 job_status = response.json()["job"]["status"]
                 job_created_at = response.json()["job"]["createdAt"]
                 job_updated_at = response.json()["job"]["updatedAt"]

@@ -1,0 +1,5 @@
+enhancement:
+  - "Configure logging output for AirbyteConnectionTask - [#5794](https://github.com/PrefectHQ/prefect/pull/5794)"
+
+contributor:
+  - "[Joël Luijmes](https://github.com/joelluijmes)"
