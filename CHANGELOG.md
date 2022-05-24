@@ -18,7 +18,8 @@ Released on May 24, 2022.
 - Make artifacts optional in `StartFlowRun` - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)
 - Use `json` instead of `dict` for `DatabricksSubmitMultitaskRun` - [#5728](https://github.com/PrefectHQ/prefect/pull/5728)
 - Fix defect in serialization of Great Expectation's results in `LocalResult` - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)
-- Add an optional `data_security_mode` to Databricks cluster configuration.
+- Add an optional `data_security_mode` to Databricks cluster configuration. - [#5778](https://github.com/PrefectHQ/prefect/pull/5778)
+
 ### Fixes
 
 - Fix bug where Prefect signals in tasks were not re-raised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)
