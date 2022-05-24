@@ -1,5 +1,0 @@
-enhancement:
-  - "Add Python 3.10 support - [#5770](https://github.com/PrefectHQ/prefect/pull/5770)"
-
-contributor:
-  - "[Nico Neumann](https://github.com/neumann-nico)"

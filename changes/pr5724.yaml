@@ -1,5 +1,0 @@
-fix:
-  - "Fix defect in serialization of GE results in LocalResult - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)"
-
-contributor:
-  - "[David McGuire](https://github.com/dmcguire81)"

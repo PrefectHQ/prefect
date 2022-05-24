@@ -1,5 +1,0 @@
-fix:
-  - 'Allow the Prefect Client to retry connections for HTTP targets - [#5825](https://github.com/PrefectHQ/prefect/pull/5825)'
-
-contributor:
-  - '[Jason Bertman](https://github.com/jbertman)'
