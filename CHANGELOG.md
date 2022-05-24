@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.2.2 <Badge text="beta" type="success" />
+
+Released on May 24, 2022.
+
+### Enhancements
+
+- Add inference of Docker network mode for "host" and "none" networks - [#5748](https://github.com/PrefectHQ/prefect/pull/5748)
+- Add Python 3.10 support - [#5770](https://github.com/PrefectHQ/prefect/pull/5770)
+- Raise error when positional-only parameters are present in function signature - [#5789](https://github.com/PrefectHQ/prefect/pull/5789)
+- Configure logging output for AirbyteConnectionTask - [#5794](https://github.com/PrefectHQ/prefect/pull/5794)
+- Make artifacts optional in StartFlowRun - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)
+- Add flag to prevent printing ASCII welcome message [5619](https://github.com/PrefectHQ/prefect/issues/5619)
+
+### Task Library
+
+- Adds SFTP server tasks for SftpUpload and SftpDownload [#1234](https://github.com/PrefectHQ/prefect/pull/5740)
+
+### Fixes
+
+- Fix defect in serialization of GE results in LocalResult - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)
+- use json instead of dict for DatabricksSubmitMultitaskRun - [#5728](https://github.com/PrefectHQ/prefect/pull/5728)
+- add data_security_mode - [#5778](https://github.com/PrefectHQ/prefect/pull/5778)
+- Make flow build deterministic when upstream and downstream slug are same - [#5785](https://github.com/PrefectHQ/prefect/pull/5785)
+- Fix bug where Prefect signals in tasks were not reraised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)
+- Allow the Prefect Client to retry connections for HTTP targets - [#5825](https://github.com/PrefectHQ/prefect/pull/5825)
+
+### Contributors
+
+- [David McGuire](https://github.com/dmcguire81)
+- [Jaakko Lappalainen](https://github.com/jkklapp)
+- [Jason Bertman](https://github.com/jbertman)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Karthikeyan Singaravelan](https://github.com/tirkarthi)
+- [Mate Hricz](https://github.com/Matt9993)
+- [Nico Neumann](https://github.com/neumann-nico)
+- [Robert Phamle](https://github.com/rphamle)
+
 ## 1.2.1 <Badge text="beta" type="success" />
 
 Released on April 27, 2022.

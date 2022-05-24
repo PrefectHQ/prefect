@@ -1,7 +1,0 @@
-# An example changelog entry
-#
-fix:
-  - "Make flow build deterministic when upstream and downstream slug are same - [#5785](https://github.com/PrefectHQ/prefect/pull/5785)"
-
-contributor:
-  - "[Karthikeyan Singaravelan](https://github.com/tirkarthi)"

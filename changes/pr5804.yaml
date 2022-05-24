@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where Prefect signals in tasks were not reraised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)"

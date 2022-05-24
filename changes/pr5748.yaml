@@ -1,2 +1,0 @@
-enhancement:
-  - 'Add inference of Docker network mode for "host" and "none" networks - [#5748](https://github.com/PrefectHQ/prefect/pull/5748)'
