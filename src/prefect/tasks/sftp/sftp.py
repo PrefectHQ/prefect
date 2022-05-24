@@ -138,7 +138,7 @@ class SftpUpload(Task):
         - username (str): Username used to authenticate.
         - password (str): Password used to authenticate.
         - port_number (int): The port number to connect to the server.
-        - remote_path (str): The remote sftp file path.
+        - remote_path (str): The remote SFTP file path.
         - local_path (str): The local file path to from upload.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task constructor.
 
