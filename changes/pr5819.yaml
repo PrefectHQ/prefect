@@ -1,0 +1,2 @@
+enhancement:
+  - "Allow custom job name from passed job template - [#5819](https://github.com/PrefectHQ/prefect/pull/5819)"
