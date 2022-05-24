@@ -70,7 +70,7 @@ class SftpDownload(Task):
             conn.stat(remote_path)
         except SFTPError as e:
             self.logger.debug(
-                f"The specified file on this '{remote_path}' remote_path does not exists."
+                f"The specified file on this '{remote_path}' remote_path does not exist."
             )
             raise e
 
