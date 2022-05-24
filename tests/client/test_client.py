@@ -265,10 +265,9 @@ def test_client_requests_use_retries(monkeypatch):
     )
     HTTPAdapter.assert_called_with(max_retries=Retry())
     assert HTTPAdapter.call_count == 2
-    Session().mount.assert_has_calls([
-        call("https://", HTTPAdapter()),
-        call("http://", HTTPAdapter())
-    ])
+    Session().mount.assert_has_calls(
+        [call("https://", HTTPAdapter()), call("http://", HTTPAdapter())]
+    )
 
 
 def test_client_posts_to_api_server(patch_post):
