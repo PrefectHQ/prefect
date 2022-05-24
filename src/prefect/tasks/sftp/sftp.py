@@ -46,7 +46,7 @@ class SftpDownload(Task):
 
     def _create_connection(self) -> Optional[SFTPClient]:
         """
-        Initialise The connection with the SFTP server
+        Initialize the connection with the SFTP server.
         :return: Optional[SFTPClient]
         """
         transport = Transport(sock=(self.host, self.port_number))
