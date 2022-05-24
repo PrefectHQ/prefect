@@ -222,9 +222,3 @@ class Abort(PrefectSignal):
     """
 
     pass
-
-
-class PrefectClientHTTPError(HTTPStatusError):
-    def __init__(self, error):
-        self.message = f"{error.args[0]}\nDetails: {error.response.json().get('detail', 'No additional details')}"
-        super().__init__(self.message, request=error.request, response=error.response)
