@@ -2,6 +2,14 @@
   <p-layout-default class="flow">
     <template #header>
       Flow {{ flowId }}
+
+      <p-tabs :tabs="flowTabs">
+        <template #deployments>
+          <div v-for="deployment in flowDeployments" :key="deployment.id">
+            {{ deployment }}
+          </div>
+        </template>
+      </p-tabs>
     </template>
 
     <div>
@@ -9,13 +17,6 @@
     </div>
     <div>
       {{ flowDetails }}
-    </div>
-
-    <div>
-      Flow Deployments
-    </div>
-    <div v-for="deployment in flowDeployments" :key="deployment.id">
-      {{ deployment }}
     </div>
   </p-layout-default>
 </template>
@@ -26,6 +27,8 @@
   import { computed } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowsApi } from '@/services/flowsApi'
+
+  const flowTabs = ['Deployments']
 
   const flowId = useRouteParam('id')
   const subscriptionOptions = {
