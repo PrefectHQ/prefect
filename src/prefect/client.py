@@ -17,12 +17,12 @@ $ python -m asyncio
 """
 
 import datetime
-import pdb
 import sys
 import threading
 from collections import defaultdict
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import wraps
+from json.decoder import JSONDecodeError
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -49,7 +49,6 @@ import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
-from prefect.exceptions import PrefectClientHTTPError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -217,7 +216,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
     async def send(self, *args, **kwargs) -> Response:
         retry_count = 0
         response = await super().send(*args, **kwargs)
-
         while (
             response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
             and retry_count < self.RETRY_MAX
@@ -237,13 +235,54 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
         #       `OrionClient`
-        try:
-            response.raise_for_status()
-        except HTTPStatusError as e:
-            raise PrefectClientHTTPError(e)
 
-        # response.raise_for_status()
+        self.raise_for_status(response)
         return response
+
+    def raise_for_status(self, response) -> None:
+        """
+        Exact duplicate of `httpx.Response.raise_for_status` with a more informative
+        error message.
+        """
+        request = response._request
+        if request is None:
+            raise RuntimeError(
+                "Cannot call `raise_for_status` as the request "
+                "instance has not been set on this response."
+            )
+
+        NO_DETAILS = "None provided"
+        try:
+            details = response.json().get("detail", NO_DETAILS)
+        except JSONDecodeError:
+            details = NO_DETAILS
+
+        if response.is_success:
+            return
+
+        if response.has_redirect_location:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                "Redirect location: '{0.headers[location]}'\n"
+                f"Error details: {details}\n"
+                "For more information check: https://httpstatuses.com/{0.status_code}"
+            )
+        else:
+            message = (
+                "{error_type} '{0.status_code} {0.reason_phrase}' for url '{0.url}'\n"
+                f"Error details: {details}\n"
+                "For more information check: https://httpstatuses.com/{0.status_code}"
+            )
+        status_class = response.status_code // 100
+        error_types = {
+            1: "Informational response",
+            3: "Redirect response",
+            4: "Client error",
+            5: "Server error",
+        }
+        error_type = error_types.get(status_class, "Invalid status code")
+        message = message.format(response, error_type=error_type)
+        raise HTTPStatusError(message, request=request, response=response)
 
 
 class OrionClient:
