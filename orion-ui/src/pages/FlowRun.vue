@@ -35,6 +35,8 @@
     </PButton>
 
     <div>Task Runs</div>
+
+    <TaskRunsSort v-model="selectedSortOption" />
     <div v-for="taskRun in taskRuns" :key="taskRun.id">
       {{ taskRun }}
     </div>
@@ -61,7 +63,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -124,6 +126,7 @@
 
   const taskRunsOffset = ref<number>(0)
   const taskRunsLimit = ref<number>(1)
+  const selectedSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const taskRunsFilter = computed<FlowRunsFilter>(() => {
     return {
       flow_runs: {
@@ -133,7 +136,7 @@
       },
       offset: taskRunsOffset.value,
       limit: taskRunsLimit.value,
-      sort: 'END_TIME_DESC',
+      sort: selectedSortOption.value,
     }
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
