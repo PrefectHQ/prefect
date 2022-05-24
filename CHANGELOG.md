@@ -8,23 +8,21 @@ Released on May 24, 2022.
 
 - Add inference of Docker network mode for "host" and "none" networks - [#5748](https://github.com/PrefectHQ/prefect/pull/5748)
 - Add Python 3.10 support - [#5770](https://github.com/PrefectHQ/prefect/pull/5770)
-- Raise error when positional-only parameters are present in function signature - [#5789](https://github.com/PrefectHQ/prefect/pull/5789)
-- Configure logging output for AirbyteConnectionTask - [#5794](https://github.com/PrefectHQ/prefect/pull/5794)
-- Make artifacts optional in StartFlowRun - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)
+- Raise error on task initialiation when positional-only parameters are present in function signature - [#5789](https://github.com/PrefectHQ/prefect/pull/5789)
 - Add flag to prevent printing ASCII welcome message [5619](https://github.com/PrefectHQ/prefect/issues/5619)
-
+- Allow the Prefect client to retry connections for HTTP targets - [#5825](https://github.com/PrefectHQ/prefect/pull/5825)
 ### Task Library
 
-- Adds SFTP server tasks for SftpUpload and SftpDownload [#1234](https://github.com/PrefectHQ/prefect/pull/5740)
-
+- Adds SFTP server tasks `SftpUpload` and `SftpDownload` [#1234](https://github.com/PrefectHQ/prefect/pull/5740)
+- Configure logging output for `AirbyteConnectionTask` - [#5794](https://github.com/PrefectHQ/prefect/pull/5794)
+- Make artifacts optional in `StartFlowRun` - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)
+- Use `json` instead of `dict` for `DatabricksSubmitMultitaskRun` - [#5728](https://github.com/PrefectHQ/prefect/pull/5728)
+- Fix defect in serialization of Great Expectation's results in `LocalResult` - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)
+- Add an optional `data_security_mode` to Databricks cluster configuration.
 ### Fixes
 
-- Fix defect in serialization of GE results in LocalResult - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)
-- use json instead of dict for DatabricksSubmitMultitaskRun - [#5728](https://github.com/PrefectHQ/prefect/pull/5728)
-- add data_security_mode - [#5778](https://github.com/PrefectHQ/prefect/pull/5778)
-- Make flow build deterministic when upstream and downstream slug are same - [#5785](https://github.com/PrefectHQ/prefect/pull/5785)
-- Fix bug where Prefect signals in tasks were not reraised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)
-- Allow the Prefect Client to retry connections for HTTP targets - [#5825](https://github.com/PrefectHQ/prefect/pull/5825)
+- Fix bug where Prefect signals in tasks were not re-raised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)
+- Update flow builds to be deterministic when upstream and downstream slug are same - [#5785](https://github.com/PrefectHQ/prefect/pull/5785)
 
 ### Contributors
 
