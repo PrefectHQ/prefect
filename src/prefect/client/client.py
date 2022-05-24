@@ -629,6 +629,7 @@ class Client:
             allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
+        session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
