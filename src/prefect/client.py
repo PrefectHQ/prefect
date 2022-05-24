@@ -17,6 +17,7 @@ $ python -m asyncio
 """
 
 import datetime
+import pdb
 import sys
 import threading
 from collections import defaultdict
@@ -40,7 +41,7 @@ import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
-from httpx import Response
+from httpx import HTTPStatusError, Response
 
 import prefect
 import prefect.exceptions
@@ -48,6 +49,7 @@ import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
+from prefect.exceptions import PrefectClientHTTPError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -235,8 +237,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
         #       `OrionClient`
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPStatusError as e:
+            raise PrefectClientHTTPError(e)
 
+        # response.raise_for_status()
         return response
 
 
