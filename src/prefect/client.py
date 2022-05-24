@@ -251,14 +251,17 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 "instance has not been set on this response."
             )
 
+        if response.is_success:
+            return
+
         NO_DETAILS = "None provided"
         try:
+            # print(response)
+            # print(response.json())
+            # print(len(response.json()))
             details = response.json().get("detail", NO_DETAILS)
         except JSONDecodeError:
             details = NO_DETAILS
-
-        if response.is_success:
-            return
 
         if response.has_redirect_location:
             message = (
