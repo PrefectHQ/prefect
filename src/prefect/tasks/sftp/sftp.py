@@ -17,7 +17,7 @@ class SftpDownload(Task):
         - username (str): Username used to authenticate.
         - password (str): Password used to authenticate.
         - port_number (int): The port to connect to the server.
-        - remote_path (str): The remote sftp file path.
+        - remote_path (str): The remote SFTP file path.
         - local_path (str): The local file path to download file to.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the Task constructor.
 
