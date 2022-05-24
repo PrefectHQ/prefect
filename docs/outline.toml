@@ -798,3 +798,8 @@ verified_task = true
 title = "Hightouch Tasks"
 module = "prefect.tasks.hightouch"
 classes = ["HightouchRunSync"]
+
+[pages.tasks.sftp]
+title = "SFTP Tasks"
+module = "prefect.tasks.sftp.sftp"
+classes = ["SftpDownload", "SftpUpload"]
