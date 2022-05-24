@@ -2,6 +2,39 @@
   <p-layout-default class="flow-run">
     <template #header>
       Flow run {{ flowRunId }}
+
+      <p-tabs :tabs="flowRunTabs">
+        <template #logs>
+          <div>
+            Logs
+          </div>
+          <div v-for="log in logs" :key="log.id">
+            {{ logs }}
+          </div>
+          <PButton @click="nextLogsPage">
+            Next log
+          </PButton>
+        </template>
+        <template #task-runs>
+          <div>Task Runs</div>
+          <div v-for="taskRun in taskRuns" :key="taskRun.id">
+            {{ taskRun }}
+          </div>
+          <PButton @click="nextRunPage">
+            Next run
+          </PButton>
+        </template>
+
+        <template #sub-flow-runs>
+          <div>
+            Sub Flow Runs
+          </div>
+
+          <div>
+            {{ subFlowRuns }}
+          </div>
+        </template>
+      </p-tabs>
     </template>
 
     <div>
@@ -22,25 +55,6 @@
       {{ flowRunDeployment }}
     </div>
 
-    <div>
-      Logs
-    </div>
-
-    <div v-for="log in logs" :key="log.id">
-      {{ logs }}
-    </div>
-
-    <PButton @click="nextLogsPage">
-      Next log
-    </PButton>
-
-    <div>Task Runs</div>
-    <div v-for="taskRun in taskRuns" :key="taskRun.id">
-      {{ taskRun }}
-    </div>
-    <PButton @click="nextRunPage">
-      Next run
-    </PButton>
 
     <div>
       Flow Run Graph
@@ -48,14 +62,6 @@
 
     <div>
       {{ flowRunGraph }}
-    </div>
-
-    <div>
-      Sub Flow Runs
-    </div>
-
-    <div>
-      {{ subFlowRuns }}
     </div>
   </p-layout-default>
 </template>
@@ -72,6 +78,7 @@
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
+  const flowRunTabs = ['Logs', 'Task runs', 'Sub flow runs']
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
   const longIntervalOptions: SubscriptionOptions = { interval:  50000 }
