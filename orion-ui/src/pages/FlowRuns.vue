@@ -16,6 +16,7 @@
     <div>
       Flow Run List
     </div>
+    <FlowRunsSort v-model="selectedSortOption" />
     <div v-for="flowRun in flowRuns" :key="flowRun.id">
       {{ flowRun }}
     </div>
@@ -23,10 +24,24 @@
 </template>
 
 <script lang="ts" setup>
+  import { UnionFilters, FlowRunsSort, FlowRunSortValues } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { UiApi } from '@/services/uiApi'
+
+
+  const flowRunsOffset = ref<number>(0)
+  const flowRunsLimit = ref<number>(1)
+  const selectedSortOption = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
+
+  const flowRunsFilter = computed<UnionFilters>(() => {
+    return {
+      offset: flowRunsOffset.value,
+      limit: flowRunsLimit.value,
+      sort: selectedSortOption.value,
+    }
+  })
 
   const filter = {}
   const subscriptionOptions = {
@@ -35,6 +50,6 @@
   const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
+  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunsFilter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
 </script>
