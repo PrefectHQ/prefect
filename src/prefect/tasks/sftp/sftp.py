@@ -10,7 +10,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 class SftpDownload(Task):
     """
     Task for downloading files from an SFTP server.
-    Downloads remote file into sftp_downloads/ folder by default
+    Downloads remote file into sftp_downloads/ folder by default.
 
     Args:
         - host (str): Name of the host to use.
