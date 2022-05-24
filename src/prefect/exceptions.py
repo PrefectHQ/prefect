@@ -1,9 +1,12 @@
 """
 Prefect-specific exceptions.
 """
+import pdb
 from types import ModuleType, TracebackType
 from typing import Iterable, Optional
 
+from fastapi import Response
+from httpx import HTTPStatusError
 from rich.traceback import Traceback
 
 import prefect
@@ -219,3 +222,9 @@ class Abort(PrefectSignal):
     """
 
     pass
+
+
+class PrefectClientHTTPError(HTTPStatusError):
+    def __init__(self, error):
+        self.message = f"{error.args[0]}\nDetails: {error.response.json().get('detail', 'No additional details')}"
+        super().__init__(self.message, request=error.request, response=error.response)
