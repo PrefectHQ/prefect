@@ -256,9 +256,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
         NO_DETAILS = "None provided"
         try:
-            # print(response)
-            # print(response.json())
-            # print(len(response.json()))
             details = response.json().get("detail", NO_DETAILS)
         except JSONDecodeError:
             details = NO_DETAILS
