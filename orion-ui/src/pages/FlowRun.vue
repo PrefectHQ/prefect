@@ -36,7 +36,7 @@
 
     <div>Task Runs</div>
 
-    <TaskRunsSort v-model="selectedSortOption" />
+    <TaskRunsSort v-model="selectedTaskRunSortOption" />
     <div v-for="taskRun in taskRuns" :key="taskRun.id">
       {{ taskRun }}
     </div>
@@ -126,7 +126,7 @@
 
   const taskRunsOffset = ref<number>(0)
   const taskRunsLimit = ref<number>(1)
-  const selectedSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
+  const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const taskRunsFilter = computed<FlowRunsFilter>(() => {
     return {
       flow_runs: {
@@ -136,7 +136,7 @@
       },
       offset: taskRunsOffset.value,
       limit: taskRunsLimit.value,
-      sort: selectedSortOption.value,
+      sort: selectedTaskRunSortOption.value,
     }
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
