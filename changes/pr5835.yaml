@@ -1,0 +1,5 @@
+fix:
+  - "load json to dict for DatabricksSubmitMultitaskRun - [#5835](https://github.com/PrefectHQ/prefect/pull/5835)"
+
+contributor:
+  - "[Robert Phamle](https://github.com/rphamle)"
