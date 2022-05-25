@@ -49,17 +49,14 @@ jobs:
           - ubuntu-latest
 
         include:
-          # Add service test runs to the matrix
-          # Include `--service docker` to indicate docker images should be built in CI
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          - test-options: "--only-services --service docker --dist loadscope"
-
           # Run 3.7 tests with lower bound pins
           - python-version: "3.7"
             lower-bound-requirements: true
 
           # Debugging battle
           - os: ubuntu-latest
+            # Include `--service docker` to indicate docker images should be built in CI
+            # Parallelize tests by scope to reduce expensive service fixture duplication
             test-options: "--only-services --service docker --dist loadscope"
 
 
