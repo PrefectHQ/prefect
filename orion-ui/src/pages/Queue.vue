@@ -42,7 +42,9 @@
 
     <div>
       <span class="queue-label">Deployments</span>
-      <div>{{ workQueueDetails?.filter.deploymentIds }}</div>
+      <div v-for="deployment in workQueueDeployments" :key="deployment.id">
+        {{ deployment?.name }}
+      </div>
     </div>
 
     <div>
@@ -53,9 +55,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam } from '@prefecthq/orion-design'
+  import { useRouteParam,  UnionFilters } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
+  import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
   const flowRunners = ref([])
   const workQueueId = useRouteParam('id')
@@ -64,6 +67,17 @@
   }
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueueDetails = computed(() => workQueueSubscription.response)
+  const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds)
+
+  const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
+    deployments: {
+      id: {
+        any_: workQueueDeploymentIds.value,
+      },
+    },
+  }))
+  const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
+  const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response)
 </script>
 
 <style>
