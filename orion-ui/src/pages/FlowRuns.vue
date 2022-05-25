@@ -15,6 +15,7 @@
       Flow Run List
     </div>
     <div class="flow-runs--sort-search">
+      <FlowRunsSearch v-model="flowRunSearchInput" />
       <FlowRunsSort v-model="selectedSortOption" />
     </div>
 
@@ -32,15 +33,25 @@
 
   const flowRunsOffset = ref<number>(0)
   const flowRunsLimit = ref<number>(100)
+  const flowRunSearchInput = ref(null)
   const selectedSortOption = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
 
   const flowRunsFilter = computed<UnionFilters>(() => {
-    return {
+    const runFilter = {
       offset: flowRunsOffset.value,
       limit: flowRunsLimit.value,
       sort: selectedSortOption.value,
     }
+    if (flowRunSearchInput.value) {
+      runFilter.flow_runs =  {
+        name: {
+          any_: [flowRunSearchInput.value],
+        },
+      }
+    }
+    return  runFilter
   })
+
 
   const filter = {}
   const subscriptionOptions = {
