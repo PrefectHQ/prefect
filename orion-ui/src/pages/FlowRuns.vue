@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="flow-runs">
     <template #header>
-      <div class="flow-runs">
+      <div>
         Flow runs
       </div>
     </template>
@@ -14,7 +14,10 @@
     <div>
       Flow Run List
     </div>
-    <FlowRunsSort v-model="selectedSortOption" />
+    <div class="flow-runs--sort-search">
+      <FlowRunsSort v-model="selectedSortOption" />
+    </div>
+
     <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
   </p-layout-default>
 </template>
@@ -28,7 +31,7 @@
 
 
   const flowRunsOffset = ref<number>(0)
-  const flowRunsLimit = ref<number>(1)
+  const flowRunsLimit = ref<number>(100)
   const selectedSortOption = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
 
   const flowRunsFilter = computed<UnionFilters>(() => {
@@ -51,3 +54,9 @@
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
 </script>
+
+<style>
+.flow-runs--sort-search {
+  @apply flex justify-end
+}
+</style>
