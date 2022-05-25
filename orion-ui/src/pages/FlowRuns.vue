@@ -9,22 +9,19 @@
     <div>
       Flow Run History
     </div>
-    <div v-for="run in flowRunHistory" :key="run.id">
-      {{ run }}
-    </div>
+    <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
 
     <div>
       Flow Run List
     </div>
-    <div v-for="flowRun in flowRuns" :key="flowRun.id">
-      {{ flowRun }}
-    </div>
+    <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
+  import { FlowRunList, FlowRunsScatterPlot } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { UiApi } from '@/services/uiApi'
 
@@ -32,9 +29,11 @@
   const subscriptionOptions = {
     interval: 30000,
   }
+
   const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
+  const selectedFlowRuns = ref([])
 </script>
