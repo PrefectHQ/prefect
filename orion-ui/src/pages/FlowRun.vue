@@ -5,6 +5,27 @@
     </template>
 
     <p-tabs :tabs="tabs">
+      <template #logs>
+        <div>
+          Logs
+        </div>
+        <div v-for="log in logs" :key="log.id">
+          {{ logs }}
+        </div>
+        <PButton @click="nextLogsPage">
+          Next log
+        </PButton>
+      </template>
+      <template #task-runs>
+        <div>Task Runs</div>
+        <TaskRunsSort v-model="selectedTaskRunSortOption" />
+        <div v-for="taskRun in taskRuns" :key="taskRun.id">
+          {{ taskRun }}
+        </div>
+        <PButton @click="nextRunPage">
+          Next run
+        </PButton>
+      </template>
       <template #sub-flow-runs>
         <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
       </template>
@@ -28,25 +49,6 @@
       {{ flowRunDeployment }}
     </div>
 
-    <div>
-      Logs
-    </div>
-
-    <div v-for="log in logs" :key="log.id">
-      {{ logs }}
-    </div>
-
-    <PButton @click="nextLogsPage">
-      Next log
-    </PButton>
-
-    <div>Task Runs</div>
-    <div v-for="taskRun in taskRuns" :key="taskRun.id">
-      {{ taskRun }}
-    </div>
-    <PButton @click="nextRunPage">
-      Next run
-    </PButton>
 
     <div>
       Flow Run Graph
@@ -67,10 +69,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
-  import { computed, ref, watch, watchEffect } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
@@ -129,7 +131,8 @@
   }
 
   const taskRunsOffset = ref<number>(0)
-  const taskRunsLimit = ref<number>(1)
+  const taskRunsLimit = ref<number>(10)
+  const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const taskRunsFilter = computed<FlowRunsFilter>(() => {
     return {
       flow_runs: {
@@ -139,7 +142,7 @@
       },
       offset: taskRunsOffset.value,
       limit: taskRunsLimit.value,
-      sort: 'END_TIME_DESC',
+      sort: selectedTaskRunSortOption.value,
     }
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
