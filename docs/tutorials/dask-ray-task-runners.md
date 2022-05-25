@@ -30,6 +30,9 @@ As you'll see, using Dask or Ray in your flows is straightforward, enabling you 
 
 To show you how it works, let's start small.
 
+!!! note "Remote storage"
+    We recommend configuring [remote storage](/concepts/storage/) for task execution with the `DaskTaskRunner` and `RayTaskRunner`. This ensures tasks executing in Dask or Ray have access to task result storage, particularly when accessing a Dask or Ray instance outside of your execution environment.
+
 ## Configuring a task runner
 
 You may have seen this briefly in a previous tutorial, but let's look a bit more closely at how you can configure a specific task runner for a flow.

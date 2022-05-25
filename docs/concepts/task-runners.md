@@ -160,6 +160,9 @@ Hello!
 
 The [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via an `address` argument.
 
+!!! note "Remote storage and Dask tasks"
+    We recommend configuring [remote storage](/concepts/storage/) for task execution with the `DaskTaskRunner`. This ensures tasks executing in Dask have access to task result storage, particularly when accessing a Dask instance outside of your execution environment.
+
 To configure your flow to use the `DaskTaskRunner`:
 
 1. Make sure the `prefect-dask` collection is installed: `pip install prefect-dask`.
@@ -331,6 +334,9 @@ def my_flow():
 ## Running tasks on Ray
 
 The [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) &mdash; installed separately as a [Prefect Collection](/collections/overview/) &mdash; is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via an `address` argument.
+
+!!! note "Remote storage and Ray tasks"
+    We recommend configuring [remote storage](/concepts/storage/) for task execution with the `RayTaskRunner`. This ensures tasks executing in Ray have access to task result storage, particularly when accessing a Ray instance outside of your execution environment.
 
 To configure your flow to use the `RayTaskRunner`:
 
