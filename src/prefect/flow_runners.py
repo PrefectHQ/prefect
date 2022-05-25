@@ -787,6 +787,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
         stream_output: If set, stream output from the container to local standard output.
+        secrets: An optional dictionary of Kubernetes secret names and the relevant keys to be mounted as environment variables.
     """
 
     typename: Literal["kubernetes"] = "kubernetes"
@@ -798,6 +799,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     image_pull_policy: KubernetesImagePullPolicy = None
     restart_policy: KubernetesRestartPolicy = KubernetesRestartPolicy.NEVER
     stream_output: bool = True
+    secrets: Dict[str, str] = Field(default_factory=dict)
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -976,6 +978,18 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             for k, v in self._get_environment_variables().items()
         ]
 
+        for k, v in self.secrets.items():
+            k8s_env.append({
+                "name": v,
+                "valueFrom": {
+                    "secretKeyRef": {
+                        "name": k,
+                        "key": v,
+                        "optional": False
+                    }
+                }
+            }) 
+
         job_settings = dict(
             metadata={
                 "generateName": self._slugify_flow_run_name(flow_run),
@@ -985,7 +999,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             spec={
                 "template": {
                     "spec": {
-                        "restartPolicy": self.restart_policy.value,
+                        "restartPolicy": self.restart_policy.value,                  
                         "containers": [
                             {
                                 "name": "job",
