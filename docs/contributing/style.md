@@ -151,3 +151,17 @@ We do not have a best practice for this yet. See the `kubernetes`, `docker`, and
 #### Delaying expensive imports
 
 Sometimes, imports are slow. We'd like to keep the `prefect` module import times fast. In these cases, we can lazily import the slow module by deferring import to the relevant function body. For modules that are consumed by many functions, the pattern used for optional requirements may be used instead.
+
+## API Versioning
+
+The Prefect 2.0 client can be run separately from the Prefect 2.0 orchestration server and communicate entirely via an API. Among other things, the Prefect client includes anything that runs task or flow code, (e.g. agents, and the Python client) or any consumer of Prefect metadata, (e.g. the Prefect UI, and CLI). The Prefect 2.0 stores this metadata and serves it via the REST API.
+
+Sometimes, we make breaking changes to the API (for good reasons). In order to check that a Prefect 2.0 client is compatible with the API it's making requests to, every API call the client makes includes a three-component `API_VERSION` header with major, minor, and patch versions.
+
+For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch version `1`.
+
+This version header can be changed by modifying the `API_VERSION` constant in `prefect.orion.api.server`.
+
+When making a breaking change to the API, we should consider if the change might be *backwards compatible for clients*, meaning that the previous version of the client would still be able to make calls against the updated version of the server code. This might happen if the changes are purely additive: such as adding a non-critical API route. In these cases, we should make sure to bump the patch version.
+
+In almost all other cases, we should bump the minor version, which denotes a non-backwards-compatible API change. We have reserved the major version chanes to denote also-backwards compatible change that might be significant in some way, such as a major release milestone.

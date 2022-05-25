@@ -95,6 +95,11 @@ def test_set_with_invalid_value_type():
         expected_code=1,
     )
 
+    profiles = load_profiles()
+    assert (
+        PREFECT_ORION_DATABASE_TIMEOUT not in profiles["foo"].settings
+    ), "The setting should not be saved"
+
 
 def test_set_with_unparsable_setting():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
@@ -354,6 +359,9 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     ), "Only set keys should be included."
 
     for key, value in printed_settings.items():
+        # windows display duplicates slashes
+        if "\\" in value:
+            continue
         assert (
             repr(str(expected[key])) == value
         ), "Displayed setting does not match set value."
