@@ -1253,12 +1253,12 @@ class TestClientWorkQueues:
 
 
 async def test_delete_flow_run(orion_client, flow_run):
-    # Note - the flow_run provided by the fixture is not of type `schemas.core.Flow`
+    # Note - the flow_run provided by the fixture is not of type `schemas.core.FlowRun`
     print(f"Type: {type(flow_run)}")
 
-    # Make sure our flow exists (the read flow is of type `s.c.Flow`)
+    # Make sure our flow exists (the read flow is of type `s.c.FlowRun`)
     lookup = await orion_client.read_flow_run(flow_run.id)
-    assert isinstance(lookup, schemas.core.Flow)
+    assert isinstance(lookup, schemas.core.FlowRun)
 
     # Check delete works
     await orion_client.delete_flow_run(flow_run.id)
