@@ -12,12 +12,12 @@
     </div>
 
     <div>
-      <span class="queue-label">Description:</span>
+      <span class="queue-label">Description</span>
       <div>{{ workQueueDetails?.description }}</div>
     </div>
 
     <div class="mt-4">
-      <span class="queue-label">Work Queue ID:</span>
+      <span class="queue-label">Work Queue ID</span>
       <div>{{ workQueueDetails?.id }}</div>
     </div>
 
