@@ -104,8 +104,8 @@ async def delete(id: UUID):
     """
     async with get_client() as client:
         try:
-            await client.delete_flow_run_by_id(id)
+            await client.delete_flow_run(id)
         except ObjectNotFound as exc:
-            exit_with_error(f"Flow run {id!r} not found!")
+            exit_with_error(f"Flow run {id} not found!")
 
-    exit_with_success(f"Successfully deleted flow run {id!r}.")
+    exit_with_success(f"Successfully deleted flow run {id}.")
