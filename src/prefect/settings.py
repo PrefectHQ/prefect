@@ -837,9 +837,15 @@ class Profile(pydantic.BaseModel):
 
     def validate_settings(self) -> None:
         """
-        Create a new `Settings` instance with the settings from this profile ensuring
-        that the values are valid by performing Pydantic validation.
+        Validate the settings contained in this profile.
+
+        Raises:
+            pydantic.ValidationError: When settings do not have valid values.
         """
+        # Create a new `Settings` instance with the settings from this profile relying
+        # on Pydantic validation to raise an error.
+        # We do not return the `Settings` object because this is not the recommended
+        # path for constructing settings with a profile. See `use_profile` instead.
         Settings(**{setting.name: value for setting, value in self.settings.items()})
 
     class Config:
