@@ -69,8 +69,7 @@
 <script lang="ts" setup>
   import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
+  import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
   import { computed, ref, watch, watchEffect } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
