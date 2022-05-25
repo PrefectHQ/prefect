@@ -62,7 +62,7 @@ greetings(["arthur", "trillian", "ford", "marvin"])
 
 Save this as `sequential_flow.py` and run it in a terminal. You'll see output similar to the following:
 
-<div class="termy">
+<div class="terminal">
 ```
 $ python sequential_flow.py
 19:06:41.449 | INFO    | prefect.engine - Created flow run 'fragrant-mouse' for flow 'greetings'
@@ -97,7 +97,7 @@ goodbye marvin
 
 If we take out the log messages and just look at the printed output of the tasks, you see they're executed in sequential order:
 
-<div class="termy">
+<div class="terminal">
 ```
 $ python sequential_flow.py
 hello arthur
@@ -143,7 +143,7 @@ Note that, because you're using `DaskTaskRunner` in a script, you must use `if _
 
 Now run `dask_flow.py`. 
 
-<div class="termy">
+<div class="terminal">
 ```
 $ python dask_flow.py
 19:29:03.798 | INFO    | prefect.engine - Created flow run 'fine-bison' for flow 'greetings'
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
 Now run `ray_flow.py`. 
 
-<div class="termy">
+<div class="terminal">
 ```
 $ python ray_flow.py
 19:55:53.579 | INFO    | prefect.engine - Created flow run 'vegan-mouflon' for flow 'greetings'
@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
 If you save this as `ray_subflow.py` and run it, you'll see that the flow `greetings` runs as you'd expect for a concurrent flow, then flow `ray-greetings` spins up a Ray instance to run the tasks again.
 
-<div class="termy">
+<div class="terminal">
 ```
 $ python ray_subflow.py
 20:05:11.717 | INFO    | prefect.engine - Created flow run 'rational-lemur' for flow 'greetings'
