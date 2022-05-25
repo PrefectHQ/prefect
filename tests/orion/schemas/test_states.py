@@ -38,7 +38,7 @@ class TestState:
     def test_state_default_timestamp(self):
         dt = pendulum.now("UTC")
         state = State(type=StateType.RUNNING)
-        assert state.timestamp > dt
+        assert state.timestamp >= dt
 
     def test_state_copy_does_not_create_insertable_object(self):
         dt = pendulum.now("UTC")
@@ -55,7 +55,7 @@ class TestState:
         assert new_state.id != state.id
         assert isinstance(new_state.id, UUID)
         # New state timestamp
-        assert new_state.timestamp > dt
+        assert new_state.timestamp >= dt
 
 
 class TestStateTypeFunctions:
@@ -123,7 +123,7 @@ class TestStateConvenienceFunctions:
         dt1 = pendulum.now("UTC")
         state = Scheduled()
         dt2 = pendulum.now("UTC")
-        assert dt1 < state.state_details.scheduled_time < dt2
+        assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_scheduled_with_state_details_cant_provide_scheduled_time(self):
         dt = pendulum.now("UTC")
@@ -144,7 +144,7 @@ class TestStateConvenienceFunctions:
         dt1 = pendulum.now("UTC")
         state = AwaitingRetry()
         dt2 = pendulum.now("UTC")
-        assert dt1 < state.state_details.scheduled_time < dt2
+        assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_late(self):
         dt = pendulum.now("UTC")
@@ -157,7 +157,7 @@ class TestStateConvenienceFunctions:
         dt1 = pendulum.now("UTC")
         state = Late()
         dt2 = pendulum.now("UTC")
-        assert dt1 < state.state_details.scheduled_time < dt2
+        assert dt1 <= state.state_details.scheduled_time <= dt2
 
     def test_retrying(self):
         state = Retrying()

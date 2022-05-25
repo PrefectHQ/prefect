@@ -4,6 +4,8 @@ The Telemetry service.
 
 import asyncio
 import os
+import platform
+import sys
 from uuid import uuid4
 
 import httpx
@@ -19,7 +21,8 @@ from prefect.orion.services.loop_service import LoopService
 
 class Telemetry(LoopService):
     """
-    This service sends anonymous data (e.g. count of flow runs) to Prefect to help us improve. It can be toggled off with the PREFECT_ORION_ANALYTICS_ENABLED setting.
+    This service sends anonymous data (e.g. count of flow runs) to Prefect to help us
+    improve. It can be toggled off with the PREFECT_ORION_ANALYTICS_ENABLED setting.
     """
 
     def __init__(self):
@@ -31,8 +34,10 @@ class Telemetry(LoopService):
     @inject_db
     async def _fetch_or_set_telemetry_session(self, db: OrionDBInterface):
         """
-        This method looks for a telemetry session in the configuration table.
-        If there isn't one, it sets one. It then sets `self.session_id` and `self.session_start_timestamp`.
+        This method looks for a telemetry session in the configuration table. If there
+        isn't one, it sets one. It then sets `self.session_id` and
+        `self.session_start_timestamp`.
+
         Telemetry sessions last until the database is reset.
         """
         session = await db.session()
@@ -79,23 +84,27 @@ class Telemetry(LoopService):
         if not hasattr(self, "session_id"):
             await self._fetch_or_set_telemetry_session()
 
+        heartbeat = {
+            "source": "prefect_server",
+            "type": "orion_heartbeat",
+            "payload": {
+                "platform": platform.system(),
+                "architecture": platform.machine(),
+                "python_version": platform.python_version(),
+                "python_implementation": platform.python_implementation(),
+                "environment": self.telemetry_environment,
+                "api_version": ORION_API_VERSION,
+                "prefect_version": prefect.__version__,
+                "session_id": self.session_id,
+                "session_start_timestamp": self.session_start_timestamp,
+            },
+        }
+
         async with httpx.AsyncClient() as client:
             result = await client.post(
                 "https://sens-o-matic.prefect.io/",
-                json={
-                    "source": "prefect_server",
-                    "type": "orion_heartbeat",
-                    "payload": {
-                        "environment": self.telemetry_environment,
-                        "api_version": ORION_API_VERSION,
-                        "prefect_version": prefect.__version__,
-                        "session_id": self.session_id,
-                        "session_start_timestamp": self.session_start_timestamp,
-                    },
-                },
-                headers={
-                    "x-prefect-event": "prefect_server",
-                },
+                json=heartbeat,
+                headers={"x-prefect-event": "prefect_server"},
             )
 
             try:
