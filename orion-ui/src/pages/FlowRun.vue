@@ -132,7 +132,7 @@
   }
 
   const taskRunsOffset = ref<number>(0)
-  const taskRunsLimit = ref<number>(1)
+  const taskRunsLimit = ref<number>(10)
   const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const taskRunsFilter = computed<FlowRunsFilter>(() => {
     return {
