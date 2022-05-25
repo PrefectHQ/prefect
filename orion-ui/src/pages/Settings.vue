@@ -4,7 +4,6 @@
       Settings
     </template>
 
-
     <SettingsCodeBlock class="settings--code-block" :engine-settings="engineSettings" />
 
     <div>Version</div>
@@ -21,5 +20,3 @@
   const engineSettings = await adminApi.getSettings()
   const version = await adminApi.getVersion()
 </script>
-
-
