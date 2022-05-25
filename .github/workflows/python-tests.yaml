@@ -136,6 +136,8 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+        pytest-options:
+          - "--exclude-services"
 
       fail-fast: false
 
@@ -180,4 +182,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests -vv
+          pytest tests -vv ${{ matrix.pytest-options }}
