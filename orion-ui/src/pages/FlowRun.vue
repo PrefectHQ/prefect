@@ -5,6 +5,26 @@
     </template>
 
     <p-tabs :tabs="tabs">
+      <template #logs>
+        <div>
+          Logs
+        </div>
+        <div v-for="log in logs" :key="log.id">
+          {{ logs }}
+        </div>
+        <PButton @click="nextLogsPage">
+          Next log
+        </PButton>
+      </template>
+      <template #task-runs>
+        <div>Task Runs</div>
+        <div v-for="taskRun in taskRuns" :key="taskRun.id">
+          {{ taskRun }}
+        </div>
+        <PButton @click="nextRunPage">
+          Next run
+        </PButton>
+      </template>
       <template #sub-flow-runs>
         <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
       </template>
@@ -28,25 +48,6 @@
       {{ flowRunDeployment }}
     </div>
 
-    <div>
-      Logs
-    </div>
-
-    <div v-for="log in logs" :key="log.id">
-      {{ logs }}
-    </div>
-
-    <PButton @click="nextLogsPage">
-      Next log
-    </PButton>
-
-    <div>Task Runs</div>
-    <div v-for="taskRun in taskRuns" :key="taskRun.id">
-      {{ taskRun }}
-    </div>
-    <PButton @click="nextRunPage">
-      Next run
-    </PButton>
 
     <div>
       Flow Run Graph
@@ -71,7 +72,7 @@
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-  import { computed, ref, watch, watchEffect } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
