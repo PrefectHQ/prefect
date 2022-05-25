@@ -48,17 +48,16 @@ jobs:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
         pytest-options:
-          - "--numprocesses auto"
+          - "--exclude-services"
+          - "--only-services"
 
         include:
           # Run 3.7 tests with lower bound pins
           - python-version: "3.7"
             lower-bound-requirements: true
 
-          # Debugging battle
-          - os: ubuntu-latest
-            # Parallelize tests by scope to reduce expensive service fixture duplication
-            pytest-options: "--only-services --dist loadscope --numprocesses auto"
+          # Include Docker image builds on the service test run
+          - pytest-options: "--only-services"
             build-docker-images: true
 
 
@@ -124,7 +123,8 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests -vv ${{ matrix.pytest-options }}
+          # Parallelize tests by scope to reduce expensive service fixture duplication
+          pytest tests -vv --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
