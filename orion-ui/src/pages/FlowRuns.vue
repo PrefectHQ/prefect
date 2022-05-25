@@ -18,13 +18,12 @@
       <FlowRunsSearch v-model="flowRunSearchInput" />
       <FlowRunsSort v-model="selectedSortOption" />
     </div>
-
     <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot } from '@prefecthq/orion-design'
+  import { UnionFilters, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, FlowRunsSearch } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -68,6 +67,6 @@
 
 <style>
 .flow-runs--sort-search {
-  @apply flex justify-end
+  @apply flex justify-end gap-px
 }
 </style>
