@@ -121,10 +121,8 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv ${{ matrix.test-options }} --not-service ray
+          pytest tests -vv ${{ matrix.test-options }} -n auto
 
   run-tests-postgres:
     name: Test with Postgres
