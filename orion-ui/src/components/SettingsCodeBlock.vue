@@ -1,10 +1,10 @@
 <template>
   <div class="settings-block">
-    <PCode multiline>
+    <p-code multiline>
       <div v-for="(section, index) in settingSections" :key="index" class="settings-block--code-line">
         {{ section[0] }}: {{ section[1] }}
       </div>
-    </PCode>
+    </p-code>
   </div>
 </template>
 
