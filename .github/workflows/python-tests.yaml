@@ -56,9 +56,9 @@ jobs:
             lower-bound-requirements: true
 
           # Debugging battle
-          # - os: ubuntu-latest
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          - pytest-options: "--only-services --dist loadscope --numprocesses auto"
+          - os: ubuntu-latest
+            # Parallelize tests by scope to reduce expensive service fixture duplication
+            pytest-options: "--only-services --dist loadscope --numprocesses auto"
             build-docker-images: true
 
 
