@@ -2,6 +2,7 @@ import os
 import textwrap
 from pathlib import Path
 
+import pydantic
 import pytest
 
 import prefect.context
@@ -433,6 +434,17 @@ class TestSaveProfiles:
                 """
             ).lstrip()
         )
+
+
+class TestProfile:
+    def test_init_casts_names_to_setting_types(self):
+        profile = Profile(name="test", settings={"PREFECT_DEBUG_MODE": 1})
+        assert profile.settings == {PREFECT_DEBUG_MODE: 1}
+
+    def test_validate_settings(self):
+        profile = Profile(name="test", settings={PREFECT_ORION_API_PORT: "foo"})
+        with pytest.raises(pydantic.ValidationError):
+            profile.validate_settings()
 
 
 class TestProfilesCollection:

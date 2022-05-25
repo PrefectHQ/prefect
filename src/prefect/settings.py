@@ -835,6 +835,13 @@ class Profile(pydantic.BaseModel):
 
         return validated
 
+    def validate_settings(self) -> None:
+        """
+        Create a new `Settings` instance with the settings from this profile ensuring
+        that the values are valid by performing Pydantic validation.
+        """
+        Settings(**{setting.name: value for setting, value in self.settings.items()})
+
     class Config:
         arbitrary_types_allowed = True
         copy_on_model_validation = False
@@ -1089,7 +1096,10 @@ def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     # Ensure the current profile's settings are present
     profiles.update_profile(current_profile.name, current_profile.settings)
     # Then merge the new settings in
-    profiles.update_profile(current_profile.name, settings)
+    new_profile = profiles.update_profile(current_profile.name, settings)
+
+    # Validate before saving
+    new_profile.validate_settings()
 
     save_profiles(profiles)
 
