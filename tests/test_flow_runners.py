@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 import warnings
+import base64
 from pathlib import Path
 from typing import NamedTuple
 from unittest.mock import ANY, MagicMock
@@ -19,6 +20,8 @@ import pytest
 from docker.errors import ImageNotFound
 from docker.models.images import Image
 from kubernetes.config import ConfigException
+from kubernetes.client import V1Secret
+from kubernetes.client import V1ObjectMeta
 from typing_extensions import Literal
 from urllib3.exceptions import MaxRetryError
 
@@ -1743,6 +1746,40 @@ class TestKubernetesFlowRunner:
         assert kubernetes_environments_equal(
             call_env, {**base_flow_run_environment(), "WATCH": "1"}
         )
+
+    async def test_use_secrets(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+        hosted_orion_api,
+    ):
+        secret_name = "secret"
+        secret = V1Secret(metadata=V1ObjectMeta(
+            name=secret_name
+        ), data={
+            "SECRET_VARIABLE": base64.b64encode(b'<PASSWORD>')
+        })
+        mock_k8s_client.create_namespaced_secret(namespace="foo", body=secret)
+
+        mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
+
+        await KubernetesFlowRunner(namespace="foo", secrets={"secret": "SECRET_VARIABLE"}).submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+        call_env = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
+            "template"
+        ]["spec"]["containers"][0]["env"]
+
+        expected = {'name': 'SECRET_VARIABLE', 'valueFrom': {'secretKeyRef': {'name': 'secret', 'key': 'SECRET_VARIABLE', 'optional': False}}}
+        for actual in call_env:
+            if actual['name'] == 'SECRET_VARIABLE':              
+                assert(actual == expected)
+                return
+        assert(False)
 
     async def test_defaults_to_unspecified_image_pull_policy(
         self,
