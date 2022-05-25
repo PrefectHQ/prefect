@@ -40,14 +40,14 @@ jobs:
 
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          # Windows is only tested on Python 3.9
         python-version:
           - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
-        os:
-          - ubuntu-latest
-          # Windows is only tested on Python 3.9
         pytest-options:
           - "--exclude-services"
           - "--only-services"
@@ -62,8 +62,8 @@ jobs:
             build-docker-images: true
 
           # Run Windows tests on 3.9
-          - python-version: "3.9"
-            os: "windows-latest"
+          - os: "windows-latest"
+            python-version: "3.9"
 
       fail-fast: false
 
