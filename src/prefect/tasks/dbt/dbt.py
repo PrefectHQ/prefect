@@ -264,8 +264,9 @@ class DbtCloudRunJob(Task):
         wait_for_job_run_completion: bool = False,
         max_wait_time: int = None,
         domain: str = "cloud.getdbt.com",
+        **kwargs: Any
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.token = token if token else os.environ.get(token_env_var_name, None)
         self.account_id = account_id
         if account_id is None and account_id_env_var_name in os.environ:
