@@ -40,11 +40,8 @@ def set_(settings: List[str]):
 
         parsed_settings[setting] = value
 
-    new_profile = prefect.settings.update_current_profile(parsed_settings)
-
     try:
-        with prefect.context.use_profile(new_profile):
-            pass
+        new_profile = prefect.settings.update_current_profile(parsed_settings)
     except pydantic.ValidationError as exc:
         for error in exc.errors():
             setting = error["loc"][0]

@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 import warnings
 from abc import abstractmethod
 from functools import partial
@@ -14,7 +15,7 @@ import httpx
 import pendulum
 import pydantic
 from azure.storage.blob import BlobServiceClient
-from google.cloud import storage as gcs
+from fsspec.implementations.local import LocalFileSystem
 from google.oauth2 import service_account
 from typing_extensions import Literal
 
@@ -23,6 +24,10 @@ from prefect.settings import PREFECT_HOME
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.filesystem import is_local_path
 from prefect.utilities.hashing import stable_hash
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=DeprecationWarning)
+    from google.cloud import storage as gcs
 
 # Storage block "key" type which should match for read/write in each implementation
 T = TypeVar("T")
@@ -112,39 +117,47 @@ class FileStorageBlock(StorageBlock):
         return value
 
     def _create_key(self, data: bytes):
+        """
+        Method for determining the filename to write to; depends on
+        key type, OS, and filesystem type.
+        """
         if self.key_type == "uuid":
             return uuid4().hex
         elif self.key_type == "hash":
             return stable_hash(data)
         elif self.key_type == "timestamp":
-            return pendulum.now().isoformat()
+            # colons are not allowed in windows paths
+            if (
+                sys.platform == "win32"
+                and type(fsspec.open(self.base_path).fs) == LocalFileSystem
+            ):
+                return pendulum.now().isoformat().replace(":", "_")
+            else:
+                return pendulum.now().isoformat()
         else:
             raise ValueError(f"Unknown key type {self.key_type!r}")
 
     async def write(self, data: bytes) -> str:
         key = self._create_key(data)
-        file = fsspec.open(self.base_path + key, "wb", **self.options)
+        ff = fsspec.open(self.base_path + key, "wb", **self.options)
 
         # TODO: Some file systems support async and would require passing the current
         #       event loop in `self.options`. This would probably be better for
         #       performance. https://filesystem-spec.readthedocs.io/en/latest/async.html
 
-        await run_sync_in_worker_thread(self._write_sync, file, data)
+        await run_sync_in_worker_thread(self._write_sync, ff, data)
         return key
 
     async def read(self, key: str) -> bytes:
-        file = fsspec.open(self.base_path + key, "rb", **self.options)
-        return await run_sync_in_worker_thread(self._read_sync, file)
+        ff = fsspec.open(self.base_path + key, "rb", **self.options)
+        return await run_sync_in_worker_thread(self._read_sync, ff)
 
-    def _write_sync(self, file: fsspec.core.OpenFile, data: bytes) -> None:
-        if file.fs.exists(file.path) and self.key_type == "hash":
-            return  # Do not write on hash collision
-
-        with file as io:
+    def _write_sync(self, ff: fsspec.core.OpenFile, data: bytes) -> None:
+        with ff as io:
             io.write(data)
 
-    def _read_sync(self, file: fsspec.core.OpenFile) -> bytes:
-        with file as io:
+    def _read_sync(self, ff: fsspec.core.OpenFile) -> bytes:
+        with ff as io:
             return io.read()
 
 
@@ -268,24 +281,26 @@ class GoogleCloudStorageBlock(StorageBlock):
     project: Optional[str]
     service_account_info: Optional[Dict[str, str]]
 
-    def block_initialization(self) -> None:
+    def _get_storage_client(self):
         if self.service_account_info:
             credentials = service_account.Credentials.from_service_account_info(
                 self.service_account_info
             )
-            self.storage_client = gcs.Client(
+            return gcs.Client(
                 project=self.project or credentials.project_id, credentials=credentials
             )
         else:
-            self.storage_client = gcs.Client(project=self.project)
+            return gcs.Client(project=self.project)
 
     async def read(self, key: str) -> bytes:
-        bucket = self.storage_client.bucket(self.bucket)
+        storage_client = self._get_storage_client()
+        bucket = storage_client.bucket(self.bucket)
         blob = bucket.blob(key)
         return await run_sync_in_worker_thread(blob.download_as_bytes)
 
     async def write(self, data: bytes) -> str:
-        bucket = self.storage_client.bucket(self.bucket)
+        storage_client = self._get_storage_client()
+        bucket = storage_client.bucket(self.bucket)
         key = str(uuid4())
         blob = bucket.blob(key)
         upload = partial(blob.upload_from_string, data)

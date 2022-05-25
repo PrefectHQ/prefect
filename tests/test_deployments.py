@@ -356,6 +356,7 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_unregistered_storage(
         self, orion_client, tmp_path
     ):
+
         block = FileStorageBlock(base_path=str(tmp_path))
 
         spec = DeploymentSpec(
