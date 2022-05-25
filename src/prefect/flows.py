@@ -107,8 +107,13 @@ class Flow(Generic[P, R]):
         self.isasync = is_async_fn(self.fn)
 
         # Version defaults to a hash of the function's file
-        flow_file = fn.__globals__.get("__file__")  # type: ignore
-        self.version = version or (file_hash(flow_file) if flow_file else None)
+        flow_file = inspect.getsourcefile(self.fn)
+        if not version:
+            try:
+                version = file_hash(flow_file)
+            except (FileNotFoundError, TypeError, OSError):
+                pass  # `getsourcefile` can return null values and "<stdin>" for objects in repls
+        self.version = version
 
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 

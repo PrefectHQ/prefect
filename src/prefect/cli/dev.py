@@ -80,12 +80,12 @@ def build_ui():
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "ci", "install"])
+            subprocess.check_output(["npm", "ci", "install"], shell=True)
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
             env["ORION_UI_SERVE_BASE"] = "/"
-            subprocess.check_output(["npm", "run", "build"], env=env)
+            subprocess.check_output(["npm", "run", "build"], env=env, shell=True)
 
         if os.path.exists(prefect.__ui_static_path__):
             app.console.print("Removing existing build files...")
@@ -105,7 +105,7 @@ async def ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "install"])
+            subprocess.check_output(["npm", "install"], shell=True)
 
             app.console.print("Starting UI development server...")
             await open_process_and_stream_output(command=["npm", "run", "serve"])
@@ -227,7 +227,8 @@ def build_image(
                 f"linux/{arch}",
                 "--build-arg",
                 "PREFECT_EXTRAS=[dev]",
-            ]
+            ],
+            shell=True,
         )
     except subprocess.CalledProcessError:
         exit_with_error("Failed to build image!")

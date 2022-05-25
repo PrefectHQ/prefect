@@ -1,5 +1,6 @@
 import enum
 import inspect
+import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -36,15 +37,21 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
-    def test_version_none_if_interactively_defined(self):
-        "Defining functions interactively does not set __file__ global"
+    @pytest.mark.parametrize(
+        "sourcefile", [None, "<stdin>", "<ipython-input-1-d31e8a6792d4>"]
+    )
+    def test_version_none_if_source_file_cannot_be_determined(
+        self, monkeypatch, sourcefile
+    ):
+        """
+        `getsourcefile` will return `None` when functions are defined interactively,
+        or other values on Windows.
+        """
+        monkeypatch.setattr(
+            "prefect.flows.inspect.getsourcefile", MagicMock(return_value=sourcefile)
+        )
 
-        def ipython_function():
-            pass
-
-        del ipython_function.__globals__["__file__"]
-
-        f = Flow(name="test", fn=ipython_function)
+        f = Flow(name="test", fn=lambda **kwargs: 42)
         assert f.version is None
 
     def test_raises_on_bad_funcs(self):
@@ -749,7 +756,8 @@ class TestFlowTimeouts:
         await anyio.sleep(1)
 
         assert not canary_file.exists()
-        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
+        tolerance = 1.5 if sys.platform != "win32" else 1.9  # windows is slow
+        assert t1 - t0 < tolerance, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """

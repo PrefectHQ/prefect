@@ -4,6 +4,7 @@ Internal utilities for tests.
 import sys
 import warnings
 from contextlib import ExitStack, contextmanager
+from pathlib import Path
 from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
@@ -102,13 +103,14 @@ def prefect_test_harness():
             # temporarily override any database interface components
             stack.enter_context(temporary_database_interface())
 
+            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "orion.db")
             stack.enter_context(
                 prefect.settings.temporary_settings(
                     # Clear the PREFECT_API_URL
                     restore_defaults={prefect.settings.PREFECT_API_URL},
                     # Use a temporary directory for the database
                     updates={
-                        prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL: f"sqlite+aiosqlite:////{temp_dir}/orion.db"
+                        prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL: DB_PATH
                     },
                 )
             )
