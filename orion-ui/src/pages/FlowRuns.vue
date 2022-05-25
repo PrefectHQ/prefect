@@ -9,9 +9,7 @@
     <div>
       Flow Run History
     </div>
-    <div v-for="run in flowRunHistory" :key="run.id">
-      {{ run }}
-    </div>
+    <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
 
     <div>
       Flow Run List
@@ -21,7 +19,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowRunList } from '@prefecthq/orion-design'
+  import { FlowRunList, FlowRunsScatterPlot } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
