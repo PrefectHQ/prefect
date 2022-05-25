@@ -1,5 +1,6 @@
 import time
 from enum import Enum
+import json
 from typing import Any, Dict, List, Optional, Union
 
 import six
@@ -1073,7 +1074,7 @@ class DatabricksSubmitMultitaskRun(Task):
                 timeout_seconds=timeout_seconds,
                 idempotency_token=idempotency_token,
                 access_control_list=[
-                    entry.json() for entry in access_control_list or []
+                    json.loads(entry.json()) for entry in access_control_list or []
                 ],
             )
         )
