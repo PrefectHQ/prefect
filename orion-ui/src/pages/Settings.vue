@@ -4,14 +4,13 @@
       Settings
     </template>
 
-    <template #content>
-      <SettingsCodeBlock :engine-settings="engineSettings" />
 
-      <div>Version</div>
-      <div>
-        {{ version }}
-      </div>
-    </template>
+    <SettingsCodeBlock class="settings--code-block" :engine-settings="engineSettings" />
+
+    <div>Version</div>
+    <div>
+      {{ version }}
+    </div>
   </p-layout-default>
 </template>
 
@@ -23,7 +22,4 @@
   const version = await adminApi.getVersion()
 </script>
 
-<style>
-.settings {}
-</style>
 
