@@ -1252,27 +1252,19 @@ class TestClientWorkQueues:
         assert {o.id for o in output} == {r.id for r in runs}
 
 
-async def test_create_then_delete_flow_run(orion_client):
-    @flow
-    def foo():
-        """
-        Sleep long enough to have time to be seen, then deleted
-        """
-        time.sleep(15)
+async def test_delete_flow_run(orion_client, flow_run):
+    # Note - the flow_run provided by the fixture is not of type `schemas.core.Flow`
+    print(f"Type: {type(flow_run)}")
 
-    # Create flow run and make sure it is actually running
-    flow_run = await orion_client.create_flow_run(
-        foo, name="flow-run-to-delete", flow_runner=UniversalFlowRunner()
-    )
-    assert isinstance(flow_run, schemas.core.FlowRun)
+    # Make sure our flow exists (the read flow is of type `s.c.Flow`)
     lookup = await orion_client.read_flow_run(flow_run.id)
-    assert isinstance(lookup, schemas.core.FlowRun)
+    assert isinstance(lookup, schemas.core.Flow)
 
-    # Delete flow and make sure it's deleted
+    # Check delete works
     await orion_client.delete_flow_run(flow_run.id)
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_flow_run(flow_run.id)
 
-    # Check that a trying to delete the deleted flow run raises an error
+    # Check that trying to delete the deleted flow run raises an error
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.delete_flow_run(flow_run.id)
