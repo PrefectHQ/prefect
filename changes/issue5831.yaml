@@ -2,4 +2,4 @@ fix:
   - "Instantiate Task kwargs during DbtCloudRunTask __init__ - [#5831](https://github.com/PrefectHQ/prefect/pull/5831)"
 
 contributor:
-  - "[zzstoatzz](https://github.com/zzstoatzz)"
+  - "[Nate Nowack](https://github.com/zzstoatzz)"
