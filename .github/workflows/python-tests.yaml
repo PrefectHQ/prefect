@@ -75,7 +75,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.docker-images }}
+        if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v2
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -95,7 +95,7 @@ jobs:
           mv requirements-dev-lower.txt requirements-dev.txt
 
       - name: Build test images
-        if: ${{ matrix.docker-images }}
+        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v3
         with:
           context: .
