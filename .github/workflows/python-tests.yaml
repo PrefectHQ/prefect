@@ -62,8 +62,8 @@ jobs:
             build-docker-images: true
 
           # Run Windows tests on 3.9
-          - os: "windows-latest"
-            python-version: "3.9"
+          - python-version: "3.9"
+            os: "windows-latest"
 
       fail-fast: false
 
