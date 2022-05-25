@@ -1,8 +1,35 @@
 <template>
-  <p-layout-default class="flow-run">
+  <p-layout-well class="flow-run">
     <template #header>
       Flow run {{ flowRunId }}
     </template>
+
+    <p-tabs :tabs="tabs">
+      <template #logs>
+        <div>
+          Logs
+        </div>
+        <div v-for="log in logs" :key="log.id">
+          {{ logs }}
+        </div>
+        <PButton @click="nextLogsPage">
+          Next log
+        </PButton>
+      </template>
+      <template #task-runs>
+        <div>Task Runs</div>
+        <TaskRunsSort v-model="selectedTaskRunSortOption" />
+        <div v-for="taskRun in taskRuns" :key="taskRun.id">
+          {{ taskRun }}
+        </div>
+        <PButton @click="nextRunPage">
+          Next run
+        </PButton>
+      </template>
+      <template #sub-flow-runs>
+        <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
+      </template>
+    </p-tabs>
 
     <div>
       {{ flowRunDetails }}
@@ -22,27 +49,6 @@
       {{ flowRunDeployment }}
     </div>
 
-    <div>
-      Logs
-    </div>
-
-    <div v-for="log in logs" :key="log.id">
-      {{ logs }}
-    </div>
-
-    <PButton @click="nextLogsPage">
-      Next log
-    </PButton>
-
-    <div>Task Runs</div>
-
-    <TaskRunsSort v-model="selectedTaskRunSortOption" />
-    <div v-for="taskRun in taskRuns" :key="taskRun.id">
-      {{ taskRun }}
-    </div>
-    <PButton @click="nextRunPage">
-      Next run
-    </PButton>
 
     <div>
       Flow Run Graph
@@ -57,36 +63,37 @@
     </div>
 
     <div>
-      {{ subFlowRuns }}
+      {{ subFlowRunTasks }}
     </div>
-  </p-layout-default>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-  import { computed, ref } from 'vue'
+  import { computed, ref, watch } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
+  const tabs = ['Logs', 'Task Runs', 'Sub Flow Runs']
+
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
-  const longIntervalOptions: SubscriptionOptions = { interval:  50000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRunDetails = computed(()=> flowRunDetailsSubscription.response)
 
   const flowRunFlowId = computed(()=> flowRunDetails.value?.flowId)
-  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], longIntervalOptions) : null)
+  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], options) : null)
   const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
 
   const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
-  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], longIntervalOptions) : null)
+  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], options) : null)
   const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
 
   const flowRunGraphSubscription = useSubscription(flowRunsApi.getFlowRunsGraph, [flowRunId], options)
@@ -141,26 +148,50 @@
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
   const taskRuns = computed<TaskRun[]>(() => subscription.response ?? [])
+
   // for demo only!
   const nextRunPage = (): void => {
     taskRunsOffset.value +=logsLimit.value
   }
 
-  const subFlowRunsFilter = computed<UnionFilters>(() => {
-    const value: UnionFilters = {
-      sort: 'EXPECTED_START_TIME_DESC',
-      flow_runs: {
-        id: { any_: [flowRunId.value] },
+  const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
+    sort: 'EXPECTED_START_TIME_DESC',
+    flow_runs: {
+      id: {
+        any_: [flowRunId.value],
       },
-      task_runs: {
-        subflow_runs: { exists_: true },
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: true,
       },
-    }
+    },
+  }))
 
-    return value
-  })
+  const subFlowRunTasksSubscription = useUnionFiltersSubscription(taskRunsApi.getTaskRuns, [subFlowRunTasksFilter])
+  const subFlowRunTasks = computed(()=> subFlowRunTasksSubscription.response ?? [])
+  const subFlowRunTaskIds = computed(() => subFlowRunTasks.value.map(({ id }) => id))
 
-  const subFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [subFlowRunsFilter])
-  const subFlowRuns = computed(()=> subFlowRunsSubscription.response ?? '')
+  const subFlowRunsFilter = computed<UnionFilters>(() => ({
+    sort: 'EXPECTED_START_TIME_DESC',
+    flow_runs: {
+      id: {
+        any_: subFlowRunTaskIds.value,
+      },
+    },
+  }))
+
+  const subFlowRunsSubscription = useUnionFiltersSubscription(flowRunsApi.getFlowRuns, [subFlowRunsFilter])
+  const subFlowRuns = computed(() => subFlowRunsSubscription.response ?? [])
+  const selectedSubFlowRuns = ref([])
+
+  function loadMoreSubFlowRuns(): void {
+    const unwatch = watch(subFlowRunTaskIds, () => {
+      subFlowRunsSubscription.loadMore()
+      unwatch()
+    })
+
+    subFlowRunTasksSubscription.loadMore()
+  }
 </script>
 

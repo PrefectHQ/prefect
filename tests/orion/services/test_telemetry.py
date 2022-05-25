@@ -1,4 +1,6 @@
-import ast
+import json
+import platform
+import sys
 
 import pytest
 import respx
@@ -28,18 +30,23 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     assert sens_o_matic_mock.call_count == 1
 
     request = sens_o_matic_mock.calls[0].request
-    request.headers["x-prefect-event"] == "prefect_server"
+    assert request.headers["x-prefect-event"] == "prefect_server"
 
-    request_content = ast.literal_eval(request.content.decode("utf-8"))
-    request_content["type"] == "orion_heartbeat"
-    request_content["source"] == "prefect_server"
-    request_content["source"] == "prefect_server"
+    heartbeat = json.loads(request.content.decode("utf-8"))
+    assert heartbeat["type"] == "orion_heartbeat"
+    assert heartbeat["source"] == "prefect_server"
 
-    request_payload = request_content["payload"]
-    request_payload["api_version"] == ORION_API_VERSION
-    request_payload["prefect_version"] == prefect.__version__
-    request_payload["session_id"] == telemetry.session_id
-    request_payload["session_start_timestamp"] == telemetry.session_start_timestamp
+    payload = heartbeat["payload"]
+    assert payload["platform"] == platform.system()
+    assert payload["architecture"] == platform.machine()
+    assert payload["python_version"] == platform.python_version()
+    assert payload["python_implementation"] == platform.python_implementation()
+
+    assert payload["api_version"] == ORION_API_VERSION
+    assert payload["prefect_version"] == prefect.__version__
+
+    assert payload["session_id"] == telemetry.session_id
+    assert payload["session_start_timestamp"] == telemetry.session_start_timestamp
 
 
 async def test_sets_and_fetches_session_information(sens_o_matic_mock):
