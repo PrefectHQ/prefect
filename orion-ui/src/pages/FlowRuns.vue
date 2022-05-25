@@ -6,6 +6,12 @@
       </div>
     </template>
 
+    <div class="grid gap-1 grid-cols-3">
+      <FlowCombobox v-model:selected="flows" empty-message="All flows" />
+      <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
+      <StateSelect v-model:selected="states" empty-message="All run states" />
+    </div>
+
     <div>
       Flow Run History
     </div>
@@ -19,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowRunList, FlowRunsScatterPlot } from '@prefecthq/orion-design'
+  import { FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -36,4 +42,8 @@
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
   const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
   const selectedFlowRuns = ref([])
+
+  const states = ref<StateType[]>([])
+  const deployments = ref<string[]>([])
+  const flows = ref<string[]>([])
 </script>
