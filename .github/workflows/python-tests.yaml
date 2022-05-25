@@ -64,6 +64,8 @@ jobs:
           # Run Windows tests on 3.9
           - os: "windows-latest"
             python-version: "3.9"
+            # Do not run service tests on windows
+            pytest-options: "--exclude-services"
 
       fail-fast: false
 
