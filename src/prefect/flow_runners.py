@@ -66,7 +66,7 @@ FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 # The flow runner should be able to run containers with this version or newer.
 # Containers with versions of prefect before this version are not expected to run
 # correctly.
-MIN_COMPAT_PREFECT_VERSION = "2.0a13"
+MIN_COMPAT_PREFECT_VERSION = "2.0b6"
 
 
 def python_version_minor() -> str:
@@ -264,6 +264,11 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         self.logger.debug(f"Using command: {' '.join(command)}")
 
+        # passing a string to open_process is equivalent to shell=True
+        # which is generally necessary for Unix-like commands on Windows
+        # but otherwise should be avoided
+        if isinstance(command, list) and sys.platform == "win32":
+            command = " ".join(command)
         process_context = await anyio.open_process(
             command,
             stderr=subprocess.STDOUT,
