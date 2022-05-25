@@ -1,7 +1,7 @@
 <template>
   <div class="settings-block">
     <PCode multiline>
-      <div v-for="(section, index) in settingSections" :key="index">
+      <div v-for="(section, index) in settingSections" :key="index" class="settings-block--code-line">
         {{ section[0] }}: {{ section[1] }}
       </div>
     </PCode>
@@ -16,10 +16,11 @@
   const props = defineProps<{
     engineSettings: OrionSettings,
   }>()
-
   const settingSections = computed(() => Object.entries(props.engineSettings))
 </script>
 
 <style>
-.settings-block {}
+.settings-block--code-line {
+  @apply whitespace-pre-wrap;
+}
 </style>
