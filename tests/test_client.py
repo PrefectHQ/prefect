@@ -19,7 +19,6 @@ import prefect.context
 import prefect.exceptions
 from prefect import flow
 from prefect.client import OrionClient, PrefectHttpxClient, get_client
-from prefect.exceptions import ObjectNotFound
 from prefect.flow_runners import UniversalFlowRunner
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
@@ -1270,10 +1269,10 @@ async def test_create_then_delete_flow_run(orion_client):
     assert isinstance(lookup, schemas.core.FlowRun)
 
     # Delete flow and make sure it's deleted
-    await orion_client.delete_flow_run_by_id(flow_run.id)
-    with pytest.raises(HTTPStatusError, match="404"):
+    await orion_client.delete_flow_run(flow_run.id)
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_flow_run(flow_run.id)
 
     # Check that a trying to delete the deleted flow run raises an error
-    with pytest.raises(ObjectNotFound):
-        await orion_client.delete_flow_run_by_id(flow_run.id)
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await orion_client.delete_flow_run(flow_run.id)
