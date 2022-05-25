@@ -47,15 +47,13 @@ jobs:
         os:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
-        test-options:
-          - ""
 
         include:
           # Add service test runs to the matrix
           # Parallelize tests by scope to reduce expensive service fixture duplication
           - test-options: "--only-services --dist loadscope"
             # Docker image builds are required for service tests
-            docker-images: true
+            build-docker-images: true
 
           # Run 3.7 tests with lower bound pins
           - python-version: "3.7"
@@ -110,7 +108,7 @@ jobs:
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Test Docker image
-        if: ${{ matrix.docker-images }}
+        if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
