@@ -47,6 +47,8 @@ jobs:
         os:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
+        test-options:
+          - ""
 
         include:
           # Add service test runs to the matrix
