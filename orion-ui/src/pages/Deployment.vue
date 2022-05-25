@@ -2,20 +2,29 @@
   <p-layout-default class="deployment">
     <template #header>
       Deployment {{ deploymentId }}
-    </template>
-    <div>
-      Deployment Details
-    </div>
-    <div>
-      {{ deploymentDetails }}
-    </div>
 
-    <div>
-      Deployment Flows
-    </div>
-    <div v-for="flow in deploymentFlows" :key="flow.id">
-      {{ flow }}
-    </div>
+      <p-tabs :tabs="deploymentTabs">
+        <template #overview>
+          <div>
+            Deployment Details
+          </div>
+          <div>
+            {{ deploymentDetails }}
+          </div>
+
+          <div>
+            Deployment Flows
+          </div>
+          <div v-for="flow in deploymentFlows" :key="flow.id">
+            {{ flow }}
+          </div>
+        </template>
+
+        <template #parameters>
+          {{ deploymentDetails?.parameters }}
+        </template>
+      </p-tabs>
+    </template>
   </p-layout-default>
 </template>
 
@@ -26,13 +35,13 @@
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowsApi } from '@/services/flowsApi'
 
-
+  const deploymentTabs = ['Overview', ' Parameters']
   const deploymentId = useRouteParam('id')
   const subscriptionOptions = {
     interval: 300000,
   }
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
-  const deploymentDetails = computed(() => deploymentSubscription.response ?? [])
+  const deploymentDetails = computed(() => deploymentSubscription.response)
 
   const deploymentFlowFilter = computed<UnionFilters>(() => ({
     deployments: {

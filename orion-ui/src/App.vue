@@ -22,7 +22,9 @@
     flowsRouteKey,
     deploymentsRouteKey,
     queuesRouteKey,
-    settingsRouteKey
+    settingsRouteKey,
+    flowRunRouteKey,
+    flowRouteKey
   } from '@prefecthq/orion-design'
   import { provide } from 'vue'
   import { routes } from '@/router/routes'
@@ -48,11 +50,12 @@
   provide(deploymentsRouteKey, routes.deployments)
   provide(queuesRouteKey, routes.queues)
   provide(settingsRouteKey, routes.settings)
+  provide(flowRunRouteKey, routes.flowRun)
+  provide(flowRouteKey, routes.flow)
 </script>
 
-<style lang="scss">
+<style>
 .app { @apply
-  bg-slate-200
   text-slate-900;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
