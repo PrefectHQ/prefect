@@ -50,7 +50,7 @@ def pytest_addoption(parser):
         help="Exclude all tests except service integration tests for SERVICE.",
     )
     parser.addoption(
-        "--not-service",
+        "--exclude-service",
         action="append",
         metavar="SERVICE",
         default=[],
@@ -60,19 +60,19 @@ def pytest_addoption(parser):
         "--all-services",
         action="store_true",
         default=False,
-        help="Include all service integration tests",
+        help="Include all service integration tests in addition to the normal tests.",
     )
     parser.addoption(
         "--only-services",
         action="store_true",
         default=False,
-        help="Exclude all tests except service integration tests",
+        help="Exclude all tests except service integration tests.",
     )
 
 
 def skip_exclude_services(services: Set[str], items):
     """
-    Utility to skip service tests that are excluded by `--not-service`.
+    Utility to skip service tests that are excluded by `--exclude-service`.
 
     For use with `--all-services` and `--only-services` which would otherwise run tests
     for all services.
@@ -94,10 +94,10 @@ def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
     """
-    not_services = set(config.getoption("--not-service"))
+    exclude_services = set(config.getoption("--exclude-service"))
 
     if config.getoption("--all-services"):
-        skip_exclude_services(not_services, items)
+        skip_exclude_services(exclude_services, items)
 
         if config.getoption("--only-service") or config.getoption("--only-services"):
             warnings.warn(
@@ -113,7 +113,7 @@ def pytest_collection_modifyitems(session, config, items):
             if not item_services:
                 item.add_marker(pytest.mark.skip("Only running tests for services."))
 
-        skip_exclude_services(not_services, items)
+        skip_exclude_services(exclude_services, items)
 
         if config.getoption("--service"):
             warnings.warn(
