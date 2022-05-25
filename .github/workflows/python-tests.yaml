@@ -49,9 +49,9 @@ jobs:
           - ubuntu-latest
         test-options:
           - ""
-          - "--only-services"
 
         include:
+          # Add service test runs to the matrix
           # Parallelize tests by scope to reduce expensive service fixture duplication
           - test-options: "--only-services --dist loadscope"
             # Docker image builds are required for service tests
