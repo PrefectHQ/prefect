@@ -22,7 +22,9 @@
     flowsRouteKey,
     deploymentsRouteKey,
     queuesRouteKey,
-    settingsRouteKey
+    settingsRouteKey,
+    flowRunRouteKey,
+    flowRouteKey
   } from '@prefecthq/orion-design'
   import { provide } from 'vue'
   import { routes } from '@/router/routes'
@@ -48,6 +50,8 @@
   provide(deploymentsRouteKey, routes.deployments)
   provide(queuesRouteKey, routes.queues)
   provide(settingsRouteKey, routes.settings)
+  provide(flowRunRouteKey, routes.flowRun)
+  provide(flowRouteKey, routes.flow)
 </script>
 
 <style>

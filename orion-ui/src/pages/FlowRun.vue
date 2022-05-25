@@ -6,7 +6,7 @@
 
     <p-tabs :tabs="tabs">
       <template #sub-flow-runs>
-        <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
+        <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled />
       </template>
     </p-tabs>
 
@@ -82,29 +82,16 @@
 
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
-  const subscriptionOptions: SubscriptionOptions = { interval:  50000 }
-
-  const flowRunFilter = computed<UnionFilters>(() => ({
-    flow_runs: {
-      id: {
-        any_: [flowRunId.value],
-      },
-    },
-  }))
-
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowRunFilter], subscriptionOptions)
-  const flowRuns = computed(()=> flowRunsSubscription.response ?? [])
-  const selectedFlowRuns = ref([])
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRunDetails = computed(()=> flowRunDetailsSubscription.response)
 
   const flowRunFlowId = computed(()=> flowRunDetails.value?.flowId)
-  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], subscriptionOptions) : null)
+  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], options) : null)
   const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
 
   const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
-  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], subscriptionOptions) : null)
+  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], options) : null)
   const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
 
   const flowRunGraphSubscription = useSubscription(flowRunsApi.getFlowRunsGraph, [flowRunId], options)
@@ -163,21 +150,22 @@
     taskRunsOffset.value +=logsLimit.value
   }
 
-  const subFlowRunsFilter = computed<UnionFilters>(() => {
-    const value: UnionFilters = {
-      sort: 'EXPECTED_START_TIME_DESC',
-      flow_runs: {
-        id: { any_: [flowRunId.value] },
+  const subFlowRunsFilter = computed<UnionFilters>(() => ({
+    sort: 'EXPECTED_START_TIME_DESC',
+    flow_runs: {
+      id: {
+        any_: [flowRunId.value],
       },
-      task_runs: {
-        subflow_runs: { exists_: true },
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: true,
       },
-    }
-
-    return value
-  })
+    },
+  }))
 
   const subFlowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [subFlowRunsFilter])
-  const subFlowRuns = computed(()=> subFlowRunsSubscription.response ?? '')
+  const subFlowRuns = computed(()=> subFlowRunsSubscription.response ?? [])
+  const selectedSubFlowRuns = ref([])
 </script>
 
