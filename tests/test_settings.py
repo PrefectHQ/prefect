@@ -446,6 +446,16 @@ class TestProfile:
         with pytest.raises(pydantic.ValidationError):
             profile.validate_settings()
 
+    def test_validate_settings_ignores_environment_variables(self, monkeypatch):
+        """
+        If using `context.use_profile` to validate settings, environment variables may
+        override the setting and hide validation errors
+        """
+        monkeypatch.setenv("PREFECT_ORION_API_PORT", "1234")
+        profile = Profile(name="test", settings={PREFECT_ORION_API_PORT: "foo"})
+        with pytest.raises(pydantic.ValidationError):
+            profile.validate_settings()
+
 
 class TestProfilesCollection:
     def test_init_stores_single_profile(self):
