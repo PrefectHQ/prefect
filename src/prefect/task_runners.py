@@ -80,8 +80,7 @@ from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.asyncio import A
-from prefect.utilities.collections import visit_collection
-from prefect.utilities.enum import AutoEnum, auto
+from prefect.utilities.collections import AutoEnum, visit_collection
 from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object
 
@@ -90,9 +89,9 @@ R = TypeVar("R")
 
 
 class TaskConcurrencyType(AutoEnum):
-    SEQUENTIAL = auto()
-    CONCURRENT = auto()
-    PARALLEL = auto()
+    SEQUENTIAL = AutoEnum.auto()
+    CONCURRENT = AutoEnum.auto()
+    PARALLEL = AutoEnum.auto()
 
 
 class BaseTaskRunner(metaclass=abc.ABCMeta):
