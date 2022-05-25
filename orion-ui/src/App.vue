@@ -20,10 +20,10 @@
     ContextSidebar,
     flowRunsRouteKey,
     flowsRouteKey,
-    flowRunRouteKey,
     deploymentsRouteKey,
     queuesRouteKey,
     settingsRouteKey,
+    flowRunRouteKey,
     flowRouteKey
   } from '@prefecthq/orion-design'
   import { provide } from 'vue'
@@ -54,7 +54,7 @@
   provide(flowRouteKey, routes.flow)
 </script>
 
-<style lang="scss">
+<style>
 .app { @apply
   text-slate-900;
   display: grid;
