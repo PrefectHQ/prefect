@@ -47,8 +47,6 @@ jobs:
         os:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
-        test-options:
-          - ""
 
         include:
           # Add service test runs to the matrix
@@ -59,6 +57,11 @@ jobs:
           # Run 3.7 tests with lower bound pins
           - python-version: "3.7"
             lower-bound-requirements: true
+
+          # Debugging battle
+          - os: ubuntu-latest
+            test-options: "--only-services --service docker --dist loadscope"
+
 
       fail-fast: false
 
