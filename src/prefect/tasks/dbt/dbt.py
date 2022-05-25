@@ -50,7 +50,7 @@ class DbtShellTask(ShellTask):
         - log_stderr (bool, optional): boolean specifying whether this task
             should log the output from stderr in the case of a non-zero exit code;
             defaults to `False`
-        - **kwargs: additional keyword arguments to pass to the Task constructor
+        - **kwargs: additional keyword arguments to pass on to the Task constructor
 
     Example:
         ```python
@@ -265,7 +265,7 @@ class DbtCloudRunJob(Task):
         wait_for_job_run_completion: bool = False,
         max_wait_time: int = None,
         domain: str = "cloud.getdbt.com",
-        **kwargs: Any
+        **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self.token = token if token else os.environ.get(token_env_var_name, None)
