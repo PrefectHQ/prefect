@@ -47,6 +47,8 @@ jobs:
         os:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
+        pytest-options:
+          - ""
 
         include:
           # Run 3.7 tests with lower bound pins
@@ -54,10 +56,10 @@ jobs:
             lower-bound-requirements: true
 
           # Debugging battle
-          - os: ubuntu-latest
-            # Include `--service docker` to indicate docker images should be built in CI
-            # Parallelize tests by scope to reduce expensive service fixture duplication
-            test-options: "--only-services --service docker --dist loadscope"
+          # - os: ubuntu-latest
+          # Include `--service docker` to indicate docker images should be built in CI
+          # Parallelize tests by scope to reduce expensive service fixture duplication
+          - pytest-options: "--only-services --service docker --dist loadscope"
 
 
       fail-fast: false
@@ -76,7 +78,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ contains(matrix.test-options, '--service docker') }}
+        if: ${{ contains(matrix.pytest-options, '--service docker') }}
         uses: docker/setup-buildx-action@v2
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -96,7 +98,7 @@ jobs:
           mv requirements-dev-lower.txt requirements-dev.txt
 
       - name: Build test images
-        if: ${{ contains(matrix.test-options, '--service docker') }}
+        if: ${{ contains(matrix.pytest-options, '--service docker') }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -109,7 +111,7 @@ jobs:
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Test Docker image
-        if: ${{ contains(matrix.test-options, '--service docker') }}
+        if: ${{ contains(matrix.pytest-options, '--service docker') }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
@@ -122,7 +124,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests -vv ${{ matrix.test-options }} -n auto
+          pytest tests -vv ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
