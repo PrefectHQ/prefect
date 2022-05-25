@@ -232,6 +232,7 @@ class DbtCloudRunJob(Task):
             job to finish.
             Used only if wait_for_job_run_completion = True.
         - domain (str, optional): Custom domain for API call. Defaults to `cloud.getdbt.com`.
+        - **kwargs: additional keyword arguments to pass to the Task constructor
 
     Returns:
         - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
