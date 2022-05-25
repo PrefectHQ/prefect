@@ -17,7 +17,7 @@ def test_delete_flow_run_fails_correctly():
     )
 
 
-def test_delete_flow_run_succeeds(orion_client, flow_run):
+def test_delete_flow_run_succeeds(flow_run):
 
     flow_id_string = str(flow_run.id)
     print(f"flow run: {flow_run!r}")
