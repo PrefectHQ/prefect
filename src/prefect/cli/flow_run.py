@@ -98,9 +98,6 @@ async def ls(
 async def delete(id: UUID):
     """
     Delete a flow run by ID.
-
-    IMPORTANT: deleting a flow run does stop the
-    execution of your flow on your infrastructure.
     """
     async with get_client() as client:
         try:
