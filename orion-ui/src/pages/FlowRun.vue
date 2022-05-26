@@ -17,7 +17,8 @@
         </PButton>
       </template>
       <template #task-runs>
-        <div>Task Runs</div>
+        <div>Task Runs </div>
+        <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
         <TaskRunsSort v-model="selectedTaskRunSortOption" />
         <div v-for="taskRun in taskRuns" :key="taskRun.id">
           {{ taskRun }}
@@ -27,9 +28,14 @@
         </PButton>
       </template>
       <template #sub-flow-runs>
+        <FlowRunsSort v-model="selectedSubFlowRunSortOption" />
         <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
       </template>
     </p-tabs>
+
+    <div>
+      Flow Run Details
+    </div>
 
     <div>
       {{ flowRunDetails }}
@@ -69,9 +75,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues, FlowRunsSort, SearchInput } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
+  import { debounce } from 'lodash'
   import { computed, ref, watch } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -133,8 +140,21 @@
   const taskRunsOffset = ref<number>(0)
   const taskRunsLimit = ref<number>(10)
   const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
+  const updatedInput = ref(null)
+  const taskRunSearchInput = computed({
+    get() {
+      return updatedInput.value ?? null
+    },
+    set(value) {
+      updateInput(value)
+    },
+  })
+  const updateInput = debounce((value)=> {
+    updatedInput.value = value
+  }, 1200,
+  )
   const taskRunsFilter = computed<FlowRunsFilter>(() => {
-    return {
+    const runFilter = {
       flow_runs: {
         id: {
           any_: [flowRunId.value],
@@ -144,6 +164,14 @@
       limit: taskRunsLimit.value,
       sort: selectedTaskRunSortOption.value,
     }
+    if (taskRunSearchInput.value) {
+      runFilter.task_runs =  {
+        name: {
+          any_: [taskRunSearchInput.value],
+        },
+      }
+    }
+    return  runFilter
   })
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
   const taskRuns = computed<TaskRun[]>(() => subscription.response ?? [])
@@ -152,9 +180,9 @@
   const nextRunPage = (): void => {
     taskRunsOffset.value +=logsLimit.value
   }
-
+  const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
-    sort: 'EXPECTED_START_TIME_DESC',
+    sort: selectedSubFlowRunSortOption.value,
     flow_runs: {
       id: {
         any_: [flowRunId.value],
@@ -172,7 +200,7 @@
   const subFlowRunTaskIds = computed(() => subFlowRunTasks.value.map(({ id }) => id))
 
   const subFlowRunsFilter = computed<UnionFilters>(() => ({
-    sort: 'EXPECTED_START_TIME_DESC',
+    sort: selectedSubFlowRunSortOption.value,
     flow_runs: {
       id: {
         any_: subFlowRunTaskIds.value,
