@@ -3,6 +3,7 @@
     <template #header>
       Flows
     </template>
+    <FuzzySearch v-model="flows" />
     <div v-for="flow in flows" :key="flow.id">
       {{ flow }}
     </div>
@@ -10,8 +11,9 @@
 </template>
 
 <script lang="ts" setup>
+  import { FuzzySearch, Flow } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { flowsApi } from '@/services/flowsApi'
 
   const filter = {}
@@ -19,5 +21,13 @@
     interval: 30000,
   }
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
-  const flows = computed(() => flowsSubscription.response ?? [])
+  const filteredFlowList=ref(null)
+  const flows = computed<Flow[]>({
+    get() {
+      return filteredFlowList.value ?? flowsSubscription.response ?? []
+    },
+    set(value: Flow[] | null) {
+      filteredFlowList.value = value
+    },
+  })
 </script>
