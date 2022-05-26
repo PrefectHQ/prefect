@@ -202,13 +202,13 @@ class TestSettingAccess:
 
         # Test with a non-boolean setting
 
-        if PREFECT_LOGGING_LEVEL:
+        if PREFECT_ORION_API_HOST:
             assert True, "Treated as truth"
         else:
             assert False, "Not treated as truth"
 
-        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
-            if not PREFECT_LOGGING_LEVEL:
+        with temporary_settings(updates={PREFECT_ORION_API_HOST: ""}):
+            if not PREFECT_ORION_API_HOST:
                 assert True, "Treated as truth"
             else:
                 assert False, "Not treated as truth"
