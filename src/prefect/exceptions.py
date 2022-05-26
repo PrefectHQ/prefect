@@ -237,7 +237,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
         """
         try:
             details = httpx_error.response.json()
-        except:
+        except Exception:
             details = None
 
         error_message, *more_info = str(httpx_error).split("\n")
