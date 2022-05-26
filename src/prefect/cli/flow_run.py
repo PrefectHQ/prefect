@@ -97,7 +97,7 @@ async def ls(
 @flow_run_app.command()
 async def delete(id: UUID):
     """
-    Delete a flow run by UUID.
+    Delete a flow run by ID.
 
     IMPORTANT: deleting a flow run does stop the
     execution of your flow on your infrastructure.
