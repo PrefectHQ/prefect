@@ -1684,10 +1684,12 @@ class TestKubernetesFlowRunner:
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
         extra_container_config = {"foo": "bar"}
         extra_pod_config = {"imagePullSecrets": [{"name": "bar"}]}
+        extra_job_config = {"activeDeadlineSeconds": 100}
 
         await KubernetesFlowRunner(
             extra_container_config=extra_container_config,
             extra_pod_config=extra_pod_config,
+            extra_job_config=extra_job_config,
         ).submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         spec = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"][
@@ -1698,6 +1700,9 @@ class TestKubernetesFlowRunner:
         assert container["foo"] == "bar"
 
         assert spec["imagePullSecrets"] == [{"name": "bar"}]
+
+        job_spec = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["spec"]
+        assert job_spec.get("activeDeadlineSeconds", 0) == 100
 
     async def test_default_env_includes_base_flow_run_environment(
         self,
