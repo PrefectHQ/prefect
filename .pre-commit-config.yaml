@@ -10,3 +10,9 @@ repos:
       - id: black
         language_version: python3
         additional_dependencies: ["click<8.1.0"]
+  - repo: https://github.com/pycqa/autoflake
+    rev: v1.4
+    hooks:
+      - id: autoflake
+        language_version: python3
+        args: ['--in-place', '--remove-all-unused-imports', '--ignore-init-module-imports']
