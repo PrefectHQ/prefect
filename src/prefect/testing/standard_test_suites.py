@@ -12,12 +12,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-from prefect.task_runners import (
-    BaseTaskRunner,
-    ConcurrentTaskRunner,
-    RayTaskRunner,
-    TaskConcurrencyType,
-)
+from prefect.task_runners import BaseTaskRunner, TaskConcurrencyType
 from prefect.testing.utilities import exceptions_equal
 
 
@@ -401,13 +396,6 @@ class TaskRunnerStandardTestSuite(ABC):
         if sys.platform != "darwin":
             # CI machines are slow
             sleep_time += 1.5
-
-        if isinstance(self.task_runner, RayTaskRunner):
-            # Ray is slow
-            sleep_time += 1.5
-        elif isinstance(self.task_runner, ConcurrentTaskRunner):
-            # Account for thread overhead
-            sleep_time += 1
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
