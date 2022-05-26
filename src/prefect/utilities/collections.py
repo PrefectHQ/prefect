@@ -219,10 +219,22 @@ async def visit_collection(
     expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
 ):
     """
-    This function visits every element of an arbitrary Python collection and
-    applies `visit_fn` to each element. If `return_data=True`, a copy of the
-    data structure containing the results of `visit_fn` is returned. Note that
-    `return_data=True` may be slower due to the need to copy every object.
+    This function visits every element of an arbitrary Python collection. If an element
+    is a Python collection, it will be visited recursively. If an element is not a
+    collection, `visit_fn` will be called with the element. The return value of
+    `visit_fn` can be used to alter the element if `return_data` is set.
+
+    Note that when using `return_data` a copy of each collection is created to avoid
+    mutating the original object. This may have significant performance penalities and
+    should only be used if you intend to transform the collection.
+
+    Supported types:
+    - List
+    - Tuple
+    - Set
+    - Dict (note: keys are also visited recursively)
+    - Dataclass
+    - Pydantic model
 
     Args:
         expr (Any): a Python object or expression

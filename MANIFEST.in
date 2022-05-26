@@ -12,6 +12,7 @@ include versioneer.py
 include requirements.txt
 include requirements-dev.txt
 include src/prefect/_version.py
+include src/prefect/py.typed
 include src/prefect/profiles.toml
 include src/prefect/logging/logging.yml
 include src/prefect/cli/templates/*.yaml
