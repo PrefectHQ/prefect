@@ -37,7 +37,9 @@
 
     <div>
       <span class="queue-label">Tags</span>
-      <p-tag-wrapper :tags="workQueueDetails?.filter.tags" />
+      <p-tag v-for="tag in workQueueDetails?.filter.tags" :key="tag">
+        {{ tag }}
+      </p-tag>
     </div>
 
     <div>
