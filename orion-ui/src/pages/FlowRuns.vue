@@ -69,7 +69,7 @@
 
   const filter = {}
   const subscriptionOptions = {
-    interval: 3000,
+    interval: 30000,
   }
 
   const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
