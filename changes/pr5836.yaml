@@ -1,0 +1,5 @@
+fix:
+  - "Revert 'use json() instead of dict() (#5728)' - [#5836](https://github.com/PrefectHQ/prefect/pull/5836)"
+
+contributor:
+  - "[Robert Phamle](https://github.com/rphamle)"
