@@ -32,6 +32,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 from uuid import UUID
@@ -42,6 +43,7 @@ import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
 from httpx import HTTPStatusError, Response
+from typing_extensions import Self
 
 import prefect
 import prefect.exceptions
@@ -221,7 +223,7 @@ class PrefectResponse(httpx.Response):
             raise PrefectHTTPStatusError.from_httpx_error(exc) from None
 
     @classmethod
-    def from_httpx_response(cls, response: httpx.Response) -> "PrefectResponse":
+    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Self:
         """
         Create a `PrefectReponse` from an `httpx.Response`.
 
