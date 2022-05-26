@@ -15,16 +15,17 @@
       Flow Run List
     </div>
     <div class="flow-runs--sort-search">
+      <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
       <FlowRunsSort v-model="selectedSortOption" />
     </div>
-
     <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot } from '@prefecthq/orion-design'
+  import { UnionFilters, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, SearchInput } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
+  import { debounce } from 'lodash'
   import { computed, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { UiApi } from '@/services/uiApi'
@@ -32,15 +33,39 @@
 
   const flowRunsOffset = ref<number>(0)
   const flowRunsLimit = ref<number>(100)
+  const updatedInput = ref(null)
+  const flowRunSearchInput = computed({
+    get() {
+      return updatedInput.value ?? null
+    },
+    set(value) {
+      updateInput(value)
+    },
+  })
+
+  const updateInput = debounce((value)=> {
+    updatedInput.value = value
+  }, 1200,
+  )
+
   const selectedSortOption = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
 
   const flowRunsFilter = computed<UnionFilters>(() => {
-    return {
+    const runFilter = {
       offset: flowRunsOffset.value,
       limit: flowRunsLimit.value,
       sort: selectedSortOption.value,
     }
+    if (flowRunSearchInput.value) {
+      runFilter.flow_runs =  {
+        name: {
+          any_: [flowRunSearchInput.value],
+        },
+      }
+    }
+    return  runFilter
   })
+
 
   const filter = {}
   const subscriptionOptions = {
@@ -57,6 +82,6 @@
 
 <style>
 .flow-runs--sort-search {
-  @apply flex justify-end
+  @apply flex justify-end gap-x-2
 }
 </style>
