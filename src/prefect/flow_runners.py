@@ -789,7 +789,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         restart_policy: The Kubernetes restart policy to use for jobs.
         stream_output: If set, stream output from the container to local standard output.
         extra_container_config: if set, will apply (mapped values) to template for all job containers.
-        extra_pod_config: if set, will apply (mapped values) to spec for job.
+        extra_pod_config: if set, will apply (mapped values) to pod spec for job.
+        extra_job_config: if set, will apply (mapped values) to spec for job.
     """
 
     typename: Literal["kubernetes"] = "kubernetes"
@@ -803,6 +804,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     stream_output: bool = True
     extra_container_config: Optional[Dict[str, Any]] = None
     extra_pod_config: Optional[Dict[str, Any]] = None
+    extra_job_config: Optional[Dict[str, Any]] = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -1017,6 +1019,10 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         extra_container_config = self.extra_container_config or {}
         extra_pod_config = self.extra_pod_config or {}
+        extra_job_config = self.extra_job_config or {}
+
+        for key, value in extra_job_config.items():
+            job_settings["spec"][key] = value
 
         for key, value in extra_container_config.items():
             job_settings["spec"]["template"]["spec"]["containers"][0][key] = value
