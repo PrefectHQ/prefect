@@ -13,39 +13,77 @@ tags:
 
 # Deployments
 
-A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. 
+A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
 
-Deployments are uniquely identified by the combination of flow_name/deployment_name. Each deployment is associated with a single flow. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
+Each deployment is associated with a single flow &mdash; though that flow could, in turn, call other tasks or subflows. Deployments are uniquely identified by the combination of flow_name/deployment_name. 
 
 For detailed information about deployment objects, see the [prefect.deployments](/api-ref/prefect/deployments/) API documentation.
 
 ## Deployments overview
 
-All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked. Deployments are, however, necessary for scheduling flow runs.
+All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked. 
 
-Deployments persist your flow to a location or tell the server &mdash; either Prefect Cloud or a local Prefect API server &mdash; about the location to which a flow has been persisted so the server can schedule and execute flow runs for you. 
+Deployments are, however, necessary for scheduling flow runs.
 
-At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, UI, or the API.
+Deployments persist your flow code to a [storage](/concepts/storage/) location and tell the server &mdash; either Prefect Cloud or a local Prefect API server &mdash; about the location to which a flow has been persisted so the server can schedule and execute flow runs for you, along with any details about the execution environment, parameters, and tags that should be used to create a flow run from the deployment. 
 
-More specifically:
+At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
-- A _deployment_ is the object stored by the API after you register a _deployment specification_. 
-- A [deployment specification](#deployment-specifications) includes the settings that will be used to create the deployment. 
-- Running a deployment creates a flow run using the settings defined in the deployment object.
+The elements used to create deployments and run a flow from a deployment go together like this:
 
-For example, in the Prefect database, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
+```mermaid
+graph LR
+    F(Flow Code):::yellow -.-> A(DeploymentSpec):::gold
+    subgraph Server [<br>Prefect Server<br>Prefect Cloud]
+    D(Deployment):::green
+    end
+    subgraph Storage
+    B(Flow):::gray
+    end
+    A --> D
+    D --> E(Flow Runner):::red
+    B -.-> E
+    D -.-> B
+    E --> G(Flow Run):::blue
 
-- A pointer to a file that contains the flow
-- The literal text of the flow code
-- A pickled version of the flow
+    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px
+    classDef yellow fill:gold,stroke:gold,stroke-width:4px
+    classDef gray fill:lightgray,stroke:lightgray,stroke-width:4px
+    classDef blue fill:blue,stroke:blue,stroke-width:4px,color:white
+    classDef green fill:green,stroke:green,stroke-width:4px,color:white
+    classDef red fill:red,stroke:red,stroke-width:4px,color:white
+    classDef dkgray fill:darkgray,stroke:darkgray,stroke-width:4px,color:white
+```
 
-With a deployment specification, you just provide the path to the flow script. When you create a deployment based on the deployment specification, client-side utilities take care of constructing the deployment for you, including additional details such as the `flow_data` document. 
+- Generally, you start with the a flow &mdash; the flow and task code that will execute your workflow.
+- A [deployment specification](#deployment-specifications) includes the settings that will be used to create a deployment based on that flow code. 
+- Using the deployment specification &mdash; the `DeploymentSpec` in the image above &mdash; you create a deployment object in the Prefect database via the API. 
+- When creating or updating the deployment, your flow code is persisted to a [storage](/concepts/storage/) location &mdash; either the default storage for the API server or a storage location specified in your deployment specification.  
+- When you run a deployment Prefect creates an appropriate [flow runner](/concepts/flow-runners/) instance via a [work queue and agent](/concepts/work-queues/) (not shown here). 
+- The flow runner stands up any necessary execution environment for your flow run (based on settings in your deployment), retrieves the flow code from storage, and executes your flow run.
+
+This is just a broad-strokes overview of creating a deployment for a flow and executing the flow based on the deployment. The following sections provide more detail on defining deployment specifications and creating deployments.
 
 ### Deployments and flows
 
 Each deployment is associated with a single flow, but any given flow can have multiple deployments. 
 
-This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and promotion purposes.
+```mermaid
+graph LR
+    F(Flow Code):::yellow -.-> A(DeploymentSpec A):::tan --> X(Deployment A):::fgreen
+    F -.-> B(DeploymentSpec B):::gold  --> Y(Deployment B):::green
+    F -.-> C(DeploymentSpec C):::dgold --> Z(Deployment C):::dgreen
+
+    classDef gold fill:goldenrod,stroke:goldenrod,stroke-width:4px,color:white
+    classDef yellow fill:gold,stroke:gold,stroke-width:4px
+    classDef dgold fill:darkgoldenrod,stroke:darkgoldenrod,stroke-width:4px,color:white
+    classDef tan fill:tan,stroke:tan,stroke-width:4px,color:white
+    classDef fgreen fill:forestgreen,stroke:forestgreen,stroke-width:4px,color:white
+    classDef green fill:green,stroke:green,stroke-width:4px,color:white
+    classDef dgreen fill:darkgreen,stroke:darkgreen,stroke-width:4px,color:white
+```
+
+This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and production purposes.
 
 [Flow runners](/concepts/flow-runners/) enable you to dynamically allocate infrastructure for your flow runs. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
 
@@ -62,7 +100,7 @@ DeploymentSpec(
 
 Once the deployment has been created, you'll see it in the [Prefect UI](/ui/dashboard/) and can inspect it using the CLI.
 
-![Screenshot showing deployments listed in the Orion UI.](/img/concepts/deployments.png)
+![Screenshot showing deployments listed in the Prefect UI.](/img/concepts/deployments.png)
 
 When you run a deployed flow in Orion, the following happens:
 
