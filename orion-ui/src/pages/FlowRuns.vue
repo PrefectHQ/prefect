@@ -4,9 +4,9 @@
       <PageHeadingFlowRuns />
     </template>
 
-    <div class="grid gap-3">
-      <div class="grid gap-1">
-        <div class="grid gap-1 grid-cols-2">
+    <div class="flow-runs__content">
+      <div class="flow-runs__filters">
+        <div class="flow-runs__date-filters">
           <p-label label="Start Date">
             <PDateInput v-model="startDate" />
           </p-label>
@@ -14,7 +14,7 @@
             <PDateInput v-model="endDate" />
           </p-label>
         </div>
-        <div class="grid gap-1 grid-cols-4">
+        <div class="flow-runs__meta-filters">
           <StateSelect v-model:selected="states" empty-message="All run states" />
           <FlowCombobox v-model:selected="flows" empty-message="All flows" />
           <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
@@ -24,8 +24,9 @@
 
       <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
 
-      <div class="flow-runs__list grid gap-1">
-        <div class="flow-runs--sort-search">
+      <div class="flow-runs__list">
+        <div class="flow-runs__list-controls">
+          <ResultsCount :count="flowRunCount" class="mr-auto" />
           <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
           <FlowRunsSort v-model="sort" />
         </div>
@@ -37,7 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput, ResultsCount } from '@prefecthq/orion-design'
   import { PTagsInput, PDateInput } from '@prefecthq/prefect-design'
   import { useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { addDays, endOfToday, startOfToday, subDays } from 'date-fns'
@@ -96,6 +97,9 @@
     interval: 30000,
   }
 
+  const flowRunCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [filter], subscriptionOptions)
+  const flowRunCount = computed(() => flowRunCountSubscription.response)
+
   const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
@@ -105,7 +109,30 @@
 </script>
 
 <style>
-.flow-runs--sort-search {
-  @apply flex justify-end gap-1
+.flow-runs__content { @apply
+  grid
+  gap-4
+}
+
+.flow-runs__filters,
+.flow-runs__date-filters,
+.flow-runs__meta-filters,
+.flow-runs__list { @apply
+  grid
+  gap-1
+}
+
+.flow-runs__date-filters { @apply
+  grid-cols-2
+}
+
+.flow-runs__meta-filters { @apply
+  grid-cols-4
+}
+
+.flow-runs__list-controls { @apply
+  flex
+  gap-1
+  items-center
 }
 </style>
