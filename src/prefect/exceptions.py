@@ -1,12 +1,12 @@
 """
 Prefect-specific exceptions.
 """
-import pdb
 from types import ModuleType, TracebackType
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Type
 
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
+from typing_extensions import Self
 
 import prefect
 
@@ -231,7 +231,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
     """
 
     @classmethod
-    def from_httpx_error(cls, httpx_error: HTTPStatusError) -> "PrefectHTTPStatusError":
+    def from_httpx_error(cls: Type[Self], httpx_error: HTTPStatusError) -> Self:
         """
         Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
         """
@@ -249,6 +249,6 @@ class PrefectHTTPStatusError(HTTPStatusError):
 
         new_message = "\n".join(message_components)
 
-        return PrefectHTTPStatusError(
+        return cls(
             new_message, request=httpx_error.request, response=httpx_error.response
         )
