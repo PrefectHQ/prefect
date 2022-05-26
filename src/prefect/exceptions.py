@@ -1,9 +1,11 @@
 """
 Prefect-specific exceptions.
 """
+import pdb
 from types import ModuleType, TracebackType
 from typing import Iterable, Optional
 
+from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 
 import prefect
@@ -219,3 +221,34 @@ class Abort(PrefectSignal):
     """
 
     pass
+
+
+class PrefectHTTPStatusError(HTTPStatusError):
+    """
+    Raised when client receives a `Response` that contains an HTTPStatusError.
+
+    Used to include API error details in the error messages that the client provides users.
+    """
+
+    @classmethod
+    def from_httpx_error(cls, httpx_error: HTTPStatusError) -> "PrefectHTTPStatusError":
+        """
+        Generate a `PrefectHTTPStatusError` from an `httpx.HTTPStatusError`.
+        """
+        try:
+            details = httpx_error.response.json()
+        except:
+            details = None
+
+        error_message, *more_info = str(httpx_error).split("\n")
+
+        if details:
+            message_components = [error_message, f"Details: {details}", *more_info]
+        else:
+            message_components = [error_message, *more_info]
+
+        new_message = "\n".join(message_components)
+
+        return PrefectHTTPStatusError(
+            new_message, request=httpx_error.request, response=httpx_error.response
+        )
