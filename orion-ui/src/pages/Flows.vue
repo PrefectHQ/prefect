@@ -19,10 +19,10 @@ const subscriptionOptions = {interval: 30000}
 const flowsSubscription = useSubscription(flowsApi.getFlows,[filter],subscriptionOptions)
 const flows = computed<Flow[]>(()=> flowsSubscription.response ?? [])
 const flowSearchInput = ref('')
-const filteredFlowList = computed(()=> flowFilterFunction(flows.value, flowSearchInput.value))
+const filteredFlowList = computed(()=> fuzzyFilterFunction(flows.value, flowSearchInput.value))
 
-const flowFilterFunction=(array, text) => array?.reduce<Flow[]>(
-    (previous: Flow, current: Flow): Flow[] => {
+const fuzzyFilterFunction=(array: Flow[], text: string) => array.reduce<Flow[]>(
+    (previous, current) => {
     if (current.name.toLowerCase().includes(text.toLowerCase())) {
       previous.push(current)
     }
