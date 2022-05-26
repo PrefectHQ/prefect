@@ -27,9 +27,14 @@
         </PButton>
       </template>
       <template #sub-flow-runs>
+        <FlowRunsSort v-model="selectedSubFlowRunSortOption" />
         <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
       </template>
     </p-tabs>
+
+    <div>
+      Flow Run Details
+    </div>
 
     <div>
       {{ flowRunDetails }}
@@ -69,7 +74,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues } from '@prefecthq/orion-design'
+  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues, FlowRunsSort } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
@@ -153,9 +158,9 @@
   const nextRunPage = (): void => {
     taskRunsOffset.value +=logsLimit.value
   }
-
+  const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
-    sort: 'EXPECTED_START_TIME_DESC',
+    sort: selectedSubFlowRunSortOption.value,
     flow_runs: {
       id: {
         any_: [flowRunId.value],
@@ -173,7 +178,7 @@
   const subFlowRunTaskIds = computed(() => subFlowRunTasks.value.map(({ id }) => id))
 
   const subFlowRunsFilter = computed<UnionFilters>(() => ({
-    sort: 'EXPECTED_START_TIME_DESC',
+    sort: selectedSubFlowRunSortOption.value,
     flow_runs: {
       id: {
         any_: subFlowRunTaskIds.value,
