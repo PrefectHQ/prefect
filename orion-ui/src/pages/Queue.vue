@@ -135,7 +135,7 @@
 .queue-label { @apply
   text-gray-900
   font-bold
-  mt-6
+  mt-4
 }
 
 .queue-filter-label{ @apply
