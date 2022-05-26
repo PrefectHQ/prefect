@@ -3,7 +3,7 @@
     <template #header>
       Flows
     </template>
-    <FuzzySearch v-model="flows" />
+    <FlowSearch v-model="flows" />
     <div v-for="flow in flows" :key="flow.id">
       {{ flow }}
     </div>
@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { FuzzySearch, Flow } from '@prefecthq/orion-design'
+  import { FlowSearch, Flow } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowsApi } from '@/services/flowsApi'
