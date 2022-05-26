@@ -247,8 +247,6 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     RETRY_MAX = 5
 
-    # TODO open issue on httpx to include this information
-    # in the first place
     async def send(self, *args, **kwargs) -> Response:
         retry_count = 0
         response = PrefectResponse.from_httpx_response(
