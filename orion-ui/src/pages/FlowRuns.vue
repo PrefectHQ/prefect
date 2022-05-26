@@ -39,7 +39,6 @@
       return updatedInput.value ?? null
     },
     set(value) {
-      // updatedInput.value = value
       updateInput(value)
     },
   })
@@ -70,7 +69,7 @@
 
   const filter = {}
   const subscriptionOptions = {
-    interval: 300000,
+    interval: 3000,
   }
 
   const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
