@@ -11,66 +11,19 @@
       {{ workQueueDetails }}
     </div>
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Description
-        </div>
-      </template>
+    <p-key-value label="Description" :value="workQueueDescription" />
 
-      <template #value>
-        {{ workQueueDetails?.description }}
-      </template>
-    </p-key-value>
+    <p-key-value label="Work Queue ID" :value="workQueueID" />
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Work Queue ID
-        </div>
-      </template>
+    <p-key-value label="Flow Run Concurrency" :value="workQueueFlowRunConcurrency" />
 
-      <template #value>
-        {{ workQueueDetails?.id }}
-      </template>
-    </p-key-value>
+    <p-key-value label="Created" :value="workQueueCreated" />
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Flow Run Concurrency
-        </div>
-      </template>
-
-      <template #value>
-        {{ workQueueDetails?.concurrencyLimit }}
-      </template>
-    </p-key-value>
-
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Created
-        </div>
-      </template>
-
-      <template #value>
-        {{ workQueueDetails?.created }}
-      </template>
-    </p-key-value>
-
-
-    <div class="queue-filter-label">
+    <div>
       Filters
     </div>
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Tags
-        </div>
-      </template>
-
+    <p-key-value label="Tags">
       <template #value>
         <p-tag v-for="tag in workQueueDetails?.filter.tags" :key="tag">
           {{ tag }}
@@ -78,25 +31,13 @@
       </template>
     </p-key-value>
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Deployments
-        </div>
-      </template>
-
+    <p-key-value label="Deployments">
       <template #value>
         <DeploymentsTable :deployments="workQueueDeployments" />
       </template>
     </p-key-value>
 
-    <p-key-value>
-      <template #label>
-        <div class="queue-label">
-          Flow Runners
-        </div>
-      </template>
-
+    <p-key-value label="Flow Runners">
       <template #value>
         <p-checkbox v-for="runners in workQueueDetails?.filter.flowRunnerTypes" :key="runners" v-model="flowRunners" :label="runners" />
       </template>
@@ -120,6 +61,11 @@
   const workQueueDetails = computed(() => workQueueSubscription.response)
   const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds)
 
+  const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
+  const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
+  const workQueueFlowRunConcurrency = computed(() => workQueueDetails.value?.concurrencyLimit ?? 0)
+  const workQueueCreated = computed(() => String(workQueueDetails.value?.created) ?? '')
+
   const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
     deployments: {
       id: {
@@ -128,18 +74,6 @@
     },
   }))
   const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
-  const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response)
+  const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
 </script>
 
-<style>
-.queue-label { @apply
-  text-gray-900
-  font-bold
-  mt-4
-}
-
-.queue-filter-label{ @apply
-  text-gray-500
-  mt-6
-}
-</style>
