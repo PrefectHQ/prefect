@@ -29,6 +29,6 @@ readchar >= 3.0.5
 rich >= 10.0
 sqlalchemy[asyncio] >= 1.4.20, != 1.4.33
 toml >= 0.10.0
-typer >= 0.4.0
+typer >= 0.4.1
 typing_extensions >= 4.0.1
 uvicorn  >= 0.14.0
