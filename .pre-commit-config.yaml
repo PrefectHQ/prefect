@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: autoflake
         language_version: python3
-        args: ['--in-place', '--remove-all-unused-imports', '--ignore-init-module-imports', '--show-diff-on-failure']
+        args: ['--in-place', '--remove-all-unused-imports', '--ignore-init-module-imports']
   - repo: https://github.com/pycqa/isort
     rev: 5.10.1
     hooks:
