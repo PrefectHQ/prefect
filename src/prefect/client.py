@@ -220,7 +220,7 @@ class PrefectResponse(httpx.Response):
         try:
             return super().raise_for_status()
         except HTTPStatusError as exc:
-            raise PrefectHTTPStatusError.from_httpx_error(exc) from None
+            raise PrefectHTTPStatusError.from_httpx_error(exc) from exc
 
     @classmethod
     def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Self:
