@@ -25,6 +25,7 @@
       <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
 
       <div class="flow-runs--sort-search">
+        <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
         <FlowRunsSort v-model="sort" />
       </div>
 
@@ -38,6 +39,7 @@
   import { PTagsInput, PDateInput } from '@prefecthq/prefect-design'
   import { useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { endOfWeek, startOfWeek } from 'date-fns'
+  import { debounce } from 'lodash'
   import { computed, Ref, ref } from 'vue'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { UiApi } from '@/services/uiApi'
@@ -66,6 +68,21 @@
     },
   })
 
+  const updatedInput = ref(null)
+  const flowRunSearchInput = computed({
+    get() {
+      return updatedInput.value ?? null
+    },
+    set(value) {
+      updateInput(value)
+    },
+  })
+
+  const updateInput = debounce((value)=> {
+    updatedInput.value = value
+  }, 1200,
+  )
+
   const states = useRouteQueryParam('state', []) as Ref<StateType[]>
   const deployments = useRouteQueryParam('deployment', [])
   const flows = useRouteQueryParam('flow', [])
@@ -86,6 +103,6 @@
 
 <style>
 .flow-runs--sort-search {
-  @apply flex justify-end
+  @apply flex justify-end gap-x-2
 }
 </style>
