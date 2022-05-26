@@ -243,7 +243,7 @@ class PrefectHTTPStatusError(HTTPStatusError):
         error_message, *more_info = str(httpx_error).split("\n")
 
         if details:
-            message_components = [error_message, f"Details: {details}", *more_info]
+            message_components = [error_message, f"Response: {details}", *more_info]
         else:
             message_components = [error_message, *more_info]
 
