@@ -193,6 +193,13 @@ If a flow location is provided, the script at the given location will be run whe
 
 The flow definition for the deployment is stored in the default [storage](/concepts/storage/) configured for the Prefect API server or Prefect Cloud workspace, unless you specify a different storage with `flow_storage`. If you have no default storage set on the API, local file storage will be used by default.
 
+!!! note "Defining flow storage on the deployment"
+    At this time, while it is supported to specify the configuration of a storage block on a deployment, Prefect creates a new storage configuration for that storage each time you create or update the deployment. This does not affect the storage itself, but multiple storage IDs for duplicate storage records may be confusing. 
+    
+    Prefect does not currently provide the tools to manage duplicate storage block entries, so we recommend as a best practice creating storage directly on the Prefect Cloud workspace or Prefect API server and referencing the storage by ID.
+
+    For more information and examples, see [Configuring storage](#configuring-storage).
+
 ## Deployment specifications as code
 
 You can also define a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object as either Python or YAML code. You can create deployment specifications of this type in two ways:
@@ -477,6 +484,6 @@ If creating a deployment that specifies the configuration for a [prefect.blocks.
 
 !!! note "Storage definitions create new storage blocks"
 
-    Currently, if you specify the configuration for a storage block instance on the deployment, Prefect creates a new instance of that storage configuration each time you create or update the deployment, even if an identical configuration already exists.
+    If you specify the ID of an existing storage block configuration, Prefect uses that block and does not create a new one.
 
-    If you specify the ID of an existing storage configuration, Prefect uses that configuration and does not create a new one.
+    Currently, if you specify the configuration for a storage block instance on the deployment, Prefect creates a new storage block for that storage configuration each time you create or update the deployment, even if an identical configuration already exists. Note that, if the storage configuration is the same, this does not create a new storage location, it simply creates a new pointer to the same storage location.
