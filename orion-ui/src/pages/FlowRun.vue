@@ -1,7 +1,7 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      Flow run {{ flowRunId }}
+      <PageHeadingFlowRun :flow-run="flowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
@@ -38,10 +38,10 @@
     </div>
 
     <div>
-      {{ flowRunDetails }}
+      {{ flowRun }}
     </div>
 
-    <div v-if="flowRunDetails?.flowId">
+    <div v-if="flowRun?.flowId">
       <div>
         Flow Run Flow
       </div>
@@ -75,11 +75,25 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, Log, LogsRequestFilter, TaskRun, FlowRunsFilter, UnionFilters, LogsRequestSort, FlowRunList, useUnionFiltersSubscription, TaskRunsSort, TaskRunSortValues, FlowRunsSort, SearchInput } from '@prefecthq/orion-design'
+  import {
+    useRouteParam,
+    Log,
+    LogsRequestFilter,
+    TaskRun,
+    FlowRunsFilter,
+    UnionFilters,
+    LogsRequestSort,
+    FlowRunList,
+    useUnionFiltersSubscription,
+    TaskRunsSort,
+    TaskRunSortValues,
+    FlowRunsSort,
+    SearchInput,
+    PageHeadingFlowRun
+  } from '@prefecthq/orion-design'
   import { PButton } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-  import { debounce } from 'lodash'
+  import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
+  import debounce from 'lodash.debounce'
   import { computed, ref, watch } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
@@ -93,13 +107,13 @@
   const options: SubscriptionOptions = { interval:  5000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
-  const flowRunDetails = computed(()=> flowRunDetailsSubscription.response)
+  const flowRun = computed(()=> flowRunDetailsSubscription.response)
 
-  const flowRunFlowId = computed(()=> flowRunDetails.value?.flowId)
+  const flowRunFlowId = computed(()=> flowRun.value?.flowId)
   const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], options) : null)
   const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
 
-  const flowRunDeploymentId = computed(()=> flowRunDetails.value?.deploymentId)
+  const flowRunDeploymentId = computed(()=> flowRun.value?.deploymentId)
   const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], options) : null)
   const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
 
@@ -182,6 +196,7 @@
     taskRunsOffset.value +=logsLimit.value
   }
   const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
+
   const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
     sort: selectedSubFlowRunSortOption.value,
     flow_runs: {
