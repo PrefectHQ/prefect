@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { FlowSearch, Flow, SearchInput } from '@prefecthq/orion-design'
+  import { Flow, SearchInput } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowsApi } from '@/services/flowsApi'
