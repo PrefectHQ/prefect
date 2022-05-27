@@ -3,7 +3,7 @@
     <template #header>
       Flows
     </template>
-    <SearchInput v-model="flowSearchInput" placeholder="Search..." label="Search by flow name" />
+    <SearchInput v-model="flowSearchInput" placeholder="Search flows" label="Search by flow name" />
     <div v-for="flow in filteredFlowList" :key="flow.id">
       {{ flow }}
     </div>
