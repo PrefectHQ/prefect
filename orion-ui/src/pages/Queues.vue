@@ -5,14 +5,13 @@
     </template>
 
     <SearchInput v-model="workQueueSearchInput" />
-    <div v-for="queue in filteredQueues" :key="queue.id" class="mb-4">
-      {{ queue }}
-    </div>
+
+    <QueuesTable :queues="filteredQueues" @delete="queuesSubscription.refresh()" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { SearchInput, WorkQueue } from '@prefecthq/orion-design'
+  import { SearchInput, WorkQueue, QueuesTable } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { workQueuesApi } from '@/services/workQueuesApi'
