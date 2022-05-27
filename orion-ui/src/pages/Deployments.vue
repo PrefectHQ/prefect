@@ -4,7 +4,7 @@
       Deployments
     </template>
 
-    <SearchInput v-model="deploymentSearchInput" placeholder="Search..." label="Search by flow or deployment name" />
+    <SearchInput v-model="deploymentSearchInput" placeholder="Search deployments" label="Search by deployment name" />
     <div v-for="deployment in filteredDeployments" :key="deployment.id" class="mb-4">
       {{ deployment }}
     </div>
