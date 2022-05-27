@@ -5,7 +5,7 @@
 
       <p-tabs :tabs="flowTabs">
         <template #deployments>
-          <SearchInput v-model="flowDeploymentSearchInput" placeholder="Search..." label="Search by deployment name" />
+          <SearchInput v-model="flowDeploymentSearchInput" placeholder="Search deployments" label="Search by deployment name" />
           <div v-for="deployment in filteredFlowDeployments" :key="deployment.id" class="mb-4">
             {{ deployment }}
           </div>
