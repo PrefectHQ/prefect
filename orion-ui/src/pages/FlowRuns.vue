@@ -4,35 +4,33 @@
       <PageHeadingFlowRuns />
     </template>
 
-    <div class="flow-runs__content">
-      <div class="flow-runs__filters">
-        <div class="flow-runs__date-filters">
-          <p-label label="Start Date">
-            <PDateInput v-model="startDate" />
-          </p-label>
-          <p-label label="End Date">
-            <PDateInput v-model="endDate" />
-          </p-label>
-        </div>
-        <div class="flow-runs__meta-filters">
-          <StateSelect v-model:selected="states" empty-message="All run states" />
-          <FlowCombobox v-model:selected="flows" empty-message="All flows" />
-          <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
-          <PTagsInput v-model:tags="tags" empty-message="All Tags" inline />
-        </div>
+    <div class="flow-runs__filters">
+      <div class="flow-runs__date-filters">
+        <p-label label="Start Date">
+          <PDateInput v-model="startDate" />
+        </p-label>
+        <p-label label="End Date">
+          <PDateInput v-model="endDate" />
+        </p-label>
+      </div>
+      <div class="flow-runs__meta-filters">
+        <StateSelect v-model:selected="states" empty-message="All run states" />
+        <FlowCombobox v-model:selected="flows" empty-message="All flows" />
+        <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
+        <PTagsInput v-model:tags="tags" empty-message="All Tags" inline />
+      </div>
+    </div>
+
+    <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
+
+    <div class="flow-runs__list">
+      <div class="flow-runs__list-controls">
+        <ResultsCount :count="flowRunCount" class="mr-auto" />
+        <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+        <FlowRunsSort v-model="sort" />
       </div>
 
-      <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
-
-      <div class="flow-runs__list">
-        <div class="flow-runs__list-controls">
-          <ResultsCount :count="flowRunCount" class="mr-auto" />
-          <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
-          <FlowRunsSort v-model="sort" />
-        </div>
-
-        <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
-      </div>
+      <FlowRunList :flow-runs="flowRuns" :selected="selectedFlowRuns" disabled />
     </div>
   </p-layout-default>
 </template>
@@ -109,11 +107,6 @@
 </script>
 
 <style>
-.flow-runs__content { @apply
-  grid
-  gap-4
-}
-
 .flow-runs__filters,
 .flow-runs__date-filters,
 .flow-runs__meta-filters,
