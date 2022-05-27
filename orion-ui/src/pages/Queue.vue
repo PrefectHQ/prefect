@@ -70,7 +70,7 @@
   ]
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
-  const workQueueDetails = computed(() => workQueueSubscription.response ?? null)
+  const workQueueDetails = computed(() => workQueueSubscription.response ?? [])
   const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds)
   const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
   const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
