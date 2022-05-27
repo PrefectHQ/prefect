@@ -1,76 +1,41 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      <PageHeadingFlowRun :flow-run="flowRun" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
       <template #logs>
-        <div>
-          Logs
+        <div class="flow-run__filters">
+          <PSelect v-model="logLevelFilter" :options="logLevelOptions" />
         </div>
-        <div v-for="log in logs" :key="log.id">
-          {{ logs }}
-        </div>
-        <PButton @click="nextLogsPage">
-          Next log
-        </PButton>
+        <LogsContainer :logs="logs" />
       </template>
+
       <template #task-runs>
-        <div>Task Runs </div>
-        <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
-        <TaskRunsSort v-model="selectedTaskRunSortOption" />
-        <div v-for="taskRun in taskRuns" :key="taskRun.id">
-          {{ taskRun }}
+        <div class="flow-run__filters">
+          <StateSelect v-model:selected="state" empty-message="All states" class="mr-auto" />
+          <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <TaskRunsSort v-model="selectedTaskRunSortOption" />
         </div>
-        <PButton @click="nextRunPage">
-          Next run
-        </PButton>
+
+        <TaskRunList :selected="[]" :task-runs="taskRuns" disabled />
       </template>
+
       <template #sub-flow-runs>
-        <FlowRunsSort v-model="selectedSubFlowRunSortOption" />
+        <div class="flow-run__filters">
+          <StateSelect v-model:selected="state" empty-message="All states" class="mr-auto" />
+          <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <FlowRunsSort v-model="selectedSubFlowRunSortOption" />
+        </div>
+
         <FlowRunList :flow-runs="subFlowRuns" :selected="selectedSubFlowRuns" disabled @bottom="loadMoreSubFlowRuns" />
       </template>
     </p-tabs>
 
-    <div>
-      Flow Run Details
-    </div>
-
-    <div>
-      {{ flowRun }}
-    </div>
-
-    <div v-if="flowRun?.flowId">
-      <div>
-        Flow Run Flow
-      </div>
-      {{ flowRunFlow }}
-    </div>
-
-    <div v-if="flowRunDeploymentId">
-      <div>
-        Flow Run Deployment
-      </div>
-      {{ flowRunDeployment }}
-    </div>
-
-
-    <div>
-      Flow Run Graph
-    </div>
-
-    <div>
-      {{ flowRunGraph }}
-    </div>
-
-    <div>
-      Sub Flow Runs
-    </div>
-
-    <div>
-      {{ subFlowRunTasks }}
-    </div>
+    <template #well>
+      <FlowRunMetaWell v-if="flowRun" :flow-run="flowRun" />
+    </template>
   </p-layout-well>
 </template>
 
@@ -89,15 +54,18 @@
     TaskRunSortValues,
     FlowRunsSort,
     SearchInput,
-    PageHeadingFlowRun
+    PageHeadingFlowRun,
+    LogsContainer,
+    TaskRunList,
+    FlowRunMetaWell,
+    StateSelect,
+    StateType
   } from '@prefecthq/orion-design'
-  import { PButton } from '@prefecthq/prefect-design'
+  import { PSelect } from '@prefecthq/prefect-design'
   import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
   import debounce from 'lodash.debounce'
   import { computed, ref, watch } from 'vue'
-  import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowRunsApi } from '@/services/flowRunsApi'
-  import { flowsApi } from '@/services/flowsApi'
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
@@ -109,16 +77,7 @@
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRun = computed(()=> flowRunDetailsSubscription.response)
 
-  const flowRunFlowId = computed(()=> flowRun.value?.flowId)
-  const flowRunFlowSubscription = computed(() => flowRunFlowId.value ? useSubscription(flowsApi.getFlow, [flowRunFlowId.value], options) : null)
-  const flowRunFlow = computed(()=> flowRunFlowSubscription.value?.response)
-
-  const flowRunDeploymentId = computed(()=> flowRun.value?.deploymentId)
-  const flowRunDeploymentSubscription = computed(()=> flowRunDeploymentId.value ? useSubscription(deploymentsApi.getDeployment, [flowRunDeploymentId.value], options) : null)
-  const flowRunDeployment = computed(()=> flowRunDeploymentSubscription.value?.response ?? 'No Deployment')
-
-  const flowRunGraphSubscription = useSubscription(flowRunsApi.getFlowRunsGraph, [flowRunId], options)
-  const flowRunGraph = computed(()=> flowRunGraphSubscription.response ?? '')
+  const state = ref<StateType>()
 
   const logLevelOptions = [
     { label: 'Critical only', value: 50 },
@@ -127,7 +86,7 @@
     { label: 'Info and above', value: 20 },
     { label: 'Debug and above', value: 10 },
     { label: 'All log levels', value: 0 },
-  ] as const
+  ]
   const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
@@ -147,20 +106,16 @@
   }))
   const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
   const logs = computed<Log[]>(() => logsSubscription.response ?? [])
-  // for demo only!
-  const nextLogsPage = (): void => {
-    logsOffset.value +=logsLimit.value
-  }
 
   const taskRunsOffset = ref<number>(0)
   const taskRunsLimit = ref<number>(10)
   const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
-  const updatedInput = ref(null)
+  const updatedInput = ref('')
   const taskRunSearchInput = computed({
     get() {
       return updatedInput.value ?? null
     },
-    set(value) {
+    set(value: string) {
       updateInput(value)
     },
   })
@@ -191,10 +146,6 @@
   const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
   const taskRuns = computed<TaskRun[]>(() => subscription.response ?? [])
 
-  // for demo only!
-  const nextRunPage = (): void => {
-    taskRunsOffset.value +=logsLimit.value
-  }
   const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
 
   const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
@@ -238,3 +189,12 @@
   }
 </script>
 
+<style>
+.flow-run__filters { @apply
+  flex
+  gap-1
+  items-center
+  justify-end
+  mb-2
+}
+</style>
