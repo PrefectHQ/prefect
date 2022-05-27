@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="queue">
     <template #header>
-      <PageHeadingQueue :queue="workQueueDetails" />
+      <PageHeadingQueue v-if="workQueueDetails" :queue="workQueueDetails" />
     </template>
 
     <div class="queue-content">
@@ -70,8 +70,8 @@
   ]
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
-  const workQueueDetails = computed(() => workQueueSubscription.response ?? [])
-  const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds)
+  const workQueueDetails = computed(() => workQueueSubscription.response)
+  const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds ?? [])
   const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
   const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
   const workQueueFlowRunConcurrency = computed(() => workQueueDetails.value?.concurrencyLimit ?? 'Unlimited')
