@@ -77,9 +77,16 @@ def interpolate_env_vars(env_var: str) -> Optional[Union[bool, int, float, str]]
     if not env_var or not isinstance(env_var, str):
         return env_var
 
+    # allow escaping '$' with '\$' to prevent expansion e.g. for $ in passwords
+    dollar_placeholder = "§"
+    env_var = env_var.replace(r"\$", dollar_placeholder)
+
     for counter in range(10):
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:
+            # insert back escaped '$'
+            interpolated = interpolated.replace(dollar_placeholder, "$")
+
             # if a change was made, apply string-to-type casts; otherwise leave alone
             # this is because we don't want to override TOML type-casting if this function
             # is applied to a non-interpolated value
