@@ -1,15 +1,25 @@
 <template>
   <p-layout-well class="flow-run">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" />
+      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns">
+        <div class="flow-run__header-meta">
+          <StateBadge :state="flowRun.state" />
+          <DurationIconText :duration="flowRun.duration" />
+          <FlowIconText :flow-id="flowRun.flowId" />
+        </div>
+      </PageHeadingFlowRun>
     </template>
 
     <p-tabs :tabs="tabs">
+      <template #details>
+        <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
+      </template>
+
       <template #logs>
         <div class="flow-run__filters">
-          <PSelect v-model="logLevelFilter" :options="logLevelOptions" />
+          <LogLevelSelect v-model:selected="logLevel" />
         </div>
-        <LogsContainer :logs="logs" />
+        <LogsContainer :logs="logs" class="flow-run__logs" />
       </template>
 
       <template #task-runs>
@@ -34,7 +44,16 @@
     </p-tabs>
 
     <template #well>
-      <FlowRunMetaWell v-if="flowRun" :flow-run="flowRun" />
+      <template v-if="flowRun">
+        <div class="flow-run__meta">
+          <StateBadge :state="flowRun.state" />
+          <DurationIconText :duration="flowRun.duration" />
+          <FlowIconText :flow-id="flowRun.flowId" />
+          <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
+        </div>
+        <PDivider />
+        <FlowRunDetails :flow-run="flowRun" />
+      </template>
     </template>
   </p-layout-well>
 </template>
@@ -45,7 +64,6 @@
     Log,
     LogsRequestFilter,
     TaskRun,
-    FlowRunsFilter,
     UnionFilters,
     LogsRequestSort,
     FlowRunList,
@@ -57,19 +75,38 @@
     PageHeadingFlowRun,
     LogsContainer,
     TaskRunList,
-    FlowRunMetaWell,
+    FlowRunDetails,
     StateSelect,
-    StateType
+    StateType,
+    media,
+    StateBadge,
+    FlowIconText,
+    DeploymentIconText,
+    DurationIconText,
+    LogLevelSelect,
+    LogLevel
   } from '@prefecthq/orion-design'
-  import { PSelect } from '@prefecthq/prefect-design'
+  import { PDivider } from '@prefecthq/prefect-design'
   import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
   import debounce from 'lodash.debounce'
   import { computed, ref, watch } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { logsApi } from '@/services/logsApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
 
-  const tabs = ['Logs', 'Task Runs', 'Sub Flow Runs']
+  const router = useRouter()
+
+  const tabs = computed(() => {
+    const values = ['Logs', 'Task Runs', 'Sub Flow Runs']
+
+    if (!media.xl) {
+      values.push('Details')
+    }
+
+    return values
+  })
 
   const flowRunId = useRouteParam('id')
   const options: SubscriptionOptions = { interval:  5000 }
@@ -78,16 +115,7 @@
   const flowRun = computed(()=> flowRunDetailsSubscription.response)
 
   const state = ref<StateType>()
-
-  const logLevelOptions = [
-    { label: 'Critical only', value: 50 },
-    { label: 'Error and above', value: 40 },
-    { label: 'Warning and above', value: 30 },
-    { label: 'Info and above', value: 20 },
-    { label: 'Debug and above', value: 10 },
-    { label: 'All log levels', value: 0 },
-  ]
-  const logLevelFilter = ref<typeof logLevelOptions[number]['value']>(0)
+  const logLevel = ref<LogLevel>(0)
   const logsOffset = ref<number>(0)
   const logsLimit = ref<number>(1)
   const logsSort = ref<LogsRequestSort>('TIMESTAMP_DESC')
@@ -97,7 +125,7 @@
         any_: [flowRunId.value],
       },
       level: {
-        ge_: logLevelFilter.value,
+        ge_: logLevel.value,
       },
     },
     offset: logsOffset.value,
@@ -107,8 +135,6 @@
   const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
   const logs = computed<Log[]>(() => logsSubscription.response ?? [])
 
-  const taskRunsOffset = ref<number>(0)
-  const taskRunsLimit = ref<number>(10)
   const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
   const updatedInput = ref('')
   const taskRunSearchInput = computed({
@@ -123,15 +149,13 @@
     updatedInput.value = value
   }, 1200,
   )
-  const taskRunsFilter = computed<FlowRunsFilter>(() => {
-    const runFilter = {
+  const taskRunsFilter = computed<UnionFilters>(() => {
+    const runFilter: UnionFilters = {
       flow_runs: {
         id: {
           any_: [flowRunId.value],
         },
       },
-      offset: taskRunsOffset.value,
-      limit: taskRunsLimit.value,
       sort: selectedTaskRunSortOption.value,
     }
     if (taskRunSearchInput.value) {
@@ -187,6 +211,10 @@
 
     subFlowRunTasksSubscription.loadMore()
   }
+
+  function goToFlowRuns(): void {
+    router.push(routes.flowRuns())
+  }
 </script>
 
 <style>
@@ -196,5 +224,23 @@
   items-center
   justify-end
   mb-2
+}
+
+.flow-run__logs {
+  min-height: 500px;
+}
+
+.flow-run__header-meta { @apply
+  flex
+  gap-2
+  items-center
+  xl:hidden
+}
+
+.flow-run__meta { @apply
+  flex
+  flex-col
+  gap-3
+  items-start
 }
 </style>
