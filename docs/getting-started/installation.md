@@ -1,6 +1,6 @@
 # Installation
 
-The first step to getting started with Prefect is installing Prefect. 
+The first step to getting started with Prefect is installing the Prefect Python package. 
 
 ## Set up Python
 
