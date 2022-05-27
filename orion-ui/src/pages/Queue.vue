@@ -52,6 +52,7 @@
             :label="runner.label"
             :value="runner.value"
             editor="checkbox"
+            :disabled="disableCheckbox"
           />
         </template>
       </p-key-value>
@@ -66,7 +67,7 @@
   import { computed, ref } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
-
+  const disableCheckbox = ref(true)
   const workQueueId = useRouteParam('id')
   const subscriptionOptions = {
     interval: 300000,
