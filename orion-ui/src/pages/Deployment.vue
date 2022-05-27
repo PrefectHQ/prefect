@@ -51,10 +51,7 @@
   const deploymentDetails = computed(() => deploymentSubscription.response)
 
   const deploymentParameters = computed(()=> {
-    if (deploymentDetails.value?.parameters) {
-      const tuple = Object.entries(deploymentDetails.value.parameters)
-      return tuple
-    } return deploymentDetails.value?.parameters
+    return Object.entries(deploymentDetails.value?.parameters)
   })
   const parameterSearchInput = ref('')
   const filteredDeploymentParameters = computed(()=> deploymentParameters.value ? fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value) : [])
