@@ -5,9 +5,7 @@
 
       <p-tabs :tabs="flowTabs">
         <template #deployments>
-          <div v-for="deployment in flowDeployments" :key="deployment.id">
-            {{ deployment }}
-          </div>
+          <DeploymentsTable :deployments="flowDeployments" @delete="flowDeploymentsSubscription.refresh()" />
         </template>
       </p-tabs>
     </template>
@@ -22,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters } from '@prefecthq/orion-design'
+  import { DeploymentsTable, useRouteParam, UnionFilters } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
