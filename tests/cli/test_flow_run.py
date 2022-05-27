@@ -3,7 +3,6 @@ from uuid import UUID
 import pytest
 
 import prefect.exceptions
-from prefect.client import OrionClient
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncio import sync_compatible
 
