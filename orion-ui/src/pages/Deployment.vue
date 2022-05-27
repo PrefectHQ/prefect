@@ -60,7 +60,6 @@
   const deploymentParameters = computed(()=> {
     if (deploymentDetails.value?.parameters) {
       const tuple = Object.entries(deploymentDetails.value.parameters)
-      console.log('tuple', tuple)
       return tuple
     } return deploymentDetails.value?.parameters
   })
