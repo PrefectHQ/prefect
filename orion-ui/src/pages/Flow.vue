@@ -18,16 +18,14 @@
     <div>
       {{ flowDetails }}
     </div>
-    <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" disabled />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, FlowRunList } from '@prefecthq/orion-design'
+  import { useRouteParam, UnionFilters } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
 
   const flowTabs = ['Deployments']
@@ -37,19 +35,15 @@
     interval: 300000,
   }
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
-  const flowDetails = computed(() => flowSubscription.response ?? null)
+  const flowDetails = computed(() => flowSubscription.response ?? [])
 
-  const flowFilter = computed<UnionFilters>(() => ({
+  const flowDeploymentFilter = computed<UnionFilters>(() => ({
     flows: {
       id: {
         any_: [flowId.value],
       },
     },
   }))
-  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowFilter], subscriptionOptions)
+  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
-
-  const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [flowFilter])
-  const flowRuns = computed(() => flowRunsSubscription.response ?? [])
-  const selectedFlowRuns = ref([])
 </script>
