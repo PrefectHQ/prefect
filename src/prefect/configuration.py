@@ -77,9 +77,7 @@ def interpolate_env_vars(env_var: str) -> Optional[Union[bool, int, float, str]]
     if not env_var or not isinstance(env_var, str):
         return env_var
 
-    counter = 0
-
-    while counter < 10:
+    for counter in range(10):
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:
             # if a change was made, apply string-to-type casts; otherwise leave alone
@@ -90,7 +88,6 @@ def interpolate_env_vars(env_var: str) -> Optional[Union[bool, int, float, str]]
             return interpolated
         else:
             env_var = interpolated
-        counter += 1
 
     return None
 
