@@ -1,26 +1,18 @@
 <template>
   <p-layout-default class="queue">
     <template #header>
-      Queue {{ workQueueId }}
+      <PageHeadingQueue :queue="workQueueDetails" />
     </template>
 
-    <div class="mb-2">
+    <div class="queue-content">
       <p-key-value label="Description" :value="workQueueDescription" />
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Work Queue ID" :value="workQueueID" />
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Flow Run Concurrency" :value="workQueueFlowRunConcurrency" />
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Created" :value="workQueueCreated" />
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Tags">
         <template #value>
           <p-tag v-for="tag in workQueueTags" :key="tag">
@@ -28,21 +20,17 @@
           </p-tag>
         </template>
       </p-key-value>
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Deployments">
         <template #value>
           <div v-for="deployment in workQueueDeployments" :key="deployment.id">
-            <router-link :to="`/deployment/${deployment.id}`">
+            <router-link :to="routes.deployment(deployment.id)">
               {{ deployment.name }}
             </router-link>
           </div>
         </template>
       </p-key-value>
-    </div>
 
-    <div class="mb-2">
       <p-key-value label="Flow Runners">
         <template #value>
           <p-checkbox
@@ -52,7 +40,7 @@
             :label="runner.label"
             :value="runner.value"
             editor="checkbox"
-            :disabled="disableCheckbox"
+            disabled
           />
         </template>
       </p-key-value>
@@ -61,13 +49,14 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, FlowRunnerType, formatDate } from '@prefecthq/orion-design'
+  import { useRouteParam, UnionFilters, FlowRunnerType, formatDate, PageHeadingQueue, workQueuesApiKey } from '@prefecthq/orion-design'
   import { PKeyValue } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed, provide, ref } from 'vue'
+  import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
-  const disableCheckbox = ref(true)
+
   const workQueueId = useRouteParam('id')
   const subscriptionOptions = {
     interval: 300000,
@@ -81,7 +70,7 @@
   ]
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
-  const workQueueDetails = computed(() => workQueueSubscription.response)
+  const workQueueDetails = computed(() => workQueueSubscription.response ?? null)
   const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds)
   const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
   const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
@@ -106,5 +95,14 @@
   }))
   const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
   const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
+
+  provide(workQueuesApiKey, workQueuesApi)
 </script>
+
+<style>
+.queue-content { @apply
+  grid
+  gap-2
+}
+</style>
 
