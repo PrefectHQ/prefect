@@ -29,7 +29,7 @@
           <TaskRunsSort v-model="selectedTaskRunSortOption" />
         </div>
 
-        <TaskRunList :selected="[]" :task-runs="taskRuns" disabled />
+        <TaskRunList :selected="[]" :task-runs="taskRuns" disabled @bottom="taskRunsSubscription.loadMore" />
       </template>
 
       <template #sub-flow-runs>
@@ -87,7 +87,7 @@
     LogLevel
   } from '@prefecthq/orion-design'
   import { PDivider } from '@prefecthq/prefect-design'
-  import { useSubscription, SubscriptionOptions } from '@prefecthq/vue-compositions'
+  import { useSubscription } from '@prefecthq/vue-compositions'
   import debounce from 'lodash.debounce'
   import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
@@ -109,7 +109,7 @@
   })
 
   const flowRunId = useRouteParam('id')
-  const options: SubscriptionOptions = { interval:  5000 }
+  const options = { interval:  5000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRun = computed(()=> flowRunDetailsSubscription.response)
@@ -132,6 +132,7 @@
     limit: logsLimit.value,
     sort: logsSort.value,
   }))
+
   const logsSubscription = useSubscription(logsApi.getLogs, [logsFilter], options)
   const logs = computed<Log[]>(() => logsSubscription.response ?? [])
 
@@ -167,8 +168,9 @@
     }
     return  runFilter
   })
-  const subscription = useSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
-  const taskRuns = computed<TaskRun[]>(() => subscription.response ?? [])
+
+  const taskRunsSubscription = useUnionFiltersSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
+  const taskRuns = computed<TaskRun[]>(() => taskRunsSubscription.response ?? [])
 
   const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
 
