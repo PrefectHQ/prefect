@@ -25,7 +25,7 @@
       <template #task-runs>
         <div class="flow-run__filters">
           <StateSelect v-model:selected="state" empty-message="All states" class="mr-auto" />
-          <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <SearchInput v-model="taskRunSearch" placeholder="Search by run name" label="Search by run name" />
           <TaskRunsSort v-model="selectedTaskRunSortOption" />
         </div>
 
@@ -35,7 +35,7 @@
       <template #sub-flow-runs>
         <div class="flow-run__filters">
           <StateSelect v-model:selected="state" empty-message="All states" class="mr-auto" />
-          <SearchInput v-model="taskRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <SearchInput v-model="taskRunSearch" placeholder="Search by run name" label="Search by run name" />
           <FlowRunsSort v-model="selectedSubFlowRunSortOption" />
         </div>
 
@@ -87,8 +87,7 @@
     LogLevel
   } from '@prefecthq/orion-design'
   import { PDivider } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
-  import debounce from 'lodash.debounce'
+  import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
@@ -97,6 +96,7 @@
   import { taskRunsApi } from '@/services/taskRunsApi'
 
   const router = useRouter()
+  const flowRunId = useRouteParam('id')
 
   const tabs = computed(() => {
     const values = ['Logs', 'Task Runs', 'Sub Flow Runs']
@@ -107,8 +107,6 @@
 
     return values
   })
-
-  const flowRunId = useRouteParam('id')
   const options = { interval:  5000 }
 
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
@@ -137,19 +135,9 @@
   const logs = computed<Log[]>(() => logsSubscription.response ?? [])
 
   const selectedTaskRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
-  const updatedInput = ref('')
-  const taskRunSearchInput = computed({
-    get() {
-      return updatedInput.value ?? null
-    },
-    set(value: string) {
-      updateInput(value)
-    },
-  })
-  const updateInput = debounce((value)=> {
-    updatedInput.value = value
-  }, 1200,
-  )
+  const taskRunSearch = ref('')
+  const taskRunSearchDebounced = useDebouncedRef(taskRunSearch, 1200)
+
   const taskRunsFilter = computed<UnionFilters>(() => {
     const runFilter: UnionFilters = {
       flow_runs: {
@@ -159,10 +147,10 @@
       },
       sort: selectedTaskRunSortOption.value,
     }
-    if (taskRunSearchInput.value) {
+    if (taskRunSearchDebounced.value) {
       runFilter.task_runs =  {
         name: {
-          any_: [taskRunSearchInput.value],
+          any_: [taskRunSearchDebounced.value],
         },
       }
     }
