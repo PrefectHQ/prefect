@@ -5,7 +5,8 @@
 
       <p-tabs :tabs="flowTabs">
         <template #deployments>
-          <div v-for="deployment in flowDeployments" :key="deployment.id">
+          <SearchInput v-model="flowDeploymentSearchInput" placeholder="Search..." label="Search by deployment name" />
+          <div v-for="deployment in filteredFlowDeployments" :key="deployment.id" class="mb-4">
             {{ deployment }}
           </div>
         </template>
@@ -22,9 +23,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters } from '@prefecthq/orion-design'
+  import { useRouteParam, UnionFilters, SearchInput, Deployment } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowsApi } from '@/services/flowsApi'
 
@@ -46,4 +47,15 @@
   }))
   const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
+
+  const flowDeploymentSearchInput = ref('')
+  const filteredFlowDeployments = computed(()=> fuzzyFilterFunction(flowDeployments.value, flowDeploymentSearchInput.value))
+
+  const fuzzyFilterFunction = (array: Deployment[], text: string): Deployment[] => array.reduce<Deployment[]>(
+    (previous, current) => {
+      if (current.name.toLowerCase().includes(text.toLowerCase())) {
+        previous.push(current)
+      }
+      return previous
+    }, [])
 </script>
