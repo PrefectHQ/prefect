@@ -52,6 +52,9 @@ async def create():
     for schema in unconfigurable:
         schemas.remove(schema)
 
+    if not schemas:
+        exit_with_error(f"No storage types are available. ")
+
     schemas = sorted(schemas, key=lambda s: s.block_type.name)
 
     app.console.print("Found the following storage types:")
