@@ -1,0 +1,5 @@
+enhancement:
+  - "Allow escaping dollar signs in environmental variables to prevent expansion for Secrets - [#5843](https://github.com/PrefectHQ/prefect/pull/5843)"
+
+contributor:
+  - "[Stéphan Taljaard](https://github.com/taljaards)"
