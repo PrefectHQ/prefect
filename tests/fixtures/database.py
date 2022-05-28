@@ -228,7 +228,6 @@ async def block_schema(session, block_type_x):
     block_schema = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            type="abc",
             fields={
                 "title": "x",
                 "type": "object",

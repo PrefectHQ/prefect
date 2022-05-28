@@ -384,13 +384,16 @@ class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(..., description="The block schema's unique checksum")
-    type: str = Field(None, description="The block schema's type")
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
     block_type_id: UUID = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
+    )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
     )
 
 

@@ -944,22 +944,16 @@ class OrionClient:
                 raise
         return schemas.core.BlockSchema.parse_obj(response.json())
 
-    async def read_block_schemas(self, type: str) -> List[schemas.core.BlockSchema]:
+    async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
-        Read all block schemas with the given type
-
-        Args:
-            type: The name of the type of block schema
-
+        Read all block schemas
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError
 
         Returns:
-            A hydrated block or None.
+            A BlockSchema.
         """
-        response = await self._client.post(
-            f"/block_schemas/filter", json={"block_schema_type": type}
-        )
+        response = await self._client.post(f"/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
     async def read_block_document(self, block_document_id: UUID):

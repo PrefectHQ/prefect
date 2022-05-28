@@ -93,7 +93,6 @@ async def read_block_documents(
     session: sa.orm.Session,
     db: OrionDBInterface,
     block_type_id: Optional[UUID] = None,
-    block_schema_type: Optional[str] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
@@ -110,9 +109,6 @@ async def read_block_documents(
 
     if block_type_id is not None:
         query = query.where(db.BlockDocument.block_type_id == block_type_id)
-
-    if block_schema_type is not None:
-        query = query.where(db.BlockSchema.type == block_schema_type)
 
     if offset is not None:
         query = query.offset(offset)
@@ -183,8 +179,8 @@ async def set_default_storage_block_document(
     )
     if not block_document:
         raise ValueError("Block document not found")
-    elif block_document.block_schema.type != "STORAGE":
-        raise ValueError("Block schema type must be STORAGE")
+    elif "storage" not in block_document.block_schema.capabilities:
+        raise ValueError("Block schema must have the 'storage' capability")
 
     await clear_default_storage_block_document(session=session)
     block_document.is_default_storage_block_document = True
