@@ -50,7 +50,6 @@ async def read_block_documents(
     """
     result = await models.block_documents.read_block_documents(
         session=session,
-        block_schema_type=block_schema_type,
         offset=offset,
         limit=limit,
     )
@@ -125,7 +124,7 @@ async def set_default_storage_block_document(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Block document not found"
             )
-        elif "Block schema type must be STORAGE" in str(exc):
+        elif "Block schema must have the 'storage' capability" in str(exc):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Specified block document is not a storage block document",

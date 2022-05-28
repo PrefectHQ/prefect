@@ -16,7 +16,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_0 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={}, type="abc", block_type_id=block_type_x.id
+            fields={}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -24,7 +24,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_1 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"x": {"type": "int"}}, type="abc", block_type_id=block_type_y.id
+            fields={"x": {"type": "int"}}, block_type_id=block_type_y.id
         ),
     )
     await session.commit()
@@ -32,7 +32,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_2 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"y": {"type": "int"}}, type=None, block_type_id=block_type_x.id
+            fields={"y": {"type": "int"}}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -285,12 +285,6 @@ class TestReadBlocks:
         )
         assert [b.id for b in read_blocks] == [blocks[4].id, blocks[1].id]
 
-    async def test_read_blocks_by_type(self, session, blocks):
-        read_blocks = await models.block_documents.read_block_documents(
-            session=session, block_schema_type="abc"
-        )
-        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id, blocks[3].id]
-
 
 class TestDeleteBlock:
     async def test_delete_block(self, session, block_schemas):
@@ -325,7 +319,7 @@ class TestDefaultStorage:
         storage_block_schema = await models.block_schemas.create_block_schema(
             session=session,
             block_schema=schemas.actions.BlockSchemaCreate(
-                type="STORAGE", block_type_id=block_type_x.id, fields={}
+                block_type_id=block_type_x.id, fields={}, capabilities=["storage"]
             ),
         )
         await session.commit()
@@ -371,7 +365,9 @@ class TestDefaultStorage:
         )
         await session.commit()
 
-        with pytest.raises(ValueError, match="(Block schema type must be STORAGE)"):
+        with pytest.raises(
+            ValueError, match="Block schema must have the 'storage' capability"
+        ):
             await models.block_documents.set_default_storage_block_document(
                 session=session, block_document_id=non_storage_block.id
             )
