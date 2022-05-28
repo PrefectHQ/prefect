@@ -2,10 +2,10 @@ import hashlib
 import json
 from abc import ABC
 from multiprocessing.sharedctypes import Value
-from typing import Dict, Optional, Type
+from typing import Dict, List, Optional, Type
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
@@ -62,7 +62,7 @@ class Block(BaseModel, ABC):
 
     # -- private class variables
     # set by the class itself
-    _block_schema_type: Optional[str] = None
+
     # Attribute to customize the name of the block type created
     # when the block is registered with Orion. If not set, block
     # type name will default to the class name.
@@ -76,6 +76,7 @@ class Block(BaseModel, ABC):
     # these are set when blocks are loaded from the API
     _block_type_id: Optional[UUID] = None
     _block_schema_id: Optional[UUID] = None
+    _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
 
@@ -149,12 +150,14 @@ class Block(BaseModel, ABC):
         """
         fields = cls.schema()
         return BlockSchema(
-            id=cls._block_schema_id or uuid4(),
+            id=cls._block_schema_id if cls._block_schema_id is not None else uuid4(),
             checksum=cls._calculate_schema_checksum(),
-            type=cls._block_schema_type,
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
+            capabilities=cls._block_schema_capabilities
+            if cls._block_schema_capabilities is not None
+            else list(),
         )
 
     @classmethod

@@ -51,7 +51,6 @@ class TestAPICompatibility:
         block_schema = self.MyRegisteredBlock._to_block_schema(
             block_type_id=block_type_x.id
         )
-        assert block_schema.type is None
         assert (
             block_schema.checksum
             == "sha256:b45dd7c45c4935967b3685e6b0d87a27baeb26b1b7aa69c85886724ddd8c246f"
@@ -65,6 +64,25 @@ class TestAPICompatibility:
             },
             "required": ["x"],
         }
+
+    def test_registering_blocks_with_capabilities(self):
+        @register_block
+        class IncapableBlock(Block):
+            # could use a little confidence
+            _block_type_id = uuid4()
+
+        @register_block
+        class CapableBlock(Block):
+            # kind of rude to the other Blocks
+            _block_schema_capabilities = ["bluffing"]
+            _block_type_id = uuid4()
+            all_the_answers: str = "42 or something"
+
+        capable_schema = CapableBlock._to_block_schema()
+        assert capable_schema.capabilities == ["bluffing"]
+
+        incapable_schema = IncapableBlock._to_block_schema()
+        assert incapable_schema.capabilities == []
 
     def test_create_api_block_schema_only_includes_pydantic_fields(self, block_type_x):
         @register_block
@@ -89,7 +107,6 @@ class TestAPICompatibility:
             block_schema.checksum
             == "sha256:719dd945f13a4aea50709ce65f93eee6f6511c5f560e89cdd0193ae1993536a8"
         )
-        assert block_schema.type is None
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
             "type": "object",
@@ -161,24 +178,37 @@ class TestAPICompatibility:
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
 
-    def test_create_block_type_from_block(self, block_class: Type[Block]):
-        block_type = block_class._to_block_type()
+    def test_create_block_type_from_block(self, test_block: Type[Block]):
+        block_type = test_block._to_block_type()
 
-        assert block_type.name == block_class.__name__
-        assert block_type.logo_url == block_class._logo_url
-        assert block_type.documentation_url == block_class._documentation_url
+        assert block_type.name == test_block.__name__
+        assert block_type.logo_url == test_block._logo_url
+        assert block_type.documentation_url == test_block._documentation_url
 
-    def test_create_block_schema_from_block(
-        self, block_class: Type[Block], block_type_x
+    def test_create_block_schema_from_block_without_capabilities(
+        self, test_block: Type[Block], block_type_x
     ):
-        block_schema = block_class._to_block_schema(block_type_id=block_type_x.id)
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
 
-        assert block_schema.checksum == block_class._calculate_schema_checksum()
-        assert block_schema.fields == block_class.schema()
-        assert block_schema.type == block_class._block_schema_type
+        assert block_schema.checksum == test_block._calculate_schema_checksum()
+        assert block_schema.fields == test_block.schema()
+        assert (
+            block_schema.capabilities == []
+        ), "No capabilities should be defined for this Block and defaults to []"
 
-    async def test_block_load(self, block_class, block_document):
-        my_block = await block_class.load(block_document.name)
+    def test_create_block_schema_from_block_with_capabilities(
+        self, test_block: Type[Block], block_type_x
+    ):
+        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
+
+        assert block_schema.checksum == test_block._calculate_schema_checksum()
+        assert block_schema.fields == test_block.schema()
+        assert (
+            block_schema.capabilities == []
+        ), "No capabilities should be defined for this Block and defaults to []"
+
+    async def test_block_load(self, test_block, block_document):
+        my_block = await test_block.load(block_document.name)
 
         assert my_block._block_document_name == block_document.name
         assert my_block._block_document_id == block_document.id
@@ -186,9 +216,9 @@ class TestAPICompatibility:
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
 
-    async def test_create_block_from_nonexistant_name(self, block_class):
+    async def test_create_block_from_nonexistant_name(self, test_block):
         with pytest.raises(
             ValueError,
             match="Unable to find block document named blocky for block type x",
         ):
-            await block_class.load("blocky")
+            await test_block.load("blocky")

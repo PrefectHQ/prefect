@@ -105,7 +105,6 @@ async def read_block_schema(
 async def read_block_schemas(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    block_schema_type: Optional[str] = None,
     block_type_id: Optional[str] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
@@ -115,7 +114,6 @@ async def read_block_schemas(
 
     Args:
         session: A database session
-        block_schema_type: the block schema type
         block_type_id: the ID of the corresponding block type
         limit (int): query limit
         offset (int): query offset
@@ -126,8 +124,6 @@ async def read_block_schemas(
     query = select(db.BlockSchema).order_by(
         db.BlockSchema.block_type_id, db.BlockSchema.created
     )
-    if block_schema_type is not None:
-        query = query.filter_by(type=block_schema_type)
     if block_type_id is not None:
         query = query.filter_by(block_type_id=block_type_id)
     if offset is not None:

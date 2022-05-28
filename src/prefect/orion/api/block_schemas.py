@@ -56,7 +56,6 @@ async def delete_block_schema(
 
 @router.post("/filter")
 async def read_block_schemas(
-    block_schema_type: str = Body(None, description="The block schema type"),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -66,7 +65,6 @@ async def read_block_schemas(
     """
     result = await models.block_schemas.read_block_schemas(
         session=session,
-        block_schema_type=block_schema_type,
         limit=limit,
         offset=offset,
     )

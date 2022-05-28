@@ -16,7 +16,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_0 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={}, type="abc", block_type_id=block_type_x.id
+            fields={}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -24,7 +24,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_1 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"x": {"type": "int"}}, type="abc", block_type_id=block_type_y.id
+            fields={"x": {"type": "int"}}, block_type_id=block_type_y.id
         ),
     )
     await session.commit()
@@ -32,7 +32,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_2 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"y": {"type": "int"}}, type=None, block_type_id=block_type_x.id
+            fields={"y": {"type": "int"}}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -268,13 +268,15 @@ class TestReadBlockDocuments:
 
     async def test_read_blocks_type(self, client, block_documents):
         response = await client.post(
-            "/block_documents/filter", json=dict(block_schema_type="abc")
+            "/block_documents/filter",
         )
         read_blocks = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_blocks] == [
             block_documents[0].id,
+            block_documents[2].id,
+            block_documents[4].id,
             block_documents[1].id,
             block_documents[3].id,
         ]
@@ -315,7 +317,7 @@ class TestDefaultStorageBlockDocument:
             block_schema=schemas.actions.BlockSchemaCreate(
                 fields={},
                 block_type_id=block_type_x.id,
-                type="STORAGE",
+                capabilities=["storage"],
             ),
         )
         await session.commit()

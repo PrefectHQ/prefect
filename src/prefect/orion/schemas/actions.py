@@ -169,7 +169,7 @@ class BlockTypeUpdate(PrefectBaseModel):
 class BlockSchemaCreate(
     schemas.core.BlockSchema.subclass(
         name="BlockSchemaCreate",
-        include_fields=["type", "fields", "block_type_id"],
+        include_fields=["fields", "capabilities", "block_type_id"],
     )
 ):
     """Data used by the Orion API to create a block schema."""

@@ -9,8 +9,6 @@ class NotificationBlock(Block):
     A `Block` base class for sending notifications.
     """
 
-    _block_schema_type: Optional[str] = "NOTIFICATION"
-
     @abstractmethod
     async def notify(self, data: Any):
         """

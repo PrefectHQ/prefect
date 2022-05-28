@@ -750,8 +750,8 @@ class ORMBlockType:
 @declarative_mixin
 class ORMBlockSchema:
     checksum = sa.Column(sa.String, nullable=False, index=True)
-    type = sa.Column(sa.String, nullable=True, index=True)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
     def block_type_id(cls):
@@ -768,7 +768,6 @@ class ORMBlockSchema:
     @declared_attr
     def __table_args__(cls):
         return (
-            sa.Index("ix_block_schema__type", "type"),
             sa.Index(
                 "uq_block_schema__checksum",
                 "checksum",
