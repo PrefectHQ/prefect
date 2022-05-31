@@ -1,21 +1,21 @@
 <template>
   <p-layout-default class="settings">
     <template #header>
-      Settings
+      <PageHeading :crumbs="crumbs" />
     </template>
 
     <SettingsCodeBlock class="settings--code-block" :engine-settings="engineSettings" />
 
-    <div>Version</div>
-    <div>
-      {{ version }}
-    </div>
+    <p-key-value label="Version" :value="version" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
+  import { PageHeading } from '@prefecthq/orion-design'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
   import { adminApi } from '@/services/adminApi'
+
+  const crumbs = [{ text: 'Settings' }]
 
   const engineSettings = await adminApi.getSettings()
   const version = await adminApi.getVersion()
