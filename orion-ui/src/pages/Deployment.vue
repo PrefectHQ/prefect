@@ -49,10 +49,10 @@
   const deploymentDetails = computed(() => deploymentSubscription.response)
 
   const deploymentParameters = computed(()=> {
-    return Object.entries(deploymentDetails.value?.parameters)
+    return Object.entries(deploymentDetails.value?.parameters ?? [])
   })
   const parameterSearchInput = ref('')
-  const filteredDeploymentParameters = computed(()=> deploymentParameters.value ? fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value) : [])
+  const filteredDeploymentParameters = computed(()=> fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value))
 
   type Parameter = Record<string, any>
 
