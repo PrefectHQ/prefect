@@ -3,12 +3,15 @@
     <template #header>
       <PageHeadingFlows />
     </template>
-    <template v-if="empty">
-      <FlowsPageEmptyState />
-    </template>
-    <template v-else>
-      <SearchInput v-model="searchInput" placeholder="Search flows" label="Search by flow name" clearable />
-      <FlowsTable :flows="filteredFlowList" @delete="flowsSubscription.refresh()" @clear="clear" />
+
+    <template v-if="loaded">
+      <template v-if="empty">
+        <FlowsPageEmptyState />
+      </template>
+      <template v-else>
+        <SearchInput v-model="searchInput" placeholder="Search flows" label="Search by flow name" clearable />
+        <FlowsTable :flows="filteredFlowList" @delete="flowsSubscription.refresh()" @clear="clear" />
+      </template>
     </template>
   </p-layout-default>
 </template>
@@ -24,6 +27,7 @@
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
   const flows = computed<Flow[]>(() => flowsSubscription.response ?? [])
   const empty = computed(() => flowsSubscription.executed && flows.value.length === 0)
+  const loaded = computed(() => flowsSubscription.executed)
   const searchInput = ref('')
   const filteredFlowList = computed(()=> search(flows.value, searchInput.value))
 
