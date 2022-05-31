@@ -115,7 +115,6 @@
   const state = ref<StateType>()
   const logLevel = ref<LogLevel>(0)
   const logsOffset = ref<number>(0)
-  const logsLimit = ref<number>(1)
   const logsSort = ref<LogsRequestSort>('TIMESTAMP_DESC')
   const logsFilter = computed<LogsRequestFilter>(() => ({
     logs: {
@@ -127,7 +126,6 @@
       },
     },
     offset: logsOffset.value,
-    limit: logsLimit.value,
     sort: logsSort.value,
   }))
 
