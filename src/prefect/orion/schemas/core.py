@@ -415,6 +415,24 @@ class BlockSchemaReference(ORMBaseModel):
     name: str = Field(..., description="The name that the reference is nested under")
 
 
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
+
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
+
+
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
@@ -427,6 +445,9 @@ class BlockDocument(ORMBaseModel):
     block_type_id: UUID = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
+    )
+    block_document_references: Dict[str, Dict[str, UUID]] = Field(
+        default_factory=dict, description="Record of the block document's references"
     )
 
     @validator("name", check_fields=False)
