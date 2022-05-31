@@ -397,6 +397,24 @@ class BlockSchema(ORMBaseModel):
     )
 
 
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
+
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
+
+
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
@@ -431,6 +449,24 @@ class BlockDocument(ORMBaseModel):
             block_type_id=orm_block_document.block_type_id,
             block_type=orm_block_document.block_type,
         )
+
+
+class BlockDocumentReference(ORMBaseModel):
+    """An ORM representation of a block document reference."""
+
+    parent_block_document_id: UUID = Field(
+        ..., description="ID of block document the reference is nested within"
+    )
+    parent_block_document: Optional[BlockDocument] = Field(
+        None, description="The block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        ..., description="ID of the nested block document"
+    )
+    reference_block_document: Optional[BlockDocument] = Field(
+        None, description="The nested block document"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
 
 
 class Configuration(ORMBaseModel):
@@ -555,7 +591,7 @@ class QueueFilter(PrefectBaseModel):
 
 
 class WorkQueue(ORMBaseModel):
-    """An ORM representaiton of a work queue"""
+    """An ORM representation of a work queue"""
 
     filter: QueueFilter = Field(
         default_factory=QueueFilter, description="Filter criteria for the work queue."

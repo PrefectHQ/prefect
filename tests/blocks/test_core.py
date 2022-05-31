@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Optional, Type
 from uuid import uuid4
 
 import pytest
@@ -31,16 +31,12 @@ class TestAPICompatibility:
 
     def test_registration_checksums(self):
         assert (
-            get_block_class(
-                "sha256:b45dd7c45c4935967b3685e6b0d87a27baeb26b1b7aa69c85886724ddd8c246f"
-            )
+            get_block_class(self.MyRegisteredBlock._calculate_schema_checksum())
             is self.MyRegisteredBlock
         )
 
         assert (
-            get_block_class(
-                "sha256:719dd945f13a4aea50709ce65f93eee6f6511c5f560e89cdd0193ae1993536a8"
-            )
+            get_block_class(self.MyOtherRegisteredBlock._calculate_schema_checksum())
             is self.MyOtherRegisteredBlock
         )
 
@@ -53,7 +49,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:b45dd7c45c4935967b3685e6b0d87a27baeb26b1b7aa69c85886724ddd8c246f"
+            == "sha256:295c039674c2d9e8c697063e0a5c188a21cf5f564b94ed71b13ebfabdbb27ac3"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
@@ -62,6 +58,8 @@ class TestAPICompatibility:
                 "x": {"title": "X", "type": "string"},
                 "y": {"title": "Y", "default": 1, "type": "integer"},
             },
+            "block_schema_references": {},
+            "block_type_name": "MyRegisteredBlock",
             "required": ["x"],
         }
 
@@ -105,7 +103,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:719dd945f13a4aea50709ce65f93eee6f6511c5f560e89cdd0193ae1993536a8"
+            == "sha256:0ee40e3d110beef563d12af1e5b234d042237cffa3b344917f574b653d2a3b89"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
@@ -115,6 +113,8 @@ class TestAPICompatibility:
                 "y": {"title": "Y", "default": 1, "type": "integer"},
                 "z": {"default": 2, "title": "Z", "type": "integer"},
             },
+            "block_type_name": "MyOtherRegisteredBlock",
+            "block_schema_references": {},
             "required": ["x"],
         }
 
@@ -207,6 +207,51 @@ class TestAPICompatibility:
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
 
+    def test_create_block_schema_from_nested_blocks(self):
+
+        block_schema_id = uuid4()
+        block_type_id = uuid4()
+
+        class NestedBlock(Block):
+            _block_type_name = "Nested Block"
+
+            _block_schema_id = block_schema_id
+            _block_type_id = block_type_id
+            x: str
+
+        class ParentBlock(Block):
+            y: str
+            z: NestedBlock
+
+        block_schema = ParentBlock._to_block_schema(block_type_id=block_type_id)
+
+        assert block_schema.fields == {
+            "title": "ParentBlock",
+            "type": "object",
+            "properties": {
+                "y": {"title": "Y", "type": "string"},
+                "z": {"$ref": "#/definitions/NestedBlock"},
+            },
+            "required": ["y", "z"],
+            "block_type_name": "ParentBlock",
+            "block_schema_references": {
+                "z": {
+                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
+                    "block_type_name": "Nested Block",
+                }
+            },
+            "definitions": {
+                "NestedBlock": {
+                    "block_schema_references": {},
+                    "block_type_name": "Nested Block",
+                    "properties": {"x": {"title": "X", "type": "string"}},
+                    "required": ["x"],
+                    "title": "NestedBlock",
+                    "type": "object",
+                },
+            },
+        }
+
     async def test_block_load(self, test_block, block_document):
         my_block = await test_block.load(block_document.name)
 
@@ -216,7 +261,7 @@ class TestAPICompatibility:
         assert my_block._block_schema_id == block_document.block_schema_id
         assert my_block.foo == "bar"
 
-    async def test_create_block_from_nonexistant_name(self, test_block):
+    async def test_create_block_from_nonexistent_name(self, test_block):
         with pytest.raises(
             ValueError,
             match="Unable to find block document named blocky for block type x",
