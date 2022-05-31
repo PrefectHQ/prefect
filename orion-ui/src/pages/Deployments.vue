@@ -3,7 +3,6 @@
     <template #header>
       Deployments
     </template>
-
     <DeploymentsTable :deployments="deployments" @delete="deploymentsSubscription.refresh()" />
   </p-layout-default>
 </template>
