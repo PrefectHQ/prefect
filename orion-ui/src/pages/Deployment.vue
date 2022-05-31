@@ -60,7 +60,7 @@
     (previous, current) => {
       const [key, value] = current
       const valuetype = typeof value
-      const valueToString = valuetype !== 'object' ? String(value) : JSON.stringify(value)
+      const valueToString = valuetype !== 'object' ? value.toString() : JSON.stringify(value)
       const checkValue = valuetype == 'string' ? value : valueToString
       if (key.toLowerCase().includes(text.toLowerCase())) {
         previous.push(current)
