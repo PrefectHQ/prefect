@@ -59,14 +59,8 @@
   const fuzzyFilterFunction = (array: Parameter[], text: string): Parameter[] => array.reduce<Parameter[]>(
     (previous, current) => {
       const [key, value] = current
-      const valuetype = typeof value
-      const valueToString = valuetype !== 'object' ? value.toString() : JSON.stringify(value)
-      const checkValue = valuetype == 'string' ? value : valueToString
-      if (key.toLowerCase().includes(text.toLowerCase())) {
-        previous.push(current)
-      } else if (valuetype.includes(text.toLowerCase())) {
-        previous.push(current)
-      } else if (checkValue.toLowerCase().includes(text.toLowerCase())) {
+      const searchString = `${JSON.stringify(value)} ${key} ${typeof value}`.toLowerCase()
+      if (searchString.includes(text.toLowerCase())) {
         previous.push(current)
       }
       return previous
