@@ -14,17 +14,18 @@
 
     <p-key-value label="Tags">
       <template #value>
-        <p-tags :tags="workQueueTags" class="mt-1" />
+        <p-tags :tags="workQueueTags" class="mt-2" />
       </template>
     </p-key-value>
 
     <p-key-value label="Deployments">
       <template #value>
-        <div v-for="deployment in workQueueDeployments" :key="deployment.id">
+        <span v-for="(deployment, index) in workQueueDeployments" :key="deployment.id">
+          <span v-if="index !== 0">, </span>
           <router-link :to="routes.deployment(deployment.id)">
             {{ deployment.name }}
           </router-link>
-        </div>
+        </span>
       </template>
     </p-key-value>
 
