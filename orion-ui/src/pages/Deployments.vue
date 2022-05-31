@@ -3,14 +3,12 @@
     <template #header>
       Deployments
     </template>
-
-    <div v-for="deployment in deployments" :key="deployment.id">
-      {{ deployment }}
-    </div>
+    <DeploymentsTable :deployments="deployments" @delete="deploymentsSubscription.refresh()" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
+  import { DeploymentsTable } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
