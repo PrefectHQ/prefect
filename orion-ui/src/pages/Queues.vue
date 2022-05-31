@@ -3,9 +3,7 @@
     <template #header>
       Queues
     </template>
-
     <SearchInput v-model="workQueueSearchInput" />
-
     <QueuesTable :queues="filteredQueues" @delete="queuesSubscription.refresh()" />
   </p-layout-default>
 </template>
