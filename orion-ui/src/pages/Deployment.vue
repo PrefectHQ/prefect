@@ -48,10 +48,9 @@
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deploymentDetails = computed(() => deploymentSubscription.response)
 
-  const deploymentParameters = computed(()=> {Object.entries(deploymentDetails.value?.parameters ?? [])})
-
+  const deploymentParameters = computed(()=> {Object.entries(deploymentDetails.value?.parameters)})
   const parameterSearchInput = ref('')
-  const filteredDeploymentParameters = computed(()=> fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value))
+  const filteredDeploymentParameters = computed(()=> deploymentParameters.value ? fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value) : [])
 
   type Parameter = Record<string, any>
 
