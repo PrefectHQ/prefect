@@ -14,9 +14,7 @@
 
     <p-key-value label="Tags">
       <template #value>
-        <p-tag v-for="tag in workQueueTags" :key="tag">
-          {{ tag }}
-        </p-tag>
+        <p-tags :tags="workQueueTags" class="mt-1" />
       </template>
     </p-key-value>
 
