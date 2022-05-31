@@ -236,7 +236,7 @@ class Block(BaseModel, ABC):
                 checksum=block_document.block_schema.checksum,
             )
         )
-        block = block_schema_cls(**block_document.data)
+        block = block_schema_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
