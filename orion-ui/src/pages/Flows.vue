@@ -3,13 +3,13 @@
     <template #header>
       Flows
     </template>
-    <SearchInput v-model="flowSearchInput" />
+    <SearchInput v-model="flowSearchInput" placeholder="Search flows" label="Search by flow name" />
     <FlowsTable :flows="filteredFlowList" @delete="flowsSubscription.refresh()" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { FlowSearch, Flow, SearchInput, FlowsTable } from '@prefecthq/orion-design'
+  import { Flow, SearchInput, FlowsTable } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { flowsApi } from '@/services/flowsApi'
