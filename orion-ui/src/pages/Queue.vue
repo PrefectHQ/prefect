@@ -4,47 +4,45 @@
       <PageHeadingQueue v-if="workQueueDetails" :queue="workQueueDetails" />
     </template>
 
-    <div class="queue-content">
-      <p-key-value label="Description" :value="workQueueDescription" />
+    <p-key-value label="Description" :value="workQueueDescription" />
 
-      <p-key-value label="Work Queue ID" :value="workQueueID" />
+    <p-key-value label="Work Queue ID" :value="workQueueID" />
 
-      <p-key-value label="Flow Run Concurrency" :value="workQueueFlowRunConcurrency" />
+    <p-key-value label="Flow Run Concurrency" :value="workQueueFlowRunConcurrency" />
 
-      <p-key-value label="Created" :value="workQueueCreated" />
+    <p-key-value label="Created" :value="workQueueCreated" />
 
-      <p-key-value label="Tags">
-        <template #value>
-          <p-tag v-for="tag in workQueueTags" :key="tag">
-            {{ tag }}
-          </p-tag>
-        </template>
-      </p-key-value>
+    <p-key-value label="Tags">
+      <template #value>
+        <p-tag v-for="tag in workQueueTags" :key="tag">
+          {{ tag }}
+        </p-tag>
+      </template>
+    </p-key-value>
 
-      <p-key-value label="Deployments">
-        <template #value>
-          <div v-for="deployment in workQueueDeployments" :key="deployment.id">
-            <router-link :to="routes.deployment(deployment.id)">
-              {{ deployment.name }}
-            </router-link>
-          </div>
-        </template>
-      </p-key-value>
+    <p-key-value label="Deployments">
+      <template #value>
+        <div v-for="deployment in workQueueDeployments" :key="deployment.id">
+          <router-link :to="routes.deployment(deployment.id)">
+            {{ deployment.name }}
+          </router-link>
+        </div>
+      </template>
+    </p-key-value>
 
-      <p-key-value label="Flow Runners">
-        <template #value>
-          <p-checkbox
-            v-for="runner in flowRunnerTypes"
-            :key="runner.value"
-            v-model="flowRunners"
-            :label="runner.label"
-            :value="runner.value"
-            editor="checkbox"
-            disabled
-          />
-        </template>
-      </p-key-value>
-    </div>
+    <p-key-value label="Flow Runners">
+      <template #value>
+        <p-checkbox
+          v-for="runner in flowRunnerTypes"
+          :key="runner.value"
+          v-model="flowRunners"
+          :label="runner.label"
+          :value="runner.value"
+          editor="checkbox"
+          disabled
+        />
+      </template>
+    </p-key-value>
   </p-layout-default>
 </template>
 
@@ -98,11 +96,3 @@
 
   provide(workQueuesApiKey, workQueuesApi)
 </script>
-
-<style>
-.queue-content { @apply
-  grid
-  gap-2
-}
-</style>
-
