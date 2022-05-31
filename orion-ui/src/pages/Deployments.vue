@@ -4,12 +4,15 @@
       <PageHeadingDeployments />
     </template>
 
-    <template v-if="empty">
-      <DeploymentsPageEmptyState />
-    </template>
-    <template v-else>
-      <SearchInput v-model="searchInput" placeholder="Search deployments" label="Search by flow or deployment name" />
-      <DeploymentsTable :deployments="filteredDeployments" @delete="deploymentsSubscription.refresh()" @clear="clear" />
+    <template v-if="loaded">
+      <template v-if="empty">
+        <DeploymentsPageEmptyState />
+      </template>
+
+      <template v-else>
+        <SearchInput v-model="searchInput" placeholder="Search deployments" label="Search by flow or deployment name" />
+        <DeploymentsTable :deployments="filteredDeployments" @delete="deploymentsSubscription.refresh()" @clear="clear" />
+      </template>
     </template>
   </p-layout-default>
 </template>
@@ -29,6 +32,7 @@
   const searchInput = ref('')
   const filteredDeployments = computed(() => search(deployments.value, searchInput.value))
   const empty = computed(() => deploymentsSubscription.executed && deployments.value.length === 0)
+  const loaded = computed(() => deploymentsSubscription.executed)
 
   const search = (array: Deployment[], text: string): Deployment[] => array.reduce<Deployment[]>((previous, current) => {
     if (current.name.toLowerCase().includes(text.toLowerCase())) {
