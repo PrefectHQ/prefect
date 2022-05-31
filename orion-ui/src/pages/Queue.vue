@@ -20,7 +20,8 @@
 
     <p-key-value label="Deployments">
       <template #value>
-        <span v-for="(deployment, index) in workQueueDeployments" :key="deployment.id">
+        <span v-if="emptyWorkQueueDeployments">All Deployments</span>
+        <span v-for="(deployment, index) in workQueueDeployments" v-else :key="deployment.id">
           <span v-if="index !== 0">, </span>
           <router-link :to="routes.deployment(deployment.id)">
             {{ deployment.name }}
@@ -92,6 +93,7 @@
   }))
   const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
   const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
+  const emptyWorkQueueDeployments = computed(() => workQueueDeployments.value?.length === 0)
 
   provide(workQueuesApiKey, workQueuesApi)
 </script>
