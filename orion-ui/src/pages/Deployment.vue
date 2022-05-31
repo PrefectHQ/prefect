@@ -23,11 +23,9 @@
 
 
       <template #parameters>
-        <div>
-          <SearchInput v-model="parameterSearchInput" placeholder="Search parameters" label="Search parameters by key, value, type" />
-          <div v-for="parameter, index in filteredDeploymentParameters" :key="index">
-            {{ parameter[0] }} {{ parameter[1] }}
-          </div>
+        <SearchInput v-model="parameterSearchInput" placeholder="Search parameters" label="Search parameters by key, value, type" />
+        <div v-for="parameter, index in filteredDeploymentParameters" :key="index">
+          {{ parameter[0] }} {{ parameter[1] }}
         </div>
       </template>
     </p-tabs>
