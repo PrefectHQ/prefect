@@ -5,7 +5,7 @@
     </template>
 
     <SearchInput v-model="deploymentSearchInput" placeholder="Search..." label="Search by flow or deployment name" />
-    <DeploymentsTable :deployments="deployments" @delete="deploymentsSubscription.refresh()" />
+    <DeploymentsTable :deployments="filteredDeployments" @delete="deploymentsSubscription.refresh()" />
   </p-layout-default>
 </template>
 
