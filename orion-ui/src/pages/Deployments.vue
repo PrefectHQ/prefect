@@ -5,14 +5,12 @@
     </template>
 
     <SearchInput v-model="deploymentSearchInput" placeholder="Search..." label="Search by flow or deployment name" />
-    <div v-for="deployment in filteredDeployments" :key="deployment.id" class="mb-4">
-      {{ deployment }}
-    </div>
+    <DeploymentsTable :deployments="deployments" @delete="deploymentsSubscription.refresh()" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { SearchInput, Deployment } from '@prefecthq/orion-design'
+  import { SearchInput, Deployment, DeploymentsTable } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { deploymentsApi } from '@/services/deploymentsApi'
