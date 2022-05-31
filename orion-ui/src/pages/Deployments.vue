@@ -8,8 +8,8 @@
       <DeploymentsPageEmptyState />
     </template>
     <template v-else>
-      <SearchInput v-model="deploymentSearchInput" placeholder="Search deployments" label="Search by flow or deployment name" />
-      <DeploymentsTable :deployments="filteredDeployments" @delete="deploymentsSubscription.refresh()" />
+      <SearchInput v-model="searchInput" placeholder="Search deployments" label="Search by flow or deployment name" />
+      <DeploymentsTable :deployments="filteredDeployments" @delete="deploymentsSubscription.refresh()" @clear="clear" />
     </template>
   </p-layout-default>
 </template>
@@ -26,8 +26,8 @@
   }
   const deploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [filter], subscriptionOptions)
   const deployments = computed(() => deploymentsSubscription.response ?? [])
-  const deploymentSearchInput = ref('')
-  const filteredDeployments = computed(()=> search(deployments.value, deploymentSearchInput.value))
+  const searchInput = ref('')
+  const filteredDeployments = computed(() => search(deployments.value, searchInput.value))
   const empty = computed(() => deploymentsSubscription.executed && deployments.value.length === 0)
 
   const search = (array: Deployment[], text: string): Deployment[] => array.reduce<Deployment[]>((previous, current) => {
@@ -37,4 +37,8 @@
 
     return previous
   }, [])
+
+  const clear = (): void => {
+    searchInput.value = ''
+  }
 </script>

@@ -7,8 +7,8 @@
       <FlowsPageEmptyState />
     </template>
     <template v-else>
-      <SearchInput v-model="flowSearchInput" placeholder="Search flows" label="Search by flow name" />
-      <FlowsTable :flows="filteredFlowList" @delete="flowsSubscription.refresh()" />
+      <SearchInput v-model="searchInput" placeholder="Search flows" label="Search by flow name" clearable />
+      <FlowsTable :flows="filteredFlowList" @delete="flowsSubscription.refresh()" @clear="clear" />
     </template>
   </p-layout-default>
 </template>
@@ -24,8 +24,8 @@
   const flowsSubscription = useSubscription(flowsApi.getFlows, [filter], subscriptionOptions)
   const flows = computed<Flow[]>(() => flowsSubscription.response ?? [])
   const empty = computed(() => flowsSubscription.executed && flows.value.length === 0)
-  const flowSearchInput = ref('')
-  const filteredFlowList = computed(()=> search(flows.value, flowSearchInput.value))
+  const searchInput = ref('')
+  const filteredFlowList = computed(()=> search(flows.value, searchInput.value))
 
   const search = (array: Flow[], text: string): Flow[] => array.reduce<Flow[]>((previous, current) => {
     if (current.name.toLowerCase().includes(text.toLowerCase())) {
@@ -34,4 +34,8 @@
 
     return previous
   }, [])
+
+  const clear = (): void => {
+    searchInput.value = ''
+  }
 </script>
