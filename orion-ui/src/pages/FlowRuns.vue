@@ -144,7 +144,7 @@
 .flow-runs__meta-filters,
 .flow-runs__list { @apply
   grid
-  gap-1
+  gap-2
 }
 
 .flow-runs__date-filters { @apply
@@ -157,7 +157,7 @@
 
 .flow-runs__list-controls { @apply
   flex
-  gap-1
+  gap-2
   items-center
 }
 
