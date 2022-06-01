@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, mocker, IntervalSchedule, CronSchedule, RRuleSchedule, toPluralString } from '@prefecthq/orion-design'
+  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, mocker, formatSchedule } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -49,23 +49,7 @@
   // const deployment = computed(() => deploymentSubscription.response)
   const deployment = computed(() => mocker.create('deployment'))
 
-  const schedule = computed(() => {
-    const { schedule } = deployment.value
-
-    if (schedule instanceof IntervalSchedule) {
-      return `${schedule.interval.toLocaleString()} ${toPluralString('second', schedule.interval)}`
-    }
-
-    if (schedule instanceof CronSchedule) {
-      return schedule.cron.toString()
-    }
-
-    if (schedule instanceof RRuleSchedule) {
-      return schedule.rrule.toString()
-    }
-
-    return schedule
-  })
+  const schedule = computed(() => formatSchedule(deployment.value.schedule))
 
   function deleteDeployment(): void {
     router.push(routes.deployments())
