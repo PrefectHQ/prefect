@@ -1,5 +1,6 @@
 import asyncio
 import signal
+import sys
 
 import pendulum
 import pytest
@@ -108,6 +109,9 @@ async def test_early_stop():
     assert dt2 - dt < pendulum.duration(seconds=1)
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 8), reason="signal.raise_signal requires Python >= 3.8"
+)
 class TestSignalHandling:
     @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
     async def test_handle_signals_to_shutdown(self, sig):
