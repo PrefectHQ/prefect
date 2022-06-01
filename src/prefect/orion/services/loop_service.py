@@ -37,9 +37,8 @@ class LoopService:
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
         if handle_signals:
-            loop = asyncio.get_event_loop()
-            loop.add_signal_handler(signal.SIGINT, self._stop)
-            loop.add_signal_handler(signal.SIGTERM, self._stop)
+            signal.signal(signal.SIGINT, self._stop)
+            signal.signal(signal.SIGTERM, self._stop)
 
     @inject_db
     async def setup(self, db: OrionDBInterface) -> None:
