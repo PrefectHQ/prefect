@@ -1,4 +1,4 @@
-"""Replace version with checksum
+"""Add eplace version with checksum
 
 Revision ID: b75d279ba985
 Revises: fd966d4ad99c
@@ -59,7 +59,7 @@ def upgrade():
     with op.batch_alter_table("block_document", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
-                "block_type_id", prefect.orion.utilities.database.UUID(), nullable=False
+                "block_type_id", prefect.orion.utilities.database.UUID(), nullable=True
             )
         )
         batch_op.drop_index("uq_block__schema_id_name")
@@ -80,7 +80,7 @@ def upgrade():
     ) as batch_op:
         batch_op.add_column(
             sa.Column(
-                "block_type_id", prefect.orion.utilities.database.UUID(), nullable=False
+                "block_type_id", prefect.orion.utilities.database.UUID(), nullable=True
             )
         )
         batch_op.create_foreign_key(
@@ -90,7 +90,6 @@ def upgrade():
             ["id"],
             ondelete="cascade",
         )
-        batch_op.drop_column("name")
         batch_op.drop_column("version")
         batch_op.add_column(sa.Column("checksum", sa.String(), nullable=True))
         batch_op.drop_index("uq_block_schema__name_version")
@@ -99,26 +98,70 @@ def upgrade():
         )
         batch_op.create_index("uq_block_schema__checksum", ["checksum"], unique=True)
 
-    # Add checksums for existing block schemas
+    # Add checksums and block types for existing block schemas
     connection = op.get_bind()
     meta_data = sa.MetaData(bind=connection)
     meta_data.reflect()
     BLOCK_SCHEMA = meta_data.tables["block_schema"]
-    results = connection.execute(sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields]))
-    for id, fields in results:
+    BLOCK_TYPE = meta_data.tables["block_type"]
+    BLOCK_DOCUMENT = meta_data.tables["block_document"]
+    results = connection.execute(
+        sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.name, BLOCK_SCHEMA.c.fields])
+    )
+    for id, name, fields in results:
         schema_checksum = f"sha256:{hash_objects(fields, hash_algo=hashlib.sha256)}"
+        # Add checksum
         connection.execute(
             sa.update(BLOCK_SCHEMA)
             .where(BLOCK_SCHEMA.c.id == id)
             .values(checksum=schema_checksum)
         )
+        # Create corresponding block type
+        block_type_result = connection.execute(
+            sa.select([BLOCK_TYPE.c.id]).where(BLOCK_TYPE.c.name == name)
+        ).first()
+        if block_type_result is None:
+            # Create block type if it doesn't already exist
+            connection.execute(sa.insert(BLOCK_TYPE).values(name=name))
+        block_type_result = connection.execute(
+            sa.select([BLOCK_TYPE.c.id]).where(BLOCK_TYPE.c.name == name)
+        ).first()
+        new_block_type_id = block_type_result[0]
+        connection.execute(
+            sa.update(BLOCK_SCHEMA)
+            .where(BLOCK_SCHEMA.c.id == id)
+            .values(block_type_id=new_block_type_id)
+        )
+        # Associate new block type will all block documents for this block schema
+        block_document_results = connection.execute(
+            sa.select([BLOCK_DOCUMENT.c.id]).where(
+                BLOCK_DOCUMENT.c.block_schema_id == id
+            )
+        ).all()
+        for block_document_id in block_document_results:
+            connection.execute(
+                sa.update(BLOCK_DOCUMENT)
+                .where(BLOCK_DOCUMENT.c.id == block_document_id)
+                .values(block_type_id=new_block_type_id)
+            )
 
     with op.batch_alter_table(
         "block_schema",
         schema=None,
     ) as batch_op:
+        batch_op.drop_column("name")
         batch_op.alter_column("checksum", existing_type=sa.VARCHAR(), nullable=False)
+        batch_op.alter_column(
+            "block_type_id", existing_type=sa.VARCHAR(), nullable=False
+        )
 
+    with op.batch_alter_table(
+        "block_document",
+        schema=None,
+    ) as batch_op:
+        batch_op.alter_column(
+            "block_type_id", existing_type=sa.VARCHAR(), nullable=False
+        )
     # ### end Alembic commands ###
 
 

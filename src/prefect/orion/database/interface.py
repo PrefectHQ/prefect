@@ -159,9 +159,19 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.BlockSchema
 
     @property
+    def BlockSchemaReference(self):
+        """A block schema reference model"""
+        return self.orm.BlockSchemaReference
+
+    @property
     def BlockDocument(self):
         """A block document model"""
         return self.orm.BlockDocument
+
+    @property
+    def BlockDocumentReference(self):
+        """A block document reference model"""
+        return self.orm.BlockDocumentReference
 
     @property
     def FlowRunNotificationPolicy(self):
