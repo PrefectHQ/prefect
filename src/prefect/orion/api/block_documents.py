@@ -24,7 +24,7 @@ async def create_block_document(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
     try:
-        model = await models.block_documents.create_block_document(
+        new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
     except sa.exc.IntegrityError:
@@ -33,9 +33,7 @@ async def create_block_document(
             detail="Block already exists",
         )
 
-    return await schemas.core.BlockDocument.from_orm_model(
-        session=session, orm_block_document=model
-    )
+    return new_block_document
 
 
 @router.post("/filter")
@@ -54,7 +52,7 @@ async def read_block_documents(
         limit=limit,
     )
 
-    return [await schemas.core.BlockDocument.from_orm_model(session, b) for b in result]
+    return result
 
 
 @router.get("/{id}")
@@ -64,16 +62,14 @@ async def read_block_document_by_id(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.BlockDocument:
-    model = await models.block_documents.read_block_document_by_id(
+    block_document = await models.block_documents.read_block_document_by_id(
         session=session, block_document_id=block_document_id
     )
-    if not model:
+    if not block_document:
         return responses.JSONResponse(
             status_code=404, content={"message": "Block document not found"}
         )
-    return await schemas.core.BlockDocument.from_orm_model(
-        session=session, orm_block_document=model
-    )
+    return block_document
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -96,11 +92,14 @@ async def update_block_document_data(
     block_document_id: str = Path(..., description="The block document id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    result = await models.block_documents.update_block_document(
-        session=session,
-        block_document_id=block_document_id,
-        block=block_document,
-    )
+    try:
+        result = await models.block_documents.update_block_document(
+            session=session,
+            block_document_id=block_document_id,
+            block_document=block_document,
+        )
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
 
     if not result:
         raise HTTPException(
@@ -138,13 +137,11 @@ async def get_default_storage_block_document(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> Optional[schemas.core.BlockDocument]:
-    model = await models.block_documents.get_default_storage_block_document(
+    block_document = await models.block_documents.get_default_storage_block_document(
         session=session
     )
-    if model:
-        return await schemas.core.BlockDocument.from_orm_model(
-            session=session, orm_block_document=model
-        )
+    if block_document is not None:
+        return block_document
     else:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
