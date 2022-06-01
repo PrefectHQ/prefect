@@ -233,8 +233,45 @@ async def block_schema(session, block_type_x):
                 "type": "object",
                 "properties": {"foo": {"title": "Foo", "type": "string"}},
                 "required": ["foo"],
+                "block_schema_references": {},
+                "block_type_name": block_type_x.name,
             },
             block_type_id=block_type_x.id,
+        ),
+    )
+    await session.commit()
+    return block_schema
+
+
+@pytest.fixture
+async def nested_block_schema(session, block_type_y, block_type_x, block_schema):
+    block_schema = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            fields={
+                "title": "y",
+                "type": "object",
+                "properties": {"bar": {"$ref": "#/definitions/x"}},
+                "required": ["bar"],
+                "block_schema_references": {
+                    "bar": {
+                        "block_schema_checksum": block_schema.checksum,
+                        "block_type_name": block_type_x.name,
+                    }
+                },
+                "block_type_name": block_type_y.name,
+                "definitions": {
+                    "x": {
+                        "title": "x",
+                        "type": "object",
+                        "properties": {"foo": {"title": "Foo", "type": "string"}},
+                        "required": ["foo"],
+                        "block_schema_references": {},
+                        "block_type_name": block_type_x.name,
+                    }
+                },
+            },
+            block_type_id=block_type_y.id,
         ),
     )
     await session.commit()
