@@ -1,40 +1,52 @@
 <template>
-  <p-layout-default class="flow">
+  <p-layout-well class="flow">
     <template #header>
-      Flow {{ flowId }}
-
-      <p-tabs :tabs="flowTabs">
-        <template #deployments>
-          <SearchInput v-model="flowDeploymentSearchInput" placeholder="Search deployments" label="Search by deployment name" />
-          <DeploymentsTable :deployments="filteredFlowDeployments" @delete="flowDeploymentsSubscription.refresh()" />
-        </template>
-      </p-tabs>
+      <PageHeadingFlow v-if="flow" :flow="flow" @delete="deleteFlow" />
     </template>
 
-    <div>
-      Flow Details
-    </div>
-    <div>
-      {{ flowDetails }}
-    </div>
-  </p-layout-default>
+    <p-tabs :tabs="tabs">
+      <template #details>
+        <FlowDetails v-if="flow" :flow="flow" />
+      </template>
+      <template #deployments>
+        <DeploymentsTable :deployments="flowDeployments" @delete="flowDeploymentsSubscription.refresh()" />
+      </template>
+    </p-tabs>
+
+    <template #well>
+      <FlowDetails v-if="flow" :flow="flow" />
+    </template>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, SearchInput, Deployment, DeploymentsTable } from '@prefecthq/orion-design'
+  import { useRouteParam, UnionFilters, DeploymentsTable, PageHeadingFlow, FlowDetails } from '@prefecthq/orion-design'
+  import { media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { flowsApi } from '@/services/flowsApi'
 
-  const flowTabs = ['Deployments']
-
   const flowId = useRouteParam('id')
+  const router = useRouter()
+  const tabs = computed(() => {
+    const tabs = ['Deployments']
+
+    if (!media.xl) {
+      tabs.unshift('Details')
+    }
+
+    return tabs
+  })
+
   const subscriptionOptions = {
     interval: 300000,
   }
+
   const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
-  const flowDetails = computed(() => flowSubscription.response ?? [])
+  const flow = computed(() => flowSubscription.response)
 
   const flowDeploymentFilter = computed<UnionFilters>(() => ({
     flows: {
@@ -43,17 +55,11 @@
       },
     },
   }))
+
   const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
   const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 
-  const flowDeploymentSearchInput = ref('')
-  const filteredFlowDeployments = computed(()=> fuzzyFilterFunction(flowDeployments.value, flowDeploymentSearchInput.value))
-
-  const fuzzyFilterFunction = (array: Deployment[], text: string): Deployment[] => array.reduce<Deployment[]>(
-    (previous, current) => {
-      if (current.name.toLowerCase().includes(text.toLowerCase())) {
-        previous.push(current)
-      }
-      return previous
-    }, [])
+  function deleteFlow(): void {
+    router.push(routes.flows())
+  }
 </script>
