@@ -1,77 +1,58 @@
 <template>
-  <p-layout-default class="deployment">
+  <p-layout-well class="deployment">
     <template #header>
-      Deployment {{ deploymentId }}
+      <PageHeadingDeployment v-if="deployment" :deployment="deployment" @delete="deleteDeployment" />
     </template>
 
-    <p-tabs :tabs="deploymentTabs">
+    <p-tabs :tabs="['Overview', 'Parameters']">
       <template #overview>
-        <div>
-          Deployment Details
-        </div>
-        <div>
-          {{ deploymentDetails }}
-        </div>
-
-        <div class="mt-2">
-          Deployment Flows
-        </div>
-        <div v-for="flow in deploymentFlows" :key="flow.id">
-          {{ flow }}
-        </div>
+        <template v-if="deployment">
+          <div class="grid gap-2">
+            <p-key-value label="Schedule" :value="schedule" />
+            <p-key-value label="Location" :value="deployment.flowData.blob" />
+            <p-key-value label="Flow Runner" :value="deployment.flowRunner" />
+            <template v-if="!media.xl">
+              <DeploymentDetails :deployment="deployment" />
+            </template>
+          </div>
+        </template>
       </template>
-
 
       <template #parameters>
-        <SearchInput v-model="parameterSearchInput" placeholder="Search parameters" label="Search parameters by key, value, type" />
-        <div v-for="parameter, index in filteredDeploymentParameters" :key="index">
-          {{ parameter[0] }} {{ parameter[1] }}
-        </div>
+        <DeploymentParametersTable :parameters="deployment.parameters" />
       </template>
     </p-tabs>
-  </p-layout-default>
+
+    <template #well>
+      <DeploymentDetails v-if="deployment" :deployment="deployment" />
+    </template>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, SearchInput } from '@prefecthq/orion-design'
+  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, mocker, formatSchedule } from '@prefecthq/orion-design'
+  import { media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowsApi } from '@/services/flowsApi'
 
-
-  const deploymentTabs = ['Overview', 'Parameters']
   const deploymentId = useRouteParam('id')
+  const router = useRouter()
+
   const subscriptionOptions = {
     interval: 300000,
   }
+
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
-  const deploymentDetails = computed(() => deploymentSubscription.response)
+  // const deployment = computed(() => deploymentSubscription.response)
+  const deployment = computed(() => mocker.create('deployment'))
 
-  const deploymentParameters = computed(()=> {Object.entries(deploymentDetails.value?.parameters)})
-  const parameterSearchInput = ref('')
-  const filteredDeploymentParameters = computed(()=> deploymentParameters.value ? fuzzyFilterFunction(deploymentParameters.value, parameterSearchInput.value) : [])
+  const schedule = computed(() => formatSchedule(deployment.value.schedule))
 
-  type Parameter = Record<string, any>
-
-  const fuzzyFilterFunction = (array: Parameter[], text: string): Parameter[] => array.reduce<Parameter[]>(
-    (previous, current) => {
-      const [key, value] = current
-      const searchString = `${JSON.stringify(value)} ${key} ${typeof value}`.toLowerCase()
-      if (searchString.includes(text.toLowerCase())) {
-        previous.push(current)
-      }
-      return previous
-    }, [])
-
-  const deploymentFlowFilter = computed<UnionFilters>(() => ({
-    deployments: {
-      id: {
-        any_: [deploymentId.value],
-      },
-    },
-  }))
-  const deploymentFlowsSubscription = useSubscription(flowsApi.getFlows, [deploymentFlowFilter], subscriptionOptions)
-  const deploymentFlows = computed(() => deploymentFlowsSubscription.response ?? [])
+  function deleteDeployment(): void {
+    router.push(routes.deployments())
+  }
 </script>
 
