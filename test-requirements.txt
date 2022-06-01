@@ -5,3 +5,5 @@ pytest-xdist >= 2.0
 flaky >= 3.0
 responses >= 0.14.0
 PyJWT >= 2.3.0
+freezegun >= 1.0.0
+requests_mock >= 1.0.0
