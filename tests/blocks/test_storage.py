@@ -30,15 +30,6 @@ FS_STORAGE_BLOCKS = [
 ]
 
 
-async def test_storage_block_schema_type():
-    assert storage.StorageBlock._block_schema_type == "STORAGE"
-
-    class MyStorageBlock(storage.StorageBlock):
-        pass
-
-    assert MyStorageBlock._block_schema_type == "STORAGE"
-
-
 @pytest.mark.parametrize(
     ["user_data", "storage_block"], product(TEST_DATA, FS_STORAGE_BLOCKS)
 )
