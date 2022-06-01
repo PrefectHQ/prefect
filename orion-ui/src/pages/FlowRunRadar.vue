@@ -1,8 +1,9 @@
 <template>
-  <p-layout-full class="flow-run">
+  <p-layout-full class="flow-run-radar">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" @delete="goToFlowRuns">
-        <div class="flow-run__header-meta">
+      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" class="flow-run-radar__header" @delete="goToFlowRuns">
+        <!-- Todo - Add this mobile scaling to Orion design -->
+        <div class="flow-run-radar__header-meta">
           <StateBadge :state="flowRun.state" />
           <DurationIconText :duration="flowRun.duration" />
           <FlowIconText :flow-id="flowRun.flowId" />
@@ -43,29 +44,15 @@
 </script>
 
 <style>
-.flow-run__filters { @apply
-  flex
-  gap-1
-  items-center
-  justify-end
-  mb-2
+/* This is temporary since p-layout-full doesn't respect the context sidebar */
+.flow-run-radar {
+  width: 100% !important;
 }
 
-.flow-run__logs {
-  min-height: 500px;
-}
-
-.flow-run__header-meta { @apply
+.flow-run-radar__header-meta { @apply
   flex
   gap-2
   items-center
   xl:hidden
-}
-
-.flow-run__meta { @apply
-  flex
-  flex-col
-  gap-3
-  items-start
 }
 </style>
