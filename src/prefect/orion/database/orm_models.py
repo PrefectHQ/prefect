@@ -777,6 +777,27 @@ class ORMBlockSchema:
 
 
 @declarative_mixin
+class ORMBlockSchemaReference:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def parent_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def reference_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+
+@declarative_mixin
 class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -834,6 +855,27 @@ class ORMBlockDocument:
         Note: will only succeed if the caller has sufficient permission.
         """
         return await decrypt_fernet(session, self.data)
+
+
+@declarative_mixin
+class ORMBlockDocumentReference:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def parent_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def reference_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
 
 
 @declarative_mixin
@@ -970,7 +1012,9 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_type_mixin: block_type orm mixin, combined with Base orm class
         block_schema_mixin: block_schema orm mixin, combined with Base orm class
+        block_schema_reference_mixin: block_schema_reference orm mixin, combined with Base orm class
         block_document_mixin: block_document orm mixin, combined with Base orm class
+        block_document_reference_mixin: block_document_reference orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
@@ -993,7 +1037,9 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
+        block_document_reference_mixin=ORMBlockDocumentReference,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -1038,7 +1084,9 @@ class BaseORMConfiguration(ABC):
             agent_mixin=agent_mixin,
             block_type_mixin=block_type_mixin,
             block_schema_mixin=block_schema_mixin,
+            block_schema_reference_mixin=block_schema_reference_mixin,
             block_document_mixin=block_document_mixin,
+            block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -1077,7 +1125,9 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
+        block_document_reference_mixin=ORMBlockDocumentReference,
         flow_run_notification_policy_mixin=ORMFlowRunNotificationPolicy,
         flow_run_notification_queue_mixin=ORMFlowRunNotificationQueue,
         configuration_mixin=ORMConfiguration,
@@ -1129,7 +1179,13 @@ class BaseORMConfiguration(ABC):
         class BlockSchema(block_schema_mixin, self.Base):
             pass
 
+        class BlockSchemaReference(block_schema_reference_mixin, self.Base):
+            pass
+
         class BlockDocument(block_document_mixin, self.Base):
+            pass
+
+        class BlockDocumentReference(block_document_reference_mixin, self.Base):
             pass
 
         class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
@@ -1155,7 +1211,9 @@ class BaseORMConfiguration(ABC):
         self.Agent = Agent
         self.BlockType = BlockType
         self.BlockSchema = BlockSchema
+        self.BlockSchemaReference = BlockSchemaReference
         self.BlockDocument = BlockDocument
+        self.BlockDocumentReference = BlockDocumentReference
         self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
