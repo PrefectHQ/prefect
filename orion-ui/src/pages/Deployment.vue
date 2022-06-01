@@ -1,56 +1,74 @@
 <template>
-  <p-layout-default class="deployment">
+  <p-layout-well class="deployment">
     <template #header>
-      Deployment {{ deploymentId }}
-
-      <p-tabs :tabs="deploymentTabs">
-        <template #overview>
-          <div>
-            Deployment Details
-          </div>
-          <div>
-            {{ deploymentDetails }}
-          </div>
-
-          <div>
-            Deployment Flows
-          </div>
-          <div v-for="flow in deploymentFlows" :key="flow.id">
-            {{ flow }}
-          </div>
-        </template>
-
-        <template #parameters>
-          {{ deploymentDetails?.parameters }}
-        </template>
-      </p-tabs>
+      <PageHeadingDeployment v-if="deployment" :deployment="deployment" @delete="deleteDeployment" />
     </template>
-  </p-layout-default>
+
+    <p-tabs :tabs="['Overview', 'Parameters']">
+      <template #overview>
+        <template v-if="deployment">
+          <div class="grid gap-2">
+            <p-key-value label="Schedule" :value="schedule" />
+            <p-key-value label="Location" :value="deployment.flowData.blob" />
+            <p-key-value label="Flow Runner" :value="deployment.flowRunner" />
+            <template v-if="!media.xl">
+              <DeploymentDetails :deployment="deployment" />
+            </template>
+          </div>
+        </template>
+      </template>
+
+      <template #parameters>
+        <DeploymentParametersTable :parameters="deployment.parameters" />
+      </template>
+    </p-tabs>
+
+    <template #well>
+      <DeploymentDetails v-if="deployment" :deployment="deployment" />
+    </template>
+  </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters } from '@prefecthq/orion-design'
+  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, mocker, IntervalSchedule, CronSchedule, RRuleSchedule, toPluralString } from '@prefecthq/orion-design'
+  import { media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowsApi } from '@/services/flowsApi'
 
-  const deploymentTabs = ['Overview', ' Parameters']
   const deploymentId = useRouteParam('id')
+  const router = useRouter()
+
   const subscriptionOptions = {
     interval: 300000,
   }
-  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
-  const deploymentDetails = computed(() => deploymentSubscription.response)
 
-  const deploymentFlowFilter = computed<UnionFilters>(() => ({
-    deployments: {
-      id: {
-        any_: [deploymentId.value],
-      },
-    },
-  }))
-  const deploymentFlowsSubscription = useSubscription(flowsApi.getFlows, [deploymentFlowFilter], subscriptionOptions)
-  const deploymentFlows = computed(() => deploymentFlowsSubscription.response ?? [])
+  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
+  // const deployment = computed(() => deploymentSubscription.response)
+  const deployment = computed(() => mocker.create('deployment'))
+
+  const schedule = computed(() => {
+    const { schedule } = deployment.value
+
+    if (schedule instanceof IntervalSchedule) {
+      return `${schedule.interval.toLocaleString()} ${toPluralString('second', schedule.interval)}`
+    }
+
+    if (schedule instanceof CronSchedule) {
+      return schedule.cron.toString()
+    }
+
+    if (schedule instanceof RRuleSchedule) {
+      return schedule.rrule.toString()
+    }
+
+    return schedule
+  })
+
+  function deleteDeployment(): void {
+    router.push(routes.deployments())
+  }
 </script>
 
