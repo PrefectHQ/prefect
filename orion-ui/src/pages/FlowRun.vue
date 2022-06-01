@@ -114,7 +114,7 @@
   const state = ref<StateType>()
   const logLevel = ref<LogLevel>(0)
   const logsOffset = ref<number>(0)
-  const logsSort = ref<LogsRequestSort>('TIMESTAMP_DESC')
+  const logsSort = ref<LogsRequestSort>('TIMESTAMP_ASC')
   const logsFilter = computed<LogsRequestFilter>(() => ({
     logs: {
       flow_run_id: {
