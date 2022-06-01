@@ -693,6 +693,30 @@ def test_create_dockerfile_with_weird_flow_name():
             )
 
 
+def test_create_dockerfile_with_complex_python_dependencies():
+    with tempfile.TemporaryDirectory() as tempdir_outside:
+
+        with open(os.path.join(tempdir_outside, "test"), "w+") as t:
+            t.write("asdf")
+
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            storage = Docker(
+                registry_url="test1",
+                base_image="test3",
+                python_dependencies=["lib[flavor]<2.0.0,>=1.1.1", "other-lib"],
+            )
+            dpath = storage.create_dockerfile_object(directory=tempdir)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            assert (
+                "RUN pip install 'lib[flavor]<2.0.0,>=1.1.1' 'other-lib' 'wheel'"
+                in output
+            )
+
+
 def test_create_dockerfile_with_weird_flow_name_custom_prefect_dir(tmpdir):
 
     with open(os.path.join(tmpdir, "test"), "w+") as t:
