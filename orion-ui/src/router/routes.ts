@@ -10,6 +10,7 @@ export const routes = {
   flowRuns: () => ({ name: 'flow-runs' }) as const,
   flows: () => ({ name: 'flows' }) as const,
   queue: (id: string) => ({ name: 'queue', params: { id } }) as const,
+  queueEdit: (id: string) => ({ name: 'edit-queue', params: { id } }) as const,
   queueCreate: () => ({ name: 'create-queue' }) as const,
   queues: () => ({ name: 'queues' }) as const,
   settings: () => ({ name: 'settings' }) as const,
