@@ -43,7 +43,7 @@ API_ROUTERS = (
     api.task_runs.router,
     api.flow_run_states.router,
     api.task_run_states.router,
-    api.flow_run_alert_policies.router,
+    api.flow_run_notification_policies.router,
     api.deployments.router,
     api.saved_searches.router,
     api.logs.router,
@@ -313,8 +313,12 @@ def create_app(
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_FLOW_RUN_ALERTS_ENABLED.value():
-            service_instances.append(services.flow_run_alerts.FlowRunAlerts())
+        if (
+            prefect.settings.PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value()
+        ):
+            service_instances.append(
+                services.flow_run_notifications.FlowRunNotifications()
+            )
 
         loop = asyncio.get_running_loop()
 
