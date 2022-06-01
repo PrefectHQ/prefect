@@ -17,9 +17,9 @@ from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
-FLOW_RUN_ALERT_TEMPLATE_KWARGS = [
-    "flow_run_alert_policy_id",
-    "flow_run_alert_policy_name",
+FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
+    "flow_run_notification_policy_id",
+    "flow_run_notification_policy_name",
     "flow_id",
     "flow_name",
     "flow_run_id",
@@ -634,22 +634,23 @@ class WorkQueue(ORMBaseModel):
         return v
 
 
-class FlowRunAlertPolicy(ORMBaseModel):
+class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    name: str = Field(..., description="A name for the alert policy")
+    name: str = Field(..., description="A name for the notification policy")
     is_active: bool = Field(True, description="Whether the policy is currently active")
     state_names: List[str] = Field(
-        ..., description="The flow run states that trigger alerts"
+        ..., description="The flow run states that trigger notifications"
     )
     tags: List[str] = Field(
         ...,
-        description="The flow run tags that trigger alerts (set [] to disable)",
+        description="The flow run tags that trigger notifications (set [] to disable)",
     )
     block_document_id: UUID = Field(
-        ..., description="The block document ID used for sending alerts"
+        ..., description="The block document ID used for sending notifications"
     )
-    # message_template: str = Field(None, description=f'A templatable alert message. Valid variables include: {FLOW_RUN_ALERT_TEMPLATE_KWARGS.join(",")}')
+    # message_template: str = Field(None, description=f'A templatable notification message.
+    # Valid variables include: {FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS.join(",")}')
 
 
 class Agent(ORMBaseModel):
