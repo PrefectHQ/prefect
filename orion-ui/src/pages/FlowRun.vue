@@ -78,7 +78,6 @@
     FlowRunDetails,
     StateSelect,
     StateType,
-    media,
     StateBadge,
     FlowIconText,
     DeploymentIconText,
@@ -86,7 +85,7 @@
     LogLevelSelect,
     LogLevel
   } from '@prefecthq/orion-design'
-  import { PDivider } from '@prefecthq/prefect-design'
+  import { PDivider, media } from '@prefecthq/prefect-design'
   import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'
