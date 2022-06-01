@@ -5,7 +5,7 @@ jinja2
 mkdocs
 mkdocs-gen-files
 mkdocs-material
-mkdocstrings
+mkdocstrings-python-legacy
 mock; python_version < '3.8'
 moto
 mypy
