@@ -57,7 +57,6 @@ const routeRecords: AppRouteRecord[] = [
     ],
   },
   {
-    name: 'queue',
     path: '/queue/:id',
     component: RouterView,
     children: [
