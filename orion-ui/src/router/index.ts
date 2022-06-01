@@ -16,6 +16,11 @@ const routeRecords: AppRouteRecord[] = [
     component: FlowRunsPage,
   },
   {
+    name: 'radar',
+    path: '/flow-run/:id/radar',
+    component: (): RouteComponent => import('@/pages/FlowRunRadar.vue'),
+  },
+  {
     name: 'flow-run',
     path: '/flow-run/:id',
     component: (): RouteComponent => import('@/pages/FlowRun.vue'),
