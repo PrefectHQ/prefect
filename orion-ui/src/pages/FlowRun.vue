@@ -19,7 +19,32 @@
         <div class="flow-run__filters">
           <LogLevelSelect v-model:selected="logLevel" />
         </div>
-        <LogsContainer :logs="logs" class="flow-run__logs" />
+        <LogsContainer :logs="logs" class="flow-run__logs">
+          <template #empty>
+            <p-empty-results>
+              <template #message>
+                <div v-if="logLevel > 0">
+                  No logs match your filter criteria
+                </div>
+                <div v-else-if="state == 'scheduled'">
+                  This run is scheduled and hasn't generated logs
+                </div>
+                <div v-else-if="state == 'running'">
+                  Waiting for logs...
+                </div>
+                <div v-else>
+                  This run didn't generate Logs
+                </div>
+              </template>
+
+              <template #actions>
+                <p-button size="sm" secondary @click="logLevel = 0">
+                  Clear Filters
+                </p-button>
+              </template>
+            </p-empty-results>
+          </template>
+        </LogsContainer>
       </template>
 
       <template #task-runs>
@@ -213,8 +238,9 @@
   mb-2
 }
 
-.flow-run__logs {
-  min-height: 500px;
+.flow-run__logs { @apply
+  min-h-[500px]
+  max-h-screen
 }
 
 .flow-run__header-meta { @apply
