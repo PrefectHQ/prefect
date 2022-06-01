@@ -26,7 +26,8 @@
     flowRunRouteKey,
     flowRouteKey,
     deploymentRouteKey,
-    workQueueRouteKey
+    workQueueRouteKey,
+    newQueueRouteKey
   } from '@prefecthq/orion-design'
   import { provide } from 'vue'
   import { routes } from '@/router/routes'
@@ -56,6 +57,7 @@
   provide(flowRouteKey, routes.flow)
   provide(deploymentRouteKey, routes.deployment)
   provide(workQueueRouteKey, routes.queue)
+  provide(newQueueRouteKey, routes.queueCreate)
 </script>
 
 <style>
