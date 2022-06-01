@@ -109,7 +109,7 @@ If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linu
     
     Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI. 
     
-    If you encounter unexpected issues, please let us know via [Prefect Discourse](https://discourse.prefect.io/) discussion groups or the [Prefect Community Slack](https://www.prefect.io/slack/).
+    If you encounter unexpected issues, please let us know via a [GitHub issue](https://github.com/PrefectHQ/prefect/issues), [Prefect Discourse](https://discourse.prefect.io/) discussion groups, or the [Prefect Community Slack](https://www.prefect.io/slack/).
 
 ## Linux installation notes
 
