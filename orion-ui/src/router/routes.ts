@@ -23,4 +23,6 @@ export function isNamedRoute(route?: RouteRecordName | null): route is NamedRout
 }
 
 export type AppRouteLocation = Omit<RouteLocationRaw, 'name'> & { name: NamedRoute }
-export type AppRouteRecord = Omit<RouteRecordRaw, 'name' | 'children'> & { name: NamedRoute, children?: AppRouteRecord[] }
+export type AppRouteRecordParent = { name?: NamedRoute, children: AppRouteRecord[] }
+export type AppRouteRecordChild = { name: NamedRoute }
+export type AppRouteRecord = Omit<RouteRecordRaw, 'name' | 'children'> & AppRouteRecordParent | AppRouteRecordChild
