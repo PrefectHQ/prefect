@@ -11,6 +11,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.models.block_schemas import MissingBlockTypeException
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_schemas", tags=["Block schemas"])
@@ -33,6 +34,8 @@ async def create_block_schema(
             status.HTTP_409_CONFLICT,
             detail="Identical block schema already exists.",
         )
+    except MissingBlockTypeException as ex:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=str(ex))
 
     return model
 
@@ -56,7 +59,6 @@ async def delete_block_schema(
 
 @router.post("/filter")
 async def read_block_schemas(
-    block_schema_type: str = Body(None, description="The block schema type"),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -66,7 +68,6 @@ async def read_block_schemas(
     """
     result = await models.block_schemas.read_block_schemas(
         session=session,
-        block_schema_type=block_schema_type,
         limit=limit,
         offset=offset,
     )

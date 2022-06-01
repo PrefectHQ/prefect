@@ -169,7 +169,7 @@ class BlockTypeUpdate(PrefectBaseModel):
 class BlockSchemaCreate(
     schemas.core.BlockSchema.subclass(
         name="BlockSchemaCreate",
-        include_fields=["type", "fields", "block_type_id"],
+        include_fields=["fields", "capabilities", "block_type_id"],
     )
 ):
     """Data used by the Orion API to create a block schema."""
@@ -187,8 +187,22 @@ class BlockDocumentCreate(
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
 
-    name: Optional[str]
-    data: Optional[dict]
+    name: Optional[str] = None
+    data: Optional[dict] = None
+
+
+class BlockDocumentReferenceCreate(
+    schemas.core.BlockDocumentReference.subclass(
+        name="BlockDocumentReferenceCreate",
+        include_fields=[
+            "id",
+            "name",
+            "parent_block_document_id",
+            "reference_block_document_id",
+        ],
+    )
+):
+    """Data used to create block document reference."""
 
 
 class LogCreate(

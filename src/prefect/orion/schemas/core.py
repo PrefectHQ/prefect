@@ -384,7 +384,6 @@ class BlockSchema(ORMBaseModel):
     """An ORM representation of a block schema."""
 
     checksum: str = Field(..., description="The block schema's unique checksum")
-    type: str = Field(None, description="The block schema's type")
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
@@ -392,6 +391,46 @@ class BlockSchema(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
+
+
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
+
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
+
+
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
+
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
 
 
 class BlockDocument(ORMBaseModel):
@@ -406,6 +445,9 @@ class BlockDocument(ORMBaseModel):
     block_type_id: UUID = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
+    )
+    block_document_references: Dict[str, Dict[str, UUID]] = Field(
+        default_factory=dict, description="Record of the block document's references"
     )
 
     @validator("name", check_fields=False)
@@ -428,6 +470,24 @@ class BlockDocument(ORMBaseModel):
             block_type_id=orm_block_document.block_type_id,
             block_type=orm_block_document.block_type,
         )
+
+
+class BlockDocumentReference(ORMBaseModel):
+    """An ORM representation of a block document reference."""
+
+    parent_block_document_id: UUID = Field(
+        ..., description="ID of block document the reference is nested within"
+    )
+    parent_block_document: Optional[BlockDocument] = Field(
+        None, description="The block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        ..., description="ID of the nested block document"
+    )
+    reference_block_document: Optional[BlockDocument] = Field(
+        None, description="The nested block document"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
 
 
 class Configuration(ORMBaseModel):
@@ -552,7 +612,7 @@ class QueueFilter(PrefectBaseModel):
 
 
 class WorkQueue(ORMBaseModel):
-    """An ORM representaiton of a work queue"""
+    """An ORM representation of a work queue"""
 
     filter: QueueFilter = Field(
         default_factory=QueueFilter, description="Filter criteria for the work queue."
