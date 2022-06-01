@@ -1,5 +1,5 @@
 import { RouteGuardExecutioner } from '@prefecthq/orion-design'
-import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent } from 'vue-router'
+import { RouteRecordRaw, createRouter, createWebHistory, RouteComponent, RouterView } from 'vue-router'
 import FlowRunsPage from '@/pages/FlowRuns.vue'
 import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/routes'
 import { BASE_URL } from '@/utilities/meta'
@@ -41,10 +41,14 @@ const routeRecords: AppRouteRecord[] = [
     component: (): RouteComponent => import('@/pages/Deployment.vue'),
   },
   {
-    name: 'queues',
     path: '/queues',
-    component: (): RouteComponent => import('@/pages/Queues.vue'),
+    component: RouterView,
     children: [
+      {
+        name: 'queues',
+        path: '',
+        component: (): RouteComponent => import('@/pages/Queues.vue'),
+      },
       {
         name: 'create-queue',
         path: 'new',
@@ -55,7 +59,19 @@ const routeRecords: AppRouteRecord[] = [
   {
     name: 'queue',
     path: '/queue/:id',
-    component: (): RouteComponent => import('@/pages/Queue.vue'),
+    component: RouterView,
+    children: [
+      {
+        path: 'edit',
+        name: 'edit-queue',
+        component: (): RouteComponent => import('@/pages/QueueEdit.vue'),
+      },
+      {
+        path: '',
+        name: 'queue',
+        component: (): RouteComponent => import('@/pages/Queue.vue'),
+      },
+    ],
   },
   {
     name: 'settings',

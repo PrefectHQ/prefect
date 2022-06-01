@@ -47,8 +47,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, UnionFilters, FlowRunnerType, formatDate, PageHeadingQueue, workQueuesApiKey } from '@prefecthq/orion-design'
-  import { PKeyValue } from '@prefecthq/prefect-design'
+  import { useRouteParam, UnionFilters, FlowRunnerType, PageHeadingQueue, workQueuesApiKey } from '@prefecthq/orion-design'
+  import { PKeyValue, formatDate } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, provide, ref } from 'vue'
   import { routes } from '@/router'
