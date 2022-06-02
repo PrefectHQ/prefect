@@ -63,7 +63,16 @@ def upgrade():
             )
         )
         batch_op.drop_index("uq_block__schema_id_name")
-        batch_op.drop_constraint("fk_block__block_schema_id__block_schema")
+        batch_op.create_index(
+            "uq_block__type_id_name", ["block_type_id", "name"], unique=True
+        )
+        batch_op.create_foreign_key(
+            batch_op.f("fk_block_document__block_type_id__block_type"),
+            "block_type",
+            ["block_type_id"],
+            ["id"],
+            ondelete="cascade",
+        )
 
     with op.batch_alter_table(
         "block_schema",
@@ -74,9 +83,16 @@ def upgrade():
                 "block_type_id", prefect.orion.utilities.database.UUID(), nullable=True
             )
         )
-        batch_op.drop_index("uq_block_schema__name_version")
+        batch_op.create_foreign_key(
+            batch_op.f("fk_block_schema__block_type_id__block_type"),
+            "block_type",
+            ["block_type_id"],
+            ["id"],
+            ondelete="cascade",
+        )
         batch_op.drop_column("version")
         batch_op.add_column(sa.Column("checksum", sa.String(), nullable=True))
+        batch_op.drop_index("uq_block_schema__name_version")
         batch_op.create_index(
             batch_op.f("ix_block_schema__checksum"), ["checksum"], unique=False
         )
@@ -118,10 +134,11 @@ def upgrade():
         )
         # Associate new block type will all block documents for this block schema
         block_document_results = connection.execute(
-            sa.select(BLOCK_DOCUMENT.c.id).where(BLOCK_DOCUMENT.c.block_schema_id == id)
-        )
-
-        for (block_document_id,) in block_document_results:
+            sa.select([BLOCK_DOCUMENT.c.id]).where(
+                BLOCK_DOCUMENT.c.block_schema_id == id
+            )
+        ).all()
+        for block_document_id in block_document_results:
             connection.execute(
                 sa.update(BLOCK_DOCUMENT)
                 .where(BLOCK_DOCUMENT.c.id == block_document_id)
@@ -137,13 +154,6 @@ def upgrade():
         batch_op.alter_column(
             "block_type_id", existing_type=sa.VARCHAR(), nullable=False
         )
-        batch_op.create_foreign_key(
-            batch_op.f("fk_block_schema__block_type_id__block_type"),
-            "block_type",
-            ["block_type_id"],
-            ["id"],
-            ondelete="cascade",
-        )
 
     with op.batch_alter_table(
         "block_document",
@@ -152,23 +162,6 @@ def upgrade():
         batch_op.alter_column(
             "block_type_id", existing_type=sa.VARCHAR(), nullable=False
         )
-        batch_op.create_index(
-            "uq_block__type_id_name", ["block_type_id", "name"], unique=True
-        )
-        batch_op.create_foreign_key(
-            batch_op.f("fk_block__block_schema_id__block_schema"),
-            "block_schema",
-            ["block_schema_id"],
-            ["id"],
-        )
-        batch_op.create_foreign_key(
-            batch_op.f("fk_block_document__block_type_id__block_type"),
-            "block_type",
-            ["block_type_id"],
-            ["id"],
-            ondelete="cascade",
-        )
-
     # ### end Alembic commands ###
 
 
