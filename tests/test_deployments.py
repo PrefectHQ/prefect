@@ -427,13 +427,9 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_registered_storage_by_id(
         self, orion_client, tmp_remote_storage_block_id
     ):
-
-        tmp_remote_storage_block = Block._from_block_document(
-            await orion_client.read_block_document(tmp_remote_storage_block_id)
-        )
         spec = DeploymentSpec(
             flow_location=TEST_FILES_DIR / "single_flow.py",
-            flow_storage=tmp_remote_storage_block,
+            flow_storage=tmp_remote_storage_block_id,
         )
         deployment_id = await spec.create_deployment(client=orion_client)
 
