@@ -66,7 +66,7 @@ FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 # The flow runner should be able to run containers with this version or newer.
 # Containers with versions of prefect before this version are not expected to run
 # correctly.
-MIN_COMPAT_PREFECT_VERSION = "2.0b6"
+MIN_COMPAT_PREFECT_VERSION = "2.0b7"
 
 
 def python_version_minor() -> str:

@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 from prefect.cli import app
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import AsyncMock
 
 EXISTING_STORAGE_OPTIONS = {
     "Azure Blob Storage",
@@ -66,6 +67,22 @@ def test_invalid_number_selection_fails():
     lines = result.stdout.splitlines()
     assert f"Invalid selection {INVALID_OPTION}" in lines[-1]
     assert result.exit_code == 1
+
+
+def test_no_schemas_found(monkeypatch):
+    """
+    The schemas should always be populated on API startup but in cases where they are
+    not we expect a nice error message instead of an exception
+    """
+    read_block_schemas = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        "prefect.client.OrionClient.read_block_schemas", read_block_schemas
+    )
+    invoke_and_assert(
+        command=["storage", "create"],
+        expected_output="No storage types are available.",
+        expected_code=1,
+    )
 
 
 def test_storage_options_presented_correctly():
