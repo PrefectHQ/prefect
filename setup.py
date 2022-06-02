@@ -103,7 +103,7 @@ extras = {
     "neo4j": ["py2neo >= 2021.2.3"],
     "transform": ["transform >= 1.0.12"],
     "sftp": ["paramiko >= 2.10.4"],
-    "toloka": ["toloka-kit >= 0.1.25", "pandas >= 1.0.1", "requests >= 2.25"],
+    "toloka": ["toloka-kit >= 0.1.25"],
 }
 
 
@@ -131,7 +131,6 @@ extras["base_library_ci"] = (
     + extras["dev"]
     + extras["pandas"]
     + extras["jira"]
-    + extras["toloka"]
 )
 
 cmdclass = {
