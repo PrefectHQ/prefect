@@ -43,10 +43,11 @@ def create_project(
     Task to create a Toloka `Project` object from given config.
 
     Args:
-        - obj: Either a `Project` object itself or a config to make a `Project`.
-        - secret_name: Allow to use non-default secret for Toloka token.
+        - obj (Project, Dict, str, bytes): Either a `Project` object itself
+            or a config to make a `Project`.
+        - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
-        - env: Allow to use non-default Toloka environment.
+        - env (str, optional): Allow to use non-default Toloka environment.
             Default: "PRODUCTION".
 
     Returns:
@@ -73,7 +74,8 @@ def create_exam_pool(
     Task to create a Toloka `Training` pool object from given config.
 
     Args:
-        - obj (Training, Dict, str, bytes): Either a `Training` object itself or a config to make a `Training`.
+        - obj (Training, Dict, str, bytes): Either a `Training` object itself
+            or a config to make a `Training`.
         - project_id (Project, Dict, str, optional): Project ID to assign a training pool to.
             May pass either an object, config or project_id value.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
@@ -139,10 +141,14 @@ def create_pool(
         obj.project_id = extract_id(project_id, Project)
     if exam_pool_id:
         if obj.quality_control.training_requirement is None:
-            raise ValueError('pool.quality_control.training_requirement should be set before exam_pool assignment')
+            raise ValueError(
+                'pool.quality_control.training_requirement should be set before exam_pool assignment')
         obj.quality_control.training_requirement.training_pool_id = extract_id(exam_pool_id, Training)
     if expiration:
-        obj.will_expire = datetime.utcnow() + expiration if isinstance(expiration, timedelta) else expiration
+        if isinstance(expiration, timedelta):
+            obj.will_expire = datetime.utcnow() + expiration
+        else:
+            obj.will_expire = expiration
     if reward_per_assignment:
         obj.reward_per_assignment = reward_per_assignment
     return toloka_client.create_pool(obj)
@@ -169,7 +175,7 @@ def create_tasks(
             if it's not present in tasks themselves.
             May be either a `Pool` or `Training` object or config or a pool_id value.
         - allow_defaults (bool, optional): Allow to use the overlap that is set in the pool parameters.
-        - open_pool (bool, optional): Open the pool immediately after creating a task suite, if the pool is closed.
+        - open_pool (bool, optional): Open the pool immediately after creating a task suite, if closed.
         - skip_invalid_items (bool, optional): Allow to skip invalid tasks.
             You can handle them using resulting TaskBatchCreateResult object.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
@@ -196,7 +202,9 @@ def create_tasks(
             pool_id = extract_id(pool_id, Training)
         for task in tasks:
             task.pool_id = pool_id
-    kwargs = {'allow_defaults': allow_defaults, 'open_pool': open_pool, 'skip_invalid_items': skip_invalid_items}
+    kwargs = {'allow_defaults': allow_defaults,
+              'open_pool': open_pool,
+              'skip_invalid_items': skip_invalid_items}
     return toloka_client.create_tasks(tasks, **kwargs)
 
 
@@ -357,7 +365,8 @@ def get_assignments_df(
     field: Optional[List[GetAssignmentsTsvParameters.Field]] = None,
 ) -> pd.DataFrame:
     """
-    Task to get pool assignments of selected statuses in Pandas `DataFrame` format useful for aggregation.
+    Task to get pool assignments of selected statuses
+    in Pandas `DataFrame` format useful for aggregation.
 
     Args:
         - pool_id (Pool, Dict, str): Either a `Pool` object or it's config or a pool ID value.
@@ -367,12 +376,13 @@ def get_assignments_df(
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
             Default: "PRODUCTION".
-        - start_time_from (str, optional): Upload assignments submitted after the specified date and time.
-        - start_time_to (str, optional): Upload assignments submitted before the specified date and time.
+        - start_time_from (str, optional): Upload assignments submitted after the specified datetime.
+        - start_time_to (str, optional): Upload assignments submitted before the specified datetime.
         - exclude_banned (bool, optional): Exclude answers from banned performers,
             even if assignments in suitable status "ACCEPTED".
         - field (List[GetAssignmentsTsvParameters.Field], optional): Select some additional fields.
-            You can find possible values in the `toloka.client.assignment.GetAssignmentsTsvParameters.Field` enum.
+            You can find possible values in the
+            `toloka.client.assignment.GetAssignmentsTsvParameters.Field` enum.
 
     Returns:
         - DataFrame: `pd.DataFrame` with selected assignments.
@@ -440,13 +450,15 @@ def accept_assignment(
 ) -> Union[Assignment, Dict, str]:
     """
     Task to accept given assignment by given ID.
-    Use `accept_assignment.map` to process multiple assignments. Pass public_comment with `unmapped` wrapper in this case.
+    Use `accept_assignment.map` to process multiple assignments.
+    Pass public_comment with `unmapped` wrapper in this case.
 
     Args:
-        - assignment_id (Assignment, Dict, str): Either an `Assignment` object or it's config or an assignment ID value.
+        - assignment_id (Assignment, Dict, str): Either an `Assignment` object
+            or it's config or an assignment ID value.
         - public_comment (str): Public comment.
-        - fail_if_already_set (bool, optional): Fail if the assignment has already been accepted (in the UI for example).
-            Skip by default.
+        - fail_if_already_set (bool, optional): Fail if the assignment has already been accepted
+            (in the UI for example). Skip by default.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -482,13 +494,15 @@ def reject_assignment(
 ) -> Union[Assignment, Dict, str]:
     """
     Task to reject given assignment by given ID.
-    Use `reject_assignment.map` to process multiple assignments. Pass public_comment with `unmapped` wrapper in this case.
+    Use `reject_assignment.map` to process multiple assignments.
+    Pass public_comment with `unmapped` wrapper in this case.
 
     Args:
-        - assignment_id (Assignment, Dict, str): Either an `Assignment` object or it's config or an assignment ID value.
+        - assignment_id (Assignment, Dict, str): Either an `Assignment` object
+            or it's config or an assignment ID value.
         - public_comment (str): Public comment.
-        - fail_if_already_set (bool, optional): Fail if the assignment has already been rejected (in the UI for example).
-            Skip by default.
+        - fail_if_already_set (bool, optional): Fail if the assignment has already been rejected
+            (in the UI for example). Skip by default.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.

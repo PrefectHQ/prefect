@@ -18,7 +18,7 @@ def test_all_arguments_documented(task_name):
     non_documented = []
     for arg, param in inspect.signature(task).parameters.items():
         if param.kind == inspect.Parameter.VAR_KEYWORD:
-            pattern = '^\\s+- \*\*kwargs[ :].+'
+            pattern = '^\\s+- \*\*kwargs[ :].+'  # noqa
         else:
             pattern = f'^\\s+- {arg} .+'
         if not re.search(pattern, args_doc, flags=re.MULTILINE):

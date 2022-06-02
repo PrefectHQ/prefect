@@ -8,7 +8,6 @@ from prefect.tasks.toloka.utils import (
     with_toloka_client,
 )
 from toloka.client import TolokaClient
-from unittest.mock import Mock
 
 
 DEFAULT_TOKEN = 'some-token'

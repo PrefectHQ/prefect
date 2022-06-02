@@ -14,10 +14,9 @@ from prefect.tasks.toloka.operations import (
     get_assignments_df,
     open_exam_pool,
     open_pool,
-    wait_pool,
 )
 from prefect.tasks.toloka.utils import DEFAULT_TOLOKA_SECRET_NAME, structure_from_conf
-from toloka.client import Assignment, Pool, Project, TolokaClient, Training
+from toloka.client import Assignment, Pool, Project, TolokaClient, Training  # noqa
 from toloka.client import Task as TolokaTask
 from toloka.client.assignment import GetAssignmentsTsvParameters
 from toloka.client.batch_create_results import TaskBatchCreateResult
@@ -124,13 +123,21 @@ class TestCreatePool:
     def test_create_pool_with_exam(self, toloka_client_mock, pool_mock, project_mock, training_mock):
         training_requirement = QualityControl.TrainingRequirement(training_passing_skill_value=90)
         pool_mock.quality_control = QualityControl(training_requirement=training_requirement)
-        res = create_pool.run(pool_mock.unstructure(), project_id=project_mock, exam_pool_id=training_mock)
+        res = create_pool.run(pool_mock.unstructure(),
+                              project_id=project_mock,
+                              exam_pool_id=training_mock)
         assert training_mock.id == res.quality_control.training_requirement.training_pool_id
         res.quality_control.training_requirement.training_pool_id = None
         res.project_id = None
         assert pool_mock == res
 
-    def test_create_pool_with_exam_error(self, toloka_client_mock, pool_mock, project_mock, training_mock):
+    def test_create_pool_with_exam_error(
+        self,
+        toloka_client_mock,
+        pool_mock,
+        project_mock,
+        training_mock
+    ):
         pool_mock.quality_control = QualityControl()
         with pytest.raises(ValueError, match='pool.quality_control.training_requirement'):
             create_pool.run(pool_mock.unstructure(), project_id=project_mock, exam_pool_id=training_mock)
@@ -165,7 +172,13 @@ class TestCreateTasks:
         assert (tasks_mock,) == call[1], call[1]
         assert kwargs == call[2], call[2]
 
-    def test_create_tasks_with_pool(self, toloka_client_mock, tasks_mock, tasks_creation_result, pool_mock):
+    def test_create_tasks_with_pool(
+        self,
+        toloka_client_mock,
+        tasks_mock,
+        tasks_creation_result,
+        pool_mock
+    ):
         assert tasks_creation_result == create_tasks.run(
             [task.unstructure() for task in tasks_mock],
             pool_id=pool_mock,
@@ -173,7 +186,13 @@ class TestCreateTasks:
         call = toloka_client_mock.create_tasks.mock_calls[0]
         assert all(task.pool_id == pool_mock.id for task in call[1][0])
 
-    def test_create_tasks_with_exam_pool(self, toloka_client_mock, tasks_mock, tasks_creation_result, training_mock):
+    def test_create_tasks_with_exam_pool(
+        self,
+        toloka_client_mock,
+        tasks_mock,
+        tasks_creation_result,
+        training_mock
+    ):
         assert tasks_creation_result == create_tasks.run(
             [task.unstructure() for task in tasks_mock],
             pool_id=training_mock,
@@ -232,4 +251,5 @@ class TestGetAssignmentsDf:
                   'exclude_banned': True,
                   'field': GetAssignmentsTsvParameters.Field.ASSIGNMENT_ID}
         assert assignments_df_mock.equals(get_assignments_df.run(pool_mock.id, **kwargs))
-        assert {'pool_id': pool_mock.id, **kwargs} == toloka_client_mock.get_assignments_df.mock_calls[0][2]
+        expected = toloka_client_mock.get_assignments_df.mock_calls[0][2]
+        assert {'pool_id': pool_mock.id, **kwargs} == expected
