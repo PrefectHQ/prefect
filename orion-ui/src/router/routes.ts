@@ -11,6 +11,7 @@ export const routes = {
   flowRuns: () => ({ name: 'flow-runs' }) as const,
   flows: () => ({ name: 'flows' }) as const,
   queue: (id: string) => ({ name: 'queue', params: { id } }) as const,
+  queueEdit: (id: string) => ({ name: 'edit-queue', params: { id } }) as const,
   queueCreate: () => ({ name: 'create-queue' }) as const,
   queues: () => ({ name: 'queues' }) as const,
   settings: () => ({ name: 'settings' }) as const,
@@ -23,4 +24,6 @@ export function isNamedRoute(route?: RouteRecordName | null): route is NamedRout
 }
 
 export type AppRouteLocation = Omit<RouteLocationRaw, 'name'> & { name: NamedRoute }
-export type AppRouteRecord = Omit<RouteRecordRaw, 'name' | 'children'> & { name: NamedRoute, children?: AppRouteRecord[] }
+export type AppRouteRecordParent = { name?: NamedRoute, children: AppRouteRecord[] }
+export type AppRouteRecordChild = { name: NamedRoute }
+export type AppRouteRecord = Omit<RouteRecordRaw, 'name' | 'children'> & AppRouteRecordParent | AppRouteRecordChild
