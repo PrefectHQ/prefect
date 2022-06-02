@@ -253,9 +253,9 @@ class WorkQueueUpdate(
     name: Optional[str] = Field(None, description="The name of the work queue.")
 
 
-class FlowRunAlertPolicyCreate(
-    schemas.core.FlowRunAlertPolicy.subclass(
-        "FlowRunAlertPolicyCreate",
+class FlowRunNotificationPolicyCreate(
+    schemas.core.FlowRunNotificationPolicy.subclass(
+        "FlowRunNotificationPolicyCreate",
         include_fields=[
             "name",
             "is_active",
@@ -265,21 +265,21 @@ class FlowRunAlertPolicyCreate(
         ],
     )
 ):
-    """Data used by the Orion API to create a flow run alert policy."""
+    """Data used by the Orion API to create a flow run notification policy."""
 
 
-class FlowRunAlertPolicyUpdate(PrefectBaseModel):
-    """Data used by the Orion API to update a flow run alert policy."""
+class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a flow run notification policy."""
 
-    name: str = Field(None, description="A name for the alert policy")
+    name: str = Field(None, description="A name for the notification policy")
     is_active: bool = Field(None, description="Whether the policy is currently active")
     state_names: List[str] = Field(
-        None, description="The flow run states that trigger alerts"
+        None, description="The flow run states that trigger notifications"
     )
     tags: List[str] = Field(
         None,
-        description="The flow run tags that trigger alerts (set [] to disable)",
+        description="The flow run tags that trigger notifications (set [] to disable)",
     )
     block_document_id: UUID = Field(
-        None, description="The block document ID used for sending alerts"
+        None, description="The block document ID used for sending notifications"
     )
