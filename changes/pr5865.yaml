@@ -1,0 +1,6 @@
+feature:
+  - "Adds tasks for Toloka API.
+    - [#5865](https://github.com/PrefectHQ/prefect/pull/5865)"
+
+contributor:
+  - "[Vladislav Moiseev](https://github.com/vlad-mois)"
