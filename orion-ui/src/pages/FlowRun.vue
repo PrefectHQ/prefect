@@ -263,7 +263,6 @@
 }
 
 .flow-run__logs { @apply
-  min-h-[500px]
   max-h-screen
 }
 
