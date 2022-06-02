@@ -237,7 +237,10 @@ class DeploymentSpec(PrefectBaseModel):
         no_storage_message = "You have not configured default storage on the server or set a storage to use for this deployment"
 
         if isinstance(self.flow_storage, UUID):
-            self.flow_storage = await client.read_block(self.flow_storage)
+            flow_storage_block_document = await client.read_block_document(
+                self.flow_storage
+            )
+            self.flow_storage = Block._from_block_document(flow_storage_block_document)
 
         if isinstance(self.flow_runner, SubprocessFlowRunner):
             local_machine_message = (
