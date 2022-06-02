@@ -4,7 +4,7 @@
       <PageHeadingDeployment v-if="deployment" :deployment="deployment" @delete="deleteDeployment" />
     </template>
 
-    <p-tabs :tabs="['Overview', 'Parameters']">
+    <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
       <template #overview>
         <template v-if="deployment">
           <div class="grid gap-2">
@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, mocker, formatSchedule } from '@prefecthq/orion-design'
+  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, formatSchedule } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -46,10 +46,9 @@
   }
 
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
-  // const deployment = computed(() => deploymentSubscription.response)
-  const deployment = computed(() => mocker.create('deployment'))
+  const deployment = computed(() => deploymentSubscription.response)
 
-  const schedule = computed(() => formatSchedule(deployment.value.schedule))
+  const schedule = computed(() => deployment.value ? formatSchedule(deployment.value.schedule) : '')
 
   function deleteDeployment(): void {
     router.push(routes.deployments())
