@@ -53,6 +53,5 @@
   flex
   gap-2
   items-center
-  xl:hidden
 }
 </style>
