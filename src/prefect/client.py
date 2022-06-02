@@ -589,6 +589,27 @@ class OrionClient:
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
 
+    async def delete_flow_run(
+        self,
+        flow_run_id: UUID,
+    ) -> None:
+        """
+        Delete a flow run by UUID.
+
+        Args:
+            flow_run_id: The flow run UUID of interest.
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def create_concurrency_limit(
         self,
         tag: str,
@@ -1259,7 +1280,13 @@ class OrionClient:
         Returns:
             a [Flow Run model][prefect.orion.schemas.core.FlowRun] representation of the flow run
         """
-        response = await self._client.get(f"/flow_runs/{flow_run_id}")
+        try:
+            response = await self._client.get(f"/flow_runs/{flow_run_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return schemas.core.FlowRun.parse_obj(response.json())
 
     async def read_flow_runs(
