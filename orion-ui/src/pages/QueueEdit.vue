@@ -1,22 +1,18 @@
 <template>
-  <p-layout-default class="queue-create">
-    <p class="text-xl font-bold">
-      Edit Work Queue
-    </p>
-    <p class="text-base text-gray-500">
-      Fill out the details below.
-    </p>
-
+  <p-layout-default>
+    <PageHeading :crumbs="header" />
     <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, useRouteParam } from '@prefecthq/orion-design'
+  import { WorkQueueForm, useRouteParam, PageHeading } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { workQueuesApi } from '@/services/workQueuesApi'
+
+  const header = [{ text: 'Edit Work Queue' }]
 
   const workQueueId = useRouteParam('id')
 
