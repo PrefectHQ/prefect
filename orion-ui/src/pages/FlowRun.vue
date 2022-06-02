@@ -196,10 +196,6 @@
   const subFlowRuns = computed(() => subFlowRunsSubscription.response ?? [])
   const selectedSubFlowRuns = ref([])
 
-  const routeToRadar = (): void => {
-    router.push(routes.radar(flowRunId.value))
-  }
-
   function loadMoreSubFlowRuns(): void {
     const unwatch = watch(subFlowRunTaskIds, () => {
       subFlowRunsSubscription.loadMore()
