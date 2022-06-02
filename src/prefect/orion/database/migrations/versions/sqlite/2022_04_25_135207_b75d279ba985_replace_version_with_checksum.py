@@ -73,6 +73,7 @@ def upgrade():
             ["id"],
             ondelete="cascade",
         )
+        batch_op.drop_constraint("fk_block__block_schema_id__block_schema")
 
     with op.batch_alter_table(
         "block_schema",
@@ -138,7 +139,7 @@ def upgrade():
                 BLOCK_DOCUMENT.c.block_schema_id == id
             )
         ).all()
-        for block_document_id in block_document_results:
+        for (block_document_id,) in block_document_results:
             connection.execute(
                 sa.update(BLOCK_DOCUMENT)
                 .where(BLOCK_DOCUMENT.c.id == block_document_id)
@@ -161,6 +162,14 @@ def upgrade():
     ) as batch_op:
         batch_op.alter_column(
             "block_type_id", existing_type=sa.VARCHAR(), nullable=False
+        )
+
+        batch_op.create_foreign_key(
+            batch_op.f("fk_block__block_schema_id__block_schema"),
+            "block_schema",
+            ["block_schema_id"],
+            ["id"],
+            ondelete="cascade",
         )
     # ### end Alembic commands ###
 
