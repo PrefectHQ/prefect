@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="queue">
     <template #header>
-      <PageHeadingQueue v-if="workQueueDetails" :queue="workQueueDetails" />
+      <PageHeadingQueue v-if="workQueue" :queue="workQueue" @update="workQueueSubscription.refresh" @delete="routeToQueues" />
     </template>
 
     <p-key-value label="Description" :value="workQueueDescription" />
@@ -13,7 +13,7 @@
     <p-key-value label="Created" :value="workQueueCreated" />
 
     <p-key-value label="Tags">
-      <template #value>
+      <template v-if="workQueueTags.length" #value>
         <p-tags :tags="workQueueTags" class="mt-2" />
       </template>
     </p-key-value>
@@ -35,7 +35,7 @@
         <p-checkbox
           v-for="runner in flowRunnerTypes"
           :key="runner.value"
-          v-model="flowRunners"
+          v-model="workQueueFlowRunners"
           :label="runner.label"
           :value="runner.value"
           editor="checkbox"
@@ -50,10 +50,13 @@
   import { useRouteParam, UnionFilters, FlowRunnerType, PageHeadingQueue } from '@prefecthq/orion-design'
   import { PKeyValue, formatDate } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+
+  const router = useRouter()
 
   const workQueueId = useRouteParam('id')
   const subscriptionOptions = {
@@ -68,21 +71,19 @@
   ]
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
-  const workQueueDetails = computed(() => workQueueSubscription.response)
-  const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds ?? [])
-  const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
-  const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
-  const workQueueFlowRunConcurrency = computed(() => workQueueDetails.value?.concurrencyLimit ?? 'Unlimited')
+  const workQueue = computed(() => workQueueSubscription.response)
+  const workQueueDeploymentIds = computed(() => workQueue?.value?.filter?.deploymentIds ?? [])
+  const workQueueDescription = computed(() => workQueue.value?.description ?? '')
+  const workQueueID = computed(() => workQueue.value?.id ?? '')
+  const workQueueFlowRunConcurrency = computed(() => workQueue.value?.concurrencyLimit ?? 'Unlimited')
   const workQueueCreated = computed(() => {
-    if (workQueueDetails.value?.created) {
-      return formatDate(workQueueDetails.value?.created)
+    if (workQueue.value?.created) {
+      return formatDate(workQueue.value?.created)
     }
     return ''
   })
-  const workQueueFlowRunners = computed(() => workQueueDetails.value?.filter?.flowRunnerTypes ?? [])
-  const workQueueTags = computed(() => workQueueDetails.value?.filter.tags ?? [])
-
-  const flowRunners = ref(workQueueFlowRunners.value)
+  const workQueueFlowRunners = computed(() => workQueue.value?.filter?.flowRunnerTypes ?? [])
+  const workQueueTags = computed(() => workQueue.value?.filter.tags ?? [])
 
   const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
     deployments: {
@@ -94,4 +95,8 @@
   const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
   const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
   const emptyWorkQueueDeployments = computed(() => workQueueDeployments.value?.length === 0)
+
+  const routeToQueues = (): void => {
+    router.push(routes.queues())
+  }
 </script>
