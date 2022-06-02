@@ -12,6 +12,10 @@
 
     <p-tabs :tabs="tabs">
       <template #details>
+        <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
+          <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
+        </router-link>
+
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
       </template>
 
@@ -51,12 +55,16 @@
           <FlowIconText :flow-id="flowRun.flowId" />
           <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
         </div>
-        <PDivider />
+
+        <p-divider />
+
 
         <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
           <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
         </router-link>
-        <PDivider />
+
+
+        <p-divider />
         <FlowRunDetails :flow-run="flowRun" />
       </template>
     </template>
