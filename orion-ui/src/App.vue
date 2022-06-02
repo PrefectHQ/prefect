@@ -37,7 +37,8 @@
     flowRouteKey,
     deploymentRouteKey,
     workQueueRouteKey,
-    newQueueRouteKey
+    newQueueRouteKey,
+    editQueueRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
@@ -69,6 +70,7 @@
   provide(deploymentRouteKey, routes.deployment)
   provide(workQueueRouteKey, routes.queue)
   provide(newQueueRouteKey, routes.queueCreate)
+  provide(editQueueRouteKey, routes.queueEdit)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
