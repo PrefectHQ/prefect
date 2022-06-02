@@ -44,11 +44,6 @@
 </script>
 
 <style>
-/* This is temporary since p-layout-full doesn't respect the context sidebar */
-.flow-run-radar {
-  width: 100% !important;
-}
-
 .flow-run-radar__header-meta { @apply
   flex
   gap-2
