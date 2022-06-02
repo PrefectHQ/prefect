@@ -8,9 +8,9 @@ from unittest.mock import Mock, patch
 
 @pytest.fixture
 def pool():
-    return Pool(id='some_pool_id',
-                project_id='some_project_id',
-                type=Pool.Type.TRAINING)
+    return Pool(
+        id="some_pool_id", project_id="some_project_id", type=Pool.Type.TRAINING
+    )
 
 
 class TestStructureFromConf:
@@ -41,15 +41,15 @@ class TestExtractId:
         assert pool.id == extract_id(pool.id, Pool)
 
     def test_int_given(self):
-        assert '123' == extract_id('123', Pool)
+        assert "123" == extract_id("123", Pool)
 
     def test_null_id_given(self, pool):
         pool.id = None
-        with pytest.raises(ValueError, match='Got id=None'):
+        with pytest.raises(ValueError, match="Got id=None"):
             extract_id(pool, Pool)
 
 
-@patch('prefect.context')
+@patch("prefect.context")
 def test_with_logger(context_mock, pool):
     logger_mock = Mock()
     context_get_mock = Mock(return_value=logger_mock)
@@ -60,9 +60,11 @@ def test_with_logger(context_mock, pool):
         logger.info(arg)
 
     func_params = inspect.signature(some_func).parameters
-    assert {'arg': inspect.Parameter('arg', inspect.Parameter.POSITIONAL_OR_KEYWORD)} == func_params
+    assert {
+        "arg": inspect.Parameter("arg", inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    } == func_params
 
-    some_func('info-arg')
+    some_func("info-arg")
 
     assert 1 == len(logger_mock.mock_calls), logger_mock.mock_calls
-    assert ('info-arg',) == logger_mock.mock_calls[0][1]
+    assert ("info-arg",) == logger_mock.mock_calls[0][1]

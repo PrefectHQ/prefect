@@ -1,15 +1,15 @@
 __all__ = [
-    'create_project',
-    'create_exam_pool',
-    'create_pool',
-    'create_tasks',
-    'open_pool',
-    'open_exam_pool',
-    'wait_pool',
-    'get_assignments',
-    'get_assignments_df',
-    'accept_assignment',
-    'reject_assignment',
+    "create_project",
+    "create_exam_pool",
+    "create_pool",
+    "create_tasks",
+    "open_pool",
+    "open_exam_pool",
+    "wait_pool",
+    "get_assignments",
+    "get_assignments_df",
+    "accept_assignment",
+    "reject_assignment",
 ]
 
 import logging
@@ -142,8 +142,11 @@ def create_pool(
     if exam_pool_id:
         if obj.quality_control.training_requirement is None:
             raise ValueError(
-                'pool.quality_control.training_requirement should be set before exam_pool assignment')
-        obj.quality_control.training_requirement.training_pool_id = extract_id(exam_pool_id, Training)
+                "pool.quality_control.training_requirement should be set before exam_pool assignment"
+            )
+        obj.quality_control.training_requirement.training_pool_id = extract_id(
+            exam_pool_id, Training
+        )
     if expiration:
         if isinstance(expiration, timedelta):
             obj.will_expire = datetime.utcnow() + expiration
@@ -200,11 +203,13 @@ def create_tasks(
             pool_id = extract_id(pool_id, Pool)
         except Exception:
             pool_id = extract_id(pool_id, Training)
-        for task in tasks:
-            task.pool_id = pool_id
-    kwargs = {'allow_defaults': allow_defaults,
-              'open_pool': open_pool,
-              'skip_invalid_items': skip_invalid_items}
+        for task_ in tasks:
+            task_.pool_id = pool_id
+    kwargs = {
+        "allow_defaults": allow_defaults,
+        "open_pool": open_pool,
+        "skip_invalid_items": skip_invalid_items,
+    }
     return toloka_client.create_tasks(tasks, **kwargs)
 
 
@@ -306,9 +311,13 @@ def wait_pool(
         pool = toloka_client.open_pool(pool_id)
 
     while pool.is_open():
-        op = toloka_client.get_analytics([CompletionPercentagePoolAnalytics(subject_id=pool_id)])
-        percentage = toloka_client.wait_operation(op).details['value'][0]['result']['value']
-        logger.info(f'Pool {pool_id} - {percentage}%')
+        op = toloka_client.get_analytics(
+            [CompletionPercentagePoolAnalytics(subject_id=pool_id)]
+        )
+        percentage = toloka_client.wait_operation(op).details["value"][0]["result"][
+            "value"
+        ]
+        logger.info(f"Pool {pool_id} - {percentage}%")
 
         time.sleep(period.total_seconds())
         pool = toloka_client.get_pool(pool_id)
@@ -320,10 +329,12 @@ def wait_pool(
 @with_toloka_client
 def get_assignments(
     pool_id: Union[Pool, Dict, str],
-    status: Union[str, List[str], Assignment.Status, List[Assignment.Status], None] = None,
+    status: Union[
+        str, List[str], Assignment.Status, List[Assignment.Status], None
+    ] = None,
     *,
     toloka_client: Optional[TolokaClient] = None,
-    **kwargs
+    **kwargs,
 ) -> List[Assignment]:
     """
     Task to get all assignments of selected status from Toloka pool.
@@ -356,7 +367,9 @@ def get_assignments(
 @with_toloka_client
 def get_assignments_df(
     pool_id: Union[Pool, Dict, str],
-    status: Union[str, List[str], Assignment.Status, List[Assignment.Status], None] = None,
+    status: Union[
+        str, List[str], Assignment.Status, List[Assignment.Status], None
+    ] = None,
     *,
     toloka_client: Optional[TolokaClient] = None,
     start_time_from: Optional[datetime] = None,
@@ -400,21 +413,23 @@ def get_assignments_df(
         status = []
     elif isinstance(status, (str, Assignment.Status)):
         status = [status]
-    kwargs = {'start_time_from': start_time_from,
-              'start_time_to': start_time_to,
-              'exclude_banned': exclude_banned,
-              'field': field}
+    kwargs = {
+        "start_time_from": start_time_from,
+        "start_time_to": start_time_to,
+        "exclude_banned": exclude_banned,
+        "field": field,
+    }
     return toloka_client.get_assignments_df(
         pool_id=pool_id,
         status=status,
-        **{key: value for key, value in kwargs.items() if value is not None}
+        **{key: value for key, value in kwargs.items() if value is not None},
     )
 
 
 @unique
 class _PatchAssignmentMethod(Enum):
-    ACCEPT_ASSIGNMENT = 'accept_assignment'
-    REJECT_ASSIGNMENT = 'reject_assignment'
+    ACCEPT_ASSIGNMENT = "accept_assignment"
+    REJECT_ASSIGNMENT = "reject_assignment"
 
 
 def _patch_assignment(
@@ -431,7 +446,7 @@ def _patch_assignment(
     try:
         method(assignment_id, public_comment=public_comment)
     except IncorrectActionsApiError as exc:
-        logger.warning('Can\'t %s %s: %s', method_name.value, assignment_id, exc)
+        logger.warning("Can't %s %s: %s", method_name.value, assignment_id, exc)
         if fail_if_already_set or exc.status_code != http.client.CONFLICT.value:
             raise
     return assignment_id
@@ -473,12 +488,14 @@ def accept_assignment(
         >>> accept_assignment.map(to_accept, unmapped('Well done!'))
         ...
     """
-    return _patch_assignment(_PatchAssignmentMethod.ACCEPT_ASSIGNMENT,
-                             assignment_id,
-                             public_comment,
-                             fail_if_already_set,
-                             logger,
-                             toloka_client)
+    return _patch_assignment(
+        _PatchAssignmentMethod.ACCEPT_ASSIGNMENT,
+        assignment_id,
+        public_comment,
+        fail_if_already_set,
+        logger,
+        toloka_client,
+    )
 
 
 @task
@@ -517,9 +534,11 @@ def reject_assignment(
         >>> reject_assignment.map(to_reject, unmapped('Incorrect answer'))
         ...
     """
-    return _patch_assignment(_PatchAssignmentMethod.REJECT_ASSIGNMENT,
-                             assignment_id,
-                             public_comment,
-                             fail_if_already_set,
-                             logger,
-                             toloka_client)
+    return _patch_assignment(
+        _PatchAssignmentMethod.REJECT_ASSIGNMENT,
+        assignment_id,
+        public_comment,
+        fail_if_already_set,
+        logger,
+        toloka_client,
+    )

@@ -10,17 +10,19 @@ from prefect.tasks.toloka.utils import (
 from toloka.client import TolokaClient
 
 
-DEFAULT_TOKEN = 'some-token'
+DEFAULT_TOKEN = "some-token"
 
-OTHER_SECRET_NAME = 'OTHER_SECRET'
-OTHER_TOKEN = 'some-other-token'
-OTHER_ENV = 'SANDBOX'
+OTHER_SECRET_NAME = "OTHER_SECRET"
+OTHER_TOKEN = "some-other-token"
+OTHER_ENV = "SANDBOX"
 
 
 @pytest.fixture
 def secrets_mock():
-    secrets = {DEFAULT_TOLOKA_SECRET_NAME: DEFAULT_TOKEN,
-               OTHER_SECRET_NAME: OTHER_TOKEN}
+    secrets = {
+        DEFAULT_TOLOKA_SECRET_NAME: DEFAULT_TOKEN,
+        OTHER_SECRET_NAME: OTHER_TOKEN,
+    }
     with prefect.context(secrets=secrets):
         yield
 
@@ -32,7 +34,7 @@ class TestWithTolokaClient:
             ...
 
         params = set(inspect.signature(some_func).parameters)
-        assert {'arg1', 'arg2', 'secret_name', 'env'} == params, params
+        assert {"arg1", "arg2", "secret_name", "env"} == params, params
 
     def test_new_toloka_client(self, secrets_mock):
         @with_toloka_client
@@ -47,13 +49,13 @@ class TestWithTolokaClient:
 def test_add_headers(secrets_mock):
     @with_toloka_client
     def make_request(toloka_client):
-        return toloka_client.get_pool('123')
+        return toloka_client.get_pool("123")
 
     with requests_mock.Mocker(real_http=False) as mocker:
-        mocker.get(requests_mock.ANY, content=b'...')
-        with pytest.raises(Exception, match='Expecting value'):
+        mocker.get(requests_mock.ANY, content=b"...")
+        with pytest.raises(Exception, match="Expecting value"):
             make_request()
 
         assert mocker.called
         headers = mocker.request_history[0].headers
-        assert 'prefect' == headers['X-Caller-Context'], headers
+        assert "prefect" == headers["X-Caller-Context"], headers

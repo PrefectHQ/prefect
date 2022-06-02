@@ -5,8 +5,8 @@ import requests_mock
 from prefect.tasks.toloka.helpers import download_json
 
 
-URL = 'https://some.url'
-CONTENT = {'key': ['value', 'значение', '価値']}
+URL = "https://some.url"
+CONTENT = {"key": ["value", "значение", "価値"]}
 
 
 _json_dump = functools.partial(json.dumps, ensure_ascii=False)

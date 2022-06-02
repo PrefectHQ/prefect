@@ -37,7 +37,8 @@ def with_updated_signature(
     parameters_keep = [
         param
         for param in signature_func.parameters.values()
-        if param.name not in remove_func_args and param.kind != inspect.Parameter.VAR_KEYWORD
+        if param.name not in remove_func_args
+        and param.kind != inspect.Parameter.VAR_KEYWORD
     ]
 
     parameters_wrapper = inspect.signature(wrapper).parameters
@@ -50,7 +51,9 @@ def with_updated_signature(
     res = wraps(func)(wrapper)
     res.__special_wrapped__ = res.__wrapped__
     del res.__wrapped__
-    res.__signature__ = signature_func.replace(parameters=parameters_keep + parameters_add)
+    res.__signature__ = signature_func.replace(
+        parameters=parameters_keep + parameters_add
+    )
 
     return res
 
@@ -85,9 +88,10 @@ def with_logger(func: Callable) -> Callable:
 
     def _wrapper(*args, **kwargs) -> Any:
         import prefect
-        return partial(func, logger=prefect.context.get('logger'))(*args, **kwargs)
 
-    return with_updated_signature(func, _wrapper, remove_func_args={'logger'})
+        return partial(func, logger=prefect.context.get("logger"))(*args, **kwargs)
+
+    return with_updated_signature(func, _wrapper, remove_func_args={"logger"})
 
 
 _json_loads = partial(json.loads, parse_float=Decimal)
@@ -117,12 +121,12 @@ def extract_id(obj: Any, cl: Type) -> str:
             return str(obj)
     res = structure_from_conf(obj, cl).id
     if res is None:
-        raise ValueError(f'Got id=None from: {obj}')
+        raise ValueError(f"Got id=None from: {obj}")
     return res
 
 
-DEFAULT_TOLOKA_SECRET_NAME = 'TOLOKA_TOKEN'
-DEFAULT_TOLOKA_ENV = 'PRODUCTION'
+DEFAULT_TOLOKA_SECRET_NAME = "TOLOKA_TOKEN"
+DEFAULT_TOLOKA_ENV = "PRODUCTION"
 
 
 def with_toloka_client(func: Callable) -> Callable:
@@ -151,15 +155,17 @@ def with_toloka_client(func: Callable) -> Callable:
         *args,
         secret_name: str = DEFAULT_TOLOKA_SECRET_NAME,
         env: str = DEFAULT_TOLOKA_ENV,
-        **kwargs
+        **kwargs,
     ) -> Any:
         token = Secret(secret_name).get()
         toloka_client = TolokaClient(token, env)
-        return partial(add_headers('prefect')(func), toloka_client=toloka_client)(*args, **kwargs)
+        return partial(add_headers("prefect")(func), toloka_client=toloka_client)(
+            *args, **kwargs
+        )
 
     return with_updated_signature(
         func,
         _wrapper,
-        remove_func_args=('toloka_client',),
-        add_wrapper_args=('secret_name', 'env'),
+        remove_func_args=("toloka_client",),
+        add_wrapper_args=("secret_name", "env"),
     )

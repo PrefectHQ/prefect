@@ -1,5 +1,5 @@
 __all__ = [
-    'download_json',
+    "download_json",
 ]
 
 import requests
