@@ -13,7 +13,7 @@
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import router, { routes } from '@/router'
+  import router from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
   const header = [{ text: 'Edit Queue' }]
@@ -24,7 +24,7 @@
   const workQueueDetails = computed(() => workQueueSubscription.response)
 
   const goToQueues = (): void => {
-    router.push(routes.queue(workQueueId.value))
+    router.back()
   }
 
   const updateQueue = async (workQueue: any): Promise<void> => {
