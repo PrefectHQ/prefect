@@ -4,7 +4,7 @@
       <PageHeading :crumbs="header" />
     </template>
     
-    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="router.push(routes.queues())" />
+    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goToQueues()" />
   </p-layout-default>
 </template>
 
@@ -23,11 +23,15 @@
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value])
   const workQueueDetails = computed(() => workQueueSubscription.response)
 
+  const goToQueues = ():void => {
+    router.push(routes.queues())
+  }
+
   const updateQueue = async (workQueue: any): Promise<void> => {
     try {
       await workQueuesApi.updateWorkQueue(workQueueId.value, workQueue)
       showToast(`Work queue ${workQueueDetails.value?.name} has been updated`, 'success', undefined, 3000)
-      router.push(routes.queues())
+      goToQueues()
     } catch (error) {
       showToast('Error occurred while updating your queue', 'error', undefined, 3000)
       console.error(error)
