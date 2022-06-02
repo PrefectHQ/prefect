@@ -52,6 +52,11 @@
           <DeploymentIconText v-if="flowRun.deploymentId" :deployment-id="flowRun.deploymentId" />
         </div>
         <PDivider />
+
+        <router-link :to="routes.radar(flowRunId)" class="flow-run__small-radar-link">
+          <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
+        </router-link>
+        <PDivider />
         <FlowRunDetails :flow-run="flowRun" />
       </template>
     </template>
@@ -76,6 +81,7 @@
     LogsContainer,
     TaskRunList,
     FlowRunDetails,
+    RadarSmall,
     StateSelect,
     StateType,
     StateBadge,
@@ -190,6 +196,10 @@
   const subFlowRuns = computed(() => subFlowRunsSubscription.response ?? [])
   const selectedSubFlowRuns = ref([])
 
+  const routeToRadar = (): void => {
+    router.push(routes.radar(flowRunId.value))
+  }
+
   function loadMoreSubFlowRuns(): void {
     const unwatch = watch(subFlowRunTaskIds, () => {
       subFlowRunsSubscription.loadMore()
@@ -229,5 +239,23 @@
   flex-col
   gap-3
   items-start
+}
+
+.flow-run__small-radar { @apply
+  h-[250px]
+  relative
+}
+
+/* This is a small hack because the small radar view explicitly overrides cursor for disabled minimaps */
+.flow-run__small-radar-link::after {
+  content: '';
+
+  @apply
+  absolute
+  left-0
+  top-0
+  cursor-pointer
+  w-full
+  h-full
 }
 </style>
