@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="queue">
     <template #header>
-      <PageHeadingQueue v-if="workQueueDetails" :queue="workQueueDetails" />
+      <PageHeadingQueue v-if="workQueue" :queue="workQueue" @update="workQueueSubscription.refresh" />
     </template>
 
     <p-key-value label="Description" :value="workQueueDescription" />
@@ -50,7 +50,7 @@
   import { useRouteParam, UnionFilters, FlowRunnerType, PageHeadingQueue } from '@prefecthq/orion-design'
   import { PKeyValue, formatDate } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
-  import { computed, ref } from 'vue'
+  import { computed } from 'vue'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
@@ -68,19 +68,19 @@
   ]
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
-  const workQueueDetails = computed(() => workQueueSubscription.response)
-  const workQueueDeploymentIds = computed(() => workQueueDetails?.value?.filter?.deploymentIds ?? [])
-  const workQueueDescription = computed(() => workQueueDetails.value?.description ?? '')
-  const workQueueID = computed(() => workQueueDetails.value?.id ?? '')
-  const workQueueFlowRunConcurrency = computed(() => workQueueDetails.value?.concurrencyLimit ?? 'Unlimited')
+  const workQueue = computed(() => workQueueSubscription.response)
+  const workQueueDeploymentIds = computed(() => workQueue?.value?.filter?.deploymentIds ?? [])
+  const workQueueDescription = computed(() => workQueue.value?.description ?? '')
+  const workQueueID = computed(() => workQueue.value?.id ?? '')
+  const workQueueFlowRunConcurrency = computed(() => workQueue.value?.concurrencyLimit ?? 'Unlimited')
   const workQueueCreated = computed(() => {
-    if (workQueueDetails.value?.created) {
-      return formatDate(workQueueDetails.value?.created)
+    if (workQueue.value?.created) {
+      return formatDate(workQueue.value?.created)
     }
     return ''
   })
-  const workQueueFlowRunners = computed(() => workQueueDetails.value?.filter?.flowRunnerTypes ?? [])
-  const workQueueTags = computed(() => workQueueDetails.value?.filter.tags ?? [])
+  const workQueueFlowRunners = computed(() => workQueue.value?.filter?.flowRunnerTypes ?? [])
+  const workQueueTags = computed(() => workQueue.value?.filter.tags ?? [])
 
   const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
     deployments: {
