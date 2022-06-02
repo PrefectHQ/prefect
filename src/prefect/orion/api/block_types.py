@@ -119,13 +119,9 @@ async def read_block_documents_for_block_type(
     )
     if not block_type:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
-    block_documents = await models.block_documents.read_block_documents(
+    return await models.block_documents.read_block_documents(
         session=session, block_type_id=block_type.id
     )
-    return [
-        await BlockDocument.from_orm_model(session, block_doc)
-        for block_doc in block_documents
-    ]
 
 
 @router.get(
@@ -147,4 +143,4 @@ async def read_block_document_by_name_for_block_type(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Block document not found"
         )
-    return await BlockDocument.from_orm_model(session, block_document)
+    return block_document

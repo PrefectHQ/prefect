@@ -1,5 +1,4 @@
 import random
-import sys
 import threading
 from dataclasses import dataclass
 from datetime import timedelta
@@ -200,6 +199,21 @@ class TestGetClient:
             assert new_client is not client
 
 
+def not_enough_open_files() -> bool:
+    """
+    The current process does not currently allow enough open files for this test.
+    You can increase the number of open files with `ulimit -n 512`.
+    """
+    try:
+        import resource
+    except ImportError:
+        # resource limits is not a concept on all systems, notably Windows
+        return False
+
+    soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    return soft_limit < 512 or hard_limit < 512
+
+
 class TestClientContextManager:
     async def test_client_context_cannot_be_reentered(self):
         client = OrionClient("http://foo.test")
@@ -311,6 +325,7 @@ class TestClientContextManager:
         startup.assert_called_once()
         shutdown.assert_called_once()
 
+    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
@@ -357,6 +372,7 @@ class TestClientContextManager:
         assert startup.call_count == shutdown.call_count
         assert startup.call_count > 0
 
+    @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])

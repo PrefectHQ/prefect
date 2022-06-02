@@ -1,11 +1,11 @@
 import hashlib
-import json
+import inspect
 from abc import ABC
-from multiprocessing.sharedctypes import Value
-from typing import Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, HttpUrl
+from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
@@ -37,6 +37,25 @@ class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
 
+        @staticmethod
+        def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
+            """
+            Customizes Pydantic's schema generation feature to add blocks related information.
+            """
+            schema["block_type_name"] = model.get_block_type_name()
+
+            refs = schema["block_schema_references"] = {}
+            for field in model.__fields__.values():
+                if inspect.isclass(field.type_) and issubclass(field.type_, Block):
+                    refs[field.name] = field.type_._to_block_schema_reference_dict()
+                if get_origin(field.type_) is Union:
+                    refs[field.name] = []
+                    for type in get_args(field.type_):
+                        if inspect.isclass(type) and issubclass(type, Block):
+                            refs[field.name].append(
+                                type._to_block_schema_reference_dict()
+                            )
+
     """
     A base class for implementing a block that wraps an external service.
 
@@ -62,7 +81,7 @@ class Block(BaseModel, ABC):
 
     # -- private class variables
     # set by the class itself
-    _block_schema_type: Optional[str] = None
+
     # Attribute to customize the name of the block type created
     # when the block is registered with Orion. If not set, block
     # type name will default to the class name.
@@ -76,15 +95,30 @@ class Block(BaseModel, ABC):
     # these are set when blocks are loaded from the API
     _block_type_id: Optional[UUID] = None
     _block_schema_id: Optional[UUID] = None
+    _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
+
+    @classmethod
+    def get_block_type_name(cls):
+        return cls._block_type_name or cls.__name__
+
+    @classmethod
+    def _to_block_schema_reference_dict(cls):
+        return dict(
+            block_type_name=cls.get_block_type_name(),
+            block_schema_checksum=cls._calculate_schema_checksum(),
+        )
 
     @classmethod
     def _calculate_schema_checksum(cls):
         """
         Generates a unique hash for the underlying schema of block.
         """
-        checksum = hash_objects(cls.schema(), hash_algo=hashlib.sha256)
+        fields = {
+            key: value for key, value in cls.schema().items() if key != "definitions"
+        }
+        checksum = hash_objects(fields, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
         else:
@@ -149,12 +183,14 @@ class Block(BaseModel, ABC):
         """
         fields = cls.schema()
         return BlockSchema(
-            id=cls._block_schema_id or uuid4(),
+            id=cls._block_schema_id if cls._block_schema_id is not None else uuid4(),
             checksum=cls._calculate_schema_checksum(),
-            type=cls._block_schema_type,
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
+            capabilities=cls._block_schema_capabilities
+            if cls._block_schema_capabilities is not None
+            else list(),
         )
 
     @classmethod
@@ -167,7 +203,7 @@ class Block(BaseModel, ABC):
         """
         return BlockType(
             id=cls._block_type_id or uuid4(),
-            name=cls._block_type_name or cls.__name__,
+            name=cls.get_block_type_name(),
             logo_url=cls._logo_url,
             documentation_url=cls._documentation_url,
         )
@@ -200,7 +236,7 @@ class Block(BaseModel, ABC):
                 checksum=block_document.block_schema.checksum,
             )
         )
-        block = block_schema_cls(**block_document.data)
+        block = block_schema_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
@@ -225,13 +261,12 @@ class Block(BaseModel, ABC):
             block document with the specified name.
         """
         async with prefect.client.get_client() as client:
-            block_type_name = cls._block_type_name or cls.__name__
             try:
                 block_document = await client.read_block_document_by_name(
-                    name=name, block_type_name=block_type_name
+                    name=name, block_type_name=cls.get_block_type_name()
                 )
             except prefect.exceptions.ObjectNotFound as e:
                 raise ValueError(
-                    f"Unable to find block document named {name} for block type {cls._block_type_name or cls.__name__}"
+                    f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
                 ) from e
         return cls._from_block_document(block_document)
