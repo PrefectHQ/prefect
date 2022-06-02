@@ -13,7 +13,7 @@
     <p-key-value label="Created" :value="workQueueCreated" />
 
     <p-key-value label="Tags">
-      <template #value>
+      <template v-if="workQueueTags.length" #value>
         <p-tags :tags="workQueueTags" class="mt-2" />
       </template>
     </p-key-value>
