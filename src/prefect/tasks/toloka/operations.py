@@ -43,11 +43,9 @@ def create_project(
     Task to create a Toloka `Project` object from given config.
 
     Args:
-        - obj (Project, Dict, str, bytes): Either a `Project` object itself or a config to make a `Project`.
-        - secret_name (str, optional): Allow to use non-default secret for Toloka token.
-            Default: "TOLOKA_TOKEN".
-        - env (str, optional): Allow to use non-default Toloka environment.
-            Default: "PRODUCTION".
+        - obj: Either a `Project` object itself or a config to make a `Project`.
+        - secret_name: Allow to use non-default secret for Toloka token. Default: "TOLOKA_TOKEN".
+        - env: Allow to use non-default Toloka environment. Default: "PRODUCTION".
 
     Returns:
         - Project: Toloka project object with id assigned.

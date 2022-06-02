@@ -803,3 +803,18 @@ classes = ["HightouchRunSync"]
 title = "SFTP Tasks"
 module = "prefect.tasks.sftp.sftp"
 classes = ["SftpDownload", "SftpUpload"]
+
+[pages.tasks.toloka]
+title = "Toloka Tasks"
+module = "prefect.tasks.toloka"
+functions = ["create_project",
+             "create_exam_pool",
+             "create_pool",
+             "create_tasks",
+             "open_pool",
+             "open_exam_pool",
+             "wait_pool",
+             "get_assignments",
+             "get_assignments_df",
+             "accept_assignment",
+             "reject_assignment"]

@@ -48,6 +48,11 @@ def with_updated_signature(
         parameters_add.append(last_param)
 
     res = wraps(func)(wrapper)
+    res.__special_wrapped__ = res.__wrapped__
+    del res.__wrapped__
+    if isinstance(res, partial):
+        res.__special_func__ = res.func
+        del res.func
     res.__signature__ = signature_func.replace(parameters=parameters_keep + parameters_add)
 
     return res
@@ -147,20 +152,17 @@ def with_toloka_client(func: Callable) -> Callable:
 
     def _wrapper(
         *args,
-        __func: Callable,
         secret_name: str = DEFAULT_TOLOKA_SECRET_NAME,
         env: str = DEFAULT_TOLOKA_ENV,
         **kwargs
     ) -> Any:
         token = Secret(secret_name).get()
         toloka_client = TolokaClient(token, env)
-        # TODO: Remove after toloka-kit==0.1.24 release.
-        toloka_client.retryer_factory = partial(toloka_client.retryer_factory, status_list=(408, 429, 500, 503))
-        return partial(add_headers('prefect')(__func), toloka_client=toloka_client)(*args, **kwargs)
+        return partial(add_headers('prefect')(func), toloka_client=toloka_client)(*args, **kwargs)
 
     return with_updated_signature(
         func,
-        partial(_wrapper, __func=func),
+        _wrapper,
         remove_func_args=('toloka_client',),
         add_wrapper_args=('secret_name', 'env'),
     )
