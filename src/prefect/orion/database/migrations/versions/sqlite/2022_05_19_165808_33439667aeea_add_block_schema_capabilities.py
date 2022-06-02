@@ -28,6 +28,23 @@ def upgrade():
                 nullable=False,
             ),
         )
+
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
+
+    results = connection.execute(sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.type]))
+
+    for id, type in results:
+        if type == "STORAGE":
+            connection.execute(
+                sa.update(BLOCK_SCHEMA)
+                .where(BLOCK_SCHEMA.c.id == id)
+                .values(capabilities=["writeable", "readable", "storage"])
+            )
+
+    with op.batch_alter_table("block_schema", schema=None) as batch_op:
         batch_op.drop_index("ix_block_schema__type")
         batch_op.drop_column("type")
 
@@ -39,5 +56,24 @@ def downgrade():
     with op.batch_alter_table("block_schema", schema=None) as batch_op:
         batch_op.add_column(sa.Column("type", sa.VARCHAR(), nullable=True))
         batch_op.create_index("ix_block_schema__type", ["type"], unique=False)
+
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
+
+    results = connection.execute(
+        sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.capabilities])
+    )
+
+    for id, capabilities in results:
+        if "storage" in capabilities:
+            connection.execute(
+                sa.update(BLOCK_SCHEMA)
+                .where(BLOCK_SCHEMA.c.id == id)
+                .values(type="STORAGE")
+            )
+
+    with op.batch_alter_table("block_schema", schema=None) as batch_op:
         batch_op.drop_column("capabilities")
     # ### end Alembic commands ###
