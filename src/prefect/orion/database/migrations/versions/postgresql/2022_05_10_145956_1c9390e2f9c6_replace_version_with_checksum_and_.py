@@ -123,7 +123,7 @@ def upgrade():
         block_type_result = connection.execute(
             sa.select([BLOCK_TYPE.c.id]).where(BLOCK_TYPE.c.name == name)
         ).first()
-        new_block_type_id = new_block_type_results[0]
+        new_block_type_id = block_type_result[0]
         connection.execute(
             sa.update(BLOCK_SCHEMA)
             .where(BLOCK_SCHEMA.c.id == id)
