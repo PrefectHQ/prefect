@@ -50,9 +50,6 @@ def with_updated_signature(
     res = wraps(func)(wrapper)
     res.__special_wrapped__ = res.__wrapped__
     del res.__wrapped__
-    if isinstance(res, partial):
-        res.__special_func__ = res.func
-        del res.func
     res.__signature__ = signature_func.replace(parameters=parameters_keep + parameters_add)
 
     return res
