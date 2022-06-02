@@ -1,6 +1,9 @@
 <template>
   <p-layout-default>
-    <PageHeading :crumbs="header" />
+    <template #header>
+      <PageHeading :crumbs="header" />
+    </template>
+    
     <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="router.push(routes.queues())" />
   </p-layout-default>
 </template>
