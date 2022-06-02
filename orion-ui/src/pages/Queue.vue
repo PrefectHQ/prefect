@@ -35,7 +35,7 @@
         <p-checkbox
           v-for="runner in flowRunnerTypes"
           :key="runner.value"
-          v-model="flowRunners"
+          v-model="workQueueFlowRunners"
           :label="runner.label"
           :value="runner.value"
           editor="checkbox"
@@ -81,8 +81,6 @@
   })
   const workQueueFlowRunners = computed(() => workQueueDetails.value?.filter?.flowRunnerTypes ?? [])
   const workQueueTags = computed(() => workQueueDetails.value?.filter.tags ?? [])
-
-  const flowRunners = ref(workQueueFlowRunners.value)
 
   const workQueueDeploymentFilter = computed<UnionFilters>(() => ({
     deployments: {
