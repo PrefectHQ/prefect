@@ -4,7 +4,7 @@
       <PageHeading :crumbs="header" />
     </template>
     
-    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goToQueues()" />
+    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goToQueues" />
   </p-layout-default>
 </template>
 
