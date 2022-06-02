@@ -243,6 +243,9 @@
 
 .flow-run__small-radar { @apply
   h-[250px]
+}
+
+.flow-run__small-radar-link { @apply
   relative
 }
 
