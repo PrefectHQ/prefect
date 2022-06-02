@@ -23,7 +23,32 @@
         <div class="flow-run__filters">
           <LogLevelSelect v-model:selected="logLevel" />
         </div>
-        <LogsContainer :logs="logs" class="flow-run__logs" />
+        <LogsContainer :logs="logs" class="flow-run__logs">
+          <template #empty>
+            <p-empty-results>
+              <template #message>
+                <div v-if="logLevel > 0">
+                  No logs match your filter criteria
+                </div>
+                <div v-else-if="flowRun?.stateType == 'scheduled'">
+                  This run is scheduled and hasn't generated logs
+                </div>
+                <div v-else-if="flowRun?.stateType == 'running'">
+                  Waiting for logs...
+                </div>
+                <div v-else>
+                  This run didn't generate Logs
+                </div>
+              </template>
+
+              <template #actions>
+                <p-button size="sm" secondary @click="logLevel = 0">
+                  Clear Filters
+                </p-button>
+              </template>
+            </p-empty-results>
+          </template>
+        </LogsContainer>
       </template>
 
       <template #task-runs>
@@ -97,7 +122,9 @@
     DeploymentIconText,
     DurationIconText,
     LogLevelSelect,
-    LogLevel
+    LogLevel,
+    capitalize,
+    TaskRunFilter
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
   import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
@@ -125,10 +152,10 @@
   const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], options)
   const flowRun = computed(()=> flowRunDetailsSubscription.response)
 
-  const state = ref<StateType>()
+  const state = ref<StateType[]>([])
   const logLevel = ref<LogLevel>(0)
   const logsOffset = ref<number>(0)
-  const logsSort = ref<LogsRequestSort>('TIMESTAMP_DESC')
+  const logsSort = ref<LogsRequestSort>('TIMESTAMP_ASC')
   const logsFilter = computed<LogsRequestFilter>(() => ({
     logs: {
       flow_run_id: {
@@ -158,14 +185,24 @@
       },
       sort: selectedTaskRunSortOption.value,
     }
+
+    const taskRunsFilter: TaskRunFilter = {}
+
     if (taskRunSearchDebounced.value) {
-      runFilter.task_runs =  {
+      taskRunsFilter.name = {
+        any_: [taskRunSearchDebounced.value],
+      }
+    }
+
+    if (state.value.length) {
+      taskRunsFilter.state = {
         name: {
-          any_: [taskRunSearchDebounced.value],
+          any_: state.value.map(state => capitalize(state)),
         },
       }
     }
-    return  runFilter
+
+    return  { ...runFilter, task_runs: { ...taskRunsFilter } }
   })
 
   const taskRunsSubscription = useUnionFiltersSubscription(taskRunsApi.getTaskRuns, [taskRunsFilter], options)
@@ -173,19 +210,31 @@
 
   const selectedSubFlowRunSortOption = ref<TaskRunSortValues>('EXPECTED_START_TIME_DESC')
 
-  const subFlowRunTasksFilter = computed<UnionFilters>(() => ({
-    sort: selectedSubFlowRunSortOption.value,
-    flow_runs: {
-      id: {
-        any_: [flowRunId.value],
+  const subFlowRunTasksFilter = computed<UnionFilters>(() => {
+    const runFilter: UnionFilters = {
+      sort: selectedSubFlowRunSortOption.value,
+      flow_runs: {
+        id: {
+          any_: [flowRunId.value],
+        },
       },
-    },
-    task_runs: {
-      subflow_runs: {
-        exists_: true,
+      task_runs: {
+        subflow_runs: {
+          exists_: true,
+        },
       },
-    },
-  }))
+    }
+
+    if (state.value.length) {
+      runFilter.task_runs!.state = {
+        name: {
+          any_: state.value.map(state => capitalize(state)),
+        },
+      }
+    }
+
+    return runFilter
+  })
 
   const subFlowRunTasksSubscription = useUnionFiltersSubscription(taskRunsApi.getTaskRuns, [subFlowRunTasksFilter])
   const subFlowRunTasks = computed(()=> subFlowRunTasksSubscription.response ?? [])
@@ -227,8 +276,8 @@
   mb-2
 }
 
-.flow-run__logs {
-  min-height: 500px;
+.flow-run__logs { @apply
+  max-h-screen
 }
 
 .flow-run__header-meta { @apply
