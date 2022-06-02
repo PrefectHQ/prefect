@@ -16,6 +16,8 @@
           <RadarSmall :flow-run-id="flowRunId" class="flow-run__small-radar" />
         </router-link>
 
+        <p-divider />
+
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
       </template>
 
@@ -296,22 +298,11 @@
 
 .flow-run__small-radar { @apply
   h-[250px]
+  w-[250px]
 }
 
 .flow-run__small-radar-link { @apply
-  relative
-}
-
-/* This is a small hack because the small radar view explicitly overrides cursor for disabled minimaps */
-.flow-run__small-radar-link::after {
-  content: '';
-
-  @apply
-  absolute
-  left-0
-  top-0
   cursor-pointer
-  w-full
-  h-full
+  inline-block
 }
 </style>
