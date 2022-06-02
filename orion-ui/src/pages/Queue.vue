@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="queue">
     <template #header>
-      <PageHeadingQueue v-if="workQueue" :queue="workQueue" @update="workQueueSubscription.refresh" />
+      <PageHeadingQueue v-if="workQueue" :queue="workQueue" @update="workQueueSubscription.refresh" @delete="routeToQueues" />
     </template>
 
     <p-key-value label="Description" :value="workQueueDescription" />
@@ -51,9 +51,12 @@
   import { PKeyValue, formatDate } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { useRouter } from 'vue-router'
   import { routes } from '@/router'
   import { deploymentsApi } from '@/services/deploymentsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
+
+  const router = useRouter()
 
   const workQueueId = useRouteParam('id')
   const subscriptionOptions = {
@@ -92,4 +95,8 @@
   const workQueueDeploymentSubscription = useSubscription(deploymentsApi.getDeployments, [workQueueDeploymentFilter], subscriptionOptions)
   const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
   const emptyWorkQueueDeployments = computed(() => workQueueDeployments.value?.length === 0)
+
+  const routeToQueues = (): void => {
+    router.push(routes.queues())
+  }
 </script>
