@@ -1,12 +1,14 @@
 <template>
   <p-layout-default class="settings">
     <template #header>
-      <PageHeading :crumbs="crumbs" />
+      <PageHeading :crumbs="crumbs">
+        <template #actions>
+          <p-key-value label="Version" :value="version" />
+        </template>
+      </PageHeading>
     </template>
 
     <SettingsCodeBlock class="settings--code-block" :engine-settings="engineSettings" />
-
-    <p-key-value label="Version" :value="version" />
   </p-layout-default>
 </template>
 

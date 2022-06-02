@@ -159,19 +159,29 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.BlockSchema
 
     @property
+    def BlockSchemaReference(self):
+        """A block schema reference model"""
+        return self.orm.BlockSchemaReference
+
+    @property
     def BlockDocument(self):
         """A block document model"""
         return self.orm.BlockDocument
 
     @property
-    def FlowRunAlertPolicy(self):
-        """A flow run alert policy model"""
-        return self.orm.FlowRunAlertPolicy
+    def BlockDocumentReference(self):
+        """A block document reference model"""
+        return self.orm.BlockDocumentReference
 
     @property
-    def FlowRunAlertQueue(self):
-        """A flow run alert queue model"""
-        return self.orm.FlowRunAlertQueue
+    def FlowRunNotificationPolicy(self):
+        """A flow run notification policy model"""
+        return self.orm.FlowRunNotificationPolicy
+
+    @property
+    def FlowRunNotificationQueue(self):
+        """A flow run notification queue model"""
+        return self.orm.FlowRunNotificationQueue
 
     @property
     def Configuration(self):
@@ -258,7 +268,9 @@ class OrionDBInterface(metaclass=DBSingleton):
     def json_arr_agg(self, json_array):
         return self.queries.json_arr_agg(json_array)
 
-    async def get_flow_run_alerts_from_queue(self, session: sa.orm.Session, limit: int):
-        return await self.queries.get_flow_run_alerts_from_queue(
+    async def get_flow_run_notifications_from_queue(
+        self, session: sa.orm.Session, limit: int
+    ):
+        return await self.queries.get_flow_run_notifications_from_queue(
             session=session, db=self, limit=limit
         )
