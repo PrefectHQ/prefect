@@ -43,7 +43,7 @@
                 </div>
               </template>
 
-              <template #actions>
+              <template v-if="logLevel > 0" #actions>
                 <p-button size="sm" secondary @click="logLevel = 0">
                   Clear Filters
                 </p-button>
