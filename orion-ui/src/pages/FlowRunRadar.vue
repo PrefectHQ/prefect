@@ -1,14 +1,7 @@
 <template>
   <p-layout-full class="flow-run-radar">
     <template #header>
-      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" class="flow-run-radar__header" @delete="goToFlowRuns">
-        <!-- Todo - Add this mobile scaling to Orion design -->
-        <div class="flow-run-radar__header-meta">
-          <StateBadge :state="flowRun.state" />
-          <DurationIconText :duration="flowRun.duration" />
-          <FlowIconText :flow-id="flowRun.flowId" />
-        </div>
-      </PageHeadingFlowRun>
+      <PageHeadingFlowRun v-if="flowRun" :flow-run="flowRun" class="flow-run-radar__header" @delete="goToFlowRuns" />
     </template>
 
     <RadarApp :flow-run-id="flowRunId" />
@@ -19,10 +12,7 @@
   import {
     useRouteParam,
     RadarApp,
-    PageHeadingFlowRun,
-    StateBadge,
-    FlowIconText,
-    DurationIconText
+    PageHeadingFlowRun
   } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
