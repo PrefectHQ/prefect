@@ -27,7 +27,7 @@
       showToast('Work queue has been created', 'success', undefined, 3000)
       router.push(routes.queue(id))
     } catch (error) {
-      showToast('Error occurred while creating new queue', 'error', undefined, 3000)
+      showToast('Error occurred while creating new work queue', 'error', undefined, 3000)
       console.error(error)
     }
   }
