@@ -1,5 +1,5 @@
 ---
-description: Learn about contributing to Prefect 2.0.
+description: Learn about running integration tests for FlowRunners
 tags:
     - open source
     - contributing
