@@ -1,5 +1,8 @@
+import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Dict
 from unittest.mock import MagicMock
 
 import anyio.abc
@@ -7,23 +10,23 @@ import httpx
 import kubernetes
 import kubernetes as k8s
 import pendulum
-import pydantic
 import pytest
+import yaml
+from jsonpatch import JsonPatch
 from kubernetes.config import ConfigException
+from pydantic import ValidationError
 from urllib3.exceptions import MaxRetryError
 
 import prefect
 from prefect.client import get_client
 from prefect.flow_runners import (
-    DockerFlowRunner,
     KubernetesFlowRunner,
     KubernetesImagePullPolicy,
     KubernetesRestartPolicy,
-    SubprocessFlowRunner,
-    UniversalFlowRunner,
     base_flow_run_environment,
-    get_prefect_image_name,
 )
+from prefect.flow_runners.kubernetes import KubernetesManifest
+from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
 from prefect.testing.utilities import kubernetes_environments_equal
@@ -40,7 +43,7 @@ class TestKubernetesFlowRunner:
 
     @pytest.fixture
     def mock_watch(self, monkeypatch):
-        kubernetes = pytest.importorskip("kubernetes")
+        pytest.importorskip("kubernetes")
 
         mock = MagicMock()
 
@@ -49,79 +52,44 @@ class TestKubernetesFlowRunner:
 
     @pytest.fixture
     def mock_cluster_config(self, monkeypatch):
-        kubernetes = pytest.importorskip("kubernetes")
+        pytest.importorskip("kubernetes")
+
         mock = MagicMock()
 
-        monkeypatch.setattr(
-            "kubernetes.config",
-            mock,
-        )
+        monkeypatch.setattr("kubernetes.config", mock)
         return mock
 
     @pytest.fixture
     def mock_k8s_client(self, monkeypatch, mock_cluster_config):
-        kubernetes = pytest.importorskip("kubernetes")
+        pytest.importorskip("kubernetes")
 
         mock = MagicMock(spec=k8s.client.CoreV1Api)
 
-        monkeypatch.setattr("prefect.flow_runners.KubernetesFlowRunner.client", mock)
-        return mock
-
-    @pytest.fixture
-    def mock_k8s_batch_client(self, monkeypatch, mock_cluster_config):
-        kubernetes = pytest.importorskip("kubernetes")
-
-        mock = MagicMock(spec=k8s.client.BatchV1Api)
+        @contextmanager
+        def get_client(_):
+            yield mock
 
         monkeypatch.setattr(
-            "prefect.flow_runners.KubernetesFlowRunner.batch_client", mock
+            "prefect.flow_runners.KubernetesFlowRunner.get_client",
+            get_client,
         )
         return mock
 
     @pytest.fixture
-    async def k8s_orion_client(self, k8s_hosted_orion):
-        kubernetes = pytest.importorskip("kubernetes")
+    def mock_k8s_batch_client(self, monkeypatch, mock_cluster_config):
+        pytest.importorskip("kubernetes")
 
-        async with get_client() as orion_client:
-            yield orion_client
+        mock = MagicMock(spec=k8s.client.BatchV1Api)
 
-    @pytest.fixture
-    def k8s_hosted_orion(self):
-        """
-        Sets `PREFECT_API_URL` and to the k8s-hosted API endpoint.
-        """
-        kubernetes = pytest.importorskip("kubernetes")
+        @contextmanager
+        def get_batch_client(_):
+            yield mock
 
-        # TODO: pytest flag to configure this URL
-        k8s_api_url = "http://localhost:4205/api"
-        with temporary_settings(updates={PREFECT_API_URL: k8s_api_url}):
-            yield k8s_api_url
-
-    @pytest.fixture
-    async def require_k8s_cluster(self, k8s_hosted_orion):
-        """
-        Skip any test that uses this fixture if a connection to a live
-        Kubernetes cluster is not available.
-        """
-        skip_message = "Could not reach live Kubernetes cluster."
-        try:
-            k8s.config.load_kube_config()
-        except ConfigException:
-            pytest.skip(skip_message)
-
-        try:
-            client = k8s.client.VersionApi(k8s.client.ApiClient())
-            client.get_code()
-        except MaxRetryError:
-            pytest.skip(skip_message)
-
-        # TODO: Check API server health
-        health_check = f"{k8s_hosted_orion}/health"
-        try:
-            async with httpx.AsyncClient() as http_client:
-                await http_client.get(health_check)
-        except httpx.ConnectError:
-            pytest.skip("Kubernetes-hosted Orion is unavailable.")
+        monkeypatch.setattr(
+            "prefect.flow_runners.KubernetesFlowRunner.get_batch_client",
+            get_batch_client,
+        )
+        return mock
 
     @staticmethod
     def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
@@ -136,7 +104,16 @@ class TestKubernetesFlowRunner:
     def test_runner_type(restart_policy):
         assert KubernetesFlowRunner().typename == "kubernetes"
 
-    async def test_creates_job(
+    def test_building_a_job_is_idempotent(self, flow_run: FlowRun):
+        """Building a Job twice from the same FlowRun should return different copies
+        of the Job manifest with identical values"""
+        flow_runner = KubernetesFlowRunner()
+        first_time = flow_runner.build_job(flow_run)
+        second_time = flow_runner.build_job(flow_run)
+        assert first_time is not second_time
+        assert first_time == second_time
+
+    async def test_creates_job_by_building_a_manifest(
         self,
         flow_run,
         mock_k8s_batch_client,
@@ -148,51 +125,14 @@ class TestKubernetesFlowRunner:
 
         flow_run.name = "My Flow"
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-        await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
+        flow_runner = KubernetesFlowRunner()
+        expected_manifest = flow_runner.build_job(flow_run)
+        await flow_runner.submit_flow_run(flow_run, fake_status)
         mock_k8s_client.read_namespaced_pod_status.assert_called_once()
-        flow_id = str(flow_run.id)
-
-        expected_data = {
-            "metadata": {
-                f"generateName": "my-flow",
-                "namespace": "default",
-                "labels": {
-                    "io.prefect.flow-run-id": flow_id,
-                    "io.prefect.flow-run-name": "my-flow",
-                    "app": "orion",
-                },
-            },
-            "spec": {
-                "template": {
-                    "spec": {
-                        "restartPolicy": "Never",
-                        "containers": [
-                            {
-                                "name": "job",
-                                "image": get_prefect_image_name(),
-                                "command": [
-                                    "python",
-                                    "-m",
-                                    "prefect.engine",
-                                    flow_id,
-                                ],
-                                "env": [
-                                    {
-                                        "name": key,
-                                        "value": value,
-                                    }
-                                    for key, value in base_flow_run_environment().items()
-                                ],
-                            }
-                        ],
-                    }
-                },
-                "backoff_limit": 4,
-            },
-        }
 
         mock_k8s_batch_client.create_namespaced_job.assert_called_with(
-            "default", expected_data
+            "default",
+            expected_manifest,
         )
 
         fake_status.started.assert_called_once()
@@ -452,7 +392,7 @@ class TestKubernetesFlowRunner:
         ]["spec"]["template"]["spec"].get("imagePullPolicy")
         assert call_restart_policy is None
 
-    async def test_uses_specified_restart_policy(
+    async def test_warns_and_replaces_user_supplied_restart_policy(
         self,
         mock_k8s_client,
         mock_watch,
@@ -463,14 +403,17 @@ class TestKubernetesFlowRunner:
     ):
         mock_watch.stream = self._mock_pods_stream_that_returns_running_pod
 
-        await KubernetesFlowRunner(
-            restart_policy=KubernetesRestartPolicy.ON_FAILURE
-        ).submit_flow_run(flow_run, MagicMock())
+        with pytest.warns(DeprecationWarning, match="restart_policy is deprecated"):
+            flow_runner = KubernetesFlowRunner(
+                restart_policy=KubernetesRestartPolicy.ON_FAILURE
+            )
+
+        await flow_runner.submit_flow_run(flow_run, MagicMock())
         mock_k8s_batch_client.create_namespaced_job.assert_called_once()
         call_restart_policy = mock_k8s_batch_client.create_namespaced_job.call_args[0][
             1
         ]["spec"]["template"]["spec"].get("restartPolicy")
-        assert call_restart_policy == "OnFailure"
+        assert call_restart_policy == "Never"
 
     async def test_raises_on_submission_with_ephemeral_api(self, flow_run):
         with pytest.raises(
@@ -526,16 +469,78 @@ class TestKubernetesFlowRunner:
 
         mock_cluster_config.load_kube_config.assert_called_once()
 
+
+class TestIntegrationWithRealKubernetesCluster:
+    @pytest.fixture
+    async def k8s_orion_client(self, k8s_hosted_orion):
+        pytest.importorskip("kubernetes")
+
+        async with get_client() as orion_client:
+            yield orion_client
+
+    @pytest.fixture
+    def k8s_hosted_orion(self, tmp_path):
+        """
+        Sets `PREFECT_API_URL` and to the k8s-hosted API endpoint.
+        """
+        pytest.importorskip("kubernetes")
+
+        # TODO: pytest flag to configure this URL
+        k8s_api_url = "http://localhost:4205/api"
+        with temporary_settings(updates={PREFECT_API_URL: k8s_api_url}):
+            yield k8s_api_url
+
+    @pytest.fixture
+    async def require_k8s_cluster(self, k8s_hosted_orion):
+        """
+        Skip any test that uses this fixture if a connection to a live
+        Kubernetes cluster is not available.
+        """
+        skip_message = "Could not reach live Kubernetes cluster."
+        try:
+            k8s.config.load_kube_config()
+        except ConfigException:
+            pytest.skip(skip_message)
+
+        try:
+            with k8s.client.ApiClient() as client:
+                k8s.client.VersionApi(api_client=client).get_code()
+                client.rest_client.pool_manager.clear()
+        except MaxRetryError:
+            pytest.skip(skip_message)
+
+        # TODO: Check API server health
+        health_check = f"{k8s_hosted_orion}/health"
+        try:
+            async with httpx.AsyncClient() as http_client:
+                await http_client.get(health_check)
+        except httpx.ConnectError:
+            pytest.skip("Kubernetes-hosted Orion is unavailable.")
+
+    @pytest.fixture(scope="module")
+    async def results_directory(self) -> Path:
+        """In order to share results reliably with the Kubernetes cluster, we need to be
+        somehwere in the user's directory tree for the most cross-platform
+        compatibilty. It's challenging to coordinate /tmp/ directories across systems"""
+        directory = Path(os.getcwd()) / ".prefect-results"
+        os.makedirs(directory, exist_ok=True)
+        for filename in os.listdir(directory):
+            os.unlink(directory / filename)
+        return directory
+
     @pytest.mark.service("kubernetes")
     async def test_executing_flow_run_has_environment_variables(
-        self, k8s_orion_client, require_k8s_cluster
+        self,
+        k8s_orion_client,
+        results_directory: Path,
+        require_k8s_cluster,
     ):
         """
         Test KubernetesFlowRunner against an API server running in a live
         k8s cluster.
 
         NOTE: Before running this, you will need to do the following:
-            - Create an orion deployment: `prefect dev kubernetes-manifest | kubectl apply -f -`
+            - Create an orion deployment: `prefect orion kubernetes-manifest | kubectl apply -f -`
             - Forward port 4200 in the cluster to port 4205 locally: `kubectl port-forward deployment/orion 4205:4200`
         """
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
@@ -565,217 +570,452 @@ class TestKubernetesFlowRunner:
         # the job needs to reach the k8s-hosted API inside the cluster, not
         # the URL that the tests used, which use a port forwarded to
         # localhost.
+        #
+        # In order to receive results back from the flow, we need to share a filesystem
+        # between the job and our host, which we'll do by mounting the /tmp/ directory
+        # from the test host using a hostPath volumeMount to the directory that matches
+        # tempfile.gettempdir(), which is what prefect.blocks.storage.TempStorageBlock
+        # uses
         assert await KubernetesFlowRunner(
             env={
                 "TEST_FOO": "foo",
                 "PREFECT_API_URL": in_cluster_k8s_api_url,
-            }
+            },
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/volumes",
+                    "value": [
+                        {
+                            "name": "results-volume",
+                            "hostPath": {"path": str(results_directory)},
+                        }
+                    ],
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/volumeMounts",
+                    "value": [{"name": "results-volume", "mountPath": "/tmp/prefect/"}],
+                },
+            ],
         ).submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
         flow_run = await k8s_orion_client.read_flow_run(flow_run.id)
-        flow_run_environ = await k8s_orion_client.resolve_datadoc(
-            flow_run.state.result()
+        result = flow_run.state.result()
+
+        # replace the container's /tmp/ with gettempdir() so we can get at the results
+        result.blob = result.blob.replace(
+            b"/tmp/prefect/", str(results_directory).encode() + b"/"
         )
+
+        flow_run_environ = await k8s_orion_client.resolve_datadoc(result)
         assert "TEST_FOO" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
 
 
-# The following tests are for configuration options and can test all relevant types
+class TestCustomizingBaseJob:
+    """Tests scenarios where a user is providing a customized base Job template"""
+
+    def test_validates_against_an_empty_job(self, flow_run: FlowRun):
+        """We should give a human-friendly error when the user provides an empty custom
+        Job manifest"""
+        with pytest.raises(ValidationError) as excinfo:
+            KubernetesFlowRunner(job={})
+
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job",),
+                "msg": (
+                    "Job is missing required attributes at the following paths: "
+                    "/apiVersion, /kind, /metadata, /spec"
+                ),
+                "type": "value_error",
+            }
+        ]
+
+    def test_validates_for_a_job_missing_deeper_attributes(self, flow_run: FlowRun):
+        """We should give a human-friendly error when the user provides an incomplete
+        custom Job manifest"""
+        with pytest.raises(ValidationError) as excinfo:
+            KubernetesFlowRunner(
+                job={
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "metadata": {},
+                    "spec": {"template": {"spec": {}}},
+                }
+            )
+
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job",),
+                "msg": (
+                    "Job is missing required attributes at the following paths: "
+                    "/metadata/labels, /spec/template/spec/containers"
+                ),
+                "type": "value_error",
+            }
+        ]
+
+    def test_validates_for_a_job_with_incompatible_values(self, flow_run: FlowRun):
+        """We should give a human-friendly error when the user provides a custom Job
+        manifest that is attempting to change required values."""
+        with pytest.raises(ValidationError) as excinfo:
+            KubernetesFlowRunner(
+                job={
+                    "apiVersion": "v1",
+                    "kind": "JobbledyJunk",
+                    "metadata": {"labels": {}},
+                    "spec": {
+                        "template": {
+                            "spec": {
+                                "containers": [
+                                    {
+                                        "name": "prefect-job",
+                                        "env": [],
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                }
+            )
+
+        assert excinfo.value.errors() == [
+            {
+                "loc": ("job",),
+                "msg": (
+                    "Job has incompatble values for the following attributes: "
+                    "/apiVersion must have value 'batch/v1', "
+                    "/kind must have value 'Job'"
+                ),
+                "type": "value_error",
+            }
+        ]
+
+    def test_user_can_supply_the_minimum_viable_value(self, flow_run: FlowRun):
+        """Documenting the minimum viable Job that can be provided"""
+        manifest = KubernetesFlowRunner(
+            job=KubernetesFlowRunner.base_job_manifest()
+        ).build_job(flow_run)
+
+        # probe a few attributes to check for sanity
+        assert manifest["metadata"]["labels"] == {
+            "app": "orion",
+            "io.prefect.flow-run-id": str(flow_run.id),
+            "io.prefect.flow-run-name": flow_run.name,
+        }
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "python",
+            "-m",
+            "prefect.engine",
+            str(flow_run.id),
+        ]
+
+    def test_user_supplied_base_job_with_labels(self, flow_run: FlowRun):
+        """The user can supply a custom base job with labels and they will be
+        included in the final manifest"""
+        manifest = KubernetesFlowRunner(
+            job={
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "metadata": {"labels": {"my-custom-label": "sweet"}},
+                "spec": {
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "prefect-job",
+                                    "env": [],
+                                }
+                            ]
+                        }
+                    }
+                },
+            }
+        ).build_job(flow_run)
+
+        assert manifest["metadata"]["labels"] == {
+            # the labels provided in the user's job base
+            "my-custom-label": "sweet",
+            # prefect's labels
+            "app": "orion",
+            "io.prefect.flow-run-id": str(flow_run.id),
+            "io.prefect.flow-run-name": flow_run.name,
+        }
+
+    def test_user_can_supply_a_sidecar_container_and_volume(self, flow_run: FlowRun):
+        """The user can supply a custom base job that includes more complex
+        modifications, like a sidecar container and volumes"""
+        manifest = KubernetesFlowRunner(
+            job={
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "metadata": {"labels": {}},
+                "spec": {
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "prefect-job",
+                                    "env": [],
+                                },
+                                {
+                                    "name": "my-sidecar",
+                                    "image": "cool-peeps/cool-code:latest",
+                                    "volumeMounts": [
+                                        {"name": "data-volume", "mountPath": "/data/"}
+                                    ],
+                                },
+                            ],
+                            "volumes": [
+                                {"name": "data-volume", "hostPath": "/all/the/data/"}
+                            ],
+                        }
+                    }
+                },
+            }
+        ).build_job(flow_run)
+
+        pod = manifest["spec"]["template"]["spec"]
+
+        assert pod["volumes"] == [{"name": "data-volume", "hostPath": "/all/the/data/"}]
+
+        # the prefect-job container is still populated
+        assert pod["containers"][0]["name"] == "prefect-job"
+        assert pod["containers"][0]["command"] == [
+            "python",
+            "-m",
+            "prefect.engine",
+            str(flow_run.id),
+        ]
+
+        assert pod["containers"][1] == {
+            "name": "my-sidecar",
+            "image": "cool-peeps/cool-code:latest",
+            "volumeMounts": [{"name": "data-volume", "mountPath": "/data/"}],
+        }
 
 
-@pytest.mark.parametrize(
-    "runner_type", [UniversalFlowRunner, SubprocessFlowRunner, DockerFlowRunner]
-)
-class TestFlowRunnerConfigEnv:
-    def test_flow_runner_env_config(self, runner_type):
-        assert runner_type(env={"foo": "bar"}).env == {"foo": "bar"}
+class TestCustomizingJob:
+    """Tests scenarios where the user is providing targeted RFC 6902 JSON patches to
+    customize their Job"""
 
-    def test_flow_runner_env_config_casts_to_strings(self, runner_type):
-        assert runner_type(env={"foo": 1}).env == {"foo": "1"}
+    @staticmethod
+    def find_environment_variable(manifest: KubernetesManifest, name: str) -> Dict:
+        pod = manifest["spec"]["template"]["spec"]
+        env = pod["containers"][0]["env"]
+        for variable in env:
+            if variable["name"] == name:
+                return variable
+        assert False, f"{name} not found in pod environment variables: {env!r}"
 
-    def test_flow_runner_env_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(env={"foo": object()})
+    def test_providing_a_secret_key_as_an_environment_variable(self, flow_run):
+        manifest = KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/env/-",
+                    "value": {
+                        "name": "MY_API_TOKEN",
+                        "valueFrom": {
+                            "secretKeyRef": {
+                                "name": "the-secret-name",
+                                "key": "api-token",
+                            }
+                        },
+                    },
+                }
+            ],
+        ).build_job(flow_run)
 
-    def test_flow_runner_env_to_settings(self, runner_type):
-        runner = runner_type(env={"foo": "bar"})
-        settings = runner.to_settings()
-        assert settings.config["env"] == runner.env
+        variable = self.find_environment_variable(manifest, "MY_API_TOKEN")
+        assert variable == {
+            "name": "MY_API_TOKEN",
+            "valueFrom": {
+                "secretKeyRef": {
+                    "name": "the-secret-name",
+                    "key": "api-token",
+                }
+            },
+        }
 
+        # prefect variables are still present
+        self.find_environment_variable(manifest, "PREFECT_TEST_MODE")
 
-@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner, DockerFlowRunner])
-class TestFlowRunnerConfigStreamOutput:
-    def test_flow_runner_stream_output_config(self, runner_type):
-        assert runner_type(stream_output=True).stream_output == True
+    def test_setting_pod_resource_requests(self, flow_run):
+        manifest = KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/resources",
+                    "value": {"limits": {"memory": "8Gi", "cpu": "4000m"}},
+                }
+            ],
+        ).build_job(flow_run)
 
-    def test_flow_runner_stream_output_config_casts_to_bool(self, runner_type):
-        assert runner_type(stream_output=1).stream_output == True
+        pod = manifest["spec"]["template"]["spec"]
+        assert pod["resources"]["limits"] == {
+            "memory": "8Gi",
+            "cpu": "4000m",
+        }
 
-    def test_flow_runner_stream_output_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(stream_output=object())
+        # prefect's orchestration values are still there
+        assert pod["completions"] == 1
 
-    @pytest.mark.parametrize("value", [True, False])
-    def test_flow_runner_stream_output_to_settings(self, runner_type, value):
-        runner = runner_type(stream_output=value)
-        settings = runner.to_settings()
-        assert settings.config["stream_output"] == value
+    def test_requesting_a_fancy_gpu(self, flow_run):
+        manifest = KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/resources",
+                    "value": {"limits": {}},
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/resources/limits",
+                    "value": {"nvidia.com/gpu": 2},
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/nodeSelector",
+                    "value": {"cloud.google.com/gke-accelerator": "nvidia-tesla-k80"},
+                },
+            ],
+        ).build_job(flow_run)
 
+        pod = manifest["spec"]["template"]["spec"]
+        assert pod["resources"]["limits"] == {
+            "nvidia.com/gpu": 2,
+        }
+        assert pod["nodeSelector"] == {
+            "cloud.google.com/gke-accelerator": "nvidia-tesla-k80",
+        }
 
-@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
-class TestFlowRunnerConfigCondaEnv:
-    @pytest.mark.parametrize("value", ["test", Path("test")])
-    def test_flow_runner_condaenv_config(self, runner_type, value):
-        assert runner_type(condaenv=value).condaenv == value
+        # prefect's orchestration values are still there
+        assert pod["completions"] == 1
 
-    def test_flow_runner_condaenv_config_casts_to_string(self, runner_type):
-        assert runner_type(condaenv=1).condaenv == "1"
+    def test_label_with_slash_in_it(self, flow_run):
+        """Documenting the use of ~1 to stand in for a /, according to RFC 6902"""
+        manifest = KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/metadata/labels/example.com~1a-cool-key",
+                    "value": "hi!",
+                }
+            ],
+        ).build_job(flow_run)
 
-    @pytest.mark.parametrize("value", [f"~{os.sep}test", f"{os.sep}test"])
-    def test_flow_runner_condaenv_config_casts_to_path(self, runner_type, value):
-        assert runner_type(condaenv=value).condaenv == Path(value)
+        labels = manifest["metadata"]["labels"]
+        assert labels["example.com/a-cool-key"] == "hi!"
 
-    def test_flow_runner_condaenv_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(condaenv=object())
-
-    @pytest.mark.parametrize("value", ["test", Path("test")])
-    def test_flow_runner_condaenv_to_settings(self, runner_type, value):
-        runner = runner_type(condaenv=value)
-        settings = runner.to_settings()
-        assert settings.config["condaenv"] == value
-
-    def test_flow_runner_condaenv_cannot_be_provided_with_virtualenv(self, runner_type):
-        with pytest.raises(
-            pydantic.ValidationError, match="cannot provide both a conda and virtualenv"
-        ):
-            runner_type(condaenv="foo", virtualenv="bar")
-
-
-@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
-class TestFlowRunnerConfigVirtualEnv:
-    def test_flow_runner_virtualenv_config(self, runner_type):
-        path = Path("~").expanduser()
-        assert runner_type(virtualenv=path).virtualenv == path
-
-    def test_flow_runner_virtualenv_config_casts_to_path(self, runner_type):
-        assert runner_type(virtualenv="~/test").virtualenv == Path("~/test")
-        assert (
-            Path("~/test") != Path("~/test").expanduser()
-        ), "We do not want to expand user at configuration time"
-
-    def test_flow_runner_virtualenv_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(virtualenv=object())
-
-    def test_flow_runner_virtualenv_to_settings(self, runner_type):
-        runner = runner_type(virtualenv=Path("~/test"))
-        settings = runner.to_settings()
-        assert settings.config["virtualenv"] == Path("~/test")
-
-
-@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
-class TestFlowRunnerConfigVolumes:
-    def test_flow_runner_volumes_config(self, runner_type):
-        volumes = ["a:b", "c:d"]
-        assert runner_type(volumes=volumes).volumes == volumes
-
-    def test_flow_runner_volumes_config_does_not_expand_paths(self, runner_type):
-        assert runner_type(volumes=["~/a:b"]).volumes == ["~/a:b"]
-
-    def test_flow_runner_volumes_config_casts_to_list(self, runner_type):
-        assert type(runner_type(volumes={"a:b", "c:d"}).volumes) == list
-
-    def test_flow_runner_volumes_config_errors_if_invalid_format(self, runner_type):
-        with pytest.raises(
-            pydantic.ValidationError, match="Invalid volume specification"
-        ):
-            runner_type(volumes=["a"])
-
-    def test_flow_runner_volumes_config_errors_if_invalid_type(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(volumes={"a": "b"})
-
-    def test_flow_runner_volumes_to_settings(self, runner_type):
-        runner = runner_type(volumes=["a:b", "c:d"])
-        settings = runner.to_settings()
-        assert settings.config["volumes"] == ["a:b", "c:d"]
-
-
-@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
-class TestFlowRunnerConfigNetworks:
-    def test_flow_runner_networks_config(self, runner_type):
-        networks = ["a", "b"]
-        assert runner_type(networks=networks).networks == networks
-
-    def test_flow_runner_networks_config_casts_to_list(self, runner_type):
-        assert type(runner_type(networks={"a", "b"}).networks) == list
-
-    def test_flow_runner_networks_config_errors_if_invalid_type(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(volumes={"foo": "bar"})
-
-    def test_flow_runner_networks_to_settings(self, runner_type):
-        runner = runner_type(networks=["a", "b"])
-        settings = runner.to_settings()
-        assert settings.config["networks"] == ["a", "b"]
+        # prefect's identification labels are still there
+        assert labels["io.prefect.flow-run-id"] == str(flow_run.id)
+        assert labels["io.prefect.flow-run-name"] == flow_run.name
 
 
-@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
-class TestFlowRunnerConfigAutoRemove:
-    def test_flow_runner_auto_remove_config(self, runner_type):
-        assert runner_type(auto_remove=True).auto_remove == True
+class TestLoadingManifestsFromFiles:
+    @pytest.fixture
+    def example(self) -> KubernetesManifest:
+        return {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {"labels": {"my-custom-label": "sweet"}},
+            "spec": {
+                "template": {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "prefect-job",
+                                "env": [],
+                            }
+                        ]
+                    }
+                }
+            },
+        }
 
-    def test_flow_runner_auto_remove_config_casts_to_bool(self, runner_type):
-        assert runner_type(auto_remove=1).auto_remove == True
+    @pytest.fixture
+    def example_yaml(self, tmp_path: Path, example: KubernetesManifest) -> Path:
+        filename = tmp_path / "example.yaml"
+        with open(filename, "w") as f:
+            yaml.dump(example, f)
+        yield filename
 
-    def test_flow_runner_auto_remove_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(auto_remove=object())
+    def test_job_from_yaml(self, example: KubernetesManifest, example_yaml: Path):
+        assert KubernetesFlowRunner.job_from_file(example_yaml) == example
 
-    @pytest.mark.parametrize("value", [True, False])
-    def test_flow_runner_auto_remove_to_settings(self, runner_type, value):
-        runner = runner_type(auto_remove=value)
-        settings = runner.to_settings()
-        assert settings.config["auto_remove"] == value
+    @pytest.fixture
+    def example_json(self, tmp_path: Path, example: KubernetesManifest) -> Path:
+        filename = tmp_path / "example.json"
+        with open(filename, "w") as f:
+            json.dump(example, f)
+        yield filename
 
-
-@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
-class TestFlowRunnerConfigImage:
-    def test_flow_runner_image_config_defaults_to_orion_image(self, runner_type):
-        assert runner_type().image == get_prefect_image_name()
-
-    def test_flow_runner_image_config(self, runner_type):
-        value = "foo"
-        assert runner_type(image=value).image == value
-
-    def test_flow_runner_image_config_casts_to_string(self, runner_type):
-        assert runner_type(image=1).image == "1"
-
-    def test_flow_runner_image_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(image=object())
-
-    def test_flow_runner_image_to_settings(self, runner_type):
-        runner = runner_type(image="test")
-        settings = runner.to_settings()
-        assert settings.config["image"] == "test"
+    def test_job_from_json(self, example: KubernetesManifest, example_json: Path):
+        assert KubernetesFlowRunner.job_from_file(example_json) == example
 
 
-@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
-class TestFlowRunnerConfigLabels:
-    def test_flow_runner_labels_config(self, runner_type):
-        assert runner_type(labels={"foo": "bar"}).labels == {"foo": "bar"}
+class TestLoadingPatchesFromFiles:
+    def test_assumptions_about_jsonpatch(self):
+        """Assert our assumptions about the behavior of the jsonpatch library, so we
+        can be alert to any upstream changes"""
+        patch_1 = JsonPatch([{"op": "add", "path": "/hi", "value": "there"}])
+        patch_2 = JsonPatch([{"op": "add", "path": "/hi", "value": "there"}])
+        patch_3 = JsonPatch([{"op": "add", "path": "/different", "value": "there"}])
+        assert patch_1 is not patch_2
+        assert patch_1 == patch_2
+        assert patch_1 != patch_3
 
-    def test_flow_runner_labels_config_casts_to_strings(self, runner_type):
-        assert runner_type(labels={"foo": 1}).labels == {"foo": "1"}
+        assert list(patch_1) == list(patch_2)
+        assert list(patch_1) != list(patch_3)
 
-    def test_flow_runner_labels_config_errors_if_not_castable(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
-            runner_type(labels={"foo": object()})
+        assert patch_1.apply({}) == patch_2.apply({})
+        assert patch_1.apply({}) != patch_3.apply({})
 
-    def test_flow_runner_labels_to_settings(self, runner_type):
-        runner = runner_type(labels={"foo": "bar"})
-        settings = runner.to_settings()
-        assert settings.config["labels"] == runner.labels
+    @pytest.fixture
+    def example(self) -> JsonPatch:
+        return JsonPatch(
+            [
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/env/-",
+                    "value": {
+                        "name": "MY_API_TOKEN",
+                        "valueFrom": {
+                            "secretKeyRef": {
+                                "name": "the-secret-name",
+                                "key": "api-token",
+                            }
+                        },
+                    },
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/resources",
+                    "value": {"limits": {"memory": "8Gi", "cpu": "4000m"}},
+                },
+            ]
+        )
+
+    @pytest.fixture
+    def example_yaml(self, tmp_path: Path, example: JsonPatch) -> Path:
+        filename = tmp_path / "example.yaml"
+        with open(filename, "w") as f:
+            yaml.dump(list(example), f)
+        yield filename
+
+    def test_patch_from_yaml(self, example: KubernetesManifest, example_yaml: Path):
+        assert KubernetesFlowRunner.customize_from_file(example_yaml) == example
+
+    @pytest.fixture
+    def example_json(self, tmp_path: Path, example: JsonPatch) -> Path:
+        filename = tmp_path / "example.json"
+        with open(filename, "w") as f:
+            json.dump(list(example), f)
+        yield filename
+
+    def test_patch_from_json(self, example: KubernetesManifest, example_json: Path):
+        assert KubernetesFlowRunner.customize_from_file(example_json) == example
