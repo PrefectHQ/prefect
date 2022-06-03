@@ -120,7 +120,7 @@
 
 .app__router-view-fade-enter-active,
 .app__router-view-fade-leave-active {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.25s ease;
 }
 
 .app__router-view-fade-enter-from,
