@@ -1,7 +1,7 @@
 <template>
   <p-layout-default>
     <template #header>
-      <PageHeading :crumbs="header" />
+      <PageHeadingWorkQueueCreate />
     </template>
 
     <WorkQueueForm @submit="createQueue" @cancel="goToQueues" />
@@ -9,12 +9,10 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, PageHeading } from '@prefecthq/orion-design'
+  import { WorkQueueForm, PageHeadingWorkQueueCreate } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import router, { routes } from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
-
-  const header = [{ text: 'Create Work Queue' }]
 
   const goToQueues = (): void => {
     router.push(routes.queues())
