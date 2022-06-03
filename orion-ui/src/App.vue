@@ -12,7 +12,9 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <router-view class="app__router-view" />
+      <transition name="app__router-view-fade" mode="out-in">
+        <router-view class="app__router-view" />
+      </transition>
     </suspense>
   </div>
 </template>
@@ -110,6 +112,16 @@
 .app__router-view { @apply
   relative
   z-0
+}
+
+.app__router-view-fade-enter-active,
+.app__router-view-fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.app__router-view-fade-enter-from,
+.app__router-view-fade-leave-to {
+  opacity: 0;
 }
 
 @screen lg {
