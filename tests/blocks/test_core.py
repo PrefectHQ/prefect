@@ -424,14 +424,14 @@ class TestAPICompatibility:
             await test_block.load("blocky")
 
 
-class TestInstallBlock:
+class TestRegisterBlock:
     class NewBlock(Block):
         a: str
         b: str
         c: int
 
-    async def test_install_block(self, orion_client: OrionClient):
-        await self.NewBlock.install()
+    async def test_register_block(self, orion_client: OrionClient):
+        await self.NewBlock.register()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
@@ -446,9 +446,9 @@ class TestInstallBlock:
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
 
-    async def test_install_idempotent(self, orion_client: OrionClient):
-        await self.NewBlock.install()
-        await self.NewBlock.install()
+    async def test_register_idempotent(self, orion_client: OrionClient):
+        await self.NewBlock.register()
+        await self.NewBlock.register()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
@@ -460,7 +460,7 @@ class TestInstallBlock:
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
 
-    async def test_install_existing_block_type_new_block_schema(
+    async def test_register_existing_block_type_new_block_schema(
         self, orion_client: OrionClient
     ):
         class ImpostorBlock(Block):
@@ -469,13 +469,13 @@ class TestInstallBlock:
             y: str
             z: int
 
-        await ImpostorBlock.install()
+        await ImpostorBlock.register()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
-        await self.NewBlock.install()
+        await self.NewBlock.register()
 
         block_schema = await orion_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
@@ -483,7 +483,7 @@ class TestInstallBlock:
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
 
-    async def test_install_nested_block(self, orion_client: OrionClient):
+    async def test_register_nested_block(self, orion_client: OrionClient):
         class Big(Block):
             id: UUID = Field(default_factory=uuid4)
             size: int
@@ -497,7 +497,7 @@ class TestInstallBlock:
             size: int
             contents: Bigger
 
-        await Biggest.install()
+        await Biggest.register()
 
         big_block_type = await orion_client.read_block_type_by_name(name="Big")
         assert big_block_type is not None
@@ -520,7 +520,7 @@ class TestInstallBlock:
         )
         assert biggest_block_schema is not None
 
-    async def test_install_nested_block_union(self, orion_client: OrionClient):
+    async def test_register_nested_block_union(self, orion_client: OrionClient):
         class A(Block):
             a: str
 
@@ -533,7 +533,7 @@ class TestInstallBlock:
         class Umbrella(Block):
             a_b_or_c: Union[A, B, C]
 
-        await Umbrella.install()
+        await Umbrella.register()
 
         a_block_type = await orion_client.read_block_type_by_name(name="A")
         assert a_block_type is not None

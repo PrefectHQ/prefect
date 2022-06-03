@@ -276,18 +276,18 @@ class Block(BaseModel, ABC):
         return inspect.isclass(block) and issubclass(block, Block)
 
     @classmethod
-    async def install(cls):
+    async def register(cls):
         """
         Makes block available for configuration with current Orion server.
-        Recursively installs all nested blocks. Installation is idempotent.
+        Recursively registers all nested blocks. Registration is idempotent.
         """
         for field in cls.__fields__.values():
             if Block.is_block_class(field.type_):
-                await field.type_.install()
+                await field.type_.register()
             if get_origin(field.type_) is Union:
                 for type in get_args(field.type_):
                     if Block.is_block_class(type):
-                        await type.install()
+                        await type.register()
 
         async with prefect.client.get_client() as client:
             try:
