@@ -1,7 +1,7 @@
 <template>
   <p-layout-default class="queues">
     <template #header>
-      <PageHeadingQueues />
+      <PageHeadingWorkQueues />
     </template>
 
     <template v-if="loaded">
@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueuesTable, PageHeadingQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
+  import { WorkQueuesTable, PageHeadingWorkQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { workQueuesApi } from '@/services/workQueuesApi'

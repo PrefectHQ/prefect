@@ -52,34 +52,34 @@ const routeRecords: AppRouteRecord[] = [
     component: (): RouteComponent => import('@/pages/Deployment.vue'),
   },
   {
-    path: '/queues',
+    path: '/work-queues',
     component: RouterView,
     children: [
       {
-        name: 'queues',
+        name: 'work-queues',
         path: '',
-        component: (): RouteComponent => import('@/pages/Queues.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueues.vue'),
       },
       {
-        name: 'create-queue',
+        name: 'create-work-queue',
         path: 'new',
-        component: (): RouteComponent => import('@/pages/QueueCreate.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueueCreate.vue'),
       },
     ],
   },
   {
-    path: '/queue/:id',
+    path: '/work-queue/:id',
     component: RouterView,
     children: [
       {
         path: 'edit',
-        name: 'edit-queue',
-        component: (): RouteComponent => import('@/pages/QueueEdit.vue'),
+        name: 'edit-work-queue',
+        component: (): RouteComponent => import('@/pages/WorkQueueEdit.vue'),
       },
       {
         path: '',
-        name: 'queue',
-        component: (): RouteComponent => import('@/pages/Queue.vue'),
+        name: 'work-queue',
+        component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
       },
     ],
   },
