@@ -2,6 +2,7 @@ from typing import Dict, Optional, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import Field
 
 from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
 from prefect.client import OrionClient
@@ -484,6 +485,7 @@ class TestInstallBlock:
 
     async def test_install_nested_block(self, orion_client: OrionClient):
         class Big(Block):
+            id: UUID = Field(default_factory=uuid4)
             size: int
 
         class Bigger(Block):
