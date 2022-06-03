@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 
 from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
+from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 
@@ -420,3 +421,37 @@ class TestAPICompatibility:
             match="Unable to find block document named blocky for block type x",
         ):
             await test_block.load("blocky")
+
+
+class TestInstallBlock:
+    class NewBlock(Block):
+        a: str
+        b: str
+        c: int
+
+    async def test_install_block(self, orion_client: OrionClient):
+        await self.NewBlock.install()
+
+        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        assert block_type is not None
+        assert block_type.name == "NewBlock"
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_install_idempotent(self, orion_client: OrionClient):
+        await self.NewBlock.install()
+        await self.NewBlock.install()
+
+        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        assert block_type is not None
+        assert block_type.name == "NewBlock"
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
