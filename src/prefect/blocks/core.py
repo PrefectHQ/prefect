@@ -1,12 +1,9 @@
 import hashlib
 import inspect
 from abc import ABC
-from tabnanny import check
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
-import httpx
-from fastapi import status
 from pydantic import BaseModel, HttpUrl
 from typing_extensions import get_args, get_origin
 
@@ -49,12 +46,12 @@ class Block(BaseModel, ABC):
 
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
-                if inspect.isclass(field.type_) and issubclass(field.type_, Block):
+                if Block.is_block_class(field.type_):
                     refs[field.name] = field.type_._to_block_schema_reference_dict()
                 if get_origin(field.type_) is Union:
                     refs[field.name] = []
                     for type in get_args(field.type_):
-                        if inspect.isclass(type) and issubclass(type, Block):
+                        if Block.is_block_class(type):
                             refs[field.name].append(
                                 type._to_block_schema_reference_dict()
                             )
@@ -274,14 +271,30 @@ class Block(BaseModel, ABC):
                 ) from e
         return cls._from_block_document(block_document)
 
+    @staticmethod
+    def is_block_class(block) -> bool:
+        return inspect.isclass(block) and issubclass(block, Block)
+
     @classmethod
     async def install(cls):
+        """
+        Makes block available for configuration with current Orion server.
+        Recursively installs all nested blocks. Installation is idempotent.
+        """
+        for field in cls.__fields__.values():
+            if Block.is_block_class(field.type_):
+                await field.type_.install()
+            if get_origin(field.type_) is Union:
+                for type in get_args(field.type_):
+                    if Block.is_block_class(type):
+                        await type.install()
+
         async with prefect.client.get_client() as client:
             try:
                 block_type = await client.read_block_type_by_name(
                     name=cls.get_block_type_name()
                 )
-            except prefect.exceptions.ObjectNotFound as e:
+            except prefect.exceptions.ObjectNotFound:
                 block_type = await client.create_block_type(
                     block_type=cls._to_block_type()
                 )
@@ -290,7 +303,7 @@ class Block(BaseModel, ABC):
                 await client.read_block_schema_by_checksum(
                     checksum=cls._calculate_schema_checksum()
                 )
-            except prefect.exceptions.ObjectNotFound as e:
+            except prefect.exceptions.ObjectNotFound:
                 await client.create_block_schema(
                     block_schema=cls._to_block_schema(block_type_id=block_type.id)
                 )
