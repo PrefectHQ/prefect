@@ -46,6 +46,6 @@
   const workQueueDeployments = computed(() => workQueueDeploymentSubscription.response ?? [])
 
   const routeToQueues = (): void => {
-    router.push(routes.queues())
+    router.push(routes.workQueues())
   }
 </script>
