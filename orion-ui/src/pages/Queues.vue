@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { SearchInput, WorkQueue, QueuesTable, PageHeadingQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
+  import { WorkQueue, QueuesTable, PageHeadingQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { workQueuesApi } from '@/services/workQueuesApi'
