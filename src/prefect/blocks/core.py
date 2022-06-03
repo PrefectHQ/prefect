@@ -1,9 +1,12 @@
 import hashlib
 import inspect
 from abc import ABC
+from tabnanny import check
 from typing import Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
+import httpx
+from fastapi import status
 from pydantic import BaseModel, HttpUrl
 from typing_extensions import get_args, get_origin
 
@@ -247,7 +250,7 @@ class Block(BaseModel, ABC):
     async def load(cls, name: str):
         """
         Retrieves data from the block document with the given name for the block type
-        that corresponds with the current class and returns an instantated version of
+        that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
         Args:
@@ -270,3 +273,24 @@ class Block(BaseModel, ABC):
                     f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
                 ) from e
         return cls._from_block_document(block_document)
+
+    @classmethod
+    async def install(cls):
+        async with prefect.client.get_client() as client:
+            try:
+                block_type = await client.read_block_type_by_name(
+                    name=cls.get_block_type_name()
+                )
+            except prefect.exceptions.ObjectNotFound as e:
+                block_type = await client.create_block_type(
+                    block_type=cls._to_block_type()
+                )
+
+            try:
+                await client.read_block_schema_by_checksum(
+                    checksum=cls._calculate_schema_checksum()
+                )
+            except prefect.exceptions.ObjectNotFound as e:
+                await client.create_block_schema(
+                    block_schema=cls._to_block_schema(block_type_id=block_type.id)
+                )
