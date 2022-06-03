@@ -37,13 +37,13 @@
     flowRunsRouteKey,
     flowsRouteKey,
     deploymentsRouteKey,
-    queuesRouteKey,
+    workQueuesRouteKey,
     settingsRouteKey,
     flowRunRouteKey,
     flowRouteKey,
     deploymentRouteKey,
     workQueueRouteKey,
-    newQueueRouteKey,
+    workQueueCreateRouteKey,
     editQueueRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
@@ -69,13 +69,13 @@
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
   provide(deploymentsRouteKey, routes.deployments)
-  provide(queuesRouteKey, routes.queues)
+  provide(workQueuesRouteKey, routes.queues)
   provide(settingsRouteKey, routes.settings)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRouteKey, routes.flow)
   provide(deploymentRouteKey, routes.deployment)
   provide(workQueueRouteKey, routes.queue)
-  provide(newQueueRouteKey, routes.queueCreate)
+  provide(workQueueCreateRouteKey, routes.queueCreate)
   provide(editQueueRouteKey, routes.queueEdit)
 
   const mobileMenuOpen = ref(false)

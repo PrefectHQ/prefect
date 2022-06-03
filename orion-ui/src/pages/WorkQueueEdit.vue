@@ -1,7 +1,7 @@
 <template>
   <p-layout-default>
     <template #header>
-      <PageHeading :crumbs="header" />
+      <PageHeadingWorkQueueEdit />
     </template>
 
     <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goToQueues" />
@@ -9,14 +9,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, useRouteParam, PageHeading } from '@prefecthq/orion-design'
+  import { WorkQueueForm, useRouteParam, PageHeadingWorkQueueEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import router from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
-
-  const header = [{ text: 'Edit Queue' }]
 
   const workQueueId = useRouteParam('id')
 

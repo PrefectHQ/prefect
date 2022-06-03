@@ -58,12 +58,12 @@ const routeRecords: AppRouteRecord[] = [
       {
         name: 'queues',
         path: '',
-        component: (): RouteComponent => import('@/pages/Queues.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueues.vue'),
       },
       {
         name: 'create-queue',
         path: 'new',
-        component: (): RouteComponent => import('@/pages/QueueCreate.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueueCreate.vue'),
       },
     ],
   },
@@ -74,12 +74,12 @@ const routeRecords: AppRouteRecord[] = [
       {
         path: 'edit',
         name: 'edit-queue',
-        component: (): RouteComponent => import('@/pages/QueueEdit.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueueEdit.vue'),
       },
       {
         path: '',
         name: 'queue',
-        component: (): RouteComponent => import('@/pages/Queue.vue'),
+        component: (): RouteComponent => import('@/pages/WorkQueue.vue'),
       },
     ],
   },
