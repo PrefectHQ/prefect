@@ -1,5 +1,5 @@
 from typing import Dict, Optional, Type, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -441,6 +441,9 @@ class TestInstallBlock:
         )
         assert block_schema is not None
         assert block_schema.fields == self.NewBlock.schema()
+
+        assert isinstance(self.NewBlock._block_type_id, UUID)
+        assert isinstance(self.NewBlock._block_schema_id, UUID)
 
     async def test_install_idempotent(self, orion_client: OrionClient):
         await self.NewBlock.install()
