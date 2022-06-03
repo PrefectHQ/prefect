@@ -9,6 +9,7 @@
         <WorkQueuesPageEmptyState />
       </template>
       <template v-else>
+        <SearchInput v-model="searchInput" />
         <QueuesTable :queues="filteredQueues" @delete="queuesSubscription.refresh()" @clear="clear" />
       </template>
     </template>
