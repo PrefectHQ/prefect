@@ -1,7 +1,7 @@
 <template>
   <p-layout-well class="deployment">
     <template #header>
-      <PageHeadingDeployment v-if="deployment" :deployment="deployment" @delete="deleteDeployment" />
+      <PageHeadingDeployment v-if="deployment" :deployment="deployment" @update="deploymentSubscription.refresh" @delete="routeToDeployments" />
     </template>
 
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
@@ -50,7 +50,7 @@
 
   const schedule = computed(() => deployment.value ? formatSchedule(deployment.value.schedule) : '')
 
-  function deleteDeployment(): void {
+  function routeToDeployments(): void {
     router.push(routes.deployments())
   }
 </script>
