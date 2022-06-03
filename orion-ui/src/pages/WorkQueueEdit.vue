@@ -4,7 +4,7 @@
       <PageHeadingWorkQueueEdit />
     </template>
 
-    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goToQueues" />
+    <WorkQueueForm :work-queue="workQueueDetails" @submit="updateQueue" @cancel="goBack" />
   </p-layout-default>
 </template>
 
@@ -21,7 +21,7 @@
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value])
   const workQueueDetails = computed(() => workQueueSubscription.response)
 
-  const goToQueues = (): void => {
+  const goBack = (): void => {
     router.back()
   }
 
@@ -29,7 +29,7 @@
     try {
       await workQueuesApi.updateWorkQueue(workQueueId.value, workQueue)
       showToast(`${workQueueDetails.value?.name} updated`, 'success', undefined, 3000)
-      goToQueues()
+      goBack()
     } catch (error) {
       showToast('Error occurred while updating your queue', 'error', undefined, 3000)
       console.error(error)
