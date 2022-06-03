@@ -12,9 +12,13 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <transition name="app__router-view-fade" mode="out-in">
-        <router-view class="app__router-view" />
-      </transition>
+      <router-view class="app__router-view">
+        <template #default="{ Component }">
+          <transition name="app__router-view-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </template>
+      </router-view>
     </suspense>
   </div>
 </template>
