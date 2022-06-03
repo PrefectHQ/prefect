@@ -299,11 +299,15 @@ class Block(BaseModel, ABC):
                     block_type=cls._to_block_type()
                 )
 
+            cls._block_type_id = block_type.id
+
             try:
-                await client.read_block_schema_by_checksum(
+                block_schema = await client.read_block_schema_by_checksum(
                     checksum=cls._calculate_schema_checksum()
                 )
             except prefect.exceptions.ObjectNotFound:
-                await client.create_block_schema(
+                block_schema = await client.create_block_schema(
                     block_schema=cls._to_block_schema(block_type_id=block_type.id)
                 )
+
+            cls._block_schema_id = block_schema.id
