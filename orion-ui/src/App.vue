@@ -12,9 +12,13 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <transition name="app__router-view-fade" mode="out-in">
-        <router-view class="app__router-view" />
-      </transition>
+      <router-view class="app__router-view">
+        <template #default="{ Component }">
+          <transition name="app__router-view-fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </template>
+      </router-view>
     </suspense>
   </div>
 </template>
@@ -33,13 +37,13 @@
     flowRunsRouteKey,
     flowsRouteKey,
     deploymentsRouteKey,
-    queuesRouteKey,
+    workQueuesRouteKey,
     settingsRouteKey,
     flowRunRouteKey,
     flowRouteKey,
     deploymentRouteKey,
     workQueueRouteKey,
-    newQueueRouteKey,
+    workQueueCreateRouteKey,
     editQueueRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
@@ -65,14 +69,14 @@
   provide(flowRunsRouteKey, routes.flowRuns)
   provide(flowsRouteKey, routes.flows)
   provide(deploymentsRouteKey, routes.deployments)
-  provide(queuesRouteKey, routes.queues)
+  provide(workQueuesRouteKey, routes.workQueues)
   provide(settingsRouteKey, routes.settings)
   provide(flowRunRouteKey, routes.flowRun)
   provide(flowRouteKey, routes.flow)
   provide(deploymentRouteKey, routes.deployment)
-  provide(workQueueRouteKey, routes.queue)
-  provide(newQueueRouteKey, routes.queueCreate)
-  provide(editQueueRouteKey, routes.queueEdit)
+  provide(workQueueRouteKey, routes.workQueue)
+  provide(workQueueCreateRouteKey, routes.workQueueCreate)
+  provide(editQueueRouteKey, routes.workQueueEdit)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
@@ -116,7 +120,7 @@
 
 .app__router-view-fade-enter-active,
 .app__router-view-fade-leave-active {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.25s ease;
 }
 
 .app__router-view-fade-enter-from,
