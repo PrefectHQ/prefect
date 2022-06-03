@@ -9,14 +9,14 @@
         <WorkQueuesPageEmptyState />
       </template>
       <template v-else>
-        <WorkQueuesTable :work-queues="filteredQueues" @delete="queuesSubscription.refresh()" @clear="clear" />
+        <QueuesTable :queues="filteredQueues" @delete="queuesSubscription.refresh()" @clear="clear" />
       </template>
     </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueue, WorkQueuesTable, PageHeadingQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
+  import { WorkQueue, QueuesTable, PageHeadingQueues, WorkQueuesPageEmptyState } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { workQueuesApi } from '@/services/workQueuesApi'
