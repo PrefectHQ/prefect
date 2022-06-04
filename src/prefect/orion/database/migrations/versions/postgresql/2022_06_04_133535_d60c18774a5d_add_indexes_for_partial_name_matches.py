@@ -18,6 +18,9 @@ depends_on = None
 
 
 def upgrade():
+    # install pg_trgm
+    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
+
     with op.get_context().autocommit_block():
         op.execute(
             """
@@ -71,3 +74,5 @@ def downgrade():
             DROP INDEX CONCURRENTLY trgm_ix_deployment_name;
             """
         )
+
+    op.execute("DROP EXTENSION IF EXISTS pg_trgm;")
