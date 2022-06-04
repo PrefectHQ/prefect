@@ -1,7 +1,7 @@
 """Add indexes for partial name matches
 
-Revision ID: f65b6ad0b869
-Revises: d76326ed0d06
+Revision ID: 77ebcc9cf355
+Revises: cdcb4018dd0e
 Create Date: 2022-06-04 10:40:48.710626
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "f65b6ad0b869"
-down_revision = "d76326ed0d06"
+revision = "77ebcc9cf355"
+down_revision = "cdcb4018dd0e"
 branch_labels = None
 depends_on = None
 

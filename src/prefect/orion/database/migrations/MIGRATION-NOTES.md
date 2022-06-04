@@ -11,7 +11,8 @@ This gives us a history of changes and will create merge conflicts if two migrat
 ## Add indexes for partial matches on names
 
 SQLite: `f65b6ad0b869`
-Postgres: `f65b6ad0b869`
+Postgres: `77ebcc9cf355`
+
 ## Rename Flow Run Alerts to Notifications
 
 SQLite: `d76326ed0d06`
