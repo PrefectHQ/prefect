@@ -60,8 +60,8 @@ class FlowFilterName(PrefectFilterBaseModel):
     like_: str = Field(
         None,
         description=(
-            "A case-insensitive partial match. Wildcards will automatically be added "
-            "to the front and back. For example, passing 'marvin' will match "
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
         example="marvin",
@@ -150,8 +150,8 @@ class FlowRunFilterName(PrefectFilterBaseModel):
     like_: str = Field(
         None,
         description=(
-            "A case-insensitive partial match. Wildcards will automatically be added "
-            "to the front and back. For example, passing 'marvin' will match "
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
         example="marvin",
@@ -465,8 +465,8 @@ class TaskRunFilterName(PrefectFilterBaseModel):
     like_: str = Field(
         None,
         description=(
-            "A case-insensitive partial match. Wildcards will automatically be added "
-            "to the front and back. For example, passing 'marvin' will match "
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
         example="marvin",
@@ -655,8 +655,8 @@ class DeploymentFilterName(PrefectFilterBaseModel):
     like_: str = Field(
         None,
         description=(
-            "A case-insensitive partial match. Wildcards will automatically be added "
-            "to the front and back. For example, passing 'marvin' will match "
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
             "'marvin', 'sad-Marvin', and 'marvin-robot'."
         ),
         example="marvin",
