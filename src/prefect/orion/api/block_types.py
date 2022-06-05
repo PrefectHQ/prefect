@@ -1,4 +1,4 @@
-from email import message
+from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -17,7 +17,7 @@ router = OrionRouter(prefix="/block_types", tags=["Block documents"])
 async def create_block_type(
     block_type: schemas.actions.BlockTypeCreate,
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
+) -> schemas.core.BlockType:
     """
     Create a new block type
     """
@@ -37,7 +37,7 @@ async def create_block_type(
 async def read_block_type_by_id(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
+) -> schemas.core.BlockType:
     """
     Get a block type by ID.
     """
@@ -53,7 +53,7 @@ async def read_block_type_by_id(
 async def read_block_type_by_name(
     block_type_name: str = Path(..., description="The block type name", alias="name"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
+) -> schemas.core.BlockType:
     """
     Get a block type by name.
     """
@@ -70,7 +70,7 @@ async def read_block_types(
     session: sa.orm.Session = Depends(dependencies.get_session),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-):
+) -> List[schemas.core.BlockType]:
     """
     Gets all block types. Optionally limit return with limit and offset.
     """
@@ -113,7 +113,7 @@ async def delete_block_type(
 async def read_block_documents_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
     block_type_name: str = Path(..., description="The block type name", alias="name"),
-):
+) -> List[schemas.core.BlockDocument]:
     block_type = await models.block_types.read_block_type_by_name(
         session=session, block_type_name=block_type_name
     )
@@ -135,7 +135,7 @@ async def read_block_document_by_name_for_block_type(
         description="The block type name",
     ),
     block_document_name: str = Path(..., description="The block type name"),
-):
+) -> schemas.core.BlockDocument:
     block_document = await models.block_documents.read_block_document_by_name(
         session=session, block_type_name=block_type_name, name=block_document_name
     )
