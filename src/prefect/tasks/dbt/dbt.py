@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, List, Optional, Union
 
 import yaml
 
@@ -114,7 +114,7 @@ class DbtShellTask(ShellTask):
         env: dict = None,
         helper_script: str = None,
         dbt_kwargs: dict = None,
-    ) -> str:
+    ) -> Optional[Union[str, List[str]]]:
         """
         If no profiles.yml file is found or if overwrite_profiles flag is set to True, this
         will first generate a profiles.yml file in the profiles_dir directory. Then run the dbt
