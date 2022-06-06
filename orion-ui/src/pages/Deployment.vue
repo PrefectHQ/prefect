@@ -6,14 +6,14 @@
 
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
       <template #overview>
-        <div class="grid gap-2">
+        <p-content secondary>
           <p-key-value label="Schedule" :value="schedule" />
           <p-key-value label="Location" :value="deployment.flowData.blob" />
           <p-key-value label="Flow Runner" :value="deployment.flowRunner?.type" />
           <template v-if="!media.xl">
             <DeploymentDetails :deployment="deployment" />
           </template>
-        </div>
+        </p-content>
       </template>
 
       <template #parameters>
