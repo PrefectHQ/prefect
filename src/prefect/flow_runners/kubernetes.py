@@ -58,8 +58,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         labels: An optional dictionary of labels to add to the job.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         restart_policy: The Kubernetes restart policy to use for jobs.
-        job: The base manifest for the Kubernetes Job
-        customizations: A list of JSON 6902 patches to apply to the base Job manifest
+        job: The base manifest for the Kubernetes Job.
+        customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         stream_output: If set, stream output from the container to local standard output.
     """
 

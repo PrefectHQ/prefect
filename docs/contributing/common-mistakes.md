@@ -57,8 +57,8 @@ E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFa
 ../../../../.pyenv/versions/3.9.12/envs/orion/lib/python3.9/site-packages/_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
 ```
 
-What this is saying is that your test suite (or the `prefect` library code) opened a
-connection to something (like a Docker daemon, or a Kubernetes cluster) and didn't close
+This is saying that your test suite (or the `prefect` library code) opened a
+connection to something (like a Docker daemon or a Kubernetes cluster) and didn't close
 it.
 
 It may help to re-run the specific test with `PYTHONTRACEMALLOC=25 pytest ...` so that
