@@ -24,7 +24,7 @@
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails v-if="deployment" :deployment="deployment" />
+      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate />
     </template>
   </p-layout-well>
 </template>
