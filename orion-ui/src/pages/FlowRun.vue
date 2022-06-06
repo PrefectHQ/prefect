@@ -45,7 +45,7 @@
 
         <p-divider />
 
-        <FlowRunDetails :flow-run="flowRun" />
+        <FlowRunDetails :flow-run="flowRun" alternate />
       </template>
     </template>
   </p-layout-well>
@@ -85,7 +85,7 @@
     return values
   })
 
-  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId.value], { interval: 5000 })
+  const flowRunDetailsSubscription = useSubscription(flowRunsApi.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
 
   function goToFlowRuns(): void {
