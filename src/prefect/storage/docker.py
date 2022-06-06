@@ -445,7 +445,7 @@ class Docker(Storage):
         pip_installs = "RUN pip install "
         if self.python_dependencies:
             for dependency in self.python_dependencies:
-                pip_installs += "{} ".format(dependency)
+                pip_installs += "'{}' ".format(dependency)
 
         # Write all install-time commands that should be run in the image
         installation_commands = ""
