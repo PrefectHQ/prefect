@@ -1,3 +1,4 @@
+import copy
 import os
 import textwrap
 from pathlib import Path
@@ -33,6 +34,33 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+
+
+class TestSettingClass:
+    def test_setting_equality_with_value(self):
+        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
+            assert PREFECT_TEST_SETTING == "foo"
+            assert PREFECT_TEST_SETTING != "bar"
+
+    def test_setting_equality_with_self(self):
+        assert PREFECT_TEST_SETTING == PREFECT_TEST_SETTING
+
+    def test_setting_equality_with_other_setting(self):
+        assert PREFECT_TEST_SETTING != PREFECT_TEST_MODE
+
+    def test_setting_hash_is_consistent(self):
+        assert hash(PREFECT_TEST_SETTING) == hash(PREFECT_TEST_SETTING)
+
+    def test_setting_hash_is_unique(self):
+        assert hash(PREFECT_TEST_SETTING) != hash(PREFECT_LOGGING_LEVEL)
+
+    def test_setting_hash_consistent_on_value_change(self):
+        original = hash(PREFECT_TEST_SETTING)
+        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
+            assert hash(PREFECT_TEST_SETTING) == original
+
+    def test_setting_hash_is_consistent_after_deepcopy(self):
+        assert hash(PREFECT_TEST_SETTING) == hash(copy.deepcopy(PREFECT_TEST_SETTING))
 
 
 class TestSettingsClass:
@@ -167,6 +195,19 @@ class TestSettingsClass:
     def test_settings_validates_log_levels(self, log_level_setting):
         with pytest.raises(pydantic.ValidationError, match="Unknown level"):
             Settings(**{log_level_setting.name: "FOOBAR"})
+
+    def test_equality_of_new_instances(self):
+        assert Settings() == Settings()
+
+    def test_equality_after_deep_copy(self):
+        settings = Settings()
+        assert copy.deepcopy(settings) == settings
+
+    def test_equality_with_different_values(self):
+        settings = Settings()
+        assert (
+            settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
+        )
 
 
 class TestSettingAccess:
