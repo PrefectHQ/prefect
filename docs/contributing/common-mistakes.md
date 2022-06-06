@@ -9,7 +9,8 @@ tags:
 
 # Troubleshooting
 
-This section provides tips for troubleshooting and resolving common development mistakes and error situations.
+This section provides tips for troubleshooting and resolving common development mistakes
+and error situations.
 
 ## API tests return an unexpected 307 Redirected
 
@@ -43,7 +44,7 @@ async def test_example(client):
 
 ## `pytest.PytestUnraisableExceptionWarning` or `ResourceWarning`
 
-As your working with one of the `FlowRunner` implementations, you may get a surprising
+As you're working with one of the `FlowRunner` implementations, you may get a surprising
 error like:
 
 ```

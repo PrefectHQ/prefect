@@ -481,7 +481,7 @@ class TestIntegrationWithRealKubernetesCluster:
     @pytest.fixture
     def k8s_hosted_orion(self, tmp_path):
         """
-        Sets `PREFECT_API_URL` and to the k8s-hosted API endpoint.
+        Sets `PREFECT_API_URL` to the k8s-hosted API endpoint.
         """
         pytest.importorskip("kubernetes")
 
@@ -520,7 +520,7 @@ class TestIntegrationWithRealKubernetesCluster:
     @pytest.fixture(scope="module")
     async def results_directory(self) -> Path:
         """In order to share results reliably with the Kubernetes cluster, we need to be
-        somehwere in the user's directory tree for the most cross-platform
+        somewhere in the user's directory tree for the most cross-platform
         compatibilty. It's challenging to coordinate /tmp/ directories across systems"""
         directory = Path(os.getcwd()) / ".prefect-results"
         os.makedirs(directory, exist_ok=True)
