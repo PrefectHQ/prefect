@@ -1,30 +1,9 @@
-from unittest.mock import MagicMock
-from uuid import uuid4
-
-import distributed
 import pytest
 
 # Import the local 'tests' module to pickle to ray workers
 from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
-
-
-@pytest.fixture
-def distributed_client_init(monkeypatch):
-    mock = MagicMock()
-
-    class DistributedClient(distributed.Client):
-        """
-        A patched `distributed.Client` so we can inspect calls to `__init__`
-        """
-
-        def __init__(self, *args, **kwargs):
-            mock(*args, **kwargs)
-            super().__init__(*args, **kwargs)
-
-    monkeypatch.setattr("distributed.Client", DistributedClient)
-    return mock
 
 
 @pytest.fixture
