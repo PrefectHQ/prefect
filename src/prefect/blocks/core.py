@@ -50,10 +50,10 @@ class Block(BaseModel, ABC):
                     refs[field.name] = field.type_._to_block_schema_reference_dict()
                 if get_origin(field.type_) is Union:
                     refs[field.name] = []
-                    for type in get_args(field.type_):
-                        if Block.is_block_class(type):
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
                             refs[field.name].append(
-                                type._to_block_schema_reference_dict()
+                                type_._to_block_schema_reference_dict()
                             )
 
     """
@@ -285,9 +285,9 @@ class Block(BaseModel, ABC):
             if Block.is_block_class(field.type_):
                 await field.type_.register()
             if get_origin(field.type_) is Union:
-                for type in get_args(field.type_):
-                    if Block.is_block_class(type):
-                        await type.register()
+                for type_ in get_args(field.type_):
+                    if Block.is_block_class(type_):
+                        await type_.register()
 
         async with prefect.client.get_client() as client:
             try:
