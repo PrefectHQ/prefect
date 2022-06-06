@@ -301,14 +301,16 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         """Builds the Kubernetes Job Manifest to execute the given FlowRun"""
         job_manifest = copy.copy(self.job)
 
-        # apply the user-provided customizations first
-        job_manifest = self._shortcut_customizations().apply(job_manifest)
-        job_manifest = self.customizations.apply(job_manifest)
-
-        # then apply Prefect's mandatory customizations
+        # First, apply Prefect's customizations to build up the job
         job_manifest = self._environment_variables().apply(job_manifest)
         job_manifest = self._job_identification(flow_run).apply(job_manifest)
         job_manifest = self._job_orchestration(flow_run).apply(job_manifest)
+
+        # Then, apply user-provided customizations last, so that power users have
+        # full control and the appopriate "steam valve" to make Jobs work well in their
+        # environment
+        job_manifest = self._shortcut_customizations().apply(job_manifest)
+        job_manifest = self.customizations.apply(job_manifest)
 
         return job_manifest
 
@@ -431,6 +433,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     def _environment_variables(self) -> JsonPatch:
         """Produces the JSON 6902 patch to inject the current Prefect configuration as
         environment variables"""
+        # Also consider any environment variables that the user wishes to inject
+        # via the customizations patches
         variables = {**base_flow_run_environment(), **self.env}
         return JsonPatch(
             [
@@ -450,17 +454,12 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             [
                 {
                     "op": "add",
-                    "path": "/metadata/labels/app",
-                    "value": "orion",
-                },
-                {
-                    "op": "add",
-                    "path": "/metadata/labels/io.prefect.flow-run-id",
+                    "path": "/metadata/labels/prefect.io~1flow-run-id",
                     "value": str(flow_run.id),
                 },
                 {
                     "op": "add",
-                    "path": "/metadata/labels/io.prefect.flow-run-name",
+                    "path": "/metadata/labels/prefect.io~1flow-run-name",
                     "value": self._slugify_flow_run_name(flow_run),
                 },
                 {
