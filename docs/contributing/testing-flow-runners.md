@@ -31,15 +31,27 @@ see output about both the client and server, you should be ready for testing.
 
 ### Building an image
 
+The `DockerFlowRunner` test assumes that you have an image named
+`prefecthq/prefect:dev-python3.9` available on the Docker daemon, and that it includes
+and installation of the same version of `prefect` that you are currently testing.  You
+can build a compatible image from your source tree with:
+
+<div class="terminal">
 ```bash
 docker build -t prefecthq/prefect:dev-python3.9 .
 ```
+</div>
 
 ### Running the integration tests
 
+To run the tests for the `DockerFlowRunner`, include the `--service docker` flag when
+running `pytest`:
+
+<div class="terminal">
 ```bash
 pytest --service docker tests/flow_runners/test_docker.py
 ```
+</div>
 
 ## Testing the `KubernetesFlowRunner`
 
@@ -55,9 +67,16 @@ for testing.
 
 ## Building an image
 
+As with the `DockerFlowRunner`, the `KubernetesFlowRunner` test assumes that you have an
+image named `prefecthq/prefect:dev-python3.9` available on the Docker daemon, and that
+it includes and installation of the same version of `prefect` that you are currently
+testing.  You can build a compatible image from your source tree with:
+
+<div class="terminal">
 ```bash
 docker build -t prefecthq/prefect:dev-python3.9 .
 ```
+</div>
 
 You'll need a mechanism for making a locally-built image available to your cluster.  The
 exact method differs depending on your setup.  If you are using the Kubernetes cluster
@@ -70,6 +89,7 @@ documentation for more details.
 
 The steps to run `orion` for testing in your cluster's `default` namespace are:
 
+<div class="terminal">
 ```bash
 # Deploy orion to your cluster
 prefect orion kubernetes-manifest | kubectl apply -f -
@@ -81,18 +101,26 @@ kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-por
 # the orion agent sidecar so that it can feel comfortable
 PREFECT_API_URL=http://localhost:4205/api prefect work-queue create kubernetes
 ```
+</div>
 
 If you need to customize the deployment or run it in a different namespace, you can
 output the manifest to a file, edit what you need, and apply it:
 
+<div class="terminal">
 ```bash
 prefect orion kubernetes-manifest > orion.yaml
 # ... edit orion.yaml ...
 kubectl apply -f orion.yaml
 ```
+</div>
 
 ### Running the integration tests
 
+To run the tests for the `KubernetesFlowRunner`, include the `--service kubernetes` flag
+when running `pytest`:
+
+<div class="terminal">
 ```bash
-pytest --service kubernetes tests/flow_runners/test_kubernetes.py
+pytest --service kubernetes tests/flow_runners/test_docker.py
 ```
+</div>
