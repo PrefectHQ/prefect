@@ -60,7 +60,7 @@ def with_updated_signature(
 
 def with_logger(func: Callable) -> Callable:
     """
-    Decorator, that allows function to use Prefect logger instance.
+    Decorator that allows function to use Prefect logger instance.
     Enrich function signature with keyword-only argument "logger".
     Use it to write logs from Prefect task.
 
@@ -135,10 +135,10 @@ def with_toloka_client(func: Callable) -> Callable:
     and operate with `toloka_client` instance.
 
     Args:
-        - func (Callable): function, that operate with `toloka_client` argument.
+        - func (Callable): Function that operate with `toloka_client` argument.
 
     Returns:
-        - Callable: the wrapper, that takes optional `secret_name` and `env` arguments
+        - Callable: The wrapper, which takes optional `secret_name` and `env` arguments
             and operates with default `toloka_token` if they are not passed.
 
     Example:

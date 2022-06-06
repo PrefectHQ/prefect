@@ -10,12 +10,12 @@ from typing import Any
 @task
 def download_json(url: str) -> Any:
     """
-    Task to download and parse JSON data stored at given url.
+    Task to download and parse JSON data stored at a given URL.
     Args:
         - url (str): URL to download.
 
     Returns:
-        - Any: the content at this url, being parsed from JSON.
+        - Any: the content at this URL, being parsed from JSON.
     """
     response = requests.get(url)
     response.raise_for_status()
