@@ -49,7 +49,7 @@ jobs:
           - ubuntu-latest
         pytest-options:
           - "--exclude-services"
-          - "--only-services"
+          - "--only-services --exclude-service dask"
 
         include:
           # Run 3.7 tests with lower bound pins
