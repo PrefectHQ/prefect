@@ -1,15 +1,16 @@
 ---
-description: Learn about running integration tests for FlowRunners
+description: Learn about running integration tests for flow runners.
 tags:
     - open source
     - contributing
     - development
     - testing
+    - flow runners
 ---
 
 # Testing FlowRunners
 
-By default, Prefect's test suite does not run integration tests for `FlowRunners`
+By default, Prefect's test suite does not run integration tests for flow runners
 against real execution targets (like a real Docker daemon or a real Kubernetes cluster),
 due to the complexity of setting them up to run locally.  You'll see this indicated with
 a small `s` in the progress output of the test suite.  You'll also see a note with the
@@ -17,7 +18,7 @@ skipped tests that mentions:  "Requires service(s): 'kubernetes'. Use '--service
 to include."
 
 To enable the integration tests, you'll need to run and configure the appropriate
-service locally.  Below are notes on how to test various `FlowRunners` locally.
+service locally.  Below are notes on how to test various flow runners locally.
 
 ## Testing the `DockerFlowRunner`
 
