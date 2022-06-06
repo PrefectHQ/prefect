@@ -562,3 +562,68 @@ class TestRegisterBlock:
             checksum=Umbrella._calculate_schema_checksum()
         )
         assert umbrella_block_schema is not None
+
+
+class TestSaveBlock:
+    class NewBlock(Block):
+        a: str
+        b: str
+        c: int
+
+    async def test_save_block(self):
+        new_block = self.NewBlock(a="foo", b="bar", c=1)
+        new_block_name = "my-block"
+        await new_block.save(new_block_name)
+
+        assert new_block._block_document_name == new_block_name
+        assert new_block._block_document_id is not None
+
+        loaded_new_block = await new_block.load(new_block_name)
+
+        assert loaded_new_block._block_document_name == new_block_name
+        assert loaded_new_block._block_document_id == new_block._block_document_id
+
+        assert loaded_new_block._block_type_name == new_block._block_type_name
+        assert loaded_new_block._block_type_id == new_block._block_type_id
+
+        assert loaded_new_block == new_block
+
+    async def test_save_nested_block(self):
+        block_name = "biggest-block-in-all-the-land"
+
+        class Big(Block):
+            id: UUID = Field(default_factory=uuid4)
+            size: int
+
+        class Bigger(Block):
+            size: int
+            contents: Big
+            random_other_field: Dict[str, float]
+
+        class Biggest(Block):
+            size: int
+            contents: Bigger
+
+        new_big_block = Big(size=1)
+        await new_big_block.save("big-block")
+
+        loaded_big_block = await Big.load("big-block")
+        assert loaded_big_block == new_big_block
+
+        new_bigger_block = Bigger(
+            size=10, random_other_field={}, contents=new_big_block
+        )
+        await new_bigger_block.save("bigger-block")
+
+        loaded_bigger_block = await Bigger.load("bigger-block")
+        assert loaded_bigger_block == new_bigger_block
+
+        new_biggest_block = Biggest(
+            size=100,
+            contents=new_bigger_block,
+        )
+
+        await new_biggest_block.save(block_name)
+
+        loaded_biggest_block = await Biggest.load(block_name)
+        assert loaded_biggest_block == new_biggest_block

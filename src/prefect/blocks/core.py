@@ -156,12 +156,22 @@ class Block(BaseModel, ABC):
             )
 
         data_keys = self.schema()["properties"].keys()
+        block_document_data = self.dict(include=data_keys)
+
+        for key in data_keys:
+            field_value = getattr(self, key)
+            if Block.is_block(field_value):
+                if field_value._block_document_id is not None:
+                    block_document_data[key] = {
+                        "$ref": {"block_document_id": field_value._block_document_id}
+                    }
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=name or self._block_document_name,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
-            data=self.dict(include=data_keys),
+            data=block_document_data,
             block_schema=self._to_block_schema(
                 block_type_id=block_type_id or self._block_type_id,
             ),
@@ -238,8 +248,8 @@ class Block(BaseModel, ABC):
         )
         block = block_schema_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
-        block._block_schema_id = block_document.block_schema_id
-        block._block_type_id = block_document.block_type_id
+        block.__class__._block_schema_id = block_document.block_schema_id
+        block.__class__._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
         return block
 
@@ -272,8 +282,12 @@ class Block(BaseModel, ABC):
         return cls._from_block_document(block_document)
 
     @staticmethod
-    def is_block_class(block) -> bool:
-        return inspect.isclass(block) and issubclass(block, Block)
+    def is_block_class(cls) -> bool:
+        return inspect.isclass(cls) and issubclass(cls, Block)
+
+    @staticmethod
+    def is_block(obj) -> bool:
+        return isinstance(obj, Block)
 
     @classmethod
     async def register(cls):
@@ -311,3 +325,17 @@ class Block(BaseModel, ABC):
                 )
 
             cls._block_schema_id = block_schema.id
+
+    async def save(self, name: str):
+        """
+        Used to create Block Documents from a Block instance.
+        """
+        await self.register()
+
+        async with prefect.client.get_client() as client:
+            block_document = await client.create_block_document(
+                block_document=self._to_block_document(name=name)
+            )
+
+        self._block_document_name = name
+        self._block_document_id = block_document.id
