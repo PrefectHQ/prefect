@@ -14,6 +14,16 @@ import prefect.settings
 from prefect.orion.database.dependencies import temporary_database_interface
 
 
+def flaky_on_windows(fn, **kwargs):
+    """
+    Mark a test as flaky for repeated test runs if on Windows.
+    """
+    if sys.platform == "win32":
+        return pytest.mark.flaky(**kwargs)(fn)
+    else:
+        return fn
+
+
 def exceptions_equal(a, b):
     """
     Exceptions cannot be compared by `==`. They can be compared using `is` but this
