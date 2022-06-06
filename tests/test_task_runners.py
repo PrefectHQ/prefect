@@ -19,16 +19,10 @@ from prefect.orion.schemas.states import DataDocument, State, StateType
 from prefect.task_runners import (
     ConcurrentTaskRunner,
     DaskTaskRunner,
-    RayTaskRunner,
     SequentialTaskRunner,
     TaskConcurrencyType,
 )
 from prefect.testing.standard_test_suites import TaskRunnerStandardTestSuite
-
-if sys.version_info[1] >= 10:
-    RAY_MISSING_REASON = "Ray does not support Python 3.10+ and cannot be installed."
-else:
-    RAY_MISSING_REASON = "Ray is not installed. Did you mean to include it?"
 
 
 @pytest.fixture
@@ -41,94 +35,6 @@ def dask_task_runner_with_existing_cluster(use_hosted_orion):
         with distributed.Client(cluster) as client:
             address = client.scheduler.address
             yield DaskTaskRunner(address=address)
-
-
-@pytest.fixture(scope="module")
-@pytest.mark.service("ray")
-def machine_ray_instance():
-    """
-    Starts a ray instance for the current machine
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    subprocess.check_call(
-        ["ray", "start", "--head", "--include-dashboard", "False"],
-        cwd=str(prefect.__root_path__),
-    )
-    try:
-        yield "ray://127.0.0.1:10001"
-    finally:
-        subprocess.check_call(["ray", "stop"])
-
-
-@pytest.fixture
-@pytest.mark.service("ray")
-def ray_task_runner_with_existing_cluster(
-    machine_ray_instance,
-    use_hosted_orion,
-    hosted_orion_api,
-):
-    """
-    Generate a ray task runner that's connected to a ray instance running in a separate
-    process.
-
-    This tests connection via `ray://` which is a client-based connection.
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    yield RayTaskRunner(
-        address=machine_ray_instance,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
-    )
-
-
-@pytest.fixture(scope="module")
-@pytest.mark.service("ray")
-def inprocess_ray_cluster():
-    """
-    Starts a ray cluster in-process
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-    cluster_utils = pytest.importorskip("ray.cluster_utils")
-
-    cluster = cluster_utils.Cluster(initialize_head=True)
-    try:
-        cluster.add_node()  # We need to add a second node for parallelism
-        yield cluster
-    finally:
-        cluster.shutdown()
-
-
-@pytest.fixture
-@pytest.mark.service("ray")
-def ray_task_runner_with_inprocess_cluster(
-    inprocess_ray_cluster,
-    use_hosted_orion,
-    hosted_orion_api,
-):
-    """
-    Generate a ray task runner that's connected to an in-process cluster.
-
-    This tests connection via 'localhost' which is not a client-based connection.
-    """
-    pytest.importorskip("ray", reason=RAY_MISSING_REASON)
-
-    yield RayTaskRunner(
-        address=inprocess_ray_cluster.address,
-        init_kwargs={
-            "runtime_env": {
-                # Ship the 'tests' module to the workers or they will not be able to
-                # deserialize test tasks / flows
-                "py_modules": [tests]
-            }
-        },
-    )
 
 
 @pytest.fixture
@@ -248,55 +154,6 @@ class TestDaskTaskRunner(TaskRunnerStandardTestSuite):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
                 f"This will abort the run for {task_runner.concurrency_type} task runners."
-            )
-
-        task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
-
-        async def fake_orchestrate_task_run():
-            raise exception
-
-        async with task_runner.start():
-            future = await task_runner.submit(
-                task_run=task_run, run_fn=fake_orchestrate_task_run, run_kwargs={}
-            )
-
-            state = await task_runner.wait(future, 5)
-            assert state is not None, "wait timed out"
-            assert isinstance(state, State), "wait should return a state"
-            assert state.name == "Crashed"
-
-
-@pytest.mark.service("ray")
-class TestRayTaskRunner(TaskRunnerStandardTestSuite):
-    @pytest.fixture(
-        params=[
-            default_ray_task_runner,
-            ray_task_runner_with_existing_cluster,
-            ray_task_runner_with_inprocess_cluster,
-        ]
-    )
-    def task_runner(self, request):
-        yield request.getfixturevalue(
-            request.param._pytestfixturefunction.name or request.param.__name__
-        )
-
-    # Ray wraps the exception, interrupts will result in "Cancelled" tasks
-    # or "Killed" workers while normal errors will result in a "RayTaskError".
-    # We care more about the crash detection and
-    # lack of re-raise here than the equality of the exception.
-    @pytest.mark.parametrize("exception", [KeyboardInterrupt(), ValueError("test")])
-    async def test_wait_captures_exceptions_as_crashed_state(
-        self, task_runner, exception
-    ):
-        """
-        Ray wraps the exception, interrupts will result in "Cancelled" tasks
-        or "Killed" workers while normal errors will result in a "RayTaskError".
-        We care more about the crash detection and
-        lack of re-raise here than the equality of the exception.
-        """
-        if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
-            pytest.skip(
-                f"This will raise for {task_runner.concurrency_type} task runners."
             )
 
         task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
