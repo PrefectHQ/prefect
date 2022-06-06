@@ -157,7 +157,7 @@ class GitSchema(BaseStorageSchema):
         object_class = Git
 
     flow_path = fields.String(allow_none=False)
-    repo = fields.String(allow_none=False)
+    repo = fields.String(allow_none=True)
     repo_host = fields.String(allow_none=False)
     flow_name = fields.String(allow_none=True)
     git_token_secret_name = fields.String(allow_none=True)
