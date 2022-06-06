@@ -227,8 +227,7 @@ def build_image(
                 f"linux/{arch}",
                 "--build-arg",
                 "PREFECT_EXTRAS=[dev]",
-            ],
-            shell=True,
+            ]
         )
     except subprocess.CalledProcessError:
         exit_with_error("Failed to build image!")
