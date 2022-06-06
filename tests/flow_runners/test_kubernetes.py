@@ -1,5 +1,6 @@
 import json
 import os
+from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict
@@ -223,9 +224,8 @@ class TestKubernetesFlowRunner:
         ]["labels"]
         assert labels["foo"] == "FOO"
         assert labels["bar"] == "BAR"
-        assert (
-            "io.prefect.flow-run-id" in labels and "io.prefect.flow-run-name" in labels
-        ), "prefect labels still included"
+        assert "prefect.io/flow-run-id" in labels, "prefect labels still included"
+        assert "prefect.io/flow-run-name" in labels, "prefect labels still included"
 
     async def test_uses_namespace_setting(
         self,
@@ -702,9 +702,8 @@ class TestCustomizingBaseJob:
 
         # probe a few attributes to check for sanity
         assert manifest["metadata"]["labels"] == {
-            "app": "orion",
-            "io.prefect.flow-run-id": str(flow_run.id),
-            "io.prefect.flow-run-name": flow_run.name,
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
         }
         assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
             "python",
@@ -740,9 +739,8 @@ class TestCustomizingBaseJob:
             # the labels provided in the user's job base
             "my-custom-label": "sweet",
             # prefect's labels
-            "app": "orion",
-            "io.prefect.flow-run-id": str(flow_run.id),
-            "io.prefect.flow-run-name": flow_run.name,
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
         }
 
     def test_user_can_supply_a_sidecar_container_and_volume(self, flow_run: FlowRun):
@@ -912,8 +910,57 @@ class TestCustomizingJob:
         assert labels["example.com/a-cool-key"] == "hi!"
 
         # prefect's identification labels are still there
-        assert labels["io.prefect.flow-run-id"] == str(flow_run.id)
-        assert labels["io.prefect.flow-run-name"] == flow_run.name
+        assert labels["prefect.io/flow-run-id"] == str(flow_run.id)
+        assert labels["prefect.io/flow-run-name"] == flow_run.name
+
+    def test_user_overriding_command_line(self, flow_run):
+        """Users should be able to wrap the command-line with another command"""
+        manifest = KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command/0",
+                    "value": "opentelemetry-instrument",
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command/1",
+                    "value": "--resource_attributes",
+                },
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command/2",
+                    "value": "service.name=my-cool-job",
+                },
+            ],
+        ).build_job(flow_run)
+
+        assert manifest["spec"]["template"]["spec"]["containers"][0]["command"] == [
+            "opentelemetry-instrument",
+            "--resource_attributes",
+            "service.name=my-cool-job",
+            "python",
+            "-m",
+            "prefect.engine",
+            str(flow_run.id),
+        ]
+
+    def test_prefect_environment_variables_can_be_overridden(self, flow_run):
+        """Users should be able to override PREFECT_* environment variables"""
+        uncustomized = KubernetesFlowRunner().build_job(flow_run)
+        variable = self.find_environment_variable(uncustomized, "PREFECT_HOME")
+        assert variable["value"] != "custom"
+
+        customized = KubernetesFlowRunner(
+            env={"HELLO": "world", "PREFECT_HOME": "custom"},
+        ).build_job(flow_run)
+
+        container = customized["spec"]["template"]["spec"]["containers"][0]
+        variable_counts = Counter(variable["name"] for variable in container["env"])
+        assert variable_counts["PREFECT_HOME"] == 1
+
+        variable = self.find_environment_variable(customized, "PREFECT_HOME")
+        assert variable["value"] == "custom"
 
 
 class TestLoadingManifestsFromFiles:
