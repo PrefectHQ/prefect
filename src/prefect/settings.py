@@ -39,9 +39,9 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
+import logging
 import os
 import string
-import sys
 import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
@@ -63,7 +63,7 @@ from typing import (
 
 import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator
+from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
 
@@ -610,6 +610,11 @@ class Settings(SettingsFieldsMixin):
         value = getattr(self, setting.name)
         if setting.value_callback:
             value = setting.value_callback(self, value)
+        return value
+
+    @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
+    def check_valid_log_level(cls, value):
+        logging._checkLevel(value)
         return value
 
     @root_validator
