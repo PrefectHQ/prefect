@@ -133,7 +133,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         if value is not None:
             warnings.warn(
                 "KubernetesFlowRunner.restart_policy is deprecated.  Prefect will "
-                "always override it to Never.",
+                "always override it to Never. This option will be removed in 2.0b8.",
                 DeprecationWarning,
             )
         return None
