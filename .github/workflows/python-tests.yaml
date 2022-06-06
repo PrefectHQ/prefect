@@ -49,7 +49,7 @@ jobs:
           - ubuntu-latest
         pytest-options:
           - "--exclude-services"
-          - "--only-services --exclude-service dask"
+          - "--only-services"
 
         include:
           # Run 3.7 tests with lower bound pins
@@ -124,7 +124,7 @@ jobs:
       - name: Run tests
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
-          pytest tests -vv --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
+          pytest tests -vv --numprocesses auto --dist loadscope --exclude-service dask ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
