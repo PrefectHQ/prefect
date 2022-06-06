@@ -20,11 +20,11 @@
       </template>
 
       <template #task-runs>
-        <FlowRunTaskRuns v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
 
       <template #sub-flow-runs>
-        <FlowRunSubFlows v-if="flowRun" :flow-run="flowRun" />
+        <FlowRunSubFlows v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
     </p-tabs>
 
