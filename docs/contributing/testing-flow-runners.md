@@ -8,7 +8,7 @@ tags:
     - flow runners
 ---
 
-# Testing FlowRunners
+# Testing flow runners
 
 By default, Prefect's test suite does not run integration tests for flow runners
 against real execution targets (like a real Docker daemon or a real Kubernetes cluster),
@@ -31,15 +31,17 @@ see output about both the client and server, you should be ready for testing.
 
 ### Building an image
 
-The `DockerFlowRunner` test assumes that you have an image named
-`prefecthq/prefect:dev-python3.9` available on the Docker daemon, and that it includes
-and installation of the same version of `prefect` that you are currently testing.  You
-can build a compatible image from your source tree with:
+The `DockerFlowRunner` test assumes that you have a development image of Prefect
+available on the Docker daemon, and that it includes and installation of the same
+version of both Python and `prefect` that you are currently testing.  You can build a
+compatible image from your source tree with:
 
 <div class="terminal">
+
 ```bash
-docker build -t prefecthq/prefect:dev-python3.9 .
+prefect dev build-image
 ```
+
 </div>
 
 ### Running the integration tests
@@ -48,9 +50,11 @@ To run the tests for the `DockerFlowRunner`, include the `--service docker` flag
 running `pytest`:
 
 <div class="terminal">
+
 ```bash
 pytest --service docker tests/flow_runners/test_docker.py
 ```
+
 </div>
 
 ## Testing the `KubernetesFlowRunner`
@@ -73,9 +77,11 @@ it includes and installation of the same version of `prefect` that you are curre
 testing.  You can build a compatible image from your source tree with:
 
 <div class="terminal">
+
 ```bash
-docker build -t prefecthq/prefect:dev-python3.9 .
+prefect dev build-image
 ```
+
 </div>
 
 You'll need a mechanism for making a locally-built image available to your cluster.  The
@@ -90,6 +96,7 @@ documentation for more details.
 The steps to run `orion` for testing in your cluster's `default` namespace are:
 
 <div class="terminal">
+
 ```bash
 # Deploy orion to your cluster
 prefect orion kubernetes-manifest | kubectl apply -f -
@@ -101,17 +108,41 @@ kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-por
 # the orion agent sidecar so that it can feel comfortable
 PREFECT_API_URL=http://localhost:4205/api prefect work-queue create kubernetes
 ```
+
 </div>
+
+The example above creates a `LoadBalancer` Kubernetes `Service` on your cluster to
+expose the Orion API on `http://localhost:4205/api`, which you may use as your
+`PREFECT_API_URL` for interacting with that service.
+
+You may also use port-forwarding if you are connecting to a remote cluster, or have
+other use cases where a load-balancer service won't work for your situation.  You can
+accomplish that with:
+
+<div class="terminal">
+
+```bash
+kubectl port-forward deployment/orion 4205:4200
+```
+
+</div>
+
+Keep in mind that for the `KubernetesFlowRunner` integration tests to succeed, the
+cluster must have access to mount the local `.prefect-results` directory to
+`/tmp/prefect` in order to confirm that the example flow run completed successfully.
 
 If you need to customize the deployment or run it in a different namespace, you can
 output the manifest to a file, edit what you need, and apply it:
 
 <div class="terminal">
+
 ```bash
 prefect orion kubernetes-manifest > orion.yaml
 # ... edit orion.yaml ...
 kubectl apply -f orion.yaml
 ```
+
+
 </div>
 
 ### Running the integration tests
@@ -120,7 +151,9 @@ To run the tests for the `KubernetesFlowRunner`, include the `--service kubernet
 when running `pytest`:
 
 <div class="terminal">
+
 ```bash
 pytest --service kubernetes tests/flow_runners/test_docker.py
 ```
+
 </div>
