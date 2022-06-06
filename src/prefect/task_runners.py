@@ -60,7 +60,6 @@ from typing import (
     Optional,
     Set,
     TypeVar,
-    Union,
 )
 from uuid import UUID
 
@@ -69,10 +68,7 @@ import anyio
 from prefect.utilities.collections import AutoEnum, auto
 
 if TYPE_CHECKING:
-    import distributed
     from anyio.abc import TaskGroup
-else:
-    distributed = None
 
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
