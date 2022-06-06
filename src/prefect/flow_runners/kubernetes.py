@@ -119,7 +119,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         return value
 
     @validator("customizations", pre=True)
-    def ensure_customizations_is_a_json_patch(
+    def cast_customizations_to_a_json_patch(
         cls, value: Union[List[Dict], JsonPatch]
     ) -> JsonPatch:
         if isinstance(value, list):
