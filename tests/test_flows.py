@@ -20,7 +20,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
-from prefect.testing.utilities import exceptions_equal
+from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -733,6 +733,7 @@ class TestFlowTimeouts:
         assert not canary_file.exists()
         assert not task_canary_file.exists()
 
+    @flaky_on_windows
     async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
         """
         Async flow runs can be cancelled after a timeout
