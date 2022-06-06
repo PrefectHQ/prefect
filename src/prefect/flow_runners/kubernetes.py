@@ -72,7 +72,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     labels: Dict[str, str] = Field(default_factory=dict)
     image_pull_policy: Optional[KubernetesImagePullPolicy] = None
 
-    # deprecated
+    # deprecated: remove in 2.0b8
     restart_policy: KubernetesRestartPolicy = None
 
     # settings allowing full customization of the Job
