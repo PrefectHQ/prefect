@@ -24,10 +24,10 @@
   const createQueue = async (workQueue: IWorkQueueRequest): Promise<void> => {
     try {
       const { id } = await workQueuesApi.createWorkQueue(workQueue)
-      showToast('Work queue has been created', 'success', undefined, 3000)
+      showToast('Work queue has been created', 'success')
       router.push(routes.workQueue(id))
     } catch (error) {
-      showToast('Error occurred while creating new work queue', 'error', undefined, 3000)
+      showToast('Error occurred while creating new work queue', 'error')
       console.error(error)
     }
   }

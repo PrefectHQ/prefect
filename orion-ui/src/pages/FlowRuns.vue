@@ -19,7 +19,7 @@
         <DeploymentCombobox v-model:selected="deployments" empty-message="All deployments" />
         <PTagsInput v-model:tags="tags" empty-message="All Tags" inline />
         <template v-if="!media.md">
-          <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
         </template>
       </div>
     </div>
@@ -32,7 +32,7 @@
       <div class="flow-runs__list-controls">
         <ResultsCount :count="flowRunCount" class="mr-auto" />
         <template v-if="media.md">
-          <SearchInput v-model="flowRunSearchInput" placeholder="Search by run name" label="Search by run name" />
+          <SearchInput v-model="flowRunSearchTerm" placeholder="Search by run name" label="Search by run name" />
         </template>
         <FlowRunsSort v-model="sort" />
       </div>
@@ -54,14 +54,13 @@
 <script lang="ts" setup>
   import { PageHeadingFlowRuns, FlowRunsSort, FlowRunSortValues, FlowRunList, FlowRunsScatterPlot, StateSelect, StateType, DeploymentCombobox, FlowCombobox, useFlowRunFilter, SearchInput, ResultsCount } from '@prefecthq/orion-design'
   import { PTagsInput, PDateInput, PEmptyResults, formatDateTimeNumeric, parseDateTimeNumeric, media } from '@prefecthq/prefect-design'
-  import { useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
+  import { useDebouncedRef, useRouteQueryParam, useSubscription } from '@prefecthq/vue-compositions'
   import { addDays, endOfToday, startOfToday, subDays } from 'date-fns'
-  import debounce from 'lodash.debounce'
   import { computed, Ref, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
   import { flowRunsApi } from '@/services/flowRunsApi'
-  import { UiApi } from '@/services/uiApi'
+  import { uiApi } from '@/services/uiApi'
 
   const router = useRouter()
   const sort = ref<FlowRunSortValues>('EXPECTED_START_TIME_DESC')
@@ -91,24 +90,13 @@
   })
 
   const flowRunSearchTerm = ref<string>('')
-  const flowRunSearchInput = computed({
-    get() {
-      return flowRunSearchTerm.value ?? null
-    },
-    set(value: string) {
-      updateFlowRunSearchTerm(value)
-    },
-  })
-
-  const updateFlowRunSearchTerm = debounce((value: string)=> {
-    flowRunSearchTerm.value = value
-  }, 1200)
+  const flowRunsSearchTermDebounced = useDebouncedRef(flowRunSearchTerm, 1200)
 
   const states = useRouteQueryParam('state', []) as Ref<StateType[]>
   const deployments = useRouteQueryParam('deployment', [])
   const flows = useRouteQueryParam('flow', [])
   const tags = useRouteQueryParam('tag', [])
-  const filter = useFlowRunFilter({ states, deployments, flows, tags, startDate, endDate, sort, name: flowRunSearchTerm })
+  const filter = useFlowRunFilter({ states, deployments, flows, tags, startDate, endDate, sort, name: flowRunsSearchTermDebounced })
 
   const hasFilters = computed(() => {
     return states.value.length ||
@@ -126,7 +114,7 @@
   const flowRunCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [filter], subscriptionOptions)
   const flowRunCount = computed(() => flowRunCountSubscription.response)
 
-  const flowRunHistorySubscription = useSubscription(UiApi.getFlowRunHistory, [filter], subscriptionOptions)
+  const flowRunHistorySubscription = useSubscription(uiApi.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(flowRunsApi.getFlowRuns, [filter], subscriptionOptions)
