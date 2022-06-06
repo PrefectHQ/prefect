@@ -45,7 +45,7 @@
 
         <p-divider />
 
-        <FlowRunDetails :flow-run="flowRun" />
+        <FlowRunDetails :flow-run="flowRun" alternate />
       </template>
     </template>
   </p-layout-well>
