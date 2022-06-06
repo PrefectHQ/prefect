@@ -1,3 +1,4 @@
+import { plugin as OrionDesign } from '@prefecthq/orion-design'
 import { plugin as PrefectDesign } from '@prefecthq/prefect-design'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
@@ -33,6 +34,7 @@ async function start(): Promise<void> {
   app.use(router)
   app.use(createPinia())
   app.use(PrefectDesign)
+  app.use(OrionDesign)
 
   app.mount('#app')
 }
