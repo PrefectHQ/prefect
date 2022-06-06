@@ -9,6 +9,8 @@ from pprint import pprint
 from tempfile import TemporaryDirectory
 from typing import Dict, List, Union
 
+import pytest
+
 import prefect.context
 import prefect.settings
 from prefect.orion.database.dependencies import temporary_database_interface
