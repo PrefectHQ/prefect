@@ -6,16 +6,14 @@
 
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
       <template #overview>
-        <template v-if="deployment">
-          <div class="grid gap-2">
-            <p-key-value label="Schedule" :value="schedule" />
-            <p-key-value label="Location" :value="deployment.flowData.blob" />
-            <p-key-value label="Flow Runner" :value="deployment.flowRunner" />
-            <template v-if="!media.xl">
-              <DeploymentDetails :deployment="deployment" />
-            </template>
-          </div>
-        </template>
+        <div class="grid gap-2">
+          <p-key-value label="Schedule" :value="schedule" />
+          <p-key-value label="Location" :value="deployment.flowData.blob" />
+          <p-key-value label="Flow Runner" :value="deployment.flowRunner?.type" />
+          <template v-if="!media.xl">
+            <DeploymentDetails :deployment="deployment" />
+          </template>
+        </div>
       </template>
 
       <template #parameters>
