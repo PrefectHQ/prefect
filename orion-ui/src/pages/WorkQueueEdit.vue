@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, useRouteParam, PageHeadingWorkQueueEdit } from '@prefecthq/orion-design'
+  import { WorkQueueForm, useRouteParam, PageHeadingWorkQueueEdit, IWorkQueueRequest } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -25,7 +25,7 @@
     router.back()
   }
 
-  const updateQueue = async (workQueue: any): Promise<void> => {
+  const updateQueue = async (workQueue: IWorkQueueRequest): Promise<void> => {
     try {
       await workQueuesApi.updateWorkQueue(workQueueId.value, workQueue)
       showToast(`${workQueueDetails.value?.name} updated`, 'success', undefined, 3000)
