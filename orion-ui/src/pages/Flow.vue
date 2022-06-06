@@ -32,13 +32,13 @@
   const flowId = useRouteParam('id')
   const router = useRouter()
   const tabs = computed(() => {
-    const tabs = ['Deployments']
+    const values = ['Deployments']
 
     if (!media.xl) {
-      tabs.unshift('Details')
+      values.unshift('Details')
     }
 
-    return tabs
+    return values
   })
 
   const subscriptionOptions = {

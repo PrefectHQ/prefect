@@ -4,4 +4,4 @@ import { ApiRoute } from '@/mixins/ApiRoute'
 
 export class OrionUiApi extends ApiRoute(OrionDesignUiApi) {}
 
-export const UiApi = createActions(new OrionUiApi())
+export const uiApi = createActions(new OrionUiApi())
