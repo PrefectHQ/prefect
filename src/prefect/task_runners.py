@@ -49,6 +49,7 @@ Example:
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
+import warnings
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -295,7 +296,12 @@ class DaskTaskRunner(BaseTaskRunner):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
     ):
-
+        warnings.warn(
+            "In the upcoming release, DaskTaskRunner will be migrated into prefect-dask; "
+            "run `pip install prefect-dask` in the command line and use "
+            "`from prefect_dask.task_runners import DaskTaskRunner` in Python instead",
+            warnings.DeprecationWarning,
+        )
         # Validate settings and infer defaults
         if address:
             if cluster_class or cluster_kwargs or adapt_kwargs:
@@ -634,6 +640,13 @@ class RayTaskRunner(BaseTaskRunner):
         address: str = None,
         init_kwargs: dict = None,
     ):
+        warnings.warn(
+            "In the upcoming release, RayTaskRunner will be migrated into prefect-ray; "
+            "run `pip install prefect-ray` in the command line and use "
+            "`from prefect_ray.task_runners import RayTaskRunner` in Python instead",
+            warnings.DeprecationWarning,
+        )
+
         # Store settings
         self.address = address
         self.init_kwargs = init_kwargs.copy() if init_kwargs else {}
