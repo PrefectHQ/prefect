@@ -85,7 +85,7 @@ graph LR
 
 This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and production purposes.
 
-[Flow runners](/concepts/flow-runners/) enable you to dynamically allocate infrastructure for your flow runs. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
+[Flow runners](/concepts/flow-runners/) enable you to dynamically specify infrastructure to execute runs of a deployment. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
 
 A simple example of a deployment specification for a flow looks like this:
 
