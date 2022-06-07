@@ -297,7 +297,7 @@ class DaskTaskRunner(BaseTaskRunner):
         client_kwargs: dict = None,
     ):
         warnings.warn(
-            "The DaskTaskRunner has moved to prefect-dask; install from the "
+            "The `DaskTaskRunner` has moved to `prefect-dask`. Install from the "
             "command line with `pip install prefect-dask` and import with "
             "`from prefect_dask.task_runners import DaskTaskRunner`. "
             "The import you are using will be removed in a future release.",
