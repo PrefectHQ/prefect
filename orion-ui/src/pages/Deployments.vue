@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <DeploymentsTable :deployments="deployments" @delete="deploymentsSubscription.refresh()" />
+        <DeploymentsTable :deployments="deployments" @update="deploymentsSubscription.refresh()" @delete="deploymentsSubscription.refresh()" />
       </template>
     </template>
   </p-layout-default>
