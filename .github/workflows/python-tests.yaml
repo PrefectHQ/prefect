@@ -13,6 +13,7 @@ on:
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
+      - Dockerfile
   push:
     branches:
       - main
@@ -124,7 +125,7 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv ${{ matrix.test-options }} --not-service ray
+          pytest tests -vv --durations=25 ${{ matrix.test-options }} --not-service ray
 
   run-tests-postgres:
     name: Test with Postgres

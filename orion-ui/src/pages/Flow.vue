@@ -9,7 +9,7 @@
         <FlowDetails v-if="flow" :flow="flow" />
       </template>
       <template #deployments>
-        <DeploymentsTable :deployments="flowDeployments" @delete="flowDeploymentsSubscription.refresh()" />
+        <DeploymentsTable :deployments="flowDeployments" @update="flowDeploymentsSubscription.refresh()" @delete="flowDeploymentsSubscription.refresh()" />
       </template>
     </p-tabs>
 
