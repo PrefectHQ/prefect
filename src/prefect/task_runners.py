@@ -643,7 +643,7 @@ class RayTaskRunner(BaseTaskRunner):
         init_kwargs: dict = None,
     ):
         warnings.warn(
-            "The RayTaskRunner has moved to prefect-ray; install from the "
+            "The `RayTaskRunner` has moved to `prefect-ray`. Install from the "
             "command line with `pip install prefect-ray` and import with "
             "`from prefect_ray.task_runners import RayTaskRunner`. "
             "The import you are using will be removed in a future release.",
