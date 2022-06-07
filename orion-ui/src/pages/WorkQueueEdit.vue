@@ -18,7 +18,7 @@
   const workQueueId = useRouteParam('id')
 
   const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value])
-  const workQueueDetails = await (await workQueueSubscription.promise()).response
+  const { response:workQueueDetails } = await workQueueSubscription.promise()
 
   const goBack = (): void => {
     router.back()
