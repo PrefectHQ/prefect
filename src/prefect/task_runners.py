@@ -297,9 +297,10 @@ class DaskTaskRunner(BaseTaskRunner):
         client_kwargs: dict = None,
     ):
         warnings.warn(
-            "In the upcoming release, DaskTaskRunner will be migrated into prefect-dask; "
-            "run `pip install prefect-dask` in the command line and use "
-            "`from prefect_dask.task_runners import DaskTaskRunner` in Python instead",
+            "The DaskTaskRunner has moved to prefect-dask; install from the "
+            "command line with `pip install prefect-dask` and import with "
+            "`from prefect_dask.task_runners import DaskTaskRunner`. "
+            "The import you are using will be removed in a future release.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -642,9 +643,10 @@ class RayTaskRunner(BaseTaskRunner):
         init_kwargs: dict = None,
     ):
         warnings.warn(
-            "In the upcoming release, RayTaskRunner will be migrated into prefect-ray; "
-            "run `pip install prefect-ray` in the command line and use "
-            "`from prefect_ray.task_runners import RayTaskRunner` in Python instead",
+            "The RayTaskRunner has moved to prefect-ray; install from the "
+            "command line with `pip install prefect-ray` and import with "
+            "`from prefect_ray.task_runners import RayTaskRunner`. "
+            "The import you are using will be removed in a future release.",
             DeprecationWarning,
             stacklevel=2,
         )
