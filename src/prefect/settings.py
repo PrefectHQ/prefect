@@ -125,6 +125,12 @@ class Setting(Generic[T]):
         """
         return bool(self.value())
 
+    def __eq__(self, __o: object) -> bool:
+        return __o.__eq__(self.value())
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.name))
+
 
 # Callbacks and validators
 
@@ -855,7 +861,6 @@ class Profile(pydantic.BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
-        copy_on_model_validation = False
 
 
 class ProfilesCollection:
