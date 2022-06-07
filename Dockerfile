@@ -3,7 +3,7 @@ ARG PYTHON_VERSION=3.8
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
 # THe version used to build the UI distributable.
-ARG NODE_VERSION=14
+ARG NODE_VERSION=16.15
 
 
 # Build the UI distributable.
@@ -22,7 +22,6 @@ RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./orion-ui/package*.json .
-COPY ./orion-ui/packages ./packages
 RUN npm ci install 
 
 # Build static UI files
