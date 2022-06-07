@@ -13,6 +13,7 @@ on:
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
+      - Dockerfile
   push:
     branches:
       - main
