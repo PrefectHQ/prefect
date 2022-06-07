@@ -15,6 +15,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_name
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
+from prefect.utilities.collections import remove_keys
 from prefect.utilities.hashing import hash_objects
 
 
@@ -50,9 +51,10 @@ async def create_block_schema(
         exclude={"block_type", "id", "created", "updated"},
     )
     definitions = definitions or insert_values["fields"].pop("definitions", None)
+    fields_for_checksum = remove_keys(["description"], insert_values["fields"])
     insert_values[
         "checksum"
-    ] = f"sha256:{hash_objects(insert_values['fields'], hash_algo=hashlib.sha256)}"
+    ] = f"sha256:{hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)}"
 
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}

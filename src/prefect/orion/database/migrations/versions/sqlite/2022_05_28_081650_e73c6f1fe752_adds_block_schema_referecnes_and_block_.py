@@ -11,6 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 import prefect
+from prefect.utilities.collections import remove_keys
 from prefect.utilities.hashing import hash_objects
 
 # revision identifiers, used by Alembic.
@@ -174,8 +175,9 @@ def upgrade():
         updated_title = BLOCK_SCHEMA_TITLE_MAP.get(block_type_name)
         if updated_title is not None:
             updated_fields["title"] = updated_title
+        fields_for_checksum = remove_keys(["description"], updated_fields)
         updated_checksum = (
-            f"sha256:{hash_objects(updated_fields, hash_algo=hashlib.sha256)}"
+            f"sha256:{hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)}"
         )
         connection.execute(
             sa.update(BLOCK_SCHEMA)

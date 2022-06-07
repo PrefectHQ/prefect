@@ -9,6 +9,7 @@ from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.utilities.collections import remove_keys
 from prefect.utilities.hashing import hash_objects
 
 BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
@@ -115,10 +116,8 @@ class Block(BaseModel, ABC):
         """
         Generates a unique hash for the underlying schema of block.
         """
-        fields = {
-            key: value for key, value in cls.schema().items() if key != "definitions"
-        }
-        checksum = hash_objects(fields, hash_algo=hashlib.sha256)
+        fields_for_checksum = remove_keys(["description", "definitions"], cls.schema())
+        checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
         else:
