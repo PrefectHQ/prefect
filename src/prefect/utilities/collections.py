@@ -14,6 +14,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,
@@ -355,3 +356,25 @@ class PartialModel(Generic[M]):
     def __repr__(self) -> str:
         dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
         return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+
+
+def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+    """
+    Recurses a dictionary returns a copy without all keys that match an entry in
+    `key_to_remove`. Return `obj` unchanged if not a dictionary.
+
+    Args:
+        keys_to_remove: A list of keys to remove from obj
+        obj: The object to remove keys from.
+
+    Returns:
+        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a dictionary.
+        `obj` if `obj` is not a dictionary.
+    """
+    if not isinstance(obj, dict):
+        return obj
+    return {
+        key: remove_nested_keys(keys_to_remove, value)
+        for key, value in obj.items()
+        if key not in keys_to_remove
+    }
