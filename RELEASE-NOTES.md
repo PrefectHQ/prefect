@@ -12,7 +12,7 @@ After the upgrade your data will remain intact but you will need to upgrade to 
 
 -   Install the latest Prefect 2.0 python package: `pip install -U "prefect>=2.0b6"`
 -   Restart any existing agent processes
-	-  If you are using an agent running on Kubernetes, update the Prefect image version to `2.0b6` in your Kubernetes manifest and re-apply the deployment.
+	- If you are using an agent running on Kubernetes, update the Prefect image version to `2.0b6` in your Kubernetes manifest and re-apply the deployment.
 	- You don't need to recreate any deployments or pause any schedules - stopping your agent process to perform an upgrade may result in some Late Runs, but those will be picked up once you restart your agent.
 
 ## 2.0b5
