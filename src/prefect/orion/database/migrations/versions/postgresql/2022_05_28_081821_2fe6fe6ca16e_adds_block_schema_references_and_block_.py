@@ -5,16 +5,31 @@ Revises: 724e6dcc6b5d
 Create Date: 2022-05-28 08:18:21.527986
 
 """
+import hashlib
+
 import sqlalchemy as sa
 from alembic import op
 
 import prefect
+from prefect.utilities.hashing import hash_objects
 
 # revision identifiers, used by Alembic.
 revision = "2fe6fe6ca16e"
 down_revision = "724e6dcc6b5d"
 branch_labels = None
 depends_on = None
+
+# Used to update titles of existing storage block schemas. Need to update titles to match
+# what the client generates to ensure the same checksum is generated on client and server.
+BLOCK_SCHEMA_TITLE_MAP = {
+    "S3 Storage": "S3StorageBlock",
+    "Temporary Local Storage": "TempStorageBlock",
+    "Local Storage": "LocalStorageBlock",
+    "Google Cloud Storage": "GoogleCloudStorageBlock",
+    "Azure Blob Storage": "AzureBlobStorageBlock",
+    "KV Server Storage": "KVServerStorageBlock",
+    "File Storage": "FileStorageBlock",
+}
 
 
 def upgrade():
@@ -129,6 +144,42 @@ def upgrade():
         ["updated"],
         unique=False,
     )
+
+    # Update existing schemas to account for block schema references
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
+    BLOCK_TYPE = meta_data.tables["block_type"]
+
+    block_schemas = connection.execute(
+        sa.select(
+            [BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.fields, BLOCK_SCHEMA.c.block_type_id]
+        )
+    )
+
+    for id, fields, block_type_id in block_schemas:
+        block_type_result = connection.execute(
+            sa.select([BLOCK_TYPE.c.name]).where(BLOCK_TYPE.c.id == block_type_id)
+        ).first()
+        block_type_name = block_type_result[0]
+        updated_fields = {
+            **fields,
+            "block_type_name": block_type_name,
+            "block_schema_references": {},
+        }
+        updated_title = BLOCK_SCHEMA_TITLE_MAP.get(block_type_name)
+        if updated_title is not None:
+            updated_fields["title"] = updated_title
+        updated_checksum = (
+            f"sha256:{hash_objects(updated_fields, hash_algo=hashlib.sha256)}"
+        )
+        connection.execute(
+            sa.update(BLOCK_SCHEMA)
+            .where(BLOCK_SCHEMA.c.id == id)
+            .values(fields=updated_fields, checksum=updated_checksum)
+        )
+
     # ### end Alembic commands ###
 
 

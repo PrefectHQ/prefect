@@ -25,6 +25,8 @@ git checkout orion
 pip install -e ".[dev]"
 # Setup pre-commit hooks for required formatting
 pre-commit install
+# Run tests
+pytest
 ```
 </div>
 
