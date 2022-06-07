@@ -1,0 +1,17 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+      {
+          "name": "@apply",
+          "description": "@apply tailwindcss classes"
+      },
+      {
+        "name": "@tailwind",
+        "description": "import tailwind modules"
+      },
+      {
+        "name": "@screen",
+        "description": "tailwind media query"
+      }
+  ]
+}
