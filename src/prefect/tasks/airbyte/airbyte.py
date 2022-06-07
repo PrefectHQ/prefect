@@ -178,7 +178,7 @@ class AirbyteConnectionTask(Task):
             response.raise_for_status()
 
             # check whether a schedule exists ...
-            schedule = response.json()["schedule"]
+            schedule = response.json().get("schedule")
             if schedule:
                 self.logger.warning("Found existing Connection schedule, removing ...")
 
