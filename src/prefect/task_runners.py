@@ -300,7 +300,8 @@ class DaskTaskRunner(BaseTaskRunner):
             "In the upcoming release, DaskTaskRunner will be migrated into prefect-dask; "
             "run `pip install prefect-dask` in the command line and use "
             "`from prefect_dask.task_runners import DaskTaskRunner` in Python instead",
-            warnings.DeprecationWarning,
+            DeprecationWarning,
+            stacklevel=2,
         )
         # Validate settings and infer defaults
         if address:
@@ -644,7 +645,8 @@ class RayTaskRunner(BaseTaskRunner):
             "In the upcoming release, RayTaskRunner will be migrated into prefect-ray; "
             "run `pip install prefect-ray` in the command line and use "
             "`from prefect_ray.task_runners import RayTaskRunner` in Python instead",
-            warnings.DeprecationWarning,
+            DeprecationWarning,
+            stacklevel=2,
         )
 
         # Store settings
