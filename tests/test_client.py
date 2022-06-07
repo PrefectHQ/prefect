@@ -1,5 +1,6 @@
 import random
 import threading
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
@@ -193,7 +194,7 @@ class TestGetClient:
 
     def test_get_client_cache_uses_profile_settings(self):
         client = get_client()
-        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "FOO"}):
+        with temporary_settings(updates={PREFECT_API_KEY: "FOO"}):
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client
@@ -1266,3 +1267,21 @@ class TestClientWorkQueues:
         output = await orion_client.get_runs_in_work_queue(queue_id, limit=20)
         assert len(output) == 10
         assert {o.id for o in output} == {r.id for r in runs}
+
+
+async def test_delete_flow_run(orion_client, flow_run):
+    # Note - the flow_run provided by the fixture is not of type `schemas.core.FlowRun`
+    print(f"Type: {type(flow_run)}")
+
+    # Make sure our flow exists (the read flow is of type `s.c.FlowRun`)
+    lookup = await orion_client.read_flow_run(flow_run.id)
+    assert isinstance(lookup, schemas.core.FlowRun)
+
+    # Check delete works
+    await orion_client.delete_flow_run(flow_run.id)
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await orion_client.read_flow_run(flow_run.id)
+
+    # Check that trying to delete the deleted flow run raises an error
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await orion_client.delete_flow_run(flow_run.id)

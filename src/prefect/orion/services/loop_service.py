@@ -3,6 +3,7 @@ The base class for all Orion loop services.
 """
 
 import asyncio
+import signal
 
 import pendulum
 
@@ -21,24 +22,36 @@ class LoopService:
 
     loop_seconds = 60
 
-    def __init__(self, loop_seconds: float = None):
+    def __init__(self, loop_seconds: float = None, handle_signals: bool = True):
+        """
+        Args:
+            loop_seconds (float): if provided, overrides the loop interval
+                otherwise specified as a class variable
+            handle_signals (bool): if True (default), SIGINT and SIGTERM are
+                gracefully intercepted and shut down the running service.
+        """
         if loop_seconds:
             self.loop_seconds = loop_seconds  # seconds between runs
         self.should_stop = False  # flag for whether the service should stop running
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
+        if handle_signals:
+            signal.signal(signal.SIGINT, self._stop)
+            signal.signal(signal.SIGTERM, self._stop)
+
     @inject_db
     async def setup(self, db: OrionDBInterface) -> None:
         """
         Called prior to running the service
         """
-        pass
+        self.should_stop = False
 
     async def shutdown(self) -> None:
         """
         Called after running the service
         """
+        # reset `should_stop` to False
         self.should_stop = False
 
     async def start(self, loops=None) -> None:
@@ -103,10 +116,17 @@ class LoopService:
         Gracefully stops a running LoopService and blocks until the service
         stops (indicated by resetting the `should_stop` flag).
         """
-        self.should_stop = True
+        self._stop()
 
         while self.should_stop:
             await asyncio.sleep(0.1)
+
+    def _stop(self, *_) -> None:
+        """
+        Private method for setting the `should_stop` flag. Takes arbitrary
+        arguments so it can be used as a signal handler.
+        """
+        self.should_stop = True
 
     async def run_once(self) -> None:
         """

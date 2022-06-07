@@ -33,13 +33,16 @@ JSON_TO_PY_EMPTY = {"string": "NOT-PROVIDED"}
 async def create():
     """Create a new storage configuration."""
     async with get_client() as client:
-        schemas = await client.read_block_schemas("STORAGE")
+        schemas = await client.read_block_schemas()
     unconfigurable = set()
 
     # KV Server Storage is for internal use only and should not be exposed to users
     schemas = list(
         filterfalse(lambda s: s.block_type.name == "KV Server Storage", schemas)
     )
+
+    # filter out blocks without the storage capability
+    schemas = list(filterfalse(lambda s: "storage" not in s.capabilities, schemas))
 
     for schema in schemas:
         for property, property_spec in schema.fields["properties"].items():
