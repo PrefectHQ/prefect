@@ -681,6 +681,36 @@ class TestLoadFlowFromDeployment:
         assert isinstance(loaded_flow_object, Flow)
         assert flow_object.name == loaded_flow_object.name
 
+    async def test_load_flow_for_legacy_deployment(
+        self, flow_id, flow_object, local_storage_block, orion_client
+    ):
+        """
+        Test to verify that deployments created pre-2.0b6 still work. The datadoc for
+        pre-2.0b6 deployments used block_id which was then switched to
+        block_document_id due to a suite of renames in the blocks feature.
+        """
+        flow_datadoc = DataDocument.encode(encoding="cloudpickle", data=flow_object)
+        storage_key = await local_storage_block.write(flow_datadoc.json().encode())
+        legacy_flow_data = DataDocument.encode(
+            encoding="blockstorage",
+            data={
+                "block_id": local_storage_block._block_document_id,
+                "data": storage_key,
+            },
+        )
+
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=legacy_flow_data,
+        )
+
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert isinstance(loaded_flow_object, Flow)
+        assert flow_object.name == loaded_flow_object.name
+
     async def test_load_persisted_flow_script_from_deployment(
         self, flow_object, flow_id, orion_client, local_storage_block
     ):
