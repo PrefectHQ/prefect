@@ -9,7 +9,7 @@
         <WorkQueueDetails v-if="workQueue" :work-queue="workQueue" />
       </template>
       <template #deployments>
-        <DeploymentsTable :deployments="workQueueDeployments" />
+        <DeploymentsTable :deployments="workQueueDeployments" @update="workQueueDeploymentSubscription.refresh()" @delete="workQueueDeploymentSubscription.refresh()" />
       </template>
     </p-tabs>
   </p-layout-default>
