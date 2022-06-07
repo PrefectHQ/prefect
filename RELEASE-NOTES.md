@@ -6,7 +6,7 @@ We're so grateful for the fountain of feedback we've received about Prefect 2. O
 
 This release includes several other exciting changes, including **Windows** support.
 
-Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. Blocks will make all sort of exciting new use cases possible. This change is foundational for powerful new features we're working on for upcoming releases.
+Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible. 
 
 After the upgrade your data will remain intact but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
 
