@@ -3,7 +3,6 @@ Functions for interacting with block schema ORM objects.
 Intended for internal use by the Orion API.
 """
 import hashlib
-from copy import deepcopy
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -329,7 +328,7 @@ def _construct_full_block_schema(
         raise ValueError(
             "Unable to determine root block schema during schema reconstruction."
         )
-    root_block_schema = _construct_block_schema_with_block_references(
+    root_block_schema.fields = _construct_block_schema_fields_with_block_references(
         root_block_schema, block_schemas_with_references
     )
     definitions = _construct_block_schema_spec_definitions(
@@ -423,7 +422,7 @@ def _add_block_schemas_fields_to_definitions(definitions, child_block_schema):
         return definitions
 
 
-def _construct_block_schema_with_block_references(
+def _construct_block_schema_fields_with_block_references(
     parent_block_schema: BlockSchema,
     block_schemas_with_references: List[
         Tuple[BlockSchema, Optional[str], Optional[UUID]]
@@ -440,22 +439,27 @@ def _construct_block_schema_with_block_references(
             - The name the block schema lives under in the parent block schema
             - The ID of the block schema's parent block schema
 
+    Returns:
+        Dict: Block schema fields with block schema references added.
+
     """
-    parent_block_schema_copy = deepcopy(parent_block_schema)
-    parent_block_schema_copy.fields["block_schema_references"] = {}
+    block_schema_fields_copy = {
+        **parent_block_schema.fields,
+        "block_schema_references": {},
+    }
     for (
         nested_block_schema,
         name,
         parent_block_schema_id,
     ) in block_schemas_with_references:
-        if parent_block_schema_id == parent_block_schema_copy.id:
+        if parent_block_schema_id == parent_block_schema.id:
             new_block_schema_reference = {
                 "block_schema_checksum": nested_block_schema.checksum,
                 "block_type_name": nested_block_schema.block_type.name,
             }
             # A block reference for this key does not yet exist
-            if name not in parent_block_schema_copy.fields["block_schema_references"]:
-                parent_block_schema_copy.fields["block_schema_references"][
+            if name not in block_schema_fields_copy["block_schema_references"]:
+                block_schema_fields_copy["block_schema_references"][
                     name
                 ] = new_block_schema_reference
             else:
@@ -463,32 +467,26 @@ def _construct_block_schema_with_block_references(
                 # reference that we are attempting add isn't present
                 if (
                     isinstance(
-                        parent_block_schema_copy.fields["block_schema_references"][
-                            name
-                        ],
+                        block_schema_fields_copy["block_schema_references"][name],
                         list,
                     )
                     and new_block_schema_reference
-                    not in parent_block_schema_copy.fields["block_schema_references"][
-                        name
-                    ]
+                    not in block_schema_fields_copy["block_schema_references"][name]
                 ):
-                    parent_block_schema_copy.fields["block_schema_references"][
-                        name
-                    ].append(new_block_schema_reference)
+                    block_schema_fields_copy["block_schema_references"][name].append(
+                        new_block_schema_reference
+                    )
                 # A single block reference for this key already exists and it does not
                 # match the block reference that we are attempting to add
                 elif (
-                    parent_block_schema_copy.fields["block_schema_references"][name]
+                    block_schema_fields_copy["block_schema_references"][name]
                     != new_block_schema_reference
                 ):
-                    parent_block_schema_copy.fields["block_schema_references"][name] = [
-                        parent_block_schema_copy.fields["block_schema_references"][
-                            name
-                        ],
+                    block_schema_fields_copy["block_schema_references"][name] = [
+                        block_schema_fields_copy["block_schema_references"][name],
                         new_block_schema_reference,
                     ]
-    return parent_block_schema_copy
+    return block_schema_fields_copy
 
 
 @inject_db
