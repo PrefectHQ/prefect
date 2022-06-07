@@ -7,11 +7,12 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.utilities.hashing import hash_objects
 
-EMPTY_OBJECT_CHECKSUM = f"sha256:{hash_objects({}, hash_algo=hashlib.sha256)}"
+EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 
 @pytest.fixture
