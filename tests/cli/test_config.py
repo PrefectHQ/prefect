@@ -95,6 +95,11 @@ def test_set_with_invalid_value_type():
         expected_code=1,
     )
 
+    profiles = load_profiles()
+    assert (
+        PREFECT_ORION_DATABASE_TIMEOUT not in profiles["foo"].settings
+    ), "The setting should not be saved"
+
 
 def test_set_with_unparsable_setting():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
