@@ -9,7 +9,7 @@ from prefect.utilities.collections import (
     PartialModel,
     dict_to_flatdict,
     flatdict_to_dict,
-    remove_keys,
+    remove_nested_keys,
     visit_collection,
 )
 
@@ -183,11 +183,11 @@ class TestPartialModel:
 class TestRemoveKeys:
     def test_remove_single_key(self):
         obj = {"a": "a", "b": "b", "c": "c"}
-        assert remove_keys(["a"], obj) == {"b": "b", "c": "c"}
+        assert remove_nested_keys(["a"], obj) == {"b": "b", "c": "c"}
 
     def test_remove_multiple_keys(self):
         obj = {"a": "a", "b": "b", "c": "c"}
-        assert remove_keys(["a", "b"], obj) == {"c": "c"}
+        assert remove_nested_keys(["a", "b"], obj) == {"c": "c"}
 
     def test_remove_keys_recursively(self):
         obj = {
@@ -201,7 +201,7 @@ class TestRemoveKeys:
             "block_type_name": "Test",
             "block_schema_references": {},
         }
-        assert remove_keys(["description"], obj) == {
+        assert remove_nested_keys(["description"], obj) == {
             "title": "Test",
             "type": "object",
             "properties": {"a": {"title": "A", "type": "string"}},
@@ -211,6 +211,6 @@ class TestRemoveKeys:
         }
 
     def test_passes_through_non_dict(self):
-        assert remove_keys(["foo"], 1) == 1
-        assert remove_keys(["foo"], "foo") == "foo"
-        assert remove_keys(["foo"], b"foo") == b"foo"
+        assert remove_nested_keys(["foo"], 1) == 1
+        assert remove_nested_keys(["foo"], "foo") == "foo"
+        assert remove_nested_keys(["foo"], b"foo") == b"foo"

@@ -9,13 +9,14 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
+from prefect.blocks.core import Block
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_name
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
-from prefect.utilities.collections import remove_keys
+from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
 
 
@@ -51,10 +52,9 @@ async def create_block_schema(
         exclude={"block_type", "id", "created", "updated"},
     )
     definitions = definitions or insert_values["fields"].pop("definitions", None)
-    fields_for_checksum = remove_keys(["description"], insert_values["fields"])
-    insert_values[
-        "checksum"
-    ] = f"sha256:{hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)}"
+    insert_values["checksum"] = Block._calculate_schema_checksum(
+        insert_values["fields"]
+    )
 
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
