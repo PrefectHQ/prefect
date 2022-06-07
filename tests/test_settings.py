@@ -1,3 +1,4 @@
+import copy
 import os
 import textwrap
 from pathlib import Path
@@ -15,6 +16,7 @@ from prefect.settings import (
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_DATABASE_ECHO,
@@ -32,6 +34,33 @@ from prefect.settings import (
     save_profiles,
     temporary_settings,
 )
+
+
+class TestSettingClass:
+    def test_setting_equality_with_value(self):
+        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
+            assert PREFECT_TEST_SETTING == "foo"
+            assert PREFECT_TEST_SETTING != "bar"
+
+    def test_setting_equality_with_self(self):
+        assert PREFECT_TEST_SETTING == PREFECT_TEST_SETTING
+
+    def test_setting_equality_with_other_setting(self):
+        assert PREFECT_TEST_SETTING != PREFECT_TEST_MODE
+
+    def test_setting_hash_is_consistent(self):
+        assert hash(PREFECT_TEST_SETTING) == hash(PREFECT_TEST_SETTING)
+
+    def test_setting_hash_is_unique(self):
+        assert hash(PREFECT_TEST_SETTING) != hash(PREFECT_LOGGING_LEVEL)
+
+    def test_setting_hash_consistent_on_value_change(self):
+        original = hash(PREFECT_TEST_SETTING)
+        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
+            assert hash(PREFECT_TEST_SETTING) == original
+
+    def test_setting_hash_is_consistent_after_deepcopy(self):
+        assert hash(PREFECT_TEST_SETTING) == hash(copy.deepcopy(PREFECT_TEST_SETTING))
 
 
 class TestSettingsClass:
@@ -150,11 +179,35 @@ class TestSettingsClass:
         new_settings = Settings()
         assert settings.dict() == new_settings.dict()
 
-    def test_settings_to_environment_does_not_use_value_callback(sel):
+    def test_settings_to_environment_does_not_use_value_callback(self):
         settings = Settings(PREFECT_ORION_UI_API_URL=None)
         # This would be cast to a non-null value if the value callback was used when
         # generating the environment variables
         assert "PREFECT_ORION_UI_API_URL" not in settings.to_environment_variables()
+
+    @pytest.mark.parametrize(
+        "log_level_setting",
+        [
+            PREFECT_LOGGING_LEVEL,
+            PREFECT_LOGGING_SERVER_LEVEL,
+        ],
+    )
+    def test_settings_validates_log_levels(self, log_level_setting):
+        with pytest.raises(pydantic.ValidationError, match="Unknown level"):
+            Settings(**{log_level_setting.name: "FOOBAR"})
+
+    def test_equality_of_new_instances(self):
+        assert Settings() == Settings()
+
+    def test_equality_after_deep_copy(self):
+        settings = Settings()
+        assert copy.deepcopy(settings) == settings
+
+    def test_equality_with_different_values(self):
+        settings = Settings()
+        assert (
+            settings.copy_with_update(updates={PREFECT_TEST_SETTING: "foo"}) != settings
+        )
 
 
 class TestSettingAccess:
@@ -190,13 +243,13 @@ class TestSettingAccess:
 
         # Test with a non-boolean setting
 
-        if PREFECT_LOGGING_LEVEL:
+        if PREFECT_ORION_API_HOST:
             assert True, "Treated as truth"
         else:
             assert False, "Not treated as truth"
 
-        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
-            if not PREFECT_LOGGING_LEVEL:
+        with temporary_settings(updates={PREFECT_ORION_API_HOST: ""}):
+            if not PREFECT_ORION_API_HOST:
                 assert True, "Treated as truth"
             else:
                 assert False, "Not treated as truth"
