@@ -9,6 +9,7 @@ from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
 
 BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
@@ -111,14 +112,27 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
-    def _calculate_schema_checksum(cls):
+    def _calculate_schema_checksum(
+        cls, block_schema_fields: Optional[Dict[str, Any]] = None
+    ):
         """
         Generates a unique hash for the underlying schema of block.
+
+        Args:
+            block_schema_fields: Dictionary detailing block schema fields to generate a
+                checksum for. The fields of the current class is used if this parameter
+                is not provided.
+
+        Returns:
+            str: The calculated checksum prefixed with the hashing algorithm used.
         """
-        fields = {
-            key: value for key, value in cls.schema().items() if key != "definitions"
-        }
-        checksum = hash_objects(fields, hash_algo=hashlib.sha256)
+        block_schema_fields = (
+            cls.schema() if block_schema_fields is None else block_schema_fields
+        )
+        fields_for_checksum = remove_nested_keys(
+            ["description", "definitions"], block_schema_fields
+        )
+        checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
         else:
