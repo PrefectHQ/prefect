@@ -8,7 +8,7 @@ This release includes several other exciting changes, including **Windows** su
 
 Note that this release makes a **breaking change** to the Blocks API - an important abstraction you may have used already in the `flow_storage` part of your `DeploymentSpec`. As a result, the backend API in `2.0b6` is incompatible with previous Orion client versions.
 
-After the upgrade, your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
+After the upgrade your data will remain intact but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
 
 -   Install the latest Prefect 2.0 python package: `pip install -U "prefect>=2.0b6"`
 -   Restart any existing agent processes
