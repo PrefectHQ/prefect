@@ -28,6 +28,7 @@ BLOCK_SCHEMA_TITLE_MAP = {
     "Google Cloud Storage": "GoogleCloudStorageBlock",
     "Azure Blob Storage": "AzureBlobStorageBlock",
     "KV Server Storage": "KVServerStorageBlock",
+    "File Storage": "FileStorageBlock",
 }
 
 
