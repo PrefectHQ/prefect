@@ -9,6 +9,7 @@ from prefect.utilities.collections import (
     PartialModel,
     dict_to_flatdict,
     flatdict_to_dict,
+    remove_keys,
     visit_collection,
 )
 
@@ -177,3 +178,39 @@ class TestPartialModel:
         p = PartialModel(SimplePydantic, x=1)
         with pytest.raises(ValueError, match="validation error"):
             p.finalize()
+
+
+class TestRemoveKeys:
+    def test_remove_single_key(self):
+        obj = {"a": "a", "b": "b", "c": "c"}
+        assert remove_keys(["a"], obj) == {"b": "b", "c": "c"}
+
+    def test_remove_multiple_keys(self):
+        obj = {"a": "a", "b": "b", "c": "c"}
+        assert remove_keys(["a", "b"], obj) == {"c": "c"}
+
+    def test_remove_keys_recursively(self):
+        obj = {
+            "title": "Test",
+            "description": "This is a docstring",
+            "type": "object",
+            "properties": {
+                "a": {"title": "A", "description": "A field", "type": "string"}
+            },
+            "required": ["a"],
+            "block_type_name": "Test",
+            "block_schema_references": {},
+        }
+        assert remove_keys(["description"], obj) == {
+            "title": "Test",
+            "type": "object",
+            "properties": {"a": {"title": "A", "type": "string"}},
+            "required": ["a"],
+            "block_type_name": "Test",
+            "block_schema_references": {},
+        }
+
+    def test_passes_through_non_dict(self):
+        assert remove_keys(["foo"], 1) == 1
+        assert remove_keys(["foo"], "foo") == "foo"
+        assert remove_keys(["foo"], b"foo") == b"foo"
