@@ -4,11 +4,22 @@
 
 We're so grateful for the fountain of feedback we've received about Prefect 2. One of the themes in feedback was that Prefect 2's UI didn't reflect the same clarity and elegance that the rest of Prefect 2 did. We agreed! Today, we've proud to share Prefect 2's completely redesigned UI. It's simpler, faster, and easier to use. Give it a spin!
 
-This release includes several other exciting changes, including **Windows** support.
+This release includes several other exciting changes, including:
+
+- **Windows** support
+- A new CLI command to delete flow runs: `prefect flow-run delete`
+- Improved API error messages
+- Support for type-checking with VS Code and other editors that look for a `py.typed` file
+
+Here's a preview of the type hints that you'll start seeing now in editors like VS Code:
+
+<img src="docs/img/release-notes/functionhint.png">
+
+<img src="docs/img/release-notes/futurehint.png">
 
 Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible. 
 
-After the upgrade your data will remain intact but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
+After the upgrade your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
 
 -   Install the latest Prefect 2.0 python package: `pip install -U "prefect>=2.0b6"`
 -   Restart any existing agent processes
