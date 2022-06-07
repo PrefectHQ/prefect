@@ -19,7 +19,7 @@ Prefect provides a simple context manager for unit tests that allows you to run 
 
 ```python
 from prefect import flow
-from prefect.utilities.testing import prefect_test_harness
+from prefect.testing.utilities import prefect_test_harness
 
 @flow
 def my_favorite_flow():
@@ -35,7 +35,7 @@ For more extensive testing, you can leverage `prefect_test_harness` as a fixture
 
 ```python
 import pytest
-from prefect.utilities.testing import prefect_test_harness
+from prefect.testing.utilities import prefect_test_harness
 
 from my_flows import my_favorite_flow
 

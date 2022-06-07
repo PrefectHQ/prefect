@@ -5,7 +5,7 @@ from . import (
     run_history,
     flow_runs,
     task_runs,
-    flow_run_alert_policies,
+    flow_run_notification_policies,
     flow_run_states,
     task_run_states,
     deployments,

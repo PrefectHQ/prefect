@@ -39,9 +39,9 @@ settings to be dynamically modified on retrieval. This allows us to make setting
 dependent on the value of other settings or perform other dynamic effects.
 
 """
+import logging
 import os
 import string
-import sys
 import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
@@ -63,7 +63,7 @@ from typing import (
 
 import pydantic
 import toml
-from pydantic import BaseSettings, Field, create_model, root_validator
+from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
 
@@ -518,10 +518,10 @@ PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
     description="Whether or not to start the late runs service in the Orion application. If disabled, you will need to run this service separately to have runs past their scheduled start time marked as late.",
 )
 
-PREFECT_ORION_SERVICES_FLOW_RUN_ALERTS_ENABLED = Setting(
+PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     bool,
     default=True,
-    description="Whether or not to start the flow run alerts service in the Orion application. If disabled, you will need to run this service separately to send flow run alerts.",
+    description="Whether or not to start the flow run notifications service in the Orion application. If disabled, you will need to run this service separately to send flow run notifications.",
 )
 # Collect all defined settings
 
@@ -610,6 +610,11 @@ class Settings(SettingsFieldsMixin):
         value = getattr(self, setting.name)
         if setting.value_callback:
             value = setting.value_callback(self, value)
+        return value
+
+    @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
+    def check_valid_log_level(cls, value):
+        logging._checkLevel(value)
         return value
 
     @root_validator
