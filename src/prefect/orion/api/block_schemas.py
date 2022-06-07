@@ -96,7 +96,7 @@ async def read_block_schema_by_checksum(
         ..., description="The block schema checksum", alias="checksum"
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
-):
+) -> schemas.core.BlockSchema:
     block_schema = await models.block_schemas.read_block_schema_by_checksum(
         session=session, checksum=block_schema_checksum
     )

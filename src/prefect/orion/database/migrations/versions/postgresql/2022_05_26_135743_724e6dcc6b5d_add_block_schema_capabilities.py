@@ -28,6 +28,22 @@ def upgrade():
             nullable=False,
         ),
     )
+
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
+
+    results = connection.execute(sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.type]))
+
+    for id, type in results:
+        if type == "STORAGE":
+            connection.execute(
+                sa.update(BLOCK_SCHEMA)
+                .where(BLOCK_SCHEMA.c.id == id)
+                .values(capabilities=["writeable", "readable", "storage"])
+            )
+
     op.drop_index("ix_block_schema__type", table_name="block_schema")
     op.drop_column("block_schema", "type")
     # ### end Alembic commands ###
@@ -40,5 +56,23 @@ def downgrade():
         sa.Column("type", sa.VARCHAR(), autoincrement=False, nullable=True),
     )
     op.create_index("ix_block_schema__type", "block_schema", ["type"], unique=False)
+
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    BLOCK_SCHEMA = meta_data.tables["block_schema"]
+
+    results = connection.execute(
+        sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.capabilities])
+    )
+
+    for id, capabilities in results:
+        if "storage" in capabilities:
+            connection.execute(
+                sa.update(BLOCK_SCHEMA)
+                .where(BLOCK_SCHEMA.c.id == id)
+                .values(type="STORAGE")
+            )
+
     op.drop_column("block_schema", "capabilities")
     # ### end Alembic commands ###

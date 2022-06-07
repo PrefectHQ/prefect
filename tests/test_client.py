@@ -194,7 +194,7 @@ class TestGetClient:
 
     def test_get_client_cache_uses_profile_settings(self):
         client = get_client()
-        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: "FOO"}):
+        with temporary_settings(updates={PREFECT_API_KEY: "FOO"}):
             new_client = get_client()
             assert isinstance(new_client, OrionClient)
             assert new_client is not client

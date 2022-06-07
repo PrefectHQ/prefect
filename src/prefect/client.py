@@ -1413,7 +1413,10 @@ class OrionClient:
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
-        block_document_id = block_document["block_document_id"]
+        # Handling for block_id is to account for deployments created pre-2.0b6
+        block_document_id = block_document.get(
+            "block_document_id"
+        ) or block_document.get("block_id")
         if block_document_id is not None:
             storage_block = Block._from_block_document(
                 await self.read_block_document(block_document_id)
