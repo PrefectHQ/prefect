@@ -16,7 +16,7 @@ pytest-cov
 pytest-env
 pytest-timeout
 pytest-xdist
-pytkdocs >= 0.13.0
+pytkdocs >= 0.14.2
 pyyaml
 requests
 setuptools != 60.9.0; python_version < '3.8'
