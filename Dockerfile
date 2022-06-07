@@ -3,7 +3,7 @@ ARG PYTHON_VERSION=3.8
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
 # THe version used to build the UI distributable.
-ARG NODE_VERSION=14
+ARG NODE_VERSION=16.15
 
 
 # Build the UI distributable.
