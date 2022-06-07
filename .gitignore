@@ -9,8 +9,9 @@ dist/
 sdist/
 
 # Test artifacts
-.pytest_cache/
+.coverage
 .prefect-results
+.pytest_cache/
 
 # Type checking artifacts
 .mypy_cache/
