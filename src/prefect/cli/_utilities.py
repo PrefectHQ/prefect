@@ -69,7 +69,7 @@ async def open_process_and_stream_output(
             The task will report itself as started once the process is started.
         **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
     """
-    # passing a string to open_process is equivalent to shell=True
+    # passing a string to open_process is equivalent to shell=True``
     # which is generally necessary for Unix-like commands on Windows
     # but otherwise should be avoided
     if isinstance(command, list) and sys.platform == "win32":
