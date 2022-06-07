@@ -2,6 +2,7 @@ from typing import Optional, Type
 from uuid import uuid4
 
 import pytest
+from pydantic import Field
 
 from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
 from prefect.orion import models
@@ -119,6 +120,24 @@ class TestAPICompatibility:
             "block_schema_references": {},
             "required": ["x"],
         }
+
+    def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
+        class A(Block):
+            "This is A block"
+            x: str = Field(..., description="This is x field")
+            y: str
+            z: str
+
+        class B(Block):
+            "This is B block"
+            x: str
+            y: str
+            z: str
+
+        # Rename so that two classes have same name
+        B.__name__ = "A"
+
+        assert A._calculate_schema_checksum() == B._calculate_schema_checksum()
 
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
