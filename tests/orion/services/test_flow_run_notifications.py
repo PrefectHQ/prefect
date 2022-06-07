@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
-from prefect.orion.services.flow_run_alerts import FlowRunAlerts
+from prefect.orion.services.flow_run_notifications import FlowRunNotifications
 
 
 @pytest.fixture(autouse=True)
@@ -23,14 +23,16 @@ async def notifier_block(orion_client):
 
 @pytest.fixture
 async def completed_policy(session, notifier_block):
-    policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
-        session=session,
-        flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
-            state_names=["Completed"],
-            tags=[],
-            block_document_id=notifier_block.id,
-        ),
+    policy = (
+        await models.flow_run_notification_policies.create_flow_run_notification_policy(
+            session=session,
+            flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
+                name="My Success Policy",
+                state_names=["Completed"],
+                tags=[],
+                block_document_id=notifier_block.id,
+            ),
+        )
     )
     await session.commit()
     return policy
@@ -38,14 +40,16 @@ async def completed_policy(session, notifier_block):
 
 @pytest.fixture
 async def completed_etl_policy(session, notifier_block):
-    policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
-        session=session,
-        flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
-            state_names=["Completed"],
-            tags=["ETL"],
-            block_document_id=notifier_block.id,
-        ),
+    policy = (
+        await models.flow_run_notification_policies.create_flow_run_notification_policy(
+            session=session,
+            flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
+                name="My Success Policy",
+                state_names=["Completed"],
+                tags=["ETL"],
+                block_document_id=notifier_block.id,
+            ),
+        )
     )
     await session.commit()
     return policy
@@ -53,14 +57,16 @@ async def completed_etl_policy(session, notifier_block):
 
 @pytest.fixture
 async def failed_policy(session, notifier_block):
-    policy = await models.flow_run_alert_policies.create_flow_run_alert_policy(
-        session=session,
-        flow_run_alert_policy=schemas.core.FlowRunAlertPolicy(
-            name="My Success Policy",
-            state_names=["Failed"],
-            tags=[],
-            block_document_id=notifier_block.id,
-        ),
+    policy = (
+        await models.flow_run_notification_policies.create_flow_run_notification_policy(
+            session=session,
+            flow_run_notification_policy=schemas.core.FlowRunNotificationPolicy(
+                name="My Success Policy",
+                state_names=["Failed"],
+                tags=[],
+                block_document_id=notifier_block.id,
+            ),
+        )
     )
     await session.commit()
     return policy
@@ -78,16 +84,20 @@ async def test_service_clears_queue(
         session=session, flow_run_id=flow_run.id, state=schemas.states.Failed()
     )
 
-    # 2 alerts in queue
-    queued_alerts_query = await session.execute(sa.select(db.FlowRunAlertQueue))
-    assert len(queued_alerts_query.scalars().fetchall()) == 2
+    # 2 notifications in queue
+    queued_notifications_query = await session.execute(
+        sa.select(db.FlowRunNotificationQueue)
+    )
+    assert len(queued_notifications_query.scalars().fetchall()) == 2
     await session.commit()
 
-    await FlowRunAlerts().start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
-    # no alerts in queue
-    queued_alerts_query = await session.execute(sa.select(db.FlowRunAlertQueue))
-    assert queued_alerts_query.scalars().fetchall() == []
+    # no notifications in queue
+    queued_notifications_query = await session.execute(
+        sa.select(db.FlowRunNotificationQueue)
+    )
+    assert queued_notifications_query.scalars().fetchall() == []
 
 
 async def test_service_sends_notifications(
@@ -99,7 +109,7 @@ async def test_service_sends_notifications(
     )
     await session.commit()
 
-    await FlowRunAlerts().start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (
@@ -121,7 +131,7 @@ async def test_service_sends_multiple_notifications(
     )
     await session.commit()
 
-    await FlowRunAlerts().start(loops=1)
+    await FlowRunNotifications().start(loops=1)
 
     captured = capsys.readouterr()
     assert (

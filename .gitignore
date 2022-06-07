@@ -4,11 +4,13 @@ __pycache__/
 *$py.class
 *.egg-info/
 *.egg
+build/
 dist/
 sdist/
 
 # Test artifacts
 .pytest_cache/
+.coverage
 
 # Type checking artifacts
 .mypy_cache/
