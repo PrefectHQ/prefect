@@ -5,39 +5,79 @@ import pydantic
 import pytest
 from fastapi import status
 
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.models import block_documents
-from prefect.orion.schemas.actions import BlockDocumentCreate
+from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.orion.schemas.core import BlockDocument
 
 
 @pytest.fixture
 async def block_schemas(session, block_type_x, block_type_y):
-    block_schema_0 = await models.block_schemas.create_block_schema(
-        session=session,
-        block_schema=schemas.actions.BlockSchemaCreate(
-            fields={}, type="abc", block_type_id=block_type_x.id
-        ),
+    class A(Block):
+        _block_schema_type = "abc"
+        pass
+
+    block_type_a = await models.block_types.create_block_type(
+        session=session, block_type=A._to_block_type()
     )
+    block_schema_a = await models.block_schemas.create_block_schema(
+        session=session, block_schema=A._to_block_schema(block_type_id=block_type_a.id)
+    )
+
+    class B(Block):
+        _block_schema_type = "abc"
+
+        x: int
+
+    block_type_b = await models.block_types.create_block_type(
+        session=session, block_type=B._to_block_type()
+    )
+    block_schema_b = await models.block_schemas.create_block_schema(
+        session=session, block_schema=B._to_block_schema(block_type_id=block_type_b.id)
+    )
+
+    class C(Block):
+        y: int
+
+    block_type_c = await models.block_types.create_block_type(
+        session=session, block_type=C._to_block_type()
+    )
+    block_schema_c = await models.block_schemas.create_block_schema(
+        session=session, block_schema=C._to_block_schema(block_type_id=block_type_c.id)
+    )
+
+    class D(Block):
+        b: B
+        z: str
+
+    block_type_d = await models.block_types.create_block_type(
+        session=session, block_type=D._to_block_type()
+    )
+    block_schema_d = await models.block_schemas.create_block_schema(
+        session=session, block_schema=D._to_block_schema(block_type_id=block_type_d.id)
+    )
+
+    class E(Block):
+        c: C
+        d: D
+
+    block_type_e = await models.block_types.create_block_type(
+        session=session, block_type=E._to_block_type()
+    )
+    block_schema_e = await models.block_schemas.create_block_schema(
+        session=session, block_schema=E._to_block_schema(block_type_id=block_type_e.id)
+    )
+
     await session.commit()
 
-    block_schema_1 = await models.block_schemas.create_block_schema(
-        session=session,
-        block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"x": {"type": "int"}}, type="abc", block_type_id=block_type_y.id
-        ),
+    return (
+        block_schema_a,
+        block_schema_b,
+        block_schema_c,
+        block_schema_d,
+        block_schema_e,
     )
-    await session.commit()
-
-    block_schema_2 = await models.block_schemas.create_block_schema(
-        session=session,
-        block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"y": {"type": "int"}}, type=None, block_type_id=block_type_x.id
-        ),
-    )
-    await session.commit()
-
-    return block_schema_0, block_schema_1, block_schema_2
 
 
 class TestCreateBlockDocument:
@@ -224,7 +264,6 @@ class TestReadBlockDocuments:
             )
         )
 
-        session.add_all(block_documents)
         await session.commit()
         return block_documents
 
@@ -238,10 +277,10 @@ class TestReadBlockDocuments:
         # sorted by block type name, block document name
         assert [b.id for b in read_block_documents] == [
             block_documents[0].id,
-            block_documents[2].id,
-            block_documents[4].id,
             block_documents[1].id,
+            block_documents[2].id,
             block_documents[3].id,
+            block_documents[4].id,
         ]
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
@@ -252,7 +291,7 @@ class TestReadBlockDocuments:
         )
         assert [b.id for b in read_block_documents] == [
             block_documents[0].id,
-            block_documents[2].id,
+            block_documents[1].id,
         ]
 
         response = await client.post(
@@ -262,25 +301,12 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         assert [b.id for b in read_block_documents] == [
-            block_documents[4].id,
-            block_documents[1].id,
-        ]
-
-    async def test_read_blocks_type(self, client, block_documents):
-        response = await client.post(
-            "/block_documents/filter", json=dict(block_schema_type="abc")
-        )
-        read_blocks = pydantic.parse_obj_as(
-            List[schemas.core.BlockDocument], response.json()
-        )
-        assert [b.id for b in read_blocks] == [
-            block_documents[0].id,
-            block_documents[1].id,
+            block_documents[2].id,
             block_documents[3].id,
         ]
 
 
-class TestDeleteBlock:
+class TestDeleteBlockDocument:
     async def test_delete_block(self, session, client, block_schemas):
         response = await client.post(
             "/block_documents/",
@@ -315,7 +341,7 @@ class TestDefaultStorageBlockDocument:
             block_schema=schemas.actions.BlockSchemaCreate(
                 fields={},
                 block_type_id=block_type_x.id,
-                type="STORAGE",
+                capabilities=["storage"],
             ),
         )
         await session.commit()
@@ -410,3 +436,281 @@ class TestDefaultStorageBlockDocument:
             f"/block_documents/get_default_storage_block_document"
         )
         assert not response.content
+
+
+class TestUpdateBlockDocument:
+    async def test_update_block_document_name(self, session, client, block_schemas):
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-name",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{block_document.id}",
+            json=BlockDocumentUpdate(
+                name="updated",
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.name == "updated"
+
+    async def test_update_block_document_data(self, session, client, block_schemas):
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-data",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{block_document.id}",
+            json=BlockDocumentUpdate(
+                data=dict(x=2),
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.data == dict(x=2)
+
+    async def test_update_nested_block_document_data(
+        self, session, client, block_schemas
+    ):
+        inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        outer_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data={
+                    "b": {"$ref": {"block_document_id": inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        block_document_before_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_before_update.data == {
+            "b": {"x": 1},
+            "z": "zzzzz",
+        }
+        assert block_document_before_update.block_document_references == {
+            "b": {"block_document_id": inner_block_document.id}
+        }
+
+        response = await client.patch(
+            f"/block_documents/{inner_block_document.id}",
+            json=BlockDocumentUpdate(
+                data=dict(x=4),
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        block_document_after_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_after_update.data == {
+            "b": {"x": 4},
+            "z": "zzzzz",
+        }
+        assert block_document_after_update.block_document_references == {
+            "b": {"block_document_id": inner_block_document.id}
+        }
+
+    async def test_update_nested_block_document_reference(
+        self, session, client, block_schemas
+    ):
+        inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        outer_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data={
+                    "b": {"$ref": {"block_document_id": inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        block_document_before_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_before_update.data == {
+            "b": {"x": 1},
+            "z": "zzzzz",
+        }
+        assert block_document_before_update.block_document_references == {
+            "b": {"block_document_id": inner_block_document.id}
+        }
+
+        new_inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="this-is-a-new-inner-block",
+                data=dict(x=1000),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{outer_block_document.id}",
+            json=BlockDocumentUpdate(
+                data={
+                    "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        block_document_after_update = (
+            await models.block_documents.read_block_document_by_id(
+                session, block_document_id=outer_block_document.id
+            )
+        )
+        assert block_document_after_update.data == {
+            "b": {
+                "x": 1000,
+            },
+            "z": "zzzzz",
+        }
+        assert block_document_after_update.block_document_references == {
+            "b": {"block_document_id": new_inner_block_document.id}
+        }
+
+    async def test_update_with_faulty_block_document_reference(
+        self, session, client, block_schemas
+    ):
+        inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        outer_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data={
+                    "b": {"$ref": {"block_document_id": inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{outer_block_document.id}",
+            json=BlockDocumentUpdate(
+                data={
+                    "b": {"$ref": {"block_document_id": uuid4()}},
+                    "z": "zzzzz",
+                },
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+
+    async def test_update_with_missing_block_document_reference_id(
+        self, session, client, block_schemas
+    ):
+        inner_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        outer_block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-nested-block",
+                data={
+                    "b": {"$ref": {"block_document_id": inner_block_document.id}},
+                    "z": "zzzzz",
+                },
+                block_schema_id=block_schemas[3].id,
+                block_type_id=block_schemas[3].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{outer_block_document.id}",
+            json=BlockDocumentUpdate(
+                data={
+                    "b": {"$ref": {}},
+                    "z": "zzzzz",
+                },
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
