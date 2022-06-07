@@ -109,7 +109,7 @@ async def test_injecting_really_dumb_query_components():
         ):
             ...
 
-        async def get_flow_run_alerts_from_queue(self, session, limit):
+        async def get_flow_run_notifications_from_queue(self, session, limit):
             pass
 
     with dependencies.temporary_query_components(ReallyBrokenQueries()):

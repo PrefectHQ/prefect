@@ -1,6 +1,9 @@
 import asyncio
+import signal
+import sys
 
 import pendulum
+import pytest
 
 from prefect.orion.services.loop_service import LoopService
 
@@ -95,6 +98,8 @@ async def test_early_stop():
 
     service = Service()
     asyncio.create_task(service.start())
+    # yield to let the service start
+    await asyncio.sleep(0.1)
 
     dt = pendulum.now("UTC")
     await service.stop()
@@ -102,3 +107,25 @@ async def test_early_stop():
 
     assert service.should_stop is False
     assert dt2 - dt < pendulum.duration(seconds=1)
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 8), reason="signal.raise_signal requires Python >= 3.8"
+)
+class TestSignalHandling:
+    @pytest.mark.parametrize("sig", [signal.SIGTERM, signal.SIGINT])
+    async def test_handle_signals_to_shutdown(self, sig):
+        service = LoopService()
+        assert service.should_stop is False
+        signal.raise_signal(sig)
+        # yield so the signal handler can run
+        await asyncio.sleep(0.1)
+        assert service.should_stop is True
+
+    async def test_handle_signals_can_be_disabled(self):
+        service = LoopService(handle_signals=False)
+        assert service.should_stop is False
+        signal.raise_signal(signal.SIGTERM)
+        # yield so the signal handler would have time to run
+        await asyncio.sleep(0.1)
+        assert service.should_stop is False
