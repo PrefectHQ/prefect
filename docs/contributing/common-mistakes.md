@@ -51,11 +51,11 @@ error like:
 E               pytest.PytestUnraisableExceptionWarning: Exception ignored in: <ssl.SSLSocket fd=-1, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0>
 E
 E               Traceback (most recent call last):
-E                 File "/Users/chris/.pyenv/versions/3.9.12/envs/orion/lib/python3.9/site-packages/pytest_asyncio/plugin.py", line 306, in setup
+E                 File ".../pytest_asyncio/plugin.py", line 306, in setup
 E                   res = await func(**_add_kwargs(func, kwargs, event_loop, request))
 E               ResourceWarning: unclosed <ssl.SSLSocket fd=10, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 60605), raddr=('127.0.0.1', 6443)>
 
-../../../../.pyenv/versions/3.9.12/envs/orion/lib/python3.9/site-packages/_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
+.../_pytest/unraisableexception.py:78: PytestUnraisableExceptionWarning
 ```
 
 This is saying that your test suite (or the `prefect` library code) opened a
