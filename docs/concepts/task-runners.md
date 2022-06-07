@@ -28,7 +28,7 @@ Prefect currently provides the following task runners:
 
     Note that the Prefect-developed Dask and Ray task runners are moving to [Prefect Collections](/collections/overview/).
 
-    In this release you may continue using `DaskTaskRunner` and `RayTaskRunner` imports from `prefect.task_runners`, but these imports will be removed in a future release.
+    In the recent 2.0b6 release, you may continue using `DaskTaskRunner` and `RayTaskRunner` imports from `prefect.task_runners`, but these imports will be removed in a future release.
     
     We recommend using the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) and [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collections in new development and to migrate existing flows to use these collections. See the task runner collection documentation for details.
 
