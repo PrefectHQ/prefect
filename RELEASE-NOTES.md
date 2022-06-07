@@ -4,7 +4,7 @@
 
 We're so grateful for the fountain of feedback we've received about Prefect 2. One of the themes in feedback was that Prefect 2's UI didn't reflect the same clarity and elegance that the rest of Prefect 2 did. We agreed! Today, we've proud to share Prefect 2's completely redesigned UI. It's simpler, faster, and easier to use. Give it a spin!
 
-This release includes several other some exciting changes, including **Windows** support.
+This release includes several other exciting changes, including **Windows** support.
 
 Note that this release makes a **breaking change** to the Blocks API - an important abstraction you may have used already in the `flow_storage` part of your `DeploymentSpec`. As a result, the backend API in `2.0b6` is incompatible with previous Orion client versions.
 
