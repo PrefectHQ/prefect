@@ -15,6 +15,7 @@ from prefect.settings import (
     PREFECT_HOME,
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_DATABASE_ECHO,
@@ -150,11 +151,22 @@ class TestSettingsClass:
         new_settings = Settings()
         assert settings.dict() == new_settings.dict()
 
-    def test_settings_to_environment_does_not_use_value_callback(sel):
+    def test_settings_to_environment_does_not_use_value_callback(self):
         settings = Settings(PREFECT_ORION_UI_API_URL=None)
         # This would be cast to a non-null value if the value callback was used when
         # generating the environment variables
         assert "PREFECT_ORION_UI_API_URL" not in settings.to_environment_variables()
+
+    @pytest.mark.parametrize(
+        "log_level_setting",
+        [
+            PREFECT_LOGGING_LEVEL,
+            PREFECT_LOGGING_SERVER_LEVEL,
+        ],
+    )
+    def test_settings_validates_log_levels(self, log_level_setting):
+        with pytest.raises(pydantic.ValidationError, match="Unknown level"):
+            Settings(**{log_level_setting.name: "FOOBAR"})
 
 
 class TestSettingAccess:
@@ -190,13 +202,13 @@ class TestSettingAccess:
 
         # Test with a non-boolean setting
 
-        if PREFECT_LOGGING_LEVEL:
+        if PREFECT_ORION_API_HOST:
             assert True, "Treated as truth"
         else:
             assert False, "Not treated as truth"
 
-        with temporary_settings(updates={PREFECT_LOGGING_LEVEL: ""}):
-            if not PREFECT_LOGGING_LEVEL:
+        with temporary_settings(updates={PREFECT_ORION_API_HOST: ""}):
+            if not PREFECT_ORION_API_HOST:
                 assert True, "Treated as truth"
             else:
                 assert False, "Not treated as truth"
