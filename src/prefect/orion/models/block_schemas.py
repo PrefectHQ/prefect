@@ -669,13 +669,11 @@ async def read_block_schema_by_checksum(
 async def read_available_block_capabilities(
     session: sa.orm.Session, db: OrionDBInterface
 ) -> List[str]:
-    list_of_capabilities = (
+    capabilities_by_schema = (
         (await session.execute(sa.select(db.BlockSchema.capabilities))).scalars().all()
     )
 
-    unique_capabilities = set()
-    for capabilities_set in list_of_capabilities:
-        unique_capabilities.update(capabilities_set)
+    unique_capabilities = {c for capabilities in capabilites_by_schema for c in capabilities}
 
     return list(unique_capabilities)
 
