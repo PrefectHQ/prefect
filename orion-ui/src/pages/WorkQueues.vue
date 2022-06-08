@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <WorkQueuesTable :work-queues="workQueues" @delete="workQueuesSubscription.refresh()" />
+        <WorkQueuesTable :work-queues="workQueues" @update="workQueuesSubscription.refresh()" @delete="workQueuesSubscription.refresh()" />
       </template>
     </template>
   </p-layout-default>
