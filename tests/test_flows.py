@@ -1,5 +1,6 @@
 import enum
 import inspect
+import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -20,6 +21,7 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.states import raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import exceptions_equal
+from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
 
@@ -35,15 +37,21 @@ class TestFlow:
         f = Flow(name="test", fn=lambda **kwargs: 42)
         assert isinstance(f.version, str)
 
-    def test_version_none_if_interactively_defined(self):
-        "Defining functions interactively does not set __file__ global"
+    @pytest.mark.parametrize(
+        "sourcefile", [None, "<stdin>", "<ipython-input-1-d31e8a6792d4>"]
+    )
+    def test_version_none_if_source_file_cannot_be_determined(
+        self, monkeypatch, sourcefile
+    ):
+        """
+        `getsourcefile` will return `None` when functions are defined interactively,
+        or other values on Windows.
+        """
+        monkeypatch.setattr(
+            "prefect.flows.inspect.getsourcefile", MagicMock(return_value=sourcefile)
+        )
 
-        def ipython_function():
-            pass
-
-        del ipython_function.__globals__["__file__"]
-
-        f = Flow(name="test", fn=ipython_function)
+        f = Flow(name="test", fn=lambda **kwargs: 42)
         assert f.version is None
 
     def test_raises_on_bad_funcs(self):
@@ -110,9 +118,9 @@ class TestDecorator:
         assert my_flow.fn() == "bar"
 
     def test_flow_decorator_sets_default_version(self):
-        my_flow = flow(file_hash)
+        my_flow = flow(flatdict_to_dict)
 
-        assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
+        assert my_flow.version == file_hash(flatdict_to_dict.__globals__["__file__"])
 
 
 class TestFlowWithOptions:
@@ -748,7 +756,8 @@ class TestFlowTimeouts:
         await anyio.sleep(1)
 
         assert not canary_file.exists()
-        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
+        tolerance = 1.5 if sys.platform != "win32" else 1.9  # windows is slow
+        assert t1 - t0 < tolerance, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
@@ -1129,7 +1138,7 @@ class TestFlowResults:
         server_state = flow_run.state
         assert isinstance(server_state.data, DataDocument)
         document = server_state.data.decode()
-        assert document["block_id"] is None
+        assert document["block_document_id"] is None
         assert document["data"].startswith(str(TempStorageBlock().basepath()))
 
         retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
@@ -1142,7 +1151,9 @@ class TestFlowResults:
         def foo():
             return 6
 
-        await orion_client.set_default_storage_block(local_storage_block._block_id)
+        await orion_client.set_default_storage_block_document(
+            local_storage_block._block_document_id
+        )
 
         state = foo()
         assert state.result() == 6
@@ -1152,7 +1163,7 @@ class TestFlowResults:
         server_state = flow_run.state
         assert isinstance(server_state.data, DataDocument)
         document = server_state.data.decode()
-        assert document["block_id"] == local_storage_block._block_id
+        assert document["block_document_id"] == local_storage_block._block_document_id
         assert document["data"].startswith(str(local_storage_block.basepath()))
 
         retrieved_result = await orion_client.resolve_datadoc(flow_run.state.data)
@@ -1164,7 +1175,9 @@ class TestFlowResults:
         @flow
         async def foo():
             # Change the default storage on the server, bar() will not use it
-            await orion_client.set_default_storage_block(local_storage_block._block_id)
+            await orion_client.set_default_storage_block_document(
+                local_storage_block._block_document_id
+            )
             return bar()
 
         @flow
@@ -1184,10 +1197,11 @@ class TestFlowResults:
         parent_document = parent_flow_run.state.data.decode()
         child_document = child_flow_run.state.data.decode()
         assert (
-            parent_document["block_id"] == child_document["block_id"]
+            parent_document["block_document_id"] == child_document["block_document_id"]
         ), "Parent and child used the same block"
         assert (
-            child_document["block_id"] != local_storage_block._block_id
+            child_document["block_document_id"]
+            != local_storage_block._block_document_id
         ), "Storage block to use is determined at flow start time"
 
         retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)

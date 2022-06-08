@@ -208,14 +208,6 @@ class TestConcurrentTaskRunner(TaskRunnerStandardTestSuite):
     def task_runner(self):
         yield ConcurrentTaskRunner()
 
-    def get_sleep_time(self) -> float:
-        """
-        Return an amount of time to sleep for concurrency tests
-
-        The concurrent task runner is prone to flaking on concurrency tests
-        """
-        return 2.0
-
 
 @pytest.mark.service("dask")
 class TestDaskTaskRunner(TaskRunnerStandardTestSuite):

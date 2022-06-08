@@ -27,6 +27,7 @@ from anyio import start_blocking_portal
 
 import prefect
 import prefect.context
+from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
@@ -72,7 +73,7 @@ def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
     """
-    Sync entrypoint for flow calls
+    Sync entrypoint for flow calls.
 
     This function does the heavy lifting of ensuring we can get into an async context
     for flow run execution with minimal overhead.
@@ -276,7 +277,14 @@ async def begin_flow_run(
             flow.task_runner.start()
         )
 
-        result_storage = await client.get_default_storage_block()
+        default_storage_block_document = (
+            await client.get_default_storage_block_document()
+        )
+        result_storage = (
+            Block._from_block_document(default_storage_block_document)
+            if default_storage_block_document is not None
+            else None
+        )
         if not result_storage:
             logger.warning(
                 "No default storage is configured on the server. Results from this "

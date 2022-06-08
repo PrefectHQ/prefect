@@ -1,10 +1,13 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Hashable, Tuple
+from typing import TYPE_CHECKING, Hashable, List, Tuple
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, sqlite
+
+if TYPE_CHECKING:
+    from prefect.orion.database.interface import OrionDBInterface
 
 
 class BaseQueryComponents(ABC):
@@ -66,6 +69,12 @@ class BaseQueryComponents(ABC):
         insert_flow_run_states,
     ):
         ...
+
+    @abstractmethod
+    async def get_flow_run_notifications_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ):
+        """Database-specific implementation of reading notifications from the queue and deleting them"""
 
 
 class AsyncPostgresQueryComponents(BaseQueryComponents):
@@ -139,6 +148,75 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    async def get_flow_run_notifications_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ) -> List:
+
+        queued_notifications = (
+            sa.delete(db.FlowRunNotificationQueue)
+            .returning(
+                db.FlowRunNotificationQueue.id,
+                db.FlowRunNotificationQueue.flow_run_notification_policy_id,
+                db.FlowRunNotificationQueue.flow_run_state_id,
+            )
+            .where(
+                db.FlowRunNotificationQueue.id.in_(
+                    sa.select(db.FlowRunNotificationQueue.id)
+                    .select_from(db.FlowRunNotificationQueue)
+                    .order_by(db.FlowRunNotificationQueue.updated)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .cte("queued_notifications")
+        )
+
+        notification_details_stmt = (
+            sa.select(
+                queued_notifications.c.id.label("queue_id"),
+                db.FlowRunNotificationPolicy.id.label(
+                    "flow_run_notification_policy_id"
+                ),
+                db.FlowRunNotificationPolicy.name.label(
+                    "flow_run_notification_policy_name"
+                ),
+                db.FlowRunNotificationPolicy.message_template.label(
+                    "flow_run_notification_policy_message_template"
+                ),
+                db.FlowRunNotificationPolicy.block_document_id,
+                db.Flow.id.label("flow_id"),
+                db.Flow.name.label("flow_name"),
+                db.FlowRun.id.label("flow_run_id"),
+                db.FlowRun.name.label("flow_run_name"),
+                db.FlowRun.parameters.label("flow_run_parameters"),
+                db.FlowRunState.type.label("flow_run_state_type"),
+                db.FlowRunState.name.label("flow_run_state_name"),
+                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                db.FlowRunState.message.label("flow_run_state_message"),
+            )
+            .select_from(queued_notifications)
+            .join(
+                db.FlowRunNotificationPolicy,
+                queued_notifications.c.flow_run_notification_policy_id
+                == db.FlowRunNotificationPolicy.id,
+            )
+            .join(
+                db.FlowRunState,
+                queued_notifications.c.flow_run_state_id == db.FlowRunState.id,
+            )
+            .join(
+                db.FlowRun,
+                db.FlowRunState.flow_run_id == db.FlowRun.id,
+            )
+            .join(
+                db.Flow,
+                db.FlowRun.flow_id == db.Flow.id,
+            )
+        )
+
+        result = await session.execute(notification_details_stmt)
+        return result.fetchall()
 
 
 class AioSqliteQueryComponents(BaseQueryComponents):
@@ -243,3 +321,74 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    async def get_flow_run_notifications_from_queue(
+        self, session: sa.orm.Session, db: "OrionDBInterface", limit: int
+    ) -> List:
+        """
+        Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
+        so instead we issue two queries; one to get queued notifications and a second to delete
+        them. This *could* introduce race conditions if multiple queue workers are
+        running.
+        """
+
+        notification_details_stmt = (
+            sa.select(
+                db.FlowRunNotificationQueue.id.label("queue_id"),
+                db.FlowRunNotificationPolicy.id.label(
+                    "flow_run_notification_policy_id"
+                ),
+                db.FlowRunNotificationPolicy.name.label(
+                    "flow_run_notification_policy_name"
+                ),
+                db.FlowRunNotificationPolicy.message_template.label(
+                    "flow_run_notification_policy_message_template"
+                ),
+                db.FlowRunNotificationPolicy.block_document_id,
+                db.Flow.id.label("flow_id"),
+                db.Flow.name.label("flow_name"),
+                db.FlowRun.id.label("flow_run_id"),
+                db.FlowRun.name.label("flow_run_name"),
+                db.FlowRun.parameters.label("flow_run_parameters"),
+                db.FlowRunState.type.label("flow_run_state_type"),
+                db.FlowRunState.name.label("flow_run_state_name"),
+                db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
+                db.FlowRunState.message.label("flow_run_state_message"),
+            )
+            .select_from(db.FlowRunNotificationQueue)
+            .join(
+                db.FlowRunNotificationPolicy,
+                db.FlowRunNotificationQueue.flow_run_notification_policy_id
+                == db.FlowRunNotificationPolicy.id,
+            )
+            .join(
+                db.FlowRunState,
+                db.FlowRunNotificationQueue.flow_run_state_id == db.FlowRunState.id,
+            )
+            .join(
+                db.FlowRun,
+                db.FlowRunState.flow_run_id == db.FlowRun.id,
+            )
+            .join(
+                db.Flow,
+                db.FlowRun.flow_id == db.Flow.id,
+            )
+            .order_by(db.FlowRunNotificationQueue.updated)
+            .limit(limit)
+        )
+
+        result = await session.execute(notification_details_stmt)
+        notifications = result.fetchall()
+
+        # delete the notifications
+        delete_stmt = (
+            sa.delete(db.FlowRunNotificationQueue)
+            .where(
+                db.FlowRunNotificationQueue.id.in_([n.queue_id for n in notifications])
+            )
+            .execution_options(synchronize_session="fetch")
+        )
+
+        await session.execute(delete_stmt)
+
+        return notifications

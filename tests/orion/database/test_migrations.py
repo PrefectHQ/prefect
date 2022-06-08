@@ -27,8 +27,7 @@ async def sample_db_data(
     task_run,
     task_run_state,
     deployment,
-    block,
-    block_spec,
+    block_document,
 ):
     """Adds sample data to the database for testing migrations"""
 

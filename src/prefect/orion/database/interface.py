@@ -1,5 +1,7 @@
 import datetime
 
+import sqlalchemy as sa
+
 from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.orm_models import BaseORMConfiguration
@@ -147,14 +149,39 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.Agent
 
     @property
-    def BlockSpec(self):
-        """A block spec model"""
-        return self.orm.BlockSpec
+    def BlockType(self):
+        """A block type model"""
+        return self.orm.BlockType
 
     @property
-    def Block(self):
-        """A block model"""
-        return self.orm.Block
+    def BlockSchema(self):
+        """A block schema model"""
+        return self.orm.BlockSchema
+
+    @property
+    def BlockSchemaReference(self):
+        """A block schema reference model"""
+        return self.orm.BlockSchemaReference
+
+    @property
+    def BlockDocument(self):
+        """A block document model"""
+        return self.orm.BlockDocument
+
+    @property
+    def BlockDocumentReference(self):
+        """A block document reference model"""
+        return self.orm.BlockDocumentReference
+
+    @property
+    def FlowRunNotificationPolicy(self):
+        """A flow run notification policy model"""
+        return self.orm.FlowRunNotificationPolicy
+
+    @property
+    def FlowRunNotificationQueue(self):
+        """A flow run notification queue model"""
+        return self.orm.FlowRunNotificationQueue
 
     @property
     def Configuration(self):
@@ -177,9 +204,14 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.flow_run_unique_upsert_columns
 
     @property
-    def block_spec_unique_upsert_columns(self):
-        """Unique columns for upserting a BlockSpec"""
-        return self.orm.block_spec_unique_upsert_columns
+    def block_type_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockType"""
+        return self.orm.block_type_unique_upsert_columns
+
+    @property
+    def block_schema_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockSchema"""
+        return self.orm.block_schema_unique_upsert_columns
 
     @property
     def flow_unique_upsert_columns(self):
@@ -235,3 +267,10 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def json_arr_agg(self, json_array):
         return self.queries.json_arr_agg(json_array)
+
+    async def get_flow_run_notifications_from_queue(
+        self, session: sa.orm.Session, limit: int
+    ):
+        return await self.queries.get_flow_run_notifications_from_queue(
+            session=session, db=self, limit=limit
+        )

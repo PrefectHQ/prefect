@@ -31,7 +31,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.3.1"
+ORION_API_VERSION = "0.5.0"
 
 logger = get_logger("orion")
 
@@ -44,13 +44,15 @@ API_ROUTERS = (
     api.task_runs.router,
     api.flow_run_states.router,
     api.task_run_states.router,
+    api.flow_run_notification_policies.router,
     api.deployments.router,
     api.saved_searches.router,
     api.logs.router,
     api.concurrency_limits.router,
-    api.blocks.router,
+    api.block_types.router,
+    api.block_documents.router,
     api.work_queues.router,
-    api.block_specs.router,
+    api.block_schemas.router,
     api.ui.flow_runs.router,
     api.admin.router,
     api.root.router,
@@ -262,11 +264,13 @@ def create_app(
             db = provide_database_interface()
             await db.create_db()
 
-    async def add_block_specifications():
+    async def add_block_types():
         """Add all registered blocks to the database"""
         from prefect.blocks.core import BLOCK_REGISTRY
         from prefect.orion.database.dependencies import provide_database_interface
-        from prefect.orion.models.block_specs import create_block_spec
+        from prefect.orion.models.block_schemas import create_block_schema
+        from prefect.orion.models.block_types import create_block_type
+        from prefect.orion.schemas.actions import BlockTypeCreate
 
         db = provide_database_interface()
 
@@ -274,13 +278,24 @@ def create_app(
 
         session = await db.session()
         async with session:
-            for block_spec in BLOCK_REGISTRY.values():
-                # each block spec gets its own transaction
+            for block_class in BLOCK_REGISTRY.values():
+                # each block schema gets its own transaction
                 async with session.begin():
                     try:
-                        await create_block_spec(
+                        block_type = await create_block_type(
                             session=session,
-                            block_spec=block_spec.to_api_block_spec(),
+                            block_type=BlockTypeCreate(
+                                name=block_class._block_type_name
+                                or block_class.__name__,
+                                logo_url=block_class._logo_url,
+                                documentation_url=block_class._documentation_url,
+                            ),
+                            override=should_override,
+                        )
+                        block_class._block_type_id = block_type.id
+                        await create_block_schema(
+                            session=session,
+                            block_schema=block_class._to_block_schema(),
                             override=should_override,
                         )
                     except sa.exc.IntegrityError:
@@ -303,6 +318,13 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
+
+        if (
+            prefect.settings.PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value()
+        ):
+            service_instances.append(
+                services.flow_run_notifications.FlowRunNotifications()
+            )
 
         loop = asyncio.get_running_loop()
 
@@ -343,7 +365,7 @@ def create_app(
         version=API_VERSION,
         on_startup=[
             run_migrations,
-            add_block_specifications,
+            add_block_types,
             start_services,
         ],
         on_shutdown=[stop_services],

@@ -1,8 +1,8 @@
 """
 Reduced schemas for accepting API actions.
 """
-
-from typing import Optional
+from typing import List, Optional
+from uuid import UUID
 
 import coolname
 from pydantic import Field
@@ -47,7 +47,7 @@ class DeploymentCreate(
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
         name="FlowRunUpdate",
-        include_fields=["flow_version", "parameters", "name", "flow_runner"],
+        include_fields=["flow_version", "parameters", "name", "flow_runner", "tags"],
     )
 ):
     """Data used by the Orion API to update a flow run."""
@@ -151,29 +151,58 @@ class ConcurrencyLimitCreate(
     """Data used by the Orion API to create a concurrency limit."""
 
 
-class BlockSpecCreate(
-    schemas.core.BlockSpec.subclass(
-        name="BlockSpecCreate",
-        include_fields=["name", "version", "type", "fields"],
+class BlockTypeCreate(
+    schemas.core.BlockType.subclass(
+        name="BlockTypeCreate", include_fields=["name", "logo_url", "documentation_url"]
     )
 ):
-    """Data used by the Orion API to create a block spec."""
+    """Data used by the Orion API to create a block type."""
 
 
-class BlockCreate(
-    schemas.core.Block.subclass(
-        name="BlockCreate",
-        include_fields=["name", "data", "block_spec_id"],
+class BlockTypeUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a block type."""
+
+    logo_url: Optional[str]
+    documentation_url: Optional[str]
+
+
+class BlockSchemaCreate(
+    schemas.core.BlockSchema.subclass(
+        name="BlockSchemaCreate",
+        include_fields=["fields", "capabilities", "block_type_id"],
     )
 ):
-    """Data used by the Orion API to create a block."""
+    """Data used by the Orion API to create a block schema."""
 
 
-class BlockUpdate(PrefectBaseModel):
-    """Data used by the Orion API to update a block."""
+class BlockDocumentCreate(
+    schemas.core.BlockDocument.subclass(
+        name="BlockDocumentCreate",
+        include_fields=["name", "data", "block_schema_id", "block_type_id"],
+    )
+):
+    """Data used by the Orion API to create a block document."""
 
-    name: Optional[str]
-    data: Optional[dict]
+
+class BlockDocumentUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a block document."""
+
+    name: Optional[str] = None
+    data: Optional[dict] = None
+
+
+class BlockDocumentReferenceCreate(
+    schemas.core.BlockDocumentReference.subclass(
+        name="BlockDocumentReferenceCreate",
+        include_fields=[
+            "id",
+            "name",
+            "parent_block_document_id",
+            "reference_block_document_id",
+        ],
+    )
+):
+    """Data used to create block document reference."""
 
 
 class LogCreate(
@@ -222,3 +251,35 @@ class WorkQueueUpdate(
     """Data used by the Orion API to update a work queue."""
 
     name: Optional[str] = Field(None, description="The name of the work queue.")
+
+
+class FlowRunNotificationPolicyCreate(
+    schemas.core.FlowRunNotificationPolicy.subclass(
+        "FlowRunNotificationPolicyCreate",
+        include_fields=[
+            "name",
+            "is_active",
+            "state_names",
+            "tags",
+            "block_document_id",
+        ],
+    )
+):
+    """Data used by the Orion API to create a flow run notification policy."""
+
+
+class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
+    """Data used by the Orion API to update a flow run notification policy."""
+
+    name: str = Field(None, description="A name for the notification policy")
+    is_active: bool = Field(None, description="Whether the policy is currently active")
+    state_names: List[str] = Field(
+        None, description="The flow run states that trigger notifications"
+    )
+    tags: List[str] = Field(
+        None,
+        description="The flow run tags that trigger notifications (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        None, description="The block document ID used for sending notifications"
+    )

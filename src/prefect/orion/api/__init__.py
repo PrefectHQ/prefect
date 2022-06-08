@@ -1,9 +1,11 @@
 from . import (
     admin,
+    block_documents,
     flows,
     run_history,
     flow_runs,
     task_runs,
+    flow_run_notification_policies,
     flow_run_states,
     task_run_states,
     deployments,
@@ -11,9 +13,9 @@ from . import (
     dependencies,
     logs,
     concurrency_limits,
-    blocks,
     work_queues,
-    block_specs,
+    block_schemas,
+    block_types,
     ui,
     root,
     # Server relies on all of the above routes
