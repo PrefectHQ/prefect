@@ -828,17 +828,18 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
+        if terminal_state.data is not None:
+            terminal_backend_state_data = await client.persist_data(
+                terminal_state.data.json().encode(),
+                block=task_run_context.result_storage,
+            )
+        else:
+            terminal_backend_state_data = None
+
         state = await client.propose_state(
             terminal_state,
             task_run_id=task_run.id,
-            backend_state_data=(
-                await client.persist_data(
-                    terminal_state.data.json().encode(),
-                    block=task_run_context.result_storage,
-                )
-                if state.data is not None
-                else None
-            ),
+            backend_state_data=terminal_backend_state_data,
         )
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
