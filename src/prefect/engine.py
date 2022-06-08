@@ -503,6 +503,12 @@ async def orchestrate_flow_run(
 
         state = await return_value_to_state(result, serializer="cloudpickle")
 
+    # Before setting the flow run state, store state.data using
+    # block storage and send the resulting data document to the Orion API instead.
+    # This prevents the pickled return value of flow runs
+    # from being sent to the Orion API and stored in the Orion database.
+    # state.data is left as is, otherwise we would have to load
+    # the data from block storage again after storing.
     state = await client.propose_state(
         state=state,
         flow_run_id=flow_run.id,
@@ -836,6 +842,12 @@ async def orchestrate_task_run(
         else:
             terminal_backend_state_data = None
 
+        # Before setting the terminal task run state, store state.data using
+        # block storage and send the resulting data document to the Orion API instead.
+        # This prevents the pickled return value of flow runs
+        # from being sent to the Orion API and stored in the Orion database.
+        # terminal_state.data is left as is, otherwise we would have to load
+        # the data from block storage again after storing.
         state = await client.propose_state(
             terminal_state,
             task_run_id=task_run.id,
