@@ -517,6 +517,8 @@ async def orchestrate_flow_run(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
             if state.data is not None and flow_run_context
+            # if None is passed, state.data will be sent
+            # to the Orion API and stored in the database
             else None
         ),
     )
@@ -834,14 +836,6 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        if terminal_state.data is not None:
-            terminal_backend_state_data = await client.persist_data(
-                terminal_state.data.json().encode(),
-                block=task_run_context.result_storage,
-            )
-        else:
-            terminal_backend_state_data = None
-
         # Before setting the terminal task run state, store state.data using
         # block storage and send the resulting data document to the Orion API instead.
         # This prevents the pickled return value of flow runs
@@ -851,7 +845,16 @@ async def orchestrate_task_run(
         state = await client.propose_state(
             terminal_state,
             task_run_id=task_run.id,
-            backend_state_data=terminal_backend_state_data,
+            backend_state_data=(
+                await client.persist_data(
+                    terminal_state.data.json().encode(),
+                    block=task_run_context.result_storage,
+                )
+                if terminal_state.data is not None
+                # if None is passed, terminal_state.data will be sent
+                # to the Orion API and stored in the database
+                else None
+            ),
         )
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
