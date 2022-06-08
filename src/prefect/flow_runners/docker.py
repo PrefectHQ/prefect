@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 import urllib.parse
@@ -137,13 +138,13 @@ class DockerFlowRunner(UniversalFlowRunner):
                 "Provide `PREFECT_API_URL` to connect to an Orion server."
             )
 
-    def _create_and_start_container(self, flow_run: FlowRun) -> str:
-
-        docker_client = self._get_client()
-
+    def _build_container_settings(
+        self,
+        flow_run: FlowRun,
+        docker_client: "DockerClient",
+    ) -> Dict:
         network_mode = self._get_network_mode()
-
-        container_settings = dict(
+        return dict(
             image=self.image,
             network=self.networks[0] if self.networks else None,
             network_mode=network_mode,
@@ -155,6 +156,19 @@ class DockerFlowRunner(UniversalFlowRunner):
             name=self._get_container_name(flow_run),
             volumes=self.volumes,
         )
+
+    async def preview(self, flow_run: FlowRun) -> str:
+        # TODO: build and document a more sophisticated preview
+        docker_client = self._get_client()
+        try:
+            return json.dumps(self._build_container_settings(flow_run, docker_client))
+        finally:
+            docker_client.close()
+
+    def _create_and_start_container(self, flow_run: FlowRun) -> str:
+        docker_client = self._get_client()
+
+        container_settings = self._build_container_settings(flow_run, docker_client)
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
         )
