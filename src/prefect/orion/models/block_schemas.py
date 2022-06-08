@@ -673,7 +673,9 @@ async def read_available_block_capabilities(
         (await session.execute(sa.select(db.BlockSchema.capabilities))).scalars().all()
     )
 
-    unique_capabilities = {c for capabilities in capabilites_by_schema for c in capabilities}
+    unique_capabilities = {
+        c for capabilities in capabilites_by_schema for c in capabilities
+    }
 
     return list(unique_capabilities)
 
