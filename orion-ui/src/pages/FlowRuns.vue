@@ -25,7 +25,7 @@
     </div>
 
     <template v-if="media.md">
-      <FlowRunsScatterPlot :history="flowRunHistory" style="height: 275px" />
+      <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" style="height: 275px" />
     </template>
 
     <div class="flow-runs__list">
