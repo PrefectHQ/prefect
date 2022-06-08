@@ -60,6 +60,8 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         restart_policy: The Kubernetes restart policy to use for jobs.
         job: The base manifest for the Kubernetes Job.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
+        job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
         stream_output: If set, stream output from the container to local standard output.
     """
 
@@ -81,6 +83,9 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     )
     customizations: JsonPatch = Field(default_factory=lambda: JsonPatch([]))
 
+    # controls the behavior of the FlowRunner
+    job_watch_timeout_seconds: int = 5
+    pod_watch_timeout_seconds: int = 5
     stream_output: bool = True
 
     _client: "CoreV1Api" = PrivateAttr(None)
@@ -235,7 +240,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 func=client.list_namespaced_pod,
                 namespace=self.namespace,
                 label_selector=f"job-name={job_name}",
-                timeout_seconds=5,  # TODO: Make configurable?
+                timeout_seconds=self.pod_watch_timeout_seconds,
             ):
                 if event["object"].status.phase == "Running":
                     watch.stop()
@@ -274,7 +279,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
                 func=batch_client.list_namespaced_job,
                 field_selector=f"metadata.name={job_name}",
                 namespace=self.namespace,
-                timeout_seconds=5,  # TODO: Make configurable?
+                timeout_seconds=self.job_watch_timeout_seconds,
             ):
                 if event["object"].status.completion_time:
                     watch.stop()
