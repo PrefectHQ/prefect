@@ -314,6 +314,21 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         return job_manifest
 
+    async def preview(self, flow_run: FlowRun) -> str:
+        """
+        Produce a textual preview of the given FlowRun.
+
+        For the KubernetesFlowRunner, this produces a serialized YAML representation
+        of the Job that would be sent to Kubernetes.
+
+        Args:
+            flow_run: The flow run
+
+        Returns:
+            A YAML string
+        """
+        return yaml.dump(self.build_job(flow_run))
+
     def _slugify_flow_run_name(self, flow_run: FlowRun) -> str:
         """
         Slugify a flow run name for use as a Kubernetes label or name.
