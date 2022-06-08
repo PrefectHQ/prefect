@@ -674,7 +674,7 @@ async def read_available_block_capabilities(
     )
 
     unique_capabilities = {
-        c for capabilities in capabilites_by_schema for c in capabilities
+        c for capabilities in capabilities_by_schema for c in capabilities
     }
 
     return list(unique_capabilities)
