@@ -82,6 +82,7 @@ async def data(database_engine, flow_function, db):
         fr_1_1 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
+                name="happy-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
                 deployment_id=d_1_1.id,
@@ -91,6 +92,7 @@ async def data(database_engine, flow_function, db):
         fr_1_2 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
+                name="sad-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
             )
@@ -98,6 +100,7 @@ async def data(database_engine, flow_function, db):
         fr_1_3 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
+                name="happy-mallard",
                 tags=["db", "red"],
                 state=states.Failed(),
                 deployment_id=d_1_1.id,
@@ -112,7 +115,9 @@ async def data(database_engine, flow_function, db):
         )
         fr_1_5 = await create_flow_run(
             flow_run=core.FlowRun(
-                flow_id=f_1.id, state=states.Running(), deployment_id=d_1_2.id
+                flow_id=f_1.id,
+                state=states.Running(),
+                deployment_id=d_1_2.id,
             )
         )
 
@@ -121,6 +126,7 @@ async def data(database_engine, flow_function, db):
         fr_2_1 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_2.id,
+                name="another-happy-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
             )
@@ -129,6 +135,7 @@ async def data(database_engine, flow_function, db):
         fr_2_2 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_2.id,
+                name="another-sad-duck",
                 tags=["red"],
                 state=states.Running(),
             )
@@ -165,6 +172,7 @@ async def data(database_engine, flow_function, db):
         await create_task_run(
             task_run=core.TaskRun(
                 flow_run_id=fr_1_1.id,
+                name="task-run-1",
                 task_key="a",
                 state=states.Running(),
                 dynamic_key="0",
@@ -173,6 +181,7 @@ async def data(database_engine, flow_function, db):
         await create_task_run(
             task_run=core.TaskRun(
                 flow_run_id=fr_1_1.id,
+                name="task-run-2",
                 task_key="b",
                 state=states.Completed(),
                 dynamic_key="0",
@@ -180,6 +189,7 @@ async def data(database_engine, flow_function, db):
         )
         await create_task_run(
             task_run=core.TaskRun(
+                name="task-run-2a",
                 flow_run_id=fr_1_1.id,
                 task_key="c",
                 state=states.Completed(),
@@ -263,6 +273,8 @@ class TestCountFlowsModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 1],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="f"))), 4],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="1"))), 1],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 1],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
@@ -272,7 +284,19 @@ class TestCountFlowsModels:
             2,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 3],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            2,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+            ),
+            1,
+        ],
+        [dict(task_run_filter=filters.TaskRunFilter(name=dict(like_="2a"))), 1],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 1],
+        [dict(deployment_filter=filters.DeploymentFilter(name=dict(like_="d-1"))), 1],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -399,6 +423,7 @@ class TestCountFlowRunModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 8],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 5],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 5],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="f-"))), 12],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 8],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 5],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
@@ -408,7 +433,19 @@ class TestCountFlowRunModels:
             3,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            3,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+            ),
+            1,
+        ],
+        [dict(task_run_filter=filters.TaskRunFilter(name=dict(like_="2a"))), 1],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(name=dict(like_="d_1"))), 3],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -578,6 +615,10 @@ class TestCountTaskRunsModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 6],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 3],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 3],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="f-"))), 10],
+        [dict(task_run_filter=filters.TaskRunFilter(name=dict(like_="task-run"))), 3],
+        [dict(task_run_filter=filters.TaskRunFilter(name=dict(like_="run-2"))), 2],
+        [dict(task_run_filter=filters.TaskRunFilter(name=dict(like_="2a"))), 1],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 6],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 3],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
@@ -586,7 +627,18 @@ class TestCountTaskRunsModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             3,
         ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            3,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+            ),
+            0,
+        ],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
+        [dict(deployment_filter=filters.DeploymentFilter(name=dict(like_="d_1"))), 3],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
         [
             dict(
@@ -737,6 +789,14 @@ class TestCountDeploymentModels:
             1,
         ],
         [
+            dict(deployment_filter=filters.DeploymentFilter(name=dict(like_="d-"))),
+            3,
+        ],
+        [
+            dict(deployment_filter=filters.DeploymentFilter(name=dict(like_="-1-2"))),
+            1,
+        ],
+        [
             dict(
                 deployment_filter=filters.DeploymentFilter(
                     name=dict(any_=["d-1-1", "d-1-2"])
@@ -769,8 +829,12 @@ class TestCountDeploymentModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 2],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-3"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="f-"))), 3],
+        [dict(flow_filter=filters.FlowFilter(name=dict(like_="f-2"))), 0],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))), 1],
+        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="nothing!"))), 0],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(

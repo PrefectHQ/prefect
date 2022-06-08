@@ -122,6 +122,24 @@ class TestAPICompatibility:
             "required": ["x"],
         }
 
+    def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
+        class A(Block):
+            "This is A block"
+            x: str = Field(..., description="This is x field")
+            y: str
+            z: str
+
+        class B(Block):
+            "This is B block"
+            x: str
+            y: str
+            z: str
+
+        # Rename so that two classes have same name
+        B.__name__ = "A"
+
+        assert A._calculate_schema_checksum() == B._calculate_schema_checksum()
+
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
             self.MyRegisteredBlock(x="x")._to_block_document()
@@ -210,51 +228,6 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
-
-    def test_create_block_schema_from_nested_blocks(self):
-
-        block_schema_id = uuid4()
-        block_type_id = uuid4()
-
-        class NestedBlock(Block):
-            _block_type_name = "Nested Block"
-
-            _block_schema_id = block_schema_id
-            _block_type_id = block_type_id
-            x: str
-
-        class ParentBlock(Block):
-            y: str
-            z: NestedBlock
-
-        block_schema = ParentBlock._to_block_schema(block_type_id=block_type_id)
-
-        assert block_schema.fields == {
-            "title": "ParentBlock",
-            "type": "object",
-            "properties": {
-                "y": {"title": "Y", "type": "string"},
-                "z": {"$ref": "#/definitions/NestedBlock"},
-            },
-            "required": ["y", "z"],
-            "block_type_name": "ParentBlock",
-            "block_schema_references": {
-                "z": {
-                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
-                    "block_type_name": "Nested Block",
-                }
-            },
-            "definitions": {
-                "NestedBlock": {
-                    "block_schema_references": {},
-                    "block_type_name": "Nested Block",
-                    "properties": {"x": {"title": "X", "type": "string"}},
-                    "required": ["x"],
-                    "title": "NestedBlock",
-                    "type": "object",
-                },
-            },
-        }
 
     def test_create_block_schema_from_nested_blocks(self):
 
@@ -431,7 +404,7 @@ class TestRegisterBlock:
         c: int
 
     async def test_register_block(self, orion_client: OrionClient):
-        await self.NewBlock.register()
+        await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
@@ -447,8 +420,8 @@ class TestRegisterBlock:
         assert isinstance(self.NewBlock._block_schema_id, UUID)
 
     async def test_register_idempotent(self, orion_client: OrionClient):
-        await self.NewBlock.register()
-        await self.NewBlock.register()
+        await self.NewBlock.register_type_and_schema()
+        await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
@@ -469,13 +442,13 @@ class TestRegisterBlock:
             y: str
             z: int
 
-        await ImpostorBlock.register()
+        await ImpostorBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
         assert block_type is not None
         assert block_type.name == "NewBlock"
 
-        await self.NewBlock.register()
+        await self.NewBlock.register_type_and_schema()
 
         block_schema = await orion_client.read_block_schema_by_checksum(
             checksum=self.NewBlock._calculate_schema_checksum()
@@ -497,7 +470,7 @@ class TestRegisterBlock:
             size: int
             contents: Bigger
 
-        await Biggest.register()
+        await Biggest.register_type_and_schema()
 
         big_block_type = await orion_client.read_block_type_by_name(name="Big")
         assert big_block_type is not None
@@ -533,7 +506,7 @@ class TestRegisterBlock:
         class Umbrella(Block):
             a_b_or_c: Union[A, B, C]
 
-        await Umbrella.register()
+        await Umbrella.register_type_and_schema()
 
         a_block_type = await orion_client.read_block_type_by_name(name="A")
         assert a_block_type is not None
@@ -562,6 +535,14 @@ class TestRegisterBlock:
             checksum=Umbrella._calculate_schema_checksum()
         )
         assert umbrella_block_schema is not None
+
+    async def test_register_raises_block_base_class(self):
+        with pytest.raises(
+            ValueError,
+            match="`register_type_and_schema` should be called on a Block "
+            "class and not on the Block class directly.",
+        ):
+            await Block.register_type_and_schema()
 
 
 class TestSaveBlock:
