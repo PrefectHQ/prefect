@@ -677,8 +677,6 @@ async def read_available_block_capabilities(
     for capabilities_set in list_of_capabilities:
         unique_capabilities.update(capabilities_set)
 
-    print(list_of_capabilities)
-
     return list(unique_capabilities)
 
 
