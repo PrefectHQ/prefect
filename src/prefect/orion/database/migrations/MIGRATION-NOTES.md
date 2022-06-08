@@ -7,6 +7,12 @@ Each time a database migration is written, an entry is included here with:
 - Revision numbers for sqlite/postgres
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
+
+## Add indexes for partial matches on names
+
+SQLite: `f65b6ad0b869`
+Postgres: `77ebcc9cf355`
+
 ## Rename Flow Run Alerts to Notifications
 
 SQLite: `d76326ed0d06`

@@ -10,7 +10,7 @@ from prefect.orion import models, schemas
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
 from prefect.utilities.hashing import hash_objects
 
-EMPTY_OBJECT_CHECKSUM = f"sha256:{hash_objects({}, hash_algo=hashlib.sha256)}"
+EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 
 class TestCreateBlockSchema:
