@@ -74,24 +74,28 @@ class PickleSerializer:
 class BlockStorageSerializer:
     @staticmethod
     def dumps(block_document: dict) -> bytes:
-        if block_document["block_id"]:
-            block_id = str(block_document["block_id"])
-        else:
-            block_id = None
+        # Handling for block_id is to account for deployments created pre-2.0b6
+        block_document_id = block_document.get(
+            "block_document_id"
+        ) or block_document.get("block_id")
+        if block_document_id is not None:
+            block_document_id = str(block_document_id)
         block_document = {
             "data": json.dumps(block_document["data"]),
-            "block_id": block_id,
+            "block_document_id": block_document_id,
         }
         return json.dumps(block_document).encode()
 
     @staticmethod
     def loads(blob: bytes) -> dict:
         block_document = json.loads(blob.decode())
-        if block_document["block_id"]:
-            block_id = UUID(block_document["block_id"])
-        else:
-            block_id = None
+        # Handling for block_id is to account for deployments created pre-2.0b6
+        block_document_id = block_document.get(
+            "block_document_id"
+        ) or block_document.get("block_id")
+        if block_document_id is not None:
+            block_document_id = UUID(block_document_id)
         return {
             "data": json.loads(block_document["data"]),
-            "block_id": block_id,
+            "block_document_id": block_document_id,
         }

@@ -16,6 +16,7 @@ $ python -m asyncio
 </div>
 """
 
+import copy
 import datetime
 import sys
 import threading
@@ -31,6 +32,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 from uuid import UUID
@@ -40,19 +42,32 @@ import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
-from httpx import Response
+from httpx import HTTPStatusError, Response
+from typing_extensions import Self
 
 import prefect
 import prefect.exceptions
 import prefect.orion.schemas as schemas
 import prefect.settings
-from prefect.blocks.core import Block, create_block_from_api_block
+from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
-from prefect.orion.schemas.core import QueueFilter, TaskRun
+from prefect.orion.schemas.actions import (
+    BlockDocumentUpdate,
+    LogCreate,
+    WorkQueueCreate,
+    WorkQueueUpdate,
+)
+from prefect.orion.schemas.core import (
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+    QueueFilter,
+    TaskRun,
+)
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.states import Scheduled
@@ -194,6 +209,39 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                     await context.__aexit__(*exc_info)
 
 
+class PrefectResponse(httpx.Response):
+    """
+    A Prefect wrapper for the `httpx.Response` class.
+
+    Provides more informative error messages.
+    """
+
+    def raise_for_status(self) -> None:
+        """
+        Raise an exception if the response contains an HTTPStatusError.
+
+        The `PrefectHTTPStatusError` contains useful additional information that
+        is not contained in the `HTTPStatusError`.
+        """
+        try:
+            return super().raise_for_status()
+        except HTTPStatusError as exc:
+            raise PrefectHTTPStatusError.from_httpx_error(exc) from exc.__cause__
+
+    @classmethod
+    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Self:
+        """
+        Create a `PrefectReponse` from an `httpx.Response`.
+
+        By changing the `__class__` attribute of the Response, we change the method
+        resolution order to look for methods defined in PrefectResponse, while leaving
+        everything else about the original Response instance intact.
+        """
+        new_response = copy.copy(response)
+        new_response.__class__ = cls
+        return new_response
+
+
 class PrefectHttpxClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for CloudFlare-style
@@ -209,8 +257,9 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     async def send(self, *args, **kwargs) -> Response:
         retry_count = 0
-        response = await super().send(*args, **kwargs)
-
+        response = PrefectResponse.from_httpx_response(
+            await super().send(*args, **kwargs)
+        )
         while (
             response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
             and retry_count < self.RETRY_MAX
@@ -230,6 +279,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
         #       `OrionClient`
+
         response.raise_for_status()
 
         return response
@@ -578,6 +628,27 @@ class OrionClient:
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
 
+    async def delete_flow_run(
+        self,
+        flow_run_id: UUID,
+    ) -> None:
+        """
+        Delete a flow run by UUID.
+
+        Args:
+            flow_run_id: The flow run UUID of interest.
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If requests fails
+        """
+        try:
+            await self._client.delete(f"/flow_runs/{flow_run_id}"),
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def create_concurrency_limit(
         self,
         tag: str,
@@ -900,141 +971,188 @@ class OrionClient:
             else:
                 raise
 
-    async def create_block(
-        self,
-        block: prefect.blocks.core.Block,
-        block_spec_id: UUID = None,
-        name: str = None,
-    ) -> Optional[UUID]:
+    async def create_block_type(
+        self, block_type: schemas.actions.BlockTypeCreate
+    ) -> BlockType:
         """
-        Create a block in Orion. This data is used to configure a corresponding
-        Block.
+        Create a block type in Orion.
         """
-
-        api_block = block.to_api_block(name=name, block_spec_id=block_spec_id)
-
-        # Drop fields that are not compliant with `CreateBlock`
-        payload = api_block.dict(
-            json_compatible=True, exclude={"block_spec", "id"}, exclude_unset=True
-        )
-
         try:
             response = await self._client.post(
-                "/blocks/",
-                json=payload,
+                "/block_types/",
+                json=block_type.dict(
+                    json_compatible=True, exclude_unset=True, exclude={"id"}
+                ),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        return UUID(response.json().get("id"))
+        return BlockType.parse_obj(response.json())
 
-    async def read_block_spec_by_name(
-        self, name: str, version: str
-    ) -> schemas.core.BlockSpec:
+    async def create_block_schema(
+        self, block_schema: schemas.actions.BlockSchemaCreate
+    ) -> BlockSchema:
         """
-        Look up a block spec by name and version
+        Create a block schema in Orion.
         """
         try:
-            response = await self._client.get(f"block_specs/{name}/versions/{version}")
+            response = await self._client.post(
+                "/block_schemas/",
+                json=block_schema.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={"type", "block_type_id", "fields"},
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+        return BlockSchema.parse_obj(response.json())
+
+    async def create_block_document(
+        self,
+        block_document: schemas.actions.BlockDocumentCreate,
+    ) -> BlockDocument:
+        """
+        Create a block document in Orion. This data is used to configure a corresponding
+        Block.
+        """
+        try:
+            response = await self._client.post(
+                "/block_documents/",
+                json=block_document.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    exclude={"id", "block_schema", "block_type"},
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_409_CONFLICT:
+                raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+        return BlockDocument.parse_obj(response.json())
+
+    async def read_block_type_by_name(self, name: str) -> BlockType:
+        """
+        Read a block type by its name.
+        """
+        try:
+            response = await self._client.get(f"/block_types/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        return schemas.core.BlockSpec.parse_obj(response.json())
+        return BlockType.parse_obj(response.json())
 
-    async def read_block_specs(self, type: str) -> List[schemas.core.BlockSpec]:
+    async def read_block_schema_by_checksum(
+        self, checksum: str
+    ) -> schemas.core.BlockSchema:
         """
-        Read all block specs with the given type
+        Look up a block schema checksum
+        """
+        try:
+            response = await self._client.get(f"/block_schemas/checksum/{checksum}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return schemas.core.BlockSchema.parse_obj(response.json())
 
-        Args:
-            type: The name of the type of block spec
-
+    async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
+        """
+        Read all block schemas
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError
 
         Returns:
-            A hydrated block or None.
+            A BlockSchema.
         """
-        response = await self._client.post(
-            f"/block_specs/filter", json={"block_spec_type": type}
-        )
-        return pydantic.parse_obj_as(List[schemas.core.BlockSpec], response.json())
+        response = await self._client.post(f"/block_schemas/filter", json={})
+        return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
-    async def read_block(self, block_id: UUID):
+    async def read_block_document(self, block_document_id: UUID):
         """
-        Read the block with the specified name that corresponds to a
-        specific block spec name and version.
+        Read the block document with the specified ID.
 
         Args:
-            block_id (UUID): the block id
+            block_document_id: the block document id
 
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
-            A hydrated block or None.
+            A block document or None.
         """
-        response = await self._client.get(f"/blocks/{block_id}")
-        return create_block_from_api_block(response.json())
+        try:
+            response = await self._client.get(f"/block_documents/{block_document_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return BlockDocument.parse_obj(response.json())
 
-    async def read_block_by_name(
+    async def read_block_document_by_name(
         self,
         name: str,
-        block_spec_name: str,
-        block_spec_version: str,
+        block_type_name: str,
     ):
         """
-        Read the block with the specified name that corresponds to a
-        specific block spec name and version.
+        Read the block document with the specified name that corresponds to a
+        specific block type name.
 
         Args:
-            name (str): The block name.
-            block_spec_name (str): the block spec name
-            block_spec_version (str): the block spec version. If not provided,
-                the most recent matching version will be returned.
+            name: The block document name.
+            block_type_name: The block type name
 
         Raises:
-            httpx.RequestError: if the block was not found for any reason
+            httpx.RequestError: if the block document was not found for any reason
 
         Returns:
-            A hydrated block or None.
+            A block document or None.
         """
-        response = await self._client.get(
-            f"/block_specs/{block_spec_name}/versions/{block_spec_version}/block/{name}",
-        )
-        return create_block_from_api_block(response.json())
+        try:
+            response = await self._client.get(
+                f"/block_types/name/{block_type_name}/block_documents/name/{name}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return BlockDocument.parse_obj(response.json())
 
-    async def read_blocks(
+    async def read_block_documents(
         self,
-        block_spec_type: str = None,
-        offset: int = None,
-        limit: int = None,
-        as_json: bool = False,
-    ) -> List[Union[prefect.blocks.core.Block, Dict[str, Any]]]:
+        block_schema_type: Optional[str] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+    ):
         """
-        Read blocks
+        Read block documents
 
         Args:
-            block_spec_type (str): an optional block spec type
-            offset (int): an offset
-            limit (int): the number of blocks to return
-            as_json (bool): if False, fully hydrated Blocks are loaded. Otherwise,
+            block_schema_type: an optional block schema type
+            offset: an offset
+            limit: the number of blocks to return
+            as_json: if False, fully hydrated Blocks are loaded. Otherwise,
                 JSON is returned from the API.
 
         Returns:
-            A list of blocks
+            A list of block documents
         """
         response = await self._client.post(
-            f"/blocks/filter",
-            json=dict(block_spec_type=block_spec_type, offset=offset, limit=limit),
+            f"/block_documents/filter",
+            json=dict(block_schema_type=block_schema_type, offset=offset, limit=limit),
         )
-        json_result = response.json()
-        if as_json:
-            return json_result
-        return [create_block_from_api_block(b) for b in json_result]
+        return pydantic.parse_obj_as(List[BlockDocument], response.json())
 
     async def create_deployment(
         self,
@@ -1201,7 +1319,13 @@ class OrionClient:
         Returns:
             a [Flow Run model][prefect.orion.schemas.core.FlowRun] representation of the flow run
         """
-        response = await self._client.get(f"/flow_runs/{flow_run_id}")
+        try:
+            response = await self._client.get(f"/flow_runs/{flow_run_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
         return schemas.core.FlowRun.parse_obj(response.json())
 
     async def read_flow_runs(
@@ -1253,9 +1377,7 @@ class OrionClient:
         response = await self._client.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
-    async def get_default_storage_block(
-        self, as_json: bool = False
-    ) -> Optional[Union[Block, Dict[str, Any]]]:
+    async def get_default_storage_block_document(self) -> Optional[BlockDocument]:
         """Returns the default storage block
 
         Args:
@@ -1266,24 +1388,28 @@ class OrionClient:
         Returns:
             Optional[Block]:
         """
-        response = await self._client.post("/blocks/get_default_storage_block")
+        response = await self._client.post(
+            "/block_documents/get_default_storage_block_document"
+        )
         if not response.content:
             return None
-        if as_json:
-            return response.json()
-        return create_block_from_api_block(response.json())
+        return BlockDocument.parse_obj(response.json())
 
-    async def set_default_storage_block(self, block_id: UUID):
+    async def set_default_storage_block_document(self, block_document_id: UUID):
         try:
-            await self._client.post(f"/blocks/{block_id}/set_default_storage_block")
+            await self._client.post(
+                f"/block_documents/{block_document_id}/set_default_storage_block_document"
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
 
-    async def clear_default_storage_block(self):
-        await self._client.post(f"/blocks/clear_default_storage_block")
+    async def clear_default_storage_block_document(self):
+        await self._client.post(
+            f"/block_documents/clear_default_storage_block_document"
+        )
 
     async def persist_data(
         self, data: bytes, block: StorageBlock = None
@@ -1297,7 +1423,7 @@ class OrionClient:
         Returns:
             Orion data document pointing to persisted data.
         """
-        block = block or await self.get_default_storage_block()
+        block = block or await self.get_default_storage_block_document()
         if not block:
             raise ValueError(
                 "No storage block was provided and no default storage block is set "
@@ -1307,7 +1433,7 @@ class OrionClient:
         storage_token = await block.write(data)
         storage_datadoc = DataDocument.encode(
             encoding="blockstorage",
-            data={"data": storage_token, "block_id": block._block_id},
+            data={"data": storage_token, "block_document_id": block._block_document_id},
         )
         return storage_datadoc
 
@@ -1326,9 +1452,14 @@ class OrionClient:
         """
         block_document = data_document.decode()
         embedded_datadoc = block_document["data"]
-        block_id = block_document["block_id"]
-        if block_id is not None:
-            storage_block = await self.read_block(block_id)
+        # Handling for block_id is to account for deployments created pre-2.0b6
+        block_document_id = block_document.get(
+            "block_document_id"
+        ) or block_document.get("block_id")
+        if block_document_id is not None:
+            storage_block = Block._from_block_document(
+                await self.read_block_document(block_document_id)
+            )
         else:
             storage_block = TempStorageBlock()
         return await storage_block.read(embedded_datadoc)

@@ -1,7 +1,7 @@
 """Add block_spec_id to blocks
 
 Revision ID: c8ff35f94028
-Revises: e1ff4973a9eb
+Revises: f327e877e423
 Create Date: 2022-02-21 14:59:16.180033
 
 """

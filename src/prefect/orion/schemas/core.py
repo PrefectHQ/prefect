@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import coolname
-from pydantic import Field, validator
+from pydantic import Field, HttpUrl, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -16,6 +16,20 @@ from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
+
+FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
+    "flow_run_notification_policy_id",
+    "flow_run_notification_policy_name",
+    "flow_id",
+    "flow_name",
+    "flow_run_id",
+    "flow_run_name",
+    "flow_run_parameters",
+    "flow_run_state_type",
+    "flow_run_state_name",
+    "flow_run_state_timestamp",
+    "flow_run_state_message",
+]
 
 
 def raise_on_invalid_name(name: str) -> None:
@@ -118,6 +132,8 @@ class FlowRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current flow run state."
     )
+    state_name: str = Field(None, description="The name of the current flow run state.")
+
     run_count: int = Field(
         0, description="The number of times the flow run was executed."
     )
@@ -259,6 +275,7 @@ class TaskRun(ORMBaseModel):
     state_type: schemas.states.StateType = Field(
         None, description="The type of the current task run state."
     )
+    state_name: str = Field(None, description="The name of the current task run state.")
     run_count: int = Field(
         0, description="The number of times the task run has been executed."
     )
@@ -346,14 +363,15 @@ class ConcurrencyLimit(ORMBaseModel):
     )
 
 
-class BlockSpec(ORMBaseModel):
-    """An ORM representation of a block spec."""
+class BlockType(ORMBaseModel):
+    """An ORM representation of a block type"""
 
-    name: str = Field(..., description="The block spec's name")
-    version: str = Field(..., description="The block spec's version")
-    type: str = Field(None, description="The block spec's type")
-    fields: dict = Field(
-        default_factory=dict, description="The block spec's field schema"
+    name: str = Field(..., description="A block type's name")
+    logo_url: Optional[HttpUrl] = Field(
+        None, description="Web URL for the block type's logo"
+    )
+    documentation_url: Optional[HttpUrl] = Field(
+        None, description="Web URL for the block type's documentation"
     )
 
     @validator("name", check_fields=False)
@@ -361,23 +379,75 @@ class BlockSpec(ORMBaseModel):
         raise_on_invalid_name(v)
         return v
 
-    @validator("version", check_fields=False)
-    def validate_version_characters(cls, v):
-        if any(c in v for c in INVALID_CHARACTERS):
-            raise ValueError(
-                f"Version contains an invalid character {INVALID_CHARACTERS}."
-            )
-        return v
+
+class BlockSchema(ORMBaseModel):
+    """An ORM representation of a block schema."""
+
+    checksum: str = Field(..., description="The block schema's unique checksum")
+    fields: dict = Field(
+        default_factory=dict, description="The block schema's field schema"
+    )
+    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        None, description="The associated block type"
+    )
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="A list of Block capabilities",
+    )
 
 
-class Block(ORMBaseModel):
-    """An ORM representation of a block."""
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
 
-    name: str = Field(..., description="The block's name'")
-    data: dict = Field(default_factory=dict, description="The block's data")
-    block_spec_id: UUID = Field(..., description="A block spec ID")
-    block_spec: Optional[BlockSpec] = Field(
-        None, description="The associated block spec"
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
+
+
+class BlockSchemaReference(ORMBaseModel):
+    """An ORM representation of a block schema reference."""
+
+    parent_block_schema_id: UUID = Field(
+        ..., description="ID of block schema the reference is nested within"
+    )
+    parent_block_schema: Optional[BlockSchema] = Field(
+        None, description="The block schema the reference is nested within"
+    )
+    reference_block_schema_id: UUID = Field(
+        ..., description="ID of the nested block schema"
+    )
+    reference_block_schema: Optional[BlockSchema] = Field(
+        None, description="The nested block schema"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
+
+
+class BlockDocument(ORMBaseModel):
+    """An ORM representation of a block document."""
+
+    name: str = Field(..., description="The block document's name'")
+    data: dict = Field(default_factory=dict, description="The block document's data")
+    block_schema_id: UUID = Field(..., description="A block schema ID")
+    block_schema: Optional[BlockSchema] = Field(
+        None, description="The associated block schema"
+    )
+    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type: Optional[BlockType] = Field(
+        None, description="The associated block type"
+    )
+    block_document_references: Dict[str, Dict[str, UUID]] = Field(
+        default_factory=dict, description="Record of the block document's references"
     )
 
     @validator("name", check_fields=False)
@@ -389,15 +459,35 @@ class Block(ORMBaseModel):
     async def from_orm_model(
         cls,
         session,
-        orm_block: "prefect.orion.database.orm_models.ORMBlock",
+        orm_block_document: "prefect.orion.database.orm_models.ORMBlockDocument",
     ):
         return cls(
-            id=orm_block.id,
-            name=orm_block.name,
-            data=await orm_block.decrypt_data(session=session),
-            block_spec_id=orm_block.block_spec_id,
-            block_spec=orm_block.block_spec,
+            id=orm_block_document.id,
+            name=orm_block_document.name,
+            data=await orm_block_document.decrypt_data(session=session),
+            block_schema_id=orm_block_document.block_schema_id,
+            block_schema=orm_block_document.block_schema,
+            block_type_id=orm_block_document.block_type_id,
+            block_type=orm_block_document.block_type,
         )
+
+
+class BlockDocumentReference(ORMBaseModel):
+    """An ORM representation of a block document reference."""
+
+    parent_block_document_id: UUID = Field(
+        ..., description="ID of block document the reference is nested within"
+    )
+    parent_block_document: Optional[BlockDocument] = Field(
+        None, description="The block document the reference is nested within"
+    )
+    reference_block_document_id: UUID = Field(
+        ..., description="ID of the nested block document"
+    )
+    reference_block_document: Optional[BlockDocument] = Field(
+        None, description="The nested block document"
+    )
+    name: str = Field(..., description="The name that the reference is nested under")
 
 
 class Configuration(ORMBaseModel):
@@ -522,7 +612,7 @@ class QueueFilter(PrefectBaseModel):
 
 
 class WorkQueue(ORMBaseModel):
-    """An ORM representaiton of a work queue"""
+    """An ORM representation of a work queue"""
 
     filter: QueueFilter = Field(
         default_factory=QueueFilter, description="Filter criteria for the work queue."
@@ -542,6 +632,25 @@ class WorkQueue(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
         return v
+
+
+class FlowRunNotificationPolicy(ORMBaseModel):
+    """An ORM representation of a flow run notification."""
+
+    name: str = Field(..., description="A name for the notification policy")
+    is_active: bool = Field(True, description="Whether the policy is currently active")
+    state_names: List[str] = Field(
+        ..., description="The flow run states that trigger notifications"
+    )
+    tags: List[str] = Field(
+        ...,
+        description="The flow run tags that trigger notifications (set [] to disable)",
+    )
+    block_document_id: UUID = Field(
+        ..., description="The block document ID used for sending notifications"
+    )
+    # message_template: str = Field(None, description=f'A templatable notification message.
+    # Valid variables include: {FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS.join(",")}')
 
 
 class Agent(ORMBaseModel):

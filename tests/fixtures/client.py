@@ -1,6 +1,7 @@
 import pytest
 
 from prefect import flow
+from prefect.blocks.core import Block
 from prefect.client import get_client
 
 
@@ -28,3 +29,13 @@ def flow_function():
         return param
 
     return example_flow
+
+
+@pytest.fixture(scope="module")
+def test_block():
+    class x(Block):
+        _logo_url = "https://en.wiktionary.org/wiki/File:LetterX.svg"
+        _documentation_url = "https://en.wiktionary.org/wiki/X"
+        foo: str
+
+    return x
