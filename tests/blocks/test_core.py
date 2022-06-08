@@ -1,10 +1,11 @@
-from typing import Optional, Type
-from uuid import uuid4
+from typing import Dict, Optional, Type, Union
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import Field
 
 from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
+from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 
@@ -273,51 +274,6 @@ class TestAPICompatibility:
             },
         }
 
-    def test_create_block_schema_from_nested_blocks(self):
-
-        block_schema_id = uuid4()
-        block_type_id = uuid4()
-
-        class NestedBlock(Block):
-            _block_type_name = "Nested Block"
-
-            _block_schema_id = block_schema_id
-            _block_type_id = block_type_id
-            x: str
-
-        class ParentBlock(Block):
-            y: str
-            z: NestedBlock
-
-        block_schema = ParentBlock._to_block_schema(block_type_id=block_type_id)
-
-        assert block_schema.fields == {
-            "title": "ParentBlock",
-            "type": "object",
-            "properties": {
-                "y": {"title": "Y", "type": "string"},
-                "z": {"$ref": "#/definitions/NestedBlock"},
-            },
-            "required": ["y", "z"],
-            "block_type_name": "ParentBlock",
-            "block_schema_references": {
-                "z": {
-                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
-                    "block_type_name": "Nested Block",
-                }
-            },
-            "definitions": {
-                "NestedBlock": {
-                    "block_schema_references": {},
-                    "block_type_name": "Nested Block",
-                    "properties": {"x": {"title": "X", "type": "string"}},
-                    "required": ["x"],
-                    "title": "NestedBlock",
-                    "type": "object",
-                },
-            },
-        }
-
     async def test_block_load(self, test_block, block_document):
         my_block = await test_block.load(block_document.name)
 
@@ -439,3 +395,151 @@ class TestAPICompatibility:
             match="Unable to find block document named blocky for block type x",
         ):
             await test_block.load("blocky")
+
+
+class TestRegisterBlock:
+    class NewBlock(Block):
+        a: str
+        b: str
+        c: int
+
+    async def test_register_block(self, orion_client: OrionClient):
+        await self.NewBlock.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        assert block_type is not None
+        assert block_type.name == "NewBlock"
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+
+        assert isinstance(self.NewBlock._block_type_id, UUID)
+        assert isinstance(self.NewBlock._block_schema_id, UUID)
+
+    async def test_register_idempotent(self, orion_client: OrionClient):
+        await self.NewBlock.register_type_and_schema()
+        await self.NewBlock.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        assert block_type is not None
+        assert block_type.name == "NewBlock"
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_register_existing_block_type_new_block_schema(
+        self, orion_client: OrionClient
+    ):
+        class ImpostorBlock(Block):
+            _block_type_name = "NewBlock"
+            x: str
+            y: str
+            z: int
+
+        await ImpostorBlock.register_type_and_schema()
+
+        block_type = await orion_client.read_block_type_by_name(name="NewBlock")
+        assert block_type is not None
+        assert block_type.name == "NewBlock"
+
+        await self.NewBlock.register_type_and_schema()
+
+        block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=self.NewBlock._calculate_schema_checksum()
+        )
+        assert block_schema is not None
+        assert block_schema.fields == self.NewBlock.schema()
+
+    async def test_register_nested_block(self, orion_client: OrionClient):
+        class Big(Block):
+            id: UUID = Field(default_factory=uuid4)
+            size: int
+
+        class Bigger(Block):
+            size: int
+            contents: Big
+            random_other_field: Dict[str, float]
+
+        class Biggest(Block):
+            size: int
+            contents: Bigger
+
+        await Biggest.register_type_and_schema()
+
+        big_block_type = await orion_client.read_block_type_by_name(name="Big")
+        assert big_block_type is not None
+        big_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=Big._calculate_schema_checksum()
+        )
+        assert big_block_schema is not None
+
+        bigger_block_type = await orion_client.read_block_type_by_name(name="Bigger")
+        assert bigger_block_type is not None
+        bigger_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=Bigger._calculate_schema_checksum()
+        )
+        assert bigger_block_schema is not None
+
+        biggest_block_type = await orion_client.read_block_type_by_name(name="Biggest")
+        assert biggest_block_type is not None
+        biggest_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=Biggest._calculate_schema_checksum()
+        )
+        assert biggest_block_schema is not None
+
+    async def test_register_nested_block_union(self, orion_client: OrionClient):
+        class A(Block):
+            a: str
+
+        class B(Block):
+            b: str
+
+        class C(Block):
+            c: str
+
+        class Umbrella(Block):
+            a_b_or_c: Union[A, B, C]
+
+        await Umbrella.register_type_and_schema()
+
+        a_block_type = await orion_client.read_block_type_by_name(name="A")
+        assert a_block_type is not None
+        b_block_type = await orion_client.read_block_type_by_name(name="B")
+        assert b_block_type is not None
+        c_block_type = await orion_client.read_block_type_by_name(name="C")
+        assert c_block_type is not None
+        umbrella_block_type = await orion_client.read_block_type_by_name(
+            name="Umbrella"
+        )
+        assert umbrella_block_type is not None
+
+        a_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=A._calculate_schema_checksum()
+        )
+        assert a_block_schema is not None
+        b_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=B._calculate_schema_checksum()
+        )
+        assert b_block_schema is not None
+        c_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=C._calculate_schema_checksum()
+        )
+        assert c_block_schema is not None
+        umbrella_block_schema = await orion_client.read_block_schema_by_checksum(
+            checksum=Umbrella._calculate_schema_checksum()
+        )
+        assert umbrella_block_schema is not None
+
+    async def test_register_raises_block_base_class(self):
+        with pytest.raises(
+            ValueError,
+            match="`register_type_and_schema` should be called on a Block "
+            "class and not on the Block class directly.",
+        ):
+            await Block.register_type_and_schema()

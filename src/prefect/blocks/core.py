@@ -1,7 +1,7 @@
 import hashlib
 import inspect
 from abc import ABC
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, HttpUrl
@@ -9,8 +9,12 @@ from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
+from prefect.utilities.asyncio import asyncnullcontext
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
+
+if TYPE_CHECKING:
+    from prefect.client import OrionClient
 
 BLOCK_REGISTRY: Dict[str, Type["Block"]] = dict()
 
@@ -47,14 +51,14 @@ class Block(BaseModel, ABC):
 
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
-                if inspect.isclass(field.type_) and issubclass(field.type_, Block):
+                if Block.is_block_class(field.type_):
                     refs[field.name] = field.type_._to_block_schema_reference_dict()
                 if get_origin(field.type_) is Union:
                     refs[field.name] = []
-                    for type in get_args(field.type_):
-                        if inspect.isclass(type) and issubclass(type, Block):
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
                             refs[field.name].append(
-                                type._to_block_schema_reference_dict()
+                                type_._to_block_schema_reference_dict()
                             )
 
     """
@@ -261,7 +265,7 @@ class Block(BaseModel, ABC):
     async def load(cls, name: str):
         """
         Retrieves data from the block document with the given name for the block type
-        that corresponds with the current class and returns an instantated version of
+        that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
         Args:
@@ -284,3 +288,62 @@ class Block(BaseModel, ABC):
                     f"Unable to find block document named {name} for block type {cls.get_block_type_name()}"
                 ) from e
         return cls._from_block_document(block_document)
+
+    @staticmethod
+    def is_block_class(block) -> bool:
+        return inspect.isclass(block) and issubclass(block, Block)
+
+    @classmethod
+    async def register_type_and_schema(cls, client: Optional["OrionClient"] = None):
+        """
+        Makes block available for configuration with current Orion server.
+        Recursively registers all nested blocks. Registration is idempotent.
+
+        Args:
+            client: Optional Orion client to use for registering type and schema with
+                Orion. A new client will be created and used if one is not provided.
+        """
+        if cls.__name__ == "Block":
+            raise ValueError(
+                "`register_type_and_schema` should be called on a Block "
+                "class and not on the Block class directly."
+            )
+
+        # Open a new client if one hasn't been provided. Otherwise,
+        # use the provided client
+        if client is None:
+            client_context = prefect.client.get_client()
+        else:
+            client_context = asyncnullcontext()
+
+        async with client_context as client_from_context:
+            client = client or client_from_context
+            for field in cls.__fields__.values():
+                if Block.is_block_class(field.type_):
+                    await field.type_.register_type_and_schema(client=client)
+                if get_origin(field.type_) is Union:
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
+                            await type_.register_type_and_schema(client=client)
+
+            try:
+                block_type = await client.read_block_type_by_name(
+                    name=cls.get_block_type_name()
+                )
+            except prefect.exceptions.ObjectNotFound:
+                block_type = await client.create_block_type(
+                    block_type=cls._to_block_type()
+                )
+
+            cls._block_type_id = block_type.id
+
+            try:
+                block_schema = await client.read_block_schema_by_checksum(
+                    checksum=cls._calculate_schema_checksum()
+                )
+            except prefect.exceptions.ObjectNotFound:
+                block_schema = await client.create_block_schema(
+                    block_schema=cls._to_block_schema(block_type_id=block_type.id)
+                )
+
+            cls._block_schema_id = block_schema.id
