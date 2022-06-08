@@ -32,6 +32,7 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 The Prefect UI is available in any environment where the Prefect API server is running with `prefect orion start`.
 
+<div class="terminal">
 ```bash
 $ prefect orion start
 Starting...
@@ -47,6 +48,7 @@ Configure Prefect to communicate with the server with:
 
 Check out the dashboard at http://127.0.0.1:4200
 ```
+</div>
 
 When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
@@ -54,22 +56,25 @@ When the Prefect API server is running, you can access the UI at [http://127.0.0
 
 The following sections provide details about Prefect UI pages and visualizations:
 
-- [Dashboard](/ui/dashboard/) provides a high-level overview of your flows, tasks, and deployments.
-- [Flows and Tasks](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
+- [Flow Runs](/ui/dashboard/) dashboard provides a high-level overview of your flows, tasks, and deployments.
+- [Flow and flow run](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
 - [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
-- [Work Queues](/ui/work-queues/) enable you to create and manage work queues that enable agents to pick up flow runs.
+- [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
+- [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
+- [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
 
 ## Navigating the UI
 
-Icons on the left side of the Prefect UI help you navigate to commonly used pages.
+The left side of the Prefect UI provides commands to help you navigate to commonly used pages.
 
-The Prefect icon always takes you back to the dashboard. In Prefect Cloud, it returns you to the list of workspaces.
-
-| Icon | Description |
+| Command | Description |
 | --- | --- |
-| ![Workspace](/img/ui/workspace-icon.png) | **Workspace** returns to the dashboard of the current workspace. ([Prefect Cloud](#prefect-cloud) only) |
-| ![Flows](/img/ui/flows-icon.png) | **Flows** displays a searchable list of flows tracked by the API. |
-| ![Work Queues](/img/ui/work-queues-icon.png) | **Work Queues** displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+| **Flow Runs**   | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/filters/) to display only certain flow runs, or click into details about specific flows or flow runs. |
+| **Flows**       | Displays a searchable list of flows tracked by the API. |
+| **Deployment**  | Displays flow [deployments](/concepts/deployments/) created on the API. |
+| <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+
+In Prefect Cloud, the Prefect icon returns you the flow runs view of your current workspace. When multiple workspaces are available, it returns you to the list of workspaces.
 
 ## Prefect Cloud
 
