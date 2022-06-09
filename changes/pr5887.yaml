@@ -1,0 +1,5 @@
+enhancement:
+  - "Support ExtraArgs for S3 Result upload - [#5887](https://github.com/PrefectHQ/prefect/pull/5887)"
+
+contributor:
+  - "[Max Firman](https://github.com/maxfirman)"
