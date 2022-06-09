@@ -516,6 +516,13 @@ class TestLoadFlowFromScript:
         with pytest.raises(RuntimeError, match="This flow shall not load"):
             raise script_err
 
+    def test_loads_under_loading_context(self):
+        loaded_flow = load_flow_from_script(
+            TEST_FILES_DIR / "flow_with_loading_context_assert.py"
+        )
+        assert isinstance(loaded_flow, Flow)
+        assert loaded_flow.name == "hello-world"
+
 
 class TestDeploymentSpecFromFile:
     @pytest.fixture(autouse=True)
@@ -613,6 +620,12 @@ class TestDeploymentSpecFromFile:
         spec = list(specs)[0]
         with pytest.raises(ScriptError):
             await spec.validate()
+
+    async def test_loading_spec_loads_under_loading_context(self):
+        specs = deployment_specs_from_yaml(
+            TEST_FILES_DIR / "deployment-with-loading-context-assert.yaml"
+        )
+        assert len(specs) == 1
 
     async def test_create_deployment(self, orion_client):
         schedule = IntervalSchedule(interval=timedelta(days=1))
