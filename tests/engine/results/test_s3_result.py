@@ -79,7 +79,9 @@ class TestS3Result:
         with prefect.context(thing="yes!"):
             result.write("so-much-data", **prefect.context)
 
-        extra_args = mock_boto3.client.return_value.upload_fileobj.call_args[1]["ExtraArgs"]
+        extra_args = mock_boto3.client.return_value.upload_fileobj.call_args[1][
+            "ExtraArgs"
+        ]
 
         assert extra_args == upload_options
 
