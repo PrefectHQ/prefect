@@ -44,6 +44,9 @@ R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
 
+LAMBDA_FUNCTION_NAME = (lambda: None).__name__
+
+
 def task_input_hash(
     context: "TaskRunContext", arguments: Dict[str, Any]
 ) -> Optional[str]:
@@ -119,7 +122,12 @@ class Task(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        self.name = name or fn.__name__
+        if name:
+            self.name = name
+        elif fn.__name__ == LAMBDA_FUNCTION_NAME:
+            self.name = f"<lambda-{id(fn)}>"
+        else:
+            self.name = fn.__name__
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
