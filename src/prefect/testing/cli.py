@@ -116,6 +116,4 @@ def disable_terminal_wrapping(monkeypatch):
     Sometimes, line wrapping makes it hard to make deterministic assertions about the
     output of a CLI command. Wrapping can be disabled by using this fixture.
     """
-    monkeypatch.setattr(
-        "prefect.cli.root.app.console", rich.console.Console(soft_wrap=True)
-    )
+    monkeypatch.setattr("prefect.cli.root.app.console.soft_wrap", True)
