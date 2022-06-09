@@ -29,10 +29,15 @@ class S3Result(Result):
     """
 
     def __init__(
-        self, bucket: str, boto3_kwargs: Dict[str, Any] = None, **kwargs: Any
+        self,
+        bucket: str,
+        boto3_kwargs: Dict[str, Any] = None,
+        upload_options: Dict[str, Any] = None,
+        **kwargs: Any,
     ) -> None:
         self.bucket = bucket
         self.boto3_kwargs = boto3_kwargs or {}
+        self.upload_options = upload_options or {}
         super().__init__(**kwargs)
 
     @property
@@ -76,7 +81,12 @@ class S3Result(Result):
         from botocore.exceptions import ClientError
 
         try:
-            self.client.upload_fileobj(stream, Bucket=self.bucket, Key=new.location)
+            self.client.upload_fileobj(
+                stream,
+                Bucket=self.bucket,
+                Key=new.location,
+                ExtraArgs=self.upload_options
+            )
         except ClientError as err:
             self.logger.error("Error uploading to S3: {}".format(err))
             raise err
