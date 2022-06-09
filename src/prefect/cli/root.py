@@ -23,7 +23,7 @@ app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
 def version_callback(value: bool):
     if value:
-        app.console.print(prefect.__version__)
+        print(prefect.__version__)
         raise typer.Exit()
 
 
