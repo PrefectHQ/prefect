@@ -294,18 +294,15 @@ async def visit_collection(
             + list(expr.__private_attributes__.keys())
         ]
         values = await gather(*[visit_nested(getattr(expr, key)) for key in keys])
-        # breakpoint()
         result = {key: value for key, value in zip(keys, values)}
-        model_result = {key: value for key, value in zip(keys, values) if value}
-        breakpoint()
-        if len(model_result) >= len(expr.__fields__):
-            model_instance = typ(**model_result)
-            for p_key in expr.__private_attributes__.keys():
-                if result.get(p_key):
-                    setattr(model_instance, p_key, result.get(p_key))
-        else:
-            model_instance = None
-        return model_instance if return_data else None
+
+        if return_data:
+            model_instance = typ(**result)
+            # private attrs must be set separately to persist the values
+            for p_attr_key in expr.__private_attributes__.keys():
+                setattr(model_instance, p_attr_key, result[p_attr_key])
+            return model_instance
+        return None
 
     else:
         result = await visit_fn(expr)
