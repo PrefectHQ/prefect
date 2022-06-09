@@ -143,6 +143,22 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
+    async def test_private_pydantic_behaves_as_expected(self):
+        """Check pydantic private variable behavior"""
+        input = PrivatePydantic(x=1, _y=2, _z=3)
+
+        with pytest.raises(ValueError):
+            input._a = 1
+        with pytest.raises(AttributeError):
+            input._y
+
+        input._y = 4
+        input._z = 5
+
+        assert input.x == 1
+        assert input._y == 4
+        assert input._z == 5
+
     async def test_visit_collection_with_private_pydantic_no_return(self):
         """Check that we successfully capture private pydantic fields"""
         input = PrivatePydantic(x=1)
