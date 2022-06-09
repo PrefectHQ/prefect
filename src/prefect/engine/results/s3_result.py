@@ -27,7 +27,7 @@ class S3Result(Result):
             is initialized.
         - upload_options (dict, optional): additional options for s3 client upload_fileobj() 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Result` initialization options
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
