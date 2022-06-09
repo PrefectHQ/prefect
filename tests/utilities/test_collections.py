@@ -82,10 +82,19 @@ class SimplePydantic(pydantic.BaseModel):
 
 class ExtraPydantic(pydantic.BaseModel):
     x: int
-    _y: int
 
     class Config:
         extra = pydantic.Extra.allow
+        underscore_attrs_are_private = True
+
+
+class PrivatePydantic(pydantic.BaseModel):
+    x: int
+    _y: int
+    _z: pydantic.PrivateAttr()
+
+    class Config:
+        underscore_attrs_are_private = True
 
 
 class TestVisitCollection:
@@ -102,7 +111,7 @@ class TestVisitCollection:
             ({3, 4, 5}, {3, -4, 5}),
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
-            (ExtraPydantic(x=1, _y=2, z=3), ExtraPydantic(x=1, _y=-2, z=3)),
+            (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
         ],
     )
     async def test_visit_collection_and_transform_data(self, inp, expected):
@@ -124,7 +133,7 @@ class TestVisitCollection:
             ({3, 4, 5}, {4}),
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
-            (ExtraPydantic(x=1, _y=2, z=4), {2, 4}),
+            (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
         ],
     )
     async def test_visit_collection(self, inp, expected):
@@ -133,6 +142,27 @@ class TestVisitCollection:
         )
         assert result is None
         assert EVEN == expected
+
+    async def test_visit_collection_with_private_pydantic(self):
+        """Check that we successfully capture private pydantic fields"""
+        input = PrivatePydantic(x=1)
+        input._y = 2
+        input._z = 4
+
+        result = await visit_collection(
+            input, visit_fn=visit_even_numbers, return_data=False
+        )
+        assert result is None
+        assert EVEN == {2, 4}
+
+        result = await visit_collection(
+            input, visit_fn=negative_even_numbers, return_data=True
+        )
+        assert result == input
+        assert result.__private_attributes__ == input.__private_attributes__
+        breakpoint()
+        assert result._y == -2
+        assert result._z == -4
 
 
 class TestPartialModel:
