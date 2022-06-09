@@ -16,9 +16,12 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
+from prefect.settings import PREFECT_CLI_COLORS
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
-app.console = rich.console.Console(highlight=False)
+app.console = rich.console.Console(
+    highlight=False, color_system="auto" if PREFECT_CLI_COLORS else None
+)
 
 
 def version_callback(value: bool):
