@@ -285,12 +285,27 @@ async def visit_collection(
         and not isinstance(expr, prefect.orion.schemas.states.State)
         and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
     ):
-        # Pydantic does not expose Extras or private vars in `__fields__`
-        values = await gather(
-            *[visit_nested(getattr(expr, field)) for field in expr.__dict__]
-        )
-        result = {field: value for field, value in zip(expr.__dict__, values)}
-        return typ(**result) if return_data else None
+        # Pydantic does not expose Extras in `__fields__` and does not expose
+        # private vars in `__dict__`, so we use of a a combination of `__dict__`
+        # `__private_attributes__` instead.
+        keys = [
+            key
+            for key in list(expr.__dict__.keys())
+            + list(expr.__private_attributes__.keys())
+        ]
+        values = await gather(*[visit_nested(getattr(expr, key)) for key in keys])
+        # breakpoint()
+        result = {key: value for key, value in zip(keys, values)}
+        model_result = {key: value for key, value in zip(keys, values) if value}
+        breakpoint()
+        if len(model_result) >= len(expr.__fields__):
+            model_instance = typ(**model_result)
+            for p_key in expr.__private_attributes__.keys():
+                if result.get(p_key):
+                    setattr(model_instance, p_key, result.get(p_key))
+        else:
+            model_instance = None
+        return model_instance if return_data else None
 
     else:
         result = await visit_fn(expr)
