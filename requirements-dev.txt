@@ -2,6 +2,7 @@ flake8
 flaky
 ipython
 jinja2
+jsonpatch >= 1.32
 mkdocs
 mkdocs-gen-files
 mkdocs-material
