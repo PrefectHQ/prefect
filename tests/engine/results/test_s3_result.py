@@ -67,6 +67,22 @@ class TestS3Result:
         assert used_uri == new_result.location
         assert new_result.location.startswith("yes!/here.txt")
 
+    def test_s3_writes_with_upload_options(self, mock_boto3):
+        upload_options = {"ServerSideEncryption": "aws:kms"}
+
+        result = S3Result(
+            bucket="foo",
+            location="{thing}/here.txt",
+            upload_options=upload_options,
+        )
+
+        with prefect.context(thing="yes!"):
+            result.write("so-much-data", **prefect.context)
+
+        extra_args = mock_boto3.client.return_value.upload_fileobj.call_args[1]["ExtraArgs"]
+
+        assert extra_args == upload_options
+
     def test_s3_result_is_pickleable(self, mock_boto3):
         class NoPickle:
             def __getstate__(self):

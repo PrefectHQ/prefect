@@ -25,6 +25,7 @@ class S3Result(Result):
         - boto3_kwargs (dict, optional): keyword arguments to pass on to boto3 when the [client
             session](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client)
             is initialized.
+        - upload_options (dict, optional): additional options for s3 client upload_fileobj() 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
@@ -85,7 +86,7 @@ class S3Result(Result):
                 stream,
                 Bucket=self.bucket,
                 Key=new.location,
-                ExtraArgs=self.upload_options
+                ExtraArgs=self.upload_options,
             )
         except ClientError as err:
             self.logger.error("Error uploading to S3: {}".format(err))
