@@ -235,6 +235,13 @@ PREFECT_DEBUG_MODE = Setting(
         assistance. Defaults to `False`.""",
 )
 
+PREFECT_CLI_COLORS = Setting(
+    bool,
+    default=True,
+    description="""If `True`, use colors in CLI output. If `False`,
+        output will not include colors codes. Defaults to `True`.""",
+)
+
 PREFECT_TEST_MODE = Setting(
     bool,
     default=False,
