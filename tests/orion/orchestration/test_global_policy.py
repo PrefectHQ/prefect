@@ -19,6 +19,9 @@ from prefect.orion.orchestration.global_policy import (
 from prefect.orion.orchestration.rules import TERMINAL_STATES
 from prefect.orion.schemas import core, states
 
+# Convert constants from sets to lists for deterministic ordering of tests
+TERMINAL_STATES = list(sorted(TERMINAL_STATES))
+
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestGlobalPolicyRules:

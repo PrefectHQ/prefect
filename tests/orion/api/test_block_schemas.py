@@ -7,11 +7,12 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 
+from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.utilities.hashing import hash_objects
 
-EMPTY_OBJECT_CHECKSUM = f"sha256:{hash_objects({}, hash_algo=hashlib.sha256)}"
+EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_0 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={}, type="abc", block_type_id=block_type_x.id
+            fields={}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -27,7 +28,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_1 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"x": {"type": "int"}}, type="abc", block_type_id=block_type_y.id
+            fields={"x": {"type": "int"}}, block_type_id=block_type_y.id
         ),
     )
     await session.commit()
@@ -35,7 +36,7 @@ async def block_schemas(session, block_type_x, block_type_y):
     block_schema_2 = await models.block_schemas.create_block_schema(
         session=session,
         block_schema=schemas.actions.BlockSchemaCreate(
-            fields={"y": {"type": "int"}}, type=None, block_type_id=block_type_x.id
+            fields={"y": {"type": "int"}}, block_type_id=block_type_x.id
         ),
     )
     await session.commit()
@@ -47,9 +48,9 @@ class TestCreateBlockSchema:
     async def test_create_block_schema(self, session, client, block_type_x):
         response = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(
-                type=None, fields={}, block_type_id=block_type_x.id
-            ).dict(json_compatible=True),
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
+                json_compatible=True
+            ),
         )
         assert response.status_code == 201
         assert response.json()["checksum"] == EMPTY_OBJECT_CHECKSUM
@@ -65,17 +66,17 @@ class TestCreateBlockSchema:
     ):
         response = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(
-                type=None, fields={}, block_type_id=block_type_x.id
-            ).dict(json_compatible=True),
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
+                json_compatible=True
+            ),
         )
         assert response.status_code == 201
 
         response = await client.post(
             "/block_schemas/",
-            json=BlockSchemaCreate(
-                type=None, fields={}, block_type_id=block_type_x.id
-            ).dict(json_compatible=True),
+            json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
+                json_compatible=True
+            ),
         )
         assert response.status_code == 409
         assert "Identical block schema already exists." in response.json()["detail"]
@@ -110,15 +111,6 @@ class TestReadBlockSchema:
             block_schemas[2].id,
             block_schemas[1].id,
         }
-
-    async def test_read_block_schemas_by_type(self, session, client, block_schemas):
-        result = await client.post(
-            f"/block_schemas/filter", json=dict(block_schema_type="abc")
-        )
-        api_schemas = pydantic.parse_obj_as(
-            List[schemas.core.BlockSchema], result.json()
-        )
-        assert {s.id for s in api_schemas} == {block_schemas[0].id, block_schemas[1].id}
 
     async def test_read_block_schema_by_id(self, session, client, block_schemas):
         schema_id = block_schemas[0].id

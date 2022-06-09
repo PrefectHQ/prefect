@@ -1,0 +1,5 @@
+collectionName: prefect-dask
+author: Prefect
+authorUrl: https://prefect.io
+documentation: https://prefecthq.github.io/prefect-dask/
+iconUrl: /img/collections/dask.png
