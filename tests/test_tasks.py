@@ -37,7 +37,8 @@ class TestTaskName:
 
     def test_name_from_lambda(self):
         my_task = task(lambda: None)
-        assert my_task.name == f"<lambda-{id(my_task.fn)}>"
+        line_number = inspect.getsourcelines(my_task)[1]
+        assert my_task.name == f"<lambda-{line_number}>"
 
 
 class TestTaskCall:

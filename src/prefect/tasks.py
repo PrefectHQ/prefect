@@ -125,7 +125,8 @@ class Task(Generic[P, R]):
         if name:
             self.name = name
         elif fn.__name__ == LAMBDA_FUNCTION_NAME:
-            self.name = f"<lambda-{id(fn)}>"
+            line_number = inspect.getsourcelines(fn)[1]
+            self.name = f"<lambda-{line_number}>"
         else:
             self.name = fn.__name__
 
