@@ -20,6 +20,26 @@ def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
 
 
+class TestTaskName:
+    def test_name_from_function(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.name == "my_task"
+
+    def test_name_from_kwarg(self):
+        @task(name="another_name")
+        def my_task():
+            pass
+
+        assert my_task.name == "another_name"
+
+    def test_name_from_lambda(self):
+        my_task = task(lambda: None)
+        assert my_task.name == f"<lambda-{id(my_task.fn)}>"
+
+
 class TestTaskCall:
     def test_task_called_outside_flow_raises(self):
         @task
