@@ -36,11 +36,10 @@ from .fixtures.storage import *
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--service",
-        action="append",
-        metavar="SERVICE",
-        default=[],
-        help="Include service integration tests for SERVICE.",
+        "--exclude-services",
+        action="store_true",
+        default=False,
+        help="Exclude all service integration tests from the test run.",
     )
     parser.addoption(
         "--only-service",
@@ -50,76 +49,58 @@ def pytest_addoption(parser):
         help="Exclude all tests except service integration tests for SERVICE.",
     )
     parser.addoption(
-        "--not-service",
+        "--exclude-service",
         action="append",
         metavar="SERVICE",
         default=[],
         help="Exclude service integration tests for SERVICE.",
     )
     parser.addoption(
-        "--all-services",
-        action="store_true",
-        default=False,
-        help="Include all service integration tests",
-    )
-    parser.addoption(
         "--only-services",
         action="store_true",
         default=False,
-        help="Exclude all tests except service integration tests",
+        help="Exclude all tests except service integration tests.",
     )
-
-
-def skip_exclude_services(services: Set[str], items):
-    """
-    Utility to skip service tests that are excluded by `--not-service`.
-
-    For use with `--all-services` and `--only-services` which would otherwise run tests
-    for all services.
-    """
-    if services:
-        for item in items:
-            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-            excluded_services = item_services.intersection(services)
-            if excluded_services:
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Excluding tests for service(s): "
-                        f"{', '.join(repr(s) for s in excluded_services)}."
-                    )
-                )
 
 
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
     """
-    not_services = set(config.getoption("--not-service"))
+    exclude_all_services = config.getoption("--exclude-services")
+    if exclude_all_services:
+        for item in items:
+            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+            if item_services:
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Excluding tests for services. This test requires service(s): "
+                        f"{', '.join(repr(s) for s in item_services)}."
+                    )
+                )
 
-    if config.getoption("--all-services"):
-        skip_exclude_services(not_services, items)
-
-        if config.getoption("--only-service") or config.getoption("--only-services"):
-            warnings.warn(
-                "`--only-service` cannot be used with `--all-services`. "
-                "`--only-service` will be ignored."
+    exclude_services = set(config.getoption("--exclude-service"))
+    for item in items:
+        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+        excluded_services = item_services.intersection(exclude_services)
+        if excluded_services:
+            item.add_marker(
+                pytest.mark.skip(
+                    "Excluding tests for service(s): "
+                    f"{', '.join(repr(s) for s in excluded_services)}."
+                )
             )
-        return
 
     only_run_service_tests = config.getoption("--only-services")
     if only_run_service_tests:
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             if not item_services:
-                item.add_marker(pytest.mark.skip("Only running tests for services."))
-
-        skip_exclude_services(not_services, items)
-
-        if config.getoption("--service"):
-            warnings.warn(
-                "`--service` cannot be used with `--only-services`. "
-                "`--service` will be ignored."
-            )
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Only running tests for services. This test does not require a service."
+                    )
+                )
         return
 
     only_services = set(config.getoption("--only-service"))
@@ -128,27 +109,20 @@ def pytest_collection_modifyitems(session, config, items):
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             not_in_only_services = only_services.difference(item_services)
-            if not_in_only_services:
-                item.add_marker(pytest.mark.skip(only_running_blurb))
 
-        if config.getoption("--service"):
-            warnings.warn(
-                "`--service` cannot be used with `--only-service`. "
-                "`--service` will be ignored."
-            )
-        return
-
-    run_services = set(config.getoption("--service"))
-    for item in items:
-        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-        missing_services = item_services.difference(run_services)
-        if missing_services:
-            item.add_marker(
-                pytest.mark.skip(
-                    f"Requires service(s): {', '.join(repr(s) for s in missing_services)}. "
-                    "Use '--service NAME' to include."
+            if item_services:
+                requires_blurb = (
+                    "This test requires service(s): "
+                    f"{', '.join(repr(s) for s in item_services)}"
                 )
-            )
+            else:
+                requires_blurb = "This test does not require a service."
+
+            if not_in_only_services:
+                item.add_marker(
+                    pytest.mark.skip(only_running_blurb + " " + requires_blurb)
+                )
+        return
 
 
 @pytest.fixture(scope="session")
