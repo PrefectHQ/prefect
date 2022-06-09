@@ -143,7 +143,7 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
-    async def test_visit_collection_with_private_pydantic(self):
+    async def test_visit_collection_with_private_pydantic_no_return(self):
         """Check that we successfully capture private pydantic fields"""
         input = PrivatePydantic(x=1)
         input._y = 2
@@ -155,12 +155,17 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == {2, 4}
 
+    async def test_visit_collection_with_private_pydantic_with_return(self):
+        """Check that we successfully capture private pydantic fields"""
+        input = PrivatePydantic(x=1)
+        input._y = 2
+        input._z = 4
+
         result = await visit_collection(
             input, visit_fn=negative_even_numbers, return_data=True
         )
         assert result == input
         assert result.__private_attributes__ == input.__private_attributes__
-        breakpoint()
         assert result._y == -2
         assert result._z == -4
 
