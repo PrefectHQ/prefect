@@ -57,10 +57,22 @@ class FlowFilterName(PrefectFilterBaseModel):
         example=["my-flow-1", "my-flow-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Flow.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Flow.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -135,10 +147,22 @@ class FlowRunFilterName(PrefectFilterBaseModel):
         example=["my-flow-run-1", "my-flow-run-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.FlowRun.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -438,10 +462,22 @@ class TaskRunFilterName(PrefectFilterBaseModel):
         example=["my-task-run-1", "my-task-run-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.TaskRun.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -616,10 +652,22 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         example=["my-deployment-1", "my-deployment-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Deployment.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Deployment.name.ilike(f"%{self.like_}%"))
         return filters
 
 

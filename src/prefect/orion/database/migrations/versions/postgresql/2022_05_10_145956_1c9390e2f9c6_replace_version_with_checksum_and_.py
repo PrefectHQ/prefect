@@ -11,6 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 import prefect
+from prefect.blocks.core import Block
 from prefect.utilities.hashing import hash_objects
 
 # revision identifiers, used by Alembic.
@@ -107,7 +108,7 @@ def upgrade():
         sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.name, BLOCK_SCHEMA.c.fields])
     )
     for id, name, fields in results:
-        schema_checksum = f"sha256:{hash_objects(fields, hash_algo=hashlib.sha256)}"
+        schema_checksum = Block._calculate_schema_checksum(fields)
         # Add checksum
         connection.execute(
             sa.update(BLOCK_SCHEMA)
