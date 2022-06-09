@@ -440,6 +440,15 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             second.result()
 
+    async def test_call_during_load_does_not_run_flow(self, caplog):
+        @flow(version="test")
+        def foo(x, y=3, z=3):
+            return x + y + z
+
+        with prefect.context.LoadingContext():
+            state = foo(1, 2)
+            assert state is None
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):
