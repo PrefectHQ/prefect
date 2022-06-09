@@ -100,7 +100,6 @@ nav:
         - Overview: ui/overview.md
         - ui/dashboard.md
         - ui/flows-and-tasks.md
-        - ui/filters.md
         - ui/work-queues.md
         - Prefect Cloud:
             - Overview: ui/cloud.md
