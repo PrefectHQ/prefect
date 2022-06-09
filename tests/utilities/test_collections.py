@@ -79,6 +79,14 @@ class SimplePydantic(pydantic.BaseModel):
     y: int
 
 
+class ExtraPydantic(pydantic.BaseModel):
+    x: int
+    _y: int
+
+    class Config:
+        extra = pydantic.Extra.allow
+
+
 class TestVisitCollection:
     @pytest.mark.parametrize(
         "inp,expected",
@@ -93,6 +101,7 @@ class TestVisitCollection:
             ({3, 4, 5}, {3, -4, 5}),
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
+            (ExtraPydantic(x=1, _y=2, z=3), ExtraPydantic(x=1, _y=-2, z=3)),
         ],
     )
     async def test_visit_collection_and_transform_data(self, inp, expected):
@@ -114,6 +123,7 @@ class TestVisitCollection:
             ({3, 4, 5}, {4}),
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
+            (ExtraPydantic(x=1, _y=2, z=4), {2, 4}),
         ],
     )
     async def test_visit_collection(self, inp, expected):
