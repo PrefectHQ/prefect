@@ -52,13 +52,13 @@ Check out the dashboard at http://127.0.0.1:4200
 
 When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
-![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
+![Prefect UI dashboard.](/img/ui/orion-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 
 - [Flow Runs](/ui/dashboard/) dashboard provides a high-level overview of your flows, tasks, and deployments.
 - [Flow and flow run](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
-- [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
+- [Filters](/ui/dashboard/#filters) enable you to customize the display based on flow state, tags, execution time, and more.
 - [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
 - [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
@@ -69,7 +69,7 @@ The left side of the Prefect UI provides commands to help you navigate to common
 
 | Command | Description |
 | --- | --- |
-| **Flow Runs**   | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/filters/) to display only certain flow runs, or click into details about specific flows or flow runs. |
+| **Flow Runs**   | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**       | Displays a searchable list of flows tracked by the API. |
 | **Deployment**  | Displays flow [deployments](/concepts/deployments/) created on the API. |
 | <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
