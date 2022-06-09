@@ -19,9 +19,6 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import PREFECT_CLI_COLORS
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
-app.console = rich.console.Console(
-    highlight=False, color_system="auto" if PREFECT_CLI_COLORS else None
-)
 
 
 def version_callback(value: bool):
@@ -59,6 +56,12 @@ def main(
             profile, override_environment_variables=True
         )
         ctx.with_resource(settings_ctx)
+
+    # Configure the output console after loading the profile
+
+    app.console = rich.console.Console(
+        highlight=False, color_system="auto" if PREFECT_CLI_COLORS else None
+    )
 
     setup_logging()
 
