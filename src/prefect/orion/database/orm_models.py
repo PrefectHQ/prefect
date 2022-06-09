@@ -750,8 +750,8 @@ class ORMBlockType:
 @declarative_mixin
 class ORMBlockSchema:
     checksum = sa.Column(sa.String, nullable=False, index=True)
-    type = sa.Column(sa.String, nullable=True, index=True)
     fields = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    capabilities = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
     def block_type_id(cls):
@@ -768,12 +768,32 @@ class ORMBlockSchema:
     @declared_attr
     def __table_args__(cls):
         return (
-            sa.Index("ix_block_schema__type", "type"),
             sa.Index(
                 "uq_block_schema__checksum",
                 "checksum",
                 unique=True,
             ),
+        )
+
+
+@declarative_mixin
+class ORMBlockSchemaReference:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def parent_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def reference_block_schema_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_schema.id", ondelete="cascade"),
+            nullable=False,
         )
 
 
@@ -835,6 +855,27 @@ class ORMBlockDocument:
         Note: will only succeed if the caller has sufficient permission.
         """
         return await decrypt_fernet(session, self.data)
+
+
+@declarative_mixin
+class ORMBlockDocumentReference:
+    name = sa.Column(sa.String, nullable=False)
+
+    @declared_attr
+    def parent_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
+
+    @declared_attr
+    def reference_block_document_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey("block_document.id", ondelete="cascade"),
+            nullable=False,
+        )
 
 
 @declarative_mixin
@@ -916,7 +957,7 @@ class ORMAgent:
 
 
 @declarative_mixin
-class ORMFlowRunAlertPolicy:
+class ORMFlowRunNotificationPolicy:
     name = sa.Column(sa.String, nullable=False, index=True)
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
@@ -941,11 +982,11 @@ class ORMFlowRunAlertPolicy:
 
 
 @declarative_mixin
-class ORMFlowRunAlertQueue:
+class ORMFlowRunNotificationQueue:
     # these are both foreign keys but there is no need to enforce that constraint
     # as this is just a queue for service workers; if the keys don't match at the
     # time work is pulled, the work can be discarded
-    flow_run_alert_policy_id = sa.Column(UUID, nullable=False)
+    flow_run_notification_policy_id = sa.Column(UUID, nullable=False)
     flow_run_state_id = sa.Column(UUID, nullable=False)
 
 
@@ -971,7 +1012,9 @@ class BaseORMConfiguration(ABC):
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_type_mixin: block_type orm mixin, combined with Base orm class
         block_schema_mixin: block_schema orm mixin, combined with Base orm class
+        block_schema_reference_mixin: block_schema_reference orm mixin, combined with Base orm class
         block_document_mixin: block_document orm mixin, combined with Base orm class
+        block_document_reference_mixin: block_document_reference orm mixin, combined with Base orm class
         configuration_mixin: configuration orm mixin, combined with Base orm class
 
     """
@@ -994,7 +1037,9 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
+        block_document_reference_mixin=ORMBlockDocumentReference,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -1039,7 +1084,9 @@ class BaseORMConfiguration(ABC):
             agent_mixin=agent_mixin,
             block_type_mixin=block_type_mixin,
             block_schema_mixin=block_schema_mixin,
+            block_schema_reference_mixin=block_schema_reference_mixin,
             block_document_mixin=block_document_mixin,
+            block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
         )
 
@@ -1078,9 +1125,11 @@ class BaseORMConfiguration(ABC):
         agent_mixin=ORMAgent,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
+        block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
-        flow_run_alert_policy_mixin=ORMFlowRunAlertPolicy,
-        flow_run_alert_queue_mixin=ORMFlowRunAlertQueue,
+        block_document_reference_mixin=ORMBlockDocumentReference,
+        flow_run_notification_policy_mixin=ORMFlowRunNotificationPolicy,
+        flow_run_notification_queue_mixin=ORMFlowRunNotificationQueue,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -1130,13 +1179,19 @@ class BaseORMConfiguration(ABC):
         class BlockSchema(block_schema_mixin, self.Base):
             pass
 
+        class BlockSchemaReference(block_schema_reference_mixin, self.Base):
+            pass
+
         class BlockDocument(block_document_mixin, self.Base):
             pass
 
-        class FlowRunAlertPolicy(flow_run_alert_policy_mixin, self.Base):
+        class BlockDocumentReference(block_document_reference_mixin, self.Base):
             pass
 
-        class FlowRunAlertQueue(flow_run_alert_queue_mixin, self.Base):
+        class FlowRunNotificationPolicy(flow_run_notification_policy_mixin, self.Base):
+            pass
+
+        class FlowRunNotificationQueue(flow_run_notification_queue_mixin, self.Base):
             pass
 
         class Configuration(configuration_mixin, self.Base):
@@ -1156,9 +1211,11 @@ class BaseORMConfiguration(ABC):
         self.Agent = Agent
         self.BlockType = BlockType
         self.BlockSchema = BlockSchema
+        self.BlockSchemaReference = BlockSchemaReference
         self.BlockDocument = BlockDocument
-        self.FlowRunAlertPolicy = FlowRunAlertPolicy
-        self.FlowRunAlertQueue = FlowRunAlertQueue
+        self.BlockDocumentReference = BlockDocumentReference
+        self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
+        self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
 
     @property

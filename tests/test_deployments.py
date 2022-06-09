@@ -427,13 +427,9 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_registered_storage_by_id(
         self, orion_client, tmp_remote_storage_block_id
     ):
-
-        tmp_remote_storage_block = Block._from_block_document(
-            await orion_client.read_block_document(tmp_remote_storage_block_id)
-        )
         spec = DeploymentSpec(
             flow_location=TEST_FILES_DIR / "single_flow.py",
-            flow_storage=tmp_remote_storage_block,
+            flow_storage=tmp_remote_storage_block_id,
         )
         deployment_id = await spec.create_deployment(client=orion_client)
 
@@ -679,6 +675,36 @@ class TestLoadFlowFromDeployment:
                 flow_object, storage_block=local_storage_block
             ),
         )
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert isinstance(loaded_flow_object, Flow)
+        assert flow_object.name == loaded_flow_object.name
+
+    async def test_load_flow_for_legacy_deployment(
+        self, flow_id, flow_object, local_storage_block, orion_client
+    ):
+        """
+        Test to verify that deployments created pre-2.0b6 still work. The datadoc for
+        pre-2.0b6 deployments used block_id which was then switched to
+        block_document_id due to a suite of renames in the blocks feature.
+        """
+        flow_datadoc = DataDocument.encode(encoding="cloudpickle", data=flow_object)
+        storage_key = await local_storage_block.write(flow_datadoc.json().encode())
+        legacy_flow_data = DataDocument.encode(
+            encoding="blockstorage",
+            data={
+                "block_id": local_storage_block._block_document_id,
+                "data": storage_key,
+            },
+        )
+
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=legacy_flow_data,
+        )
+
         loaded_flow_object = await load_flow_from_deployment(
             deployment, client=orion_client
         )

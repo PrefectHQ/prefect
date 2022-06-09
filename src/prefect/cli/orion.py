@@ -4,7 +4,6 @@ Command line interface for working with Orion
 import os
 import textwrap
 from functools import partial
-from string import Template
 
 import anyio
 import anyio.abc
@@ -18,7 +17,6 @@ from prefect.cli._utilities import (
     open_process_and_stream_output,
 )
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
@@ -141,30 +139,6 @@ async def start(
     app.console.print("Orion stopped!")
 
 
-@orion_app.command()
-def kubernetes_manifest(
-    image_tag: str = None,
-    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-):
-    """
-    Generates a Kubernetes manifest for deploying Orion to a cluster.
-
-    Example:
-        $ prefect orion kubernetes-manifest | kubectl apply -f -
-    """
-
-    template = Template(
-        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
-    )
-    manifest = template.substitute(
-        {
-            "image_name": image_tag or get_prefect_image_name(),
-            "log_level": log_level,
-        }
-    )
-    print(manifest)
-
-
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
@@ -172,7 +146,8 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     engine = await db.engine()
     if not yes:
         confirm = typer.confirm(
-            f'Are you sure you want to reset the Orion database located at "{engine.url}"? This will drop and recreate all tables.'
+            "Are you sure you want to reset the Orion database located "
+            f'at "{engine.url!r}"? This will drop and recreate all tables.'
         )
         if not confirm:
             exit_with_error("Database reset aborted")
@@ -181,7 +156,7 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     await db.drop_db()
     app.console.print("Creating tables...")
     await db.create_db()
-    exit_with_success(f'Orion database "{engine.url}" reset!')
+    exit_with_success(f'Orion database "{engine.url!r}" reset!')
 
 
 @database_app.command()
@@ -198,15 +173,20 @@ async def upgrade(
     ),
 ):
     """Upgrade the Orion database"""
+    db = provide_database_interface()
+    engine = await db.engine()
+
     if not yes:
-        confirm = typer.confirm("Are you sure you want to upgrade the Orion database?")
+        confirm = typer.confirm(
+            "Are you sure you want to upgrade the " f"Orion database at {engine.url!r}?"
+        )
         if not confirm:
             exit_with_error("Database upgrade aborted!")
 
     app.console.print("Running upgrade migrations ...")
     await run_sync_in_worker_thread(alembic_upgrade, revision=revision, dry_run=dry_run)
     app.console.print("Migrations succeeded!")
-    exit_with_success("Orion database upgraded!")
+    exit_with_success(f"Orion database at {engine.url!r} upgraded!")
 
 
 @database_app.command()
@@ -223,9 +203,13 @@ async def downgrade(
     ),
 ):
     """Downgrade the Orion database"""
+    db = provide_database_interface()
+    engine = await db.engine()
+
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to downgrade the Orion database?"
+            "Are you sure you want to downgrade the Orion "
+            f"database at {engine.url!r}?"
         )
         if not confirm:
             exit_with_error("Database downgrade aborted!")
@@ -235,7 +219,7 @@ async def downgrade(
         alembic_downgrade, revision=revision, dry_run=dry_run
     )
     app.console.print("Migrations succeeded!")
-    exit_with_success("Orion database downgraded!")
+    exit_with_success(f"Orion database at {engine.url!r} downgraded!")
 
 
 @database_app.command()
