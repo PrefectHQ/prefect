@@ -175,11 +175,11 @@ class JSON(TypeDecorator):
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
-            return dialect.type_descriptor(postgresql.JSONB())
+            return dialect.type_descriptor(postgresql.JSONB(none_as_null=True))
         elif dialect.name == "sqlite":
-            return dialect.type_descriptor(sqlite.JSON())
+            return dialect.type_descriptor(sqlite.JSON(none_as_null=True))
         else:
-            return dialect.type_descriptor(sa.JSON())
+            return dialect.type_descriptor(sa.JSON(none_as_null=True))
 
 
 class Pydantic(TypeDecorator):
