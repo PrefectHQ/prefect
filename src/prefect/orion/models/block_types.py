@@ -108,6 +108,10 @@ async def read_block_type_by_name(
 async def read_block_types(
     session: sa.orm.Session,
     db: OrionDBInterface,
+    name_filter: Optional[schemas.filters.BlockTypeFilterName] = None,
+    block_capabilities_filter: Optional[
+        schemas.filters.BlockSchemaFilterCapabilities
+    ] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
@@ -120,6 +124,19 @@ async def read_block_types(
         List[db.BlockType]: List of
     """
     query = sa.select(db.BlockType).order_by(db.BlockType.name)
+
+    if name_filter is not None:
+        query = query.where(name_filter.as_sql_filter(db))
+
+    if block_capabilities_filter is not None:
+        query = query.join(
+            db.BlockSchema, db.BlockSchema.block_type_id == db.BlockType.id
+        ).filter(
+            sa.and_(
+                db.BlockSchema.block_type_id == db.BlockType.id,
+                block_capabilities_filter.as_sql_filter(db),
+            )
+        )
 
     if offset is not None:
         query = query.offset(offset)
