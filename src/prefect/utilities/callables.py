@@ -2,14 +2,10 @@
 Utilities for working with Python callables.
 """
 import inspect
-import json
 from functools import partial
 from typing import Any, Callable, Dict, Tuple
 
 import cloudpickle
-import pydantic
-
-from prefect.exceptions import ParameterTypeError
 
 
 def get_call_parameters(
