@@ -446,7 +446,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, UUID]] = Field(
+    block_document_references: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
 
