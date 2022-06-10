@@ -14,6 +14,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,
@@ -219,10 +220,22 @@ async def visit_collection(
     expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
 ):
     """
-    This function visits every element of an arbitrary Python collection and
-    applies `visit_fn` to each element. If `return_data=True`, a copy of the
-    data structure containing the results of `visit_fn` is returned. Note that
-    `return_data=True` may be slower due to the need to copy every object.
+    This function visits every element of an arbitrary Python collection. If an element
+    is a Python collection, it will be visited recursively. If an element is not a
+    collection, `visit_fn` will be called with the element. The return value of
+    `visit_fn` can be used to alter the element if `return_data` is set.
+
+    Note that when using `return_data` a copy of each collection is created to avoid
+    mutating the original object. This may have significant performance penalities and
+    should only be used if you intend to transform the collection.
+
+    Supported types:
+    - List
+    - Tuple
+    - Set
+    - Dict (note: keys are also visited recursively)
+    - Dataclass
+    - Pydantic model
 
     Args:
         expr (Any): a Python object or expression
@@ -343,3 +356,25 @@ class PartialModel(Generic[M]):
     def __repr__(self) -> str:
         dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
         return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+
+
+def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+    """
+    Recurses a dictionary returns a copy without all keys that match an entry in
+    `key_to_remove`. Return `obj` unchanged if not a dictionary.
+
+    Args:
+        keys_to_remove: A list of keys to remove from obj
+        obj: The object to remove keys from.
+
+    Returns:
+        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a dictionary.
+        `obj` if `obj` is not a dictionary.
+    """
+    if not isinstance(obj, dict):
+        return obj
+    return {
+        key: remove_nested_keys(keys_to_remove, value)
+        for key, value in obj.items()
+        if key not in keys_to_remove
+    }
