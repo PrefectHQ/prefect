@@ -49,8 +49,6 @@ import os
 import pathlib
 import sys
 import warnings
-from contextlib import contextmanager
-from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
 from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple, Union
