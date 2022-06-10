@@ -10,6 +10,7 @@ from prefect import flow, task
 from prefect.context import (
     ContextModel,
     FlowRunContext,
+    LoadingContext,
     SettingsContext,
     TaskRunContext,
     enter_root_settings_context,
@@ -360,3 +361,10 @@ class TestSettingsContext:
         enter_root_settings_context()
         use_profile.assert_called_once()
         use_profile().__enter__.assert_called_once()
+
+
+class TestLoadingContext:
+    def test_field_defaults(self):
+        with LoadingContext() as context:
+            assert isinstance(context.start_time, DateTime)
+            assert context.deployment_specs == {}

@@ -6,6 +6,7 @@ import pendulum
 import pytest
 
 from prefect.orion.services.loop_service import LoopService
+from prefect.testing.utilities import flaky_on_windows
 
 
 async def test_asyncio_sleep_accepts_negative_numbers():
@@ -86,6 +87,7 @@ async def test_loop_service_startup_shutdown():
     assert service.state == ["setup", "shutdown"]
 
 
+@flaky_on_windows
 async def test_early_stop():
     """Test that stop criterion is evaluated without waiting for loop_seconds"""
 
