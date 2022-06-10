@@ -72,6 +72,7 @@ async def read_block_schemas(
         block_schema_filter=block_schema_filter,
         limit=limit,
         offset=offset,
+        block_capabilities_filter=block_capabilities,
     )
     return result
 

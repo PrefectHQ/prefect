@@ -908,7 +908,6 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
     eq_: bool = Field(
         None,
         description="Filter block documents for only those that are or are not anonymous.",
-    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
@@ -916,6 +915,24 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
             filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
         return filters
 
+class BlockTypeFilterName(PrefectFilterBaseModel):
+    """Filter by `BlockType.name`"""
+
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
+        return filters
 
 class BlockDocumentFilter(PrefectFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
@@ -966,3 +983,43 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
             filters.append(self.is_active.as_sql_filter(db))
 
         return filters
+``
+class BlockTypeFilterCapabilities(PrefectFilterBaseModel):
+    """Filter block types by the capabilities that associated block schemas have"""
+
+    all_: List[str] = Field(
+        None,
+        example=["write-storage", "read-storage"],
+        description="A list of block capabilities. Block types will be returned "
+        "only if an associated block schema has a superset of the defined capabilities.",
+    )
+
+
+class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.capabilities`"""
+
+    all_: List[str] = Field(
+        None,
+        example=["write-storage", "read-storage"],
+        description="A list of block capabilities. Block types will be returned "
+        "only if an associated block schema has a superset of the defined capabilities.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        from prefect.orion.utilities.database import json_contains
+
+        filters = []
+        if self.all_ is not None:
+            filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
+        return filters
+
+
+class BlockDocumentFilterCapabilities(PrefectFilterBaseModel):
+    """Filter block document by the capabilities that associated block schema has"""
+
+    all_: List[str] = Field(
+        None,
+        example=["write-storage", "read-storage"],
+        description="A list of block capabilities. Block documents will be returned "
+        "only if the associated block schema has a superset of the defined capabilities.",
+    )
