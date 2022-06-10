@@ -4,7 +4,12 @@ repos:
     hooks:
       - id: autoflake
         language_version: python3
-        args: ['--in-place', '--remove-all-unused-imports', '--ignore-init-module-imports']
+        args: [
+          '--in-place', 
+          '--remove-all-unused-imports', 
+          '--ignore-init-module-imports', 
+          '--exclude','*/prefect/utilities/compat.py'
+        ]
   - repo: https://github.com/pycqa/isort
     rev: 5.10.1
     hooks:
