@@ -373,6 +373,12 @@ class BlockType(ORMBaseModel):
     documentation_url: Optional[HttpUrl] = Field(
         None, description="Web URL for the block type's documentation"
     )
+    description: Optional[str] = Field(
+        None, description="A short blurb about the corresponding block's intended use"
+    )
+    code_example: Optional[str] = Field(
+        None, description="A code snippet demonstrating use of the corresponding block"
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
