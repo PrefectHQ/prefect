@@ -26,9 +26,6 @@ ascii_name = r"""
 """
 
 
-from prefect import get_client
-
-
 @agent_app.command()
 async def start(
     work_queue: str = typer.Argument(
