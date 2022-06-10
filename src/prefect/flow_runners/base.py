@@ -104,6 +104,20 @@ class FlowRunner(BaseModel):
         """
         raise NotImplementedError()
 
+    async def preview(self, flow_run: FlowRun) -> str:
+        """
+        Produce a textual preview of a FlowRun, if it were to run on this FlowRunner.
+
+        Implementations can produce output in any textual format that makes sense for
+        their target execution environment.  That may be a YAML or JSON manifest, a
+        shell command-line, or other formats.
+
+        Args:
+            flow_run: The flow run
+
+        """
+        raise NotImplementedError()
+
     class Config:
         extra = "forbid"
 
@@ -146,3 +160,15 @@ class UniversalFlowRunner(FlowRunner):
             "run has a universal flow runner, it should be updated to the default "
             "runner type by the agent or user."
         )
+
+    async def preview(self, flow_run: FlowRun) -> str:
+        """
+        Produce a textual preview of the given FlowRun.
+
+        Args:
+            flow_run: The flow run
+
+        Returns:
+            A YAML string
+        """
+        return repr(self)

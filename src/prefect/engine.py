@@ -30,7 +30,7 @@ import prefect.context
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
-from prefect.context import FlowRunContext, TagsContext, TaskRunContext
+from prefect.context import FlowRunContext, LoadingContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
@@ -79,6 +79,14 @@ def enter_flow_run_engine_from_flow_call(
     for flow run execution with minimal overhead.
     """
     setup_logging()
+
+    if LoadingContext.get():
+        engine_logger.warning(
+            f"Script loading is in progress, flow {flow.name!r} will not be executed. "
+            "Consider updating the script to only call the flow if executed directly:\n\n"
+            f'\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+        )
+        return None
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -503,6 +511,12 @@ async def orchestrate_flow_run(
 
         state = await return_value_to_state(result, serializer="cloudpickle")
 
+    # Before setting the flow run state, store state.data using
+    # block storage and send the resulting data document to the Orion API instead.
+    # This prevents the pickled return value of flow runs
+    # from being sent to the Orion API and stored in the Orion database.
+    # state.data is left as is, otherwise we would have to load
+    # the data from block storage again after storing.
     state = await client.propose_state(
         state=state,
         flow_run_id=flow_run.id,
@@ -511,6 +525,8 @@ async def orchestrate_flow_run(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
             if state.data is not None and flow_run_context
+            # if None is passed, state.data will be sent
+            # to the Orion API and stored in the database
             else None
         ),
     )
@@ -828,6 +844,12 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
+        # Before setting the terminal task run state, store state.data using
+        # block storage and send the resulting data document to the Orion API instead.
+        # This prevents the pickled return value of flow runs
+        # from being sent to the Orion API and stored in the Orion database.
+        # terminal_state.data is left as is, otherwise we would have to load
+        # the data from block storage again after storing.
         state = await client.propose_state(
             terminal_state,
             task_run_id=task_run.id,
@@ -836,7 +858,9 @@ async def orchestrate_task_run(
                     terminal_state.data.json().encode(),
                     block=task_run_context.result_storage,
                 )
-                if state.data is not None
+                if terminal_state.data is not None
+                # if None is passed, terminal_state.data will be sent
+                # to the Orion API and stored in the database
                 else None
             ),
         )

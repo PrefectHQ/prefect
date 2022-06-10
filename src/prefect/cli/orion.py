@@ -4,7 +4,6 @@ Command line interface for working with Orion
 import os
 import textwrap
 from functools import partial
-from string import Template
 
 import anyio
 import anyio.abc
@@ -18,7 +17,6 @@ from prefect.cli._utilities import (
     open_process_and_stream_output,
 )
 from prefect.cli.root import app
-from prefect.flow_runners import get_prefect_image_name
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
@@ -139,30 +137,6 @@ async def start(
         app.console.print("\n")
 
     app.console.print("Orion stopped!")
-
-
-@orion_app.command()
-def kubernetes_manifest(
-    image_tag: str = None,
-    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-):
-    """
-    Generates a Kubernetes manifest for deploying Orion to a cluster.
-
-    Example:
-        $ prefect orion kubernetes-manifest | kubectl apply -f -
-    """
-
-    template = Template(
-        (prefect.__module_path__ / "cli" / "templates" / "kubernetes.yaml").read_text()
-    )
-    manifest = template.substitute(
-        {
-            "image_name": image_tag or get_prefect_image_name(),
-            "log_level": log_level,
-        }
-    )
-    print(manifest)
 
 
 @database_app.command()
