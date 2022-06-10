@@ -49,7 +49,7 @@ async def create_block_document(
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_schema_type: str = Body(None, description="The block schema type"),
+    block_capabilities: Optional[schemas.filters.BlockSchemaFilterCapabilities] = None,
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.BlockDocument]:
@@ -57,6 +57,7 @@ async def read_block_documents(
     Query for block documents.
     """
     result = await models.block_documents.read_block_documents(
+        block_capabilities_filter=block_capabilities,
         session=session,
         block_document_filter=block_document_filter,
         offset=offset,

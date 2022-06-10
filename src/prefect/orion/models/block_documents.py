@@ -348,6 +348,9 @@ async def read_block_documents(
     db: OrionDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_id: Optional[UUID] = None,
+    block_capabilities_filter: Optional[
+        schemas.filters.BlockSchemaFilterCapabilities
+    ] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
@@ -369,9 +372,14 @@ async def read_block_documents(
             block_document_filter.as_sql_filter(db)
         )
 
-    if block_type_id is not None:
+    if block_type_id is not None: 
+        filtered_block_documents_query = filtered_block_documents_query.filter_by(
+            block_type_id=block_type_id
+        )
+
+    if block_capabilities_filter is not None:
         filtered_block_documents_query = filtered_block_documents_query.where(
-            db.BlockDocument.block_type_id == block_type_id
+            block_capabilities_filter.as_sql_filter(db)
         )
 
     if offset is not None:
