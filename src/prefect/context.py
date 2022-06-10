@@ -8,7 +8,17 @@ import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import ContextManager, List, Optional, Set, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    ContextManager,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -27,6 +37,9 @@ from prefect.orion.schemas.states import State
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
+
+if TYPE_CHECKING:
+    from prefect.deployments import DeploymentSpec
 
 T = TypeVar("T")
 
@@ -71,6 +84,22 @@ class ContextModel(BaseModel):
         new = super().copy(**kwargs)
         new._token = None
         return new
+
+
+class LoadingContext(ContextModel):
+    """
+    The context while a script is being loaded.
+
+    Attributes:
+        start_time: The time the loading context was entered
+        deployment_specs: A dictionary containing any DeploymentSpec objects registered
+               while loading the script
+    """
+
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
+
+    __var__ = ContextVar("script_loading")
 
 
 class RunContext(ContextModel):
