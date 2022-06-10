@@ -55,12 +55,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import (
-    BlockDocumentUpdate,
-    LogCreate,
-    WorkQueueCreate,
-    WorkQueueUpdate,
-)
+from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
 from prefect.orion.schemas.core import (
     BlockDocument,
     BlockSchema,
