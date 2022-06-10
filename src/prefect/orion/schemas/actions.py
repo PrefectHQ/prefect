@@ -4,7 +4,6 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-import coolname
 from pydantic import Field
 
 import prefect.orion.schemas as schemas
