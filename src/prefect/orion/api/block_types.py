@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -65,15 +65,21 @@ async def read_block_type_by_name(
 
 @router.post("/filter")
 async def read_block_types(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    block_capabilities: Optional[schemas.filters.BlockSchemaFilterCapabilities] = None,
+    name: Optional[schemas.filters.BlockTypeFilterName] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.BlockType]:
     """
     Gets all block types. Optionally limit return with limit and offset.
     """
     return await models.block_types.read_block_types(
-        session=session, limit=limit, offset=offset
+        session=session,
+        limit=limit,
+        offset=offset,
+        name_filter=name,
+        block_capabilities_filter=block_capabilities,
     )
 
 
