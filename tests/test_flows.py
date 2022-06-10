@@ -1,6 +1,5 @@
 import enum
 import inspect
-import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -63,7 +62,6 @@ class TestFlow:
             """
             Hello
             """
-            pass
 
         f = Flow(
             name="test",

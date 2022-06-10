@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Type, Union
+from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest

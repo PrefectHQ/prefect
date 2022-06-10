@@ -7,7 +7,6 @@ from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
-from prefect.orion.models import block_documents
 from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.orion.schemas.core import BlockDocument
 
@@ -16,7 +15,6 @@ from prefect.orion.schemas.core import BlockDocument
 async def block_schemas(session, block_type_x, block_type_y):
     class A(Block):
         _block_schema_type = "abc"
-        pass
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()
