@@ -178,7 +178,7 @@ class Block(BaseModel, ABC):
 
         for key in data_keys:
             field_value = getattr(self, key)
-            if Block.is_block(field_value):
+            if isinstance(field_value, Block):
                 if field_value._block_document_id is not None:
                     block_document_data[key] = {
                         "$ref": {"block_document_id": field_value._block_document_id}
@@ -264,12 +264,37 @@ class Block(BaseModel, ABC):
                 checksum=block_document.block_schema.checksum,
             )
         )
+
         block = block_schema_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
+
+        block._define_metadata_on_nested_blocks(
+            block_document.block_document_references
+        )
+
         return block
+
+    def _define_metadata_on_nested_blocks(self, block_document_references):
+        for (
+            name,
+            block_document_reference,
+        ) in block_document_references.items():
+            nested_block = getattr(self, name)
+            if isinstance(nested_block, Block):
+                nested_block._define_metadata_on_nested_blocks(
+                    block_document_reference["block_document"][
+                        "block_document_references"
+                    ]
+                )
+                nested_block._block_document_id = UUID(
+                    block_document_reference["block_document"]["id"]
+                )
+                nested_block._block_document_name = block_document_reference[
+                    "block_document"
+                ]["name"]
 
     @classmethod
     async def load(cls, name: str):
