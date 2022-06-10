@@ -522,6 +522,8 @@ async def read_block_schemas(
     if limit is not None:
         filtered_block_schemas_query = filtered_block_schemas_query.limit(limit)
 
+    print(str(filtered_block_schemas_query))
+
     filtered_block_schema_ids = (
         (await session.execute(filtered_block_schemas_query)).scalars().unique().all()
     )

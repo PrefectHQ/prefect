@@ -116,6 +116,17 @@ class Block(BaseModel, ABC):
         return cls._block_type_name or cls.__name__
 
     @classmethod
+    def get_block_capabilities(cls):
+        base_block_capabilities = [
+            getattr(base, "_block_schema_capabilities", []) or []
+            for base in cls.__bases__
+        ]
+
+        return list(
+            {c for capabilities in base_block_capabilities for c in capabilities}
+        )
+
+    @classmethod
     def _to_block_schema_reference_dict(cls):
         return dict(
             block_type_name=cls.get_block_type_name(),
@@ -223,9 +234,7 @@ class Block(BaseModel, ABC):
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
-            capabilities=cls._block_schema_capabilities
-            if cls._block_schema_capabilities is not None
-            else list(),
+            capabilities=cls.get_block_capabilities(),
         )
 
     @classmethod
