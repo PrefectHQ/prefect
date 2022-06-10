@@ -96,7 +96,6 @@ class PrivatePydantic(pydantic.BaseModel):
 
     class Config:
         underscore_attrs_are_private = True
-        allow_mutation = False
 
 
 class ImPrivatePydantic(pydantic.BaseModel):
