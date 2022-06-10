@@ -44,7 +44,7 @@ class PrefectException(Exception):
     Base exception type for Prefect errors.
     """
 
-    pass
+    pass  # noqa
 
 
 class MissingFlowError(PrefectException):
@@ -52,7 +52,7 @@ class MissingFlowError(PrefectException):
     Raised when a given flow name is not found in the expected script.
     """
 
-    pass
+    pass  # noqa
 
 
 class UnspecifiedFlowError(PrefectException):
@@ -60,7 +60,7 @@ class UnspecifiedFlowError(PrefectException):
     Raised when multiple flows are found in the expected script and no name is given.
     """
 
-    pass
+    pass  # noqa
 
 
 class MissingDeploymentError(PrefectException):
@@ -68,7 +68,7 @@ class MissingDeploymentError(PrefectException):
     Raised when a given deployment name is not found in the expected script.
     """
 
-    pass
+    pass  # noqa
 
 
 class UnspecifiedDeploymentError(PrefectException):
@@ -76,7 +76,7 @@ class UnspecifiedDeploymentError(PrefectException):
     Raised when multiple deployments are found in the expected script and no name is given.
     """
 
-    pass
+    pass  # noqa
 
 
 class SpecValidationError(PrefectException, ValueError):
@@ -84,7 +84,7 @@ class SpecValidationError(PrefectException, ValueError):
     Raised when a value for a specification is inorrect
     """
 
-    pass
+    pass  # noqa
 
 
 class ScriptError(PrefectException):
@@ -139,7 +139,7 @@ class ParameterTypeError(PrefectException):
     Raised when a value passed as a flow parameter does not pass validation.
     """
 
-    pass
+    pass  # noqa
 
 
 class ObjectNotFound(PrefectException):
@@ -168,7 +168,7 @@ class UpstreamTaskError(PrefectException):
     'COMPLETE'
     """
 
-    pass
+    pass  # noqa
 
 
 class MissingContextError(PrefectException, RuntimeError):
@@ -177,7 +177,7 @@ class MissingContextError(PrefectException, RuntimeError):
     active but one cannot be found.
     """
 
-    pass
+    pass  # noqa
 
 
 class MissingProfileError(PrefectException, ValueError):
@@ -185,7 +185,7 @@ class MissingProfileError(PrefectException, ValueError):
     Raised when a profile name does not exist.
     """
 
-    pass
+    pass  # noqa
 
 
 class ReservedArgumentError(PrefectException, TypeError):
@@ -194,7 +194,7 @@ class ReservedArgumentError(PrefectException, TypeError):
     reserved for a Prefect feature
     """
 
-    pass
+    pass  # noqa
 
 
 class InvalidNameError(PrefectException, ValueError):
@@ -202,7 +202,7 @@ class InvalidNameError(PrefectException, ValueError):
     Raised when a name contains characters that are not permitted.
     """
 
-    pass
+    pass  # noqa
 
 
 class PrefectSignal(BaseException):
@@ -210,7 +210,7 @@ class PrefectSignal(BaseException):
     Base type for signal-like exceptions that should never be caught by users.
     """
 
-    pass
+    pass  # noqa
 
 
 class Abort(PrefectSignal):
@@ -220,7 +220,7 @@ class Abort(PrefectSignal):
     Indicates that the run should exit immediately.
     """
 
-    pass
+    pass  # noqa
 
 
 class PrefectHTTPStatusError(HTTPStatusError):
