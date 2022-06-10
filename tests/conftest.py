@@ -2,8 +2,6 @@ import asyncio
 import logging
 import pathlib
 import tempfile
-import warnings
-from typing import Set
 
 import pytest
 
