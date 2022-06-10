@@ -300,7 +300,9 @@ async def visit_collection(
             model_instance = typ(**result)
             # private attrs must be set separately to persist the values
             for p_attr_key in expr.__private_attributes__.keys():
-                setattr(model_instance, p_attr_key, result[p_attr_key])
+                # we use `object.__setattr__` to avoid potential errors when mutation
+                # is not allowed for the pydantic object
+                object.__setattr__(model_instance, p_attr_key, result[p_attr_key])
             return model_instance
         return None
 
