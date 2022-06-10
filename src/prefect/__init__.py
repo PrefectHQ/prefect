@@ -28,7 +28,10 @@ from .client import get_client
 # Import the serializers so they are registered
 import prefect.serializers
 
-# Initialize the process level profile at import time
+# Initialize the process level profile and registry at import time
 import prefect.context
 
 prefect.context.enter_root_settings_context()
+
+registry = prefect.context.fresh_object_registry()
+registry.__enter__()
