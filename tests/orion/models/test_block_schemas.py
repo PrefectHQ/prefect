@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
+from prefect.orion.schemas.filters import BlockSchemaFilterCapabilities
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -485,6 +486,61 @@ class TestCreateBlockSchema:
 
 
 class TestReadBlockSchemas:
+    @pytest.fixture
+    async def block_schemas_with_capabilities(self, session):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+            def run(self):
+                pass
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+            def fly(self):
+                pass
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+            def swim(self):
+                pass
+
+        class Duck(CanSwim, CanFly, Block):
+            a: str
+
+        class Bird(CanFly, Block):
+            b: str
+
+        class Cat(CanRun, Block):
+            c: str
+
+        block_type_duck = await models.block_types.create_block_type(
+            session=session, block_type=Duck._to_block_type()
+        )
+        block_schema_duck = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Duck._to_block_schema(block_type_id=block_type_duck.id),
+        )
+        block_type_bird = await models.block_types.create_block_type(
+            session=session, block_type=Bird._to_block_type()
+        )
+        block_schema_bird = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Bird._to_block_schema(block_type_id=block_type_bird.id),
+        )
+        block_type_cat = await models.block_types.create_block_type(
+            session=session, block_type=Cat._to_block_type()
+        )
+        block_schema_cat = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Cat._to_block_schema(block_type_id=block_type_cat.id),
+        )
+
+        await session.commit()
+
+        return block_schema_duck, block_schema_bird, block_schema_cat
+
     async def test_read_block_schema(self, session, nested_block_schema):
         db_block_schema = await models.block_schemas.read_block_schema(
             session=session, block_schema_id=nested_block_schema.id
@@ -623,6 +679,35 @@ class TestReadBlockSchemas:
         assert len(db_block_schemas) == 2
         assert db_block_schemas[0].block_type_id == block_type_y.id
         assert db_block_schemas[1].block_type_id == block_type_x.id
+
+    async def test_read_block_schemas_with_capabilities_filter(
+        self, session, block_schemas_with_capabilities
+    ):
+        fly_and_swim_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_capabilities_filter=BlockSchemaFilterCapabilities(
+                all_=["fly", "swim"]
+            ),
+        )
+        assert len(fly_and_swim_block_schemas) == 1
+        assert fly_and_swim_block_schemas == [block_schemas_with_capabilities[0]]
+
+        fly_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["fly"]),
+        )
+        assert len(fly_block_schemas) == 2
+        assert fly_block_schemas == [
+            block_schemas_with_capabilities[0],
+            block_schemas_with_capabilities[1],
+        ]
+
+        swim_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["swim"]),
+        )
+        assert len(swim_block_schemas) == 1
+        assert swim_block_schemas == [block_schemas_with_capabilities[0]]
 
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
