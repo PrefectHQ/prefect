@@ -144,7 +144,7 @@ class TestFileStorageBlock:
     async def test_warns_on_missing_library_at_init_then_raises_on_usage(self):
         # Skip test if a developer happens to have this installed already
         try:
-            import s3fs
+            import s3fs  # noqa
         except:
             pass
         else:

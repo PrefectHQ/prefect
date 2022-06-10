@@ -4,7 +4,6 @@ from uuid import uuid4
 import pendulum
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration import dependencies
 from prefect.orion.orchestration.dependencies import (
     provide_flow_policy,
     temporary_flow_policy,
