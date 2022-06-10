@@ -5,15 +5,11 @@ These serializers are registered for use with `DataDocument` types
 """
 import base64
 import json
-import warnings
 from typing import Any
 from uuid import UUID
 
 import cloudpickle
-import pydantic
 
-from prefect.client import get_client, inject_client
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.serializers import register_serializer
 
 
