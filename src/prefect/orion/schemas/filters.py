@@ -936,7 +936,6 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
 
 class BlockDocumentFilter(PrefectFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
-
     is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
         # default is to exclude anonymous blocks
         BlockDocumentFilterIsAnonymous(eq_=False),
@@ -1001,7 +1000,7 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     all_: List[str] = Field(
         None,
         example=["write-storage", "read-storage"],
-        description="A list of block capabilities. Block types will be returned "
+        description="A list of block capabilities. Block entities will be returned "
         "only if an associated block schema has a superset of the defined capabilities.",
     )
 
@@ -1012,14 +1011,3 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
         if self.all_ is not None:
             filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
         return filters
-
-
-class BlockDocumentFilterCapabilities(PrefectFilterBaseModel):
-    """Filter block document by the capabilities that associated block schema has"""
-
-    all_: List[str] = Field(
-        None,
-        example=["write-storage", "read-storage"],
-        description="A list of block capabilities. Block documents will be returned "
-        "only if the associated block schema has a superset of the defined capabilities.",
-    )
