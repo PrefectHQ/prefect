@@ -40,7 +40,7 @@ def dry_run_migrations() -> None:
         # table to the new one, then drop the old table.
         #
         # see https://alembic.sqlalchemy.org/en/latest/batch.html#batch-migrations
-        render_as_batch=dialect == "sqlite",
+        render_as_batch=dialect.name == "sqlite",
         # Each migration is its own transaction
         transaction_per_migration=True,
     )
@@ -71,7 +71,7 @@ def do_run_migrations(connection: AsyncEngine) -> None:
         # table to the new one, then drop the old table.
         #
         # see https://alembic.sqlalchemy.org/en/latest/batch.html#batch-migrations
-        render_as_batch=dialect == "sqlite",
+        render_as_batch=dialect.name == "sqlite",
         # Each migration is its own transaction
         transaction_per_migration=True,
     )
