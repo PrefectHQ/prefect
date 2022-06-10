@@ -6,7 +6,6 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
-import logging
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -30,7 +29,6 @@ from typing_extensions import ParamSpec
 
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
-from prefect.logging import get_logger
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
