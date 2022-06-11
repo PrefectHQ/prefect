@@ -117,14 +117,15 @@ class Block(BaseModel, ABC):
 
     @classmethod
     def get_block_capabilities(cls):
+        """Returns the block capabilities for this q"""
         base_block_capabilities = [
             getattr(base, "_block_schema_capabilities", []) or []
             for base in cls.__bases__
         ]
-
-        return list(
-            {c for capabilities in base_block_capabilities for c in capabilities}
-        )
+        capabilities_set = {
+            c for capabilities in base_block_capabilities for c in capabilities
+        }
+        return list(capabilities_set)
 
     @classmethod
     def _to_block_schema_reference_dict(cls):

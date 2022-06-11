@@ -74,10 +74,15 @@ class TestAPICompatibility:
             # could use a little confidence
             _block_type_id = uuid4()
 
-        @register_block
-        class CapableBlock(Block):
-            # kind of rude to the other Blocks
+        class CanBluff(Block):
             _block_schema_capabilities = ["bluffing"]
+
+            def bluff(self):
+                pass
+
+        @register_block
+        class CapableBlock(CanBluff, Block):
+            # kind of rude to the other Blocks
             _block_type_id = uuid4()
             all_the_answers: str = "42 or something"
 
