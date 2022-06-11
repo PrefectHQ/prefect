@@ -16,6 +16,7 @@ docker >= 4.0
 fastapi >= 0.70
 fsspec >= 2021.7.0
 google-cloud-storage >=2.1.0
+griffe >= 0.20.0
 httpx >= 0.22
 jsonpatch >= 1.32
 kubernetes >= 17.17.0
