@@ -184,7 +184,7 @@ The following examples illustrate each of these cases:
     def always_succeeds_flow():
         x = always_fails_task()
         y = always_succeeds_task()
-        if y.result() == "foo"
+        if y.result() == "foo":
             return Completed(message="I am happy with this result")
         else:
             return Failed(message="How did this happen!?")
