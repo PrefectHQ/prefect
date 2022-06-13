@@ -552,9 +552,9 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
 
 def _register_spec(spec: DeploymentSpec) -> None:
     """
-    Collect the `DeploymentSpec` object on the RegistryContext.deployment_specs
-    dictionary. If multiple specs with the same name are created, the last will
-    be used.
+    Collect the `DeploymentSpec` object on the
+    PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
+    the same name are created, the last will be used.
 
     This is convenient for `deployment_specs_from_script` which can collect
     deployment declarations without requiring them to be assigned to a global
@@ -570,8 +570,8 @@ def _register_spec(spec: DeploymentSpec) -> None:
     frame = sys._getframe().f_back.f_back
 
     # Replace the existing spec with the new one if they collide
-    context = get_object_registry()
-    context.deployment_specs[spec] = {
+    registry = get_object_registry()
+    registry.deployment_specs[spec] = {
         "file": frame.f_globals["__file__"],
         "line": frame.f_lineno,
     }

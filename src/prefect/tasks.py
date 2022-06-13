@@ -44,7 +44,7 @@ R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
 
-LAMBDA_FUNCTION_NAME = (lambda: None).__name__
+tasks_logger = get_logger("tasks")
 
 
 def task_input_hash(
@@ -122,18 +122,12 @@ class Task(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        if name:
-            self.name = name
-        elif fn.__name__ == LAMBDA_FUNCTION_NAME:
-            line_number = inspect.getsourcelines(fn)[1]
-            self.name = f"<lambda-{line_number}>"
-        else:
-            self.name = fn.__name__
-
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
+
+        self.name = _register_task(self, (name or self.fn.__name__))
 
         if "wait_for" in inspect.signature(self.fn).parameters:
             raise ReservedArgumentError(
@@ -226,6 +220,8 @@ class Task(Generic[P, R]):
             >>>     new_task = my_task.with_options(name="My new task")
             >>>     new_task()
         """
+        _deregister_task(self)
+
         return Task(
             fn=self.fn,
             name=name or self.name,
@@ -510,3 +506,50 @@ def task(
                 retry_delay_seconds=retry_delay_seconds,
             ),
         )
+
+
+def _register_task(task: Task, name: str) -> str:
+    """
+    Collect the `Task` object on the PrefectObjectRegistry.tasks dictionary. If
+    multiple tasks with the same name are created a number will be appended to
+    the name to avoid collisions.
+
+    Returns the name the task should use.
+    """
+    from prefect.context import get_object_registry
+
+    registry = get_object_registry()
+
+    if name in registry.tasks:
+        original_name = name
+
+        count = 1
+        while f"{name}-{count}" in registry.tasks:
+            count += 1
+
+        name = f"{name}-{count}"
+
+        file = inspect.getsourcefile(task.fn)
+        line_number = inspect.getsourcelines(task.fn)[1]
+        tasks_logger.warning(
+            f"A task with name {original_name!r} already exists. The task "
+            f"defined at '{file}:{line_number}' will be renamed to {name!r}. "
+            "Consider specifying a unique `name` parameter in the task "
+            "definition:\n\n `@task(name='my_unique_name', ...)`"
+        )
+
+    registry.tasks[name] = task
+
+    return name
+
+
+def _deregister_task(task: Task) -> None:
+    """
+    Remove a task from the PrefectObjectRegistry.tasks dictionary.
+    """
+    from prefect.context import get_object_registry
+
+    registry = get_object_registry()
+
+    if task.name in registry.tasks:
+        del registry.tasks[task.name]
