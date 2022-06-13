@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 else:
     kubernetes = None
 
-from .base import (
+from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
     get_prefect_image_name,

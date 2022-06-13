@@ -12,17 +12,16 @@ from pydantic import Field, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.orion.schemas.core import FlowRun
-from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
-from prefect.utilities.collections import AutoEnum
-
-from .base import (
+from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
     get_prefect_image_name,
     register_flow_runner,
 )
+from prefect.orion.schemas.core import FlowRun
+from prefect.settings import PREFECT_API_URL
+from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     import docker
