@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
@@ -199,13 +200,6 @@ class TestAPICompatibility:
         assert "real_field" in api_block.data
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
-
-    def test_create_block_type_from_block(self, test_block: Type[Block]):
-        block_type = test_block._to_block_type()
-
-        assert block_type.name == test_block.__name__
-        assert block_type.logo_url == test_block._logo_url
-        assert block_type.documentation_url == test_block._documentation_url
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -543,3 +537,314 @@ class TestRegisterBlock:
             "class and not on the Block class directly.",
         ):
             await Block.register_type_and_schema()
+
+
+class TestToBlockType:
+    def test_to_block_type_from_block(self, test_block: Type[Block]):
+        block_type = test_block._to_block_type()
+
+        assert block_type.name == test_block.__name__
+        assert block_type.logo_url == test_block._logo_url
+        assert block_type.documentation_url == test_block._documentation_url
+
+    def test_to_block_type_override_block_type_name(self):
+        class Pyramid(Block):
+            _block_type_name = "PYRAMID!"
+
+            height: float
+            width: float
+            length: float
+            base_type: str
+
+        block_type = Pyramid._to_block_type()
+
+        assert block_type.name == "PYRAMID!"
+
+    def test_to_block_type_with_description_from_docstring(self):
+        class Cube(Block):
+            "Has 8 faces."
+
+            face_length_inches: float
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+
+    def test_to_block_type_with_description_override(self):
+        class Cube(Block):
+            "Has 8 faces."
+
+            _description = "Don't trust that docstring."
+
+            face_length_inches: float
+
+        assert Cube._to_block_type().description == "Don't trust that docstring."
+
+    def test_to_block_type_with_description_and_example_docstring(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Example:
+                Calculate volume:
+                ```python
+                from prefect_geometry import Cube
+
+                my_cube = Cube.load("rubix")
+
+                my_cube.calculate_area()
+                ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Calculate volume:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```"""
+        )
+
+    def test_to_block_type_with_description_and_examples_docstring(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Examples:
+                Load block:
+                ```python
+                from prefect_geometry import Cube
+
+                my_cube = Cube.load("rubix")
+                ```
+
+                Calculate volume:
+                ```python
+                my_cube.calculate_area()
+                ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Load block:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+            ```
+
+            Calculate volume:
+            ```python
+            my_cube.calculate_area()
+            ```"""
+        )
+
+    def test_to_block_type_with_example_override(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Example:
+                Calculate volume:
+                ```python
+                my_cube = Cube.load("rubix")
+                ```
+            """
+
+            _code_example = """\
+            Don't trust that docstring. Here's how you really do it:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Don't trust that docstring. Here's how you really do it:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```
+            """
+        )
+
+
+class TestGetDescription:
+    def test_no_description_configured(self):
+        class A(Block):
+            message: str
+
+        assert A.get_description() == None
+
+    def test_description_from_docstring(self):
+        class A(Block):
+            """
+            A block, verily
+
+            Heading:
+                This extra stuff shouldn't show up in the description
+            """
+
+            message: str
+
+        assert A.get_description() == "A block, verily"
+
+    def test_description_override(self):
+        class A(Block):
+            """I won't show up in this block's description"""
+
+            _description = "But I will"
+
+            message: str
+
+        assert A.get_description() == "But I will"
+
+
+class TestGetCodeExample:
+    def test_no_code_example_configured(self):
+        class A(Block):
+            message: str
+
+        assert A.get_code_example() == None
+
+    def test_code_example_from_docstring_example_heading(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                Here's how you do it:
+                ```python
+                from somewhere import A
+
+                a_block = A.load("a block")
+
+                a_block.send_message()
+                ```
+            """
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+            Here's how you do it:
+            ```python
+            from somewhere import A
+
+            a_block = A.load("a block")
+
+            a_block.send_message()
+            ```"""
+        )
+
+    def test_code_example_from_docstring_examples_heading(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                Here's how you do it:
+                ```python
+                from somewhere import A
+
+                a_block = A.load("a block")
+
+                a_block.send_message()
+                ```
+
+                Here's something extra:
+                ```python
+                print(42)
+                ```
+            """
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+            Here's how you do it:
+            ```python
+            from somewhere import A
+
+            a_block = A.load("a block")
+
+            a_block.send_message()
+            ```
+            
+            Here's something extra:
+            ```python
+            print(42)
+            ```"""
+        )
+
+    def test_code_example_override(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                ```python
+                print(42)
+                ```
+            """
+
+            _code_example = """\
+                Here's the real example:
+
+                ```python
+                print("I am overriding the example in the docstring")
+                ```"""
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+                Here's the real example:
+
+                ```python
+                print("I am overriding the example in the docstring")
+                ```"""
+        )
