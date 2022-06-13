@@ -89,3 +89,28 @@ When viewing flow run details, the Radar shows a simple visualization of the tas
 Zoom zoom out to see the entire flow hierarchy, and zoom in and drag the radar around to see details and connections between tasks. Select any task to focus the view on that task.
 
 ![Radar view of flow and task relationships.](/img/ui/orion-flow-radar.png)
+
+## Troubleshooting flows
+
+If you're having issues with a flow run, Prefect provides multiple tools to help you identify issues, re-run flows, and even delete a flow or flow run.
+
+Flows may end up in states other than Completed. This is where Prefect really helps you out. If a flow ends up in a state such as Pending, Failed, or Cancelled, you can:
+
+- Check the logs for the flow run for errors.
+- Check the task runs to see where the error occurred.
+- Check [work queues](/ui/work-queues/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
+- Make sure an [agent](/concepts/work-queues/) is running in your execution environment and is configured to pull work from an appropriate work queue.
+
+If you need to delete a flow or flow run: 
+
+In the Prefect UI or Prefect Cloud, go the the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
+
+From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
+
+<div class="terminal">
+```bash
+$ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run). 
