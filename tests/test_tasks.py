@@ -16,6 +16,14 @@ from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 
 
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    from prefect.context import fresh_object_registry
+
+    registry = fresh_object_registry()
+    registry.__enter__()
+
+
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
 
@@ -35,10 +43,12 @@ class TestTaskName:
 
         assert my_task.name == "another_name"
 
-    def test_name_from_lambda(self):
-        my_task = task(lambda: None)
-        line_number = inspect.getsourcelines(my_task)[1]
-        assert my_task.name == f"<lambda-{line_number}>"
+    def test_conflicting_task_names(self):
+        my_first_task = task(lambda: None, name="my_task")
+        my_second_task = task(lambda: None, name="my_task")
+
+        assert my_first_task.name == "my_task"
+        assert my_second_task.name == "my_task-1"
 
 
 class TestTaskCall:

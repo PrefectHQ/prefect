@@ -9,7 +9,7 @@ dist/
 sdist/
 
 # Test artifacts
-.coverage
+.coverage*
 .prefect-results
 .pytest_cache/
 

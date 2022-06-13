@@ -110,14 +110,9 @@ class PrefectObjectRegistry(ContextModel):
     deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
     tasks: Dict[str, Task] = Field(default_factory=dict)
 
-    _block_code_execution: bool = PrivateAttr(default=True)
+    _block_code_execution: bool = PrivateAttr(default=False)
 
     __var__ = ContextVar("object_registry")
-
-    class Config:
-        allow_mutation = True
-        arbitrary_types_allowed = True
-        extra = "forbid"
 
     @property
     def code_execution_blocked(self):
