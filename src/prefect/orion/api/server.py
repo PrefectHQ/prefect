@@ -3,6 +3,7 @@ Defines the Orion FastAPI app.
 """
 
 import asyncio
+import mimetypes
 import os
 from functools import partial
 from typing import Dict, List, Mapping, Optional, Tuple
@@ -201,6 +202,11 @@ def create_orion_api(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
+
+    if os.name == "nt":
+        # Windows defaults to text/plain for .js files
+        mimetypes.init()
+        mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get("/ui-settings")
     def ui_settings():

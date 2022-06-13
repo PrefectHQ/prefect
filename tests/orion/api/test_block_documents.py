@@ -528,7 +528,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_before_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
         response = await client.patch(
@@ -550,7 +557,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_after_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_update_nested_block_document_reference(
@@ -591,7 +605,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_before_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
         new_inner_block_document = await models.block_documents.create_block_document(
@@ -630,7 +651,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_after_update.block_document_references == {
-            "b": {"block_document_id": new_inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": new_inner_block_document.id,
+                    "name": new_inner_block_document.name,
+                    "block_type": new_inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_update_with_faulty_block_document_reference(
