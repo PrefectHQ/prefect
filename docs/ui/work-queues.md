@@ -31,6 +31,13 @@ Select the **+** button to create a new work queue. You'll be able to specify th
 
 ![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
 
+!!! note "Work queue settings are filters"
+    Note that work queue settings for Tags, Deployments, and Flow Runners are filters and restrict the work queue to servicing flow runs only for deployments that meet the filtering criteria. For example, if you do not specify any tags or deployments, the work queue will serve any flow runs. However, if you added a "test" tag to the Tags list, the work queue would serve _only_ flow runs configured with a "test" tag.
+
+    Selecting all or none of the flow runners is functionally equivalent, but selecting any subset of flow runners restricts the work queue to flow runs configured to use those flow runners.
+
+See the [Work Queues and Agents](/concepts/work-queues/) documentation for details on configuring work queues.
+
 Click on the name of any work queue to see details about it. 
 
 ![Viewing details of a work queue including agent configuration string](/img/ui/work-queue-details.png)
