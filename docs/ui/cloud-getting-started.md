@@ -48,7 +48,10 @@ Select **Save** to create the workspace.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace-full.png)
 
-If you change your mind, you can select **Workspace Settings** to modify the workspace details or to delete it.
+If you change your mind, you can select **Workspace Settings** to modify the workspace details or to delete it. 
+
+!!! warning "Deleting a workspace"
+    Deleting a workspace removes any flows, deployments, and storage created on that workspace.
 
 ## Create an API key
 
