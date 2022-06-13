@@ -440,14 +440,18 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             second.result()
 
-    # async def test_call_during_load_does_not_run_flow(self, caplog):
-    #     @flow(version="test")
-    #     def foo(x, y=3, z=3):
-    #         return x + y + z
+    async def test_call_execution_blocked_does_not_run_flow(self):
+        @flow(version="test")
+        def foo(x, y=3, z=3):
+            return x + y + z
 
-    #     with prefect.context.LoadingContext():
-    #         state = foo(1, 2)
-    #         assert state is None
+        from prefect.context import get_object_registry
+
+        registry = get_object_registry()
+
+        with registry.block_code_execution():
+            state = foo(1, 2)
+            assert state is None
 
 
 class TestSubflowCalls:
