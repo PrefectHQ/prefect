@@ -280,7 +280,7 @@ async def set_task_run_state(
     run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
 
     if not run:
-        raise ObjectNotFoundError(f"Invalid task run: {task_run_id}")
+        raise ObjectNotFoundError(f"Task run with id {task_run_id} not found")
 
     initial_state = run.state.as_state() if run.state else None
     initial_state_type = initial_state.type if initial_state else None
