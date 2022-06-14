@@ -97,7 +97,7 @@ jobs:
           mv requirements-lower.txt requirements.txt
           mv requirements-dev-lower.txt requirements-dev.txt
 
-      - name: Build test images
+      - name: Build test image
         if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v3
         with:
@@ -115,6 +115,24 @@ jobs:
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+
+      - name: Build Conda flavored test image
+        if: ${{ matrix.build-docker-images }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            PYTHON_BASE="prefect-conda"
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-conda-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image-conda.tar
+
+      - name: Test Conda flavored Docker image
+        if: ${{ matrix.build-docker-images }}
+        run: |
+          docker load --input /tmp/image-conda.tar
+          docker run --rm prefecthq/prefect:dev-conda-python${{ matrix.python-version }} prefect version
 
       - name: Install packages
         run: |
