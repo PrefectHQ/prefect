@@ -7,7 +7,7 @@ tags:
     - Prefect Cloud
 ---
 
-# Flow Runs Dashboard
+# Flow Runs
 
 The **Flow Runs** page provides high-level visibility into the status of your flow and task runs. From the dashboard, you can filter results to explore specific run states, scheduled runs, and more. You can drill down into details about: 
 
