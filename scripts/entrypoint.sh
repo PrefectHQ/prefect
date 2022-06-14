@@ -23,5 +23,5 @@ This is a development docker image for Prefect Orion.
 "
   exec bash --login
 else
-  exec "$@"
+  exec bash --login -c "$@"
 fi
