@@ -28,7 +28,7 @@ Selecting a deployment name displays details about the deployment. The **Overvie
 
 Selecting the **Run** button starts an ad-hoc flow run for the deployment.
 
-Selecting the slider next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
+Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
 The button next to the slider provides commands to copy the deployment ID or delete the deployment.
 
