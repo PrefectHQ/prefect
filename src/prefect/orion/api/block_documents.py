@@ -23,6 +23,9 @@ async def create_block_document(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
+    """
+    Create a new block document.
+    """
     try:
         new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
@@ -39,6 +42,9 @@ async def create_block_document(
 @router.post("/filter")
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
+    include_anonymous: bool = Body(
+        False, description="Whether to include anonymous blocks in the result"
+    ),
     block_schema_type: str = Body(None, description="The block schema type"),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -48,6 +54,7 @@ async def read_block_documents(
     """
     result = await models.block_documents.read_block_documents(
         session=session,
+        include_anonymous=include_anonymous,
         offset=offset,
         limit=limit,
     )
