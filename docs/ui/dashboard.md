@@ -33,7 +33,7 @@ The **Filters** area at the top of the page provides controls that enable you to
 
 ## Run history
 
-The **run history** area of the dashboard provides an overview of recent flow runs by time and duration of run. [Filters](#filters) control the detail of what's shown in the Run history.
+The **run history** area of the page provides an overview of recent flow runs by time and duration of run. [Filters](#filters) control the detail of what's shown in the Run history.
 
 ![Highlighting the run history section of the dashboard.](/img/ui/orion-dash-history.png)
 
