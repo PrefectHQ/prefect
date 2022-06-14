@@ -25,7 +25,7 @@ To manage work queues in the UI, click the **Work Queues** icon. This displays a
 
 ![The UI displays a list of configured work queues](/img/ui/work-queue-list.png)
 
-You can also pause a work queue from this page by using the slider.
+You can also pause a work queue from this page by using the toggle.
 
 Select the **+** button to create a new work queue. You'll be able to specify the details for work served by this queue.
 

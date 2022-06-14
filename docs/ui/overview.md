@@ -65,9 +65,9 @@ The following sections provide details about Prefect UI pages and visualizations
 
 ## Navigating the UI
 
-The left side of the Prefect UI provides commands to help you navigate to commonly used pages.
+Use the left side of the Prefect UI to navigate between pages.
 
-| Command | Description |
+| Page | Description |
 | --- | --- |
 | **Flow Runs**   | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**       | Displays a searchable list of flows tracked by the API. |
