@@ -16,7 +16,7 @@ The **Deployments** page in the UI displays any deployments that have been creat
 
 ![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
 
-Selecting the slider next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
+Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
 The button next to the slider provides commands to copy the deployment ID or delete the deployment. Note that deleting the deployment only removes the deployment object from the API, along with any scheduled flow runs. It does not affect the source files for your flow or deployment specification.
 
