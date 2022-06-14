@@ -14,7 +14,8 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.orchestration.core_policy import CoreTaskPolicy, MinimalTaskPolicy
+from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.orchestration.core_policy import MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -279,7 +280,7 @@ async def set_task_run_state(
     run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
 
     if not run:
-        raise ValueError(f"Invalid task run: {task_run_id}")
+        raise ObjectNotFoundError(f"Invalid task run: {task_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
     initial_state_type = initial_state.type if initial_state else None
