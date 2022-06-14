@@ -81,7 +81,10 @@ async def block_schemas(session, block_type_x, block_type_y):
 
 
 class TestCreateBlockDocument:
-    async def test_create_block_document(self, session, client, block_schemas):
+    @pytest.mark.parametrize("is_anonymous", [False, True])
+    async def test_create_block_document(
+        self, session, client, block_schemas, is_anonymous: bool
+    ):
         response = await client.post(
             "/block_documents/",
             json=BlockDocumentCreate(
@@ -89,6 +92,7 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=is_anonymous,
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -98,11 +102,13 @@ class TestCreateBlockDocument:
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
+        assert result.is_anonymous is is_anonymous
 
         response = await client.get(f"/block_documents/{result.id}")
         api_block = BlockDocument.parse_obj(response.json())
         assert api_block.name == "x"
         assert api_block.data == dict(y=1)
+        assert api_block.is_anonymous is is_anonymous
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
 
@@ -263,6 +269,17 @@ class TestReadBlockDocuments:
                 ),
             )
         )
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[2].id,
+                    name="Block 6",
+                    block_type_id=block_schemas[2].block_type_id,
+                    is_anonymous=True,
+                ),
+            )
+        )
 
         await session.commit()
         return block_documents
@@ -273,14 +290,24 @@ class TestReadBlockDocuments:
         read_block_documents = pydantic.parse_obj_as(
             List[schemas.core.BlockDocument], response.json()
         )
-        assert {b.id for b in read_block_documents} == {b.id for b in block_documents}
         # sorted by block type name, block document name
         assert [b.id for b in read_block_documents] == [
-            block_documents[0].id,
-            block_documents[1].id,
-            block_documents[2].id,
-            block_documents[3].id,
-            block_documents[4].id,
+            block_documents[i].id for i in range(5)
+        ]
+
+    async def test_read_block_documents_include_anonymous(
+        self, client, block_documents
+    ):
+        response = await client.post(
+            "/block_documents/filter", json=dict(include_anonymous=True)
+        )
+        assert response.status_code == status.HTTP_200_OK
+        read_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+        # sorted by block type name, block document name
+        assert [b.id for b in read_block_documents] == [
+            block_documents[i].id for i in range(6)
         ]
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
@@ -473,6 +500,36 @@ class TestUpdateBlockDocument:
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await session.commit()
+
+        response = await client.patch(
+            f"/block_documents/{block_document.id}",
+            json=BlockDocumentUpdate(
+                data=dict(x=2),
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.data == dict(x=2)
+
+    async def test_update_anonymous_block_document_data(
+        self, session, client, block_schemas
+    ):
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-data",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
             ),
         )
 

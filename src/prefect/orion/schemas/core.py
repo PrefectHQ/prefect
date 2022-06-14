@@ -455,6 +455,10 @@ class BlockDocument(ORMBaseModel):
     block_document_references: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
+    is_anonymous: bool = Field(
+        False,
+        description="Whether the block is anonymous (anonymous blocks are usually created by Prefect automatically)",
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -475,6 +479,7 @@ class BlockDocument(ORMBaseModel):
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
             block_type=orm_block_document.block_type,
+            is_anonymous=orm_block_document.is_anonymous,
         )
 
 
