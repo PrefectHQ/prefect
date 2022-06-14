@@ -54,11 +54,64 @@ RUN rm -rf dist && python setup.py sdist
 RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 
 
-# Build the final Python image.
-FROM python:${PYTHON_VERSION}-slim
+
+# Build a final image with conda; this is an alternative to our standard image
+# Use --target final-conda to build
+FROM continuumio/miniconda3 as final-conda
+
+ENV LC_ALL C.UTF-8
+ENV LANG C.UTF-8
+
+LABEL maintainer="help@prefect.io"
+LABEL io.prefect.python-version=${PYTHON_VERSION}
+LABEL org.label-schema.schema-version = "1.0"
+LABEL org.label-schema.name="prefect"
+LABEL org.label-schema.url="https://www.prefect.io/"
+
+WORKDIR /opt/prefect
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+        tini=0.19.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create a new conda environment with our required Python version
+# and some requirements satisfied by conda.
+COPY requirements-conda.txt ./
+ARG PYTHON_VERSION
+RUN conda create \
+    python=${PYTHON_VERSION} \
+    --file requirements-conda.txt \
+    --name prefect \
+    --channel conda-forge
+
+# Use the prefect environment by default
+RUN echo "conda activate prefect" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Pin the pip version
+RUN python -m pip install --no-cache-dir pip==21.3.1
+
+# Install the base requirements separately so they cache
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install prefect from the sdist
+COPY --from=python-builder /opt/prefect/dist ./dist
+RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
+RUN pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+
+# Setup entrypoint
+COPY scripts/entrypoint.sh ./entrypoint.sh
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
+
+
+
+# Build the final Python image.
+FROM python:${PYTHON_VERSION}-slim as final
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
@@ -89,6 +142,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
+
+# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
+ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Setup entrypoint
