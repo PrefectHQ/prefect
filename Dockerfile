@@ -1,7 +1,12 @@
 # The version Python in the final image
 ARG PYTHON_VERSION=3.8
-# The base image to use for the final image.
-# One of: 'prefect-conda', 'prefect-slim', or another image
+# The base image to use for the final image; Prefect and its Python requirements will
+# be installed in this image.
+# The following images are available in this file:
+#   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment
+#   prefect-slim:  Derivative of the official Python slim image with build libraries
+# Any image tag could be used, but it must support installation of Prefect with pip
+# and have apt for installation of tini.
 ARG BASE_IMAGE="prefect-slim"
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
@@ -60,11 +65,6 @@ RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 # Setup a base final image from miniconda
 FROM continuumio/miniconda3 as prefect-conda
 
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        tini=0.19.* \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Create a new conda environment with our required Python version
 # and some requirements satisfied by conda.
 COPY requirements-conda.txt ./
@@ -80,13 +80,11 @@ RUN echo "conda activate prefect" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 
 
-
 # Setup a base final image from python-slim
 FROM python:${PYTHON_VERSION}-slim as prefect-slim
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        tini=0.19.* \
         # The following are required for building the asyncpg wheel
         gcc=4:10.* \
         linux-libc-dev=5.10.* \
@@ -108,6 +106,12 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 WORKDIR /opt/prefect
 
+# Install tini for the entrypoint
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+        tini=0.19.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Pin the pip version
 RUN python -m pip install --no-cache-dir pip==21.3.1
 
@@ -124,4 +128,4 @@ RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
-ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
