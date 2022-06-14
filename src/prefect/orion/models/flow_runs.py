@@ -415,7 +415,7 @@ async def set_flow_run_state(
     )
 
     if not run:
-        raise ObjectNotFoundError(f"Invalid flow run: {flow_run_id}")
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
 
     initial_state = run.state.as_state() if run.state else None
     initial_state_type = initial_state.type if initial_state else None
