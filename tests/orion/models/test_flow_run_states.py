@@ -2,15 +2,26 @@ import datetime
 from uuid import uuid4
 
 import pendulum
+import pytest
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration import dependencies
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.dependencies import (
     provide_flow_policy,
     temporary_flow_policy,
 )
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.schemas.states import Running, Scheduled, StateType
+
+
+class TestSetFlowRunState:
+    async def test_throws_object_not_found_error_if_bad_id(self, session):
+        with pytest.raises(ObjectNotFoundError):
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=uuid4(),
+                state=StateType.CANCELLED,
+            )
 
 
 class TestCreateFlowRunState:
