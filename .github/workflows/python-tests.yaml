@@ -123,7 +123,7 @@ jobs:
           context: .
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
-            PYTHON_BASE="prefect-conda"
+            BASE_IMAGE="prefect-conda"
             PREFECT_EXTRAS=[dev]
           tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
           outputs: type=docker,dest=/tmp/image-conda.tar
