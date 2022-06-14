@@ -125,14 +125,15 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             PYTHON_BASE="prefect-conda"
             PREFECT_EXTRAS=[dev]
-          tags: prefecthq/prefect:dev-conda-python${{ matrix.python-version }}
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
           outputs: type=docker,dest=/tmp/image-conda.tar
 
       - name: Test Conda flavored Docker image
         if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image-conda.tar
-          docker run --rm prefecthq/prefect:dev-conda-python${{ matrix.python-version }} prefect version
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda conda --version
 
       - name: Install packages
         run: |

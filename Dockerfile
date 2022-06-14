@@ -3,7 +3,7 @@ ARG PYTHON_VERSION=3.8
 # The base image to use for the final image; Prefect and its Python requirements will
 # be installed in this image. The default is the official Python slim image.
 # The following images are also available in this file:
-#   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment
+#   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment. Used for the 'conda' flavor.
 # Any image tag can be used, but it must have apt and pip.
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
