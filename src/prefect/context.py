@@ -450,11 +450,11 @@ def enter_root_settings_context():
 GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
 
 
-def fresh_object_registry():
+def initialize_object_registry():
     global GLOBAL_OBJECT_REGISTRY
+
+    if GLOBAL_OBJECT_REGISTRY:
+        return
+
     GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
-    return GLOBAL_OBJECT_REGISTRY
-
-
-def get_object_registry():
-    return PrefectObjectRegistry.get()
+    GLOBAL_OBJECT_REGISTRY.__enter__()

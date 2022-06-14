@@ -445,9 +445,9 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        from prefect.context import get_object_registry
+        from prefect.context import PrefectObjectRegistry
 
-        registry = get_object_registry()
+        registry = PrefectObjectRegistry.get()
 
         with registry.block_code_execution():
             state = foo(1, 2)

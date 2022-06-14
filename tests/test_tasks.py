@@ -18,9 +18,9 @@ from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 
 @pytest.fixture(autouse=True)
 def reset_object_registry():
-    from prefect.context import fresh_object_registry
+    from prefect.context import PrefectObjectRegistry
 
-    registry = fresh_object_registry()
+    registry = PrefectObjectRegistry()
     registry.__enter__()
 
 
@@ -1302,7 +1302,9 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options()
 
         assert task_with_options is not initial_task
-        assert task_with_options.name == "Initial task"
+        assert (
+            task_with_options.name == "Initial task-1"
+        )  # The registry renames tasks to avoid collisions.
         assert task_with_options.description == "Task before with options"
         assert set(task_with_options.tags) == {"tag1", "tag2"}
         assert task_with_options.tags is not initial_task.tags
