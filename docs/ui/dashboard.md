@@ -53,4 +53,4 @@ Each listed flow run shows:
 
 You can select any flow name or flow run name on the list to display further details. See the [Flows and Tasks](/ui/flows-and-tasks/) documentation for more information.
 
-![Highlighting the details section of the dashboard.](/img/ui/orion-dash-details.png)
+![Highlighting the details section of the flow runs page.](/img/ui/orion-dash-details.png)
