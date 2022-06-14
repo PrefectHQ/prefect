@@ -42,6 +42,6 @@ Click on the name of any work queue to see details about it.
 
 ![Viewing details of a work queue including agent configuration string](/img/ui/work-queue-details.png)
 
-You can also pause a work queue from this page by using the slider.
+You can also pause a work queue from this page by using the toggle.
 
 The commands button enables you to edit or delete the work queue.
