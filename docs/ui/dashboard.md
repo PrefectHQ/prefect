@@ -9,7 +9,7 @@ tags:
 
 # Flow Runs Dashboard
 
-The **Flow Runs** dashboard provides high-level visibility into the status of your flow and task runs. From the dashboard, you can filter results to explore specific run states, scheduled runs, and more. You can drill down into details about: 
+The **Flow Runs** page provides high-level visibility into the status of your flow and task runs. From the dashboard, you can filter results to explore specific run states, scheduled runs, and more. You can drill down into details about: 
 
 - Flows
 - Deployments
