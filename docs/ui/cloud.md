@@ -31,7 +31,7 @@ Features only available on Prefect Cloud include:
 
 ## User accounts
 
-As a new user, a personal account is automatically provisioned for you. A personal account gives you access to profile settings where you can view and administer your: 
+When you sign up for Prefect Cloud, a personal account is automatically provisioned for you. A personal account gives you access to profile settings where you can view and administer your: 
 
 - Profile, including profile handle and image
 - API keys
