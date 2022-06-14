@@ -28,7 +28,7 @@ RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./orion-ui/package*.json .
-RUN npm ci install 
+RUN npm ci install
 
 # Build static UI files
 COPY ./orion-ui .
