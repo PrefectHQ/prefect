@@ -104,7 +104,7 @@ nav:
         - ui/work-queues.md
         - Prefect Cloud:
             - Overview: ui/cloud.md
-            - Getting Started: ui/cloud-getting-started.md
+            - Prefect Cloud Quickstart: ui/cloud-getting-started.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
