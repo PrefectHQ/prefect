@@ -65,12 +65,9 @@ FROM continuumio/miniconda3 as prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
-
-
 RUN conda create \
     python=${PYTHON_VERSION} \
-    --name prefect \
-    --channel conda-forge
+    --name prefect
 
 # Use the prefect environment by default
 RUN echo "conda activate prefect" >> ~/.bashrc
