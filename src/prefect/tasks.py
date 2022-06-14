@@ -6,7 +6,7 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
-import logging
+import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -30,7 +30,6 @@ from typing_extensions import ParamSpec
 
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
-from prefect.logging import get_logger
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
@@ -42,9 +41,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
-
-
-tasks_logger = get_logger("tasks")
 
 
 def task_input_hash(
@@ -220,8 +216,6 @@ class Task(Generic[P, R]):
             >>>     new_task = my_task.with_options(name="My new task")
             >>>     new_task()
         """
-        _deregister_task(self)
-
         return Task(
             fn=self.fn,
             name=name or self.name,
@@ -516,9 +510,9 @@ def _register_task(task: Task, name: str) -> str:
 
     Returns the name the task should use.
     """
-    from prefect.context import get_object_registry
+    from prefect.context import PrefectObjectRegistry
 
-    registry = get_object_registry()
+    registry = PrefectObjectRegistry.get()
 
     if name in registry.tasks:
         original_name = name
@@ -531,7 +525,7 @@ def _register_task(task: Task, name: str) -> str:
 
         file = inspect.getsourcefile(task.fn)
         line_number = inspect.getsourcelines(task.fn)[1]
-        tasks_logger.warning(
+        warnings.warn(
             f"A task with name {original_name!r} already exists. The task "
             f"defined at '{file}:{line_number}' will be renamed to {name!r}. "
             "Consider specifying a unique `name` parameter in the task "
@@ -541,15 +535,3 @@ def _register_task(task: Task, name: str) -> str:
     registry.tasks[name] = task
 
     return name
-
-
-def _deregister_task(task: Task) -> None:
-    """
-    Remove a task from the PrefectObjectRegistry.tasks dictionary.
-    """
-    from prefect.context import get_object_registry
-
-    registry = get_object_registry()
-
-    if task.name in registry.tasks:
-        del registry.tasks[task.name]
