@@ -1,4 +1,4 @@
-# The version Python in the final image
+# The version of Python in the final image
 ARG PYTHON_VERSION=3.8
 # The base image to use for the final image; Prefect and its Python requirements will
 # be installed in this image. The default is the official Python slim image.
@@ -64,8 +64,6 @@ RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 FROM continuumio/miniconda3 as prefect-conda
 
 # Create a new conda environment with our required Python version
-# and some requirements satisfied by conda.
-COPY requirements-conda.txt ./
 ARG PYTHON_VERSION
 
 
