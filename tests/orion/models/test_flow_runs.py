@@ -7,7 +7,6 @@ import sqlalchemy as sa
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import StateType
 
 
 class TestCreateFlowRun:
@@ -1159,13 +1158,3 @@ class TestDeleteFlowRun:
             session=session, flow_run_id=uuid4()
         )
         assert result is False
-
-
-class TestSetFlowRunState:
-    async def test_throws_object_not_found_error_if_bad_id(self, session):
-        with pytest.raises(ObjectNotFoundError):
-            await models.flow_runs.set_flow_run_state(
-                session=session,
-                flow_run_id=uuid4(),
-                state=StateType.CANCELLED,
-            )
