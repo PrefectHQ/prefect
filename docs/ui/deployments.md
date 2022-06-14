@@ -30,7 +30,7 @@ Selecting the **Run** button starts an ad-hoc flow run for the deployment.
 
 Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
-The button next to the slider provides commands to copy the deployment ID or delete the deployment.
+The button next to the toggle provides commands to copy the deployment ID or delete the deployment.
 
 The **Parameters** tab displays any parameters specified for the deployment.
 
