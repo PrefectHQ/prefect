@@ -84,6 +84,7 @@ class NewCluster(BaseModel):
     instance_pool_id: Optional[str] = None
     policy_id: Optional[str] = None
     data_security_mode: Optional[str] = None
+    single_user_name: Optional[str] = None
 
 
 class NotebookTask(BaseModel):
