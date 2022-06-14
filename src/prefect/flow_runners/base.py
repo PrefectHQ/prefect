@@ -41,10 +41,8 @@ def get_prefect_image_name(
 
     python_version = python_version or python_version_minor()
 
-    flavor = (f"-{flavor}-") if flavor else "-"
-
     tag = slugify(
-        f"{prefect_version}{flavor}python{python_version}",
+        f"{prefect_version}python{python_version}" + f"-{flavor}" if flavor else "",
         lowercase=False,
         max_length=128,
         # Docker allows these characters for tag names
