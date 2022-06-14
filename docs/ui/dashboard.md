@@ -39,7 +39,7 @@ The **run history** area of the page provides an overview of recent flow runs by
 
 ## Details
 
-The details area of the dashboard provides a listing of flow runs that are scheduled or have attempted to execute. [Filters](#filters) control what's shown in the details section. 
+The details area of the page provides a listing of flow runs that are scheduled or have attempted to execute. [Filters](#filters) control what's shown in the details section. 
 
 Each listed flow run shows: 
 
