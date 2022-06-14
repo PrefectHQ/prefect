@@ -25,6 +25,7 @@ from prefect.cli._utilities import (
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.flow_runners import get_prefect_image_name
+from prefect.flow_runners.base import python_version_minor
 from prefect.orion.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
@@ -207,34 +208,59 @@ def build_image(
             "Defaults to the architecture of the host Python. "
             f"[default: {platform.machine()}]"
         ),
-    )
+    ),
+    python_version: str = typer.Option(
+        None,
+        help=(
+            "The Python version to build the container for. "
+            "Defaults to the version of the host Python. "
+            f"[default: {python_version_minor()}]"
+        ),
+    ),
+    flavor: str = typer.Option(
+        None,
+        help=(
+            "An alternative flavor to build, for example 'conda'. "
+            "Defaults to the standard Python base image"
+        ),
+    ),
+    dry_run: bool = False,
 ):
     """
     Build a docker image for development.
     """
-    tag = get_prefect_image_name()
-
     # TODO: Once https://github.com/tiangolo/typer/issues/354 is addresesd, the
     #       default can be set in the function signature
     arch = arch or platform.machine()
+    python_version = python_version or python_version_minor()
+
+    tag = get_prefect_image_name(python_version=python_version, flavor=flavor)
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
     # as it comes
+    command = [
+        "docker",
+        "build",
+        str(prefect.__root_path__),
+        "--tag",
+        tag,
+        "--platform",
+        f"linux/{arch}",
+        "--build-arg",
+        "PREFECT_EXTRAS=[dev]",
+        "--build-arg",
+        f"PYTHON_VERSION={python_version}",
+    ]
+
+    if flavor:
+        command += ["--build-arg", f"BASE_IMAGE=prefect-{flavor}"]
+
+    if dry_run:
+        print(" ".join(command))
+        return
+
     try:
-        subprocess.check_call(
-            [
-                "docker",
-                "build",
-                str(prefect.__root_path__),
-                "--tag",
-                tag,
-                "--platform",
-                f"linux/{arch}",
-                "--build-arg",
-                "PREFECT_EXTRAS=[dev]",
-            ],
-            shell=sys.platform == "win32",
-        )
+        subprocess.check_call(command, shell=sys.platform == "win32")
     except subprocess.CalledProcessError:
         exit_with_error("Failed to build image!")
     else:
