@@ -1,13 +1,11 @@
 # The version Python in the final image
 ARG PYTHON_VERSION=3.8
 # The base image to use for the final image; Prefect and its Python requirements will
-# be installed in this image.
-# The following images are available in this file:
+# be installed in this image. The default is the official Python slim image.
+# The following images are also available in this file:
 #   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment
-#   prefect-slim:  Derivative of the official Python slim image with build libraries
-# Any image tag could be used, but it must support installation of Prefect with pip
-# and have apt for installation of tini.
-ARG BASE_IMAGE="prefect-slim"
+# Any image tag can be used, but it must have apt and pip.
+ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
 # THe version used to build the UI distributable.
@@ -69,9 +67,10 @@ FROM continuumio/miniconda3 as prefect-conda
 # and some requirements satisfied by conda.
 COPY requirements-conda.txt ./
 ARG PYTHON_VERSION
+
+
 RUN conda create \
     python=${PYTHON_VERSION} \
-    --file requirements-conda.txt \
     --name prefect \
     --channel conda-forge
 
@@ -79,17 +78,6 @@ RUN conda create \
 RUN echo "conda activate prefect" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
 
-
-# Setup a base final image from python-slim
-FROM python:${PYTHON_VERSION}-slim as prefect-slim
-
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        # The following are required for building the asyncpg wheel
-        gcc=4:10.* \
-        linux-libc-dev=5.10.* \
-        libc6-dev=2.* \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 
 # Build the final image with Prefect installed and our entrypoint configured
@@ -110,6 +98,7 @@ WORKDIR /opt/prefect
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         tini=0.19.* \
+        build-essential \ 
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
