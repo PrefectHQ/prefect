@@ -86,7 +86,7 @@ You can see details about the flow run including:
 
 When viewing flow run details, the Radar shows a simple visualization of the task runs executed within the flow run. Click on the **Radar** block to see a detailed, hierarchical visualization of the task execution paths for the flow run.
 
-Zoom zoom out to see the entire flow hierarchy, and zoom in and drag the radar around to see details and connections between tasks. Select any task to focus the view on that task.
+Zoom out to see the entire flow hierarchy, and zoom in and drag the radar around to see details and connections between tasks. Select any task to focus the view on that task.
 
 ![Radar view of flow and task relationships.](/img/ui/orion-flow-radar.png)
 
