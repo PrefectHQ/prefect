@@ -1,15 +1,13 @@
-import copy
-from statistics import mode
 from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.util.langhelpers import add_parameter_text
 
 from prefect.orion import models, schemas
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.schemas.core import TaskRunResult
-from tests.fixtures.database import task_run
+from prefect.orion.schemas.states import StateType
 
 
 class TestCreateFlowRun:
@@ -1132,7 +1130,7 @@ class TestReadFlowRunTaskRunDependencies:
     async def test_read_task_run_dependencies_throws_error_if_does_not_exist(
         self, session
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ObjectNotFoundError):
             await models.flow_runs.read_task_run_dependencies(
                 session=session, flow_run_id=uuid4()
             )
@@ -1161,3 +1159,13 @@ class TestDeleteFlowRun:
             session=session, flow_run_id=uuid4()
         )
         assert result is False
+
+
+class TestSetFlowRunState:
+    async def test_throws_object_not_found_error_if_bad_id(self, session):
+        with pytest.raises(ObjectNotFoundError):
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=uuid4(),
+                state=StateType.CANCELLED,
+            )
