@@ -16,7 +16,7 @@ Prefect allows you to configure many aspects of how your flows and tasks run - h
 
 ## TaskRunners
 
-Oftentimes we want our tasks to run in parallel or even on different machines for efficiency.  Prefect exposes this functionality via the concept of an _task runner_.
+Oftentimes we want our tasks to run in parallel or even on different machines for efficiency.  Prefect exposes this functionality via the concept of a _task runner_.
 
 !!! note "Running flows in parallel requires no configuration"
     Note that task runners only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
