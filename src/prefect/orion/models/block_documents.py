@@ -275,17 +275,19 @@ async def read_block_document_by_name(
 async def read_block_documents(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    include_anonymous: bool = False,
+    block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_id: Optional[UUID] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
     """
     Read block documents with an optional limit and offset
-
-    Args:
-        include_anonymous: if True, include anonymous blocks in the result
     """
+    # if no filter is provided, one is created that excludes anonymous blocks
+    if block_document_filter is None:
+        block_document_filter = schemas.filters.BlockDocumentFilter(
+            is_anonymous=dict(eq_=False)
+        )
 
     filtered_block_documents_query = (
         sa.select(db.BlockDocument.id)
@@ -294,16 +296,14 @@ async def read_block_documents(
         .order_by(db.BlockDocument.name)
     )
 
+    if block_document_filter:
+        filtered_block_documents_query = filtered_block_documents_query.where(
+            block_document_filter.as_sql_filter(db)
+        )
+
     if block_type_id is not None:
         filtered_block_documents_query = filtered_block_documents_query.where(
             db.BlockDocument.block_type_id == block_type_id
-        )
-
-    # if include_anonymous = True, we want *all* blocks
-    # if include_anonymous = False, we want only non-anonymous blocks
-    if not include_anonymous:
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            db.BlockDocument.is_anonymous.is_(False)
         )
 
     if offset is not None:

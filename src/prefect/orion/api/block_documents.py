@@ -42,9 +42,7 @@ async def create_block_document(
 @router.post("/filter")
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
-    include_anonymous: bool = Body(
-        False, description="Whether to include anonymous blocks in the result"
-    ),
+    block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schema_type: str = Body(None, description="The block schema type"),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -54,7 +52,7 @@ async def read_block_documents(
     """
     result = await models.block_documents.read_block_documents(
         session=session,
-        include_anonymous=include_anonymous,
+        block_document_filter=block_document_filter,
         offset=offset,
         limit=limit,
     )
