@@ -2,6 +2,7 @@
 Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
+import hashlib
 from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
@@ -14,7 +15,6 @@ from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.utilities.hashing import hash_objects
-import hashlib
 
 
 @inject_db
