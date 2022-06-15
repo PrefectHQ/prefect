@@ -492,7 +492,7 @@ async def test_agent_displays_message_on_work_queue_pause(
         assert (
             f"Work queue 'testing' ({work_queue_id}) is paused."
             not in prefect_caplog.text
-        ), "Not displayed before pausing"
+        ), "Message should not be displayed before pausing"
 
         await orion_client.update_work_queue(work_queue_id, is_paused=True)
 
