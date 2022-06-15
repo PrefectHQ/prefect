@@ -14,6 +14,11 @@ export const routes = {
   workQueueEdit: (id: string) => ({ name: 'edit-work-queue', params: { id } }) as const,
   workQueueCreate: () => ({ name: 'create-work-queue' }) as const,
   workQueues: () => ({ name: 'work-queues' }) as const,
+  blocks: () => ({ name: 'blocks' }) as const,
+  blocksCatalog: () => ({ name: 'blocks.catalog' }) as const,
+  blocksCatalogCreate: () => ({ name: 'blocks.catalog.create' }) as const,
+  block: (blockDocumentId: string) => ({ name: 'block', params: { blockDocumentId } }) as const,
+  blockEdit: (blockDocumentId: string) => ({ name: 'block.edit', params: { blockDocumentId } }) as const,
   settings: () => ({ name: 'settings' }) as const,
 }
 
