@@ -40,6 +40,8 @@ from prefect.tasks import Task
 
 if TYPE_CHECKING:
     from prefect.deployments import DeploymentSpec
+    from prefect.flows import Flow
+    from prefect.tasks import Task
 
 T = TypeVar("T")
 
@@ -86,20 +88,43 @@ class ContextModel(BaseModel):
         return new
 
 
-class LoadingContext(ContextModel):
+class PrefectObjectRegistry(ContextModel):
     """
-    The context while a script is being loaded.
+    A context that acts as a registry for all Prefect objects that are
+    registered during load and execution.
 
     Attributes:
         start_time: The time the loading context was entered
-        deployment_specs: A dictionary containing any DeploymentSpec objects registered
-               while loading the script
+
+        flows: A dictionary containing all Flow objects that are initialized
+            during load / execution.
+        deployment_specs: A dictionary containing all DeploymentSpec objects
+            that are initialized during load / execution.
+        tasks: A dictionary containing all Task objects that are initialized
+            during load / execution.
     """
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
-    deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
 
-    __var__ = ContextVar("script_loading")
+    flows: Dict[str, Flow] = Field(default_factory=dict)
+    deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
+    tasks: Dict[str, Task] = Field(default_factory=dict)
+
+    _block_code_execution: bool = PrivateAttr(default=False)
+
+    __var__ = ContextVar("object_registry")
+
+    @property
+    def code_execution_blocked(self):
+        return self._block_code_execution
+
+    @contextmanager
+    def block_code_execution(self) -> None:
+        self._block_code_execution = True
+        try:
+            yield
+        finally:
+            self._block_code_execution = False
 
 
 class RunContext(ContextModel):
@@ -420,3 +445,16 @@ def enter_root_settings_context():
     )
 
     GLOBAL_SETTINGS_CM.__enter__()
+
+
+GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
+
+
+def initialize_object_registry():
+    global GLOBAL_OBJECT_REGISTRY
+
+    if GLOBAL_OBJECT_REGISTRY:
+        return
+
+    GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
+    GLOBAL_OBJECT_REGISTRY.__enter__()
