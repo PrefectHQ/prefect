@@ -6,8 +6,6 @@ from fastapi import Body, Depends, HTTPException, Path, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.models import block_documents
-from prefect.orion.schemas.core import BlockDocument
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_types", tags=["Block documents"])

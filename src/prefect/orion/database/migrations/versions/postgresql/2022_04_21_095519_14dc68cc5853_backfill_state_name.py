@@ -62,4 +62,3 @@ def downgrade():
     """
     Data only migration. No action on downgrade.
     """
-    pass
