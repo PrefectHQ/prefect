@@ -121,7 +121,7 @@ class TestCreateBlockDocument:
         assert response.status_code == status.HTTP_201_CREATED
         result = BlockDocument.parse_obj(response.json())
 
-        assert result.name.startswith("Anonymous:")
+        assert result.name.startswith("anonymous:")
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
@@ -129,7 +129,7 @@ class TestCreateBlockDocument:
 
         response = await client.get(f"/block_documents/{result.id}")
         api_block = BlockDocument.parse_obj(response.json())
-        assert api_block.name.startswith("Anonymous:")
+        assert api_block.name.startswith("anonymous:")
         assert api_block.data == dict(y=1)
         assert api_block.is_anonymous is True
         assert result.block_schema_id == block_schemas[0].id
