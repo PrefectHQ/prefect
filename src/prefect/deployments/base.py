@@ -31,18 +31,15 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import is_local_path, tmpchdir
-from prefect.utilities.importtools import objects_from_script
+from prefect.utilities.hashing import to_qualified_name
+from prefect.utilities.importtools import import_object, objects_from_script
 
 
 class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     """
     The base type for specifying a deployment of a flow.
 
-    Implementations must set a unique `type` string and implement the `build` method.
-
-    The type string is used to resolve this class into a subtype, allowing subtypes to
-    be returned by `DeploymentSpecification.parse_raw` and other Pydantic parsing
-    methods.
+    Subclasses must implement the `build` method.
     """
 
     name: str = None
@@ -55,7 +52,6 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     flow_runner: Union[FlowRunner, FlowRunnerSettings] = None
 
     # Meta types
-    type: str
     _validated: bool = PrivateAttr(False)
     _source: Dict = PrivateAttr()
 
@@ -214,42 +210,6 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
                 yield super().validate
             else:
                 yield validator
-
-    @classmethod
-    def get_type(cls):
-        return cls.__fields__["type"].default
-
-    def __new__(cls: Type[Self], **kwargs) -> Self:
-        """
-        Infer the class to initialize from the 'type' field which should be a constant
-        on all subclasses.
-        """
-        # Fallback to 'script' to avoid breaking existing deployments
-        # TODO: Add a deprecation warning here then remove to raise the value error
-        #       below
-        kwargs.setdefault("type", "script")
-
-        cls_by_type = {subcls.get_type(): subcls for subcls in cls.__subclasses__()}
-
-        requested_type = kwargs.get("type")
-        if not requested_type:
-            raise ValueError(
-                "A 'type' must be included to specify the deployment type."
-            )
-
-        subcls = cls_by_type.get(requested_type)
-        if subcls is None:
-            if issubclass(cls, DeploymentSpecification):
-                # Continue to walk up the tree until we reach the base class
-                return super().__new__(cls)
-            else:
-                raise ValueError(
-                    f"Provided type {requested_type!r} not found. Use one of: "
-                    f"{listrepr(cls_by_type.keys(), sep=', ')}"
-                )
-
-        # Create a new model with the selected implementation
-        return super().__new__(subcls)
 
 
 # Utilities for loading flows and deployment specifications ----------------------------
@@ -456,7 +416,13 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpecification]:
         # Load deployments relative to the yaml file's directory
         with tmpchdir(path):
             raw_spec = yaml.safe_load(yaml.serialize(node))
-            spec = DeploymentSpecification.parse_obj(raw_spec)
+            spec_type_path = raw_spec.pop(
+                "type", "prefect.deployments.ScriptDeploymentSpecification"
+            )
+            if "." not in spec_type_path:
+                spec_type_path = "prefect.deployments." + spec_type_path
+            cls = import_object(spec_type_path)
+            spec = cls.parse_obj(raw_spec)
 
         # Update the source to be from the YAML file instead of this utility
         spec._source = {"file": str(path), "line": line}

@@ -38,7 +38,7 @@ Examples:
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object.
     ```yaml
-    type: script
+    type: ScriptDeploymentSpecification
     name: my-first-deployment
     flow_location: ./path-to-the-flow-script.py
     flow_name: hello-world
