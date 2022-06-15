@@ -594,6 +594,21 @@ class TestScriptDeploymentSpecificationFromFile:
         assert spec.parameters == {"foo": "bar"}
         assert spec.tags == ["foo", "bar"]
 
+    async def test_spec_from_yaml_with_type_key(self):
+        specs = deployment_specs_from_yaml(
+            TEST_FILES_DIR / "deployment-with-type-key.yaml"
+        )
+        assert len(specs) == 1
+        spec = specs[0]
+        await spec.validate()
+        assert isinstance(spec, ScriptDeploymentSpecification)
+
+    async def test_spec_from_yaml_with_unresolvable_type_key(self):
+        with pytest.raises(ImportError):
+            deployment_specs_from_yaml(
+                TEST_FILES_DIR / "deployment-with-bad-type-key.yaml"
+            )
+
     async def test_multiple_specs_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "multiple-deployments.yaml")
         assert len(specs) == 2

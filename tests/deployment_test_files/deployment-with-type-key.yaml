@@ -1,0 +1,4 @@
+type: prefect.deployments.ScriptDeploymentSpecification
+name: hello-sun-deployment
+flow_location: ./multiple_flows.py
+flow_name: hello-sun
