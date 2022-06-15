@@ -50,6 +50,16 @@ Select **Save** to create the workspace.
 
 If you change your mind, you can select **Workspace Settings** to modify the workspace details or to delete it. 
 
+![Editing workspace settings in the Prefect Cloud UI](/img/ui/cloud-workspace-settings.png)
+
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment the workspace.
+
+<div class="terminal">
+```bash
+$ prefect cloud workspace set --workspace "prefect/workinonit"
+```
+</div>
+
 !!! warning "Deleting a workspace"
     Deleting a workspace removes any flows, deployments, and storage created on that workspace.
 
@@ -102,6 +112,16 @@ The command then sets `PREFECT_API_KEY` and `PREFECT_API_URL` for the current pr
 Now you're ready to run flows locally and have the results displayed in the Prefect Cloud UI.
 
 The `prefect cloud logout` CLI command unsets those settings in the current profile, logging the environment out of interaction with Prefect Cloud.
+
+### Changing workspaces
+
+If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command, passing the the account handle and workspace name.
+
+<div class="terminal">
+```bash
+$ prefect cloud workspace set --workspace "prefect/workinonit"
+```
+</div>
 
 ### Manually configuring Cloud settings
 

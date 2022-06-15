@@ -14,7 +14,7 @@ The Prefect UI provides an overview of all of your flows. It was designed around
 There are two ways to access the UI:
 
 - The [Prefect UI](#using-the-orion-ui) gives you insight into the flows running with any local Prefect API server instance.
-- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts and workspaces.
+- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts, workspaces, and collaborators.
 
 The UI displays many useful insights about your flow runs, including:
 
@@ -74,7 +74,7 @@ Use the left side of the Prefect UI to navigate between pages.
 | **Deployment**  | Displays flow [deployments](/concepts/deployments/) created on the API. |
 | <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
 
-In Prefect Cloud, the Prefect icon returns you the flow runs view of your current workspace. When multiple workspaces are available, it returns you to the list of workspaces.
+In Prefect Cloud, the Prefect icon returns you to the workspaces list. Currently, you can create only one workspace per personal account, but you may have access to other workspaces as a collaborator. See the [Prefect Cloud Workspaces](/ui/cloud/#workspaces) documentation for details. 
 
 ## Prefect Cloud
 
