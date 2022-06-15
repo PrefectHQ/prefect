@@ -565,8 +565,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             None
         """
 
-        pass
-
     async def after_transition(
         self,
         initial_state: Optional[states.State],
@@ -586,7 +584,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Returns:
             None
         """
-        pass
 
     async def cleanup(
         self,
@@ -612,7 +609,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Returns:
             None
         """
-        pass
 
     async def invalid(self) -> bool:
         """
@@ -845,8 +841,6 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
             None
         """
 
-        pass
-
     async def after_transition(self, context) -> None:
         """
         Implements a hook that can fire after a state is committed to the database.
@@ -857,8 +851,6 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         Returns:
             None
         """
-
-        pass
 
     def nullified_transition(self) -> bool:
         """
