@@ -264,7 +264,7 @@ def build_image(
     except subprocess.CalledProcessError:
         exit_with_error("Failed to build image!")
     else:
-        exit_with_success(f"Built image {tag!r} for {platform}")
+        exit_with_success(f"Built image {tag!r} for linux/{arch}")
 
 
 @dev_app.command()
