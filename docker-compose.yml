@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  test-db:
+    image: postgres:13
+    ports:
+      - 15432:5432
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: orion
+    tmpfs: /var/lib/postgresql/data
