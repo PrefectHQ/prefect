@@ -649,31 +649,45 @@ class TestReadBlockDocuments:
         return blocks
 
     async def test_read_blocks(self, session, blocks):
-        # by default, exclude anonymous blocks
         read_blocks = await models.block_documents.read_block_documents(session=session)
-        # same behavior as above, but explicit
-        read_blocks_explicit = await models.block_documents.read_block_documents(
-            session=session, include_anonymous=False
-        )
 
+        # by default, exclude anonymous blocks
         assert {b.id for b in read_blocks} == {
             b.id for b in blocks if not b.is_anonymous
         }
 
         # sorted by block type name, block name
         assert read_blocks == [b for b in blocks if not b.is_anonymous]
-        assert read_blocks == read_blocks_explicit
 
-    async def test_read_blocks_include_anonymous(self, session, blocks):
-        # read every block including anonymous
-        read_blocks = await models.block_documents.read_block_documents(
-            session=session, include_anonymous=True
+    async def test_read_blocks_with_is_anonymous_filter(self, session, blocks):
+        non_anonymous_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=dict(eq_=False)
+            ),
         )
 
-        assert {b.id for b in read_blocks} == {b.id for b in blocks}
+        anonymous_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=dict(eq_=True)
+            ),
+        )
 
-        # sorted by block type name, block name
-        assert read_blocks == blocks
+        all_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=None
+            ),
+        )
+
+        assert {b.id for b in non_anonymous_blocks} == {
+            b.id for b in blocks if not b.is_anonymous
+        }
+        assert {b.id for b in anonymous_blocks} == {
+            b.id for b in blocks if b.is_anonymous
+        }
+        assert {b.id for b in all_blocks} == {b.id for b in blocks}
 
     async def test_read_blocks_limit_offset(self, session, blocks):
         # sorted by block type name, block name

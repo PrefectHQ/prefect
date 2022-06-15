@@ -291,15 +291,18 @@ class TestReadBlockDocuments:
             List[schemas.core.BlockDocument], response.json()
         )
         # sorted by block type name, block document name
+        # anonymous blocks excluded by default
         assert [b.id for b in read_block_documents] == [
-            block_documents[i].id for i in range(5)
+            b.id for b in block_documents if not b.is_anonymous
         ]
 
-    async def test_read_block_documents_include_anonymous(
-        self, client, block_documents
+    @pytest.mark.parametrize("is_anonymous", [True, False])
+    async def test_read_block_documents_with_filter_is_anonymous(
+        self, client, block_documents, is_anonymous
     ):
         response = await client.post(
-            "/block_documents/filter", json=dict(include_anonymous=True)
+            "/block_documents/filter",
+            json=dict(block_document_filter=dict(is_anonymous=dict(eq_=is_anonymous))),
         )
         assert response.status_code == status.HTTP_200_OK
         read_block_documents = pydantic.parse_obj_as(
@@ -307,8 +310,28 @@ class TestReadBlockDocuments:
         )
         # sorted by block type name, block document name
         assert [b.id for b in read_block_documents] == [
-            block_documents[i].id for i in range(6)
+            b.id for b in block_documents if b.is_anonymous is is_anonymous
         ]
+
+    @pytest.mark.parametrize("is_anonymous_filter", [None, dict(eq_=None)])
+    async def test_read_block_documents_with_both_anonymous_and_non_anonymous(
+        self, client, block_documents, is_anonymous_filter
+    ):
+        """
+        anonymous blocks are filtered by default, so have to explicitly disable the filter
+        to get all blocks. This can be done either by disabling the is_anonymous filter (recommended) OR by setting eq_=None
+        and we test both to make sure the default value doesn't override
+        """
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(block_document_filter=dict(is_anonymous=is_anonymous_filter)),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        read_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+        # sorted by block type name, block document name
+        assert [b.id for b in read_block_documents] == [b.id for b in block_documents]
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block type name, block document name
