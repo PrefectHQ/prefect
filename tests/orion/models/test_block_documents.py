@@ -1,5 +1,4 @@
 import hashlib
-from decimal import DivisionByZero
 from uuid import uuid4
 
 import pytest
