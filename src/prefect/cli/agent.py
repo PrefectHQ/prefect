@@ -50,7 +50,6 @@ async def start(
         else:
             app.console.print("Starting agent with ephemeral API...")
 
-    running = True
     async with OrionAgent(
         work_queue_id=work_queue_id,
         work_queue_name=work_queue_name,
@@ -61,11 +60,12 @@ async def start(
                 f"Agent started! Looking for work from queue '{work_queue}'..."
             )
 
-        while running:
+        while True:
             try:
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
-                running = False
+                break
+
             await anyio.sleep(PREFECT_AGENT_QUERY_INTERVAL.value())
 
     app.console.print("Agent stopped!")

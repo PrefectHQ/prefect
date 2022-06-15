@@ -15,8 +15,39 @@ from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 
 
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    from prefect.context import PrefectObjectRegistry
+
+    registry = PrefectObjectRegistry()
+    registry.__enter__()
+
+
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
+
+
+class TestTaskName:
+    def test_name_from_function(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.name == "my_task"
+
+    def test_name_from_kwarg(self):
+        @task(name="another_name")
+        def my_task():
+            pass
+
+        assert my_task.name == "another_name"
+
+    def test_conflicting_task_names(self):
+        my_first_task = task(lambda: None, name="my_task")
+        my_second_task = task(lambda: None, name="my_task")
+
+        assert my_first_task.name == "my_task"
+        assert my_second_task.name == "my_task-1"
 
 
 class TestTaskCall:
@@ -1270,7 +1301,9 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options()
 
         assert task_with_options is not initial_task
-        assert task_with_options.name == "Initial task"
+        assert (
+            task_with_options.name == "Initial task-1"
+        )  # The registry renames tasks to avoid collisions.
         assert task_with_options.description == "Task before with options"
         assert set(task_with_options.tags) == {"tag1", "tag2"}
         assert task_with_options.tags is not initial_task.tags

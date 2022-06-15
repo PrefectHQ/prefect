@@ -62,7 +62,7 @@ import prefect.orion.schemas as schemas
 from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.context import LoadingContext
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
@@ -466,8 +466,10 @@ def load_flows_from_script(path: str) -> Set[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-    with LoadingContext():
-        objects = objects_from_script(path)
+    with PrefectObjectRegistry() as registry:
+        with registry.block_code_execution():
+            objects = objects_from_script(path)
+
     return set(extract_instances(objects.values(), types=Flow))
 
 
@@ -505,20 +507,20 @@ def deployment_specs_and_flows_from_script(
     # TODO: Refactor how flows are loaded and make it consistent with how
     # depolyment specrs are loaded. https://github.com/PrefectHQ/orion/issues/2012
 
-    with LoadingContext() as context:
-        flows = load_flows_from_script(script_path)
-
-    return (context.deployment_specs, flows)
+    with PrefectObjectRegistry() as registry:
+        with registry.block_code_execution():
+            flows = load_flows_from_script(script_path)
+    return (registry.deployment_specs, flows)
 
 
 def deployment_specs_from_script(path: str) -> Dict[DeploymentSpec, str]:
     """
     Load deployment specifications from a python script.
     """
-    with LoadingContext() as context:
-        objects_from_script(path)
-
-    return context.deployment_specs
+    with PrefectObjectRegistry() as registry:
+        with registry.block_code_execution():
+            objects_from_script(path)
+    return registry.deployment_specs
 
 
 def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
@@ -548,18 +550,14 @@ def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
 
 def _register_spec(spec: DeploymentSpec) -> None:
     """
-    Collect the `DeploymentSpec` object created during a LoadingContext context
-    into a dictionary. If multiple specs with the same name are created, the
-    last will be used an the earlier will be used.
+    Collect the `DeploymentSpec` object on the
+    PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
+    the same name are created, the last will be used.
 
     This is convenient for `deployment_specs_from_script` which can collect
     deployment declarations without requiring them to be assigned to a global
     variable
     """
-    context = LoadingContext.get()
-
-    if context is None:
-        return
 
     # Retrieve information about the definition of the spec
     # This goes back two frames to where the spec was defined
@@ -570,7 +568,8 @@ def _register_spec(spec: DeploymentSpec) -> None:
     frame = sys._getframe().f_back.f_back
 
     # Replace the existing spec with the new one if they collide
-    context.deployment_specs[spec] = {
+    registry = PrefectObjectRegistry.get()
+    registry.deployment_specs[spec] = {
         "file": frame.f_globals["__file__"],
         "line": frame.f_lineno,
     }
