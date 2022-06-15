@@ -186,7 +186,13 @@ class BlockSchemaCreate(
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
-        include_fields=["name", "data", "block_schema_id", "block_type_id"],
+        include_fields=[
+            "name",
+            "data",
+            "block_schema_id",
+            "block_type_id",
+            "is_anonymous",
+        ],
     )
 ):
     """Data used by the Orion API to create a block document."""
