@@ -1,7 +1,6 @@
 import io
 import re
 import sys
-from email.mime import image
 from pathlib import Path
 from typing import Generator
 
