@@ -1,13 +1,13 @@
 import io
 import re
 import sys
-from email.mime import image
 from pathlib import Path
 from typing import Generator
 
 import pytest
 from _pytest.capture import CaptureFixture
 from docker import DockerClient
+from docker.errors import ImageNotFound
 from typer.testing import CliRunner
 
 import prefect
@@ -134,8 +134,10 @@ def prefect_base_image(docker: DockerClient):
 
     image_exists, version_is_right = False, False
 
-    if docker.images.get(image_name):
-        image_exists = True
+    try:
+        image_exists = bool(docker.images.get(image_name))
+    except ImageNotFound:
+        pass
 
     if image_exists:
         version = docker.containers.run(image_name, ["prefect", "--version"])
