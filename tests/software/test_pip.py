@@ -28,8 +28,13 @@ class TestPipRequirement:
 def test_current_environment_requirements():
     requirements = current_environment_requirements()
     assert all(isinstance(r, PipRequirement) for r in requirements)
+    names = [r.name for r in requirements]
+    assert len(names) == len(set(names)), "Names should not be repeated"
 
 
 def test_current_environment_requirements_top_level_only():
     requirements = current_environment_requirements(exclude_nested=True)
+    all_requirements = current_environment_requirements()
+    assert {r.name for r in requirements}.issubset({r.name for r in all_requirements})
+    assert len(requirements) < len(all_requirements)
     assert all(isinstance(r, PipRequirement) for r in requirements)
