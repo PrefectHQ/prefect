@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import coolname
-from pydantic import Field, HttpUrl, validator
+from pydantic import Field, HttpUrl, validator, root_validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -462,7 +462,10 @@ class BlockDocument(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        # the BlockDocumentCreate subclass allows name=None
+        # and will inherit this validator
+        if v is not None:
+            raise_on_invalid_name(v)
         return v
 
     @classmethod

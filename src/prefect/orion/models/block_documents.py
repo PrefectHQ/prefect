@@ -3,7 +3,7 @@ Functions for interacting with block document ORM objects.
 Intended for internal use by the Orion API.
 """
 from typing import Dict, List, Optional, Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 
@@ -13,6 +13,8 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
+from prefect.utilities.hashing import hash_objects
+import hashlib
 
 
 @inject_db
@@ -22,8 +24,20 @@ async def create_block_document(
     db: OrionDBInterface,
 ):
 
+    # anonymous blocks are automatically assigned names that act as idempotency keys
+    if block_document.is_anonymous:
+        if block_document.name:
+            raise ValueError("Names can not be provided for anonymous blocks.")
+
+        checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
+        document_name = f"Anonymous:{checksum}"
+    else:
+        document_name = block_document.name
+
     orm_block = db.BlockDocument(
-        name=block_document.name,
+        # set the id ourselves so we can check for anonymous block idempotency
+        id=uuid4(),
+        name=document_name,
         block_schema_id=block_document.block_schema_id,
         block_type_id=block_document.block_type_id,
         is_anonymous=block_document.is_anonymous,
@@ -37,9 +51,39 @@ async def create_block_document(
     # encrypt the data and store in block document
     await orm_block.encrypt_data(session=session, data=block_document_data_without_refs)
 
-    # add the block document to the session and flush
-    session.add(orm_block)
-    await session.flush()
+    if not orm_block.is_anonymous:
+        session.add(orm_block)
+        await session.flush()
+
+    else:
+        # named blocks raise an error if the unique name constraint is violated,
+        # but anonymous blocks are idempotent and we return the existing one
+        # instead of erroring. However, SQLAlchemy ORM doesn't support on
+        # conflict statements so we need to convert to SQLalchemy Core for the
+        # conflict check
+        core_block_values = orm_block.__dict__.copy()
+        core_block_values.pop("_sa_instance_state")
+
+        insert_stmt = (
+            (await db.insert(db.BlockDocument))
+            .values(**core_block_values)
+            .on_conflict_do_nothing(
+                index_elements=db.block_document_unique_upsert_columns,
+            )
+        )
+        await session.execute(insert_stmt)
+
+        result = await session.execute(
+            sa.select(db.BlockDocument.id).where(db.BlockDocument.name == document_name)
+        )
+        idempotent_id = result.scalar()
+
+        # if the idempotent ID is different from the ID we tried to insert,
+        # then the block already exists and we return that block
+        if idempotent_id != orm_block.id:
+            return await read_block_document_by_id(
+                session=session, block_document_id=idempotent_id
+            )
 
     # Create a block document reference for each reference in the block document data
     for key, reference_block_document_id in block_document_references:
@@ -293,7 +337,7 @@ async def read_block_documents(
         sa.select(db.BlockDocument.id)
         .join(db.BlockSchema, db.BlockSchema.id == db.BlockDocument.block_schema_id)
         .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
-        .order_by(db.BlockDocument.name)
+        .order_by(db.BlockType.name, db.BlockDocument.name)
     )
 
     if block_document_filter:
@@ -342,7 +386,7 @@ async def read_block_documents(
             ]
         )
         .select_from(db.BlockDocument)
-        .order_by(db.BlockDocument.name)
+        .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
         .join(
             recursive_block_document_references_cte,
             db.BlockDocument.id
@@ -357,6 +401,7 @@ async def read_block_documents(
                 ),
             )
         )
+        .order_by(db.BlockType.name, db.BlockDocument.name)
         .execution_options(populate_existing=True)
     )
 
@@ -407,6 +452,13 @@ async def update_block_document(
         return False
 
     update_values = block_document.dict(shallow=True, exclude_unset=True)
+
+    if "name" in update_values:
+        # anonymous block names can not be updated
+        if current_block_document.is_anonymous:
+            raise ValueError("Names can not be provided for anonymous blocks.")
+        current_block_document.name = update_values["name"]
+
     if "data" in update_values and update_values["data"] is not None:
         current_block_document_references = (
             (
@@ -451,9 +503,6 @@ async def update_block_document(
                 await delete_block_document_reference(
                     session, block_document_reference_id=block_document_reference.id
                 )
-
-    if "name" in update_values:
-        current_block_document.name = update_values["name"]
 
     await session.flush()
 
