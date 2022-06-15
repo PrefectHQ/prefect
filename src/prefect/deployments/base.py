@@ -2,41 +2,30 @@ import abc
 import os
 import pathlib
 import sys
-import warnings
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Type, Union
 from uuid import UUID
 
 import fsspec
 import yaml
-from pydantic import Field, PrivateAttr, ValidationError, root_validator, validator
+from pydantic import Field, PrivateAttr, validator
 from typing_extensions import Self
 
-import prefect
 import prefect.orion.schemas as schemas
-from prefect.blocks.core import Block
-from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     DeploymentValidationError,
     MissingDeploymentError,
     MissingFlowError,
-    ObjectAlreadyExists,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
 )
-from prefect.flow_runners import (
-    FlowRunner,
-    FlowRunnerSettings,
-    SubprocessFlowRunner,
-    UniversalFlowRunner,
-)
+from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow
 from prefect.orion import schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.core import raise_on_invalid_name
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
@@ -47,10 +36,14 @@ from prefect.utilities.importtools import objects_from_script
 
 class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     """
-    The base type for specifying a deployment.
-    """
+    The base type for specifying a deployment of a flow.
 
-    type: str
+    Implementations must set a unique `type` string and implement the `build` method.
+
+    The type string is used to resolve this class into a subtype, allowing subtypes to
+    be returned by `DeploymentSpecification.parse_raw` and other Pydantic parsing
+    methods.
+    """
 
     name: str = None
     flow: Flow = None
@@ -61,6 +54,8 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     tags: List[str] = Field(default_factory=list)
     flow_runner: Union[FlowRunner, FlowRunnerSettings] = None
 
+    # Meta types
+    type: str
     _validated: bool = PrivateAttr(False)
     _source: Dict = PrivateAttr()
 
