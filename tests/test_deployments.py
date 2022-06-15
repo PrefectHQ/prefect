@@ -8,17 +8,17 @@ from pydantic import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.blocks.storage import FileStorageBlock, LocalStorageBlock
-from prefect.deployments import (
-    DeploymentSpec,
+from prefect.deployments import ScriptDeploymentSpecification
+from prefect.deployments.base import (
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
     load_flow_from_script,
 )
 from prefect.exceptions import (
+    DeploymentValidationError,
     MissingFlowError,
     ScriptError,
-    SpecValidationError,
     UnspecifiedFlowError,
 )
 from prefect.flow_runners import (
@@ -81,38 +81,42 @@ async def remote_default_storage(orion_client, tmp_remote_storage_block_id):
     await orion_client.set_default_storage_block_document(tmp_remote_storage_block_id)
 
 
-class TestDeploymentSpec:
+class TestScriptDeploymentSpecification:
     async def test_infers_flow_location_from_flow(self, remote_default_storage):
-        spec = DeploymentSpec(flow=hello_world_flow)
+        spec = ScriptDeploymentSpecification(flow=hello_world_flow)
         await spec.validate()
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
     async def test_flow_location_is_coerced_to_string(self, remote_default_storage):
-        spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
+        spec = ScriptDeploymentSpecification(
+            flow_location=TEST_FILES_DIR / "single_flow.py"
+        )
         await spec.validate()
         assert type(spec.flow_location) is str
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
     def test_flow_location_is_absolute(self, remote_default_storage):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=(TEST_FILES_DIR / "single_flow.py").relative_to(os.getcwd()),
         )
         assert spec.flow_location == str((TEST_FILES_DIR / "single_flow.py").absolute())
 
     async def test_infers_flow_name_from_flow(self, remote_default_storage):
-        spec = DeploymentSpec(flow=hello_world_flow)
+        spec = ScriptDeploymentSpecification(flow=hello_world_flow)
         await spec.validate()
         assert spec.flow_name == "hello-world"
 
     async def test_checks_for_flow_name_consistency(self, remote_default_storage):
-        spec = DeploymentSpec(flow=hello_world_flow, flow_name="other-name")
+        spec = ScriptDeploymentSpecification(
+            flow=hello_world_flow, flow_name="other-name"
+        )
         with pytest.raises(
-            SpecValidationError, match="`flow.name` and `flow_name` must match"
+            DeploymentValidationError, match="`flow.name` and `flow_name` must match"
         ):
             await spec.validate()
 
     async def test_loads_flow_and_name_from_location(self, remote_default_storage):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             name="test", flow_location=TEST_FILES_DIR / "single_flow.py"
         )
         assert spec.flow is None
@@ -123,7 +127,7 @@ class TestDeploymentSpec:
         assert spec.flow_name == "hello-world"
 
     async def test_loads_flow_from_location_by_name(self, remote_default_storage):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             name="test",
             flow_location=TEST_FILES_DIR / "multiple_flows.py",
             flow_name="hello-sun",
@@ -138,14 +142,16 @@ class TestDeploymentSpec:
     async def test_raises_validation_error_on_missing_flow_name(
         self, remote_default_storage
     ):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             name="test",
             flow_location=TEST_FILES_DIR / "multiple_flows.py",
             flow_name="shall-not-be-found",
         )
         assert spec.flow is None
         assert spec.flow_name == "shall-not-be-found"
-        with pytest.raises(SpecValidationError, match="'shall-not-be-found' not found"):
+        with pytest.raises(
+            DeploymentValidationError, match="'shall-not-be-found' not found"
+        ):
             await spec.validate()
 
     @pytest.mark.parametrize(
@@ -160,14 +166,14 @@ class TestDeploymentSpec:
     )
     def test_invalid_name(self, name):
         with pytest.raises(ValidationError, match="contains an invalid character"):
-            DeploymentSpec(name=name)
+            ScriptDeploymentSpecification(name=name)
 
     async def test_defaults_name_to_match_flow_name(self, remote_default_storage):
         @flow
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo)
+        spec = ScriptDeploymentSpecification(flow=foo)
         await spec.validate()
         assert spec.name == "foo" == spec.flow.name
 
@@ -178,7 +184,7 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow=foo,
             flow_runner=FlowRunnerSettings(
                 type="subprocess", config={"env": {"test": "test"}}
@@ -194,11 +200,13 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow=foo,
             flow_runner=FlowRunner(typename="test"),
         )
-        with pytest.raises(SpecValidationError, match="The base.*type cannot be used"):
+        with pytest.raises(
+            DeploymentValidationError, match="The base.*type cannot be used"
+        ):
             await spec.validate()
 
     async def test_does_not_allow_default_flow_runner_without_storage(
@@ -210,9 +218,9 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo)
+        spec = ScriptDeploymentSpecification(flow=foo)
         with pytest.raises(
-            SpecValidationError, match="have not configured default storage"
+            DeploymentValidationError, match="have not configured default storage"
         ):
             await spec.validate()
 
@@ -229,9 +237,9 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        spec = ScriptDeploymentSpecification(flow=foo, flow_runner=flow_runner)
         with pytest.raises(
-            SpecValidationError, match="have not configured default storage"
+            DeploymentValidationError, match="have not configured default storage"
         ):
             await spec.validate()
 
@@ -254,7 +262,7 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        spec = ScriptDeploymentSpecification(flow=foo, flow_runner=flow_runner)
         await spec.validate()
         assert spec.flow_storage == Block._from_block_document(
             await orion_client.get_default_storage_block_document()
@@ -280,10 +288,10 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        spec = ScriptDeploymentSpecification(flow=foo, flow_runner=flow_runner)
 
         with pytest.raises(
-            SpecValidationError,
+            DeploymentValidationError,
             match="have configured local storage but.*requires remote storage",
         ):
             await spec.validate()
@@ -301,7 +309,7 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        spec = ScriptDeploymentSpecification(flow=foo, flow_runner=flow_runner)
         with pytest.warns(match="only be usable from the current machine"):
             await spec.validate()
 
@@ -318,7 +326,7 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
+        spec = ScriptDeploymentSpecification(flow=foo, flow_runner=flow_runner)
         with pytest.warns(match="only be usable from the current machine"):
             await spec.validate()
         assert isinstance(spec.flow_storage, LocalStorageBlock)
@@ -344,7 +352,9 @@ class TestDeploymentSpec:
         def foo():
             pass
 
-        spec = DeploymentSpec(flow=foo, flow_runner=flow_runner, flow_storage=block)
+        spec = ScriptDeploymentSpecification(
+            flow=foo, flow_runner=flow_runner, flow_storage=block
+        )
         await spec.validate()
         assert spec.flow_storage == block
 
@@ -356,10 +366,10 @@ class TestCreateDeploymentFromSpec:
 
         block = FileStorageBlock(base_path=str(tmp_path))
 
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         # Check that the flow is retrievable
 
@@ -382,13 +392,13 @@ class TestCreateDeploymentFromSpec:
             # cached on the object
             block = FileStorageBlock(base_path=str(tmp_path))
 
-            return DeploymentSpec(
+            return ScriptDeploymentSpecification(
                 flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
             )
 
-        deployment_id_1 = await make_spec().create_deployment(client=orion_client)
-        deployment_id_2 = await make_spec().create_deployment(client=orion_client)
-        deployment_id_3 = await make_spec().create_deployment(client=orion_client)
+        deployment_id_1 = await make_spec().create(client=orion_client)
+        deployment_id_2 = await make_spec().create(client=orion_client)
+        deployment_id_3 = await make_spec().create(client=orion_client)
 
         # Check that the flow is retrievable
         async def check_retrievable(deployment_id):
@@ -409,10 +419,10 @@ class TestCreateDeploymentFromSpec:
             await orion_client.read_block_document(tmp_remote_storage_block_id)
         )
 
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=TEST_FILES_DIR / "single_flow.py", flow_storage=block
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         # Check that the flow is retrievable
         deployment = await orion_client.read_deployment(deployment_id)
@@ -424,11 +434,11 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_registered_storage_by_id(
         self, orion_client, tmp_remote_storage_block_id
     ):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=TEST_FILES_DIR / "single_flow.py",
             flow_storage=tmp_remote_storage_block_id,
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         # Check that the flow is retrievable
         deployment = await orion_client.read_deployment(deployment_id)
@@ -440,8 +450,10 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_with_default_storage(
         self, orion_client, remote_default_storage
     ):
-        spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
-        deployment_id = await spec.create_deployment(client=orion_client)
+        spec = ScriptDeploymentSpecification(
+            flow_location=TEST_FILES_DIR / "single_flow.py"
+        )
+        deployment_id = await spec.create(client=orion_client)
 
         # Check that the flow is retrievable
 
@@ -454,10 +466,10 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_respects_name(
         self, orion_client, remote_default_storage
     ):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=TEST_FILES_DIR / "single_flow.py", name="test"
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         deployment = await orion_client.read_deployment(deployment_id)
         assert deployment.name == "test"
@@ -465,11 +477,11 @@ class TestCreateDeploymentFromSpec:
     async def test_create_deployment_respects_flow_runner(
         self, orion_client, remote_default_storage
     ):
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             flow_location=TEST_FILES_DIR / "single_flow.py",
             flow_runner=SubprocessFlowRunner(env={"test": "test"}),
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         deployment = await orion_client.read_deployment(deployment_id)
         assert deployment.flow_runner == spec.flow_runner.to_settings()
@@ -521,7 +533,7 @@ class TestLoadFlowFromScript:
         assert loaded_flow.name == "hello-world"
 
 
-class TestDeploymentSpecFromFile:
+class TestScriptDeploymentSpecificationFromFile:
     @pytest.fixture(autouse=True)
     async def autouse_storage(self, remote_default_storage):
         pass
@@ -569,11 +581,10 @@ class TestDeploymentSpecFromFile:
     async def test_spec_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "single-deployment.yaml")
         assert len(specs) == 1
-        spec = list(specs.keys())[0]
+        spec = specs[0]
 
-        src = specs[spec]
-        assert src["file"] == str(TEST_FILES_DIR / "single-deployment.yaml")
-        assert src["line"] == 1
+        assert spec._source["file"] == str(TEST_FILES_DIR / "single-deployment.yaml")
+        assert spec._source["line"] == 1
 
         await spec.validate()
 
@@ -599,12 +610,14 @@ class TestDeploymentSpecFromFile:
         assert moon_deploy.flow_location == str(TEST_FILES_DIR / "multiple_flows.py")
         assert moon_deploy.flow_name == "hello-moon"
 
-        sun_src = specs[sun_deploy]
-        moon_src = specs[moon_deploy]
-        assert sun_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
-        assert moon_src["file"] == str(TEST_FILES_DIR / "multiple-deployments.yaml")
-        assert sun_src["line"] == 1
-        assert moon_src["line"] == 5
+        assert sun_deploy._source["file"] == str(
+            TEST_FILES_DIR / "multiple-deployments.yaml"
+        )
+        assert moon_deploy._source["file"] == str(
+            TEST_FILES_DIR / "multiple-deployments.yaml"
+        )
+        assert sun_deploy._source["line"] == 1
+        assert moon_deploy._source["line"] == 5
 
         for spec in specs:
             await spec.validate()
@@ -614,7 +627,7 @@ class TestDeploymentSpecFromFile:
             TEST_FILES_DIR / "deployment-with-flow-load-error.yaml"
         )
         assert len(specs) == 1
-        spec = list(specs)[0]
+        spec = specs[0]
         with pytest.raises(ScriptError):
             await spec.validate()
 
@@ -627,7 +640,7 @@ class TestDeploymentSpecFromFile:
     async def test_create_deployment(self, orion_client):
         schedule = IntervalSchedule(interval=timedelta(days=1))
 
-        spec = DeploymentSpec(
+        spec = ScriptDeploymentSpecification(
             name="test",
             flow_location=TEST_FILES_DIR / "single_flow.py",
             schedule=schedule,
@@ -635,7 +648,7 @@ class TestDeploymentSpecFromFile:
             tags=["foo", "bar"],
             flow_runner=SubprocessFlowRunner(env={"FOO": "BAR"}),
         )
-        deployment_id = await spec.create_deployment(client=orion_client)
+        deployment_id = await spec.create(client=orion_client)
 
         # Deployment was created in backend
         lookup = await orion_client.read_deployment(deployment_id)

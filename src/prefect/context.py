@@ -29,6 +29,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
+from prefect.deployments.base import DeploymentSpecification
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
@@ -37,11 +38,6 @@ from prefect.orion.schemas.states import State
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-
-if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpec
-    from prefect.flows import Flow
-    from prefect.tasks import Task
 
 T = TypeVar("T")
 
@@ -98,8 +94,9 @@ class PrefectObjectRegistry(ContextModel):
 
         flows: A dictionary containing all Flow objects that are initialized
             during load / execution.
-        deployment_specs: A dictionary containing all DeploymentSpec objects
-            that are initialized during load / execution.
+        deployment_specs: A list containing all DeploymentSpec objects
+            that are initialized during load / execution. The name of the deployment
+            may not be determined yet so they cannot be stored in a dictionary.
         tasks: A dictionary containing all Task objects that are initialized
             during load / execution.
     """
@@ -107,7 +104,7 @@ class PrefectObjectRegistry(ContextModel):
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
     flows: Dict[str, Flow] = Field(default_factory=dict)
-    deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
+    deployment_specs: List[DeploymentSpecification] = Field(default_factory=list)
     tasks: Dict[str, Task] = Field(default_factory=dict)
 
     _block_code_execution: bool = PrivateAttr(default=False)
