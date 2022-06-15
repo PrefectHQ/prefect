@@ -129,17 +129,27 @@ class TestCreateBlockDocument:
         self, session, block_schemas
     ):
         with pytest.raises(
-            ValueError, match="(Names can not be provided for anonymous blocks.)"
+            ValueError,
+            match="(Names cannot be provided for anonymous block documents.)",
         ):
-            await models.block_documents.create_block_document(
-                session=session,
-                block_document=schemas.actions.BlockDocumentCreate(
-                    name="test-name",
-                    data=dict(y=1),
-                    block_schema_id=block_schemas[0].id,
-                    block_type_id=block_schemas[0].block_type_id,
-                    is_anonymous=True,
-                ),
+            schemas.actions.BlockDocumentCreate(
+                name="test-name",
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            )
+
+    async def test_create_block_document_errors_if_no_name_provided(
+        self, session, block_schemas
+    ):
+        with pytest.raises(
+            ValueError, match="(Names must be provided for block documents.)"
+        ):
+            schemas.actions.BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
             )
 
     async def test_create_anonymous_block_document_creates_deterministic_name(
@@ -1002,7 +1012,7 @@ class TestUpdateBlockDocument:
         )
 
         with pytest.raises(
-            ValueError, match="(Names can not be provided for anonymous blocks.)"
+            ValueError, match="(Names cannot be provided for anonymous blocks.)"
         ):
             await models.block_documents.update_block_document(
                 session,
