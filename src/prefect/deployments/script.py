@@ -1,8 +1,9 @@
 import warnings
-from typing import Literal, Optional, Union
+from typing import Optional, Union
 from uuid import UUID
 
 import fsspec
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
