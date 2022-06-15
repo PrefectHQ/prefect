@@ -18,6 +18,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.core_policy import MinimalFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
@@ -291,7 +292,7 @@ async def read_task_run_dependencies(
         session=session, flow_run_id=flow_run_id
     )
     if not flow_run:
-        raise ValueError(f"Flow run with id {flow_run_id} not found")
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
 
     task_runs = await models.task_runs.read_task_runs(
         session=session,
@@ -414,7 +415,7 @@ async def set_flow_run_state(
     )
 
     if not run:
-        raise ValueError(f"Invalid flow run: {flow_run_id}")
+        raise ObjectNotFoundError(f"Flow run with id {flow_run_id} not found")
 
     initial_state = run.state.as_state() if run.state else None
     initial_state_type = initial_state.type if initial_state else None

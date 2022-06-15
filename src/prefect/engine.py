@@ -30,7 +30,12 @@ import prefect.context
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
-from prefect.context import FlowRunContext, LoadingContext, TagsContext, TaskRunContext
+from prefect.context import (
+    FlowRunContext,
+    PrefectObjectRegistry,
+    TagsContext,
+    TaskRunContext,
+)
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
@@ -79,7 +84,8 @@ def enter_flow_run_engine_from_flow_call(
     """
     setup_logging()
 
-    if LoadingContext.get():
+    registry = PrefectObjectRegistry.get()
+    if registry.code_execution_blocked:
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed. "
             "Consider updating the script to only call the flow if executed directly:\n\n"

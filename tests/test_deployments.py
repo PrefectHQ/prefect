@@ -513,9 +513,9 @@ class TestLoadFlowFromScript:
         with pytest.raises(RuntimeError, match="This flow shall not load"):
             raise script_err
 
-    def test_loads_under_loading_context(self):
+    def test_execution_blocked_during_load(self):
         loaded_flow = load_flow_from_script(
-            TEST_FILES_DIR / "flow_with_loading_context_assert.py"
+            TEST_FILES_DIR / "flow_with_execution_blocked_assert.py"
         )
         assert isinstance(loaded_flow, Flow)
         assert loaded_flow.name == "hello-world"
@@ -618,9 +618,9 @@ class TestDeploymentSpecFromFile:
         with pytest.raises(ScriptError):
             await spec.validate()
 
-    async def test_loading_spec_loads_under_loading_context(self):
+    async def test_loading_spec_blocks_code_execution(self):
         specs = deployment_specs_from_yaml(
-            TEST_FILES_DIR / "deployment-with-loading-context-assert.yaml"
+            TEST_FILES_DIR / "deployment-with-execution-blocked-assert.yaml"
         )
         assert len(specs) == 1
 

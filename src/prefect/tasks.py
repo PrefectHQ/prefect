@@ -6,6 +6,7 @@ Module containing the base workflow task class and decorator - for most use case
 
 import datetime
 import inspect
+import warnings
 from copy import copy
 from functools import partial, update_wrapper
 from typing import (
@@ -117,12 +118,12 @@ class Task(Generic[P, R]):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        self.name = name or fn.__name__
-
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
+
+        self.name = _register_task(self, (name or self.fn.__name__))
 
         if "wait_for" in inspect.signature(self.fn).parameters:
             raise ReservedArgumentError(
@@ -499,3 +500,38 @@ def task(
                 retry_delay_seconds=retry_delay_seconds,
             ),
         )
+
+
+def _register_task(task: Task, name: str) -> str:
+    """
+    Collect the `Task` object on the PrefectObjectRegistry.tasks dictionary. If
+    multiple tasks with the same name are created a number will be appended to
+    the name to avoid collisions.
+
+    Returns the name the task should use.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    registry = PrefectObjectRegistry.get()
+
+    if name in registry.tasks:
+        original_name = name
+
+        count = 1
+        while f"{name}-{count}" in registry.tasks:
+            count += 1
+
+        name = f"{name}-{count}"
+
+        file = inspect.getsourcefile(task.fn)
+        line_number = inspect.getsourcelines(task.fn)[1]
+        warnings.warn(
+            f"A task with name {original_name!r} already exists. The task "
+            f"defined at '{file}:{line_number}' will be renamed to {name!r}. "
+            "Consider specifying a unique `name` parameter in the task "
+            "definition:\n\n `@task(name='my_unique_name', ...)`"
+        )
+
+    registry.tasks[name] = task
+
+    return name
