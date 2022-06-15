@@ -281,6 +281,24 @@ class TestReadBlockDocuments:
             block_documents[4].id,
         ]
 
+        # make sure that API results are as expected
+        required_attrs = [
+            "id",
+            "created",
+            "updated",
+            "name",
+            "data",
+            "block_schema_id",
+            "block_schema",
+            "block_type_id",
+            "block_type",
+            "block_document_references",
+        ]
+
+        for b in read_block_documents:
+            for attr in required_attrs:
+                assert getattr(b, attr) is not None
+
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block type name, block document name
         response = await client.post("/block_documents/filter", json=dict(limit=2))

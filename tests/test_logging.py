@@ -872,12 +872,12 @@ def test_task_run_logger(task_run):
 
 
 def test_task_run_logger_with_task(task_run):
-    @task(name="foo")
+    @task(name="task_run_logger_with_task")
     def test_task():
         pass
 
     logger = task_run_logger(task_run, test_task)
-    assert logger.extra["task_name"] == "foo"
+    assert logger.extra["task_name"] == "task_run_logger_with_task"
 
 
 def test_task_run_logger_with_flow_run(task_run, flow_run):

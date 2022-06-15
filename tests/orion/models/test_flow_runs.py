@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.schemas.core import TaskRunResult
 
 
@@ -1128,7 +1129,7 @@ class TestReadFlowRunTaskRunDependencies:
     async def test_read_task_run_dependencies_throws_error_if_does_not_exist(
         self, session
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ObjectNotFoundError):
             await models.flow_runs.read_task_run_dependencies(
                 session=session, flow_run_id=uuid4()
             )
