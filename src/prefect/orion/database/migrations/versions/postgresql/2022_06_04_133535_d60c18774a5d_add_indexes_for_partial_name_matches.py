@@ -5,10 +5,7 @@ Revises: cdcb4018dd0e
 Create Date: 2022-06-04 10:40:48.710626
 
 """
-import sqlalchemy as sa
 from alembic import op
-
-import prefect
 
 # revision identifiers, used by Alembic.
 revision = "77ebcc9cf355"
