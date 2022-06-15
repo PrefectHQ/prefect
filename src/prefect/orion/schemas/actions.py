@@ -188,7 +188,6 @@ class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
         include_fields=[
-            "name",
             "data",
             "block_schema_id",
             "block_type_id",
@@ -197,6 +196,9 @@ class BlockDocumentCreate(
     )
 ):
     """Data used by the Orion API to create a block document."""
+
+    # when creating an anonymous block, names are not provided
+    name: Optional[str] = Field(None, description="The block document's name'")
 
 
 class BlockDocumentUpdate(PrefectBaseModel):
