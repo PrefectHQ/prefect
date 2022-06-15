@@ -1,5 +1,5 @@
 from textwrap import dedent
-from typing import Dict, Optional, Type, Union
+from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
@@ -150,6 +150,59 @@ class TestAPICompatibility:
             name="block", block_schema_id=uuid4(), block_type_id=block_type_x.id
         )
 
+    def test_create_api_block_anonymous(self, block_type_x):
+        """Test passing different values to `is_anonymous` and whether or not a
+        fallback value is present on the BlockDocument"""
+
+        # explicit true
+        anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+        assert anon_block.is_anonymous is True
+
+        # explicit false
+        anon_block_2 = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=False,
+        )
+        assert anon_block_2.is_anonymous is False
+
+        # none with no fallback
+        anon_block_3 = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=None,
+        )
+        assert anon_block_3.is_anonymous is False
+
+        # none with True fallback
+        anon_block_4 = self.MyRegisteredBlock(x="x")
+        anon_block_4._is_anonymous = True
+        doc_4 = anon_block_4._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=None,
+        )
+        assert doc_4.is_anonymous is True
+
+        # False with True fallback
+        anon_block_5 = self.MyRegisteredBlock(x="x")
+        anon_block_5._is_anonymous = True
+        doc_5 = anon_block_5._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=False,
+        )
+        assert doc_5.is_anonymous is False
+
     def test_from_block_document(self, block_type_x):
         block_schema_id = uuid4()
         api_block = self.MyRegisteredBlock(x="x")._to_block_document(
@@ -162,6 +215,24 @@ class TestAPICompatibility:
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_x.id
+        assert block._is_anonymous is False
+
+    def test_from_block_document_anonymous(self, block_type_x):
+        block_schema_id = uuid4()
+        api_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+
+        block = Block._from_block_document(api_block)
+        assert type(block) == self.MyRegisteredBlock
+        assert block.x == "x"
+        assert block._block_schema_id == block_schema_id
+        assert block._block_document_id == api_block.id
+        assert block._block_type_id == block_type_x.id
+        assert block._is_anonymous is True
 
     def test_from_block_document_with_unregistered_block(self):
         class BlockyMcBlock(Block):

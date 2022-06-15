@@ -33,7 +33,6 @@ from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.orion.serializers import D
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
 

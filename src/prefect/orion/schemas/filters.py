@@ -872,3 +872,38 @@ class FilterSet(PrefectBaseModel):
         default_factory=DeploymentFilter,
         description="Filters that apply to deployments",
     )
+
+
+class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.is_anonymous`."""
+
+    eq_: bool = Field(
+        None,
+        description="Filter block documents for only those that are or are not anonymous.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
+        return filters
+
+
+class BlockDocumentFilter(PrefectFilterBaseModel):
+    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+
+    is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
+        # default is to exclude anonymous blocks
+        BlockDocumentFilterIsAnonymous(eq_=False),
+        description=(
+            "Filter criteria for `BlockDocument.is_anonymous`. "
+            "Defaults to excluding anonymous blocks."
+        ),
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.is_anonymous is not None:
+            filters.append(self.is_anonymous.as_sql_filter(db))
+
+        return filters
