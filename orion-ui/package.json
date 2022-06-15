@@ -15,7 +15,7 @@
   "dependencies": {
     "@prefecthq/miter-design": "0.1.34",
     "@prefecthq/orion-design": "1.0.13",
-    "@prefecthq/prefect-design": "1.0.4",
+    "@prefecthq/prefect-design": "1.0.6",
     "@prefecthq/vue-compositions": "0.1.32",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
@@ -23,14 +23,14 @@
     "lodash.debounce": "4.0.8",
     "pinia": "2.0.14",
     "register-service-worker": "^1.7.1",
-    "tailwindcss": "3.0.24",
+    "tailwindcss": "3.1.2",
     "vue": "3.2.37",
-    "vue-router": "4.0.15"
+    "vue-router": "4.0.16"
   },
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.15",
     "@types/d3": "^7.4.0",
-    "@types/expect-puppeteer": "^4.4.7",
+    "@types/expect-puppeteer": "^5.0.0",
     "@types/faker": "^5.5.9",
     "@types/jest": "^27.5.0",
     "@types/jest-dev-server": "^5.0.0",
@@ -54,7 +54,7 @@
     "ts-jest": "^27.1.4",
     "ts-node": "10.8.1",
     "typescript": "^4.7.3",
-    "vite": "^2.9.10",
+    "vite": "^2.9.12",
     "vue-class-component": "^8.0.0-0",
     "vue3-jest": "^27.0.0-alpha.2"
   }

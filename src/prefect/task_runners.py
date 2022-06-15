@@ -106,7 +106,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def concurrency_type(self) -> TaskConcurrencyType:
-        pass
+        pass  # noqa
 
     @property
     def name(self):
@@ -178,7 +178,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
 
         Cleanup of resources should be submitted to the `exit_stack`.
         """
-        pass
+        pass  # noqa
 
     def __str__(self) -> str:
         return type(self).__name__
