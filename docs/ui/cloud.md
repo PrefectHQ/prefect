@@ -39,13 +39,13 @@ When you sign up for Prefect Cloud, a personal account is automatically provisio
 
 As a personal account owner, you can create [workspaces](#workspaces).
 
-While in the current beta phase, Prefect Cloud currently allows only one workspace per personal user account. In future, Prefect Cloud will enable users to create multiple workspaces and optionally invite collaborators to workspaces.
+While in the current beta phase, Prefect Cloud allows only one workspace per personal user account. 
 
 ## Workspaces
 
 A workspace is an isolated environment within Prefect Cloud for your flows and deployments. Workspaces could be used in any way you like to organize or compartmentalize your workflows. For example, you could use separate workspaces to isolate dev, staging, and prod environments, or to provide separation between different teams.
 
-While in the current beta phase, Prefect Cloud currently allows only one workspace per user account. 
+While in the current beta phase, Prefect Cloud allows only one workspace per personal user account and three collaborators. In the future, Prefect Cloud will enable users to create multiple workspaces and optionally invite additional collaborators to workspaces.
 
 Each workspace keeps track of its own:
 
