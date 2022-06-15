@@ -30,7 +30,7 @@ async def create_block_document(
             raise ValueError("Names can not be provided for anonymous blocks.")
 
         checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
-        document_name = f"Anonymous:{checksum}"
+        document_name = f"anonymous:{checksum}"
     else:
         document_name = block_document.name
 
