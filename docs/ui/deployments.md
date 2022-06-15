@@ -18,7 +18,7 @@ The **Deployments** page in the UI displays any deployments that have been creat
 
 Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
-The button next to the slider provides commands to copy the deployment ID or delete the deployment. Note that deleting the deployment only removes the deployment object from the API, along with any of its scheduled flow runs. It does not affect the source files for your flow or deployment specification.
+The button next to the pause toggle provides commands to copy the deployment ID or delete the deployment. Note that deleting the deployment only removes the deployment object from the API, along with any of its scheduled flow runs. It does not affect the source files for your flow or deployment specification.
 
 Selecting a flow name displays details about the flow. See [Flows and Tasks](/ui/flows-and-tasks/) for more information.
 
