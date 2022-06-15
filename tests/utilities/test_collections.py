@@ -157,7 +157,11 @@ class TestVisitCollection:
         assert EVEN == expected
 
     async def test_private_pydantic_behaves_as_expected(self):
-        """Ensure PrivatePydantic behavior"""
+        """Test that the PrivatePydantic class is behaving correctly.
+
+        Note: this test is checking the behavior of pydantic for use in tests, not checking
+        Prefect functionality
+        """
         input = PrivatePydantic(x=1, _y=2, _z=3)
 
         # Public attr accessible immediately
@@ -176,7 +180,11 @@ class TestVisitCollection:
         assert input._z == 5
 
     async def test_im_private_pydantic_behaves_as_expected(self):
-        """Ensure ImPrivatePydantic behavior"""
+        """Test that the ImPrivatePydantic test is behaving correctly.
+
+        Note: this test is checking the behavior of pydantic for use in tests, not checking
+        Prefect functionality
+        """
         input = ImPrivatePydantic(x=1, _y=2, _z=3)
 
         # Public attr accessible immediately
