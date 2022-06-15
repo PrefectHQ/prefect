@@ -18,9 +18,7 @@ from prefect.flow_runners import FlowRunner
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import Failed, Pending, StateType
+from prefect.orion.schemas.states import Failed, Pending
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 
 
