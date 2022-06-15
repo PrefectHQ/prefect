@@ -373,6 +373,12 @@ class BlockType(ORMBaseModel):
     documentation_url: Optional[HttpUrl] = Field(
         None, description="Web URL for the block type's documentation"
     )
+    description: Optional[str] = Field(
+        None, description="A short blurb about the corresponding block's intended use"
+    )
+    code_example: Optional[str] = Field(
+        None, description="A code snippet demonstrating use of the corresponding block"
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -446,7 +452,7 @@ class BlockDocument(ORMBaseModel):
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
-    block_document_references: Dict[str, Dict[str, UUID]] = Field(
+    block_document_references: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
 
@@ -463,6 +469,8 @@ class BlockDocument(ORMBaseModel):
     ):
         return cls(
             id=orm_block_document.id,
+            created=orm_block_document.created,
+            updated=orm_block_document.updated,
             name=orm_block_document.name,
             data=await orm_block_document.decrypt_data(session=session),
             block_schema_id=orm_block_document.block_schema_id,

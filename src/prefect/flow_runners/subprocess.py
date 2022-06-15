@@ -14,9 +14,12 @@ from anyio.streams.text import TextReceiveStream
 from pydantic import root_validator, validator
 from typing_extensions import Literal
 
+from prefect.flow_runners.base import (
+    UniversalFlowRunner,
+    base_flow_run_environment,
+    register_flow_runner,
+)
 from prefect.orion.schemas.core import FlowRun
-
-from .base import UniversalFlowRunner, base_flow_run_environment, register_flow_runner
 
 
 @register_flow_runner

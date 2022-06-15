@@ -190,7 +190,7 @@ async def get_runs_in_work_queue(
     """
     work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
     if not work_queue:
-        raise ObjectNotFoundError("Work queue not found.")
+        raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
 
     if work_queue.is_paused:
         return []
