@@ -3,7 +3,7 @@ Command line interface for working with deployments.
 """
 import traceback
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 from uuid import UUID
 
 import pendulum
