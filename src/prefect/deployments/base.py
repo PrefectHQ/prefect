@@ -4,13 +4,12 @@ import pathlib
 import sys
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Type, Union
+from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Union
 from uuid import UUID
 
 import fsspec
 import yaml
 from pydantic import Field, PrivateAttr, validator
-from typing_extensions import Self
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
@@ -31,7 +30,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import is_local_path, tmpchdir
-from prefect.utilities.hashing import to_qualified_name
 from prefect.utilities.importtools import import_object, objects_from_script
 
 

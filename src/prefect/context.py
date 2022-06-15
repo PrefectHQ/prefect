@@ -8,17 +8,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import (
-    TYPE_CHECKING,
-    ContextManager,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
