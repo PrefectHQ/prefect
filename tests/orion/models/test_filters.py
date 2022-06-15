@@ -15,7 +15,7 @@ from prefect.orion.schemas.data import DataDocument
 @pytest.fixture(autouse=True, scope="module")
 async def clear_db():
     """Prevent automatic database-clearing behavior after every test"""
-    pass
+    pass  # noqa
 
 
 d_1_1_id = uuid4()

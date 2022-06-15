@@ -1,6 +1,5 @@
 import datetime
 import inspect
-from itertools import repeat
 from unittest.mock import MagicMock
 
 import anyio

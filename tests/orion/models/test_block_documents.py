@@ -12,7 +12,7 @@ from prefect.orion.schemas.actions import BlockDocumentCreate
 async def block_schemas(session):
     class A(Block):
         _block_schema_type = "abc"
-        pass
+        pass  # noqa
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()
@@ -93,6 +93,31 @@ class TestCreateBlockDocument:
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
+        assert result.is_anonymous is False
+
+        db_block_document = await models.block_documents.read_block_document_by_id(
+            session=session, block_document_id=result.id
+        )
+        assert db_block_document.id == result.id
+
+    async def test_create_anonymous_block_document(self, session, block_schemas):
+        result = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="x",
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ),
+        )
+        await session.commit()
+
+        assert result.name == "x"
+        assert result.data == dict(y=1)
+        assert result.block_schema_id == block_schemas[0].id
+        assert result.block_schema.checksum == block_schemas[0].checksum
+        assert result.is_anonymous is True
 
         db_block_document = await models.block_documents.read_block_document_by_id(
             session=session, block_document_id=result.id
@@ -578,6 +603,17 @@ class TestReadBlockDocuments:
                 ),
             )
         )
+        blocks.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    block_schema_id=block_schemas[2].id,
+                    name="Block 6",
+                    block_type_id=block_schemas[2].block_type_id,
+                    is_anonymous=True,
+                ),
+            )
+        )
 
         blocks.append(
             await models.block_documents.create_block_document(
@@ -614,9 +650,44 @@ class TestReadBlockDocuments:
 
     async def test_read_blocks(self, session, blocks):
         read_blocks = await models.block_documents.read_block_documents(session=session)
-        assert {b.id for b in read_blocks} == {b.id for b in blocks}
+
+        # by default, exclude anonymous blocks
+        assert {b.id for b in read_blocks} == {
+            b.id for b in blocks if not b.is_anonymous
+        }
+
         # sorted by block type name, block name
-        assert read_blocks == blocks
+        assert read_blocks == [b for b in blocks if not b.is_anonymous]
+
+    async def test_read_blocks_with_is_anonymous_filter(self, session, blocks):
+        non_anonymous_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=dict(eq_=False)
+            ),
+        )
+
+        anonymous_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=dict(eq_=True)
+            ),
+        )
+
+        all_blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                is_anonymous=None
+            ),
+        )
+
+        assert {b.id for b in non_anonymous_blocks} == {
+            b.id for b in blocks if not b.is_anonymous
+        }
+        assert {b.id for b in anonymous_blocks} == {
+            b.id for b in blocks if b.is_anonymous
+        }
+        assert {b.id for b in all_blocks} == {b.id for b in blocks}
 
     async def test_read_blocks_limit_offset(self, session, blocks):
         # sorted by block type name, block name
@@ -809,6 +880,30 @@ class TestUpdateBlockDocument:
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await models.block_documents.update_block_document(
+            session,
+            block_document_id=block_document.id,
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
+        )
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.data == dict(x=2)
+
+    async def test_update_anonymous_block_document_data(self, session, block_schemas):
+        # ensure that updates work for anonymous blocks
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-data",
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
             ),
         )
 

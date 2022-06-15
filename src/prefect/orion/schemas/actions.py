@@ -4,7 +4,6 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-import coolname
 from pydantic import Field
 
 import prefect.orion.schemas as schemas
@@ -187,7 +186,13 @@ class BlockSchemaCreate(
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
-        include_fields=["name", "data", "block_schema_id", "block_type_id"],
+        include_fields=[
+            "name",
+            "data",
+            "block_schema_id",
+            "block_type_id",
+            "is_anonymous",
+        ],
     )
 ):
     """Data used by the Orion API to create a block document."""

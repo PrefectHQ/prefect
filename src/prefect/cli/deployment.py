@@ -1,14 +1,12 @@
 """
 Command line interface for working with deployments.
 """
-import sys
 import traceback
 from pathlib import Path
 from typing import Dict, List
 from uuid import UUID
 
 import pendulum
-import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -23,7 +21,6 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import ObjectNotFound, ScriptError, SpecValidationError
-from prefect.flow_runners.kubernetes import KubernetesFlowRunner
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 

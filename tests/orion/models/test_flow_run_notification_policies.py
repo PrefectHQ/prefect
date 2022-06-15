@@ -5,10 +5,6 @@ import sqlalchemy as sa
 
 from prefect.blocks.notifications import DebugPrintNotification
 from prefect.orion import models, schemas
-from prefect.orion.models import flow_run_notification_policies
-from prefect.orion.models.block_documents import create_block_document
-from prefect.orion.models.block_schemas import create_block_schema
-from prefect.orion.models.block_types import create_block_type
 
 
 @pytest.fixture
