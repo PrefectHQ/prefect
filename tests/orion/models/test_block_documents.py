@@ -129,7 +129,14 @@ class TestCreateBlockDocument:
             "x": {"y": 1},
         }
         assert result.block_document_references == {
-            "x": {"block_document_id": nested_block_document.id}
+            "x": {
+                "block_document": {
+                    "id": nested_block_document.id,
+                    "name": nested_block_document.name,
+                    "block_type": nested_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
         db_block_document = await models.block_documents.read_block_document_by_id(
@@ -140,7 +147,14 @@ class TestCreateBlockDocument:
             "x": {"y": 1},
         }
         assert db_block_document.block_document_references == {
-            "x": {"block_document_id": nested_block_document.id}
+            "x": {
+                "block_document": {
+                    "id": nested_block_document.id,
+                    "name": nested_block_document.name,
+                    "block_type": nested_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_create_multiply_nested_block_document(self, session, block_schemas):
@@ -196,8 +210,31 @@ class TestCreateBlockDocument:
             },
         }
         assert outer_block_document.block_document_references == {
-            "c": {"block_document_id": middle_block_document_1.id},
-            "d": {"block_document_id": middle_block_document_2.id},
+            "c": {
+                "block_document": {
+                    "id": middle_block_document_1.id,
+                    "name": middle_block_document_1.name,
+                    "block_type": middle_block_document_1.block_type,
+                    "block_document_references": {},
+                },
+            },
+            "d": {
+                "block_document": {
+                    "id": middle_block_document_2.id,
+                    "name": middle_block_document_2.name,
+                    "block_type": middle_block_document_2.block_type,
+                    "block_document_references": {
+                        "b": {
+                            "block_document": {
+                                "id": inner_block_document.id,
+                                "name": inner_block_document.name,
+                                "block_type": inner_block_document.block_type,
+                                "block_document_references": {},
+                            }
+                        }
+                    },
+                }
+            },
         }
 
         db_outer_block_document = (
@@ -213,8 +250,31 @@ class TestCreateBlockDocument:
             },
         }
         assert db_outer_block_document.block_document_references == {
-            "c": {"block_document_id": middle_block_document_1.id},
-            "d": {"block_document_id": middle_block_document_2.id},
+            "c": {
+                "block_document": {
+                    "id": middle_block_document_1.id,
+                    "name": middle_block_document_1.name,
+                    "block_type": middle_block_document_1.block_type,
+                    "block_document_references": {},
+                },
+            },
+            "d": {
+                "block_document": {
+                    "id": middle_block_document_2.id,
+                    "name": middle_block_document_2.name,
+                    "block_type": middle_block_document_2.block_type,
+                    "block_document_references": {
+                        "b": {
+                            "block_document": {
+                                "id": inner_block_document.id,
+                                "name": inner_block_document.name,
+                                "block_type": inner_block_document.block_type,
+                                "block_document_references": {},
+                            }
+                        }
+                    },
+                }
+            },
         }
 
         db_middle_block_document_2 = (
@@ -227,7 +287,14 @@ class TestCreateBlockDocument:
             "z": "ztop",
         }
         assert db_middle_block_document_2.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_create_block_with_same_name_as_existing_block(
@@ -365,7 +432,14 @@ class TestReadBlockDocument:
             "z": "ztop",
         }
         assert result.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_read_block_by_id_doesnt_exist(self, session):
@@ -431,7 +505,14 @@ class TestReadBlockDocument:
             "z": "ztop",
         }
         assert result.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_read_block_by_name_doesnt_exist(self, session):
@@ -776,7 +857,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_before_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
         await models.block_documents.update_block_document(
@@ -795,7 +883,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_after_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_update_nested_block_document_reference(self, session, block_schemas):
@@ -832,7 +927,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_before_update.block_document_references == {
-            "b": {"block_document_id": inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": inner_block_document.id,
+                    "name": inner_block_document.name,
+                    "block_type": inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
         new_inner_block_document = await models.block_documents.create_block_document(
@@ -868,7 +970,14 @@ class TestUpdateBlockDocument:
             "z": "zzzzz",
         }
         assert block_document_after_update.block_document_references == {
-            "b": {"block_document_id": new_inner_block_document.id}
+            "b": {
+                "block_document": {
+                    "id": new_inner_block_document.id,
+                    "name": new_inner_block_document.name,
+                    "block_type": new_inner_block_document.block_type,
+                    "block_document_references": {},
+                }
+            }
         }
 
     async def test_update_with_faulty_block_document_reference(
@@ -1008,8 +1117,31 @@ class TestUpdateBlockDocument:
             },
         }
         assert block_document_before_update.block_document_references == {
-            "c": {"block_document_id": middle_block_document_1.id},
-            "d": {"block_document_id": middle_block_document_2.id},
+            "c": {
+                "block_document": {
+                    "id": middle_block_document_1.id,
+                    "name": middle_block_document_1.name,
+                    "block_type": middle_block_document_1.block_type,
+                    "block_document_references": {},
+                },
+            },
+            "d": {
+                "block_document": {
+                    "id": middle_block_document_2.id,
+                    "name": middle_block_document_2.name,
+                    "block_type": middle_block_document_2.block_type,
+                    "block_document_references": {
+                        "b": {
+                            "block_document": {
+                                "id": inner_block_document.id,
+                                "name": inner_block_document.name,
+                                "block_type": inner_block_document.block_type,
+                                "block_document_references": {},
+                            }
+                        }
+                    },
+                }
+            },
         }
 
         new_middle_block_document_1 = (
@@ -1052,6 +1184,29 @@ class TestUpdateBlockDocument:
             },
         }
         assert block_document_after_update.block_document_references == {
-            "c": {"block_document_id": new_middle_block_document_1.id},
-            "d": {"block_document_id": middle_block_document_2.id},
+            "c": {
+                "block_document": {
+                    "id": new_middle_block_document_1.id,
+                    "name": new_middle_block_document_1.name,
+                    "block_type": new_middle_block_document_1.block_type,
+                    "block_document_references": {},
+                },
+            },
+            "d": {
+                "block_document": {
+                    "id": middle_block_document_2.id,
+                    "name": middle_block_document_2.name,
+                    "block_type": middle_block_document_2.block_type,
+                    "block_document_references": {
+                        "b": {
+                            "block_document": {
+                                "id": inner_block_document.id,
+                                "name": inner_block_document.name,
+                                "block_type": inner_block_document.block_type,
+                                "block_document_references": {},
+                            }
+                        }
+                    },
+                }
+            },
         }

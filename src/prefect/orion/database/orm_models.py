@@ -735,6 +735,8 @@ class ORMBlockType:
     name = sa.Column(sa.String, nullable=False)
     logo_url = sa.Column(sa.String, nullable=True)
     documentation_url = sa.Column(sa.String, nullable=True)
+    description = sa.Column(sa.String, nullable=True)
+    code_example = sa.Column(sa.String, nullable=True)
 
     @declared_attr
     def __table_args__(cls):
