@@ -1,9 +1,15 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
 
-The primary object is the `DeploymentSpec` which can be used to define a deployment.
+The primary object is the `DeploymentSpecification` which can be used to define a deployment.
 Once a specification is written, it can be used with the Orion client or CLI to create
 a deployment in the backend.
+
+There are several types of deployment specifications, each with a different method for
+packaging your flow. Currently available types include:
+
+- ScriptDeploymentSpecification
+
 
 Examples:
     Define a flow
@@ -13,8 +19,8 @@ Examples:
     >>>     print(f"Hello, {name}!")
 
     Write a deployment specification that sets a new parameter default
-    >>> from prefect.deployments import DeploymentSpec
-    >>> DeploymentSpec(
+    >>> from prefect.deployments import ScriptDeploymentSpecification
+    >>> ScriptDeploymentSpecification(
     >>>     flow=hello_world,
     >>>     name="my-first-deployment",
     >>>     parameters={"name": "Earth"},
@@ -24,14 +30,15 @@ Examples:
     Add a schedule to the deployment specification to run the flow hourly
     >>> from prefect.orion.schemas.schedules import IntervalSchedule
     >>> from datetime import timedelta
-    >>> DeploymentSpec(
+    >>> ScriptDeploymentSpecification(
     >>>     ...
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
 
     Deployment specifications can also be written in YAML and refer to the flow's
-    location instead of the `Flow` object
+    location instead of the `Flow` object.
     ```yaml
+    type: script
     name: my-first-deployment
     flow_location: ./path-to-the-flow-script.py
     flow_name: hello-world
@@ -44,7 +51,6 @@ Examples:
       interval: 3600
     ```
 """
-import warnings
 from .script import ScriptDeploymentSpecification
 
 
