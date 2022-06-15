@@ -1,0 +1,47 @@
+import os
+from pathlib import Path
+from typing import List, Type
+
+from pydantic import validate_arguments
+from typing_extensions import Self
+
+from prefect.software.pip import PipRequirement, current_environment_requirements
+
+
+class PythonRequirements:
+    """
+    A collection of Python requirements.
+    """
+
+    pip_requirements: List[PipRequirement]
+
+    @validate_arguments
+    @classmethod
+    def from_requirements_file(cls: Type[Self], path: Path) -> Self:
+        """
+        Load pip requirements from a requirements file at the given path.
+        """
+        return cls(pip_requirements=cls.from_string(path.read_text().splitlines()))
+
+    @classmethod
+    def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
+        """
+        Generate pip requirements from the current environment
+
+        Arguments:
+            include_nested: If set, include requirements that are required by other
+                packages. If unset, only top-level requirements will be included.
+                Defaults to including all requirements.
+        """
+        return cls(
+            requirements=current_environment_requirements(include_nested=include_nested)
+        )
+
+    @validate_arguments
+    def to_requirements_file(self, path: Path) -> int:
+        """
+        Write to a requirements file at the given path.
+        """
+        return path.write_text(
+            os.linesep.join([str(requirement) for requirement in self.pip_requirements])
+        )
