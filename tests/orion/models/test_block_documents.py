@@ -12,7 +12,7 @@ from prefect.orion.schemas.actions import BlockDocumentCreate
 async def block_schemas(session):
     class A(Block):
         _block_schema_type = "abc"
-        pass
+        pass  # noqa
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()

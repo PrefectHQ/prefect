@@ -1,6 +1,5 @@
 import random
 import threading
-import time
 from dataclasses import dataclass
 from datetime import timedelta
 from unittest.mock import MagicMock, call
@@ -28,7 +27,6 @@ from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import Pending, Running, Scheduled, StateType
 from prefect.settings import (
     PREFECT_API_KEY,
-    PREFECT_LOGGING_LEVEL,
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
 )

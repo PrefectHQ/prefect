@@ -40,7 +40,6 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
     PREFECT_LOGGING_SETTINGS_PATH,
-    Settings,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
