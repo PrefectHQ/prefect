@@ -26,9 +26,6 @@ async def create_block_document(
 
     # anonymous blocks are automatically assigned names that act as idempotency keys
     if block_document.is_anonymous:
-        if block_document.name:
-            raise ValueError("Names can not be provided for anonymous blocks.")
-
         checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
         document_name = f"anonymous:{checksum}"
     else:
@@ -56,11 +53,12 @@ async def create_block_document(
         await session.flush()
 
     else:
-        # named blocks raise an error if the unique name constraint is violated,
+        # Named blocks raise an error if the unique name constraint is violated,
         # but anonymous blocks are idempotent and we return the existing one
-        # instead of erroring. However, SQLAlchemy ORM doesn't support on
-        # conflict statements so we need to convert to SQLalchemy Core for the
-        # conflict check
+        # instead of erroring. We use SQLAlchemy ORM here to take advantage of
+        # methods such as `encrypt_data`, but ORM doesn't support "on conflict"
+        # statements. Therefore this line converts the ORM model to a SQLAlchemy
+        # Core model so we can do a graceful insert with conflict checks.
         core_block_values = orm_block.__dict__.copy()
         core_block_values.pop("_sa_instance_state")
 
