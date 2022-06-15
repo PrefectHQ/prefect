@@ -36,7 +36,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.deployments import load_flow_from_deployment
+from prefect.deployments.base import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_data
