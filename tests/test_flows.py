@@ -1,6 +1,5 @@
 import enum
 import inspect
-import sys
 import time
 from typing import List
 from unittest.mock import MagicMock
@@ -9,7 +8,6 @@ import anyio
 import pydantic
 import pytest
 
-import prefect.context
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
@@ -63,7 +61,6 @@ class TestFlow:
             """
             Hello
             """
-            pass
 
         f = Flow(
             name="test",
