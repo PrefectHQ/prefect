@@ -4,9 +4,6 @@ Schemas for interacting with the Orion Data API.
 
 from typing import Any, Generic, Type, TypeVar
 
-from typing_extensions import Literal
-
-import prefect.settings
 from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
