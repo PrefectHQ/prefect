@@ -64,6 +64,7 @@ def test_builds_alternate_dockerfiles(contexts: Path, docker: DockerClient):
     assert output == b"from Dockerfile.b!\n"
 
 
+@pytest.mark.service("docker")
 def test_streams_progress_nowhere_by_default(contexts: Path, capsys: CaptureFixture):
     image_id = build_image(contexts / "tiny")
     assert IMAGE_ID_PATTERN.match(image_id)
