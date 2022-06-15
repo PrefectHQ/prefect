@@ -25,7 +25,7 @@ def python_version_micro() -> str:
 
 
 def get_prefect_image_name(
-    prefect_version: str = None, python_version: str = None
+    prefect_version: str = None, python_version: str = None, flavor: str = None
 ) -> str:
     """
     Get the Prefect image name matching the current Prefect and Python versions.
@@ -34,6 +34,7 @@ def get_prefect_image_name(
         prefect_version: An optional override for the Prefect version.
         python_version: An optional override for the Python version; must be at the
             minor level e.g. '3.9'.
+        flavor: An optional alternative image flavor to build, like 'conda'
     """
     parsed_version = (prefect_version or prefect.__version__).split("+")
     prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
@@ -41,7 +42,7 @@ def get_prefect_image_name(
     python_version = python_version or python_version_minor()
 
     tag = slugify(
-        f"{prefect_version}-python{python_version}",
+        f"{prefect_version}-python{python_version}" + (f"-{flavor}" if flavor else ""),
         lowercase=False,
         max_length=128,
         # Docker allows these characters for tag names
