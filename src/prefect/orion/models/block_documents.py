@@ -454,7 +454,7 @@ async def update_block_document(
     update_values = block_document.dict(shallow=True, exclude_unset=True)
 
     if "name" in update_values:
-        # anonymous block names can not be updated
+        # anonymous block names cannot be updated
         if current_block_document.is_anonymous:
             raise ValueError("Names can not be provided for anonymous blocks.")
         current_block_document.name = update_values["name"]
