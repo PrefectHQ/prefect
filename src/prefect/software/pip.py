@@ -37,17 +37,21 @@ def _get_installed_distributions() -> Dict[str, pkg_resources.Distribution]:
     return {dist.project_name: dist for dist in pkg_resources.working_set}
 
 
-def _reduce_to_top_level_distributions(
+def _remove_distributions_required_by_others(
     dists: Dict[str, pkg_resources.Distribution]
 ) -> Dict[str, pkg_resources.Distribution]:
     # Collect all child requirements
-    child_requirement_names = {}
-    for dist in dists:
+    child_requirement_names = set()
+    for dist in dists.values():
         child_requirement_names.update(
-            requirement.name for requirement in dist.requires()
+            {requirement.name for requirement in dist.requires()}
         )
 
-    return {dist for dist in dists if dist.project_name not in child_requirement_names}
+    return {
+        name: dist
+        for name, dist in dists.items()
+        if name not in child_requirement_names
+    }
 
 
 def current_environment_requirements(
@@ -55,5 +59,5 @@ def current_environment_requirements(
 ) -> List[PipRequirement]:
     dists = _get_installed_distributions()
     if exclude_nested:
-        dists = _reduce_to_top_level_distributions(dists)
+        dists = _remove_distributions_required_by_others(dists)
     return [PipRequirement.validate(dist.as_requirement()) for dist in dists.values()]

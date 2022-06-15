@@ -2,26 +2,26 @@ import os
 from pathlib import Path
 from typing import List, Type
 
-from pydantic import validate_arguments
+from pydantic import BaseModel, validate_arguments
 from typing_extensions import Self
 
 from prefect.software.pip import PipRequirement, current_environment_requirements
 
 
-class PythonRequirements:
+class PythonRequirements(BaseModel):
     """
     A collection of Python requirements.
     """
 
     pip_requirements: List[PipRequirement]
 
-    @validate_arguments
     @classmethod
+    @validate_arguments
     def from_requirements_file(cls: Type[Self], path: Path) -> Self:
         """
         Load pip requirements from a requirements file at the given path.
         """
-        return cls(pip_requirements=cls.from_string(path.read_text().splitlines()))
+        return cls(pip_requirements=path.read_text().strip().splitlines())
 
     @classmethod
     def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
