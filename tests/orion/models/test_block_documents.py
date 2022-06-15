@@ -114,7 +114,7 @@ class TestCreateBlockDocument:
         )
         await session.commit()
 
-        assert result.name.startswith("Anonymous:")
+        assert result.name.startswith("anonymous:")
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
@@ -156,7 +156,7 @@ class TestCreateBlockDocument:
         )
 
         checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
-        assert result.name == f"Anonymous:{checksum}"
+        assert result.name == f"anonymous:{checksum}"
 
     async def test_named_blocks_have_unique_names(self, session, block_schemas, db):
         block_document = schemas.actions.BlockDocumentCreate(
