@@ -51,10 +51,7 @@ class ScriptDeploymentSpecification(DeploymentSpecification):
     """
 
     type: Literal["script"] = "script"
-
     flow_storage: Optional[Union[StorageBlock, UUID]] = None
-
-    # Validation and inference ---------------------------------------------------------
 
     @sync_compatible
     @inject_client
@@ -102,8 +99,6 @@ class ScriptDeploymentSpecification(DeploymentSpecification):
                     f"You have configured local storage but {flow_runner_message}.",
                     self,
                 )
-
-    # Methods --------------------------------------------------------------------------
 
     @inject_client
     async def build(self, client: OrionClient) -> DeploymentCreate:
