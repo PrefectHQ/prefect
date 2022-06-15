@@ -1,3 +1,4 @@
+import hashlib
 from decimal import DivisionByZero
 from uuid import uuid4
 
@@ -8,7 +9,6 @@ from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.utilities.hashing import hash_objects
-import hashlib
 
 
 @pytest.fixture
@@ -461,6 +461,31 @@ class TestCreateBlockDocument:
                 block_type_id=block_schemas[1].block_type_id,
             ),
         )
+
+    async def test_create_anonymous_block_with_same_data_as_existing_block_but_different_block_type(
+        self, session, block_schemas
+    ):
+        result1 = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                data=dict(),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ),
+        )
+
+        result2 = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                data=dict(),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
+            ),
+        )
+        assert result1.id != result2.id
+        assert result1.name != result2.name
 
     async def test_create_block_with_faulty_block_document_reference(
         self, session, block_schemas

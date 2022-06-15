@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import coolname
-from pydantic import Field, HttpUrl, validator, root_validator
+from pydantic import Field, HttpUrl, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
