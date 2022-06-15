@@ -25,7 +25,7 @@
     "register-service-worker": "^1.7.1",
     "tailwindcss": "3.1.2",
     "vue": "3.2.37",
-    "vue-router": "4.0.15"
+    "vue-router": "4.0.16"
   },
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.15",
