@@ -469,6 +469,8 @@ class BlockDocument(ORMBaseModel):
     ):
         return cls(
             id=orm_block_document.id,
+            created=orm_block_document.created,
+            updated=orm_block_document.updated,
             name=orm_block_document.name,
             data=await orm_block_document.decrypt_data(session=session),
             block_schema_id=orm_block_document.block_schema_id,
