@@ -207,7 +207,8 @@ def build_image(
             "Defaults to the architecture of the host Python. "
             f"[default: {platform.machine()}]"
         ),
-    )
+    ),
+    dry_run: bool = False,
 ):
     """
     Build a docker image for development.
@@ -220,21 +221,24 @@ def build_image(
 
     # Here we use a subprocess instead of the docker-py client to easily stream output
     # as it comes
+    command = [
+        "docker",
+        "build",
+        str(prefect.__root_path__),
+        "--tag",
+        tag,
+        "--platform",
+        f"linux/{arch}",
+        "--build-arg",
+        "PREFECT_EXTRAS=[dev]",
+    ]
+
+    if dry_run:
+        print(" ".join(command))
+        return
+
     try:
-        subprocess.check_call(
-            [
-                "docker",
-                "build",
-                str(prefect.__root_path__),
-                "--tag",
-                tag,
-                "--platform",
-                f"linux/{arch}",
-                "--build-arg",
-                "PREFECT_EXTRAS=[dev]",
-            ],
-            shell=sys.platform == "win32",
-        )
+        subprocess.check_call(command, shell=sys.platform == "win32")
     except subprocess.CalledProcessError:
         exit_with_error("Failed to build image!")
     else:
