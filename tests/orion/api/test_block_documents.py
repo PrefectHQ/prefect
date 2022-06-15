@@ -280,8 +280,8 @@ class TestReadBlockDocuments:
             block_documents[3].id,
             block_documents[4].id,
         ]
-        # assert read_block_documents[0].data is not None
-        assert read_block_documents[0].created is not None
+
+        # make sure that API results are as expected
         required_attrs = [
             "id",
             "created",
@@ -294,7 +294,7 @@ class TestReadBlockDocuments:
             "block_type",
             "block_document_references",
         ]
-        # make sure that API results are as expected
+
         for b in read_block_documents:
             for attr in required_attrs:
                 assert getattr(b, attr) is not None
