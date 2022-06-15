@@ -803,6 +803,7 @@ class ORMBlockSchemaReference:
 class ORMBlockDocument:
     name = sa.Column(sa.String, nullable=False, index=True)
     data = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    is_anonymous = sa.Column(sa.Boolean, server_default="0", index=True, nullable=False)
     is_default_storage_block_document = sa.Column(
         sa.Boolean, server_default="0", index=True
     )
