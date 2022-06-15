@@ -7,7 +7,6 @@ from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
-from prefect.orion.models import block_documents
 from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.orion.schemas.core import BlockDocument
 
@@ -16,7 +15,6 @@ from prefect.orion.schemas.core import BlockDocument
 async def block_schemas(session, block_type_x, block_type_y):
     class A(Block):
         _block_schema_type = "abc"
-        pass
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()
@@ -282,6 +280,24 @@ class TestReadBlockDocuments:
             block_documents[3].id,
             block_documents[4].id,
         ]
+        # assert read_block_documents[0].data is not None
+        assert read_block_documents[0].created is not None
+        required_attrs = [
+            "id",
+            "created",
+            "updated",
+            "name",
+            "data",
+            "block_schema_id",
+            "block_schema",
+            "block_type_id",
+            "block_type",
+            "block_document_references",
+        ]
+        # make sure that API results are as expected
+        for b in read_block_documents:
+            for attr in required_attrs:
+                assert getattr(b, attr) is not None
 
     async def test_read_block_documents_limit_offset(self, client, block_documents):
         # sorted by block type name, block document name
