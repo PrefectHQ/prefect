@@ -171,16 +171,19 @@ async def _construct_full_block_document(
             block_document = await BlockDocument.from_orm_model(
                 session, orm_block_document
             )
-            full_child_block_document_data = (
-                await _construct_full_block_document(
-                    session,
-                    block_documents_with_references,
-                    parent_block_document=block_document,
-                )
-            ).data
-            parent_block_document.data[name] = full_child_block_document_data
+            full_child_block_document = await _construct_full_block_document(
+                session,
+                block_documents_with_references,
+                parent_block_document=block_document,
+            )
+            parent_block_document.data[name] = full_child_block_document.data
             parent_block_document.block_document_references[name] = {
-                "block_document_id": block_document.id
+                "block_document": {
+                    "id": block_document.id,
+                    "name": block_document.name,
+                    "block_type": block_document.block_type,
+                    "block_document_references": full_child_block_document.block_document_references,
+                }
             }
 
     return parent_block_document
