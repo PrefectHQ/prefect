@@ -52,11 +52,11 @@ Check out the dashboard at http://127.0.0.1:4200
 
 When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
-![Prefect UI dashboard.](/img/ui/orion-dashboard.png)
+![Prefect UI](/img/ui/orion-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 
-- [Flow Runs](/ui/dashboard/) dashboard provides a high-level overview of your flows, tasks, and deployments.
+- [Flow Runs](/ui/dashboard/) page provides a high-level overview of your flow runs.
 - [Flow and flow run](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
 - [Filters](/ui/dashboard/#filters) enable you to customize the display based on flow state, tags, execution time, and more.
 - [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
