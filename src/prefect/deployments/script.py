@@ -3,7 +3,6 @@ from typing import Optional, Union
 from uuid import UUID
 
 import fsspec
-from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
@@ -50,7 +49,6 @@ class ScriptDeploymentSpecification(DeploymentSpecification):
         tags: An optional set of tags to assign to the deployment.
     """
 
-    type: Literal["script"] = "script"
     flow_storage: Optional[Union[StorageBlock, UUID]] = None
 
     @sync_compatible
