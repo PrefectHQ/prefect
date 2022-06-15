@@ -151,10 +151,9 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
         )
         if not confirm:
             exit_with_error("Database reset aborted")
-    app.console.print("Resetting Orion database...")
-    app.console.print("Dropping tables...")
+    app.console.print("Downgrading database...")
     await db.drop_db()
-    app.console.print("Creating tables...")
+    app.console.print("Upgrading database...")
     await db.create_db()
     exit_with_success(f'Orion database "{engine.url!r}" reset!')
 

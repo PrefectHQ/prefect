@@ -109,6 +109,7 @@ class Block(BaseModel, ABC):
     _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
+    _is_anonymous: Optional[bool] = None
 
     @classmethod
     def get_block_type_name(cls):
@@ -153,6 +154,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
+        is_anonymous: Optional[bool] = None,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -163,6 +165,9 @@ class Block(BaseModel, ABC):
             name: The name of the created block document.
             block_schema_id: UUID of the corresponding block schema.
             block_type_id: UUID of the corresponding block type.
+            is_anonymous: if True, an anonymous block is created. Anonymous
+                blocks are not displayed in the UI and used primarily for system
+                operations and features that need to automatically generate blocks.
 
         Returns:
             BlockDocument: Corresponding block document
@@ -178,6 +183,8 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "No block type ID provided, either as an argument or on the block."
             )
+        if is_anonymous is None:
+            is_anonymous = self._is_anonymous or False
 
         data_keys = self.schema()["properties"].keys()
         return BlockDocument(
@@ -190,6 +197,7 @@ class Block(BaseModel, ABC):
                 block_type_id=block_type_id or self._block_type_id,
             ),
             block_type=self._to_block_type(),
+            is_anonymous=is_anonymous,
         )
 
     @classmethod
@@ -325,6 +333,7 @@ class Block(BaseModel, ABC):
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
+        block._is_anonymous = block_document.is_anonymous
         return block
 
     @classmethod
