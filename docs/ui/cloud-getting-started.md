@@ -73,7 +73,7 @@ Select the **API Keys** tab. This displays a list of previously generated keys a
 
 ![Viewing and editing API keys in the Cloud UI.](/img/ui/cloud-api-keys.png)
 
-Select the **+** button to create a new API key. You're prompted to provide a name for the key and, optionally, an expiration. Select **Create API Key** to generate the key.
+Select the **+** button to create a new API key. You're prompted to provide a name for the key and, optionally, an expiration date. Select **Create API Key** to generate the key.
 
 ![Creating an API key in the Cloud UI.](/img/ui/cloud-new-api-key.png)
 
