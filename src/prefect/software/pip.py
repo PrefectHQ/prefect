@@ -42,7 +42,7 @@ class PipRequirement(packaging.requirements.Requirement):
         Requirements are equal if their string specification matches.
         """
         if not isinstance(__o, PipRequirement):
-            raise NotImplementedError()
+            return NotImplemented
 
         return str(self) == str(__o)
 
