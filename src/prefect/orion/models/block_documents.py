@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
+from pydantic import validate_arguments
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
@@ -15,6 +16,27 @@ from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
 from prefect.utilities.hashing import hash_objects
+
+
+# ensure argument types are preservered because e.g. UUIDs as strings will have
+# different hashes than UUIDs as UUIDs
+@validate_arguments
+def generate_anonymous_name_from_fields(
+    data: dict, block_schema_id: UUID, block_type_id: UUID
+) -> str:
+    """
+    Generate a consistent name for anonymous blocks based on idempotent
+    properties
+    """
+    checksum = hash_objects(
+        dict(
+            data=data,
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
+        ),
+        hash_algo=hashlib.sha256,
+    )
+    return f"anonymous:{checksum}"
 
 
 @inject_db
@@ -26,8 +48,11 @@ async def create_block_document(
 
     # anonymous blocks are automatically assigned names that act as idempotency keys
     if block_document.is_anonymous:
-        checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
-        document_name = f"anonymous:{checksum}"
+        document_name = generate_anonymous_name_from_fields(
+            data=block_document.data,
+            block_schema_id=block_document.block_schema_id,
+            block_type_id=block_document.block_type_id,
+        )
     else:
         document_name = block_document.name
 
@@ -473,6 +498,8 @@ async def update_block_document(
             block_document_data_without_refs,
             new_block_document_references,
         ) = _separate_block_references_from_data(update_values["data"])
+
+        # encrypt the data
         await current_block_document.encrypt_data(
             session=session, data=block_document_data_without_refs
         )
@@ -501,6 +528,15 @@ async def update_block_document(
                 await delete_block_document_reference(
                     session, block_document_reference_id=block_document_reference.id
                 )
+
+        # if the block is anonymous and the data is being updated, then we need to update
+        # its name as if it had just been created
+        if current_block_document.is_anonymous:
+            current_block_document.name = generate_anonymous_name_from_fields(
+                data=update_values["data"],
+                block_schema_id=current_block_document.block_schema_id,
+                block_type_id=current_block_document.block_type_id,
+            )
 
     await session.flush()
 
