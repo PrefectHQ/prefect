@@ -907,3 +907,38 @@ class BlockDocumentFilter(PrefectFilterBaseModel):
             filters.append(self.is_anonymous.as_sql_filter(db))
 
         return filters
+
+
+class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
+    """Filter by `FlowRunNotificationPolicy.is_active`."""
+
+    eq_: bool = Field(
+        None,
+        description="Filter notification policies for only those that are or are not active.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.FlowRunNotificationPolicy.is_active.is_(self.eq_))
+        return filters
+
+
+class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
+    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+
+    is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
+        # default is to exclude anonymous blocks
+        FlowRunNotificationPolicyFilterIsActive(eq_=False),
+        description=(
+            "Filter criteria for `FlowRunNotificationPolicy.is_active`. "
+            "Defaults to excluding anonymous blocks."
+        ),
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.is_active is not None:
+            filters.append(self.is_active.as_sql_filter(db))
+
+        return filters
