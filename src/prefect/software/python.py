@@ -2,10 +2,10 @@ import sys
 from pathlib import Path
 from typing import List, Type
 
-from pydantic import BaseModel, validate_arguments
+from pydantic import BaseModel, Field, validate_arguments, validator
 from typing_extensions import Self
 
-from prefect.software.base import remove_duplicate_requirements
+from prefect.software.base import pop_requirement_by_name, remove_duplicate_requirements
 from prefect.software.conda import (
     CondaRequirement,
     current_environment_conda_requirements,
@@ -22,8 +22,15 @@ class PythonRequirements(BaseModel):
         editable installations are not supported.
     """
 
-    pip_requirements: List[PipRequirement]
-    conda_requirements: List[CondaRequirement]
+    python_version: str = None
+    pip_requirements: List[PipRequirement] = Field(default_factory=list)
+    conda_requirements: List[CondaRequirement] = Field(default_factory=list)
+
+    @validator("python_version", pre=True, always=True)
+    def infer_python_version(cls, value):
+        if value is None:
+            return f"{sys.version_info.major}.{sys.version_info.minor}"
+        return value
 
     @classmethod
     @validate_arguments
@@ -54,8 +61,14 @@ class PythonRequirements(BaseModel):
                 include_nested=include_nested, on_uninstallable_requirement="warn"
             ),
         )
+        python_requirement = pop_requirement_by_name(conda_requirements, "python")
+        if python_requirement:
+            python_version = python_requirement.version
+
         return cls(
-            pip_requirements=pip_requirements, conda_requirements=conda_requirements
+            pip_requirements=pip_requirements,
+            conda_requirements=conda_requirements,
+            python_version=python_version,
         )
 
     @validate_arguments
