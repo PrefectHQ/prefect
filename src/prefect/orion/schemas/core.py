@@ -473,6 +473,8 @@ class BlockDocument(ORMBaseModel):
 
     @root_validator
     def validate_name_is_present_if_not_anonymous(cls, values):
+        # anonymous blocks may have no name prior to actually being
+        # stored in the database
         if not values.get("is_anonymous") and not values.get("name"):
             raise ValueError("Names must be provided for block documents.")
         return values

@@ -199,9 +199,9 @@ class BlockDocumentCreate(
 
     @root_validator
     def check_anonymous_name(cls, values):
-        # when creating a new block document, names should never be provided for
-        # anonymous documents. Anonymous names are generated when the document
-        # is actually created
+        # when creating a new anonymous block document, a name should never be
+        # provided Anonymous names are used for idempotency and generated when
+        # the document is actually created on the server
         if values.get("is_anonymous") and values.get("name"):
             raise ValueError("Names cannot be provided for anonymous block documents")
         return values
