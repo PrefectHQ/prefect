@@ -1,8 +1,9 @@
-from typing import Dict, List
+from typing import Dict, List, Type
 
 import packaging.requirements
 import packaging.version
 import pkg_resources
+from typing_extensions import Self
 
 
 class PipRequirement(packaging.requirements.Requirement):
@@ -22,6 +23,18 @@ class PipRequirement(packaging.requirements.Requirement):
             # Attempt to parse the string representation of the input type
             return cls(str(value))
         return value
+
+    @classmethod
+    def from_distribution(cls: Type[Self], dist: pkg_resources.Distribution) -> Self:
+        """
+        Convert a Python distribution object into a requirement
+        """
+        if not dist.location.endswith("site-packages"):
+            raise ValueError(
+                f"Distribution {dist!r} is an editable installation and cannot be "
+                "converted to a requirement."
+            )
+        return cls.validate(dist.as_requirement())
 
     def __eq__(self, __o: object) -> bool:
         """
@@ -60,4 +73,4 @@ def current_environment_requirements(
     dists = _get_installed_distributions()
     if exclude_nested:
         dists = _remove_distributions_required_by_others(dists)
-    return [PipRequirement.validate(dist.as_requirement()) for dist in dists.values()]
+    return [PipRequirement.from_distribution(dist) for dist in dists.values()]
