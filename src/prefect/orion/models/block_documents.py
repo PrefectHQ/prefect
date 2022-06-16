@@ -97,7 +97,11 @@ async def create_block_document(
         await session.execute(insert_stmt)
 
         result = await session.execute(
-            sa.select(db.BlockDocument.id).where(db.BlockDocument.name == document_name)
+            # select using unique index on block type id / name
+            sa.select(db.BlockDocument.id).where(
+                db.BlockDocument.block_type_id == orm_block.block_type_id,
+                db.BlockDocument.name == document_name,
+            )
         )
         idempotent_id = result.scalar()
 
