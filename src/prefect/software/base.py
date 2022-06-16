@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 
 class Requirement:
@@ -43,4 +43,4 @@ def remove_duplicate_requirements(
 def pop_requirement_by_name(
     requirements: List[Requirement], name: str
 ) -> Optional[Requirement]:
-    requirement = next()
+    return next((r for r in requirements if r.name == name), None)
