@@ -533,6 +533,7 @@ async def update_block_document(
         # its name as if it had just been created
         if current_block_document.is_anonymous:
             current_block_document.name = generate_anonymous_name_from_fields(
+                # note: use the unencrypted data values to generate name
                 data=update_values["data"],
                 block_schema_id=current_block_document.block_schema_id,
                 block_type_id=current_block_document.block_type_id,
