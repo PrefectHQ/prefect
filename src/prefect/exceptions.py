@@ -74,7 +74,7 @@ class UnspecifiedDeploymentError(PrefectException):
 
 class DeploymentValidationError(PrefectException, ValueError):
     """
-    Raised when a value for a specification is inorrect
+    Raised when a value for a specification is incorrect
     """
 
     def __init__(self, message: str, deployment: "DeploymentSpecification") -> None:
