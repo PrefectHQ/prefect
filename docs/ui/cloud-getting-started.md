@@ -222,7 +222,7 @@ Prefect Cloud now automatically tracks any flow runs in a local execution enviro
 
 ## Run a flow from a deployment
 
-[Deployments](/concepts/deployments/) are flow runs packaged in a way that let you run them directly from the Prefect Cloud UI, either ad-hoc runs or via a schedule.
+[Deployments](/concepts/deployments/) are flows packaged in a way that let you run them directly from the Prefect Cloud UI, either ad-hoc runs or via a schedule.
 
 To run a flow from a deployment with Prefect Cloud, you'll need to:
 
