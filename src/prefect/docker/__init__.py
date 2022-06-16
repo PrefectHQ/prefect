@@ -1,4 +1,5 @@
 import json
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,7 +13,17 @@ from prefect.flow_runners.base import get_prefect_image_name
 @contextmanager
 def docker_client() -> Generator[DockerClient, None, None]:
     """Get the environmentally-configured Docker client"""
-    client = DockerClient.from_env()
+    with warnings.catch_warnings():
+        # Silence warnings due to use of deprecated methods within dockerpy
+        # See https://github.com/docker/docker-py/pull/2931
+        warnings.filterwarnings(
+            "ignore",
+            message="distutils Version classes are deprecated.*",
+            category=DeprecationWarning,
+        )
+
+        client = DockerClient.from_env()
+
     try:
         yield client
     finally:
