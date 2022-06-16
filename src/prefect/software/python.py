@@ -26,7 +26,7 @@ class PythonRequirements(BaseModel):
     @classmethod
     def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
         """
-        Generate pip requirements from the current environment
+        Generate requirements from the current environment
 
         Arguments:
             include_nested: If set, include requirements that are required by other
@@ -34,7 +34,9 @@ class PythonRequirements(BaseModel):
                 Defaults to including all requirements.
         """
         return cls(
-            requirements=current_environment_requirements(include_nested=include_nested)
+            pip_requirements=current_environment_requirements(
+                include_nested=include_nested, on_uninstallable_requirement="warn"
+            )
         )
 
     @validate_arguments
