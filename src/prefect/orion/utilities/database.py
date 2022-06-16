@@ -5,7 +5,6 @@ Orion supports both SQLite and Postgres. Many of these utilities
 allow Orion to seamlessly switch between the two.
 """
 
-import asyncio
 import datetime
 import json
 import re
