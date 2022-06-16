@@ -187,6 +187,7 @@ class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
         include_fields=[
+            "name",
             "data",
             "block_schema_id",
             "block_type_id",
@@ -196,15 +197,13 @@ class BlockDocumentCreate(
 ):
     """Data used by the Orion API to create a block document."""
 
-    # when creating an anonymous block, names are not provided
-    name: Optional[str] = Field(None, description="The block document's name'")
-
     @root_validator
-    def name_and_is_anonymous(cls, values):
-        if values.get("name") and values.get("is_anonymous"):
+    def check_anonymous_name(cls, values):
+        # when creating a new block document, names should never be provided for
+        # anonymous documents. Anonymous names are generated when the document
+        # is actually created
+        if values.get("is_anonymous") and values.get("name"):
             raise ValueError("Names cannot be provided for anonymous block documents")
-        elif not values.get("name") and not values.get("is_anonymous"):
-            raise ValueError("Names must be provided for block documents")
         return values
 
 

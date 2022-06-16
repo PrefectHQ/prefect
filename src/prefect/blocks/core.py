@@ -162,7 +162,7 @@ class Block(BaseModel, ABC):
         either be passed into the method or configured on the block.
 
         Args:
-            name: The name of the created block document.
+            name: The name of the created block document. Not required if anonymous.
             block_schema_id: UUID of the corresponding block schema.
             block_type_id: UUID of the corresponding block type.
             is_anonymous: if True, an anonymous block is created. Anonymous
@@ -173,8 +173,13 @@ class Block(BaseModel, ABC):
             BlockDocument: Corresponding block document
                 populated with the block's configured data.
         """
-        if not name and not self._block_document_name:
+        if is_anonymous is None:
+            is_anonymous = self._is_anonymous or False
+
+        # name must be present if not anonymous
+        if not is_anonymous and not name and not self._block_document_name:
             raise ValueError("No name provided, either as an argument or on the block.")
+
         if not block_schema_id and not self._block_schema_id:
             raise ValueError(
                 "No block schema ID provided, either as an argument or on the block."
@@ -183,10 +188,7 @@ class Block(BaseModel, ABC):
             raise ValueError(
                 "No block type ID provided, either as an argument or on the block."
             )
-        if is_anonymous is None:
-            is_anonymous = self._is_anonymous or False
 
-        data_keys = self.schema()["properties"].keys()
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=name or self._block_document_name,
