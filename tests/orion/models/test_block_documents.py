@@ -1,4 +1,3 @@
-import hashlib
 from uuid import uuid4
 
 import pytest
@@ -7,7 +6,6 @@ import sqlalchemy as sa
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.utilities.hashing import hash_objects
 
 
 @pytest.fixture
@@ -165,8 +163,12 @@ class TestCreateBlockDocument:
             session=session, block_document=block_document
         )
 
-        checksum = hash_objects(block_document.dict(), hash_algo=hashlib.sha256)
-        assert result.name == f"anonymous:{checksum}"
+        anonymous_name = models.block_documents.generate_anonymous_name_from_fields(
+            data=block_document.data,
+            block_schema_id=block_document.block_schema_id,
+            block_type_id=block_document.block_type_id,
+        )
+        assert result.name == anonymous_name
 
     async def test_named_blocks_have_unique_names(self, session, block_schemas, db):
         block_document = schemas.actions.BlockDocumentCreate(
@@ -824,7 +826,7 @@ class TestReadBlockDocuments:
         read_blocks = await models.block_documents.read_block_documents(
             session=session, limit=2, offset=2
         )
-        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[4].id]
+        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[3].id]
 
 
 class TestDeleteBlockDocument:
@@ -1064,6 +1066,73 @@ class TestUpdateBlockDocument:
             session, block_document_id=block_document.id
         )
         assert updated_block_document.data == dict(x=2)
+
+    async def test_update_anonymous_block_document_data_changes_name(
+        self, session, block_schemas
+    ):
+
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
+            ),
+        )
+
+        assert block_document.name.startswith("anonymous:")
+
+        await models.block_documents.update_block_document(
+            session,
+            block_document_id=block_document.id,
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
+        )
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+
+        # name was updated
+
+        expected_anonymous_name = (
+            models.block_documents.generate_anonymous_name_from_fields(
+                data=dict(x=2),
+                block_schema_id=block_document.block_schema_id,
+                block_type_id=block_document.block_type_id,
+            )
+        )
+        assert updated_block_document.name == expected_anonymous_name
+        assert updated_block_document.name.startswith("anonymous:")
+        assert updated_block_document.name != block_document.name
+
+    async def test_update_anonymous_block_document_data_doesnt_change_name_if_data_doesnt_change(
+        self, session, block_schemas
+    ):
+
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                data=dict(x=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
+            ),
+        )
+
+        await models.block_documents.update_block_document(
+            session,
+            block_document_id=block_document.id,
+            # note the new data is the same as the old data
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=1)),
+        )
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+
+        # name was not updated
+        assert updated_block_document.name == block_document.name
 
     async def test_update_nested_block_document_data(self, session, block_schemas):
         inner_block_document = await models.block_documents.create_block_document(

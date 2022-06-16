@@ -443,7 +443,7 @@ class TestReadBlockDocuments:
         )
         assert [b.id for b in read_block_documents] == [
             block_documents[2].id,
-            block_documents[4].id,
+            block_documents[3].id,
         ]
 
 
