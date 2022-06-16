@@ -1,4 +1,7 @@
 class Requirement:
+    # Implementations are expected to at least contain a name attribute
+    name: str
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
@@ -18,3 +21,6 @@ class Requirement:
             raise NotImplementedError()
 
         return str(self) == str(__o)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({str(self)!r})"
