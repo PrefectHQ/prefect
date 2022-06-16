@@ -150,13 +150,21 @@ class TestAPICompatibility:
             name="block", block_schema_id=uuid4(), block_type_id=block_type_x.id
         )
 
-    def test_create_api_block_anonymous(self, block_type_x):
-        """Test passing different values to `is_anonymous` and whether or not a
-        fallback value is present on the BlockDocument"""
+    def test_to_block_document_anonymous(self, block_type_x):
+        anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+        assert anon_block.is_anonymous is True
+        assert anon_block.name is None
+
+    def test_to_block_document_anonymous(self, block_type_x):
+        """Test passing different values to the `is_anonymous` argument, in
+        combination with different values of the _is_anonymous class fallback"""
 
         # explicit true
         anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
-            name="block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
             is_anonymous=True,
@@ -185,7 +193,6 @@ class TestAPICompatibility:
         anon_block_4 = self.MyRegisteredBlock(x="x")
         anon_block_4._is_anonymous = True
         doc_4 = anon_block_4._to_block_document(
-            name="block",
             block_schema_id=uuid4(),
             block_type_id=block_type_x.id,
             is_anonymous=None,
@@ -203,6 +210,45 @@ class TestAPICompatibility:
         )
         assert doc_5.is_anonymous is False
 
+    def test_to_block_document_anonymous_errors(self, block_type_x):
+        """Test passing different values to the `is_anonymous` argument, in
+        combination with different values of the _is_anonymous class fallback"""
+
+        # explicit false
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            self.MyRegisteredBlock(x="x")._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=False,
+            )
+
+        # none with no fallback
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            self.MyRegisteredBlock(x="x")._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=None,
+            )
+
+        # none with False fallback
+        anon_block_4 = self.MyRegisteredBlock(x="x")
+        anon_block_4._is_anonymous = False
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            anon_block_4._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=None,
+            )
+
     def test_from_block_document(self, block_type_x):
         block_schema_id = uuid4()
         api_block = self.MyRegisteredBlock(x="x")._to_block_document(
@@ -216,11 +262,11 @@ class TestAPICompatibility:
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_x.id
         assert block._is_anonymous is False
+        assert block._block_document_name == "block"
 
     def test_from_block_document_anonymous(self, block_type_x):
         block_schema_id = uuid4()
         api_block = self.MyRegisteredBlock(x="x")._to_block_document(
-            name="block",
             block_schema_id=block_schema_id,
             block_type_id=block_type_x.id,
             is_anonymous=True,
@@ -233,6 +279,7 @@ class TestAPICompatibility:
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_x.id
         assert block._is_anonymous is True
+        assert block._block_document_name is None
 
     def test_from_block_document_with_unregistered_block(self):
         class BlockyMcBlock(Block):

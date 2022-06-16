@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import coolname
-from pydantic import Field, HttpUrl, validator
+from pydantic import Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -442,7 +442,10 @@ class BlockSchemaReference(ORMBaseModel):
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
-    name: str = Field(..., description="The block document's name'")
+    name: Optional[str] = Field(
+        None,
+        description="The block document's name. Not required for anonymous block documents.",
+    )
     data: dict = Field(default_factory=dict, description="The block document's data")
     block_schema_id: UUID = Field(..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
@@ -462,8 +465,19 @@ class BlockDocument(ORMBaseModel):
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        # the BlockDocumentCreate subclass allows name=None
+        # and will inherit this validator
+        if v is not None:
+            raise_on_invalid_name(v)
         return v
+
+    @root_validator
+    def validate_name_is_present_if_not_anonymous(cls, values):
+        # anonymous blocks may have no name prior to actually being
+        # stored in the database
+        if not values.get("is_anonymous") and not values.get("name"):
+            raise ValueError("Names must be provided for block documents.")
+        return values
 
     @classmethod
     async def from_orm_model(
