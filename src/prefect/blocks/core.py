@@ -189,6 +189,7 @@ class Block(BaseModel, ABC):
                 "No block type ID provided, either as an argument or on the block."
             )
 
+        data_keys = self.schema()["properties"].keys()
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=name or self._block_document_name,
