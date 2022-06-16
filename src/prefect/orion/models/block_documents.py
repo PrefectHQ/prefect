@@ -360,11 +360,8 @@ async def read_block_documents(
             is_anonymous=dict(eq_=False)
         )
 
-    filtered_block_documents_query = (
-        sa.select(db.BlockDocument.id)
-        .join(db.BlockSchema, db.BlockSchema.id == db.BlockDocument.block_schema_id)
-        .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
-        .order_by(db.BlockType.name, db.BlockDocument.name)
+    filtered_block_documents_query = sa.select(db.BlockDocument.id).order_by(
+        db.BlockDocument.name
     )
 
     if block_document_filter:
@@ -413,7 +410,6 @@ async def read_block_documents(
             ]
         )
         .select_from(db.BlockDocument)
-        .join(db.BlockType, db.BlockType.id == db.BlockDocument.block_type_id)
         .join(
             recursive_block_document_references_cte,
             db.BlockDocument.id
@@ -428,7 +424,7 @@ async def read_block_documents(
                 ),
             )
         )
-        .order_by(db.BlockType.name, db.BlockDocument.name)
+        .order_by(db.BlockDocument.name)
         .execution_options(populate_existing=True)
     )
 

@@ -354,7 +354,7 @@ class TestReadBlockDocuments:
         )
 
         await session.commit()
-        return sorted(block_documents, key=lambda b: (b.block_type.name, b.name))
+        return sorted(block_documents, key=lambda b: b.name)
 
     async def test_read_block_documents(self, client, block_documents):
         response = await client.post("/block_documents/filter")
