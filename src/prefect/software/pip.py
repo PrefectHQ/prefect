@@ -95,7 +95,8 @@ def current_environment_requirements(
         if on_uninstallable_requirement == "ignore":
             pass
         elif on_uninstallable_requirement == "warn":
-            warnings.warn(message)
+            # When warning, include a note that these distributions are excluded
+            warnings.warn(message + "\nThese requirements will be ignored.")
         elif on_uninstallable_requirement == "raise":
             raise ValueError(message)
         else:
