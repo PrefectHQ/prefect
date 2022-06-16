@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import List, Type
 
@@ -44,10 +43,15 @@ class PythonRequirements(BaseModel):
         )
 
     @validate_arguments
-    def to_requirements_file(self, path: Path) -> int:
+    def to_requirements_file(self, path: Path, linesep="\n") -> int:
         """
         Write to a requirements file at the given path.
+
+        Note the line seperator defaults to "\n" instead of `os.linesep` to make it
+        easy to copy this file into a Docker image.
         """
+        # TODO: Rethink the interface here when implementing Conda; we may want to just
+        #       return a list of strings for the user to write and join how they please
         return path.write_text(
-            os.linesep.join([str(requirement) for requirement in self.pip_requirements])
+            linesep.join([str(requirement) for requirement in self.pip_requirements])
         )
