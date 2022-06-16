@@ -228,6 +228,11 @@ class OrionDBInterface(metaclass=DBSingleton):
         """Unique columns for upserting a TaskRun"""
         return self.orm.task_run_unique_upsert_columns
 
+    @property
+    def block_document_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockDocument"""
+        return self.orm.block_document_unique_upsert_columns
+
     async def insert(self, model):
         """INSERTs a model into the database"""
         return self.queries.insert(model)
