@@ -774,7 +774,7 @@ class TestReadBlockDocuments:
         )
 
         await session.commit()
-        return sorted(blocks, key=lambda b: (b.block_type.name, b.name))
+        return sorted(blocks, key=lambda b: b.name)
 
     async def test_read_blocks(self, session, blocks):
         read_blocks = await models.block_documents.read_block_documents(session=session)
