@@ -925,7 +925,7 @@ class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
 
 
 class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
-    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+    """Filter FlowRunNotificationPolicies."""
 
     is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
         # default is to exclude anonymous blocks
