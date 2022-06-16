@@ -7,6 +7,7 @@ from typing import Generator
 import pytest
 from _pytest.capture import CaptureFixture
 from docker import DockerClient
+from docker.errors import ImageNotFound
 from typer.testing import CliRunner
 
 import prefect
@@ -63,6 +64,7 @@ def test_builds_alternate_dockerfiles(contexts: Path, docker: DockerClient):
     assert output == b"from Dockerfile.b!\n"
 
 
+@pytest.mark.service("docker")
 def test_streams_progress_nowhere_by_default(contexts: Path, capsys: CaptureFixture):
     image_id = build_image(contexts / "tiny")
     assert IMAGE_ID_PATTERN.match(image_id)
@@ -133,8 +135,10 @@ def prefect_base_image(docker: DockerClient):
 
     image_exists, version_is_right = False, False
 
-    if docker.images.get(image_name):
-        image_exists = True
+    try:
+        image_exists = bool(docker.images.get(image_name))
+    except ImageNotFound:
+        pass
 
     if image_exists:
         version = docker.containers.run(image_name, ["prefect", "--version"])
