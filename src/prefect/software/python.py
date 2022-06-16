@@ -11,6 +11,10 @@ from prefect.software.pip import PipRequirement, current_environment_requirement
 class PythonRequirements(BaseModel):
     """
     A collection of Python requirements.
+
+    Editable installations:
+        Since these requirements are intended to be transportable across machines,
+        editable installations are not supported.
     """
 
     pip_requirements: List[PipRequirement]
