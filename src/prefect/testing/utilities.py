@@ -41,9 +41,9 @@ def exceptions_equal(a, b):
 
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-    from mock import AsyncMock
+    from mock import AsyncMock  # noqa
 else:
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock  # noqa
 
 
 def kubernetes_environments_equal(

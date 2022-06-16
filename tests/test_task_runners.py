@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import time
 import warnings
 from unittest.mock import MagicMock
 from uuid import uuid4

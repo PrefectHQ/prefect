@@ -10,7 +10,7 @@ from prefect.orion.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.orion.database.dependencies import inject_db, provide_database_interface
+from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,

@@ -2,7 +2,6 @@
 Functions for interacting with block schema ORM objects.
 Intended for internal use by the Orion API.
 """
-import hashlib
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -16,14 +15,10 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_name
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
-from prefect.utilities.collections import remove_nested_keys
-from prefect.utilities.hashing import hash_objects
 
 
 class MissingBlockTypeException(Exception):
     """Raised when the block type corresponding to a block schema cannot be found"""
-
-    pass
 
 
 @inject_db

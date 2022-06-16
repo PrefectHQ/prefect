@@ -10,9 +10,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 
-import prefect
 import prefect.orion.models as models
-import prefect.settings
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService

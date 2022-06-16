@@ -89,9 +89,10 @@ class FlowRunNotifications(LoopService):
                 )
 
             except Exception:
-                self.logger.exception(
+                self.logger.error(
                     f"Error sending notification for policy {notification.flow_run_notification_policy_id} "
-                    f"on flow run {notification.flow_run_id}:"
+                    f"on flow run {notification.flow_run_id}",
+                    exc_info=True,
                 )
 
 
