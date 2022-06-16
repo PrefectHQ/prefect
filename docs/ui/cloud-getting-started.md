@@ -52,7 +52,7 @@ If you change your mind, you can select **Workspace Settings** to modify the wor
 
 ![Editing workspace settings in the Prefect Cloud UI](/img/ui/cloud-workspace-settings.png)
 
-**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment the workspace.
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with the workspace.
 
 <div class="terminal">
 ```bash
