@@ -37,14 +37,14 @@ class PipRequirement(packaging.requirements.Requirement):
             )
         return cls.validate(dist.as_requirement())
 
-    def __eq__(self, __o: object) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Requirements are equal if their string specification matches.
         """
-        if not isinstance(__o, PipRequirement):
+        if not isinstance(other, PipRequirement):
             return NotImplemented
 
-        return str(self) == str(__o)
+        return str(self) == str(other)
 
 
 def _get_installed_distributions() -> Dict[str, pkg_resources.Distribution]:
