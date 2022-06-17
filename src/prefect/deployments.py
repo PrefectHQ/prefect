@@ -4,7 +4,7 @@ import pathlib
 import sys
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Union
+from typing import Any, AnyStr, Dict, Iterable, List, Optional, Set, Tuple, Union
 from uuid import UUID
 
 import fsspec
@@ -12,6 +12,7 @@ import yaml
 from pydantic import Field, PrivateAttr, validator
 
 import prefect.orion.schemas as schemas
+from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     DeploymentValidationError,
@@ -23,14 +24,15 @@ from prefect.exceptions import (
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow
 from prefect.orion import schemas
-from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.packaging.base import Packager
+from prefect.packaging.script import ScriptPackager
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import is_local_path, tmpchdir
-from prefect.utilities.importtools import import_object, objects_from_script
+from prefect.utilities.importtools import objects_from_script
 
 
 class DeploymentSpecification(PrefectBaseModel, abc.ABC):
@@ -48,6 +50,9 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = Field(default_factory=list)
     flow_runner: Union[FlowRunner, FlowRunnerSettings] = None
+
+    packager: Optional[Packager] = Field(default_factory=ScriptPackager)
+    flow_storage: Optional[Union[StorageBlock, UUID]] = None
 
     # Meta types
     _validated: bool = PrivateAttr(False)
@@ -168,20 +173,24 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
                 self,
             )
 
-        self._validated = True
+        # Backwards compatibility for `flow_storage``
 
-    @abc.abstractmethod
-    async def build(self) -> DeploymentCreate:
-        """
-        Build the specification.
-
-        Returns a schema that can be used to register the deployment with the API.
-        """
-        # Implementations should include this check
-        if not self._validated:
+        if self.flow_storage and "packager" in self.__fields_set__:
             raise DeploymentValidationError(
-                "Validation is required before building the deployment.", self
+                "'flow_storage' and 'packager' cannot both be set. Use "
+                "`packager=ScriptPackager(storage=...)` instead of 'flow_storage'.",
+                self,
             )
+        elif self.flow_storage:
+            # TODO: Add deprecation warning
+            assert isinstance(self.packager, ScriptPackager)
+            self.packager.storage = self.flow_storage
+
+        # Check packager compatibility
+
+        await self.packager.check_compat(self)
+
+        self._validated = True
 
     @sync_compatible
     @inject_client
@@ -194,7 +203,7 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
         Returns the ID of the deployment.
         """
         await self.validate()
-        schema = await self.build()
+        schema = await self.packager.package(self)
         return await client.create_deployment_from_schema(schema)
 
     class Config:
@@ -208,6 +217,11 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
                 yield super().validate
             else:
                 yield validator
+
+
+class DeploymentSpec(DeploymentSpecification):
+    # TODO: Add deprecation warning; waiting until the Deployment rename
+    pass
 
 
 # Utilities for loading flows and deployment specifications ----------------------------
@@ -414,13 +428,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpecification]:
         # Load deployments relative to the yaml file's directory
         with tmpchdir(path):
             raw_spec = yaml.safe_load(yaml.serialize(node))
-            spec_type_path = raw_spec.pop(
-                "type", "prefect.deployments.ScriptDeploymentSpecification"
-            )
-            if "." not in spec_type_path:
-                spec_type_path = "prefect.deployments." + spec_type_path
-            cls = import_object(spec_type_path)
-            spec = cls.parse_obj(raw_spec)
+            spec = DeploymentSpecification.parse_obj(raw_spec)
 
         # Update the source to be from the YAML file instead of this utility
         spec._source = {"file": str(path), "line": line}
