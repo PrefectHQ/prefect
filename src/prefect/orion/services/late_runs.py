@@ -40,7 +40,7 @@ class MarkLateRuns(LoopService):
         )
 
         # query for this many runs to mark as late at once
-        self.batch_size = 1
+        self.batch_size = 400
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
