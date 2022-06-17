@@ -204,6 +204,12 @@ class BlockDocumentCreate(
         # the document is actually created on the server
         if values.get("is_anonymous") and values.get("name"):
             raise ValueError("Names cannot be provided for anonymous block documents")
+        elif not values.get("is_anonymous") and values.get("name", "").startswith(
+            "anonymous"
+        ):
+            raise ValueError(
+                "Block document names that start with 'anonymous' are reserved."
+            )
         return values
 
 
