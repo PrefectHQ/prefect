@@ -1,14 +1,17 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
+
 The primary object is the `DeploymentSpecification` which can be used to define a deployment.
 Once a specification is written, it can be used with the Orion client or CLI to create
 a deployment in the backend.
+
 Examples:
     Define a flow
     >>> from prefect import flow
     >>> @flow
     >>> def hello_world(name="world"):
     >>>     print(f"Hello, {name}!")
+
     Write a deployment specification that sets a new parameter default
     >>> from prefect.deployments import DeploymentSpecification
     >>> DeploymentSpecification(
@@ -17,6 +20,7 @@ Examples:
     >>>     parameters={"name": "Earth"},
     >>>     tags=["foo", "bar"],
     >>> )
+
     Add a schedule to the deployment specification to run the flow hourly
     >>> from prefect.orion.schemas.schedules import IntervalSchedule
     >>> from datetime import timedelta
@@ -24,6 +28,7 @@ Examples:
     >>>     ...
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
+    
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object
     ```yaml
