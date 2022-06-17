@@ -4,7 +4,7 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -196,6 +196,15 @@ class BlockDocumentCreate(
     )
 ):
     """Data used by the Orion API to create a block document."""
+
+    @root_validator
+    def check_anonymous_name(cls, values):
+        # when creating a new anonymous block document, a name should never be
+        # provided Anonymous names are used for idempotency and generated when
+        # the document is actually created on the server
+        if values.get("is_anonymous") and values.get("name"):
+            raise ValueError("Names cannot be provided for anonymous block documents")
+        return values
 
 
 class BlockDocumentUpdate(PrefectBaseModel):
