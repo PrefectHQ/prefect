@@ -15,6 +15,7 @@ import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLI_COLORS,
     PREFECT_HOME,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -254,6 +255,8 @@ def testing_session_settings(test_database_url: str):
             # environments and settings
             PREFECT_HOME: tmpdir,
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Disable pretty CLI output for easier assertions
+            PREFECT_CLI_COLORS: False,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
