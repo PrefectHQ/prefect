@@ -15,7 +15,7 @@ from prefect.packaging.base import Packager
 from prefect.utilities.asyncio import sync_compatible
 
 if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpecification
+    from prefect.deployments import DeploymentSpec
 
 
 class ScriptPackager(Packager):
@@ -38,9 +38,7 @@ class ScriptPackager(Packager):
 
     @sync_compatible
     @inject_client
-    async def check_compat(
-        self, deployment: "DeploymentSpecification", client: OrionClient
-    ):
+    async def check_compat(self, deployment: "DeploymentSpec", client: OrionClient):
         # Determine the storage block
 
         # TODO: Some of these checks may be retained in the future, but will use block
@@ -83,7 +81,7 @@ class ScriptPackager(Packager):
 
     @inject_client
     async def package(
-        self, deployment: "DeploymentSpecification", client: OrionClient
+        self, deployment: "DeploymentSpec", client: OrionClient
     ) -> DeploymentCreate:
         """
         Build the specification.

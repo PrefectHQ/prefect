@@ -6,18 +6,18 @@ from pydantic import BaseModel
 from prefect.orion.schemas.actions import DeploymentCreate
 
 if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpecification
+    from prefect.deployments import DeploymentSpec
 
 
 class Packager(BaseModel, abc.ABC):
     @abc.abstractmethod
-    async def check_compat(self, deployment: "DeploymentSpecification") -> None:
+    async def check_compat(self, deployment: "DeploymentSpec") -> None:
         """
         Check compatbility with a deployment.
         """
 
     @abc.abstractmethod
-    async def package(self, deployment: "DeploymentSpecification") -> DeploymentCreate:
+    async def package(self, deployment: "DeploymentSpec") -> DeploymentCreate:
         """
         Package the flow referenced by the deployment.
 

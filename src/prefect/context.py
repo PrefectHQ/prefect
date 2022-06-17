@@ -19,7 +19,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
-from prefect.deployments import DeploymentSpecification
+from prefect.deployments import DeploymentSpec
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
@@ -94,7 +94,7 @@ class PrefectObjectRegistry(ContextModel):
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
     flows: Dict[str, Flow] = Field(default_factory=dict)
-    deployment_specs: List[DeploymentSpecification] = Field(default_factory=list)
+    deployment_specs: List[DeploymentSpec] = Field(default_factory=list)
     tasks: Dict[str, Task] = Field(default_factory=dict)
 
     _block_code_execution: bool = PrivateAttr(default=False)
