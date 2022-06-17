@@ -16,7 +16,7 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
-from prefect.settings import PREFECT_CLI_COLORS
+from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -60,7 +60,10 @@ def main(
     # Configure the output console after loading the profile
 
     app.console = rich.console.Console(
-        highlight=False, color_system="auto" if PREFECT_CLI_COLORS else None
+        highlight=False,
+        color_system="auto" if PREFECT_CLI_COLORS else None,
+        # `soft_wrap` disables wrapping when `True`
+        soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
     )
 
     setup_logging()
