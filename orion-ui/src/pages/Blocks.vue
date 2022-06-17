@@ -1,6 +1,8 @@
 <template>
   <p-layout-default class="blocks">
-    <PageHeadingBlocks />
+    <template #header>
+      <PageHeadingBlocks />
+    </template>
     <template v-if="loaded">
       <template v-if="empty">
         <BlocksPageEmptyState />
