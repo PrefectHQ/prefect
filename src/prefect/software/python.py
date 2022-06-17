@@ -1,9 +1,15 @@
+import sys
 from pathlib import Path
 from typing import List, Type
 
 from pydantic import BaseModel, validate_arguments
 from typing_extensions import Self
 
+from prefect.software.base import remove_duplicate_requirements
+from prefect.software.conda import (
+    CondaRequirement,
+    current_environment_conda_requirements,
+)
 from prefect.software.pip import PipRequirement, current_environment_requirements
 
 
@@ -17,6 +23,7 @@ class PythonRequirements(BaseModel):
     """
 
     pip_requirements: List[PipRequirement]
+    conda_requirements: List[CondaRequirement]
 
     @classmethod
     @validate_arguments
@@ -36,10 +43,19 @@ class PythonRequirements(BaseModel):
                 packages. If unset, only top-level requirements will be included.
                 Defaults to including all requirements.
         """
-        return cls(
-            pip_requirements=current_environment_requirements(
+        conda_requirements = (
+            current_environment_conda_requirements()
+            if "conda" in sys.executable
+            else []
+        )
+        pip_requirements = remove_duplicate_requirements(
+            conda_requirements,
+            current_environment_requirements(
                 include_nested=include_nested, on_uninstallable_requirement="warn"
-            )
+            ),
+        )
+        return cls(
+            pip_requirements=pip_requirements, conda_requirements=conda_requirements
         )
 
     @validate_arguments
