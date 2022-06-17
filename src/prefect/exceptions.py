@@ -11,7 +11,7 @@ from typing_extensions import Self
 import prefect
 
 if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpecification
+    from prefect.deployments import DeploymentSpec
 
 
 def _trim_traceback(
@@ -77,7 +77,7 @@ class DeploymentValidationError(PrefectException, ValueError):
     Raised when a value for a specification is incorrect
     """
 
-    def __init__(self, message: str, deployment: "DeploymentSpecification") -> None:
+    def __init__(self, message: str, deployment: "DeploymentSpec") -> None:
         self.message = message
         self.deployment = deployment
 
