@@ -260,7 +260,7 @@ class TestDeploymentSpecification:
 
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
         await spec.validate()
-        assert spec.packager.storage == Block._from_block_document(
+        assert spec._packager.storage == Block._from_block_document(
             await orion_client.get_default_storage_block_document()
         )
 
@@ -325,7 +325,7 @@ class TestDeploymentSpecification:
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner)
         with pytest.warns(match="only be usable from the current machine"):
             await spec.validate()
-        assert isinstance(spec.packager.storage, LocalStorageBlock)
+        assert isinstance(spec._packager.storage, LocalStorageBlock)
 
     @pytest.mark.parametrize(
         "flow_runner",
@@ -350,7 +350,7 @@ class TestDeploymentSpecification:
 
         spec = DeploymentSpec(flow=foo, flow_runner=flow_runner, flow_storage=block)
         await spec.validate()
-        assert spec.packager.storage == block
+        assert spec._packager.storage == block
 
 
 class TestCreateDeploymentFromSpec:

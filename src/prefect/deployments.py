@@ -122,6 +122,9 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
     _validated: bool = PrivateAttr(False)
     _source: Dict = PrivateAttr()
 
+    # Hide the `_packager` which is a new interface
+    _packager: ScriptPackager = PrivateAttr()
+
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
 
@@ -237,6 +240,11 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
                 self,
             )
 
+        # Check packaging compatibility
+
+        self._packager = ScriptPackager(storage=self.flow_storage)
+        await self._packager.check_compat(self, client=client)
+
         self._validated = True
 
     @sync_compatible
@@ -250,8 +258,7 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
         Returns the ID of the deployment.
         """
         await self.validate()
-        packager = ScriptPackager(storage=self.flow_storage)
-        schema = await packager.package(self, client)
+        schema = await self._packager.package(self, client=client)
         return await client._create_deployment_from_schema(schema)
 
     class Config:
