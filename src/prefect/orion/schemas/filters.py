@@ -928,12 +928,8 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
     """Filter FlowRunNotificationPolicies."""
 
     is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
-        # default is to exclude anonymous blocks
         FlowRunNotificationPolicyFilterIsActive(eq_=False),
-        description=(
-            "Filter criteria for `FlowRunNotificationPolicy.is_active`. "
-            "Defaults to excluding anonymous blocks."
-        ),
+        description=("Filter criteria for `FlowRunNotificationPolicy.is_active`. "),
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
