@@ -14,7 +14,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import OrionClient, get_client, inject_client
-from prefect.deployments.base import (
+from prefect.deployments import (
     DeploymentSpecification,
     deployment_specs_from_script,
     deployment_specs_from_yaml,

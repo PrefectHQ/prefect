@@ -11,7 +11,7 @@ from typing_extensions import Self
 import prefect
 
 if TYPE_CHECKING:
-    from prefect.deployments.base import DeploymentSpecification
+    from prefect.deployments import DeploymentSpecification
 
 
 def _trim_traceback(
