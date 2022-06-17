@@ -84,7 +84,7 @@ class PrefectObjectRegistry(ContextModel):
 
         flows: A dictionary containing all Flow objects that are initialized
             during load / execution.
-        deployment_specs: A list containing all DeploymentSpecification objects
+        deployment_specs: A list containing all deployment specification objects
             that are initialized during load / execution. The name of the deployment
             may not be determined yet so they cannot be stored in a dictionary.
         tasks: A dictionary containing all Task objects that are initialized

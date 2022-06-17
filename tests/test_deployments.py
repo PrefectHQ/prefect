@@ -81,7 +81,7 @@ async def remote_default_storage(orion_client, tmp_remote_storage_block_id):
     await orion_client.set_default_storage_block_document(tmp_remote_storage_block_id)
 
 
-class TestDeploymentSpecification:
+class TestDeploymentSpec:
     async def test_infers_flow_location_from_flow(self, remote_default_storage):
         spec = DeploymentSpec(flow=hello_world_flow)
         await spec.validate()
@@ -525,7 +525,7 @@ class TestLoadFlowFromScript:
         assert loaded_flow.name == "hello-world"
 
 
-class TestDeploymentSpecificationFromFile:
+class TestDeploymentSpecFromFile:
     @pytest.fixture(autouse=True)
     async def autouse_storage(self, remote_default_storage):
         pass
