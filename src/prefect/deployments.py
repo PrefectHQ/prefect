@@ -13,8 +13,8 @@ Examples:
     >>>     print(f"Hello, {name}!")
 
     Write a deployment specification that sets a new parameter default
-    >>> from prefect.deployments import DeploymentSpecification
-    >>> DeploymentSpecification(
+    >>> from prefect.deployments import DeploymentSpec
+    >>> DeploymentSpec(
     >>>     flow=hello_world,
     >>>     name="my-first-deployment",
     >>>     parameters={"name": "Earth"},
@@ -24,7 +24,7 @@ Examples:
     Add a schedule to the deployment specification to run the flow hourly
     >>> from prefect.orion.schemas.schedules import IntervalSchedule
     >>> from datetime import timedelta
-    >>> DeploymentSpecification(
+    >>> DeploymentSpec(
     >>>     ...
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
@@ -489,7 +489,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
 
 def _register_spec(spec: DeploymentSpec) -> None:
     """
-    Collect the `DeploymentSpecification` object on the
+    Collect the `DeploymentSpec` object on the
     PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
     the same name are created, the last will be used.
 
