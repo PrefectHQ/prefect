@@ -26,7 +26,7 @@ class ScriptPackager(Packager):
 
     If a storage block is not provided, the default storage will be retrieved from
     the API. If no default storage is configured, you must provide a storage block to
-    use non-local runners.
+    use non-local flow runners.
 
     Args:
         storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
