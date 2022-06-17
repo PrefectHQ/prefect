@@ -79,9 +79,30 @@ from prefect.utilities.importtools import objects_from_script
 
 class DeploymentSpecification(PrefectBaseModel, abc.ABC):
     """
-    The base type for specifying a deployment of a flow.
+    A type for specifying a deployment of a flow.
 
-    Subclasses must implement the `build` method.
+    The flow object or flow location must be provided. If a flow object is not provided,
+    `load_flow` must be called to load the flow from the given flow location.
+    Args:
+        name: The name of the deployment
+        flow: The flow object to associate with the deployment
+        flow_location: The path to a script containing the flow to associate with the
+            deployment. Inferred from `flow` if provided.
+        flow_name: The name of the flow to associated with the deployment. Only required
+            if loading the flow from a `flow_location` with multiple flows. Inferred
+            from `flow` if provided.
+        flow_runner: The [flow runner](/api-ref/prefect/flow-runners/) to be used for
+            flow runs.
+        parameters: An optional dictionary of default parameters to set on flow runs
+            from this deployment. If defined in Python, the values should be Pydantic
+            compatible objects.
+        schedule: An optional schedule instance to use with the deployment.
+        tags: An optional set of tags to assign to the deployment.
+        packager: A `Packager` instance to use to store the flow for retrival by the
+            deployment.
+        flow_storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
+            providing the [storage](/concepts/storage/) to be used for the flow
+            definition and results. This has been replaced by 'packager'.
     """
 
     name: str = None
