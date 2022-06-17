@@ -242,6 +242,13 @@ PREFECT_CLI_COLORS = Setting(
         output will not include colors codes. Defaults to `True`.""",
 )
 
+PREFECT_CLI_WRAP_LINES = Setting(
+    bool,
+    default=True,
+    description="""If `True`, wrap text by inserting new lines in long lines 
+        in CLI output. If `False`, output will not be wrapped. Defaults to `True`.""",
+)
+
 PREFECT_TEST_MODE = Setting(
     bool,
     default=False,
