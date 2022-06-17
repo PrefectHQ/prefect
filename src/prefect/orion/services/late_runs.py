@@ -51,7 +51,7 @@ class MarkLateRuns(LoopService):
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
         scheduled_to_start_before = pendulum.now("UTC").subtract(
-            seconds=self.mark_late_after
+            seconds=self.mark_late_after.total_seconds()
         )
 
         session = await db.session()
