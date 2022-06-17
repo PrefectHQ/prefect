@@ -87,6 +87,7 @@ async def read_flow_run_notification_policy(
 @router.post("/filter")
 async def read_flow_run_notification_policies(
     limit: int = dependencies.LimitBody(),
+    flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRunNotificationPolicy]:
@@ -96,6 +97,7 @@ async def read_flow_run_notification_policies(
     return (
         await models.flow_run_notification_policies.read_flow_run_notification_policies(
             session=session,
+            flow_run_notification_policy_filter=flow_run_notification_policy_filter,
             offset=offset,
             limit=limit,
         )
