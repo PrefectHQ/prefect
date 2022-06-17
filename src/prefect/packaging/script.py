@@ -15,7 +15,6 @@ from prefect.packaging.base import Packager
 from prefect.utilities.asyncio import sync_compatible
 
 if TYPE_CHECKING:
-
     from prefect.deployments import DeploymentSpecification
 
 
