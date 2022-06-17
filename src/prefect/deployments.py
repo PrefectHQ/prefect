@@ -246,7 +246,7 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
         """
         await self.validate()
         schema = await self.packager.package(self)
-        return await client.create_deployment_from_schema(schema)
+        return await client._create_deployment_from_schema(schema)
 
     class Config:
         arbitrary_types_allowed = True
