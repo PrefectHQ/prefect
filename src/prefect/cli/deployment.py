@@ -267,7 +267,7 @@ async def _create(spec: DeploymentSpecification, client: OrionClient):
     deployment_create = await spec.packager.package(spec)
 
     app.console.print(f"Registering deployment {stylized_name} with the server...")
-    await client.create_deployment_from_schema(deployment_create)
+    await client._create_deployment_from_schema(deployment_create)
 
     app.console.print(f"Created deployment {stylized_name}!")
 

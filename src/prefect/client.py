@@ -1195,12 +1195,14 @@ class OrionClient:
 
         return UUID(deployment_id)
 
-    async def create_deployment_from_schema(
+    async def _create_deployment_from_schema(
         self, schema: schemas.actions.DeploymentCreate
     ) -> UUID:
         """
         Create a deployment from a prepared `DeploymentCreate` schema.
         """
+        # TODO: We are likely to remove this method once we have considered the
+        #       packaging interface for deployments further.
         response = await self._client.post(
             "/deployments/", json=schema.dict(json_compatible=True)
         )
