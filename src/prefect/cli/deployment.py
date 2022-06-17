@@ -200,9 +200,9 @@ async def create(path: Path):
 
         \b
         ```python
-        from prefect.deployments import ScriptDeploymentSpecification
+        from prefect.deployments import DeploymentSpecification
         \b
-        ScriptDeploymentSpecification(
+        DeploymentSpecification(
             name="my-first-deploy", flow_location="./my_flow.py"
         )
         ```
@@ -217,13 +217,13 @@ async def create(path: Path):
 
         \b
         ```python
-        from prefect.deployments import ScriptDeploymentSpecification
+        from prefect.deployments import DeploymentSpecification
         \b
-        ScriptDeploymentSpecification(
+        DeploymentSpecification(
             name="my-first-deploy", flow_location="./my_flow.py"
         )
         \b
-        ScriptDeploymentSpecification(
+        DeploymentSpecification(
             name="my-second-deploy", flow_location="./my_other_flow.py"
         )
         ```
@@ -263,8 +263,8 @@ async def _create(spec: DeploymentSpecification, client: OrionClient):
     # Generate a stylized name after validation
     stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
 
-    app.console.print(f"Building deployment {stylized_name}...")
-    deployment_create = await spec.build(client=client)
+    app.console.print(f"Packaging flow for deployment {stylized_name}...")
+    deployment_create = await spec.packager.package(spec)
 
     app.console.print(f"Registering deployment {stylized_name} with the server...")
     await client.create_deployment_from_schema(deployment_create)
