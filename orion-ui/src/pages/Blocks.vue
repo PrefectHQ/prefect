@@ -1,9 +1,25 @@
 <template>
   <p-layout-default class="blocks">
     <PageHeadingBlocks />
+    <template v-if="loaded">
+      <template v-if="empty">
+        <BlocksPageEmptyState />
+      </template>
+      <template v-else>
+        <BlockDocumentsTable :block-documents="blockDocuments" />
+      </template>
+    </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocks } from '@prefecthq/orion-design'
+  import { PageHeadingBlocks, BlockDocumentsTable, BlocksPageEmptyState } from '@prefecthq/orion-design'
+  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { computed } from 'vue'
+  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
+
+  const blockDocumentsSubscription = useSubscription(blockDocumentsApi.getBlockDocuments)
+  const blockDocuments = computed(() => blockDocumentsSubscription.response ?? [])
+  const empty = computed(() => blockDocumentsSubscription.executed && blockDocuments.value.length == 0)
+  const loaded = computed(() => blockDocumentsSubscription.executed)
 </script>
