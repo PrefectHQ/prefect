@@ -1271,6 +1271,11 @@ class BaseORMConfiguration(ABC):
             self.TaskRun.dynamic_key,
         ]
 
+    @property
+    def block_document_unique_upsert_columns(self):
+        """Unique columns for upserting a BlockDocument"""
+        return [self.BlockDocument.block_type_id, self.BlockDocument.name]
+
 
 class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     """Postgres specific orm configuration"""

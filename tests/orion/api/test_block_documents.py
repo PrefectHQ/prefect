@@ -79,10 +79,7 @@ async def block_schemas(session, block_type_x, block_type_y):
 
 
 class TestCreateBlockDocument:
-    @pytest.mark.parametrize("is_anonymous", [False, True])
-    async def test_create_block_document(
-        self, session, client, block_schemas, is_anonymous: bool
-    ):
+    async def test_create_block_document(self, session, client, block_schemas):
         response = await client.post(
             "/block_documents/",
             json=BlockDocumentCreate(
@@ -90,7 +87,6 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[0].id,
                 block_type_id=block_schemas[0].block_type_id,
-                is_anonymous=is_anonymous,
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -100,13 +96,42 @@ class TestCreateBlockDocument:
         assert result.data == dict(y=1)
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
-        assert result.is_anonymous is is_anonymous
+        assert result.is_anonymous is False
 
         response = await client.get(f"/block_documents/{result.id}")
         api_block = BlockDocument.parse_obj(response.json())
         assert api_block.name == "x"
         assert api_block.data == dict(y=1)
-        assert api_block.is_anonymous is is_anonymous
+        assert api_block.is_anonymous is False
+        assert result.block_schema_id == block_schemas[0].id
+        assert result.block_schema.checksum == block_schemas[0].checksum
+
+    async def test_create_anonymous_block_document(
+        self, session, client, block_schemas
+    ):
+        response = await client.post(
+            "/block_documents/",
+            json=BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        result = BlockDocument.parse_obj(response.json())
+
+        assert result.name.startswith("anonymous:")
+        assert result.data == dict(y=1)
+        assert result.block_schema_id == block_schemas[0].id
+        assert result.block_schema.checksum == block_schemas[0].checksum
+        assert result.is_anonymous is True
+
+        response = await client.get(f"/block_documents/{result.id}")
+        api_block = BlockDocument.parse_obj(response.json())
+        assert api_block.name.startswith("anonymous:")
+        assert api_block.data == dict(y=1)
+        assert api_block.is_anonymous is True
         assert result.block_schema_id == block_schemas[0].id
         assert result.block_schema.checksum == block_schemas[0].checksum
 
@@ -135,6 +160,31 @@ class TestCreateBlockDocument:
         )
         assert response.status_code == status.HTTP_409_CONFLICT
 
+    async def test_create_anonymous_block_document_already_exists(
+        self, session, client, block_schemas
+    ):
+        response = await client.post(
+            "/block_documents/",
+            json=BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        response = await client.post(
+            "/block_documents/",
+            json=BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
     async def test_create_block_document_with_same_name_but_different_block_type(
         self, session, client, block_schemas
     ):
@@ -156,6 +206,31 @@ class TestCreateBlockDocument:
                 data=dict(y=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+    async def test_create_anonymous_block_document_with_same_name_but_different_block_type(
+        self, session, client, block_schemas
+    ):
+        response = await client.post(
+            "/block_documents/",
+            json=BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[0].id,
+                block_type_id=block_schemas[0].block_type_id,
+                is_anonymous=True,
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        response = await client.post(
+            "/block_documents/",
+            json=BlockDocumentCreate(
+                data=dict(y=1),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+                is_anonymous=True,
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -272,7 +347,6 @@ class TestReadBlockDocuments:
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     block_schema_id=block_schemas[2].id,
-                    name="Block 6",
                     block_type_id=block_schemas[2].block_type_id,
                     is_anonymous=True,
                 ),
@@ -280,7 +354,7 @@ class TestReadBlockDocuments:
         )
 
         await session.commit()
-        return block_documents
+        return sorted(block_documents, key=lambda b: b.name)
 
     async def test_read_block_documents(self, client, block_documents):
         response = await client.post("/block_documents/filter")
@@ -334,9 +408,10 @@ class TestReadBlockDocuments:
         self, client, block_documents, is_anonymous_filter
     ):
         """
-        anonymous blocks are filtered by default, so have to explicitly disable the filter
-        to get all blocks. This can be done either by disabling the is_anonymous filter (recommended) OR by setting eq_=None
-        and we test both to make sure the default value doesn't override
+        anonymous blocks are filtered by default, so have to explicitly disable
+        the filter to get all blocks. This can be done either by disabling the
+        is_anonymous filter (recommended) OR by setting eq_=None and we test
+        both to make sure the default value doesn't override
         """
         response = await client.post(
             "/block_documents/filter",
@@ -564,7 +639,6 @@ class TestUpdateBlockDocument:
         block_document = await models.block_documents.create_block_document(
             session,
             block_document=schemas.actions.BlockDocumentCreate(
-                name="test-update-data",
                 data=dict(x=1),
                 block_schema_id=block_schemas[1].id,
                 block_type_id=block_schemas[1].block_type_id,
