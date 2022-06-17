@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import fsspec
@@ -7,13 +7,16 @@ import fsspec
 from prefect.blocks.core import Block
 from prefect.blocks.storage import LocalStorageBlock, StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.deployments.base import DeploymentSpecification
 from prefect.exceptions import DeploymentValidationError, ObjectAlreadyExists
 from prefect.flow_runners import SubprocessFlowRunner
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import Packager
 from prefect.utilities.asyncio import sync_compatible
+
+if TYPE_CHECKING:
+
+    from prefect.deployments import DeploymentSpecification
 
 
 class ScriptPackager(Packager):
@@ -36,9 +39,9 @@ class ScriptPackager(Packager):
 
     @sync_compatible
     @inject_client
-    async def validate(self, deployment: DeploymentSpecification, client: OrionClient):
-        await super().validate(client=client)
-
+    async def check_compat(
+        self, deployment: "DeploymentSpecification", client: OrionClient
+    ):
         # Determine the storage block
 
         # TODO: Some of these checks may be retained in the future, but will use block
@@ -71,17 +74,17 @@ class ScriptPackager(Packager):
             if not self.storage:
                 raise DeploymentValidationError(
                     f"{no_storage_message} but {flow_runner_message}.",
-                    self,
+                    deployment,
                 )
             elif isinstance(self.storage, (LocalStorageBlock, TempStorageBlock)):
                 raise DeploymentValidationError(
                     f"You have configured local storage but {flow_runner_message}.",
-                    self,
+                    deployment,
                 )
 
     @inject_client
     async def package(
-        self, deployment: DeploymentSpecification, client: OrionClient
+        self, deployment: "DeploymentSpecification", client: OrionClient
     ) -> DeploymentCreate:
         """
         Build the specification.
@@ -106,7 +109,7 @@ class ScriptPackager(Packager):
                 try:
                     block_document = await client.create_block_document(
                         block_document=self.storage._to_block_document(
-                            name=f"{deployment.flow_name}-{self.name}-{deployment.flow.version}-{i}",
+                            name=f"{deployment.flow_name}-{deployment.name}-{deployment.flow.version}-{i}",
                             block_schema_id=block_schema.id,
                             block_type_id=block_schema.block_type_id,
                         )
