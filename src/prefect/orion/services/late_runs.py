@@ -50,7 +50,7 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
-        scheduled_to_start_after = pendulum.now("UTC").subtract(
+        scheduled_to_start_before = pendulum.now("UTC").subtract(
             seconds=self.mark_late_after
         )
 
@@ -60,7 +60,7 @@ class MarkLateRuns(LoopService):
                 async with session.begin():
 
                     query = self._get_select_late_flow_runs_query(
-                        scheduled_to_start_after=scheduled_to_start_after, db=db
+                        scheduled_to_start_before=scheduled_to_start_before, db=db
                     )
 
                     result = await session.execute(query)
@@ -78,10 +78,14 @@ class MarkLateRuns(LoopService):
 
     @inject_db
     def _get_select_late_flow_runs_query(
-        self, scheduled_to_start_after: datetime.datetime, db: OrionDBInterface
+        self, scheduled_to_start_before: datetime.datetime, db: OrionDBInterface
     ):
         """
         Returns a sqlalchemy query for late flow runs.
+
+        Args:
+            scheduled_to_start_before: the maximum next scheduled start time of
+                scheduled flow runs to consider in the returned query
         """
         query = (
             sa.select(
@@ -91,7 +95,7 @@ class MarkLateRuns(LoopService):
             .where(
                 # The next scheduled start time is in the past, including the mark late
                 # after buffer
-                (db.FlowRun.next_scheduled_start_time <= scheduled_to_start_after),
+                (db.FlowRun.next_scheduled_start_time <= scheduled_to_start_before),
                 db.FlowRun.state_type == states.StateType.SCHEDULED,
                 db.FlowRun.state_name == "Scheduled",
             )
