@@ -46,8 +46,8 @@ jobs:
           - "3.9"
           - "3.10"
         os:
-          # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
+          # Windows is only tested on Python 3.9
         pytest-options:
           - "--exclude-services"
           - "--only-services"
@@ -61,11 +61,13 @@ jobs:
           - pytest-options: "--only-services"
             build-docker-images: true
 
+          # Run Windows tests on 3.9
+          - os: "windows-latest"
+            python-version: "3.9"
 
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
-
     timeout-minutes: 30
 
     steps:
