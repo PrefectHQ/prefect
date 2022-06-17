@@ -1,7 +1,7 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
 
-The primary object is the `DeploymentSpecification` which can be used to define a deployment.
+The primary object is the `DeploymentSpec` which can be used to define a deployment.
 Once a specification is written, it can be used with the Orion client or CLI to create
 a deployment in the backend.
 
@@ -74,7 +74,6 @@ from prefect.orion import schemas
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.packaging.base import Packager
 from prefect.packaging.script import ScriptPackager
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
@@ -88,6 +87,7 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
 
     The flow object or flow location must be provided. If a flow object is not provided,
     `load_flow` must be called to load the flow from the given flow location.
+
     Args:
         name: The name of the deployment
         flow: The flow object to associate with the deployment
@@ -103,11 +103,9 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
             compatible objects.
         schedule: An optional schedule instance to use with the deployment.
         tags: An optional set of tags to assign to the deployment.
-        packager: A `Packager` instance to use to store the flow for retrival by the
-            deployment.
         flow_storage: A [prefect.blocks.storage](/api-ref/prefect/blocks/storage/) instance
             providing the [storage](/concepts/storage/) to be used for the flow
-            definition and results. This has been replaced by 'packager'.
+            definition and results.
     """
 
     name: str = None
@@ -118,8 +116,6 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = Field(default_factory=list)
     flow_runner: Union[FlowRunner, FlowRunnerSettings] = None
-
-    packager: Optional[Packager] = Field(default_factory=ScriptPackager)
     flow_storage: Optional[Union[StorageBlock, UUID]] = None
 
     # Meta types
@@ -241,23 +237,6 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
                 self,
             )
 
-        # Backwards compatibility for `flow_storage``
-
-        if self.flow_storage and "packager" in self.__fields_set__:
-            raise DeploymentValidationError(
-                "'flow_storage' and 'packager' cannot both be set. Use "
-                "`packager=ScriptPackager(storage=...)` instead of 'flow_storage'.",
-                self,
-            )
-        elif self.flow_storage:
-            # TODO: Add deprecation warning
-            assert isinstance(self.packager, ScriptPackager)
-            self.packager.storage = self.flow_storage
-
-        # Check packager compatibility
-
-        await self.packager.check_compat(self)
-
         self._validated = True
 
     @sync_compatible
@@ -271,7 +250,8 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
         Returns the ID of the deployment.
         """
         await self.validate()
-        schema = await self.packager.package(self)
+        packager = ScriptPackager(storage=self.flow_storage)
+        schema = await packager.package(self, client)
         return await client._create_deployment_from_schema(schema)
 
     class Config:
