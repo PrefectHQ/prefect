@@ -15,7 +15,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import OrionClient, get_client, inject_client
 from prefect.deployments import (
-    DeploymentSpecification,
+    DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
@@ -159,7 +159,7 @@ async def execute(name: str):
         exit_with_success("Flow run completed!")
 
 
-def _load_deployment_specs(path: Path, quietly=False) -> List[DeploymentSpecification]:
+def _load_deployment_specs(path: Path, quietly=False) -> List[DeploymentSpec]:
     """Load the deployment specification from the path the user gave on the command line, giving
     helpful error messages if they cannot be loaded."""
     if path.suffix == ".py":
@@ -257,7 +257,7 @@ async def create(path: Path):
 
 
 @inject_client
-async def _create(spec: DeploymentSpecification, client: OrionClient):
+async def _create(spec: DeploymentSpec, client: OrionClient):
     await spec.validate(client=client)
 
     # Generate a stylized name after validation

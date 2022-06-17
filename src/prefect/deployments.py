@@ -28,7 +28,7 @@ Examples:
     >>>     ...
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
-    
+
     Deployment specifications can also be written in YAML and refer to the flow's
     location instead of the `Flow` object
     ```yaml
@@ -82,7 +82,7 @@ from prefect.utilities.filesystem import is_local_path, tmpchdir
 from prefect.utilities.importtools import objects_from_script
 
 
-class DeploymentSpecification(PrefectBaseModel, abc.ABC):
+class DeploymentSpec(PrefectBaseModel, abc.ABC):
     """
     A type for specifying a deployment of a flow.
 
@@ -287,11 +287,6 @@ class DeploymentSpecification(PrefectBaseModel, abc.ABC):
                 yield validator
 
 
-class DeploymentSpec(DeploymentSpecification):
-    # TODO: Add deprecation warning; waiting until the Deployment rename
-    pass
-
-
 # Utilities for loading flows and deployment specifications ----------------------------
 
 
@@ -337,7 +332,7 @@ def select_flow(
 
 
 def select_deployment(
-    deployments: Iterable[DeploymentSpecification],
+    deployments: Iterable[DeploymentSpec],
     deployment_name: str = None,
     flow_name: str = None,
     from_message: str = None,
@@ -451,7 +446,7 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
 
 def deployment_specs_and_flows_from_script(
     script_path: str,
-) -> Tuple[List[DeploymentSpecification], Set[Flow]]:
+) -> Tuple[List[DeploymentSpec], Set[Flow]]:
     """
     Load deployment specifications and flows from a python script.
     """
@@ -466,7 +461,7 @@ def deployment_specs_and_flows_from_script(
     return (registry.deployment_specs, flows)
 
 
-def deployment_specs_from_script(path: str) -> List[DeploymentSpecification]:
+def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
     """
     Load deployment specifications from a python script.
     """
@@ -478,7 +473,7 @@ def deployment_specs_from_script(path: str) -> List[DeploymentSpecification]:
     return registry.deployment_specs
 
 
-def deployment_specs_from_yaml(path: str) -> List[DeploymentSpecification]:
+def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
     """
     Load deployment specifications from a yaml file.
     """
@@ -496,7 +491,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpecification]:
         # Load deployments relative to the yaml file's directory
         with tmpchdir(path):
             raw_spec = yaml.safe_load(yaml.serialize(node))
-            spec = DeploymentSpecification.parse_obj(raw_spec)
+            spec = DeploymentSpec.parse_obj(raw_spec)
 
         # Update the source to be from the YAML file instead of this utility
         spec._source = {"file": str(path), "line": line}
@@ -505,7 +500,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpecification]:
     return specs
 
 
-def _register_spec(spec: DeploymentSpecification) -> None:
+def _register_spec(spec: DeploymentSpec) -> None:
     """
     Collect the `DeploymentSpecification` object on the
     PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
