@@ -1,0 +1,17 @@
+# global
+*                                    @madkinsz
+
+# orion server
+/src/prefect/orion                   @zangell44 @madkinsz
+
+# ui
+/orion-ui                            @pleek91
+
+# documentation
+/docs                                @tpdorsey
+
+# orchestration rules / policies
+/src/prefect/orion/orchestration     @anticorrelator
+
+# database configuration / models
+/src/prefect/orion/database          @anticorrelator
