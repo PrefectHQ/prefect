@@ -19,7 +19,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
-from prefect.deployments.base import DeploymentSpecification
+from prefect.deployments import DeploymentSpecification
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture

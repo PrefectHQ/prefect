@@ -1,4 +1,0 @@
-type: foo.does.not_exist
-name: hello-sun-deployment
-flow_location: ./multiple_flows.py
-flow_name: hello-sun
