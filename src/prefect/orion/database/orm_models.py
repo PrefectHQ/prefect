@@ -761,6 +761,7 @@ class ORMBlockSchema:
             UUID(),
             sa.ForeignKey("block_type.id", ondelete="cascade"),
             nullable=False,
+            index=True,
         )
 
     @declared_attr
