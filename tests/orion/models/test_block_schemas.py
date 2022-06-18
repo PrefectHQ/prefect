@@ -550,19 +550,81 @@ class TestReadBlockSchemas:
             ),
         )
 
+        await session.commit()
+
         db_block_schemas = await models.block_schemas.read_block_schemas(
             session=session
         )
 
         assert len(db_block_schemas) == 4
-        assert db_block_schemas[0].checksum == X._calculate_schema_checksum()
-        assert db_block_schemas[1].checksum == Y._calculate_schema_checksum()
-        assert db_block_schemas[2].checksum == Z._calculate_schema_checksum()
-        assert db_block_schemas[3].checksum == A._calculate_schema_checksum()
-        assert db_block_schemas[0].fields == X.schema()
-        assert db_block_schemas[1].fields == Y.schema()
-        assert db_block_schemas[2].fields == Z.schema()
-        assert db_block_schemas[3].fields == A.schema()
+        assert db_block_schemas[3].checksum == X._calculate_schema_checksum()
+        assert db_block_schemas[2].checksum == Y._calculate_schema_checksum()
+        assert db_block_schemas[1].checksum == Z._calculate_schema_checksum()
+        assert db_block_schemas[0].checksum == A._calculate_schema_checksum()
+        assert db_block_schemas[3].fields == X.schema()
+        assert db_block_schemas[2].fields == Y.schema()
+        assert db_block_schemas[1].fields == Z.schema()
+        assert db_block_schemas[0].fields == A.schema()
+
+    async def test_read_all_block_schemas_with_filters(self, session):
+        class A(Block):
+            d: str
+            e: str
+
+        class Z(Block):
+            a: A
+            c: int
+
+        class Y(Block):
+            b: str
+            c: int
+
+        class X(Block):
+            y: Y
+            z: Z
+
+        await models.block_types.create_block_type(
+            session=session, block_type=A._to_block_type()
+        )
+        await models.block_types.create_block_type(
+            session=session, block_type=Z._to_block_type()
+        )
+        block_type_y = await models.block_types.create_block_type(
+            session=session, block_type=Y._to_block_type()
+        )
+        block_type_x = await models.block_types.create_block_type(
+            session=session, block_type=X._to_block_type()
+        )
+
+        await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=X._to_block_schema(
+                block_type_id=block_type_x.id,
+            ),
+        )
+
+        await session.commit()
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id])
+            ),
+        )
+
+        assert len(db_block_schemas) == 1
+        assert db_block_schemas[0].block_type_id == block_type_x.id
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id, block_type_y.id])
+            ),
+        )
+
+        assert len(db_block_schemas) == 2
+        assert db_block_schemas[0].block_type_id == block_type_y.id
+        assert db_block_schemas[1].block_type_id == block_type_x.id
 
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
