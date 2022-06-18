@@ -208,6 +208,17 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
         # Create an empty temporary database for use in the tests
         connection = await asyncpg.connect(postgres_url)
         try:
+            # remove any connections to the test database. For example if a SQL IDE
+            # is being used to investigate it, it will block the drop database command.
+            await connection.execute(
+                f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{quoted_db_name}'
+                AND pid <> pg_backend_pid();
+                """
+            )
+
             await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
             await connection.execute(f"CREATE DATABASE {quoted_db_name}")
         finally:
