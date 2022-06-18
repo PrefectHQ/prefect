@@ -506,8 +506,10 @@ async def read_block_schemas(
     Returns:
         List[db.BlockSchema]: the block_schemas
     """
+    # schemas are ordered by `created DESC` to get the most recently created
+    # ones first (and to facilitate getting the newest one with `limit=1`).
     filtered_block_schemas_query = select([db.BlockSchema.id]).order_by(
-        db.BlockSchema.created
+        db.BlockSchema.created.desc()
     )
 
     if block_schema_filter:
@@ -556,9 +558,10 @@ async def read_block_schemas(
             ]
         )
         .select_from(db.BlockSchema)
-        # note: reconstructing block schemas implicitly assumes that they are
-        # walked in order they were created
-        .order_by(db.BlockSchema.created)
+        # in order to reconstruct nested block schemas efficiently, we need to visit them
+        # in the order they were created (so that we guarantee that nested/referenced schemas)
+        # have already been seen. Therefore this second query sorts by created ASC
+        .order_by(db.BlockSchema.created.asc())
         .join(
             recursive_block_schema_references_cte,
             db.BlockSchema.id
@@ -592,8 +595,8 @@ async def read_block_schemas(
             )
             visited_block_schema_ids.append(root_block_schema.id)
 
-    # note: need to reverse the order of this second query to return most
-    # recently created schemas first
+    # because we reconstructed schemas ordered by created ASC, we
+    # reverse the final output to restore created DESC
     return list(reversed(fully_constructed_block_schemas))
 
 
