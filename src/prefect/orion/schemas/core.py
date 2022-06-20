@@ -380,7 +380,7 @@ class BlockType(ORMBaseModel):
         None, description="A code snippet demonstrating use of the corresponding block"
     )
     is_system_block_type: bool = Field(
-        None, description="System block types can not be modified via API."
+        False, description="System block types can not be modified via API."
     )
 
     @validator("name", check_fields=False)
