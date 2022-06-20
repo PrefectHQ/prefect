@@ -19,6 +19,13 @@ async def create_block_type(
     """
     Create a new block type
     """
+    # API-created blocks cannot start with the word "Prefect"
+    # as it is reserved for system blocks
+    if block_type.name.lower().startswith("prefect"):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Block type names beginning with 'Prefect' are reserved.",
+        )
     try:
         created_block_type = await models.block_types.create_block_type(
             session, block_type=block_type
@@ -86,11 +93,19 @@ async def update_block_type(
     """
     Update a block type.
     """
-    result = await models.block_types.update_block_type(
+    db_block_type = await models.block_types.read_block_type(
+        session=session, block_type_id=block_type_id
+    )
+    if db_block_type is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
+    elif db_block_type.is_system_block_type:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="System-generated block types cannot be updated.",
+        )
+    await models.block_types.update_block_type(
         session=session, block_type=block_type, block_type_id=block_type_id
     )
-    if not result:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -98,13 +113,21 @@ async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    result = await models.block_types.delete_block_type(
+    db_block_type = await models.block_types.read_block_type(
         session=session, block_type_id=block_type_id
     )
-    if not result:
+    if db_block_type is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block type not found"
         )
+    elif db_block_type.is_system_block_type:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="System-generated block types cannot be deleted.",
+        )
+    await models.block_types.delete_block_type(
+        session=session, block_type_id=block_type_id
+    )
 
 
 @router.get("/name/{name}/block_documents", tags=["Block documents"])

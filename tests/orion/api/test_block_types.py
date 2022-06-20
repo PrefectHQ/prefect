@@ -6,6 +6,7 @@ import pydantic
 import pytest
 from fastapi import status
 
+from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
 from tests.orion.models.test_block_types import CODE_EXAMPLE
@@ -20,6 +21,18 @@ CODE_EXAMPLE = dedent(
         ```
         """
 )
+
+
+@pytest.fixture
+async def system_block_type(session):
+    block_type = await models.block_types.create_block_type(
+        session=session,
+        block_type=schemas.core.BlockType(
+            name="system_block", is_system_block_type=True
+        ),
+    )
+    await session.commit()
+    return block_type
 
 
 class TestCreateBlockType:
@@ -107,6 +120,22 @@ class TestCreateBlockType:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    @pytest.mark.parametrize(
+        "name", ["PrefectBlockType", "Prefect", "prefect_block_type", "pReFeCt!"]
+    )
+    async def test_create_block_type_with_reserved_name_fails(self, client, name):
+        response = await client.post(
+            "/block_types/",
+            json=dict(
+                name=name,
+            ),
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert (
+            response.json()["detail"]
+            == "Block type names beginning with 'Prefect' are reserved."
+        )
+
 
 class TestReadBlockType:
     async def test_read_block_type_by_id(self, client, block_type_x):
@@ -193,6 +222,19 @@ class TestUpdateBlockType:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    async def test_update_system_block_type_fails(self, client, system_block_type):
+        response = await client.patch(
+            f"/block_types/{system_block_type.id}",
+            json=BlockTypeUpdate(
+                description="Hi there!",
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert (
+            response.json()["detail"]
+            == "System-generated block types cannot be updated."
+        )
+
 
 class TestDeleteBlockType:
     async def test_delete_block_type(self, client, block_type_x):
@@ -205,6 +247,14 @@ class TestDeleteBlockType:
     async def test_delete_nonexistent_block_type(self, client):
         response = await client.delete(f"/block_types/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_delete_system_block_type_fails(self, client, system_block_type):
+        response = await client.delete(f"/block_types/{system_block_type.id}")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert (
+            response.json()["detail"]
+            == "System-generated block types cannot be deleted."
+        )
 
 
 class TestReadBlockDocumentsForBlockType:
