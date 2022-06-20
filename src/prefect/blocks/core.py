@@ -116,16 +116,18 @@ class Block(BaseModel, ABC):
         return cls._block_type_name or cls.__name__
 
     @classmethod
-    def get_block_capabilities(cls):
-        """Returns the block capabilities for this q"""
-        base_block_capabilities = [
-            getattr(base, "_block_schema_capabilities", []) or []
-            for base in cls.__bases__
-        ]
-        capabilities_set = {
-            c for capabilities in base_block_capabilities for c in capabilities
-        }
-        return list(capabilities_set)
+    def get_block_capabilities(cls) -> frozenset[str]:
+        """
+        Returns the block capabilities for this Block. Recursively collects all block
+        capabilities of all parent classes into a single frozenset.
+        """
+        return frozenset(
+            {
+                c
+                for base in (cls,) + cls.__mro__
+                for c in getattr(base, "_block_schema_capabilities", []) or []
+            }
+        )
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -235,7 +237,7 @@ class Block(BaseModel, ABC):
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
-            capabilities=cls.get_block_capabilities(),
+            capabilities=list(cls.get_block_capabilities()),
         )
 
     @classmethod
