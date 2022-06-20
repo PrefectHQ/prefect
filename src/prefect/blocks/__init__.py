@@ -1,3 +1,5 @@
 # ensure core blocks are registered
-from prefect.blocks import storage
-from prefect.blocks import notifications
+
+import prefect.blocks.basic
+import prefect.blocks.notifications
+import prefect.blocks.storage
