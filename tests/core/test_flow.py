@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import random
+import re
 import sys
 import tempfile
 import time
@@ -1369,6 +1370,17 @@ class TestFlowVisualize:
         assert "label=x style=dashed" in graph.source
         assert "label=y style=dashed" in graph.source
 
+    def test_viz_can_handle_mapped_lambdas(self):
+        # See: https://github.com/PrefectHQ/prefect/issues/5656
+        ipython = MagicMock(
+            get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
+        )
+        with patch.dict("sys.modules", IPython=ipython):
+            with Flow(name="test") as f:
+                res = AddTask(name="<lambda>").map(x=Task(name="a_list_task"), y=8)
+            graph = f.visualize()
+        assert 'label="<lambda> <map>" shape=box' in graph.source
+
     def test_viz_can_handle_skipped_mapped_tasks(self):
         ipython = MagicMock(
             get_ipython=lambda: MagicMock(config=dict(IPKernelApp=True))
@@ -1964,6 +1976,30 @@ class TestSerializedHash:
 
         assert hashes[0]  # Ensure we don't have an empty string or None
         assert len(set(hashes)) == 1
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 8),
+        reason="Positional-Only parameters are only supported in Python 3.8+",
+    )
+    def test_task_positional_only_arguments(self, tmpdir):
+        contents = textwrap.dedent(
+            """
+        from prefect import task
+
+        @task
+        def dummy_task(a, b, /):
+            pass
+
+        """
+        )
+
+        error_message = (
+            "Found positional-only parameters in the function signature for task dummy_task: ['a', 'b']. "
+            "Prefect passes arguments using keywords and does not support positional-only parameters."
+        )
+
+        with pytest.raises(TypeError, match=re.escape(error_message)):
+            exec(contents)
 
     def test_task_order_is_deterministic(self):
         def my_fake_task(foo):

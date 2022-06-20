@@ -1,14 +1,12 @@
-import requests
 import logging
-
 from time import sleep
 from urllib.parse import urlparse
 
+import requests
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 
 import prefect
-
 from prefect.exceptions import PrefectException
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.1/clusters/restart")
@@ -78,13 +76,10 @@ class DatabricksHook:
 
     Args:
         - databricks_conn_id (dict): The name of the databricks connection to use.
-
         - timeout_seconds (int): The amount of time in seconds the requests library
             will wait before timing-out.
-
         - retry_limit (int): The number of times to retry the connection in case of
             service outages.
-
         - retry_delay (float): The number of seconds to wait between retries (it
             might be a floating point number).
     """
@@ -136,8 +131,7 @@ class DatabricksHook:
         Utility function to perform an API call with retries
 
         Args:
-            - endpoint_info (tuple[string, string]): Tuple of method and endpoint
-
+            - endpoint_info (tuple[string, string]): Tuple of method and endpoint.
             - json (dict): Parameters for this API call.
 
         Returns:

@@ -114,10 +114,10 @@ def add(x, y):
     return x + y
 
 with Flow('Flow With Constant') as flow:
-    add(1, 2)
+    output = add(1, 2)
 
 assert len(flow.tasks) == 1
-assert len(flow.constants) == 2
+assert len(flow.constants[output]) == 2
 ```
 
 Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.

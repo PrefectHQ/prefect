@@ -551,7 +551,8 @@ classes = ["SecretBase", "PrefectSecret", "EnvVarSecret"]
 [pages.tasks.snowflake]
 title = "Snowflake Tasks"
 module = "prefect.tasks.snowflake"
-classes = ["SnowflakeQuery"]
+classes = ["SnowflakeQuery", "SnowflakeQueriesFromFile"]
+verified_task = true
 
 [pages.tasks.sodasql]
 title = "SodaSQL Tasks"
@@ -572,6 +573,7 @@ classes = ["MixpanelExportTask"]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
 classes = ["DatabricksSubmitRun", "DatabricksRunNow", "DatabricksSubmitMultitaskRun", "DatabricksGetJobID"]
+verified_task = true
 
 [pages.tasks.spacy]
 title = "spaCy Tasks"
@@ -791,3 +793,13 @@ title = "Transform Tasks"
 module = "prefect.tasks.transform"
 classes = ["TransformCreateMaterialization"]
 verified_task = true
+
+[pages.tasks.Hightouch]
+title = "Hightouch Tasks"
+module = "prefect.tasks.hightouch"
+classes = ["HightouchRunSync"]
+
+[pages.tasks.sftp]
+title = "SFTP Tasks"
+module = "prefect.tasks.sftp.sftp"
+classes = ["SftpDownload", "SftpUpload"]

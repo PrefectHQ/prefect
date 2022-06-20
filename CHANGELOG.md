@@ -1,5 +1,75 @@
 # Changelog
 
+## 1.2.2 <Badge text="beta" type="success" />
+
+Released on May 24, 2022.
+
+### Enhancements
+
+- Add inference of Docker network mode for "host" and "none" networks - [#5748](https://github.com/PrefectHQ/prefect/pull/5748)
+- Add Python 3.10 support - [#5770](https://github.com/PrefectHQ/prefect/pull/5770)
+- Raise error on task initialiation when positional-only parameters are present in function signature - [#5789](https://github.com/PrefectHQ/prefect/pull/5789)
+- Add flag to prevent printing ASCII welcome message [5619](https://github.com/PrefectHQ/prefect/issues/5619)
+- Allow the Prefect client to retry connections for HTTP targets - [#5825](https://github.com/PrefectHQ/prefect/pull/5825)
+### Task Library
+
+- Adds SFTP server tasks `SftpUpload` and `SftpDownload` [#1234](https://github.com/PrefectHQ/prefect/pull/5740)
+- Configure logging output for `AirbyteConnectionTask` - [#5794](https://github.com/PrefectHQ/prefect/pull/5794)
+- Make artifacts optional in `StartFlowRun` - [#5795](https://github.com/PrefectHQ/prefect/pull/5795)
+- Use `json` instead of `dict` for `DatabricksSubmitMultitaskRun` - [#5728](https://github.com/PrefectHQ/prefect/pull/5728)
+- Fix defect in serialization of Great Expectation's results in `LocalResult` - [#5724](https://github.com/PrefectHQ/prefect/pull/5724)
+- Add an optional `data_security_mode` to Databricks cluster configuration. - [#5778](https://github.com/PrefectHQ/prefect/pull/5778)
+
+### Fixes
+
+- Fix bug where Prefect signals in tasks were not re-raised by the process-based timeout handler - [#5804](https://github.com/PrefectHQ/prefect/pull/5804)
+- Update flow builds to be deterministic when upstream and downstream slug are same - [#5785](https://github.com/PrefectHQ/prefect/pull/5785)
+
+### Contributors
+
+- [David McGuire](https://github.com/dmcguire81)
+- [Jaakko Lappalainen](https://github.com/jkklapp)
+- [Jason Bertman](https://github.com/jbertman)
+- [Joël Luijmes](https://github.com/joelluijmes)
+- [Karthikeyan Singaravelan](https://github.com/tirkarthi)
+- [Mate Hricz](https://github.com/Matt9993)
+- [Nico Neumann](https://github.com/neumann-nico)
+- [Robert Phamle](https://github.com/rphamle)
+
+## 1.2.1 <Badge text="beta" type="success" />
+
+Released on April 27, 2022.
+
+### Enhancements
+
+- Add ability to set a `max_duration` timeout in `wait_for_flow_run` task - [#5669](https://github.com/PrefectHQ/prefect/issues/5669)
+- Add pipe support for `EdgeAnnotation` types, e.g. `map` - [#5674](https://github.com/PrefectHQ/prefect/pull/5674)
+- Add 'gs' as a valid filesystem schema for reading specifications - [#5705](https://github.com/PrefectHQ/prefect/pull/5705)
+- Add REPL mode for CLI - [#5615](https://github.com/PrefectHQ/prefect/pull/5615)
+
+### Fixes
+
+- Fix bug where settings the backend to "server" would not prevent client from requesting secrets from the API - [#5637](https://github.com/PrefectHQ/prefect/pull/5637)
+- Fix docker-in-docker issue in `DockerAgent` on Windows - [#5657](https://github.com/PrefectHQ/prefect/pull/5657)
+- Fix graphviz syntax error when visualizing a flow with a task which is a mapped lambda - [#5662](https://github.com/PrefectHQ/prefect/pull/5662)
+- Allow `prefect run` parameters to include equals ("=") signs - [#5716](https://github.com/PrefectHQ/prefect/pull/5716)
+### Task library
+
+- Add `HightouchRunSync` task - [#5672](https://github.com/PrefectHQ/prefect/pull/5672)
+- Fix `DbtCloudRunJob` task failing with nested input for additional_args - [#5706](https://github.com/PrefectHQ/prefect/issues/5706)"
+- Fix Databricks new cluster API params: autoscale and policy_id - [#5681](https://github.com/PrefectHQ/prefect/pull/5681)
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Anders Segerberg](https://github.com/gtasegerberg)
+- [Ben Ayers-Glassey](https://github.com/bayersglassey-zesty/)
+- [Dominick Olivito](https://github.com/olivito)
+- [Karthikeyan Singaravelan](https://github.com/tirkarthi)
+- [Mahmoud Lababidi](https://github.com/lababidi)
+- [limx0](https://github.com/limx0)
+- [oscarwyatt](https://github.com/oscarwyatt)
+- [satoshiking](https://github.com/satoshiking)
+
 ## 1.2.0 <Badge text="beta" type="success" />
 
 Released on April 5, 2022.
