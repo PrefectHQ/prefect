@@ -30,6 +30,7 @@ import prefect.triggers
 from prefect.utilities import logging
 from prefect.utilities.notifications import callback_factory
 from prefect.utilities.edges import EdgeAnnotation
+from prefect.utilities.tasks import as_task
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -311,6 +312,7 @@ class Task(metaclass=TaskMetaclass):
     Raises:
         - TypeError: if `tags` is of type `str`
         - TypeError: if `timeout` is not of type `int`
+        - TypeError: if positional-only parameters are present in task's signature
     """
 
     def __init__(
@@ -347,6 +349,18 @@ class Task(metaclass=TaskMetaclass):
 
         self.name = name or type(self).__name__
         self.slug = slug
+
+        positional_args = [
+            name
+            for name, parameter in self.__signature__.parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Found positional-only parameters in the function signature for "
+                f"task {self.name}: {positional_args}. Prefect passes arguments "
+                "using keywords and does not support positional-only parameters."
+            )
 
         self.logger = logging.get_logger(self.name)
 
@@ -658,6 +672,18 @@ class Task(metaclass=TaskMetaclass):
             - Task: a new Task instance
         """
         new = self.copy(**(task_args or {}))
+
+        positional_args = [
+            name
+            for name, parameter in inspect.signature(new).parameters.items()
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY
+        ]
+        if positional_args:
+            raise TypeError(
+                "Prefect passes arguments to task as keyword arguments. "
+                f"Positional-Only arguments found : {positional_args}"
+            )
+
         new.bind(
             *args, mapped=mapped, upstream_tasks=upstream_tasks, flow=flow, **kwargs
         )
@@ -935,7 +961,9 @@ class Task(metaclass=TaskMetaclass):
             return_annotation = Any
         return return_annotation
 
-    def pipe(_prefect_self, _prefect_task: "Task", **kwargs: Any) -> "Task":
+    def pipe(
+        _prefect_self, _prefect_task: Union[Type[EdgeAnnotation], "Task"], **kwargs: Any
+    ) -> "Task":
         """
         "Pipes" the result of this task through another task. ``some_task().pipe(other_task)`` is
         equivalent to ``other_task(some_task())``, but can result in more readable code when used in a
@@ -950,7 +978,12 @@ class Task(metaclass=TaskMetaclass):
         """
         if "self" in kwargs:
             raise ValueError('You cannot use the keyword argument "self" in .pipe.')
-        return _prefect_task(_prefect_self, **kwargs)
+
+        if inspect.isclass(_prefect_task) and issubclass(_prefect_task, EdgeAnnotation):  # type: ignore
+            return as_task(_prefect_task(_prefect_self))
+        else:
+            # mypy<0.900 doesn't infer type as Task due to Union type
+            return _prefect_task(_prefect_self, **kwargs)  # type: ignore
 
     # Serialization ------------------------------------------------------------
 

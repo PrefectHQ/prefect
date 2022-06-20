@@ -225,6 +225,12 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is ValidationOperatorResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "validation_operator_config" in serializable_results
+        assert "evaluation_parameters" in serializable_results
+        assert "success" in serializable_results
 
     def test_suite_name_with_batch_kwargs(self):
         task = RunGreatExpectationsValidation(
@@ -238,6 +244,12 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is ValidationOperatorResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "validation_operator_config" in serializable_results
+        assert "evaluation_parameters" in serializable_results
+        assert "success" in serializable_results
 
     def test_v2_checkpoint_api(self):
         task = RunGreatExpectationsValidation(
@@ -246,6 +258,12 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is ValidationOperatorResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "validation_operator_config" in serializable_results
+        assert "evaluation_parameters" in serializable_results
+        assert "success" in serializable_results
 
     def test_v3_checkpoint_api_pass(self):
         task = RunGreatExpectationsValidation(
@@ -254,6 +272,11 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is CheckpointResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "checkpoint_config" in serializable_results
+        assert "success" in serializable_results
 
     def test_v3_checkpoint_api_fail(self):
         task = RunGreatExpectationsValidation(
@@ -270,6 +293,11 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is CheckpointResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "checkpoint_config" in serializable_results
+        assert "success" in serializable_results
 
     def test_v3_with_runtime_data_frame(
         self, in_memory_runtime_batch_request, in_memory_data_context
@@ -288,3 +316,8 @@ class TestInitialization:
         )
         results = task.run()
         assert type(results) is CheckpointResult
+        serializable_results = repr(results)
+        assert "run_id" in serializable_results
+        assert "run_results" in serializable_results
+        assert "checkpoint_config" in serializable_results
+        assert "success" in serializable_results

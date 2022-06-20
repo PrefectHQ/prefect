@@ -102,6 +102,7 @@ extras = {
     "cubejs": ["PyJWT >= 2.3.0"],
     "neo4j": ["py2neo >= 2021.2.3"],
     "transform": ["transform >= 1.0.12"],
+    "sftp": ["paramiko >= 2.10.4"],
 }
 
 
@@ -162,6 +163,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Software Development :: Libraries",
         "Topic :: System :: Monitoring",
     ],

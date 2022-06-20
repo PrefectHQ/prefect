@@ -265,9 +265,14 @@ class DockerAgent(Agent):
                     external = ntpath.normpath(fields[0])
                     internal = posixpath.normpath(fields[1])
             elif len(fields) == 1:
-                # \path1          <-- assumed container path of /path1 (relative to current drive)
-                external = ntpath.normpath(fields[0])
-                internal = external
+                if fields[0] == "//var/run/docker.sock":
+                    # Special handling for docker-in-docker
+                    external = "//var/run/docker.sock"
+                    internal = "/var/run/docker.sock"
+                else:
+                    # \path1          <-- assumed container path of /path1 (relative to current drive)
+                    external = ntpath.normpath(fields[0])
+                    internal = external
             else:
                 raise ValueError(
                     "Unable to parse volume specification '{}'".format(volume_spec)
@@ -437,9 +442,16 @@ class DockerAgent(Agent):
         # is connected to the default `bridge` network.
         # The rest of the networks are connected after creation.
         if self.networks:
+            network = self.networks[0]
             networking_config = self.docker_client.create_networking_config(
-                {self.networks[0]: self.docker_client.create_endpoint_config()}
+                {network: self.docker_client.create_endpoint_config()}
             )
+
+            # Ensure that we change the network mode from bridge to host/none if using
+            # the special predefined network names
+            if network in ("host", "none"):
+                host_config.setdefault("network_mode", network)
+
         labels = {
             "io.prefect.flow-name": flow_run.flow.name,
             "io.prefect.flow-id": flow_run.flow.id,

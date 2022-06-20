@@ -17,6 +17,7 @@ from prefect.utilities.executors import (
     RecursiveCall,
     HeartbeatThread,
 )
+from prefect.engine.signals import FAIL
 
 # We will test the low-level timeout handlers here and `run_task_with_timeout`
 # is covered in `tests.core.test_flow.test_timeout_actually_stops_execution`
@@ -110,11 +111,23 @@ def test_timeout_handler_doesnt_swallow_bad_args(timeout_handler):
     sys.platform == "win32", reason="Windows doesn't support any timeout logic"
 )
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
-def test_timeout_handler_reraises(timeout_handler):
+def test_timeout_handler_reraises_exceptions(timeout_handler):
     def do_something():
         raise ValueError("test")
 
     with pytest.raises(ValueError, match="test"):
+        timeout_handler(do_something, timeout=10)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+@pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
+def test_timeout_handler_reraises_prefect_signals(timeout_handler):
+    def do_something():
+        raise FAIL("test")
+
+    with pytest.raises(FAIL, match="test"):
         timeout_handler(do_something, timeout=10)
 
 

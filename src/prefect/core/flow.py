@@ -1363,7 +1363,12 @@ class Flow:
         for t in self.tasks:
             is_mapped = any(edge.mapped for edge in self.edges_to(t))
             shape = "box" if is_mapped else "ellipse"
-            name = "{} <map>".format(t.name) if is_mapped else t.name
+
+            # Wrapping the string in graphviz.escape tells Graphviz to quote it, even if it
+            # looks like an "HTML-like label" or contains backslashes.
+            # See: https://github.com/PrefectHQ/prefect/issues/5656
+            name = graphviz.escape("{} <map>".format(t.name) if is_mapped else t.name)
+
             if is_mapped and flow_state:
                 assert isinstance(flow_state.result, dict)
                 if flow_state.result[t].is_mapped():

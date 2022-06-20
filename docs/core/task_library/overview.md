@@ -28,7 +28,7 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"></
     <td><img src="/logos/azure_ml.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/azureml.html">Azure ML</a></td>
     <td><Badge text="Verified" type="success"></Badge><img src="/logos/census.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
     <td><img src="/logos/cubejs.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/cubejs.html">CubeJS</a></td>
-    <td><img src="/logos/databricks.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
+    <td><Badge text="Verified" type="success"></Badge><img src="/logos/databricks.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
     <td><Badge text="Verified" type="success"></Badge><img src="/logos/dbt.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/dbt.html">dbt</a></td>
   </tr>
   <tr>
@@ -68,7 +68,7 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"></
   </tr>
   <tr>
     <td><img src="/logos/slack.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/notifications.html#slacktask">Slack</a></td>
-    <td><img src="/logos/snowflake.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/snowflake.html">Snowflake</a></td>
+    <td><Badge text="Verified" type="success"></Badge><img src="/logos/snowflake.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/snowflake.html">Snowflake</a></td>
     <td><img src="/logos/spacy.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/spacy.html">spaCy</a></td>
     <td><img src="/logos/sqlserverlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sql_server.html">SQL Server</a></td>
     <td><Badge text="Verified" type="success"></Badge><img src="/logos/sqlite.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"><a href="https://docs.prefect.io/api/latest/tasks/sqlite.html">SQLite</a></td>

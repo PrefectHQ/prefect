@@ -275,7 +275,7 @@ def load_json_key_values(
 
     for spec in cli_input:
         try:
-            key, value = spec.split("=")
+            key, _, value = spec.partition("=")
         except ValueError:
             raise TerminalError(
                 f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
