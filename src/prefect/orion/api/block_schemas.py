@@ -24,6 +24,22 @@ async def create_block_schema(
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
+
+    # check if the requested block type is a system block type
+    block_type = await models.block_types.read_block_type(
+        session=session, block_type_id=block_schema.block_type_id
+    )
+    if block_type is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=f"Block type {block_schema.block_type_id} not found.",
+        )
+    elif block_type.is_system_block_type:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Block schemas for system-generated block types cannot be created.",
+        )
+
     try:
         model = await models.block_schemas.create_block_schema(
             session=session,
@@ -48,13 +64,23 @@ async def delete_block_schema(
     """
     Delete a block schema by id.
     """
-    result = await models.block_schemas.delete_block_schema(
+    block_schema = await models.block_schemas.read_block_schema(
         session=session, block_schema_id=block_schema_id
     )
-    if not result:
+    if not block_schema:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block schema not found"
         )
+
+    if block_schema.block_type.is_system_block_type:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Block schemas for system-generated block types cannot be deleted.",
+        )
+
+    await models.block_schemas.delete_block_schema(
+        session=session, block_schema_id=block_schema_id
+    )
 
 
 @router.post("/filter")
