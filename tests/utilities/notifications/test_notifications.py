@@ -30,8 +30,8 @@ from prefect.utilities.notifications import (
     gmail_notifier,
     slack_message_formatter,
     slack_notifier,
+    snowflake_logger,
 )
-from prefect.utilities.notifications.notifications import snowflake_logger
 
 
 def test_callback_factory_generates_pickleable_objs():

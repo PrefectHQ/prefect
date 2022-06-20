@@ -3,6 +3,10 @@ from prefect.utilities.notifications.notifications import slack_notifier
 from prefect.utilities.notifications.notifications import gmail_notifier
 from prefect.utilities.notifications.notifications import slack_message_formatter
 from prefect.utilities.notifications.jira_notification import jira_notifier
+from prefect.utilities.notifications.notifications import (
+    snowflake_logger,
+    snowflake_message_formatter,
+)
 
 __all__ = [
     "callback_factory",
@@ -10,4 +14,6 @@ __all__ = [
     "jira_notifier",
     "slack_message_formatter",
     "slack_notifier",
+    "snowflake_logger",
+    "snowflake_message_formatter",
 ]

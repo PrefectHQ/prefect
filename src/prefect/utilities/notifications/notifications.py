@@ -324,7 +324,6 @@ def snowflake_message_formatter(
     tracked_obj: TrackedObjectType,
     state: "prefect.engine.state.State",
 ) -> dict:
-    # see https://api.slack.com/docs/message-attachments
     fields = []
     if isinstance(state.result, Exception):
         value = "{}".format(repr(state.result))
