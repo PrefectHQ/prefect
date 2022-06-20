@@ -874,6 +874,34 @@ class FilterSet(PrefectBaseModel):
     )
 
 
+class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.block_type_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.block_type_id.in_(self.any_))
+        return filters
+
+
+class BlockSchemaFilter(PrefectFilterBaseModel):
+    """Filter BlockSchemas"""
+
+    block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
+        None, description="Filter criteria for `BlockSchema.block_type_id`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.block_type_id is not None:
+            filters.append(self.block_type_id.as_sql_filter(db))
+
+        return filters
+
+
 class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
     """Filter by `BlockDocument.is_anonymous`."""
 
