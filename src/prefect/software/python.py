@@ -40,7 +40,7 @@ class PythonEnvironment(BaseModel):
     @classmethod
     @validate_arguments
     def from_file(cls: Type[Self], path: Path) -> Self:
-        return PythonEnvironment(pip_requirements=path.read_text().splitlines())
+        return PythonEnvironment(pip_requirements=path.read_text().strip().splitlines())
 
     def install_commands(self, multiline: bool = False) -> List[str]:
         if not self.pip_requirements:
