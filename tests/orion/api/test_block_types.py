@@ -341,7 +341,7 @@ class TestSystemBlockTypes:
                 limit=1,
             ),
         )
-        block = prefect.blocks.basic.DateTime(value="2022-01-01T00:00:00+00:00")
+        block = prefect.blocks.system.DateTime(value="2022-01-01T00:00:00+00:00")
         response = await client.post(
             "/block_documents/",
             json=block._to_block_document(
@@ -357,5 +357,5 @@ class TestSystemBlockTypes:
         assert response.status_code == status.HTTP_201_CREATED
 
         # load the datetime block
-        api_block = await prefect.blocks.basic.DateTime.load("MyTestDateTime")
+        api_block = await prefect.blocks.system.DateTime.load("MyTestDateTime")
         assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")

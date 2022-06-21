@@ -174,12 +174,12 @@ async def install_system_block_types(
 ):
     """Install"""
     for block in [
-        prefect.blocks.basic.JSON,
-        prefect.blocks.basic.String,
-        prefect.blocks.basic.DateTime,
+        prefect.blocks.system.JSON,
+        prefect.blocks.system.String,
+        prefect.blocks.system.DateTime,
     ]:
         block_type = block._to_block_type()
-        block_type.is_system_block_type = True
+        block_type.is_protected = True
 
         block_type = await models.block_types.create_block_type(
             session=session, block_type=block_type, override=True
