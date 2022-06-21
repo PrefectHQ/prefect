@@ -297,3 +297,11 @@ def testing_session_settings(test_database_url: str):
             setup_logging()
 
             yield ctx
+
+
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    from prefect.context import PrefectObjectRegistry
+
+    registry = PrefectObjectRegistry()
+    registry.__enter__()
