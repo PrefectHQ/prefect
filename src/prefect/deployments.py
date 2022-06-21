@@ -47,6 +47,8 @@ Examples:
 
 from typing import Any, Iterable
 
+from pydantic import BaseModel
+
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.deprecated import deployments as deprecated
@@ -56,17 +58,12 @@ from prefect.orion import schemas
 from prefect.utilities.collections import listrepr
 
 
-class DeploymentSpec(deprecated.DeploymentSpec):
-    def __init__(self, **data: Any) -> None:
-        # TODO: Add deprecation warning when we are ready to transition
-        super().__init__(**data)
-
-
-# Utilities for loading flows and deployment specifications ----------------------------
+class Deployment(BaseModel):
+    pass
 
 
 def select_deployment(
-    deployments: Iterable[DeploymentSpec],
+    deployments: Iterable[Deployment],
     deployment_name: str = None,
     flow_name: str = None,
     from_message: str = None,
@@ -156,3 +153,12 @@ async def load_flow_from_deployment(
         flow = maybe_flow
 
     return flow
+
+
+# Backwards compatibility
+
+
+class DeploymentSpec(deprecated.DeploymentSpec):
+    def __init__(self, **data: Any) -> None:
+        # TODO: Add deprecation warning when we are ready to transition
+        super().__init__(**data)
