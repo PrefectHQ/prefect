@@ -172,7 +172,7 @@ async def read_block_document_by_name_for_block_type(
 async def install_system_block_types(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    """Install"""
+    """Install block types that the system expects to be present"""
     for block in [
         prefect.blocks.system.JSON,
         prefect.blocks.system.String,
