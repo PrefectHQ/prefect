@@ -29,11 +29,9 @@
     flowRunsApiKey,
     flowsApiKey,
     logsApiKey,
-    searchApiKey,
     taskRunsApiKey,
     workQueuesApiKey,
     canKey,
-    ContextSidebar,
     flowRunsRouteKey,
     flowsRouteKey,
     deploymentsRouteKey,
@@ -53,7 +51,6 @@
   import { flowRunsApi } from '@/services/flowRunsApi'
   import { flowsApi } from '@/services/flowsApi'
   import { logsApi } from '@/services/logsApi'
-  import { searchApi } from '@/services/searchApi'
   import { taskRunsApi } from '@/services/taskRunsApi'
   import { workQueuesApi } from '@/services/workQueuesApi'
   import { can } from '@/utilities/permissions'
@@ -62,7 +59,6 @@
   provide(flowRunsApiKey, flowRunsApi)
   provide(flowsApiKey, flowsApi)
   provide(logsApiKey, logsApi)
-  provide(searchApiKey, searchApi)
   provide(taskRunsApiKey, taskRunsApi)
   provide(workQueuesApiKey, workQueuesApi)
   provide(canKey, can)
