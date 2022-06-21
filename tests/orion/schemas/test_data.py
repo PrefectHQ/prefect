@@ -1,7 +1,4 @@
-from unittest.mock import MagicMock
-
 import pytest
-from typing_extensions import Literal
 
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.serializers import _SERIALIZERS, Serializer, register_serializer

@@ -400,7 +400,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
         if sys.platform != "darwin":
             # CI machines are slow
-            sleep_time += 1.5
+            sleep_time += 2.0
 
         if isinstance(self.task_runner, RayTaskRunner):
             # Ray is slow

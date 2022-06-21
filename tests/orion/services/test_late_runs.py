@@ -1,5 +1,3 @@
-import datetime
-
 import pendulum
 import pytest
 
@@ -13,6 +11,20 @@ from prefect.settings import (
 
 @pytest.fixture
 async def late_run(session, flow):
+    async with session.begin():
+        return await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now().subtract(minutes=1)
+                ),
+            ),
+        )
+
+
+@pytest.fixture
+async def late_run_2(session, flow):
     async with session.begin():
         return await models.flow_runs.create_flow_run(
             session=session,
@@ -155,3 +167,18 @@ async def test_mark_late_runs_doesnt_visit_runs_twice(session, late_run):
     # same timestamp; unchanged state
     assert si2 == si3
     assert st2 == st3
+
+
+async def test_mark_late_runs_marks_multiple_runs_as_late(
+    session, late_run, late_run_2
+):
+    assert late_run.state.name == "Scheduled"
+    assert late_run_2.state.name == "Scheduled"
+
+    await MarkLateRuns().start(loops=1)
+
+    await session.refresh(late_run)
+    await session.refresh(late_run_2)
+
+    assert late_run.state_name == "Late"
+    assert late_run_2.state_name == "Late"
