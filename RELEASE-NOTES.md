@@ -10,7 +10,7 @@ We're excited to bring you 2.0b7, which implements a number of important improve
 - Performance improvements to the service that marks flows runs as late
 - Added the ability for flow names to include underscores for use in DeploymentSpecs
 - Split [Ray](https://prefecthq.github.io/prefect-ray/) and [Dask](https://prefecthq.github.io/prefect-dask/) task runners into their own collections.
-- Removed delays to agent shutdown on keyboard interrupt
+- Removed delays to agent shutdown on keyboard interrupt.
 - Added informative messaging when an agent is reading from a paused work queue
 - Improved task naming conventions for tasks defined using lambda functions
 
