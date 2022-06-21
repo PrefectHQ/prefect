@@ -198,13 +198,19 @@ class PermissionLevelForGroup(BaseModel):
 
 
 class AccessControlRequestForUser(BaseModel):
+    class Config:
+        use_enum_values = True
+
     user_name: str
-    permission_level: PermissionLevel
+    permission_level: Union[CanManage, CanManageRun, CanView, IsOwner]
 
 
 class AccessControlRequestForGroup(BaseModel):
+    class Config:
+        use_enum_values = True
+
     group_name: str
-    permission_level: PermissionLevelForGroup
+    permission_level: Union[CanManage, CanManageRun, CanView]
 
 
 class AccessControlRequest(BaseModel):

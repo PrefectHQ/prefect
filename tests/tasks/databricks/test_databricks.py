@@ -17,6 +17,7 @@ from prefect.tasks.databricks.databricks_hook import DatabricksHook
 from prefect.tasks.databricks.models import (
     AccessControlRequest,
     AccessControlRequestForUser,
+    AccessControlRequestForGroup,
     AutoScale,
     AwsAttributes,
     AwsAvailability,
@@ -591,12 +592,13 @@ class TestDatabricksSubmitMultitaskRun:
             "timeout_seconds": 86400,
             "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
             "access_control_list": [
-                AccessControlRequest(
-                    __root__=AccessControlRequestForUser(
-                        user_name="jsmith@example.com",
-                        permission_level=PermissionLevel(__root__=CanManage.CAN_MANAGE),
-                    )
-                )
+                AccessControlRequestForUser(
+                    user_name="jsmith@example.com",
+                    permission_level=CanManage.CAN_MANAGE,
+                ),
+                AccessControlRequestForGroup(
+                    group_name="Admins", permission_level=CanManage.CAN_MANAGE
+                ),
             ],
         }
 
@@ -666,9 +668,23 @@ class TestDatabricksSubmitMultitaskRun:
                         {
                             "user_name": "jsmith@example.com",
                             "permission_level": "CAN_MANAGE",
-                        }
+                        },
+                        {
+                            "group_name": "Admins",
+                            "permission_level": "CAN_MANAGE",
+                        },
                     ],
                 }
             )
             == expected_result
         )
+        assert [item.dict() for item in expected_result["access_control_list"]] == [
+            {
+                "user_name": "jsmith@example.com",
+                "permission_level": "CAN_MANAGE",
+            },
+            {
+                "group_name": "Admins",
+                "permission_level": "CAN_MANAGE",
+            },
+        ]

@@ -978,7 +978,7 @@ class DatabricksSubmitMultitaskRun(Task):
 
         if input.get("access_control_list"):
             kwargs["access_control_list"] = parse_obj_as(
-                List[AccessControlRequest],
+                List[Union[AccessControlRequestForUser, AccessControlRequestForGroup]],
                 input["access_control_list"],
             )
 
