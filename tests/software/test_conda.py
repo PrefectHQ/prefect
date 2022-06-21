@@ -1,15 +1,18 @@
 import sys
 from contextlib import nullcontext
+from textwrap import dedent
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect.software.conda import (
     CONDA_REQUIREMENT,
+    CondaEnvironment,
     CondaError,
     CondaRequirement,
     current_environment_conda_requirements,
 )
+from prefect.software.pip import PipRequirement
 
 CONDA_REQUIREMENT_TEST_CASES = [
     ("x", {"name": "x"}),
@@ -217,3 +220,126 @@ class TestCurrentEnvironmentCondaRequirements:
             CondaRequirement("sqlite==3.31.1"),
             CondaRequirement("certifi"),
         ]
+
+
+class TestCondaEnvironment:
+    def test_init(self):
+        reqs = CondaEnvironment(
+            pip_requirements=["foo", "bar>=2"],
+            conda_requirements=["foobar", "x=1.0=afsfs_x"],
+        )
+        assert reqs.pip_requirements == [
+            PipRequirement("foo"),
+            PipRequirement("bar>=2"),
+        ]
+        assert reqs.conda_requirements == [
+            CondaRequirement("foobar"),
+            CondaRequirement("x=1.0=afsfs_x"),
+        ]
+
+    def test_from_file(self, tmp_path):
+        reqs_file = tmp_path / "requirements.txt"
+        reqs_file.write_text(
+            dedent(
+                """
+                name: test
+                channels:
+                - defaults
+                dependencies:
+                - python=3.7.11
+                - readline
+                - sqlite=3.37.2=h707629a_0
+                - pip:
+                    - foo==0.8.0
+                    - bar
+                prefix: /opt/homebrew/Caskroom/miniconda/base/envs/test
+                """
+            )
+        )
+
+        reqs = CondaEnvironment.from_file(reqs_file)
+        assert reqs.pip_requirements == [
+            PipRequirement("foo==0.8.0"),
+            PipRequirement("bar"),
+        ]
+        assert reqs.python_version == "3.7.11"
+        assert reqs.conda_requirements == [
+            CondaRequirement("readline"),
+            CondaRequirement("sqlite=3.37.2=h707629a_0"),
+        ]
+
+    def test_from_file_unsupported_subtype(self, tmp_path):
+        reqs_file = tmp_path / "requirements.txt"
+        reqs_file.write_text(
+            dedent(
+                """
+                name: test
+                channels:
+                - defaults
+                dependencies:
+                - python=3.7.11
+                - readline
+                - sqlite=3.37.2=h707629a_0
+                - ohno:
+                    - foo==0.8.0
+                    - bar
+                prefix: /opt/homebrew/Caskroom/miniconda/base/envs/test
+                """
+            )
+        )
+
+        with pytest.raises(
+            ValueError, match="Found unsupported requirements types in file: 'ohno'"
+        ):
+            CondaEnvironment.from_file(reqs_file)
+
+    def test_from_file_duplicate_subtype(self, tmp_path):
+        reqs_file = tmp_path / "requirements.txt"
+        reqs_file.write_text(
+            dedent(
+                """
+                name: test
+                channels:
+                - defaults
+                dependencies:
+                - python=3.7.11
+                - readline
+                - sqlite=3.37.2=h707629a_0
+                - pip:
+                    - foo==0.8.0
+                - pip:
+                    - bar
+                prefix: /opt/homebrew/Caskroom/miniconda/base/envs/test
+                """
+            )
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Invalid conda requirements specification. Found duplicate key 'pip'",
+        ):
+            CondaEnvironment.from_file(reqs_file)
+
+    def test_install_commands(self):
+        reqs = CondaEnvironment(
+            pip_requirements=["foo", "bar>=2"],
+            conda_requirements=["foobar", "x=1.0=afsfs_x"],
+        )
+
+        commands = reqs.install_commands()
+        assert commands == [
+            "conda install 'foobar' 'x=1.0=afsfs_x'",
+            "pip install 'foo' 'bar>=2'",
+        ]
+
+    def test_install_commands_empty_pip(self):
+        reqs = CondaEnvironment(conda_requirements=["foobar", "x=1.0=afsfs_x"])
+
+        commands = reqs.install_commands()
+        assert commands == ["conda install 'foobar' 'x=1.0=afsfs_x'"]
+
+    def test_install_commands_empty_conda(self):
+        reqs = CondaEnvironment(pip_requirements=["foo", "bar>=2"])
+
+        commands = reqs.install_commands()
+        assert commands == ["pip install 'foo' 'bar>=2'"]

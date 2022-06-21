@@ -34,3 +34,9 @@ class TestPythonEnvironment:
 
         commands = reqs.install_commands()
         assert commands == ["pip install 'foo' 'bar>=2'"]
+
+    def test_install_commands_empty(self):
+        reqs = PythonEnvironment(pip_requirements=[])
+
+        commands = reqs.install_commands()
+        assert commands == []
