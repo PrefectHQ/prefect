@@ -29,9 +29,7 @@ CODE_EXAMPLE = dedent(
 async def system_block_type(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.core.BlockType(
-            name="system_block", is_system_block_type=True
-        ),
+        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
     )
     await session.commit()
     return block_type
@@ -232,10 +230,7 @@ class TestUpdateBlockType:
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert (
-            response.json()["detail"]
-            == "System-generated block types cannot be updated."
-        )
+        assert response.json()["detail"] == "protected block types cannot be updated."
 
 
 class TestDeleteBlockType:
@@ -253,10 +248,7 @@ class TestDeleteBlockType:
     async def test_delete_system_block_type_fails(self, client, system_block_type):
         response = await client.delete(f"/block_types/{system_block_type.id}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert (
-            response.json()["detail"]
-            == "System-generated block types cannot be deleted."
-        )
+        assert response.json()["detail"] == "protected block types cannot be deleted."
 
 
 class TestReadBlockDocumentsForBlockType:
