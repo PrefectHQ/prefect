@@ -10,12 +10,21 @@ We're excited to bring you 2.0b7, which implements a number of important improve
 - Added anonymous blocks, allowing users to create "inline" or "dynamic" block documents to deliver block-like functionality without filling up the block document table unnecessarily
 - Performance improvements to the service that marks flows runs as late
 - Added the ability for flow names to include underscores for use in DeploymentSpecs
+- Split [Ray](https://prefecthq.github.io/prefect-ray/) and [Dask](https://prefecthq.github.io/prefect-dask/) task runners into their own collections.
 
 ### Documentation improvements
 - Updated screenshots and description of workflows to reflect new UI
 - Revised and extended Prefect Cloud quickstart tutorial
 - Added deployments page
 - Added documentation for `prefect cloud workspace set` command
+
+### Collections
+- [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)
+- [prefect-dask](https://prefecthq.github.io/prefect-dask/)
+- [prefect-ray](https://prefecthq.github.io/prefect-ray/)
+- [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)
+- [prefect-openmetadata](https://prefecthq.github.io/prefect-openmetadata/)
+- Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
 
 ### Bug squashing
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
