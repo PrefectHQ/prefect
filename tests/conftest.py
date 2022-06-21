@@ -8,10 +8,16 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 import pytest
+from docker import DockerClient
+from docker.errors import ImageNotFound
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
+from typer.testing import CliRunner
 
 import prefect
 import prefect.settings
+from prefect.cli.dev import dev_app
+from prefect.docker import docker_client
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
@@ -65,6 +71,13 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Exclude all tests except service integration tests.",
+    )
+
+    parser.addoption(
+        "--use-current-docker-images",
+        action="store_true",
+        default=False,
+        help="Avoid re-building Prefect's Docker images during tests",
     )
 
 
@@ -297,3 +310,44 @@ def testing_session_settings(test_database_url: str):
             setup_logging()
 
             yield ctx
+
+
+@pytest.fixture(scope="module")
+def docker() -> Generator[DockerClient, None, None]:
+    with docker_client() as client:
+        yield client
+
+
+@pytest.fixture(scope="module")
+def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
+    """Ensure that the prefect dev image is available and up-to-date"""
+    image_name = get_prefect_image_name()
+
+    image_exists, version_is_right = False, False
+
+    try:
+        image_exists = bool(docker.images.get(image_name))
+    except ImageNotFound:
+        pass
+
+    if image_exists:
+        output = docker.containers.run(image_name, ["prefect", "--version"])
+        image_version = output.decode().strip()
+        version_is_right = image_version == prefect.__version__
+
+    if not image_exists or not version_is_right:
+        if pytestconfig.getoption("--use-current-docker-images"):
+            if not image_exists:
+                raise Exception(
+                    "The --use-current-docker-images flag is set, but "
+                    f"there is no local {image_name} image"
+                )
+            if not version_is_right:
+                raise Exception(
+                    "The --use-current-docker-images flag is set, but "
+                    f"{image_name} includes {image_version}, not {prefect.__version__}"
+                )
+
+        CliRunner().invoke(dev_app, ["build-image"])
+
+    return image_name
