@@ -43,6 +43,9 @@ class PythonEnvironment(BaseModel):
         return PythonEnvironment(pip_requirements=path.read_text().splitlines())
 
     def install_commands(self, multiline: bool = False) -> List[str]:
+        if not self.pip_requirements:
+            return []
+
         if multiline:
             requires = "\\\n\t"  # Start on a newline
             requires += "\\\n\t".join(f"'{req}'" for req in self.pip_requirements)

@@ -2,9 +2,11 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Type
 
-from pydantic import Field
+import yaml
+from pydantic import Field, validate_arguments
 from typing_extensions import Self
 
 from prefect.software.base import (
@@ -12,12 +14,9 @@ from prefect.software.base import (
     pop_requirement_by_name,
     remove_duplicate_requirements,
 )
-from prefect.software.conda import (
-    CondaRequirement,
-    current_environment_conda_requirements,
-)
 from prefect.software.pip import current_environment_requirements
 from prefect.software.python import PythonEnvironment
+from prefect.utilities.collections import listrepr
 
 CONDA_REQUIREMENT = re.compile(
     r"^(?P<name>[0-9A-Za-z\-]+)"
@@ -102,11 +101,69 @@ class CondaEnvironment(PythonEnvironment):
             ),
         )
         python_requirement = pop_requirement_by_name(conda_requirements, "python")
-        if python_requirement:
-            python_version = python_requirement.version
+        python_version = python_requirement.version if python_requirement else None
 
         return cls(
             pip_requirements=pip_requirements,
             conda_requirements=conda_requirements,
             python_version=python_version,
         )
+
+    @classmethod
+    @validate_arguments
+    def from_file(cls: Type[Self], path: Path) -> Self:
+        parsed = yaml.safe_load(path.read_text())
+
+        # If no dependencies are given, this field will not be present
+        dependencies = parsed.get("dependencies", [])
+
+        # The string check will exclude nested objects like the 'pip' subtree
+        conda_requirements = [
+            CondaRequirement(dep) for dep in dependencies if isinstance(dep, str)
+        ]
+
+        python_requirement = pop_requirement_by_name(conda_requirements, "python")
+        python_version = python_requirement.version if python_requirement else None
+
+        other_requirements = {}
+
+        # Parse nested requirements. We only support 'pip' for now but we'll check for
+        # others
+        for subtree in [dep for dep in dependencies if isinstance(dep, dict)]:
+            key = list(subtree.keys())[0]
+
+            if key in other_requirements:
+                raise ValueError(
+                    "Invalid conda requirements specification. "
+                    f"Found duplicate key {key!r}."
+                )
+
+            other_requirements[key] = subtree[key]
+
+        pip_requirements = other_requirements.pop("pip", [])
+
+        if other_requirements:
+            raise ValueError(
+                "Found unsupported requirements types in file: "
+                f"{listrepr(other_requirements.keys(), ', ')}"
+            )
+
+        return cls(
+            conda_requirements=conda_requirements,
+            pip_requirements=pip_requirements,
+            python_version=python_version,
+        )
+
+    def install_commands(self, multiline: bool = False) -> List[str]:
+        pip_install_commands = super().install_commands(multiline=multiline)
+
+        if not self.conda_requirements:
+            return pip_install_commands
+
+        if multiline:
+            requires = "\\\n\t"  # Start on a newline
+            requires += "\\\n\t".join(f"'{req}'" for req in self.conda_requirements)
+        else:
+            requires = " ".join(f"'{req}'" for req in self.conda_requirements)
+
+        return [f"conda install {requires}"] + pip_install_commands
