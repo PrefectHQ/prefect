@@ -541,6 +541,8 @@ class TestDeploymentSpecFromFile:
         assert spec.flow_location == str(TEST_FILES_DIR / "inline_deployment.py")
         assert spec.parameters == {"name": "Marvin"}
         assert spec.tags == ["foo", "bar"]
+        assert spec._source["file"] == str(TEST_FILES_DIR / "inline_deployment.py")
+        assert spec._source["line"] == 10
 
     async def test_spec_separate_from_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "single_deployment.py")
@@ -552,6 +554,8 @@ class TestDeploymentSpecFromFile:
         assert isinstance(spec.schedule, IntervalSchedule)
         assert spec.parameters == {"foo": "bar"}
         assert spec.tags == ["foo", "bar"]
+        assert spec._source["file"] == str(TEST_FILES_DIR / "single_deployment.py")
+        assert spec._source["line"] == 8
 
     async def test_multiple_specs_separate_from_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "multiple_deployments.py")
