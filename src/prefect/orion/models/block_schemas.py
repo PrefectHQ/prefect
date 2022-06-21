@@ -669,15 +669,9 @@ async def read_block_schema_by_checksum(
 async def read_available_block_capabilities(
     session: sa.orm.Session, db: OrionDBInterface
 ) -> List[str]:
-    capabilities_by_schema = (
-        (await session.execute(sa.select(db.BlockSchema.capabilities))).scalars().all()
-    )
-
-    unique_capabilities = {
-        c for capabilities in capabilities_by_schema for c in capabilities
-    }
-
-    return list(unique_capabilities)
+    query = sa.select(db.json_arr_agg(db.BlockSchema.capabilities.distinct()))
+    capability_combinations = (await session.execute(query)).scalars().first()
+    return list({c for capabilities in capability_combinations for c in capabilities})
 
 
 @inject_db
