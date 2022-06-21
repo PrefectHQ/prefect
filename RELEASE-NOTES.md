@@ -15,7 +15,6 @@ Users of Prefect Cloud 2 can now invite [collaborators](https://www.prefect.io/g
 
 ### Documentation improvements
 - Updated screenshots
-- Revised description of features and workflows
 - Revised and extended Prefect Cloud quickstart tutorial
 - Added deployments page
 - Added documentation on collaborators
