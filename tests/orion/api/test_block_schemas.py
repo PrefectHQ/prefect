@@ -170,9 +170,7 @@ class TestReadBlockSchema:
         result = await client.post(
             f"/block_schemas/filter",
             json=dict(
-                block_schema_filter=dict(
-                    block_type_id=dict(any_=[str(block_type_x.id)])
-                )
+                block_schemas=dict(block_type_id=dict(any_=[str(block_type_x.id)]))
             ),
         )
         api_schemas = pydantic.parse_obj_as(
@@ -186,9 +184,7 @@ class TestReadBlockSchema:
         result = await client.post(
             f"/block_schemas/filter",
             json=dict(
-                block_schema_filter=dict(
-                    block_type_id=dict(any_=[str(block_type_y.id)])
-                )
+                block_schemas=dict(block_type_id=dict(any_=[str(block_type_y.id)]))
             ),
         )
         api_schemas = pydantic.parse_obj_as(
@@ -202,7 +198,7 @@ class TestReadBlockSchema:
         result = await client.post(
             f"/block_schemas/filter",
             json=dict(
-                block_schema_filter=dict(
+                block_schemas=dict(
                     block_type_id=dict(
                         any_=[str(block_type_x.id), str(block_type_y.id)]
                     )
@@ -242,7 +238,9 @@ class TestReadBlockSchema:
     ):
         result = await client.post(
             f"/block_schemas/filter",
-            json={"block_capabilities": {"all_": ["fly", "swim"]}},
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
         )
 
         assert result.status_code == 200
@@ -253,7 +251,8 @@ class TestReadBlockSchema:
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
 
         result = await client.post(
-            f"/block_schemas/filter", json={"block_capabilities": {"all_": ["fly"]}}
+            f"/block_schemas/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
         )
 
         assert result.status_code == 200
@@ -262,13 +261,13 @@ class TestReadBlockSchema:
         )
         assert len(block_schemas) == 2
         assert [block_schema.id for block_schema in block_schemas] == [
-            block_schemas_with_capabilities[0].id,
             block_schemas_with_capabilities[1].id,
+            block_schemas_with_capabilities[0].id,
         ]
 
         result = await client.post(
             f"/block_schemas/filter",
-            json={"block_capabilities": {"all_": ["swim"]}},
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
 
         assert result.status_code == 200
