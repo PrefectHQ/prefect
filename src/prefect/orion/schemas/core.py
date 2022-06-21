@@ -379,8 +379,8 @@ class BlockType(ORMBaseModel):
     code_example: Optional[str] = Field(
         None, description="A code snippet demonstrating use of the corresponding block"
     )
-    is_system_block_type: bool = Field(
-        False, description="System block types can not be modified via API."
+    is_protected: bool = Field(
+        False, description="Protected block types cannot be modified via API."
     )
 
     @validator("name", check_fields=False)
