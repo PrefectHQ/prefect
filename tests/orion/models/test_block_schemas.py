@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
-from prefect.orion.schemas.filters import BlockSchemaFilterCapabilities
+from prefect.orion.schemas.filters import BlockSchemaFilter
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -685,8 +685,8 @@ class TestReadBlockSchemas:
     ):
         fly_and_swim_block_schemas = await models.block_schemas.read_block_schemas(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(
-                all_=["fly", "swim"]
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly", "swim"])
             ),
         )
         assert len(fly_and_swim_block_schemas) == 1
@@ -694,17 +694,21 @@ class TestReadBlockSchemas:
 
         fly_block_schemas = await models.block_schemas.read_block_schemas(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["fly"]),
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly"])
+            ),
         )
         assert len(fly_block_schemas) == 2
         assert fly_block_schemas == [
-            block_schemas_with_capabilities[0],
             block_schemas_with_capabilities[1],
+            block_schemas_with_capabilities[0],
         ]
 
         swim_block_schemas = await models.block_schemas.read_block_schemas(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["swim"]),
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["swim"])
+            ),
         )
         assert len(swim_block_schemas) == 1
         assert swim_block_schemas == [block_schemas_with_capabilities[0]]

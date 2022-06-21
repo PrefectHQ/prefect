@@ -65,8 +65,8 @@ async def read_block_type_by_name(
 
 @router.post("/filter")
 async def read_block_types(
-    block_capabilities: Optional[schemas.filters.BlockSchemaFilterCapabilities] = None,
-    name: Optional[schemas.filters.BlockTypeFilterName] = None,
+    block_types: Optional[schemas.filters.BlockSchemaFilterCapabilities] = None,
+    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -78,8 +78,8 @@ async def read_block_types(
         session=session,
         limit=limit,
         offset=offset,
-        name_filter=name,
-        block_capabilities_filter=block_capabilities,
+        block_type_filter=block_types,
+        block_schemas_filter=block_schemas,
     )
 
 
@@ -124,7 +124,10 @@ async def read_block_documents_for_block_type(
     if not block_type:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
     return await models.block_documents.read_block_documents(
-        session=session, block_type_id=block_type.id
+        session=session,
+        block_document_filter=schemas.filters.BlockDocumentFilter(
+            block_type_id=block_type.id
+        ),
     )
 
 

@@ -748,7 +748,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -790,48 +790,52 @@ class TestReadBlockDocuments:
         )
 
         await session.commit()
-        return sorted(blocks, key=lambda b: b.name)
+        return sorted(block_documents, key=lambda b: b.name)
 
-    async def test_read_block_documents(self, session, blocks):
+    async def test_read_block_documents(self, session, block_documents):
         read_blocks = await models.block_documents.read_block_documents(session=session)
 
-        # by default, exclude anonymous blocks
+        # by default, exclude anonymous block documents
         assert {b.id for b in read_blocks} == {
-            b.id for b in blocks if not b.is_anonymous
+            b.id for b in block_documents if not b.is_anonymous
         }
 
-        # sorted by block type name, block name
-        assert read_blocks == [b for b in blocks if not b.is_anonymous]
+        # sorted by block type name, block document name
+        assert read_blocks == [b for b in block_documents if not b.is_anonymous]
 
-    async def test_read_blocks_with_is_anonymous_filter(self, session, blocks):
-        non_anonymous_blocks = await models.block_documents.read_block_documents(
-            session=session,
-            block_document_filter=schemas.filters.BlockDocumentFilter(
-                is_anonymous=dict(eq_=False)
-            ),
+    async def test_read_block_documents_with_is_anonymous_filter(
+        self, session, block_documents
+    ):
+        non_anonymous_block_documents = (
+            await models.block_documents.read_block_documents(
+                session=session,
+                block_document_filter=schemas.filters.BlockDocumentFilter(
+                    is_anonymous=dict(eq_=False)
+                ),
+            )
         )
 
-        anonymous_blocks = await models.block_documents.read_block_documents(
+        anonymous_block_documents = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
                 is_anonymous=dict(eq_=True)
             ),
         )
 
-        all_blocks = await models.block_documents.read_block_documents(
+        all_block_documents = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
                 is_anonymous=None
             ),
         )
 
-        assert {b.id for b in non_anonymous_blocks} == {
-            b.id for b in blocks if not b.is_anonymous
+        assert {b.id for b in non_anonymous_block_documents} == {
+            b.id for b in block_documents if not b.is_anonymous
         }
-        assert {b.id for b in anonymous_blocks} == {
-            b.id for b in blocks if b.is_anonymous
+        assert {b.id for b in anonymous_block_documents} == {
+            b.id for b in block_documents if b.is_anonymous
         }
-        assert {b.id for b in all_blocks} == {b.id for b in blocks}
+        assert {b.id for b in all_block_documents} == {b.id for b in block_documents}
 
     async def test_read_block_documents_limit_offset(self, session, block_documents):
         # sorted by block type name, block name
@@ -856,8 +860,8 @@ class TestReadBlockDocuments:
         fly_and_swim_block_documents = (
             await models.block_documents.read_block_documents(
                 session=session,
-                block_capabilities_filter=schemas.filters.BlockSchemaFilterCapabilities(
-                    all_=["fly", "swim"]
+                block_schema_filter=schemas.filters.BlockSchemaFilter(
+                    block_capabilities=dict(all_=["fly", "swim"])
                 ),
             )
         )
@@ -866,8 +870,8 @@ class TestReadBlockDocuments:
 
         fly_block_documents = await models.block_documents.read_block_documents(
             session=session,
-            block_capabilities_filter=schemas.filters.BlockSchemaFilterCapabilities(
-                all_=["fly"]
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly"])
             ),
         )
         assert len(fly_block_documents) == 3
@@ -879,8 +883,8 @@ class TestReadBlockDocuments:
 
         swim_block_documents = await models.block_documents.read_block_documents(
             session=session,
-            block_capabilities_filter=schemas.filters.BlockSchemaFilterCapabilities(
-                all_=["swim"]
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_capabilities=dict(all_=["swim"])
             ),
         )
         assert len(swim_block_documents) == 1

@@ -874,47 +874,6 @@ class FilterSet(PrefectBaseModel):
     )
 
 
-class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
-    """Filter by `BlockSchema.block_type_id`."""
-
-    any_: List[UUID] = Field(None, description="A list of block type ids to include")
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(db.BlockSchema.block_type_id.in_(self.any_))
-        return filters
-
-
-class BlockSchemaFilter(PrefectFilterBaseModel):
-    """Filter BlockSchemas"""
-
-    block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
-        None, description="Filter criteria for `BlockSchema.block_type_id`"
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-
-        if self.block_type_id is not None:
-            filters.append(self.block_type_id.as_sql_filter(db))
-
-        return filters
-
-
-class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
-    """Filter by `BlockDocument.is_anonymous`."""
-
-    eq_: bool = Field(
-        None,
-        description="Filter block documents for only those that are or are not anonymous.",
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-        if self.eq_ is not None:
-            filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
-        return filters
-
 class BlockTypeFilterName(PrefectFilterBaseModel):
     """Filter by `BlockType.name`"""
 
@@ -930,12 +889,109 @@ class BlockTypeFilterName(PrefectFilterBaseModel):
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
+        if self.like_ is not None:
+            filters.append(db.BlockType.name.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class BlockTypeFilter(PrefectFilterBaseModel):
+    """Filter BlockTypes"""
+
+    name: Optional[BlockTypeFilterName] = Field(
+        None, description="Filter criteria for `BlockType.name`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter(db))
+
+        return filters
+
+
+class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.block_type_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.block_type_id.in_(self.any_))
+        return filters
+
+
+class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.capabilities`"""
+
+    all_: List[str] = Field(
+        None,
+        example=["write-storage", "read-storage"],
+        description="A list of block capabilities. Block entities will be returned "
+        "only if an associated block schema has a superset of the defined capabilities.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        from prefect.orion.utilities.database import json_has_all_keys
+
+        filters = []
+        if self.all_ is not None:
+            filters.append(json_has_all_keys(db.BlockSchema.capabilities, self.all_))
+        return filters
+
+
+class BlockSchemaFilter(PrefectFilterBaseModel):
+    """Filter BlockSchemas"""
+
+    block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
+        None, description="Filter criteria for `BlockSchema.block_type_id`"
+    )
+    block_capabilities: Optional[BlockSchemaFilterCapabilities] = Field(
+        None, description="Filter criteria for `BlockSchema.capabilities`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.block_type_id is not None:
+            filters.append(self.block_type_id.as_sql_filter(db))
+        if self.block_capabilities is not None:
+            filters.append(self.block_capabilities.as_sql_filter(db))
+
+        return filters
+
+
+class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.is_anonymous`."""
+
+    eq_: bool = Field(
+        None,
+        description="Filter block documents for only those that are or are not anonymous.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
         if self.eq_ is not None:
             filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
         return filters
 
+
+class BlockDocumentFilterBlockTypeId(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.block_type_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockDocument.block_type_id.in_(self.any_))
+        return filters
+
+
 class BlockDocumentFilter(PrefectFilterBaseModel):
     """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+
     is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
         # default is to exclude anonymous blocks
         BlockDocumentFilterIsAnonymous(eq_=False),
@@ -944,11 +1000,16 @@ class BlockDocumentFilter(PrefectFilterBaseModel):
             "Defaults to excluding anonymous blocks."
         ),
     )
+    block_type_id: Optional[BlockDocumentFilterBlockTypeId] = Field(
+        None, description="Filter criteria for `BlockDocument.block_type_id`"
+    )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.is_anonymous is not None:
             filters.append(self.is_anonymous.as_sql_filter(db))
+        if self.block_type_id is not None:
+            filters.append(self.block_type_id.as_sql_filter(db))
 
         return filters
 
@@ -981,33 +1042,4 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
         if self.is_active is not None:
             filters.append(self.is_active.as_sql_filter(db))
 
-        return filters
-``
-class BlockTypeFilterCapabilities(PrefectFilterBaseModel):
-    """Filter block types by the capabilities that associated block schemas have"""
-
-    all_: List[str] = Field(
-        None,
-        example=["write-storage", "read-storage"],
-        description="A list of block capabilities. Block types will be returned "
-        "only if an associated block schema has a superset of the defined capabilities.",
-    )
-
-
-class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
-    """Filter by `BlockSchema.capabilities`"""
-
-    all_: List[str] = Field(
-        None,
-        example=["write-storage", "read-storage"],
-        description="A list of block capabilities. Block entities will be returned "
-        "only if an associated block schema has a superset of the defined capabilities.",
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        from prefect.orion.utilities.database import json_contains
-
-        filters = []
-        if self.all_ is not None:
-            filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
         return filters
