@@ -301,7 +301,7 @@ async def visit_collection(
             # to drop them from the model so we restore them after constructing a new
             # model
             for attr in expr.__private_attributes__:
-                # Use `object.__setattr__` to avoid errors on frozen models
+                # Use `object.__setattr__` to avoid errors on immutable models
                 object.__setattr__(model_instance, attr, getattr(expr, attr))
 
             return model_instance
