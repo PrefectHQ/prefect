@@ -26,11 +26,24 @@ def upgrade():
             """
         )
 
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY
+            ix_block_schema__capabilities
+            ON block_schema USING gin (capabilities)
+            """
+        )
+
 
 def downgrade():
     with op.get_context().autocommit_block():
         op.execute(
             """
             DROP INDEX CONCURRENTLY trgm_ix_block_type_name;
+            """
+        )
+        op.execute(
+            """
+            DROP INDEX CONCURRENTLY ix_block_schema__capabilities;
             """
         )
