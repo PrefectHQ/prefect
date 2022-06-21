@@ -31,7 +31,7 @@ We're excited to bring you 2.0b7, which implements a number of important improve
 ### Bug squashing
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
 - Fixed a bug in terminal state data handling that caused timeouts
-- Fixed a bug that caused redundant flow execution during some instances of retriving the flow run specification during deployment creation
+- Disabled flow execution during deployment creation to prevent accidental execution
 - Fixed a bug wherein Pydantic models being passed to Prefect tasks were having extra keys dropped.
 
 ## 2.0b6
