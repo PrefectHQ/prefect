@@ -14,7 +14,7 @@ Users of Prefect Cloud 2 can now invite [collaborators](https://www.prefect.io/g
 - Added the ability for flow names to include underscores for use in DeploymentSpecs
 
 ### Documentation improvements
-- Updated screenshots
+- Updated screenshots and description of workflows to reflect new UI
 - Revised and extended Prefect Cloud quickstart tutorial
 - Added deployments page
 - Added documentation on collaborators
