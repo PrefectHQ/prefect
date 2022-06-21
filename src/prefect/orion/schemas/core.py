@@ -6,13 +6,13 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import coolname
 from pydantic import Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
+from prefect.orion.utilities.names import generate_slug
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -90,7 +90,7 @@ class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
     name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2),
+        default_factory=lambda: generate_slug(2),
         description="The name of the flow run. Defaults to a random slug if not specified.",
         example="my-flow-run",
     )
@@ -178,7 +178,7 @@ class FlowRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or coolname.generate_slug(2)
+        return name or generate_slug(2)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -239,9 +239,7 @@ class Constant(TaskRunInput):
 class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
-    name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2), example="my-task-run"
-    )
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
     flow_run_id: UUID = Field(..., description="The flow run id of the task run.")
     task_key: str = Field(
         ..., description="A unique identifier for the task being run."
@@ -312,7 +310,7 @@ class TaskRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or coolname.generate_slug(2)
+        return name or generate_slug(2)
 
 
 class Deployment(ORMBaseModel):
@@ -687,7 +685,7 @@ class Agent(ORMBaseModel):
     """An ORM representation of an agent"""
 
     name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2),
+        default_factory=lambda: generate_slug(2),
         description="The name of the agent. If a name is not provided, it will be auto-generated.",
     )
     work_queue_id: UUID = Field(

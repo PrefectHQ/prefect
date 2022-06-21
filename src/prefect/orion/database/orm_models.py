@@ -6,7 +6,6 @@ from typing import Dict, Hashable, List, Tuple, Union
 
 import pendulum
 import sqlalchemy as sa
-from coolname import generate_slug
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
@@ -25,6 +24,7 @@ from prefect.orion.utilities.database import (
     now,
 )
 from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
+from prefect.orion.utilities.names import generate_slug
 
 
 class ORMBase:
