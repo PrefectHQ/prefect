@@ -301,7 +301,10 @@ def testing_session_settings(test_database_url: str):
 
 @pytest.fixture(autouse=True)
 def reset_object_registry():
+    """
+    Ensures each test has a clean object registry.
+    """
     from prefect.context import PrefectObjectRegistry
 
-    registry = PrefectObjectRegistry()
-    registry.__enter__()
+    with PrefectObjectRegistry():
+        yield
