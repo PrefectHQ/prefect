@@ -1,5 +1,28 @@
 # Prefect Release Notes
 
+## 2.0b7
+
+We're excited to bring you 2.0b7, which implements a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.
+
+### Collaborators in Cloud 2
+Users of Prefect Cloud 2 can now invite [collaborators](https://www.prefect.io/guide/blog/collaboration-on-prefect-cloud-2/) to workspaces. Workspace collaborators can do all the day to day orchestration work you’d expect - run deployments, inspect flow runs, create work queues, but can’t perform administrative actions like editing workspace metadata or adding other collaborators. Beta users can add up to three collaborators for free!
+
+### Improvements
+- Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI
+- Added anonymous blocks, allowing users to create "inline" or "dynamic" block documents to deliver block-like functionality without filling up the block document table unnecessarily
+- Performance improvements to the service that marks flows runs as late
+
+### Documentation improvements
+- Updated screenshots
+- Revised description of features and workflows
+- Revised and extended Prefect Cloud quickstart tutorial
+- Added Deployments page
+- Added documentation on collaborators
+- Added documentation for `prefect cloud workspace set` command
+
+### Bug squashing
+- [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
+
 ## 2.0b6
 
 We're so grateful for the fountain of feedback we've received about Prefect 2. One of the themes in feedback was that Prefect 2's UI didn't reflect the same clarity and elegance that the rest of Prefect 2 did. We agreed! Today, we've proud to share Prefect 2's completely redesigned UI. It's simpler, faster, and easier to use. Give it a spin!
@@ -17,7 +40,7 @@ Here's a preview of the type hints that you'll start seeing now in editors like 
 
 <img src="docs/img/release-notes/futurehint.png">
 
-Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible. 
+Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible.
 
 After the upgrade your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
 
