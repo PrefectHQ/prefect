@@ -1,9 +1,21 @@
+from textwrap import dedent
 from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+
+CODE_EXAMPLE = dedent(
+    """\
+        ```python
+        from prefect_collection import CoolBlock
+
+        rad_block = await CoolBlock.load("rad")
+        rad_block.crush()
+        ```
+        """
+)
 
 
 class TestCreateBlockType:
@@ -14,11 +26,15 @@ class TestCreateBlockType:
                 name="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/documentation.html",
+                description="A block, verily",
+                code_example=CODE_EXAMPLE,
             ),
         )
         assert block_type.name == "x"
         assert block_type.logo_url == "http://example.com/logo.png"
         assert block_type.documentation_url == "http://example.com/documentation.html"
+        assert block_type.description == "A block, verily"
+        assert block_type.code_example == CODE_EXAMPLE
 
         db_block_type = await models.block_types.read_block_type(
             session=session, block_type_id=block_type.id
@@ -27,6 +43,8 @@ class TestCreateBlockType:
         assert db_block_type.name == block_type.name
         assert db_block_type.logo_url == block_type.logo_url
         assert db_block_type.documentation_url == block_type.documentation_url
+        assert db_block_type.description == block_type.description
+        assert db_block_type.code_example == block_type.code_example
 
     async def test_create_block_type_unique_name(self, session):
         await models.block_types.create_block_type(
@@ -118,6 +136,8 @@ class TestUpdateBlockType:
             block_type=schemas.actions.BlockTypeUpdate(
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/documentation.html",
+                description="A block, verily",
+                code_example=CODE_EXAMPLE,
             ),
         )
 
@@ -129,6 +149,8 @@ class TestUpdateBlockType:
         assert (
             db_block_type.documentation_url == "http://example.com/documentation.html"
         )
+        assert db_block_type.description == "A block, verily"
+        assert db_block_type.code_example == CODE_EXAMPLE
 
     async def test_update_nonexistant_block_type(self, session):
         assert not await models.block_types.update_block_type(

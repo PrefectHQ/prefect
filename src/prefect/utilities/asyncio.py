@@ -4,7 +4,6 @@ Utilities for interoperability with async functions and workers from various con
 import inspect
 import warnings
 from contextlib import asynccontextmanager
-from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, Coroutine, Dict, List, TypeVar, Union
 from uuid import UUID, uuid4
@@ -192,8 +191,6 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
 
 class GatherIncomplete(RuntimeError):
     """Used to indicate retrieving gather results before completion"""
-
-    pass
 
 
 class GatherTaskGroup(anyio.abc.TaskGroup):

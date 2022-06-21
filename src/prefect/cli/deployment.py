@@ -2,6 +2,7 @@
 Command line interface for working with deployments.
 """
 import traceback
+from pathlib import Path
 from typing import List
 from uuid import UUID
 
@@ -12,13 +13,15 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
+from prefect.client import OrionClient, get_client, inject_client
 from prefect.deployments import (
+    DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import ObjectNotFound, ScriptError, SpecValidationError
+from prefect.exceptions import DeploymentValidationError, ObjectNotFound, ScriptError
+from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
 
 deployment_app = PrefectTyper(
@@ -156,8 +159,40 @@ async def execute(name: str):
         exit_with_success("Flow run completed!")
 
 
+def _load_deployment_specs(path: Path, quietly=False) -> List[DeploymentSpec]:
+    """Load the deployment specification from the path the user gave on the command line, giving
+    helpful error messages if they cannot be loaded."""
+    if path.suffix == ".py":
+        from_msg = "python script"
+        loader = deployment_specs_from_script
+
+    elif path.suffix in (".yaml", ".yml"):
+        from_msg = "yaml file"
+        loader = deployment_specs_from_yaml
+
+    else:
+        exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
+
+    if not quietly:
+        app.console.print(
+            f"Loading deployment specifications from {from_msg} "
+            f"at [green]{str(path)!r}[/]..."
+        )
+    try:
+        specs = loader(path)
+    except ScriptError as exc:
+        app.console.print(exc)
+        app.console.print(exception_traceback(exc.user_exc))
+        exit_with_error(f"Failed to load specifications from {str(path)!r}")
+
+    if not specs:
+        exit_with_error("No deployment specifications found!", style="yellow")
+
+    return specs
+
+
 @deployment_app.command()
-async def create(path: str):
+async def create(path: Path):
     """
     Create or update a deployment from a file.
 
@@ -201,74 +236,47 @@ async def create(path: str):
           flow_location: "./my_other_flowflow.py"
         ```
     """
-    if path.endswith(".py"):
-        from_msg = "python script"
-        loader = deployment_specs_from_script
-
-    elif path.endswith(".yaml") or path.endswith(".yml"):
-        from_msg = "yaml file"
-        loader = deployment_specs_from_yaml
-
-    else:
-        exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
-
-    app.console.print(
-        f"Loading deployment specifications from {from_msg} at [green]{str(path)!r}[/]..."
-    )
-    try:
-        specs = loader(path)
-    except ScriptError as exc:
-        app.console.print(exc)
-        app.console.print(exception_traceback(exc.user_exc))
-        exit_with_error(f"Failed to load specifications from {str(path)!r}")
-
-    if not specs:
-        exit_with_error(f"No deployment specifications found!", style="yellow")
+    specs = _load_deployment_specs(path)
 
     failed = 0
-    for spec, src in specs.items():
+    for spec in specs:
         try:
-            await spec.validate()
-        except SpecValidationError as exc:
-            app.console.print(
-                f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
-                style="red",
-            )
+            await _create(spec)
+        except DeploymentValidationError as exc:
+            app.console.print(str(exc), style="red")
             failed += 1
-            continue  # Attempt to create the next deployment
-
-        stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
-
-        try:
-            app.console.print(
-                f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
-            )
-            source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
-            app.console.print(
-                f"Deploying {source} using {spec.flow_storage.get_block_type_name()}..."
-            )
-            await spec.create_deployment(validate=False)
         except Exception as exc:
             app.console.print(exception_traceback(exc))
-            app.console.print(
-                f"Failed to create deployment {stylized_name}", style="red"
-            )
+            app.console.print(f"Failed to create deployment!", style="red")
             failed += 1
-            continue  # Attempt to create the next deployment
-        else:
-            app.console.print(f"Created deployment {stylized_name}.")
-
-            # TODO: Check for an API url and link to the UI instead if a hosted API
-            #       exists
-            app.console.print(
-                "View your new deployment with: "
-                f"\n\n    prefect deployment inspect {stylized_name}"
-            )
 
     if failed:
         exit_with_error(f"Failed to create {failed} out of {len(specs)} deployments.")
     else:
         exit_with_success(f"Created {len(specs)} deployments!")
+
+
+@inject_client
+async def _create(spec: DeploymentSpec, client: OrionClient):
+    await spec.validate(client=client)
+
+    # Generate a stylized name after validation
+    stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
+
+    app.console.print(f"Packaging flow for deployment {stylized_name}...")
+    deployment_create = await spec._packager.package(spec)
+
+    app.console.print(f"Registering deployment {stylized_name} with the server...")
+    await client._create_deployment_from_schema(deployment_create)
+
+    app.console.print(f"Created deployment {stylized_name}!")
+
+    # TODO: Check for an API url and link to the UI instead if a hosted API
+    #       exists
+    app.console.print(
+        "View your new deployment with: "
+        f"\n\n    prefect deployment inspect {stylized_name}"
+    )
 
 
 @deployment_app.command()
@@ -288,3 +296,46 @@ async def delete(deployment_id: UUID):
             exit_with_error(f"Deployment '{deployment_id}' not found!")
 
     exit_with_success(f"Deleted deployment '{deployment_id}'.")
+
+
+@deployment_app.command()
+async def preview(path: Path):
+    """
+    Prints a preview of a deployment.
+
+    Accepts the same file types as `prefect deployment create`.  This preview will
+    include any customizations you have made to your deployment's FlowRunner.  If your
+    file includes multiple deployments, use `--name` to identify one to preview.
+
+    `prefect deployment preview` is intended for previewing the customizations you've
+    made to your deployments, and will include mock identifiers.  They will not run
+    correctly if applied directly to an execution environment (like a Kubernetes
+    cluster).  Use `prefect deployment create` and `prefect deployment run` to
+    actually run your deployments.
+
+    \b
+    Example:
+        \b
+        $ prefect deployment preview my-flow.py
+
+    \b
+    Output:
+        \b
+        apiVersion: batch/v1
+        kind: Job ...
+
+    """
+    specs = list(_load_deployment_specs(path, quietly=True))
+
+    # create an exemplar FlowRun
+    flow_run = FlowRun(
+        id=UUID(int=0),
+        flow_id=UUID(int=0),
+        name="cool-name",
+    )
+
+    for spec in specs:
+        name = repr(spec.name) if spec.name else "<unnamed deployment specification>"
+        app.console.print(f"[green]Preview for {name}[/]:\n")
+        print(await spec.flow_runner.preview(flow_run))
+        print()

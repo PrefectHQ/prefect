@@ -8,7 +8,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import ContextManager, List, Optional, Set, Type, TypeVar, Union
+from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -19,6 +19,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
+from prefect.deployments import DeploymentSpec
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
@@ -73,6 +74,46 @@ class ContextModel(BaseModel):
         return new
 
 
+class PrefectObjectRegistry(ContextModel):
+    """
+    A context that acts as a registry for all Prefect objects that are
+    registered during load and execution.
+
+    Attributes:
+        start_time: The time the loading context was entered
+
+        flows: A dictionary containing all Flow objects that are initialized
+            during load / execution.
+        deployment_specs: A list containing all deployment specification objects
+            that are initialized during load / execution. The name of the deployment
+            may not be determined yet so they cannot be stored in a dictionary.
+        tasks: A dictionary containing all Task objects that are initialized
+            during load / execution.
+    """
+
+    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+
+    flows: Dict[str, Flow] = Field(default_factory=dict)
+    deployment_specs: List[DeploymentSpec] = Field(default_factory=list)
+    tasks: List[Task] = Field(default_factory=list)
+
+    _block_code_execution: bool = PrivateAttr(default=False)
+
+    __var__ = ContextVar("object_registry")
+
+    @property
+    def code_execution_blocked(self):
+        return self._block_code_execution
+
+    @contextmanager
+    def block_code_execution(self) -> None:
+        self._block_code_execution = True
+        try:
+            yield
+        finally:
+            self._block_code_execution = False
+
+
 class RunContext(ContextModel):
     """
     The base context for a flow or task run. Data in this context will always be
@@ -109,6 +150,7 @@ class FlowRunContext(RunContext):
     result_storage: StorageBlock
 
     # Tracking created objects
+    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
 
@@ -391,3 +433,16 @@ def enter_root_settings_context():
     )
 
     GLOBAL_SETTINGS_CM.__enter__()
+
+
+GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
+
+
+def initialize_object_registry():
+    global GLOBAL_OBJECT_REGISTRY
+
+    if GLOBAL_OBJECT_REGISTRY:
+        return
+
+    GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
+    GLOBAL_OBJECT_REGISTRY.__enter__()
