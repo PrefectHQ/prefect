@@ -4,7 +4,6 @@
 
 We're excited to bring you 2.0b7, which implements a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.
 
-### Collaborators in Cloud 2
 
 ### Improvements
 - Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI
