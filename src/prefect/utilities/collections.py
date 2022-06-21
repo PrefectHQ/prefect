@@ -285,24 +285,25 @@ async def visit_collection(
         and not isinstance(expr, prefect.orion.schemas.states.State)
         and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
     ):
-        # Pydantic does not expose Extras in `__fields__` and does not expose
-        # private vars in `__fields_set__`, so we use of a a combination of `__fields_set__`
-        # `__private_attributes__` instead.
-        keys = [
-            key
-            for key in list(expr.__fields_set__)
-            + list(expr.__private_attributes__.keys())
-        ]
-        values = await gather(*[visit_nested(getattr(expr, key)) for key in keys])
-        result = {key: value for key, value in zip(keys, values)}
+        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # to retrieve the public keys to visit.
+        # NOTE: This implementation *does not* traverse private attributes
+        results = await gather(
+            *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
+        )
 
         if return_data:
-            model_instance = typ(**result)
-            # private attrs must be set separately to persist the values
-            for p_attr_key in expr.__private_attributes__.keys():
-                # we use `object.__setattr__` to avoid potential errors when mutation
-                # is not allowed for the pydantic object
-                object.__setattr__(model_instance, p_attr_key, result[p_attr_key])
+            model_instance = typ(
+                **{key: value for key, value in zip(expr.__fields_set__, results)}
+            )
+
+            # Private attributes are not included in `__fields_set__` but we do not want
+            # to drop them from the model so we restore them after constructing a new
+            # model
+            for attr in expr.__private_attributes__:
+                # Use `object.__setattr__` to avoid errors on frozen models
+                object.__setattr__(model_instance, attr, getattr(expr, attr))
+
             return model_instance
         return None
 
