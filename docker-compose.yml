@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  test-db:
+    image: postgres:13
+    ports:
+      - 15432:5432
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: orion
+      LANG: 'C.UTF-8'
+      LANGUAGE: 'C.UTF-8'
+      LC_ALL: 'C.UTF-8'
+      LC_COLLATE: 'C.UTF-8'
+      LC_CTYPE: 'C.UTF-8'
+    tmpfs: /var/lib/postgresql/data

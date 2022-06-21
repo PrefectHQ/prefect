@@ -4,8 +4,7 @@ Reduced schemas for accepting API actions.
 from typing import List, Optional
 from uuid import UUID
 
-import coolname
-from pydantic import Field
+from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -153,7 +152,14 @@ class ConcurrencyLimitCreate(
 
 class BlockTypeCreate(
     schemas.core.BlockType.subclass(
-        name="BlockTypeCreate", include_fields=["name", "logo_url", "documentation_url"]
+        name="BlockTypeCreate",
+        include_fields=[
+            "name",
+            "logo_url",
+            "documentation_url",
+            "description",
+            "code_example",
+        ],
     )
 ):
     """Data used by the Orion API to create a block type."""
@@ -162,8 +168,10 @@ class BlockTypeCreate(
 class BlockTypeUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block type."""
 
-    logo_url: Optional[str]
-    documentation_url: Optional[str]
+    logo_url: Optional[str] = None
+    documentation_url: Optional[str] = None
+    description: Optional[str] = None
+    code_example: Optional[str] = None
 
 
 class BlockSchemaCreate(
@@ -178,10 +186,31 @@ class BlockSchemaCreate(
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
         name="BlockDocumentCreate",
-        include_fields=["name", "data", "block_schema_id", "block_type_id"],
+        include_fields=[
+            "name",
+            "data",
+            "block_schema_id",
+            "block_type_id",
+            "is_anonymous",
+        ],
     )
 ):
     """Data used by the Orion API to create a block document."""
+
+    @root_validator
+    def check_anonymous_name(cls, values):
+        # when creating a new anonymous block document, a name should never be
+        # provided Anonymous names are used for idempotency and generated when
+        # the document is actually created on the server
+        if values.get("is_anonymous") and values.get("name"):
+            raise ValueError("Names cannot be provided for anonymous block documents")
+        elif not values.get("is_anonymous") and (values.get("name") or "").startswith(
+            "anonymous"
+        ):
+            raise ValueError(
+                "Block document names that start with 'anonymous' are reserved."
+            )
+        return values
 
 
 class BlockDocumentUpdate(PrefectBaseModel):

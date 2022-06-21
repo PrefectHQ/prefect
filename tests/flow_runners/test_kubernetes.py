@@ -4,6 +4,7 @@ from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict
+from unittest import mock
 from unittest.mock import MagicMock
 
 import anyio.abc
@@ -468,6 +469,73 @@ class TestKubernetesFlowRunner:
         await KubernetesFlowRunner().submit_flow_run(flow_run, fake_status)
 
         mock_cluster_config.load_kube_config.assert_called_once()
+
+    async def test_allows_configurable_timeouts_for_pod_and_job_watches(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = mock.Mock(
+            side_effect=self._mock_pods_stream_that_returns_running_pod
+        )
+
+        await KubernetesFlowRunner(
+            pod_watch_timeout_seconds=42,
+            job_watch_timeout_seconds=24,
+        ).submit_flow_run(flow_run, MagicMock())
+
+        mock_watch.stream.assert_has_calls(
+            [
+                mock.call(
+                    func=mock_k8s_client.list_namespaced_pod,
+                    namespace=mock.ANY,
+                    label_selector=mock.ANY,
+                    timeout_seconds=42,
+                ),
+                mock.call(
+                    func=mock_k8s_batch_client.list_namespaced_job,
+                    namespace=mock.ANY,
+                    field_selector=mock.ANY,
+                    timeout_seconds=24,
+                ),
+            ]
+        )
+
+    async def test_watches_the_right_namespace(
+        self,
+        mock_k8s_client,
+        mock_watch,
+        mock_k8s_batch_client,
+        flow_run,
+        use_hosted_orion,
+    ):
+        mock_watch.stream = mock.Mock(
+            side_effect=self._mock_pods_stream_that_returns_running_pod
+        )
+
+        await KubernetesFlowRunner(namespace="my-awesome-flows").submit_flow_run(
+            flow_run, MagicMock()
+        )
+
+        mock_watch.stream.assert_has_calls(
+            [
+                mock.call(
+                    func=mock_k8s_client.list_namespaced_pod,
+                    namespace="my-awesome-flows",
+                    label_selector=mock.ANY,
+                    timeout_seconds=mock.ANY,
+                ),
+                mock.call(
+                    func=mock_k8s_batch_client.list_namespaced_job,
+                    namespace="my-awesome-flows",
+                    field_selector=mock.ANY,
+                    timeout_seconds=mock.ANY,
+                ),
+            ]
+        )
 
 
 class TestIntegrationWithRealKubernetesCluster:

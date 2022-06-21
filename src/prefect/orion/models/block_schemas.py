@@ -2,7 +2,6 @@
 Functions for interacting with block schema ORM objects.
 Intended for internal use by the Orion API.
 """
-import hashlib
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -16,14 +15,10 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_name
 from prefect.orion.schemas.actions import BlockSchemaCreate
 from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
-from prefect.utilities.collections import remove_nested_keys
-from prefect.utilities.hashing import hash_objects
 
 
 class MissingBlockTypeException(Exception):
     """Raised when the block type corresponding to a block schema cannot be found"""
-
-    pass
 
 
 @inject_db
@@ -495,7 +490,7 @@ def _construct_block_schema_fields_with_block_references(
 async def read_block_schemas(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    block_type_id: Optional[str] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
@@ -504,20 +499,24 @@ async def read_block_schemas(
 
     Args:
         session: A database session
-        block_type_id: the ID of the corresponding block type
+        block_schema_filter: a block schema filter object
         limit (int): query limit
         offset (int): query offset
 
     Returns:
         List[db.BlockSchema]: the block_schemas
     """
+    # schemas are ordered by `created DESC` to get the most recently created
+    # ones first (and to facilitate getting the newest one with `limit=1`).
     filtered_block_schemas_query = select([db.BlockSchema.id]).order_by(
-        db.BlockSchema.block_type_id, db.BlockSchema.created
+        db.BlockSchema.created.desc()
     )
-    if block_type_id is not None:
-        filtered_block_schemas_query = filtered_block_schemas_query.filter(
-            db.BlockSchema.block_type_id == block_type_id
+
+    if block_schema_filter:
+        filtered_block_schemas_query = filtered_block_schemas_query.where(
+            block_schema_filter.as_sql_filter(db)
         )
+
     if offset is not None:
         filtered_block_schemas_query = filtered_block_schemas_query.offset(offset)
     if limit is not None:
@@ -559,7 +558,10 @@ async def read_block_schemas(
             ]
         )
         .select_from(db.BlockSchema)
-        .order_by(db.BlockSchema.created)
+        # in order to reconstruct nested block schemas efficiently, we need to visit them
+        # in the order they were created (so that we guarantee that nested/referenced schemas)
+        # have already been seen. Therefore this second query sorts by created ASC
+        .order_by(db.BlockSchema.created.asc())
         .join(
             recursive_block_schema_references_cte,
             db.BlockSchema.id
@@ -592,7 +594,10 @@ async def read_block_schemas(
                 )
             )
             visited_block_schema_ids.append(root_block_schema.id)
-    return fully_constructed_block_schemas
+
+    # because we reconstructed schemas ordered by created ASC, we
+    # reverse the final output to restore created DESC
+    return list(reversed(fully_constructed_block_schemas))
 
 
 @inject_db

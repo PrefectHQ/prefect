@@ -4,6 +4,7 @@ Routes for interacting with block objects.
 from typing import List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, responses, status
 
@@ -16,17 +17,25 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/")
 async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
+    """
+    Create a new block document.
+    """
     try:
+        now = pendulum.now("UTC")
         new_block_document = await models.block_documents.create_block_document(
             session=session, block_document=block_document
         )
+        # anonymous blocks are idempotent so only set 201 if the block document
+        # was actually created
+        if new_block_document.created >= now:
+            response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -39,6 +48,7 @@ async def create_block_document(
 @router.post("/filter")
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
+    block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schema_type: str = Body(None, description="The block schema type"),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -48,6 +58,7 @@ async def read_block_documents(
     """
     result = await models.block_documents.read_block_documents(
         session=session,
+        block_document_filter=block_document_filter,
         offset=offset,
         limit=limit,
     )
