@@ -15,7 +15,6 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm;")
 
     with op.get_context().autocommit_block():
         op.execute(
