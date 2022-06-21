@@ -65,7 +65,7 @@ async def read_block_type_by_name(
 
 @router.post("/filter")
 async def read_block_types(
-    block_types: Optional[schemas.filters.BlockSchemaFilterCapabilities] = None,
+    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
@@ -79,7 +79,7 @@ async def read_block_types(
         limit=limit,
         offset=offset,
         block_type_filter=block_types,
-        block_schemas_filter=block_schemas,
+        block_schema_filter=block_schemas,
     )
 
 
@@ -126,7 +126,7 @@ async def read_block_documents_for_block_type(
     return await models.block_documents.read_block_documents(
         session=session,
         block_document_filter=schemas.filters.BlockDocumentFilter(
-            block_type_id=block_type.id
+            block_type_id=dict(any_=[block_type.id])
         ),
     )
 
