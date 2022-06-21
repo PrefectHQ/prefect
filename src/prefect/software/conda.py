@@ -161,8 +161,9 @@ class CondaEnvironment(PythonEnvironment):
             return pip_install_commands
 
         if multiline:
-            requires = "\\\n\t"  # Start on a newline
-            requires += "\\\n\t".join(f"'{req}'" for req in self.conda_requirements)
+            requires = "\\\n    "  # Start on a newline with indentation
+            requires += " \\\n    ".join(f"'{req}'" for req in self.conda_requirements)
+            requires += "\n"
         else:
             requires = " ".join(f"'{req}'" for req in self.conda_requirements)
 

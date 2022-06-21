@@ -47,8 +47,9 @@ class PythonEnvironment(BaseModel):
             return []
 
         if multiline:
-            requires = "\\\n\t"  # Start on a newline
-            requires += "\\\n\t".join(f"'{req}'" for req in self.pip_requirements)
+            requires = "\\\n    "  # Start on a newline with indentation
+            requires += " \\\n    ".join(f"'{req}'" for req in self.pip_requirements)
+            requires += "\n"
         else:
             requires = " ".join(f"'{req}'" for req in self.pip_requirements)
 
