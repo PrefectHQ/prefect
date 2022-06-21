@@ -59,7 +59,7 @@ async def delete_block_schema(
 
 @router.post("/filter")
 async def read_block_schemas(
-    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -69,10 +69,9 @@ async def read_block_schemas(
     """
     result = await models.block_schemas.read_block_schemas(
         session=session,
-        block_schema_filter=block_schema_filter,
+        block_schema_filter=block_schemas,
         limit=limit,
         offset=offset,
-        block_capabilities_filter=block_capabilities,
     )
     return result
 
