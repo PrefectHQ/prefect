@@ -375,10 +375,6 @@ def snowflake_logger(
         - snowflake_log_table_name (str, optional): the fully qualified Snowflake log table name
             e.g. DB.SCHEMA.TABLE
         - test_env (bool): Only used for testing and defaults to False
-    Returns:
-        - State: the `new_state` object that was provided
-    Raises:
-        - ValueError: if the snowflake logger fails for any reason
     Example:
         ```python
         from prefect import task
@@ -401,9 +397,6 @@ def snowflake_logger(
         [isinstance(new_state, included) for included in only_states]
     ):
         return new_state
-
-    # 'import requests' is expensive time-wise, we should do this just-in-time to keep
-    # the 'import prefect' time low
 
     # get the secret
     sf_secret = prefect.client.Secret(snowflake_secret or "SNOWFLAKE_CREDS").get()
