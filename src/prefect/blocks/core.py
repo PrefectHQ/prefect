@@ -2,7 +2,7 @@ import hashlib
 import inspect
 from abc import ABC
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
 from griffe.dataclasses import Docstring
@@ -116,7 +116,7 @@ class Block(BaseModel, ABC):
         return cls._block_type_name or cls.__name__
 
     @classmethod
-    def get_block_capabilities(cls) -> frozenset[str]:
+    def get_block_capabilities(cls) -> FrozenSet[str]:
         """
         Returns the block capabilities for this Block. Recursively collects all block
         capabilities of all parent classes into a single frozenset.
