@@ -57,7 +57,7 @@ class DatafactoryCreate(Task):
         resource_group_name: str = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
         location: str = "eastus",
-        options: Dict[str, Any] = None,
+        options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         self.datafactory_name = datafactory_name
@@ -80,7 +80,7 @@ class DatafactoryCreate(Task):
         resource_group_name: str = None,
         azure_credentials_secret: str = None,
         location: str = None,
-        options: Dict[str, Any] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[Any, Any]:
         """
         Create an Azure datafactory.
@@ -145,8 +145,8 @@ class PipelineCreate(Task):
         pipeline_name: str = None,
         activities: List[Any] = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
-        parameters: Dict[str, Any] = None,
-        options: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         self.datafactory_name = datafactory_name
@@ -174,8 +174,8 @@ class PipelineCreate(Task):
         pipeline_name: str = None,
         activities: List[Any] = None,
         azure_credentials_secret: str = None,
-        parameters: Dict[str, Any] = None,
-        options: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Dict[Any, Any]:
         """
         Create an Azure datafactory pipeline.
@@ -226,11 +226,11 @@ class PipelineRun(Task):
         - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
             your Azure credentials; this Secret must be JSON string with the keys
             `subscription_id`, `client_id`, `secret` and `tenant`.
-        - parameters (dict): The parameters to be used in pipeline.
-        - last_updated_after (datetime): The time at or after which the run event was updated;
-            used to filter and query the pipeline run, and defaults to yesterday.
-        - last_updated_before (datetime): The time at or before which the run event was updated;
-            used to filter and query the pipeline run and defaults to tomorrow.
+        - parameters (dict, optional): The parameters to be used in pipeline.
+        - last_updated_after (datetime, optional): The time at or after which the run event
+            was updated; used to filter and query the pipeline run, and defaults to yesterday.
+        - last_updated_before (datetime, optional): The time at or before which the run event
+            was updated; used to filter and query the pipeline run and defaults to tomorrow.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -241,7 +241,7 @@ class PipelineRun(Task):
         resource_group_name: str = None,
         pipeline_name: str = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         last_updated_after: Optional[datetime] = None,
         last_updated_before: Optional[datetime] = None,
         **kwargs,
@@ -270,7 +270,7 @@ class PipelineRun(Task):
         resource_group_name: str = None,
         pipeline_name: str = None,
         azure_credentials_secret: str = None,
-        parameters: Dict[str, Any] = None,
+        parameters: Optional[Dict[str, Any]] = None,
         last_updated_after: Optional[datetime] = None,
         last_updated_before: Optional[datetime] = None,
     ) -> Dict[Any, Any]:
@@ -285,11 +285,11 @@ class PipelineRun(Task):
             - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
                 your Azure credentials; this Secret must be JSON string with the keys
                 `subscription_id`, `client_id`, `secret` and `tenant`.
-            - parameters (dict): The parameters to be used in pipeline.
-            - last_updated_after (datetime): The time at or after which the run event was updated;
-                used to filter and query the pipeline run, and defaults to yesterday.
-            - last_updated_before (datetime): The time at or before which the run event was updated;
-                used to filter and query the pipeline run and defaults to tomorrow.
+            - parameters (dict, optional): The parameters to be used in pipeline.
+            - last_updated_after (datetime, optional): The time at or after which the run event
+                was updated; used to filter and query the pipeline run, and defaults to yesterday.
+            - last_updated_before (datetime, optional): The time at or before which the run event
+                was updated; used to filter and query the pipeline run and defaults to tomorrow.
 
         Returns:
             The pipeline run response.
