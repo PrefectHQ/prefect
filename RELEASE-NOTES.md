@@ -24,7 +24,6 @@ Users of Prefect Cloud 2 can now invite [collaborators](https://www.prefect.io/g
 ### Bug squashing
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
 
-
 ## 2.0b6
 
 We're so grateful for the fountain of feedback we've received about Prefect 2. One of the themes in feedback was that Prefect 2's UI didn't reflect the same clarity and elegance that the rest of Prefect 2 did. We agreed! Today, we've proud to share Prefect 2's completely redesigned UI. It's simpler, faster, and easier to use. Give it a spin!
