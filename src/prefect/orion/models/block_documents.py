@@ -347,11 +347,7 @@ async def read_block_documents(
     session: sa.orm.Session,
     db: OrionDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_type_id: Optional[UUID] = None,
-    block_capabilities_filter: Optional[
-        schemas.filters.BlockSchemaFilterCapabilities
-    ] = None,
-    block_type_id: Optional[UUID] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
@@ -360,32 +356,23 @@ async def read_block_documents(
     """
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
-        block_document_filter = schemas.filters.BlockDocumentFilter(
-            is_anonymous=dict(eq_=False)
-        )
+        block_document_filter = schemas.filters.BlockDocumentFilter()
 
     filtered_block_documents_query = sa.select(db.BlockDocument.id).order_by(
         db.BlockDocument.name
     )
 
-    if block_document_filter:
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_document_filter.as_sql_filter(db)
-        )
+    filtered_block_documents_query = filtered_block_documents_query.where(
+        block_document_filter.as_sql_filter(db)
+    )
 
-    if block_type_id is not None: 
-        filtered_block_documents_query = filtered_block_documents_query.filter_by(
-            block_type_id=block_type_id
+    if block_schema_filter is not None:
+        exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.id == db.BlockDocument.block_schema_id,
+            block_schema_filter.as_sql_filter(db),
         )
-
-    if block_capabilities_filter is not None:
         filtered_block_documents_query = filtered_block_documents_query.where(
-            block_capabilities_filter.as_sql_filter(db)
-        )
-
-    if block_type_id is not None:
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            db.BlockDocument.block_type_id == block_type_id
+            exists_clause.exists()
         )
 
     if offset is not None:

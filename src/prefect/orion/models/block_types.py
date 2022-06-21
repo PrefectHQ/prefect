@@ -108,10 +108,8 @@ async def read_block_type_by_name(
 async def read_block_types(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    name_filter: Optional[schemas.filters.BlockTypeFilterName] = None,
-    block_capabilities_filter: Optional[
-        schemas.filters.BlockSchemaFilterCapabilities
-    ] = None,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
@@ -125,18 +123,15 @@ async def read_block_types(
     """
     query = sa.select(db.BlockType).order_by(db.BlockType.name)
 
-    if name_filter is not None:
-        query = query.where(name_filter.as_sql_filter(db))
+    if block_type_filter is not None:
+        query = query.where(block_type_filter.as_sql_filter(db))
 
-    if block_capabilities_filter is not None:
-        query = query.join(
-            db.BlockSchema, db.BlockSchema.block_type_id == db.BlockType.id
-        ).filter(
-            sa.and_(
-                db.BlockSchema.block_type_id == db.BlockType.id,
-                block_capabilities_filter.as_sql_filter(db),
-            )
+    if block_schema_filter is not None:
+        exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.block_type_id == db.BlockType.id,
+            block_schema_filter.as_sql_filter(db),
         )
+        query = query.where(exists_clause.exists())
 
     if offset is not None:
         query = query.offset(offset)

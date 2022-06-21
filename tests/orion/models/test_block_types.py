@@ -6,10 +6,7 @@ import sqlalchemy as sa
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
-from prefect.orion.schemas.filters import (
-    BlockSchemaFilterCapabilities,
-    BlockTypeFilterName,
-)
+from prefect.orion.schemas.filters import BlockSchemaFilter, BlockTypeFilter
 
 CODE_EXAMPLE = dedent(
     """\
@@ -191,14 +188,14 @@ class TestReadBlockTypes:
         self, session, block_types_with_associated_capabilities
     ):
         block_types = await models.block_types.read_block_types(
-            session=session, name_filter=BlockTypeFilterName(like_="duck")
+            session=session, block_type_filter=BlockTypeFilter(name=dict(like_="duck"))
         )
 
         assert len(block_types) == 1
         assert block_types == [block_types_with_associated_capabilities[0]]
 
         block_types = await models.block_types.read_block_types(
-            session=session, name_filter=BlockTypeFilterName(like_="c")
+            session=session, block_type_filter=BlockTypeFilter(name=dict(like_="c"))
         )
 
         assert len(block_types) == 2
@@ -208,7 +205,7 @@ class TestReadBlockTypes:
         ]
 
         block_types = await models.block_types.read_block_types(
-            session=session, name_filter=BlockTypeFilterName(like_="z")
+            session=session, block_type_filter=BlockTypeFilter(name=dict(like_="z"))
         )
 
         assert len(block_types) == 0
@@ -218,8 +215,8 @@ class TestReadBlockTypes:
     ):
         fly_and_swim_block_types = await models.block_types.read_block_types(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(
-                all_=["fly", "swim"]
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly", "swim"])
             ),
         )
         assert len(fly_and_swim_block_types) == 1
@@ -227,7 +224,9 @@ class TestReadBlockTypes:
 
         fly_block_types = await models.block_types.read_block_types(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["fly"]),
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly"])
+            ),
         )
         assert len(fly_block_types) == 2
         assert fly_block_types == [
@@ -237,7 +236,9 @@ class TestReadBlockTypes:
 
         swim_block_types = await models.block_types.read_block_types(
             session=session,
-            block_capabilities_filter=BlockSchemaFilterCapabilities(all_=["swim"]),
+            block_schema_filter=BlockSchemaFilter(
+                block_capabilities=dict(all_=["swim"])
+            ),
         )
         assert len(swim_block_types) == 1
         assert swim_block_types == [block_types_with_associated_capabilities[0]]
