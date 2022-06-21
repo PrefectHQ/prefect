@@ -1,9 +1,23 @@
 import json
 import re
 import subprocess
-from typing import List
+import sys
+from typing import List, Type
 
-from prefect.software.base import Requirement
+from pydantic import Field
+from typing_extensions import Self
+
+from prefect.software.base import (
+    Requirement,
+    pop_requirement_by_name,
+    remove_duplicate_requirements,
+)
+from prefect.software.conda import (
+    CondaRequirement,
+    current_environment_conda_requirements,
+)
+from prefect.software.pip import current_environment_requirements
+from prefect.software.python import PythonEnvironment
 
 CONDA_REQUIREMENT = re.compile(
     r"^(?P<name>[0-9A-Za-z\-]+)"
@@ -69,3 +83,30 @@ def current_environment_conda_requirements(
 
     # The string check will exclude nested objects like the 'pip' subtree
     return [CondaRequirement(dep) for dep in dependencies if isinstance(dep, str)]
+
+
+class CondaEnvironment(PythonEnvironment):
+    conda_requirements: List[CondaRequirement] = Field(default_factory=list)
+
+    @classmethod
+    def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
+        conda_requirements = (
+            current_environment_conda_requirements()
+            if "conda" in sys.executable
+            else []
+        )
+        pip_requirements = remove_duplicate_requirements(
+            conda_requirements,
+            current_environment_requirements(
+                include_nested=include_nested, on_uninstallable_requirement="warn"
+            ),
+        )
+        python_requirement = pop_requirement_by_name(conda_requirements, "python")
+        if python_requirement:
+            python_version = python_requirement.version
+
+        return cls(
+            pip_requirements=pip_requirements,
+            conda_requirements=conda_requirements,
+            python_version=python_version,
+        )
