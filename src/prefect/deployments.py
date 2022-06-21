@@ -45,27 +45,15 @@ Examples:
     ```
 """
 
-import os
-from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Iterable, List, Set, Tuple
-
-import fsspec
-import yaml
+from typing import Any, Iterable
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.deprecated import deployments as deprecated
-from prefect.exceptions import (
-    MissingDeploymentError,
-    MissingFlowError,
-    UnspecifiedDeploymentError,
-    UnspecifiedFlowError,
-)
-from prefect.flows import Flow
+from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
+from prefect.flows import Flow, load_flow_from_text
 from prefect.orion import schemas
-from prefect.utilities.collections import extract_instances, listrepr
-from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.importtools import objects_from_script
+from prefect.utilities.collections import listrepr
 
 
 class DeploymentSpec(deprecated.DeploymentSpec):
@@ -75,47 +63,6 @@ class DeploymentSpec(deprecated.DeploymentSpec):
 
 
 # Utilities for loading flows and deployment specifications ----------------------------
-
-
-def select_flow(
-    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
-) -> Flow:
-    """
-    Select the only flow in an iterable or a flow specified by name.
-
-    Returns
-        A single flow object
-
-    Raises:
-        MissingFlowError: If no flows exist in the iterable
-        MissingFlowError: If a flow name is provided and that flow does not exist
-        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
-    """
-    # Convert to flows by name
-    flows = {f.name: f for f in flows}
-
-    # Add a leading space if given, otherwise use an empty string
-    from_message = (" " + from_message) if from_message else ""
-
-    if not flows:
-        raise MissingFlowError(f"No flows found{from_message}.")
-
-    elif flow_name and flow_name not in flows:
-        raise MissingFlowError(
-            f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}"
-        )
-
-    elif not flow_name and len(flows) > 1:
-        raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
-            "Specify a flow name to select a flow.",
-        )
-
-    if flow_name:
-        return flows[flow_name]
-    else:
-        return list(flows.values())[0]
 
 
 def select_deployment(
@@ -185,147 +132,6 @@ def select_deployment(
         return deployments_by_flow[flow_name]
     else:
         return list(deployments.values())[0]
-
-
-def load_flows_from_script(path: str) -> Set[Flow]:
-    """
-    Load all flow objects from the given python script. All of the code in the file
-    will be executed.
-
-    Returns:
-        A set of flows
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            objects = objects_from_script(path)
-
-    return set(extract_instances(objects.values(), types=Flow))
-
-
-def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
-    """
-    Extract a flow object from a script by running all of the code in the file.
-
-    If the script has multiple flows in it, a flow name must be provided to specify
-    the flow to return.
-
-    Args:
-        path: A path to a Python script containing flows
-        flow_name: An optional flow name to look for in the script
-
-    Returns:
-        The flow object from the script
-
-    Raises:
-        See `load_flows_from_script` and `select_flow`
-    """
-    return select_flow(
-        load_flows_from_script(path),
-        flow_name=flow_name,
-        from_message=f"in script '{path}'",
-    )
-
-
-def deployment_specs_and_flows_from_script(
-    script_path: str,
-) -> Tuple[List[DeploymentSpec], Set[Flow]]:
-    """
-    Load deployment specifications and flows from a python script.
-    """
-
-    # TODO: Refactor how flows are loaded and make it consistent with how
-    # depolyment specrs are loaded. https://github.com/PrefectHQ/orion/issues/2012
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            flows = load_flows_from_script(script_path)
-    return (registry.deployment_specs, flows)
-
-
-def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
-    """
-    Load deployment specifications from a python script.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            objects_from_script(path)
-    return registry.deployment_specs
-
-
-def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
-    """
-    Load deployment specifications from a yaml file.
-    """
-    with fsspec.open(path, "r") as f:
-        contents = f.read()
-
-    # Parse into a yaml tree to retrieve separate documents
-    nodes = yaml.compose_all(contents)
-
-    specs = []
-
-    for node in nodes:
-        line = node.start_mark.line + 1
-
-        # Load deployments relative to the yaml file's directory
-        with tmpchdir(path):
-            raw_spec = yaml.safe_load(yaml.serialize(node))
-            spec = DeploymentSpec.parse_obj(raw_spec)
-
-        # Update the source to be from the YAML file instead of this utility
-        spec._source = {"file": str(path), "line": line}
-        specs.append(spec)
-
-    return specs
-
-
-def _register_spec(spec: DeploymentSpec) -> None:
-    """
-    Collect the `DeploymentSpec` object on the
-    PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
-    the same name are created, the last will be used.
-
-    This is convenient for `deployment_specs_from_script` which can collect
-    deployment declarations without requiring them to be assigned to a global
-    variable.
-
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    registry = PrefectObjectRegistry.get()
-    registry.deployment_specs.append(spec)
-
-
-def load_flow_from_text(script_contents: AnyStr, flow_name: str):
-    """
-    Load a flow from a text script.
-
-    The script will be written to a temporary local file path so errors can refer
-    to line numbers and contextual tracebacks can be provided.
-    """
-    with NamedTemporaryFile(
-        mode="wt" if isinstance(script_contents, str) else "wb",
-        prefix=f"flow-script-{flow_name}",
-        suffix=".py",
-        delete=False,
-    ) as tmpfile:
-        tmpfile.write(script_contents)
-        tmpfile.flush()
-    try:
-        flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
-    finally:
-        # windows compat
-        tmpfile.close()
-        os.remove(tmpfile.name)
-    return flow
 
 
 @inject_client

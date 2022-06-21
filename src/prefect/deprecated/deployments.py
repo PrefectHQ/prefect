@@ -5,19 +5,22 @@ from os.path import abspath
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+import fsspec
+import yaml
 from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_script
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.packaging.script import ScriptPackager
 from prefect.utilities.asyncio import sync_compatible
-from prefect.utilities.filesystem import is_local_path
+from prefect.utilities.filesystem import is_local_path, tmpchdir
+from prefect.utilities.importtools import objects_from_script
 
 
 class DeploymentSpec(PrefectBaseModel, abc.ABC):
@@ -83,7 +86,7 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
             "line": frame.f_lineno,
         }
 
-        deployments._register_spec(self)
+        _register_spec(self)
 
     @validator("name")
     def validate_name_characters(cls, v):
@@ -111,8 +114,6 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
         # Load the flow from the flow location
 
         if self.flow_location and not self.flow:
-            from prefect.deployments import load_flow_from_script
-
             try:
                 self.flow = load_flow_from_script(self.flow_location, self.flow_name)
             except MissingFlowError as exc:
@@ -220,3 +221,59 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
                 yield super().validate
             else:
                 yield validator
+
+
+def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
+    """
+    Load deployment specifications from a python script.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry() as registry:
+        with registry.block_code_execution():
+            objects_from_script(path)
+    return registry.deployment_specs
+
+
+def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
+    """
+    Load deployment specifications from a yaml file.
+    """
+    with fsspec.open(path, "r") as f:
+        contents = f.read()
+
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
+
+    specs = []
+
+    for node in nodes:
+        line = node.start_mark.line + 1
+
+        # Load deployments relative to the yaml file's directory
+        with tmpchdir(path):
+            raw_spec = yaml.safe_load(yaml.serialize(node))
+            spec = DeploymentSpec.parse_obj(raw_spec)
+
+        # Update the source to be from the YAML file instead of this utility
+        spec._source = {"file": str(path), "line": line}
+        specs.append(spec)
+
+    return specs
+
+
+def _register_spec(spec: DeploymentSpec) -> None:
+    """
+    Collect the `DeploymentSpec` object on the
+    PrefectObjectRegistry.deployment_specs dictionary. If multiple specs with
+    the same name are created, the last will be used.
+
+    This is convenient for `deployment_specs_from_script` which can collect
+    deployment declarations without requiring them to be assigned to a global
+    variable.
+
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    registry = PrefectObjectRegistry.get()
+    registry.deployment_specs.append(spec)
