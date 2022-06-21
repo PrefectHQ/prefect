@@ -1,3 +1,5 @@
+from asyncio.windows_utils import pipe
+import resource
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -100,6 +102,11 @@ class DatafactoryCreate(Task):
         """
         datafactory_client = _get_datafactory_client(azure_credentials_secret)
 
+        if not datafactory_name:
+            raise ValueError(f"The datafactory_name must be specified.")
+        if not resource_group_name:
+            raise ValueError(f"The resource_group_name must be specified.")
+  
         self.logger.info(
             f"Preparing to create the {datafactory_name} datafactory under "
             f"{resource_group_name} in {location}"
@@ -197,6 +204,15 @@ class PipelineCreate(Task):
         """
         datafactory_client = _get_datafactory_client(azure_credentials_secret)
 
+        if not datafactory_name:
+            raise ValueError(f"The datafactory_name must be specified.")
+        if not resource_group_name:
+            raise ValueError(f"The resource_group_name must be specified.")
+        if not pipeline_name:
+            raise ValueError(f"The pipeline_name must be specified.")
+        if not activities:
+            raise ValueError(f"The activities must be specified.")
+  
         self.logger.info(
             f"Preparing to create the {pipeline_name} pipeline "
             f"containing {len(activities)} activities in the "
@@ -281,7 +297,6 @@ class PipelineRun(Task):
             - datafactory_name (str): Name of the datafactory to create.
             - resource_group_name (str): Name of the resource group.
             - pipeline_name (str): The name of the pipeline.
-            - activities (list): The list of activities to run in the pipeline.
             - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
                 your Azure credentials; this Secret must be JSON string with the keys
                 `subscription_id`, `client_id`, `secret` and `tenant`.
@@ -300,6 +315,13 @@ class PipelineRun(Task):
             days=1
         )
 
+        if not datafactory_name:
+            raise ValueError(f"The datafactory_name must be specified.")
+        if not resource_group_name:
+            raise ValueError(f"The resource_group_name must be specified.")
+        if not pipeline_name:
+            raise ValueError(f"The pipeline_name must be specified.")
+  
         self.logger.info(
             f"Preparing to run the {pipeline_name} pipeline in the "
             f"{datafactory_name} factory under {resource_group_name}."
