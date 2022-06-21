@@ -30,7 +30,7 @@
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.15",
     "@types/d3": "^7.4.0",
-    "@types/expect-puppeteer": "^5.0.0",
+    "@types/expect-puppeteer": "^5.0.1",
     "@types/faker": "^5.5.9",
     "@types/jest": "^27.5.0",
     "@types/jest-dev-server": "^5.0.0",
