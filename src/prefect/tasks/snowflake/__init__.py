@@ -8,7 +8,7 @@ try:
         SnowflakeQuery,
         SnowflakeQueriesFromFile,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.snowflake` requires Prefect to be installed with the "snowflake" extra.'
     ) from err
