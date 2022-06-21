@@ -1,0 +1,330 @@
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+from azure.identity import ClientSecretCredential
+from azure.mgmt.datafactory import DataFactoryManagementClient
+from azure.mgmt.datafactory.models import (
+    Factory,
+    PipelineResource,
+    RunFilterParameters
+)
+
+from prefect import Task
+from prefect.client import Secret
+from prefect.utilities.tasks import defaults_from_attrs
+
+
+def _get_datafactory_client(azure_credentials_secret: str):
+    """
+    Helper function to create datafactory client.
+    """
+    azure_credentials = Secret(azure_credentials_secret).get()
+
+    client_secret_credential = ClientSecretCredential(
+        client_id=azure_credentials["client_id"],
+        client_secret=azure_credentials["client_secret"],
+        tenant_id=azure_credentials["tenant_id"],
+    )
+    subscription_id = azure_credentials["subscription_id"]
+    datafactory_client = DataFactoryManagementClient(
+        client_secret_credential, subscription_id
+    )
+    return datafactory_client
+
+
+class DatafactoryCreate(Task):
+    """
+    Task for creating an Azure datafactory.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - datafactory_name (str): Name of the datafactory to create.
+        - resource_group_name (str): Name of the resource group.
+        - azure_credentials_secret (str): the name of the Prefect Secret that stores
+            your Azure credentials; this Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - location (str, optional): The location of the datafactory.
+        - options (dict, optional): The options to be passed to the
+            `create_or_update` method.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        azure_credentials_secret: str = "AZ_CREDENTIALS",
+        location: str = "eastus",
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> None:
+        self.datafactory_name = datafactory_name
+        self.resource_group_name = resource_group_name
+        self.azure_credentials_secret = azure_credentials_secret
+        self.location = location
+        self.options = options
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "datafactory_name",
+        "resource_group_name",
+        "azure_credentials_secret",
+        "location",
+        "options",
+    )
+    def run(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        azure_credentials_secret: str = None,
+        location: str = None,
+        options: Dict[str, Any] = None,
+    ) -> Dict[Any, Any]:
+        """
+        Create an Azure datafactory.
+
+        Args:
+            - datafactory_name (str): Name of the datafactory to create.
+            - resource_group_name (str): Name of the resource group.
+            - azure_credentials_secret (str): the name of the Prefect Secret that stores
+                your Azure credentials; this Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - location (str, optional): The location of the datafactory.
+            - options (dict, optional): The options to be passed to the
+                `create_or_update` method.
+
+        Returns:
+            The datafactory name.
+        """
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+
+        self.logger.info(
+            f"Preparing to create the {datafactory_name} datafactory under "
+            f"{resource_group_name} in {location}"
+        )
+        factory = Factory(location=location)
+        create_factory = datafactory_client.factories.create_or_update(
+            resource_group_name, datafactory_name, factory, **options or {}
+        )
+        while create_factory.provisioning_state != "Succeeded":
+            self.logger.info(
+                f"The {datafactory_name} factory status: "
+                f"{create_factory.provisioning_state}"
+            )
+            time.sleep(1)
+
+        return datafactory_name
+
+
+class PipelineCreate(Task):
+    """
+    Task for creating an Azure datafactory pipeline.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - datafactory_name (str): Name of the datafactory to create.
+        - resource_group_name (str): Name of the resource group.
+        - pipeline_name (str): The name of the pipeline.
+        - activities (list): The list of activities to run in the pipeline.
+        - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
+            your Azure credentials; this Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - parameters (dict): The parameters to be used in pipeline.
+        - options (dict, optional): The options to be passed to the
+            `create_or_update` method.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        pipeline_name: str = None,
+        activities: List[Any] = None,
+        azure_credentials_secret: str = "AZ_CREDENTIALS",
+        parameters: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+        **kwargs,
+    ) -> None:
+        self.datafactory_name = datafactory_name
+        self.resource_group_name = resource_group_name
+        self.pipeline_name = pipeline_name
+        self.activities = activities
+        self.azure_credentials_secret = azure_credentials_secret
+        self.parameters = parameters
+        self.options = options
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "datafactory_name",
+        "resource_group_name",
+        "pipeline_name",
+        "activities",
+        "azure_credentials_secret",
+        "parameters",
+        "options",
+    )
+    def run(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        pipeline_name: str = None,
+        activities: List[Any] = None,
+        azure_credentials_secret: str = None,
+        parameters: Dict[str, Any] = None,
+        options: Dict[str, Any] = None,
+    ) -> Dict[Any, Any]:
+        """
+        Create an Azure datafactory pipeline.
+
+        Args:
+            - datafactory_name (str): Name of the datafactory to create.
+            - resource_group_name (str): Name of the resource group.
+            - pipeline_name (str): The name of the pipeline.
+            - activities (list): The list of activities to run in the pipeline.
+            - parameters (dict): The parameters to be used in pipeline.
+            - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
+                your Azure credentials; this Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - options (dict, optional): The options to be passed to the
+                `create_or_update` method.
+
+        Returns:
+            The pipeline name.
+        """
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+
+        self.logger.info(
+            f"Preparing to create the {pipeline_name} pipeline "
+            f"containing {len(activities)} activities in the "
+            f"{datafactory_name} factory under {resource_group_name}."
+        )
+        pipeline = PipelineResource(activities=activities, parameters=parameters or {})
+        datafactory_client.pipelines.create_or_update(
+            resource_group_name,
+            datafactory_name,
+            pipeline_name,
+            pipeline,
+            **options or {},
+        )
+
+        return pipeline_name
+
+
+class PipelineRun(Task):
+    """
+    Task for creating an Azure datafactory pipeline run.
+    Note that all initialization arguments can optionally be provided or overwritten at runtime.
+
+    Args:
+        - datafactory_name (str): Name of the datafactory to create.
+        - resource_group_name (str): Name of the resource group.
+        - pipeline_name (str): The name of the pipeline.
+        - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
+            your Azure credentials; this Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - parameters (dict): The parameters to be used in pipeline.
+        - last_updated_after (datetime): The time at or after which the run event was updated;
+            used to filter and query the pipeline run, and defaults to yesterday.
+        - last_updated_before (datetime): The time at or before which the run event was updated;
+            used to filter and query the pipeline run and defaults to tomorrow.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        pipeline_name: str = None,
+        azure_credentials_secret: str = "AZ_CREDENTIALS",
+        parameters: Dict[str, Any] = None,
+        last_updated_after: Optional[datetime] = None,
+        last_updated_before: Optional[datetime] = None,
+        **kwargs,
+    ) -> None:
+        self.datafactory_name = datafactory_name
+        self.resource_group_name = resource_group_name
+        self.pipeline_name = pipeline_name
+        self.azure_credentials_secret = azure_credentials_secret
+        self.parameters = parameters
+        self.last_updated_after = last_updated_after
+        self.last_updated_before = last_updated_before
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs(
+        "datafactory_name",
+        "resource_group_name",
+        "pipeline_name",
+        "azure_credentials_secret",
+        "parameters",
+        "last_updated_after",
+        "last_updated_before",
+    )
+    def run(
+        self,
+        datafactory_name: str = None,
+        resource_group_name: str = None,
+        pipeline_name: str = None,
+        azure_credentials_secret: str = None,
+        parameters: Dict[str, Any] = None,
+        last_updated_after: Optional[datetime] = None,
+        last_updated_before: Optional[datetime] = None,
+    ) -> Dict[Any, Any]:
+        """
+        Create an Azure datafactory pipeline run.
+
+        Args:
+            - datafactory_name (str): Name of the datafactory to create.
+            - resource_group_name (str): Name of the resource group.
+            - pipeline_name (str): The name of the pipeline.
+            - activities (list): The list of activities to run in the pipeline.
+            - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
+                your Azure credentials; this Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - parameters (dict): The parameters to be used in pipeline.
+            - last_updated_after (datetime): The time at or after which the run event was updated;
+                used to filter and query the pipeline run, and defaults to yesterday.
+            - last_updated_before (datetime): The time at or before which the run event was updated;
+                used to filter and query the pipeline run and defaults to tomorrow.
+
+        Returns:
+            The pipeline run response.
+        """
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+        last_updated_after = last_updated_after or datetime.utcnow() - timedelta(days=1)
+        last_updated_before = last_updated_before or datetime.utcnow() + timedelta(
+            days=1
+        )
+
+        self.logger.info(
+            f"Preparing to run the {pipeline_name} pipeline in the "
+            f"{datafactory_name} factory under {resource_group_name}."
+        )
+        # Create a pipeline run
+        create_run = datafactory_client.pipelines.create_run(
+            resource_group_name,
+            datafactory_name,
+            pipeline_name,
+            parameters=parameters or {},
+        )
+
+        # Monitor the pipeline run
+        pipeline_run = datafactory_client.pipeline_runs.get(
+            resource_group_name, datafactory_name, create_run.run_id
+        )
+        while pipeline_run.status != "Succeeded":
+            self.logger.info(f"The pipeline run status: {pipeline_run.status}")
+            time.sleep(1)
+
+        filter_params = RunFilterParameters(
+            last_updated_after=last_updated_after,
+            last_updated_before=last_updated_before,
+        )
+        query_response = datafactory_client.activity_runs.query_by_pipeline_run(
+            resource_group_name, datafactory_name, pipeline_run.run_id, filter_params
+        )
+        return query_response
