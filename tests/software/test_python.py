@@ -35,6 +35,22 @@ class TestPythonEnvironment:
         commands = reqs.install_commands()
         assert commands == ["pip install 'foo' 'bar>=2'"]
 
+    def test_install_commands_multiline(self):
+        reqs = PythonEnvironment(pip_requirements=["foo", "bar>=2"])
+        commands = reqs.install_commands(multiline=True)
+
+        assert len(commands) == 1
+        assert (
+            commands[0]
+            == dedent(
+                r"""
+                pip install \
+                    'foo' \
+                    'bar>=2'
+                """
+            ).lstrip()
+        )
+
     def test_install_commands_empty(self):
         reqs = PythonEnvironment(pip_requirements=[])
 

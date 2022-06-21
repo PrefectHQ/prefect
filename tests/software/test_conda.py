@@ -343,3 +343,26 @@ class TestCondaEnvironment:
 
         commands = reqs.install_commands()
         assert commands == ["pip install 'foo' 'bar>=2'"]
+
+    def test_install_commands_multiline(self):
+        reqs = CondaEnvironment(
+            conda_requirements=["foobar", "x=1.0=afsfs_x"],
+            pip_requirements=["foo", "bar>=2"],
+        )
+        commands = reqs.install_commands(multiline=True)
+
+        assert len(commands) == 2
+        assert (
+            "\n".join(commands)
+            == dedent(
+                r"""
+                conda install \
+                    'foobar' \
+                    'x=1.0=afsfs_x'
+
+                pip install \
+                    'foo' \
+                    'bar>=2'
+                """
+            ).lstrip()
+        )
