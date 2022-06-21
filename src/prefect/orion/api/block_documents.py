@@ -59,7 +59,7 @@ async def read_block_documents(
     result = await models.block_documents.read_block_documents(
         session=session,
         block_document_filter=block_documents,
-        block_capabilities_filter=block_schemas,
+        block_schema_filter=block_schemas,
         offset=offset,
         limit=limit,
     )

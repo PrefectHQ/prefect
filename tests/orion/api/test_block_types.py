@@ -220,7 +220,7 @@ class TestReadBlockTypes:
         self, client, block_types_with_associated_capabilities
     ):
         response = await client.post(
-            "/block_types/filter", json=dict(name=dict(like_="duck"))
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="duck")))
         )
 
         assert response.status_code == 200
@@ -229,7 +229,7 @@ class TestReadBlockTypes:
         assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
         response = await client.post(
-            "/block_types/filter", json=dict(name=dict(like_="c"))
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="c")))
         )
 
         assert response.status_code == 200
@@ -241,7 +241,7 @@ class TestReadBlockTypes:
         ]
 
         response = await client.post(
-            "/block_types/filter", json=dict(name=dict(like_="z"))
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="z")))
         )
         assert response.status_code == 200
         read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
@@ -251,7 +251,9 @@ class TestReadBlockTypes:
     ):
         response = await client.post(
             "/block_types/filter",
-            json=dict(block_capabilities=dict(all_=["fly", "swim"])),
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
         )
 
         assert response.status_code == 200
@@ -260,7 +262,8 @@ class TestReadBlockTypes:
         assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
         response = await client.post(
-            "/block_types/filter", json=dict(block_capabilities=dict(all_=["fly"]))
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
         )
 
         assert response.status_code == 200
@@ -272,7 +275,8 @@ class TestReadBlockTypes:
         ]
 
         response = await client.post(
-            "/block_types/filter", json=dict(block_capabilities=dict(all_=["swim"]))
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
         assert response.status_code == 200
         read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())

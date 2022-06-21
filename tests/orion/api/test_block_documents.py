@@ -439,7 +439,7 @@ class TestReadBlockDocuments:
     ):
         response = await client.post(
             "/block_documents/filter",
-            json=dict(block_document_filter=dict(is_anonymous=dict(eq_=is_anonymous))),
+            json=dict(block_documents=dict(is_anonymous=dict(eq_=is_anonymous))),
         )
         assert response.status_code == status.HTTP_200_OK
         read_block_documents = pydantic.parse_obj_as(
@@ -462,7 +462,7 @@ class TestReadBlockDocuments:
         """
         response = await client.post(
             "/block_documents/filter",
-            json=dict(block_document_filter=dict(is_anonymous=is_anonymous_filter)),
+            json=dict(block_documents=dict(is_anonymous=is_anonymous_filter)),
         )
         assert response.status_code == status.HTTP_200_OK
         read_block_documents = pydantic.parse_obj_as(
@@ -498,7 +498,9 @@ class TestReadBlockDocuments:
     ):
         response = await client.post(
             "/block_documents/filter",
-            json=dict(block_capabilities=dict(all_=["fly", "swim"])),
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
         )
         assert response.status_code == 200
         fly_and_swim_block_documents = pydantic.parse_obj_as(
@@ -509,7 +511,8 @@ class TestReadBlockDocuments:
         assert fly_and_swim_block_documents[0].id == block_documents[5].id
 
         response = await client.post(
-            "/block_documents/filter", json=dict(block_capabilities=dict(all_=["fly"]))
+            "/block_documents/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
         )
         assert response.status_code == 200
         fly_block_documents = pydantic.parse_obj_as(
@@ -523,7 +526,8 @@ class TestReadBlockDocuments:
         ]
 
         response = await client.post(
-            "/block_documents/filter", json=dict(block_capabilities=dict(all_=["swim"]))
+            "/block_documents/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
         assert response.status_code == 200
         swim_block_documents = pydantic.parse_obj_as(
