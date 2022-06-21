@@ -4,13 +4,15 @@
 
 We're excited to bring you 2.0b7, which implements a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.
 
-
 ### Improvements
 - Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI
 - Added anonymous blocks, allowing users to create "inline" or "dynamic" block documents to deliver block-like functionality without filling up the block document table unnecessarily
 - Performance improvements to the service that marks flows runs as late
 - Added the ability for flow names to include underscores for use in DeploymentSpecs
 - Split [Ray](https://prefecthq.github.io/prefect-ray/) and [Dask](https://prefecthq.github.io/prefect-dask/) task runners into their own collections.
+- Removed delays to agent shutdown on keyboard interrupt
+- Added informative messaging when attempting to use a paused work queue
+- Improved task naming conventions for tasks defined using lambda functions
 
 ### Documentation improvements
 - Updated screenshots and description of workflows to reflect new UI
@@ -28,6 +30,9 @@ We're excited to bring you 2.0b7, which implements a number of important improve
 
 ### Bug squashing
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
+- Fixed a bug in terminal state data handling that caused timeouts
+- Fixed a bug that caused redundant flow execution during some instances of retriving the flow run specification during deployment creation
+- Fixed a bug wherein Pydantic models being passed to Prefect tasks were having extra keys dropped.
 
 ## 2.0b6
 
