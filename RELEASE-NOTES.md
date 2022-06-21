@@ -5,7 +5,7 @@
 We're excited to bring you 2.0b7, which implements a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.
 
 ### Improvements
-- Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI
+- Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI.
 - Added anonymous blocks, allowing Prefect to dynamically store blocks for you without cluttering your workspace.
 - Performance improvements to the service that marks flows runs as late
 - Added the ability for flow names to include underscores for use in DeploymentSpecs
