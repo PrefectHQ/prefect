@@ -15,6 +15,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
+from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
 
 
@@ -356,7 +357,9 @@ async def read_block_documents(
     """
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
-        block_document_filter = schemas.filters.BlockDocumentFilter()
+        block_document_filter = schemas.filters.BlockDocumentFilter(
+            is_anonymous=BlockDocumentFilterIsAnonymous(eq_=False)
+        )
 
     filtered_block_documents_query = sa.select(db.BlockDocument.id).order_by(
         db.BlockDocument.name
