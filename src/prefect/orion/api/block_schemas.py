@@ -25,7 +25,7 @@ async def create_block_schema(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
 
-    # check if the requested block type is a system block type
+    # check if the requested block type is protected
     block_type = await models.block_types.read_block_type(
         session=session, block_type_id=block_schema.block_type_id
     )
@@ -34,10 +34,10 @@ async def create_block_schema(
             status.HTTP_404_NOT_FOUND,
             detail=f"Block type {block_schema.block_type_id} not found.",
         )
-    elif block_type.is_system_block_type:
+    elif block_type.is_protected:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            detail="Block schemas for system-generated block types cannot be created.",
+            detail="Block schemas for protected block types cannot be created.",
         )
 
     try:
@@ -72,10 +72,10 @@ async def delete_block_schema(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block schema not found"
         )
 
-    if block_schema.block_type.is_system_block_type:
+    if block_schema.block_type.is_protected:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            detail="Block schemas for system-generated block types cannot be deleted.",
+            detail="Block schemas for protected block types cannot be deleted.",
         )
 
     await models.block_schemas.delete_block_schema(

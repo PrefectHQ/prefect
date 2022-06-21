@@ -21,7 +21,7 @@ async def create_block_type(
     Create a new block type
     """
     # API-created blocks cannot start with the word "Prefect"
-    # as it is reserved for system blocks
+    # as it is reserved for system use
     if block_type.name.lower().startswith("prefect"):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
@@ -99,10 +99,10 @@ async def update_block_type(
     )
     if db_block_type is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
-    elif db_block_type.is_system_block_type:
+    elif db_block_type.is_protected:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            detail="System-generated block types cannot be updated.",
+            detail="protected block types cannot be updated.",
         )
     await models.block_types.update_block_type(
         session=session, block_type=block_type, block_type_id=block_type_id
@@ -121,10 +121,10 @@ async def delete_block_type(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block type not found"
         )
-    elif db_block_type.is_system_block_type:
+    elif db_block_type.is_protected:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            detail="System-generated block types cannot be deleted.",
+            detail="protected block types cannot be deleted.",
         )
     await models.block_types.delete_block_type(
         session=session, block_type_id=block_type_id

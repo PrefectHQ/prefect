@@ -15,9 +15,7 @@ EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 async def system_block_type(session):
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.core.BlockType(
-            name="system_block", is_system_block_type=True
-        ),
+        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
     )
     await session.commit()
     return block_type
@@ -101,7 +99,7 @@ class TestCreateBlockSchema:
         assert response.status_code == 403
         assert (
             response.json()["detail"]
-            == "Block schemas for system-generated block types cannot be created."
+            == "Block schemas for protected block types cannot be created."
         )
 
 
@@ -137,7 +135,7 @@ class TestDeleteBlockSchema:
         assert response.status_code == 403
         assert (
             response.json()["detail"]
-            == "Block schemas for system-generated block types cannot be deleted."
+            == "Block schemas for protected block types cannot be deleted."
         )
 
 
