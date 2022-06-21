@@ -9,6 +9,7 @@ try:
         CosmosDBReadItems,
         CosmosDBQueryItems,
     )
+    from prefect.tasks.azure.datafactory import DatafactoryCreate, PipelineCreate, PipelineRun
 except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.azure` requires Prefect to be installed with the "azure" extra.'
@@ -20,4 +21,7 @@ __all__ = [
     "CosmosDBCreateItem",
     "CosmosDBQueryItems",
     "CosmosDBReadItems",
+    "DatafactoryCreate",
+    "PipelineCreate",
+    "PipelineRun"
 ]
