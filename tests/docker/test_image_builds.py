@@ -16,6 +16,11 @@ IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 pytestmark = pytest.mark.service("docker")
 
 
+@pytest.fixture
+def contexts() -> Path:
+    return Path(__file__).parent / "contexts"
+
+
 def test_builds_tiny_hello_image(contexts: Path, docker: DockerClient):
     image_id = build_image(contexts / "tiny")
     assert IMAGE_ID_PATTERN.match(image_id)
