@@ -61,6 +61,9 @@ def current_environment_conda_requirements(
 ) -> List[CondaRequirement]:
     """
     Return conda requirements by exporting the current environment.
+
+    Skips any pip requirements included in the export. Only requirements that are
+    managed by conda are returned.
     """
     command = ["conda", "env", "export", "--json"]
 
