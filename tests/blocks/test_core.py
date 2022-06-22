@@ -720,7 +720,7 @@ class TestSaveBlock:
 
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar", c=1)
-        await new_anon_block.save()
+        await new_anon_block.save(is_anonymous=True)
 
         assert new_anon_block._block_document_name is not None
         assert new_anon_block._block_document_id is not None
@@ -742,6 +742,20 @@ class TestSaveBlock:
         assert loaded_new_anon_block._block_type_id == new_anon_block._block_type_id
 
         assert loaded_new_anon_block == new_anon_block
+
+    async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar", c=1)
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save a block document without a name.",
+        ):
+            await new_block.save()
+
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save an anonymous block document with a name.",
+        ):
+            await new_block.save(name="my-new-block", is_anonymous=True)
 
     async def test_save_nested_blocks(self):
         block_name = "biggest-block-in-all-the-land"
@@ -790,7 +804,7 @@ class TestSaveBlock:
         await named_inner_block.save("the-inside-block")
 
         anonymous_outer_block = OuterBlock(size=10, contents=named_inner_block)
-        await anonymous_outer_block.save()
+        await anonymous_outer_block.save(is_anonymous=True)
 
         assert anonymous_outer_block._block_document_name is not None
         assert anonymous_outer_block._is_anonymous
@@ -804,7 +818,7 @@ class TestSaveBlock:
         self, InnerBlock, OuterBlock
     ):
         anonymous_inner_block = InnerBlock(size=1)
-        await anonymous_inner_block.save()
+        await anonymous_inner_block.save(is_anonymous=True)
 
         assert anonymous_inner_block._block_document_name is not None
         assert anonymous_inner_block._is_anonymous
