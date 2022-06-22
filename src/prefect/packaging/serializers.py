@@ -114,6 +114,8 @@ class SourceSerializer(Serializer):
     def dumps(self, obj: Any) -> bytes:
         return json.dumps(
             {
+                # TODO: This will just get the source code for the flow itself but not
+                #       all of the relevant context in its file
                 "source": inspect.getsource(obj),
                 "symbol_name": obj.__name__,
             }

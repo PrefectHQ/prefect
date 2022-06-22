@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from prefect.deployments import FlowSource
+    from prefect.flows import Flow
 
 D = TypeVar("D")
 
@@ -26,6 +26,9 @@ class PackageManifest(BaseModel, abc.ABC):
     Describes a package.
     """
 
+    # The packager implementation for this manifest
+    __packager__: "Packager"
+
 
 class Packager(BaseModel, abc.ABC):
     """
@@ -33,8 +36,14 @@ class Packager(BaseModel, abc.ABC):
     """
 
     @abc.abstractmethod
-    async def package(self, flow: "FlowSource") -> PackageManifest:
+    async def package(self, flow: Flow) -> "PackageManifest":
         """
         Package a flow and returns a manifest describing how the package can be used
         in a deployment.
+        """
+
+    @abc.abstractstaticmethod
+    def unpackage(manifest: "PackageManifest") -> Flow:
+        """
+        Unpackage a flow using the manifest.
         """

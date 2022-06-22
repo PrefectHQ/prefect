@@ -1,23 +1,17 @@
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from pydantic import Field
 
+from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Serializer
-from prefect.packaging.serializers import SourceSerializer
+from prefect.packaging.serializers import PickleSerializer
 from prefect.utilities.hashing import stable_hash
-
-if TYPE_CHECKING:
-    from prefect.deployments import FlowSource
-
-
-class FilePackageManifest(PackageManifest):
-    pass
 
 
 class FilePackager:
-    serializer: Serializer = Field(default_factory=SourceSerializer)
+    serializer: Serializer = Field(default_factory=PickleSerializer)
 
-    async def package(self, flow: "FlowSource") -> FilePackageManifest:
+    async def package(self, flow: Flow) -> "FilePackageManifest":
         """
         Package a flow as a file.
         """
@@ -28,4 +22,17 @@ class FilePackager:
         with open(path, mode="wb") as file:
             file.write(content)
 
-        return str(path).encode()
+        return FilePackageManifest(serializer=self.serializer, path=path)
+
+    @staticmethod
+    def unpackage(manifest: "FilePackageManifest") -> Flow:
+        with open(manifest.path, mode="rb") as file:
+            content = file.read()
+        return manifest.serializer.loads(content)
+
+
+class FilePackageManifest(PackageManifest):
+    __packager__ = FilePackager
+
+    serializer: Serializer
+    path: Path
