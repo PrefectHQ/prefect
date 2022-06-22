@@ -1,16 +1,9 @@
-from asyncio.windows_utils import pipe
-import resource
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from azure.identity import ClientSecretCredential
-from azure.mgmt.datafactory import DataFactoryManagementClient
-from azure.mgmt.datafactory.models import (
-    Factory,
-    PipelineResource,
-    RunFilterParameters
-)
+import azure.mgmt.datafactory
+import azure.identity
 
 from prefect import Task
 from prefect.client import Secret
@@ -23,13 +16,13 @@ def _get_datafactory_client(azure_credentials_secret: str):
     """
     azure_credentials = Secret(azure_credentials_secret).get()
 
-    client_secret_credential = ClientSecretCredential(
+    client_secret_credential = azure.identity.ClientSecretCredential(
         client_id=azure_credentials["client_id"],
         client_secret=azure_credentials["client_secret"],
         tenant_id=azure_credentials["tenant_id"],
     )
     subscription_id = azure_credentials["subscription_id"]
-    datafactory_client = DataFactoryManagementClient(
+    datafactory_client = azure.mgmt.datafactory.DataFactoryManagementClient(
         client_secret_credential, subscription_id
     )
     return datafactory_client
@@ -100,18 +93,18 @@ class DatafactoryCreate(Task):
         Returns:
             The datafactory name.
         """
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
-
         if not datafactory_name:
             raise ValueError(f"The datafactory_name must be specified.")
         if not resource_group_name:
             raise ValueError(f"The resource_group_name must be specified.")
   
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+  
         self.logger.info(
             f"Preparing to create the {datafactory_name} datafactory under "
             f"{resource_group_name} in {location}"
         )
-        factory = Factory(location=location)
+        factory = azure.mgmt.datafactory.models.Factory(location=location)
         create_factory = datafactory_client.factories.create_or_update(
             resource_group_name, datafactory_name, factory, **options or {}
         )
@@ -202,8 +195,6 @@ class PipelineCreate(Task):
         Returns:
             The pipeline name.
         """
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
-
         if not datafactory_name:
             raise ValueError(f"The datafactory_name must be specified.")
         if not resource_group_name:
@@ -213,12 +204,15 @@ class PipelineCreate(Task):
         if not activities:
             raise ValueError(f"The activities must be specified.")
   
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+  
         self.logger.info(
             f"Preparing to create the {pipeline_name} pipeline "
             f"containing {len(activities)} activities in the "
             f"{datafactory_name} factory under {resource_group_name}."
         )
-        pipeline = PipelineResource(activities=activities, parameters=parameters or {})
+        pipeline = azure.mgmt.datafactory.models.PipelineResource(
+            activities=activities, parameters=parameters or {})
         datafactory_client.pipelines.create_or_update(
             resource_group_name,
             datafactory_name,
@@ -309,12 +303,6 @@ class PipelineRun(Task):
         Returns:
             The pipeline run response.
         """
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
-        last_updated_after = last_updated_after or datetime.utcnow() - timedelta(days=1)
-        last_updated_before = last_updated_before or datetime.utcnow() + timedelta(
-            days=1
-        )
-
         if not datafactory_name:
             raise ValueError(f"The datafactory_name must be specified.")
         if not resource_group_name:
@@ -322,6 +310,12 @@ class PipelineRun(Task):
         if not pipeline_name:
             raise ValueError(f"The pipeline_name must be specified.")
   
+        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+        last_updated_after = last_updated_after or datetime.utcnow() - timedelta(days=1)
+        last_updated_before = last_updated_before or datetime.utcnow() + timedelta(
+            days=1
+        )
+
         self.logger.info(
             f"Preparing to run the {pipeline_name} pipeline in the "
             f"{datafactory_name} factory under {resource_group_name}."
@@ -342,7 +336,7 @@ class PipelineRun(Task):
             self.logger.info(f"The pipeline run status: {pipeline_run.status}")
             time.sleep(1)
 
-        filter_params = RunFilterParameters(
+        filter_params = azure.mgmt.datafactory.models.RunFilterParameters(
             last_updated_after=last_updated_after,
             last_updated_before=last_updated_before,
         )
