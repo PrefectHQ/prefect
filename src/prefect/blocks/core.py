@@ -354,24 +354,33 @@ class Block(BaseModel, ABC):
 
         return block
 
-    def _define_metadata_on_nested_blocks(self, block_document_references):
+    def _define_metadata_on_nested_blocks(
+        self, block_document_references: Dict[str, Dict[str, Any]]
+    ):
         for (
-            name,
+            field_name,
             block_document_reference,
         ) in block_document_references.items():
-            nested_block = getattr(self, name)
+            nested_block = getattr(self, field_name)
             if isinstance(nested_block, Block):
+                nested_block_document_info = block_document_reference.get(
+                    "block_document", {}
+                )
                 nested_block._define_metadata_on_nested_blocks(
-                    block_document_reference["block_document"][
-                        "block_document_references"
-                    ]
+                    nested_block_document_info.get("block_document_references", {})
                 )
-                nested_block._block_document_id = UUID(
-                    block_document_reference["block_document"]["id"]
+                nested_block_document_id = nested_block_document_info.get("id")
+                nested_block._block_document_id = (
+                    UUID(nested_block_document_id)
+                    if nested_block_document_id is not None
+                    else None
                 )
-                nested_block._block_document_name = block_document_reference[
-                    "block_document"
-                ]["name"]
+                nested_block._block_document_name = nested_block_document_info.get(
+                    "name"
+                )
+                nested_block._is_anonymous = nested_block_document_info.get(
+                    "is_anonymous"
+                )
 
     @classmethod
     async def load(cls, name: str):
@@ -460,16 +469,24 @@ class Block(BaseModel, ABC):
 
             cls._block_schema_id = block_schema.id
 
-    async def save(self, name: str):
+    async def save(self, name: Optional[str] = None):
         """
-        Used to create Block Documents from a Block instance.
+        Used to create Block Documents from a Block instance. If an name is not provided,
+        a generated name will be created for the block.
+
+        Args:
+            name: Name to give saved block document which can later be used to load the
+                block document. If a name is not given, then a name will be generated
+                for the saved block document.
         """
+        # Ensure block type and schema are registered before saving
         await self.register_type_and_schema()
 
+        self._is_anonymous = True if name is None else False
         async with prefect.client.get_client() as client:
             block_document = await client.create_block_document(
                 block_document=self._to_block_document(name=name)
             )
 
-        self._block_document_name = name
+        self._block_document_name = block_document.name
         self._block_document_id = block_document.id
