@@ -357,6 +357,7 @@ def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
 
     return image_name
 
+
 @pytest.fixture(autouse=True)
 def reset_object_registry():
     """
