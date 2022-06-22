@@ -684,6 +684,15 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
     )
 
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        if v is not None:
+            try:
+                v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+            except KeyError as exc:
+                raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+        return v
+
 
 class Agent(ORMBaseModel):
     """An ORM representation of an agent"""

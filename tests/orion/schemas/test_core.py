@@ -63,3 +63,31 @@ class TestBlockDocument:
         assert schemas.core.BlockDocument(
             block_schema_id=uuid4(), block_type_id=uuid4(), is_anonymous=True
         )
+
+
+class TestFlowRunNotificationPolicy:
+    async def test_message_template_variables_are_validated(self):
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="(Invalid template variable provided: 'bad_variable')",
+        ):
+            schemas.core.FlowRunNotificationPolicy(
+                name="test",
+                state_names=[],
+                tags=[],
+                block_document_id=uuid4(),
+                message_template="This uses a {bad_variable}",
+            )
+
+    async def test_multiple_message_template_variables_are_validated(self):
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="(Invalid template variable provided: 'bad_variable')",
+        ):
+            schemas.core.FlowRunNotificationPolicy(
+                name="test",
+                state_names=[],
+                tags=[],
+                block_document_id=uuid4(),
+                message_template="This contains {flow_run_id} and {bad_variable} and {another_bad_variable}",
+            )
