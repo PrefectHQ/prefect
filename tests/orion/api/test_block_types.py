@@ -6,6 +6,8 @@ import pydantic
 import pytest
 from fastapi import status
 
+from prefect.blocks.core import Block
+from prefect.orion import models
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
 from tests.orion.models.test_block_types import CODE_EXAMPLE
@@ -129,6 +131,61 @@ class TestReadBlockType:
 
 
 class TestReadBlockTypes:
+    @pytest.fixture
+    async def block_types_with_associated_capabilities(self, session):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+            def run(self):
+                pass
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+            def fly(self):
+                pass
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+            def swim(self):
+                pass
+
+        class Duck(CanSwim, CanFly, Block):
+            a: str
+
+        class Bird(CanFly, Block):
+            b: str
+
+        class Cat(CanRun, Block):
+            c: str
+
+        block_type_duck = await models.block_types.create_block_type(
+            session=session, block_type=Duck._to_block_type()
+        )
+        block_schema_duck = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Duck._to_block_schema(block_type_id=block_type_duck.id),
+        )
+        block_type_bird = await models.block_types.create_block_type(
+            session=session, block_type=Bird._to_block_type()
+        )
+        block_schema_bird = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Bird._to_block_schema(block_type_id=block_type_bird.id),
+        )
+        block_type_cat = await models.block_types.create_block_type(
+            session=session, block_type=Cat._to_block_type()
+        )
+        block_schema_cat = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Cat._to_block_schema(block_type_id=block_type_cat.id),
+        )
+
+        await session.commit()
+
+        return block_type_duck, block_type_bird, block_type_cat
+
     async def test_read_block_types(
         self, client, block_type_x, block_type_y, block_type_z
     ):
@@ -158,6 +215,73 @@ class TestReadBlockTypes:
         assert [block_type.id for block_type in read_block_types] == [
             block_type_z.id,
         ]
+
+    async def test_read_block_types_filter_by_name(
+        self, client, block_types_with_associated_capabilities
+    ):
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="duck")))
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
+
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="c")))
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 2
+        assert [b.id for b in read_block_types] == [
+            block_types_with_associated_capabilities[2].id,
+            block_types_with_associated_capabilities[0].id,
+        ]
+
+        response = await client.post(
+            "/block_types/filter", json=dict(block_types=dict(name=dict(like_="z")))
+        )
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+
+    async def test_read_block_types_filter_by_associated_capability(
+        self, client, block_types_with_associated_capabilities
+    ):
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
+
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
+        )
+
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 2
+        assert [b.id for b in read_block_types] == [
+            block_types_with_associated_capabilities[1].id,
+            block_types_with_associated_capabilities[0].id,
+        ]
+
+        response = await client.post(
+            "/block_types/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
+        )
+        assert response.status_code == 200
+        read_block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(read_block_types) == 1
+        assert read_block_types[0].id == block_types_with_associated_capabilities[0].id
 
 
 class TestUpdateBlockType:
