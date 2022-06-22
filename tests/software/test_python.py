@@ -1,12 +1,12 @@
 from textwrap import dedent
 
 from prefect.software.pip import PipRequirement
-from prefect.software.python import PythonRequirements
+from prefect.software.python import PythonEnvironment
 
 
-class TestPythonRequirements:
+class TestPythonEnvironment:
     def test_init(self):
-        reqs = PythonRequirements(pip_requirements=["foo", "bar>=2"])
+        reqs = PythonEnvironment(pip_requirements=["foo", "bar>=2"])
         assert reqs.pip_requirements == [
             PipRequirement("foo"),
             PipRequirement("bar>=2"),
@@ -22,24 +22,18 @@ class TestPythonRequirements:
                 """
             )
         )
-
-        reqs = PythonRequirements.from_requirements_file(reqs_file)
+        reqs = PythonEnvironment.from_file(reqs_file)
         assert reqs.pip_requirements == [
             PipRequirement("foo"),
             PipRequirement("bar>=2"),
         ]
 
-    def test_to_requirements_file(self, tmp_path):
-        reqs_file = tmp_path / "requirements.txt"
-        reqs = PythonRequirements(pip_requirements=["foo", "bar>=2"])
+    def test_install_commands(self):
+        reqs = PythonEnvironment(pip_requirements=["foo", "bar>=2"])
+        commands = reqs.install_commands()
+        assert commands == [["pip", "install", "foo", "bar>=2"]]
 
-        reqs.to_requirements_file(reqs_file)
-        assert (
-            reqs_file.read_text()
-            == dedent(
-                """
-                foo
-                bar>=2
-                """
-            ).strip()
-        )
+    def test_install_commands_empty(self):
+        reqs = PythonEnvironment(pip_requirements=[])
+        commands = reqs.install_commands()
+        assert commands == []
