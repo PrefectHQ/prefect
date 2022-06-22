@@ -1,23 +1,40 @@
 import datetime
 import inspect
-from itertools import repeat
+import warnings
 from unittest.mock import MagicMock
 
 import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
-from prefect.testing.utilities import exceptions_equal
+from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 
 
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
+
+
+class TestTaskName:
+    def test_name_from_function(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.name == "my_task"
+
+    def test_name_from_kwarg(self):
+        @task(name="another_name")
+        def my_task():
+            pass
+
+        assert my_task.name == "another_name"
 
 
 class TestTaskCall:
@@ -125,26 +142,6 @@ class TestTaskCall:
         assert task_state.is_failed()
         assert task_state.result(raise_on_failure=False) is True
         assert task_state.message == "Test returned state"
-
-    async def test_task_runs_correctly_populate_dynamic_keys(self, orion_client):
-        @task
-        def bar():
-            return "foo"
-
-        @flow(version="test")
-        def foo():
-            return bar().run_id, bar().run_id
-
-        flow_state = foo()
-        task_run_ids = flow_state.result()
-
-        task_runs = [
-            await orion_client.read_task_run(run_id) for run_id in task_run_ids
-        ]
-
-        # Assert dynamic key is set correctly
-        assert task_runs[0].dynamic_key == "0"
-        assert task_runs[1].dynamic_key == "1"
 
     def test_task_called_with_task_dependency(self):
         @task
@@ -583,6 +580,7 @@ class TestTaskCaching:
         assert second_state.result() == 6
         assert third_state.result() == 6
 
+    @flaky_on_windows
     def test_cache_key_hits_with_future_expiration_are_cached(self):
         @task(
             cache_key_fn=lambda *_: "cache hit",
@@ -1270,7 +1268,9 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options()
 
         assert task_with_options is not initial_task
-        assert task_with_options.name == "Initial task"
+        assert (
+            task_with_options.name == "Initial task"
+        )  # The registry renames tasks to avoid collisions.
         assert task_with_options.description == "Task before with options"
         assert set(task_with_options.tags) == {"tag1", "tag2"}
         assert task_with_options.tags is not initial_task.tags
@@ -1302,3 +1302,37 @@ class TestTaskWithOptions:
         # `self` isn't in task decorator
         with_options_params.remove("self")
         assert task_params == with_options_params
+
+
+class TestTaskRegistration:
+    def test_task_is_registered(self):
+        @task
+        def my_task():
+            pass
+
+        registry = PrefectObjectRegistry.get()
+        assert my_task in registry.tasks
+
+    def test_warning_name_conflict_different_function(self):
+        with pytest.warns(
+            UserWarning,
+            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+        ):
+
+            @task(name="my_task")
+            def task_one():
+                pass
+
+            @task(name="my_task")
+            def task_two():
+                pass
+
+    def test_no_warning_name_conflict_task_with_options(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            @task(name="my_task")
+            def task_one():
+                pass
+
+            task_one.with_options(tags=["hello"])
