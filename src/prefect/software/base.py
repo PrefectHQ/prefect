@@ -43,8 +43,8 @@ def remove_duplicate_requirements(
 def pop_requirement_by_name(
     requirements: List[Requirement], name: str
 ) -> Optional[Requirement]:
-    requirement = next((r for r in requirements if r.name == name), None)
-    if requirement:
-        # Remove the item
-        requirements.remove(requirement)
-    return requirement
+    for index, requirement in enumerate(requirements):
+        if requirement.name == name:
+            requirements.pop(index)
+            return requirement
+    return None
