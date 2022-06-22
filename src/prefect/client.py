@@ -1160,7 +1160,7 @@ class OrionClient:
         flow_runner: "FlowRunner" = None,
     ) -> UUID:
         """
-        Create a flow deployment in Orion.
+        Create a deployment.
 
         Args:
             flow_id: the flow ID to create a deployment for
@@ -1188,6 +1188,23 @@ class OrionClient:
 
         response = await self._client.post(
             "/deployments/", json=deployment_create.dict(json_compatible=True)
+        )
+        deployment_id = response.json().get("id")
+        if not deployment_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(deployment_id)
+
+    async def _create_deployment_from_schema(
+        self, schema: schemas.actions.DeploymentCreate
+    ) -> UUID:
+        """
+        Create a deployment from a prepared `DeploymentCreate` schema.
+        """
+        # TODO: We are likely to remove this method once we have considered the
+        #       packaging interface for deployments further.
+        response = await self._client.post(
+            "/deployments/", json=schema.dict(json_compatible=True)
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
