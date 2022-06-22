@@ -1,4 +1,5 @@
-from typing import Dict, Optional, Type, Union
+from textwrap import dedent
+from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
@@ -73,10 +74,15 @@ class TestAPICompatibility:
             # could use a little confidence
             _block_type_id = uuid4()
 
-        @register_block
-        class CapableBlock(Block):
-            # kind of rude to the other Blocks
+        class CanBluff(Block):
             _block_schema_capabilities = ["bluffing"]
+
+            def bluff(self):
+                pass
+
+        @register_block
+        class CapableBlock(CanBluff, Block):
+            # kind of rude to the other Blocks
             _block_type_id = uuid4()
             all_the_answers: str = "42 or something"
 
@@ -149,6 +155,105 @@ class TestAPICompatibility:
             name="block", block_schema_id=uuid4(), block_type_id=block_type_x.id
         )
 
+    def test_to_block_document_anonymous(self, block_type_x):
+        anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+        assert anon_block.is_anonymous is True
+        assert anon_block.name is None
+
+    def test_to_block_document_anonymous(self, block_type_x):
+        """Test passing different values to the `is_anonymous` argument, in
+        combination with different values of the _is_anonymous class fallback"""
+
+        # explicit true
+        anon_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+        assert anon_block.is_anonymous is True
+
+        # explicit false
+        anon_block_2 = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=False,
+        )
+        assert anon_block_2.is_anonymous is False
+
+        # none with no fallback
+        anon_block_3 = self.MyRegisteredBlock(x="x")._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=None,
+        )
+        assert anon_block_3.is_anonymous is False
+
+        # none with True fallback
+        anon_block_4 = self.MyRegisteredBlock(x="x")
+        anon_block_4._is_anonymous = True
+        doc_4 = anon_block_4._to_block_document(
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=None,
+        )
+        assert doc_4.is_anonymous is True
+
+        # False with True fallback
+        anon_block_5 = self.MyRegisteredBlock(x="x")
+        anon_block_5._is_anonymous = True
+        doc_5 = anon_block_5._to_block_document(
+            name="block",
+            block_schema_id=uuid4(),
+            block_type_id=block_type_x.id,
+            is_anonymous=False,
+        )
+        assert doc_5.is_anonymous is False
+
+    def test_to_block_document_anonymous_errors(self, block_type_x):
+        """Test passing different values to the `is_anonymous` argument, in
+        combination with different values of the _is_anonymous class fallback"""
+
+        # explicit false
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            self.MyRegisteredBlock(x="x")._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=False,
+            )
+
+        # none with no fallback
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            self.MyRegisteredBlock(x="x")._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=None,
+            )
+
+        # none with False fallback
+        anon_block_4 = self.MyRegisteredBlock(x="x")
+        anon_block_4._is_anonymous = False
+        with pytest.raises(
+            ValueError,
+            match="(No name provided, either as an argument or on the block)",
+        ):
+            anon_block_4._to_block_document(
+                block_schema_id=uuid4(),
+                block_type_id=block_type_x.id,
+                is_anonymous=None,
+            )
+
     def test_from_block_document(self, block_type_x):
         block_schema_id = uuid4()
         api_block = self.MyRegisteredBlock(x="x")._to_block_document(
@@ -161,6 +266,25 @@ class TestAPICompatibility:
         assert block._block_schema_id == block_schema_id
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_x.id
+        assert block._is_anonymous is False
+        assert block._block_document_name == "block"
+
+    def test_from_block_document_anonymous(self, block_type_x):
+        block_schema_id = uuid4()
+        api_block = self.MyRegisteredBlock(x="x")._to_block_document(
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_x.id,
+            is_anonymous=True,
+        )
+
+        block = Block._from_block_document(api_block)
+        assert type(block) == self.MyRegisteredBlock
+        assert block.x == "x"
+        assert block._block_schema_id == block_schema_id
+        assert block._block_document_id == api_block.id
+        assert block._block_type_id == block_type_x.id
+        assert block._is_anonymous is True
+        assert block._block_document_name is None
 
     def test_from_block_document_with_unregistered_block(self):
         class BlockyMcBlock(Block):
@@ -200,13 +324,6 @@ class TestAPICompatibility:
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
 
-    def test_create_block_type_from_block(self, test_block: Type[Block]):
-        block_type = test_block._to_block_type()
-
-        assert block_type.name == test_block.__name__
-        assert block_type.logo_url == test_block._logo_url
-        assert block_type.documentation_url == test_block._documentation_url
-
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
     ):
@@ -228,6 +345,37 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+
+    def test_collecting_capabilities(self):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+        class Duck(CanSwim, CanFly):
+            pass
+
+        class Bird(CanFly):
+            pass
+
+        class Crow(Bird, CanRun):
+            pass
+
+        class Cat(CanRun):
+            pass
+
+        class FlyingCat(Cat, Bird):
+            pass
+
+        assert Duck.get_block_capabilities() == {"swim", "fly"}
+        assert Bird.get_block_capabilities() == {"fly"}
+        assert Cat.get_block_capabilities() == {"run"}
+        assert Crow.get_block_capabilities() == {"fly", "run"}
+        assert FlyingCat.get_block_capabilities() == {"fly", "run"}
 
     def test_create_block_schema_from_nested_blocks(self):
 
@@ -543,3 +691,314 @@ class TestRegisterBlock:
             "class and not on the Block class directly.",
         ):
             await Block.register_type_and_schema()
+
+
+class TestToBlockType:
+    def test_to_block_type_from_block(self, test_block: Type[Block]):
+        block_type = test_block._to_block_type()
+
+        assert block_type.name == test_block.__name__
+        assert block_type.logo_url == test_block._logo_url
+        assert block_type.documentation_url == test_block._documentation_url
+
+    def test_to_block_type_override_block_type_name(self):
+        class Pyramid(Block):
+            _block_type_name = "PYRAMID!"
+
+            height: float
+            width: float
+            length: float
+            base_type: str
+
+        block_type = Pyramid._to_block_type()
+
+        assert block_type.name == "PYRAMID!"
+
+    def test_to_block_type_with_description_from_docstring(self):
+        class Cube(Block):
+            "Has 8 faces."
+
+            face_length_inches: float
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+
+    def test_to_block_type_with_description_override(self):
+        class Cube(Block):
+            "Has 8 faces."
+
+            _description = "Don't trust that docstring."
+
+            face_length_inches: float
+
+        assert Cube._to_block_type().description == "Don't trust that docstring."
+
+    def test_to_block_type_with_description_and_example_docstring(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Example:
+                Calculate volume:
+                ```python
+                from prefect_geometry import Cube
+
+                my_cube = Cube.load("rubix")
+
+                my_cube.calculate_area()
+                ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Calculate volume:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```"""
+        )
+
+    def test_to_block_type_with_description_and_examples_docstring(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Examples:
+                Load block:
+                ```python
+                from prefect_geometry import Cube
+
+                my_cube = Cube.load("rubix")
+                ```
+
+                Calculate volume:
+                ```python
+                my_cube.calculate_area()
+                ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Load block:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+            ```
+
+            Calculate volume:
+            ```python
+            my_cube.calculate_area()
+            ```"""
+        )
+
+    def test_to_block_type_with_example_override(self):
+        class Cube(Block):
+            """
+            Has 8 faces.
+
+            Example:
+                Calculate volume:
+                ```python
+                my_cube = Cube.load("rubix")
+                ```
+            """
+
+            _code_example = """\
+            Don't trust that docstring. Here's how you really do it:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```
+            """
+
+            face_length_inches: float
+
+            def calculate_area(self):
+                return self.face_length_inches**3
+
+        block_type = Cube._to_block_type()
+
+        assert block_type.description == "Has 8 faces."
+        assert block_type.code_example == dedent(
+            """\
+            Don't trust that docstring. Here's how you really do it:
+            ```python
+            from prefect_geometry import Cube
+
+            my_cube = Cube.load("rubix")
+
+            my_cube.calculate_area()
+            ```
+            """
+        )
+
+
+class TestGetDescription:
+    def test_no_description_configured(self):
+        class A(Block):
+            message: str
+
+        assert A.get_description() == None
+
+    def test_description_from_docstring(self):
+        class A(Block):
+            """
+            A block, verily
+
+            Heading:
+                This extra stuff shouldn't show up in the description
+            """
+
+            message: str
+
+        assert A.get_description() == "A block, verily"
+
+    def test_description_override(self):
+        class A(Block):
+            """I won't show up in this block's description"""
+
+            _description = "But I will"
+
+            message: str
+
+        assert A.get_description() == "But I will"
+
+
+class TestGetCodeExample:
+    def test_no_code_example_configured(self):
+        class A(Block):
+            message: str
+
+        assert A.get_code_example() == None
+
+    def test_code_example_from_docstring_example_heading(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                Here's how you do it:
+                ```python
+                from somewhere import A
+
+                a_block = A.load("a block")
+
+                a_block.send_message()
+                ```
+            """
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+            Here's how you do it:
+            ```python
+            from somewhere import A
+
+            a_block = A.load("a block")
+
+            a_block.send_message()
+            ```"""
+        )
+
+    def test_code_example_from_docstring_examples_heading(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                Here's how you do it:
+                ```python
+                from somewhere import A
+
+                a_block = A.load("a block")
+
+                a_block.send_message()
+                ```
+
+                Here's something extra:
+                ```python
+                print(42)
+                ```
+            """
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+            Here's how you do it:
+            ```python
+            from somewhere import A
+
+            a_block = A.load("a block")
+
+            a_block.send_message()
+            ```
+            
+            Here's something extra:
+            ```python
+            print(42)
+            ```"""
+        )
+
+    def test_code_example_override(self):
+        class A(Block):
+            """
+            I won't show up in the code example
+
+            Example:
+                ```python
+                print(42)
+                ```
+            """
+
+            _code_example = """\
+                Here's the real example:
+
+                ```python
+                print("I am overriding the example in the docstring")
+                ```"""
+
+            message: str
+
+            def send_message(self):
+                print(self.message)
+
+        assert A.get_code_example() == dedent(
+            """\
+                Here's the real example:
+
+                ```python
+                print("I am overriding the example in the docstring")
+                ```"""
+        )

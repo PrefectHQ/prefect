@@ -2,6 +2,7 @@
 Functions for interacting with block type ORM objects.
 Intended for internal use by the Orion API.
 """
+import html
 from typing import Optional
 from uuid import UUID
 
@@ -33,6 +34,14 @@ async def create_block_type(
     insert_values = block_type.dict(
         shallow=True, exclude_unset=False, exclude={"created", "updated", "id"}
     )
+    if insert_values.get("description") is not None:
+        insert_values["description"] = html.escape(
+            insert_values["description"], quote=False
+        )
+    if insert_values.get("code_example") is not None:
+        insert_values["code_example"] = html.escape(
+            insert_values["code_example"], quote=False
+        )
     insert_stmt = (await db.insert(db.BlockType)).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(
@@ -99,6 +108,8 @@ async def read_block_type_by_name(
 async def read_block_types(
     session: sa.orm.Session,
     db: OrionDBInterface,
+    block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
 ):
@@ -111,6 +122,16 @@ async def read_block_types(
         List[db.BlockType]: List of
     """
     query = sa.select(db.BlockType).order_by(db.BlockType.name)
+
+    if block_type_filter is not None:
+        query = query.where(block_type_filter.as_sql_filter(db))
+
+    if block_schema_filter is not None:
+        exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.block_type_id == db.BlockType.id,
+            block_schema_filter.as_sql_filter(db),
+        )
+        query = query.where(exists_clause.exists())
 
     if offset is not None:
         query = query.offset(offset)

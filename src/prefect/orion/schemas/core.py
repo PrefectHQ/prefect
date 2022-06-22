@@ -6,14 +6,15 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import coolname
-from pydantic import Field, HttpUrl, validator
+from pydantic import Field, HttpUrl, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
+from prefect.orion.utilities.names import generate_slug
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.utilities.collections import listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -90,7 +91,7 @@ class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
     name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2),
+        default_factory=lambda: generate_slug(2),
         description="The name of the flow run. Defaults to a random slug if not specified.",
         example="my-flow-run",
     )
@@ -178,7 +179,7 @@ class FlowRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or coolname.generate_slug(2)
+        return name or generate_slug(2)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -239,9 +240,7 @@ class Constant(TaskRunInput):
 class TaskRun(ORMBaseModel):
     """An ORM representation of task run data."""
 
-    name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2), example="my-task-run"
-    )
+    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
     flow_run_id: UUID = Field(..., description="The flow run id of the task run.")
     task_key: str = Field(
         ..., description="A unique identifier for the task being run."
@@ -312,7 +311,7 @@ class TaskRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or coolname.generate_slug(2)
+        return name or generate_slug(2)
 
 
 class Deployment(ORMBaseModel):
@@ -372,6 +371,12 @@ class BlockType(ORMBaseModel):
     )
     documentation_url: Optional[HttpUrl] = Field(
         None, description="Web URL for the block type's documentation"
+    )
+    description: Optional[str] = Field(
+        None, description="A short blurb about the corresponding block's intended use"
+    )
+    code_example: Optional[str] = Field(
+        None, description="A code snippet demonstrating use of the corresponding block"
     )
 
     @validator("name", check_fields=False)
@@ -436,7 +441,10 @@ class BlockSchemaReference(ORMBaseModel):
 class BlockDocument(ORMBaseModel):
     """An ORM representation of a block document."""
 
-    name: str = Field(..., description="The block document's name'")
+    name: Optional[str] = Field(
+        None,
+        description="The block document's name. Not required for anonymous block documents.",
+    )
     data: dict = Field(default_factory=dict, description="The block document's data")
     block_schema_id: UUID = Field(..., description="A block schema ID")
     block_schema: Optional[BlockSchema] = Field(
@@ -449,11 +457,26 @@ class BlockDocument(ORMBaseModel):
     block_document_references: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="Record of the block document's references"
     )
+    is_anonymous: bool = Field(
+        False,
+        description="Whether the block is anonymous (anonymous blocks are usually created by Prefect automatically)",
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
+        # the BlockDocumentCreate subclass allows name=None
+        # and will inherit this validator
+        if v is not None:
+            raise_on_invalid_name(v)
         return v
+
+    @root_validator
+    def validate_name_is_present_if_not_anonymous(cls, values):
+        # anonymous blocks may have no name prior to actually being
+        # stored in the database
+        if not values.get("is_anonymous") and not values.get("name"):
+            raise ValueError("Names must be provided for block documents.")
+        return values
 
     @classmethod
     async def from_orm_model(
@@ -463,12 +486,15 @@ class BlockDocument(ORMBaseModel):
     ):
         return cls(
             id=orm_block_document.id,
+            created=orm_block_document.created,
+            updated=orm_block_document.updated,
             name=orm_block_document.name,
             data=await orm_block_document.decrypt_data(session=session),
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
             block_type=orm_block_document.block_type,
+            is_anonymous=orm_block_document.is_anonymous,
         )
 
 
@@ -649,15 +675,30 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     block_document_id: UUID = Field(
         ..., description="The block document ID used for sending notifications"
     )
-    # message_template: str = Field(None, description=f'A templatable notification message.
-    # Valid variables include: {FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS.join(",")}')
+    message_template: str = Field(
+        None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables. "
+            f'Valid variables include: {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'
+        ),
+        example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
+    )
+
+    @validator("message_template")
+    def validate_message_template_variables(cls, v):
+        if v is not None:
+            try:
+                v.format(**{k: "test" for k in FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS})
+            except KeyError as exc:
+                raise ValueError(f"Invalid template variable provided: '{exc.args[0]}'")
+        return v
 
 
 class Agent(ORMBaseModel):
     """An ORM representation of an agent"""
 
     name: str = Field(
-        default_factory=lambda: coolname.generate_slug(2),
+        default_factory=lambda: generate_slug(2),
         description="The name of the agent. If a name is not provided, it will be auto-generated.",
     )
     work_queue_id: UUID = Field(
