@@ -6,7 +6,7 @@ from typing import List
 import sqlalchemy as sa
 from fastapi import Depends
 
-from prefect.orion import models, schemas
+from prefect.orion import models
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
