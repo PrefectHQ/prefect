@@ -49,6 +49,7 @@ Example:
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
+import warnings
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -105,7 +106,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def concurrency_type(self) -> TaskConcurrencyType:
-        pass
+        pass  # noqa
 
     @property
     def name(self):
@@ -177,7 +178,7 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
 
         Cleanup of resources should be submitted to the `exit_stack`.
         """
-        pass
+        pass  # noqa
 
     def __str__(self) -> str:
         return type(self).__name__
@@ -295,7 +296,14 @@ class DaskTaskRunner(BaseTaskRunner):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
     ):
-
+        warnings.warn(
+            "The `DaskTaskRunner` has moved to `prefect-dask`. Install from the "
+            "command line with `pip install prefect-dask` and import with "
+            "`from prefect_dask.task_runners import DaskTaskRunner`. "
+            "The import you are using will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # Validate settings and infer defaults
         if address:
             if cluster_class or cluster_kwargs or adapt_kwargs:
@@ -634,6 +642,15 @@ class RayTaskRunner(BaseTaskRunner):
         address: str = None,
         init_kwargs: dict = None,
     ):
+        warnings.warn(
+            "The `RayTaskRunner` has moved to `prefect-ray`. Install from the "
+            "command line with `pip install prefect-ray` and import with "
+            "`from prefect_ray.task_runners import RayTaskRunner`. "
+            "The import you are using will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         # Store settings
         self.address = address
         self.init_kwargs = init_kwargs.copy() if init_kwargs else {}
