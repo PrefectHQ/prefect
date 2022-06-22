@@ -1,5 +1,11 @@
-# The version of the final Python container.
+# The version of Python in the final image
 ARG PYTHON_VERSION=3.8
+# The base image to use for the final image; Prefect and its Python requirements will
+# be installed in this image. The default is the official Python slim image.
+# The following images are also available in this file:
+#   prefect-conda: Derivative of continuum/miniconda3 with a 'prefect' environment. Used for the 'conda' flavor.
+# Any image tag can be used, but it must have apt and pip.
+ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.8
 # THe version used to build the UI distributable.
@@ -22,7 +28,7 @@ RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./orion-ui/package*.json .
-RUN npm ci install 
+RUN npm ci install
 
 # Build static UI files
 COPY ./orion-ui .
@@ -54,11 +60,23 @@ RUN rm -rf dist && python setup.py sdist
 RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 
 
-# Build the final Python image.
-FROM python:${PYTHON_VERSION}-slim
+# Setup a base final image from miniconda
+FROM continuumio/miniconda3 as prefect-conda
 
-# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
-ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
+# Create a new conda environment with our required Python version
+ARG PYTHON_VERSION
+RUN conda create \
+    python=${PYTHON_VERSION} \
+    --name prefect
+
+# Use the prefect environment by default
+RUN echo "conda activate prefect" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+
+
+
+# Build the final image with Prefect installed and our entrypoint configured
+FROM ${BASE_IMAGE} as final
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
@@ -71,13 +89,11 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 WORKDIR /opt/prefect
 
+# Install tini for the entrypoint
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         tini=0.19.* \
-        # The following are required for building the asyncpg wheel
-        gcc=4:10.* \
-        linux-libc-dev=5.10.* \
-        libc6-dev=2.* \
+        build-essential \ 
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
@@ -89,8 +105,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
+
+# Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
+ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh
-ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-g", "--", "/opt/prefect/entrypoint.sh"]

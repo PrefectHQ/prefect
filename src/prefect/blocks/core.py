@@ -109,6 +109,7 @@ class Block(BaseModel, ABC):
     _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
+    _is_anonymous: Optional[bool] = None
 
     @classmethod
     def get_block_type_name(cls):
@@ -153,6 +154,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
+        is_anonymous: Optional[bool] = None,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -160,16 +162,24 @@ class Block(BaseModel, ABC):
         either be passed into the method or configured on the block.
 
         Args:
-            name: The name of the created block document.
+            name: The name of the created block document. Not required if anonymous.
             block_schema_id: UUID of the corresponding block schema.
             block_type_id: UUID of the corresponding block type.
+            is_anonymous: if True, an anonymous block is created. Anonymous
+                blocks are not displayed in the UI and used primarily for system
+                operations and features that need to automatically generate blocks.
 
         Returns:
             BlockDocument: Corresponding block document
                 populated with the block's configured data.
         """
-        if not name and not self._block_document_name:
+        if is_anonymous is None:
+            is_anonymous = self._is_anonymous or False
+
+        # name must be present if not anonymous
+        if not is_anonymous and not name and not self._block_document_name:
             raise ValueError("No name provided, either as an argument or on the block.")
+
         if not block_schema_id and not self._block_schema_id:
             raise ValueError(
                 "No block schema ID provided, either as an argument or on the block."
@@ -200,6 +210,7 @@ class Block(BaseModel, ABC):
                 block_type_id=block_type_id or self._block_type_id,
             ),
             block_type=self._to_block_type(),
+            is_anonymous=is_anonymous,
         )
 
     @classmethod
@@ -336,7 +347,7 @@ class Block(BaseModel, ABC):
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
-
+        block._is_anonymous = block_document.is_anonymous
         block._define_metadata_on_nested_blocks(
             block_document.block_document_references
         )

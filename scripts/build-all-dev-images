@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+# A script that builds our supported dev images locally to inspect their versions
+
+expected_prefect=`prefect --version`
+
+for python in 3.8 3.9 3.10; do
+    for flavor in '' 'conda'; do
+        flavor_arg=''
+        flavor_tag=''
+        flavor_desc=''
+        if [ ! -z "$flavor" ]; then
+            flavor_arg="--flavor $flavor"
+            flavor_tag="-$flavor"
+            flavor_desc=" (on $flavor)"
+        fi
+
+        echo "--- building $python $flavor_arg ---"
+        prefect dev build-image --python-version=$python $flavor_arg
+
+        echo
+        echo "---- expecting Python $python$flavor_desc ----"
+        docker run --rm prefecthq/prefect:dev-python$python$flavor_tag python --version
+        echo "---- expecting Prefect $expected_prefect ----"
+        docker run --rm prefecthq/prefect:dev-python$python$flavor_tag prefect --version
+
+        if [ "$flavor" = "conda" ]; then
+            echo "---- expecting Conda ----"
+            docker run --rm prefecthq/prefect:dev-python$python$flavor_tag conda --version
+        fi
+
+        echo
+        echo
+    done
+done
