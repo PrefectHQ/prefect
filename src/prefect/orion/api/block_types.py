@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -8,7 +8,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/block_types", tags=["Block documents"])
+router = OrionRouter(prefix="/block_types", tags=["Block types"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -72,15 +72,21 @@ async def read_block_type_by_name(
 
 @router.post("/filter")
 async def read_block_types(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
+    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.BlockType]:
     """
     Gets all block types. Optionally limit return with limit and offset.
     """
     return await models.block_types.read_block_types(
-        session=session, limit=limit, offset=offset
+        session=session,
+        limit=limit,
+        offset=offset,
+        block_type_filter=block_types,
+        block_schema_filter=block_schemas,
     )
 
 
@@ -141,7 +147,10 @@ async def read_block_documents_for_block_type(
     if not block_type:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
     return await models.block_documents.read_block_documents(
-        session=session, block_type_id=block_type.id
+        session=session,
+        block_document_filter=schemas.filters.BlockDocumentFilter(
+            block_type_id=dict(any_=[block_type.id])
+        ),
     )
 
 

@@ -74,10 +74,15 @@ class TestAPICompatibility:
             # could use a little confidence
             _block_type_id = uuid4()
 
-        @register_block
-        class CapableBlock(Block):
-            # kind of rude to the other Blocks
+        class CanBluff(Block):
             _block_schema_capabilities = ["bluffing"]
+
+            def bluff(self):
+                pass
+
+        @register_block
+        class CapableBlock(CanBluff, Block):
+            # kind of rude to the other Blocks
             _block_type_id = uuid4()
             all_the_answers: str = "42 or something"
 
@@ -340,6 +345,37 @@ class TestAPICompatibility:
         assert (
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
+
+    def test_collecting_capabilities(self):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+        class Duck(CanSwim, CanFly):
+            pass
+
+        class Bird(CanFly):
+            pass
+
+        class Crow(Bird, CanRun):
+            pass
+
+        class Cat(CanRun):
+            pass
+
+        class FlyingCat(Cat, Bird):
+            pass
+
+        assert Duck.get_block_capabilities() == {"swim", "fly"}
+        assert Bird.get_block_capabilities() == {"fly"}
+        assert Cat.get_block_capabilities() == {"run"}
+        assert Crow.get_block_capabilities() == {"fly", "run"}
+        assert FlyingCat.get_block_capabilities() == {"fly", "run"}
 
     def test_create_block_schema_from_nested_blocks(self):
 
