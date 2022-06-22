@@ -18,10 +18,34 @@ from prefect.software.pip import current_environment_requirements
 from prefect.software.python import PythonEnvironment
 from prefect.utilities.collections import listrepr
 
+# Capture each component of a conda requirement string.
+#
+#   <name><version_specifier><version><build_specifier><build>
+#
+# The specification of these requirements is more relaxed than pip requirements.
+# Notably, the version specifier is typically a single equal sign and a build can be
+# included after the version.
+#
+# For example, the requirement "requests=2.25.1=pyhd3eb1b0_0" matches as:
+#   name: "requests"
+#   version_specifier: "="
+#   version: "2.25.1"
+#   build_specifier: "="
+#   build: "pyhd3eb1b0_0"
+#
+# Regex components:
+#   name (required): any combination of numbers, letters, or dashes
+#   version_specifier (optional): one or more of `>`, `<`, and `=`
+#   version (optional): any combination of numbers, letters, or periods; not valid
+#       unless grouped with a version specifier.
+#   build_specifier (optional): just `=`.
+#   build (optional): any combination of numbers, letters, or underscores; not valid
+#       unless grouped with a build specifier.
+
 CONDA_REQUIREMENT = re.compile(
     r"^(?P<name>[0-9A-Za-z\-]+)"
-    r"(?P<version_specifier>[>=<]+(?P<version>[0-9a-zA-Z\.]+))?"
-    r"(?P<build_specifier>=(?P<build>[0-9A-Za-z\_]+))?$"
+    r"((?P<version_specifier>[>=<]+)(?P<version>[0-9a-zA-Z\.]+))?"
+    r"((?P<build_specifier>=)(?P<build>[0-9A-Za-z\_]+))?$"
 )
 
 
