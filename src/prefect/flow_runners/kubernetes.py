@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 else:
     kubernetes = None
 
-from .base import (
+from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
     get_prefect_image_name,
@@ -94,6 +94,13 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
     class Config:
         arbitrary_types_allowed = True
+
+        json_encoders = {JsonPatch: lambda p: p.patch}
+
+    def dict(self, *args, **kwargs) -> Dict:
+        d = super().dict(*args, **kwargs)
+        d["customizations"] = self.customizations.patch
+        return d
 
     @validator("job")
     def ensure_job_includes_all_required_components(cls, value: KubernetesManifest):
