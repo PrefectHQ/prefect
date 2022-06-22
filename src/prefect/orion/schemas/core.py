@@ -677,9 +677,10 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     message_template: str = Field(
         None,
         description=(
-            "A templatable notification message. Use {braces} to add variables."
-            f'Valid variables include: {",".join(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
+            "A templatable notification message. Use {braces} to add variables. "
+            f'Valid variables include: {", ".join(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
         ),
+        example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
     )
 
 
