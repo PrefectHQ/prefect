@@ -1,7 +1,5 @@
 import uuid
 
-import pytest
-
 import prefect.cli.cloud
 from prefect.context import use_profile
 from prefect.settings import (
@@ -64,7 +62,6 @@ def mock_select_workspace(workspaces):
     return list(workspaces)[0]
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_invalid_login(monkeypatch):
     monkeypatch.setattr(
         "prefect.cli.cloud.get_cloud_client", get_unauthorized_mock_cloud_client
@@ -79,7 +76,6 @@ def test_invalid_login(monkeypatch):
     )
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_login_updates_profile(monkeypatch):
     monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
     monkeypatch.setattr("prefect.cli.cloud.select_workspace", mock_select_workspace)
@@ -106,7 +102,6 @@ def test_login_updates_profile(monkeypatch):
     }
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_login_wont_unset_other_settings(monkeypatch):
     monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
     monkeypatch.setattr("prefect.cli.cloud.select_workspace", mock_select_workspace)
@@ -137,7 +132,6 @@ def test_login_wont_unset_other_settings(monkeypatch):
     }
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_logout_updates_profile():
     cloud_profile = "cloud-foo"
     save_profiles(
@@ -166,7 +160,6 @@ def test_logout_updates_profile():
     assert profiles[cloud_profile].settings == {}
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_cannot_logout_if_you_are_not_logged_in():
     cloud_profile = "cloud-foo"
     save_profiles(
@@ -184,7 +177,6 @@ def test_cannot_logout_if_you_are_not_logged_in():
         )
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_cannot_set_workspace_if_you_are_not_logged_in():
     cloud_profile = "cloud-foo"
     save_profiles(
@@ -202,7 +194,6 @@ def test_cannot_set_workspace_if_you_are_not_logged_in():
         )
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_set_workspace_updates_profile(monkeypatch):
     monkeypatch.setattr("prefect.cli.cloud.get_cloud_client", get_mock_cloud_client)
     monkeypatch.setattr("prefect.cli.cloud.select_workspace", mock_select_workspace)
