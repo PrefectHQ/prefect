@@ -407,7 +407,12 @@ def _date_diff_sqlite(element, compiler, **kwargs):
 
 
 class json_contains(FunctionElement):
-    """Platform independent json_contains operator."""
+    """
+    Platform independent json_contains operator.
+
+    On postgres this is equivalent to the @> containment operator.
+    https://www.postgresql.org/docs/current/functions-json.html
+    """
 
     type = BOOLEAN
     name = "json_contains"
@@ -460,7 +465,12 @@ def _json_contains_sqlite(element, compiler, **kwargs):
 
 
 class json_has_any_key(FunctionElement):
-    """Platform independent json_has_any_key operator."""
+    """
+    Platform independent json_has_any_key operator.
+
+    On postgres this is equivalent to the ?| existence operator.
+    https://www.postgresql.org/docs/current/functions-json.html
+    """
 
     type = BOOLEAN
     name = "json_has_any_key"
@@ -504,7 +514,11 @@ def _json_has_any_key_sqlite(element, compiler, **kwargs):
 
 
 class json_has_all_keys(FunctionElement):
-    """Platform independent json_has_all_keys operator."""
+    """Platform independent json_has_all_keys operator.
+
+    On postgres this is equivalent to the ?& existence operator.
+    https://www.postgresql.org/docs/current/functions-json.html
+    """
 
     type = BOOLEAN
     name = "json_has_all_keys"

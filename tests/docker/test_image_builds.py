@@ -2,18 +2,18 @@ import io
 import re
 import sys
 from pathlib import Path, PurePosixPath
-from typing import Generator
 
 import pytest
 from _pytest.capture import CaptureFixture
 from docker import DockerClient
-from docker.errors import ImageNotFound
-from typer.testing import CliRunner
 
 import prefect
-from prefect.cli.dev import dev_app
-from prefect.docker import BuildError, ImageBuilder, build_image, docker_client
-from prefect.flow_runners.base import get_prefect_image_name
+from prefect.docker import BuildError, ImageBuilder, build_image
+
+IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
+
+
+pytestmark = pytest.mark.service("docker")
 
 
 @pytest.fixture
@@ -21,16 +21,6 @@ def contexts() -> Path:
     return Path(__file__).parent / "contexts"
 
 
-@pytest.fixture(scope="module")
-def docker() -> Generator[DockerClient, None, None]:
-    with docker_client() as client:
-        yield client
-
-
-IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
-
-
-@pytest.mark.service("docker")
 def test_builds_tiny_hello_image(contexts: Path, docker: DockerClient):
     image_id = build_image(contexts / "tiny")
     assert IMAGE_ID_PATTERN.match(image_id)
@@ -42,7 +32,6 @@ def test_builds_tiny_hello_image(contexts: Path, docker: DockerClient):
     assert output == b"Can't bear oceans.\n"
 
 
-@pytest.mark.service("docker")
 def test_builds_alternate_dockerfiles(contexts: Path, docker: DockerClient):
     image_a = build_image(contexts / "alternate", dockerfile="Dockerfile.a")
     assert IMAGE_ID_PATTERN.match(image_a)
@@ -59,7 +48,6 @@ def test_builds_alternate_dockerfiles(contexts: Path, docker: DockerClient):
     assert output == b"from Dockerfile.b!\n"
 
 
-@pytest.mark.service("docker")
 def test_streams_progress_nowhere_by_default(contexts: Path, capsys: CaptureFixture):
     image_id = build_image(contexts / "tiny")
     assert IMAGE_ID_PATTERN.match(image_id)
@@ -69,7 +57,6 @@ def test_streams_progress_nowhere_by_default(contexts: Path, capsys: CaptureFixt
     assert not captured.out
 
 
-@pytest.mark.service("docker")
 def test_streams_progress_to_stdout(contexts: Path, capsys: CaptureFixture):
     image_id = build_image(contexts / "tiny", stream_progress_to=sys.stdout)
     assert IMAGE_ID_PATTERN.match(image_id)
@@ -86,7 +73,6 @@ def test_streams_progress_to_stdout(contexts: Path, capsys: CaptureFixture):
     assert f"Successfully built {image_hash[:12]}" in output
 
 
-@pytest.mark.service("docker")
 def test_streams_progress_to_given_stream(contexts: Path):
     my_stream = io.StringIO()
 
@@ -117,7 +103,6 @@ def test_requires_real_dockerfile(contexts: Path):
         build_image(contexts / "tiny", dockerfile="Nowhere")
 
 
-@pytest.mark.service("docker")
 @pytest.mark.parametrize(
     "example_context, expected_error",
     [
@@ -133,35 +118,13 @@ def test_raises_exception_on_bad_base_image(
         build_image(contexts / example_context, stream_progress_to=sys.stdout)
 
 
-@pytest.fixture(scope="module")
-def prefect_base_image(docker: DockerClient):
-    """Ensure that the prefect dev image is available and up-to-date"""
-    image_name = get_prefect_image_name()
-
-    image_exists, version_is_right = False, False
-
-    try:
-        image_exists = bool(docker.images.get(image_name))
-    except ImageNotFound:
-        pass
-
-    if image_exists:
-        version = docker.containers.run(image_name, ["prefect", "--version"])
-        version_is_right = version.decode().strip() == prefect.__version__
-
-    if not image_exists or not version_is_right:
-        CliRunner().invoke(dev_app, ["build-image"])
-
-    return image_name
-
-
 def test_image_builder_must_be_entered(contexts: Path):
     builder = ImageBuilder(base_image="busybox")
     with pytest.raises(Exception, match="No context available"):
         builder.copy(contexts / "tiny" / "hello.txt", "hello.txt")
 
 
-def test_image_builder_allocates_temporary_context():
+def test_image_builder_allocates_temporary_context(prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         assert image.context
         assert image.context.exists()
@@ -176,7 +139,6 @@ def test_image_builder_accepts_alternative_base_image():
         assert image.dockerfile_lines == ["FROM busybox"]
 
 
-@pytest.mark.service("docker")
 def test_from_prefect_image(docker: DockerClient, prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         image.add_line("RUN echo Woooo, building")
@@ -187,7 +149,6 @@ def test_from_prefect_image(docker: DockerClient, prefect_base_image: str):
     assert output == prefect.__version__
 
 
-@pytest.mark.service("docker")
 def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: str):
     with ImageBuilder(prefect_base_image) as image:
         image.add_line("WORKDIR /tiny/")
@@ -199,7 +160,6 @@ def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: 
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_copying_file_to_absolute_location(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -213,7 +173,6 @@ def test_copying_file_to_absolute_location(
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_copying_file_to_posix_path(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -227,7 +186,6 @@ def test_copying_file_to_posix_path(
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_copying_directory(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -241,7 +199,6 @@ def test_copying_directory(
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_copying_directory_to_absolute_location(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -255,7 +212,6 @@ def test_copying_directory_to_absolute_location(
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_copying_file_from_alternative_base(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -269,7 +225,6 @@ def test_copying_file_from_alternative_base(
     assert output == "Can't bear oceans."
 
 
-@pytest.mark.service("docker")
 def test_can_use_working_tree_as_context(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
@@ -283,6 +238,8 @@ def test_can_use_working_tree_as_context(
     assert output == "Can't bear oceans."
 
 
-def test_cannot_already_have_a_dockerfile_in_context(contexts: Path):
+def test_cannot_already_have_a_dockerfile_in_context(
+    contexts: Path, prefect_base_image: str
+):
     with pytest.raises(ValueError, match="already a Dockerfile"):
         ImageBuilder(prefect_base_image, context=contexts / "tiny")

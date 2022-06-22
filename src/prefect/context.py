@@ -8,17 +8,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import (
-    TYPE_CHECKING,
-    ContextManager,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -29,6 +19,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
+from prefect.deployments import DeploymentSpec
 from prefect.exceptions import MissingContextError
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
@@ -37,11 +28,6 @@ from prefect.orion.schemas.states import State
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-
-if TYPE_CHECKING:
-    from prefect.deployments import DeploymentSpec
-    from prefect.flows import Flow
-    from prefect.tasks import Task
 
 T = TypeVar("T")
 
@@ -98,8 +84,9 @@ class PrefectObjectRegistry(ContextModel):
 
         flows: A dictionary containing all Flow objects that are initialized
             during load / execution.
-        deployment_specs: A dictionary containing all DeploymentSpec objects
-            that are initialized during load / execution.
+        deployment_specs: A list containing all deployment specification objects
+            that are initialized during load / execution. The name of the deployment
+            may not be determined yet so they cannot be stored in a dictionary.
         tasks: A dictionary containing all Task objects that are initialized
             during load / execution.
     """
@@ -107,8 +94,8 @@ class PrefectObjectRegistry(ContextModel):
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
     flows: Dict[str, Flow] = Field(default_factory=dict)
-    deployment_specs: Dict["DeploymentSpec", Dict] = Field(default_factory=dict)
-    tasks: Dict[str, Task] = Field(default_factory=dict)
+    deployment_specs: List[DeploymentSpec] = Field(default_factory=list)
+    tasks: List[Task] = Field(default_factory=list)
 
     _block_code_execution: bool = PrivateAttr(default=False)
 
@@ -163,6 +150,7 @@ class FlowRunContext(RunContext):
     result_storage: StorageBlock
 
     # Tracking created objects
+    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
 
