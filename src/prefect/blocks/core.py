@@ -1,9 +1,13 @@
 import hashlib
 import inspect
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+from textwrap import dedent
+from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
 from uuid import UUID, uuid4
 
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.docstrings.parsers import Parser, parse
 from pydantic import BaseModel, HttpUrl
 from typing_extensions import get_args, get_origin
 
@@ -95,6 +99,8 @@ class Block(BaseModel, ABC):
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
     _documentation_url: Optional[HttpUrl] = None
+    _description: Optional[str] = None
+    _code_example: Optional[str] = None
 
     # -- private instance variables
     # these are set when blocks are loaded from the API
@@ -103,10 +109,25 @@ class Block(BaseModel, ABC):
     _block_schema_capabilities: Optional[List[str]] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
+    _is_anonymous: Optional[bool] = None
 
     @classmethod
     def get_block_type_name(cls):
         return cls._block_type_name or cls.__name__
+
+    @classmethod
+    def get_block_capabilities(cls) -> FrozenSet[str]:
+        """
+        Returns the block capabilities for this Block. Recursively collects all block
+        capabilities of all parent classes into a single frozenset.
+        """
+        return frozenset(
+            {
+                c
+                for base in (cls,) + cls.__mro__
+                for c in getattr(base, "_block_schema_capabilities", []) or []
+            }
+        )
 
     @classmethod
     def _to_block_schema_reference_dict(cls):
@@ -147,6 +168,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         block_schema_id: Optional[UUID] = None,
         block_type_id: Optional[UUID] = None,
+        is_anonymous: Optional[bool] = None,
     ) -> BlockDocument:
         """
         Creates the corresponding block document based on the data stored in a block.
@@ -154,16 +176,24 @@ class Block(BaseModel, ABC):
         either be passed into the method or configured on the block.
 
         Args:
-            name: The name of the created block document.
+            name: The name of the created block document. Not required if anonymous.
             block_schema_id: UUID of the corresponding block schema.
             block_type_id: UUID of the corresponding block type.
+            is_anonymous: if True, an anonymous block is created. Anonymous
+                blocks are not displayed in the UI and used primarily for system
+                operations and features that need to automatically generate blocks.
 
         Returns:
             BlockDocument: Corresponding block document
                 populated with the block's configured data.
         """
-        if not name and not self._block_document_name:
+        if is_anonymous is None:
+            is_anonymous = self._is_anonymous or False
+
+        # name must be present if not anonymous
+        if not is_anonymous and not name and not self._block_document_name:
             raise ValueError("No name provided, either as an argument or on the block.")
+
         if not block_schema_id and not self._block_schema_id:
             raise ValueError(
                 "No block schema ID provided, either as an argument or on the block."
@@ -184,6 +214,7 @@ class Block(BaseModel, ABC):
                 block_type_id=block_type_id or self._block_type_id,
             ),
             block_type=self._to_block_type(),
+            is_anonymous=is_anonymous,
         )
 
     @classmethod
@@ -206,10 +237,66 @@ class Block(BaseModel, ABC):
             fields=fields,
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
-            capabilities=cls._block_schema_capabilities
-            if cls._block_schema_capabilities is not None
-            else list(),
+            capabilities=list(cls.get_block_capabilities()),
         )
+
+    @classmethod
+    def get_description(cls) -> Optional[str]:
+        """
+        Returns the description for the current block. Attempts to parse
+        description from class docstring if an override is not defined.
+        """
+        description = cls._description
+        # If no description override has been provided, find the first text section
+        # and use that as the description
+        if description is None and cls.__doc__ is not None:
+            docstring = Docstring(cls.__doc__)
+            parsed = parse(docstring, Parser.google)
+            parsed_description = next(
+                (
+                    section.as_dict().get("value")
+                    for section in parsed
+                    if section.kind == DocstringSectionKind.text
+                ),
+                None,
+            )
+            if isinstance(parsed_description, str):
+                description = parsed_description.strip()
+        return description
+
+    @classmethod
+    def get_code_example(cls) -> Optional[str]:
+        """
+        Returns the code example for the given block. Attempts to parse
+        code example from the class docstring if an override is not provided.
+        """
+        code_example = (
+            dedent(cls._code_example) if cls._code_example is not None else None
+        )
+        # If no code example override has been provided, attempt to find a examples
+        # section or an admonition with the annotation "example" and use that as the
+        # code example
+        if code_example is None and cls.__doc__ is not None:
+            docstring = Docstring(cls.__doc__)
+            parsed = parse(docstring, Parser.google)
+            for section in parsed:
+                # Section kind will be "examples" if Examples section heading is used.
+                if section.kind == DocstringSectionKind.examples:
+                    # Examples sections are made up of smaller sections that need to be
+                    # joined with newlines. Smaller sections are represented as tuples
+                    # with shape (DocstringSectionKind, str)
+                    code_example = "\n".join(
+                        (part[1] for part in section.as_dict().get("value", []))
+                    )
+                    break
+                # Section kind will be "admonition" if Example section heading is used.
+                if section.kind == DocstringSectionKind.admonition:
+                    value = section.as_dict().get("value", {})
+                    if value.get("annotation") == "example":
+                        code_example = value.get("description")
+                        break
+
+        return code_example
 
     @classmethod
     def _to_block_type(cls) -> BlockType:
@@ -224,6 +311,8 @@ class Block(BaseModel, ABC):
             name=cls.get_block_type_name(),
             logo_url=cls._logo_url,
             documentation_url=cls._documentation_url,
+            description=cls.get_description(),
+            code_example=cls.get_code_example(),
         )
 
     @classmethod
@@ -259,6 +348,7 @@ class Block(BaseModel, ABC):
         block._block_schema_id = block_document.block_schema_id
         block._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
+        block._is_anonymous = block_document.is_anonymous
         return block
 
     @classmethod

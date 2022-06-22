@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from dataclasses import dataclass
 from unittest.mock import MagicMock
-from uuid import uuid4
 
 import pytest
 

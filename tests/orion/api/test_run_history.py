@@ -31,7 +31,7 @@ def parse_response(response: Response, include=None):
 @pytest.fixture(autouse=True, scope="module")
 async def clear_db():
     """Prevent automatic database-clearing behavior after every test"""
-    pass
+    pass  # noqa
 
 
 @pytest.fixture(autouse=True, scope="module")

@@ -5,14 +5,12 @@ Revises: d38c5e6a9115
 Create Date: 2022-05-10 14:59:56.299921
 
 """
-import hashlib
 
 import sqlalchemy as sa
 from alembic import op
 
 import prefect
 from prefect.blocks.core import Block
-from prefect.utilities.hashing import hash_objects
 
 # revision identifiers, used by Alembic.
 revision = "1c9390e2f9c6"
