@@ -502,16 +502,19 @@ class TestAPICompatibility:
             "y": 2,
             "_block_document_id": middle_block_document_1.id,
             "_block_document_name": "middle_block_document_1",
+            "_is_anonymous": False,
         }
         assert block_instance.d.dict() == {
             "b": {
                 "x": 1,
                 "_block_document_id": inner_block_document.id,
                 "_block_document_name": "inner_block_document",
+                "_is_anonymous": False,
             },
             "z": "ztop",
             "_block_document_id": middle_block_document_2.id,
             "_block_document_name": "middle_block_document_2",
+            "_is_anonymous": False,
         }
 
     async def test_create_block_from_nonexistent_name(self, test_block):
