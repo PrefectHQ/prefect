@@ -670,7 +670,7 @@ async def read_available_block_capabilities(
     session: sa.orm.Session, db: OrionDBInterface
 ) -> List[str]:
     query = sa.select(db.json_arr_agg(db.BlockSchema.capabilities.distinct()))
-    capability_combinations = (await session.execute(query)).scalars().first()
+    capability_combinations = (await session.execute(query)).scalars().first() or list()
     return list({c for capabilities in capability_combinations for c in capabilities})
 
 
