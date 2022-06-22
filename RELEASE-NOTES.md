@@ -2,7 +2,7 @@
 
 ## 2.0b7
 
-This release implements a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.```
+This release includes a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.```
 
 ### Improvements
 - Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI.
@@ -32,7 +32,8 @@ This release implements a number of important improvements and bug fixes in resp
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
 - Fixed a bug in terminal state data handling that caused timeouts
 - Disabled flow execution during deployment creation to prevent accidental execution.
-- Fixed a bug wherein Pydantic models being passed to Prefect tasks were having extra keys dropped.
+- Fixed a bug where Pydantic models being passed to Prefect tasks would drop extra keys and private attributes.
+- Fixed a bug where the `KubernetesFlowRunner` was not serializable.
 
 ## 2.0b6
 
