@@ -674,8 +674,13 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     block_document_id: UUID = Field(
         ..., description="The block document ID used for sending notifications"
     )
-    # message_template: str = Field(None, description=f'A templatable notification message.
-    # Valid variables include: {FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS.join(",")}')
+    message_template: str = Field(
+        None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables."
+            f'Valid variables include: {",".join(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
+        ),
+    )
 
 
 class Agent(ORMBaseModel):
