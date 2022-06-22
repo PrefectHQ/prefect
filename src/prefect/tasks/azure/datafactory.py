@@ -36,14 +36,14 @@ class DatafactoryCreate(Task):
     Args:
         - datafactory_name (str): Name of the datafactory to create.
         - resource_group_name (str): Name of the resource group.
-        - azure_credentials_secret (str): the name of the Prefect Secret that stores
-            your Azure credentials; this Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - azure_credentials_secret (str): Name of the Prefect Secret that stores
+            your Azure credentials; This Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret`, and `tenant`.
         - location (str, optional): The location of the datafactory.
         - options (dict, optional): The options to be passed to the
             `create_or_update` method.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(
@@ -83,9 +83,9 @@ class DatafactoryCreate(Task):
         Args:
             - datafactory_name (str): Name of the datafactory to create.
             - resource_group_name (str): Name of the resource group.
-            - azure_credentials_secret (str): the name of the Prefect Secret that stores
-                your Azure credentials; this Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - azure_credentials_secret (str): Name of the Prefect Secret that stores
+                your Azure credentials; This Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret`, and `tenant`.
             - location (str, optional): The location of the datafactory.
             - options (dict, optional): The options to be passed to the
                 `create_or_update` method.
@@ -126,16 +126,16 @@ class PipelineCreate(Task):
     Args:
         - datafactory_name (str): Name of the datafactory to create.
         - resource_group_name (str): Name of the resource group.
-        - pipeline_name (str): The name of the pipeline.
+        - pipeline_name (str): Name of the pipeline.
         - activities (list): The list of activities to run in the pipeline.
-        - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
-            your Azure credentials; this Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
+            your Azure credentials; This Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret`, and `tenant`.
         - parameters (dict): The parameters to be used in pipeline.
         - options (dict, optional): The options to be passed to the
             `create_or_update` method.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(
@@ -183,12 +183,12 @@ class PipelineCreate(Task):
         Args:
             - datafactory_name (str): Name of the datafactory to create.
             - resource_group_name (str): Name of the resource group.
-            - pipeline_name (str): The name of the pipeline.
+            - pipeline_name (str): Name of the pipeline.
             - activities (list): The list of activities to run in the pipeline.
             - parameters (dict): The parameters to be used in pipeline.
-            - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
-                your Azure credentials; this Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
+                your Azure credentials; This Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret`, and `tenant`.
             - options (dict, optional): The options to be passed to the
                 `create_or_update` method.
 
@@ -233,17 +233,17 @@ class PipelineRun(Task):
     Args:
         - datafactory_name (str): Name of the datafactory to create.
         - resource_group_name (str): Name of the resource group.
-        - pipeline_name (str): The name of the pipeline.
-        - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
-            your Azure credentials; this Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret` and `tenant`.
+        - pipeline_name (str): Name of the pipeline.
+        - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
+            your Azure credentials; This Secret must be JSON string with the keys
+            `subscription_id`, `client_id`, `secret`, and `tenant`.
         - parameters (dict, optional): The parameters to be used in pipeline.
         - last_updated_after (datetime, optional): The time at or after which the run event
             was updated; used to filter and query the pipeline run, and defaults to yesterday.
         - last_updated_before (datetime, optional): The time at or before which the run event
             was updated; used to filter and query the pipeline run and defaults to tomorrow.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     def __init__(
@@ -291,10 +291,10 @@ class PipelineRun(Task):
         Args:
             - datafactory_name (str): Name of the datafactory to create.
             - resource_group_name (str): Name of the resource group.
-            - pipeline_name (str): The name of the pipeline.
-            - azure_credentials_secret (str, optional): the name of the Prefect Secret that stores
-                your Azure credentials; this Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret` and `tenant`.
+            - pipeline_name (str): Name of the pipeline.
+            - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
+                your Azure credentials; This Secret must be JSON string with the keys
+                `subscription_id`, `client_id`, `secret`, and `tenant`.
             - parameters (dict, optional): The parameters to be used in pipeline.
             - last_updated_after (datetime, optional): The time at or after which the run event
                 was updated; used to filter and query the pipeline run, and defaults to yesterday.
