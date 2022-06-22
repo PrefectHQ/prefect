@@ -74,10 +74,15 @@ def pytest_addoption(parser):
     )
 
     parser.addoption(
-        "--use-current-docker-images",
+        "--disable-docker-image-builds",
         action="store_true",
         default=False,
-        help="Avoid re-building Prefect's Docker images during tests",
+        help=(
+            "Do not build the prefect Docker image during tests.  Tests that require "
+            "the image will fail if the image is not present or has an outdated "
+            "version of `prefect` installed.  Used during CI to run the test suite "
+            "against images built with our production release build process."
+        ),
     )
 
 
@@ -312,13 +317,13 @@ def testing_session_settings(test_database_url: str):
             yield ctx
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def docker() -> Generator[DockerClient, None, None]:
     with docker_client() as client:
         yield client
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""
     image_name = get_prefect_image_name()
@@ -336,15 +341,15 @@ def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
         version_is_right = image_version == prefect.__version__
 
     if not image_exists or not version_is_right:
-        if pytestconfig.getoption("--use-current-docker-images"):
+        if pytestconfig.getoption("--disable-docker-image-builds"):
             if not image_exists:
                 raise Exception(
-                    "The --use-current-docker-images flag is set, but "
+                    "The --disable-docker-image-builds flag is set, but "
                     f"there is no local {image_name} image"
                 )
             if not version_is_right:
                 raise Exception(
-                    "The --use-current-docker-images flag is set, but "
+                    "The --disable-docker-image-builds flag is set, but "
                     f"{image_name} includes {image_version}, not {prefect.__version__}"
                 )
 

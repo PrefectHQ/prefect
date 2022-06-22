@@ -50,7 +50,7 @@ jobs:
           - ubuntu-latest
         pytest-options:
           - "--exclude-services"
-          - "--only-services --use-current-docker-images"
+          - "--only-services --disable-docker-image-builds"
 
         include:
           # Run 3.7 tests with lower bound pins
@@ -59,7 +59,7 @@ jobs:
 
           # Include Docker image builds on the service test run, and disallow the test
           # suite from building images automaticlly in fixtures
-          - pytest-options: "--only-services --use-current-docker-images"
+          - pytest-options: "--only-services --disable-docker-image-builds"
             build-docker-images: true
 
 
