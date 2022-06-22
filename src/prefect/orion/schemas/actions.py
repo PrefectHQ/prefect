@@ -8,6 +8,7 @@ from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.utilities.collections import listrepr
 
 
 class FlowCreate(
@@ -317,7 +318,7 @@ class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
         None,
         description=(
             "A templatable notification message. Use {braces} to add variables. "
-            f'Valid variables include: {", ".join(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
+            f'Valid variables include: {listrepr(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'
         ),
         example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
     )
