@@ -1,5 +1,40 @@
 # Prefect Release Notes
 
+## 2.0b7
+
+This release includes a number of important improvements and bug fixes in response to continued feedback from the community. Note that this release makes a **breaking change** to the Blocks API, making the `2.0b7` Orion server incompatible with previous Orion client versions.```
+
+### Improvements
+- Added the color select to the Orion UI in OSS (enabling users to change their state color scheme) for the UI.
+- Added anonymous blocks, allowing Prefect to dynamically store blocks for you without cluttering your workspace.
+- Performance improvements to the service that marks flows runs as late.
+- Added the ability for flow names to include underscores for use in DeploymentSpecs.
+- Split [Ray](https://prefecthq.github.io/prefect-ray/) and [Dask](https://prefecthq.github.io/prefect-dask/) task runners into their own collections.
+- Removed delays to agent shutdown on keyboard interrupt.
+- Added informative messaging when an agent is reading from a paused work queue.
+- Improved task naming conventions for tasks defined using lambda functions
+
+### Documentation improvements
+- Updated screenshots and description of workflows to reflect new UI
+- Revised and extended Prefect Cloud quickstart tutorial
+- Added deployments page
+- Added documentation for `prefect cloud workspace set` command
+
+### Collections
+- [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/)
+- [prefect-dask](https://prefecthq.github.io/prefect-dask/)
+- [prefect-ray](https://prefecthq.github.io/prefect-ray/)
+- [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)
+- [prefect-openmetadata](https://prefecthq.github.io/prefect-openmetadata/)
+- Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
+
+### Bug squashing
+- [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
+- Fixed a bug in terminal state data handling that caused timeouts
+- Disabled flow execution during deployment creation to prevent accidental execution.
+- Fixed a bug where Pydantic models being passed to Prefect tasks would drop extra keys and private attributes.
+- Fixed a bug where the `KubernetesFlowRunner` was not serializable.
+
 ## 2.0b6
 
 We're so grateful for the fountain of feedback we've received about Prefect 2. One of the themes in feedback was that Prefect 2's UI didn't reflect the same clarity and elegance that the rest of Prefect 2 did. We agreed! Today, we've proud to share Prefect 2's completely redesigned UI. It's simpler, faster, and easier to use. Give it a spin!
@@ -17,7 +52,7 @@ Here's a preview of the type hints that you'll start seeing now in editors like 
 
 <img src="docs/img/release-notes/futurehint.png">
 
-Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible. 
+Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible.
 
 After the upgrade your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
 
