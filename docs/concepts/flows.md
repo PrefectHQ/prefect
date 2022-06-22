@@ -75,7 +75,7 @@ The final state of the flow is determined by its return value.  The following ru
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. In particular, if _any_ task run or subflow run failed, then the final flow run state is marked as failed.
-- If a flow returns one or more task run futures or states, these runs are used as the _reference tasks_ for determining the final state of the run. If _any_ of the returned task runs fail, the flow run is marked as failed.
+- If a flow returns one or more [task run futures](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) or states, these runs are used as the _reference tasks_ for determining the final state of the run. If _any_ of the returned task runs fail, the flow run is marked as failed.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as successfully completed.
 
@@ -184,7 +184,7 @@ The following examples illustrate each of these cases:
     def always_succeeds_flow():
         x = always_fails_task()
         y = always_succeeds_task()
-        if y.result() == "foo"
+        if y.result() == "foo":
             return Completed(message="I am happy with this result")
         else:
             return Failed(message="How did this happen!?")

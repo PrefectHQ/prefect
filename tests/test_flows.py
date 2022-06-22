@@ -749,7 +749,7 @@ class TestFlowTimeouts:
         Async flow runs can be cancelled after a timeout
         """
         canary_file = tmp_path / "canary"
-        sleep_time = 3
+        sleep_time = 5
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
@@ -778,10 +778,12 @@ class TestFlowTimeouts:
         Async flow runs can be cancelled after a timeout
         """
         canary_file = tmp_path / "canary"
+        sleep_time = 5
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
-            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
+            # Sleep in intervals to give more chances for interrupt
+            for _ in range(sleep_time * 10):
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -798,7 +800,9 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         assert not canary_file.exists()
-        assert runtime < 1.5, f"The engine returns without waiting; took {runtime}s"
+        assert (
+            runtime < sleep_time
+        ), f"The engine returns without waiting; took {runtime}s"
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
