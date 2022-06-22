@@ -10,7 +10,7 @@ class NotificationBlock(Block):
     """
 
     @abstractmethod
-    async def notify(self, data: Any):
+    async def notify(self, subject: str, body: str):
         """
         Send a notification
         """
@@ -26,5 +26,5 @@ class DebugPrintNotification(NotificationBlock):
     # singleton block name
     _block_document_name = "Debug Print Notification"
 
-    async def notify(self, data: Any):
-        print(data)
+    async def notify(self, subject: str, body: str):
+        print(body)
