@@ -291,6 +291,7 @@ class FlowRunNotificationPolicyCreate(
             "state_names",
             "tags",
             "block_document_id",
+            "message_template",
         ],
     )
 ):
@@ -311,4 +312,11 @@ class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     )
     block_document_id: UUID = Field(
         None, description="The block document ID used for sending notifications"
+    )
+    message_template: str = Field(
+        None,
+        description=(
+            "A templatable notification message. Use {braces} to add variables."
+            f'Valid variables include: {",".join(sorted(schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
+        ),
     )
