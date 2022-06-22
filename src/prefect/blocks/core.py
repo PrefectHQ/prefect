@@ -192,6 +192,8 @@ class Block(BaseModel, ABC):
         data_keys = self.schema()["properties"].keys()
         block_document_data = self.dict(include=data_keys)
 
+        # Iterate through and find blocks that already have saved block documents to
+        # create references to those saved block documents.
         for key in data_keys:
             field_value = getattr(self, key)
             if isinstance(field_value, Block):
@@ -357,6 +359,10 @@ class Block(BaseModel, ABC):
     def _define_metadata_on_nested_blocks(
         self, block_document_references: Dict[str, Dict[str, Any]]
     ):
+        """
+        Recursively populates metadata fields on nested blocks based on the
+        provided block document references.
+        """
         for (
             field_name,
             block_document_reference,
