@@ -21,6 +21,8 @@ from prefect.flow_runners.base import get_prefect_image_name
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -193,6 +195,34 @@ def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):
+    """
+    This hook will be called within the test run. Allowing us to raise errors or add
+    assertions to every test. On error, the test will be marked as failed. If we used
+    a fixture instead, the test teardown would report an error instead.
+    """
+    yield
+    assert_lifespan_is_not_left_open()
+
+
+def assert_lifespan_is_not_left_open():
+    # This checks for regressions where the application lifespan is left open
+    # across tests.
+    from prefect.client import APP_LIFESPANS
+
+    yield
+
+    open_lifespans = APP_LIFESPANS.copy()
+    if open_lifespans:
+        # Clean out the lifespans to avoid erroring every future test
+        APP_LIFESPANS.clear()
+        raise RuntimeError(
+            "Lifespans should be cleared at the end of each test, but "
+            f"{len(open_lifespans)} lifespans were not closed: {open_lifespans!r}"
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 async def test_database_url(worker_id: str) -> Generator[Optional[str], None, None]:
     """Prepares an alternative test database URL, if necessary, for the current
@@ -283,6 +313,9 @@ def testing_session_settings(test_database_url: str):
             # environments and settings
             PREFECT_HOME: tmpdir,
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Disable pretty CLI output for easier assertions
+            PREFECT_CLI_COLORS: False,
+            PREFECT_CLI_WRAP_LINES: False,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;

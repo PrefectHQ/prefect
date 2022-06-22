@@ -8,6 +8,11 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+## Add indexes for block entity filtering
+
+SQLite: `a205b458d997`
+Postgres: `29ad9bef6147`
+
 ## Add indexes for block schemas
 
 SQLite: `9e2a1c08c6f1`
