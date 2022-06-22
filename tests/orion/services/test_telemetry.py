@@ -1,6 +1,5 @@
 import json
 import platform
-import sys
 
 import pytest
 import respx

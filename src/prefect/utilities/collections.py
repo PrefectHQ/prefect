@@ -285,11 +285,27 @@ async def visit_collection(
         and not isinstance(expr, prefect.orion.schemas.states.State)
         and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
     ):
-        values = await gather(
-            *[visit_nested(getattr(expr, field)) for field in expr.__fields__]
+        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # to retrieve the public keys to visit.
+        # NOTE: This implementation *does not* traverse private attributes
+        results = await gather(
+            *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
         )
-        result = {field: value for field, value in zip(expr.__fields__, values)}
-        return typ(**result) if return_data else None
+
+        if return_data:
+            model_instance = typ(
+                **{key: value for key, value in zip(expr.__fields_set__, results)}
+            )
+
+            # Private attributes are not included in `__fields_set__` but we do not want
+            # to drop them from the model so we restore them after constructing a new
+            # model
+            for attr in expr.__private_attributes__:
+                # Use `object.__setattr__` to avoid errors on immutable models
+                object.__setattr__(model_instance, attr, getattr(expr, attr))
+
+            return model_instance
+        return None
 
     else:
         result = await visit_fn(expr)
