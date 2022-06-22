@@ -109,6 +109,9 @@ class Deployment(BaseModel):
                 "field empty."
             )
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 def select_deployment(
     deployments: Iterable[Deployment],
