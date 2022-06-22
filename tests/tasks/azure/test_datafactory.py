@@ -13,7 +13,7 @@ AZ_CREDENTIALS = dict(
     client_id="client_id",
     client_secret="client_secret",
     tenant_id="0000000e-000d-00ab-c0de-456e6713d7d5",
-    subscription_id="subscription_id"
+    subscription_id="subscription_id",
 )
 
 
@@ -86,7 +86,9 @@ class TestDatafactoryCreate:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with prefect.context(secrets=dict(AZ_CREDENTIALS=AZ_CREDENTIALS)):
                 task = DatafactoryCreate()
-                result = task.run(datafactory_name="df_name", resource_group_name="rg_name")
+                result = task.run(
+                    datafactory_name="df_name", resource_group_name="rg_name"
+                )
                 assert result == "df_name"
 
 
