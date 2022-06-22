@@ -2,8 +2,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-import azure.mgmt.datafactory
 import azure.identity
+import azure.mgmt.datafactory
 
 from prefect import Task
 from prefect.client import Secret
@@ -94,12 +94,12 @@ class DatafactoryCreate(Task):
             The datafactory name.
         """
         if not datafactory_name:
-            raise ValueError(f"The datafactory_name must be specified.")
+            raise ValueError("The datafactory_name must be specified.")
         if not resource_group_name:
-            raise ValueError(f"The resource_group_name must be specified.")
-  
+            raise ValueError("The resource_group_name must be specified.")
+
         datafactory_client = _get_datafactory_client(azure_credentials_secret)
-  
+
         self.logger.info(
             f"Preparing to create the {datafactory_name} datafactory under "
             f"{resource_group_name} in {location}"
@@ -196,23 +196,24 @@ class PipelineCreate(Task):
             The pipeline name.
         """
         if not datafactory_name:
-            raise ValueError(f"The datafactory_name must be specified.")
+            raise ValueError("The datafactory_name must be specified.")
         if not resource_group_name:
-            raise ValueError(f"The resource_group_name must be specified.")
+            raise ValueError("The resource_group_name must be specified.")
         if not pipeline_name:
-            raise ValueError(f"The pipeline_name must be specified.")
+            raise ValueError("The pipeline_name must be specified.")
         if not activities:
-            raise ValueError(f"The activities must be specified.")
-  
+            raise ValueError("The activities must be specified.")
+
         datafactory_client = _get_datafactory_client(azure_credentials_secret)
-  
+
         self.logger.info(
             f"Preparing to create the {pipeline_name} pipeline "
             f"containing {len(activities)} activities in the "
             f"{datafactory_name} factory under {resource_group_name}."
         )
         pipeline = azure.mgmt.datafactory.models.PipelineResource(
-            activities=activities, parameters=parameters or {})
+            activities=activities, parameters=parameters or {}
+        )
         datafactory_client.pipelines.create_or_update(
             resource_group_name,
             datafactory_name,
@@ -304,12 +305,12 @@ class PipelineRun(Task):
             The pipeline run response.
         """
         if not datafactory_name:
-            raise ValueError(f"The datafactory_name must be specified.")
+            raise ValueError("The datafactory_name must be specified.")
         if not resource_group_name:
-            raise ValueError(f"The resource_group_name must be specified.")
+            raise ValueError("The resource_group_name must be specified.")
         if not pipeline_name:
-            raise ValueError(f"The pipeline_name must be specified.")
-  
+            raise ValueError("The pipeline_name must be specified.")
+
         datafactory_client = _get_datafactory_client(azure_credentials_secret)
         last_updated_after = last_updated_after or datetime.utcnow() - timedelta(days=1)
         last_updated_before = last_updated_before or datetime.utcnow() + timedelta(
