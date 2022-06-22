@@ -12,9 +12,11 @@ mypy
 pre-commit
 pytest
 pytest-asyncio >= 0.18.2
+pytest-cov
 pytest-env
 pytest-timeout
-pytkdocs >= 0.13.0
+pytest-xdist
+pytkdocs >= 0.14.2
 pyyaml
 requests
 setuptools != 60.9.0; python_version < '3.8'

@@ -14,6 +14,7 @@ from typing import (
     Callable,
     Dict,
     Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,
@@ -284,11 +285,27 @@ async def visit_collection(
         and not isinstance(expr, prefect.orion.schemas.states.State)
         and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
     ):
-        values = await gather(
-            *[visit_nested(getattr(expr, field)) for field in expr.__fields__]
+        # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
+        # to retrieve the public keys to visit.
+        # NOTE: This implementation *does not* traverse private attributes
+        results = await gather(
+            *[visit_nested(getattr(expr, key)) for key in expr.__fields_set__]
         )
-        result = {field: value for field, value in zip(expr.__fields__, values)}
-        return typ(**result) if return_data else None
+
+        if return_data:
+            model_instance = typ(
+                **{key: value for key, value in zip(expr.__fields_set__, results)}
+            )
+
+            # Private attributes are not included in `__fields_set__` but we do not want
+            # to drop them from the model so we restore them after constructing a new
+            # model
+            for attr in expr.__private_attributes__:
+                # Use `object.__setattr__` to avoid errors on immutable models
+                object.__setattr__(model_instance, attr, getattr(expr, attr))
+
+            return model_instance
+        return None
 
     else:
         result = await visit_fn(expr)
@@ -355,3 +372,25 @@ class PartialModel(Generic[M]):
     def __repr__(self) -> str:
         dsp_fields = ", ".join(f"{key}={repr(value)}" for key, value in self.fields)
         return f"PartialModel({self.model_cls.__name__}{dsp_fields})"
+
+
+def remove_nested_keys(keys_to_remove: List[Hashable], obj):
+    """
+    Recurses a dictionary returns a copy without all keys that match an entry in
+    `key_to_remove`. Return `obj` unchanged if not a dictionary.
+
+    Args:
+        keys_to_remove: A list of keys to remove from obj
+        obj: The object to remove keys from.
+
+    Returns:
+        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a dictionary.
+        `obj` if `obj` is not a dictionary.
+    """
+    if not isinstance(obj, dict):
+        return obj
+    return {
+        key: remove_nested_keys(keys_to_remove, value)
+        for key, value in obj.items()
+        if key not in keys_to_remove
+    }

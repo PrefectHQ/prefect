@@ -26,7 +26,7 @@ To install a specific version, specify the version, such as:
 
 <div class="terminal">
 ```bash
-pip install -U "prefect==2.0b1"
+pip install -U "prefect==2.0b6"
 ```
 </div>
 
@@ -74,11 +74,11 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.0b5
-API version:         0.3.1
+Version:             2.0b6
+API version:         0.5.0
 Python version:      3.9.10
-Git commit:          7b27c7cf
-Built:               Tue, May 17, 2022 4:54 PM
+Git commit:          1594c9c5
+Built:               Mon, Jun 6, 2022 6:11 PM
 OS/Arch:             darwin/x86_64
 Profile:             default
 Server type:         ephemeral
@@ -127,7 +127,21 @@ You can also:
 - [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
-## Upgrading the database
+## Upgrading to 2.0b6
+
+In Prefect 2.0b6 we've added breaking changes with respect to the [Blocks API](/api-ref/prefect/blocks/storage/). This API is an important abstraction you may have used already to create default [Storage](/concepts/storage/) or specifying `flow_storage` as part of a [`DeploymentSpec`](/concepts/deployments/#deployment-specifications). As a result, the backend API in 2.0b6 is incompatible with previous Prefect client versions.
+
+After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2.0 API.
+
+Actions needed on your end to upgrade, especially as a Cloud 2.0 user:
+
+- Upgrade Prefect 2.0 Python package: `pip install -U "prefect>=2.0b6"`
+- Restart any agent processes.
+- If you are using an agent running on Kubernetes, update the Prefect image version to 2.0b6 in your Kubernetes manifest and re-apply the deployment.
+
+You don't need to recreate any deployments or pause your schedules - stopping your agent process to perform an upgrade may result in some late runs, but those will be picked up once you restart your agent, so Don't Panic!
+
+## Upgrading to 2.0a10
 
 Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database. 
 

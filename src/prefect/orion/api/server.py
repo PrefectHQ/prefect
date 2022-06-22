@@ -3,8 +3,8 @@ Defines the Orion FastAPI app.
 """
 
 import asyncio
+import mimetypes
 import os
-import warnings
 from functools import partial
 from typing import Dict, List, Mapping, Optional, Tuple
 
@@ -30,7 +30,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.5.0"
+ORION_API_VERSION = "0.6.0"
 
 logger = get_logger("orion")
 
@@ -202,6 +202,11 @@ def create_orion_api(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
+
+    if os.name == "nt":
+        # Windows defaults to text/plain for .js files
+        mimetypes.init()
+        mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get("/ui-settings")
     def ui_settings():

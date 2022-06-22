@@ -13,6 +13,7 @@ on:
       - requirements.txt
       - requirements-dev.txt
       - setup.cfg
+      - Dockerfile
   push:
     branches:
       - main
@@ -47,24 +48,26 @@ jobs:
         os:
           # TODO: Add windows to the test matrix once we support it
           - ubuntu-latest
-        test-options:
-          - ""
-          - "--only-services"
+        pytest-options:
+          - "--exclude-services"
+          - "--only-services --disable-docker-image-builds"
 
         include:
-          # Docker image builds are required for service tests
-          - test-options: "--only-services"
-            docker-images: true
-
           # Run 3.7 tests with lower bound pins
           - python-version: "3.7"
             lower-bound-requirements: true
+
+          # Include Docker image builds on the service test run, and disallow the test
+          # suite from building images automaticlly in fixtures
+          - pytest-options: "--only-services --disable-docker-image-builds"
+            build-docker-images: true
+
 
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
 
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Display current test matrix
@@ -76,11 +79,11 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: ${{ matrix.docker-images }}
+        if: ${{ matrix.build-docker-images }}
         uses: docker/setup-buildx-action@v2
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -95,8 +98,8 @@ jobs:
           mv requirements-lower.txt requirements.txt
           mv requirements-dev-lower.txt requirements-dev.txt
 
-      - name: Build test images
-        if: ${{ matrix.docker-images }}
+      - name: Build test image
+        if: ${{ matrix.build-docker-images }}
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -109,10 +112,29 @@ jobs:
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Test Docker image
-        if: ${{ matrix.docker-images }}
+        if: ${{ matrix.build-docker-images }}
         run: |
           docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+
+      - name: Build Conda flavored test image
+        if: ${{ matrix.build-docker-images }}
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            BASE_IMAGE=prefect-conda
+            PREFECT_EXTRAS=[dev]
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}-conda
+          outputs: type=docker,dest=/tmp/image-conda.tar
+
+      - name: Test Conda flavored Docker image
+        if: ${{ matrix.build-docker-images }}
+        run: |
+          docker load --input /tmp/image-conda.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda prefect version
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }}-conda conda --version
 
       - name: Install packages
         run: |
@@ -121,10 +143,9 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
-          pytest tests -vv ${{ matrix.test-options }} --not-service ray
+          # Parallelize tests by scope to reduce expensive service fixture duplication
+          pytest tests -vv --numprocesses auto --dist loadscope --exclude-service dask --exclude-service ray --durations=25 ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
@@ -136,6 +157,8 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+        pytest-options:
+          - "--exclude-services"
 
       fail-fast: false
 
@@ -153,11 +176,16 @@ jobs:
           POSTGRES_USER: prefect
           POSTGRES_PASSWORD: prefect
           POSTGRES_DB: orion
+          LANG: 'C.UTF-8'
+          LANGUAGE: 'C.UTF-8'
+          LC_ALL: 'C.UTF-8'
+          LC_COLLATE: 'C.UTF-8'
+          LC_CTYPE: 'C.UTF-8'
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v3
@@ -165,7 +193,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -180,4 +208,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
         run: |
-          pytest tests -vv
+          pytest tests -vv --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}

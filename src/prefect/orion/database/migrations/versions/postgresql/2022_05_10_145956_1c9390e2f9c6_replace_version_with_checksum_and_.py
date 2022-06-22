@@ -5,13 +5,12 @@ Revises: d38c5e6a9115
 Create Date: 2022-05-10 14:59:56.299921
 
 """
-import hashlib
 
 import sqlalchemy as sa
 from alembic import op
 
 import prefect
-from prefect.utilities.hashing import hash_objects
+from prefect.blocks.core import Block
 
 # revision identifiers, used by Alembic.
 revision = "1c9390e2f9c6"
@@ -107,7 +106,7 @@ def upgrade():
         sa.select([BLOCK_SCHEMA.c.id, BLOCK_SCHEMA.c.name, BLOCK_SCHEMA.c.fields])
     )
     for id, name, fields in results:
-        schema_checksum = f"sha256:{hash_objects(fields, hash_algo=hashlib.sha256)}"
+        schema_checksum = Block._calculate_schema_checksum(fields)
         # Add checksum
         connection.execute(
             sa.update(BLOCK_SCHEMA)
