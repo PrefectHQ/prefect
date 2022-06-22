@@ -1,6 +1,7 @@
 """"
 Tests scripts/generate-lower-bounds.py
 """
+import os
 import runpy
 
 import pytest
