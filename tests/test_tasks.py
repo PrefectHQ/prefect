@@ -273,7 +273,7 @@ class TestTaskFutures:
         @flow
         async def my_flow():
             future = await foo()
-            state = await future.wait(1)
+            state = await future.wait(5)
             assert state is not None
             assert state.is_completed()
 
@@ -301,7 +301,7 @@ class TestTaskFutures:
         @flow
         async def my_flow():
             future = await foo()
-            result = await future.result(timeout=1)
+            result = await future.result(timeout=5)
             assert result == 1
 
         (await my_flow()).result()
