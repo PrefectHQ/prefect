@@ -81,7 +81,10 @@ class FlowRunNotifications(LoopService):
                         for k in schemas.core.FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS
                     }
                 )
-                await block.notify(data=message)
+                await block.notify(
+                    subject="Prefect flow run notification",
+                    body=message,
+                )
 
                 self.logger.debug(
                     f"Successfully sent notification for flow run {notification.flow_run_id} "

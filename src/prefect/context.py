@@ -95,7 +95,7 @@ class PrefectObjectRegistry(ContextModel):
 
     flows: Dict[str, Flow] = Field(default_factory=dict)
     deployment_specs: List[DeploymentSpec] = Field(default_factory=list)
-    tasks: Dict[str, Task] = Field(default_factory=dict)
+    tasks: List[Task] = Field(default_factory=list)
 
     _block_code_execution: bool = PrivateAttr(default=False)
 
@@ -150,6 +150,7 @@ class FlowRunContext(RunContext):
     result_storage: StorageBlock
 
     # Tracking created objects
+    task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
 

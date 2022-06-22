@@ -837,3 +837,79 @@ class TestDeploymentFlowRun:
         assert state.message == "Flow run received invalid parameters."
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             state.result()
+
+
+class TestDynamicKeyHandling:
+    async def test_dynamic_key_increases_sequentially(self, orion_client):
+        @task
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            my_task()
+            my_task()
+            my_task()
+
+        my_flow()
+
+        task_runs = await orion_client.read_task_runs()
+
+        assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 1, 2]
+
+    async def test_subflow_resets_dynamic_key(self, orion_client):
+        @task
+        def my_task():
+            pass
+
+        @flow
+        def subflow():
+            my_task()
+
+        @flow
+        def my_flow():
+            my_task()
+            my_task()
+            subflow()
+            my_task()
+
+        state = my_flow()
+
+        task_runs = await orion_client.read_task_runs()
+        parent_task_runs = [
+            task_run
+            for task_run in task_runs
+            if task_run.flow_run_id == state.state_details.flow_run_id
+        ]
+        subflow_task_runs = [
+            task_run
+            for task_run in task_runs
+            if task_run.flow_run_id != state.state_details.flow_run_id
+        ]
+
+        assert len(parent_task_runs) == 4  # 3 standard task runs and 1 subflow
+        assert len(subflow_task_runs) == 1
+
+        assert int(subflow_task_runs[0].dynamic_key) == 0
+
+    async def test_dynamic_key_unique_per_task_key(self, orion_client):
+        @task
+        def task_one():
+            pass
+
+        @task
+        def task_two():
+            pass
+
+        @flow
+        def my_flow():
+            task_one()
+            task_two()
+            task_two()
+            task_one()
+
+        my_flow()
+
+        task_runs = await orion_client.read_task_runs()
+
+        assert sorted([int(run.dynamic_key) for run in task_runs]) == [0, 0, 1, 1]
