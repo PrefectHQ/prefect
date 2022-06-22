@@ -656,38 +656,6 @@ class TestReadBlockSchemas:
 
         assert block_schema.fields == X.schema()
 
-    async def test_read_block_schema_with_union(
-        self, session, block_type_x, block_type_y, block_type_z
-    ):
-        class Z(Block):
-            _block_type_id = block_type_z.id
-            _block_type_name = block_type_z.name
-
-            b: str
-
-        class Y(Block):
-            _block_type_id = block_type_y.id
-            _block_type_name = block_type_y.name
-
-            a: str
-
-        class X(Block):
-            _block_type_id = block_type_x.id
-            _block_type_name = block_type_x.name
-
-            y_or_z: Union[Y, Z]
-
-        await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=X._to_block_schema(),
-        )
-
-        block_schema = await models.block_schemas.read_block_schema_by_checksum(
-            session=session, checksum=X._calculate_schema_checksum()
-        )
-
-        assert block_schema.fields == X.schema()
-
 
 class TestDeleteBlockSchema:
     async def test_delete_block_schema(self, session, block_schema):
@@ -706,4 +674,75 @@ class TestDeleteBlockSchema:
         )
         assert not await models.block_schemas.delete_block_schema(
             session=session, block_schema_id=block_schema_id
+        )
+
+
+@pytest.fixture
+async def block_schemas_with_capabilities(session):
+    class CanRun(Block):
+        _block_schema_capabilities = ["run"]
+
+        def run(self):
+            pass
+
+    class CanFly(Block):
+        _block_schema_capabilities = ["fly"]
+
+        def fly(self):
+            pass
+
+    class CanSwim(Block):
+        _block_schema_capabilities = ["swim"]
+
+        def swim(self):
+            pass
+
+    class Duck(CanSwim, CanFly, Block):
+        a: str
+
+    class Bird(CanFly, Block):
+        b: str
+
+    class Cat(CanRun, Block):
+        c: str
+
+    block_type_a = await models.block_types.create_block_type(
+        session=session, block_type=Duck._to_block_type()
+    )
+    block_schema_a = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=Duck._to_block_schema(block_type_id=block_type_a.id),
+    )
+    block_type_b = await models.block_types.create_block_type(
+        session=session, block_type=Bird._to_block_type()
+    )
+    block_schema_b = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=Bird._to_block_schema(block_type_id=block_type_b.id),
+    )
+    block_type_c = await models.block_types.create_block_type(
+        session=session, block_type=Cat._to_block_type()
+    )
+    block_schema_c = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=Cat._to_block_schema(block_type_id=block_type_c.id),
+    )
+
+
+class TestListAvailableBlockCapabilities:
+    async def test_list_available_block_capabilities(
+        self, session, block_schemas_with_capabilities
+    ):
+        assert sorted(
+            await models.block_schemas.read_available_block_capabilities(
+                session=session
+            )
+        ) == sorted(["run", "fly", "swim"])
+
+    async def test_list_available_block_capabilities_with_no_schemas(self, session):
+        assert (
+            await models.block_schemas.read_available_block_capabilities(
+                session=session
+            )
+            == []
         )

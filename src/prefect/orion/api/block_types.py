@@ -8,7 +8,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/block_types", tags=["Block documents"])
+router = OrionRouter(prefix="/block_types", tags=["Block types"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
