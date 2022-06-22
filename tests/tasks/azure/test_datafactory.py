@@ -9,6 +9,14 @@ from prefect.tasks.azure import DatafactoryCreate, PipelineCreate, PipelineRun
 from prefect.utilities.configuration import set_temporary_config
 
 
+AZ_CREDENTIALS = dict(
+    client_id="client_id",
+    client_secret="client_secret",
+    tenant_id="0000000e-000d-00ab-c0de-456e6713d7d5",
+    subscription_id="subscription_id"
+)
+
+
 class MockFactory:
     def __init__(self, **kwargs):
         self.provisioning_state = "Queued"
@@ -75,9 +83,11 @@ class TestDatafactoryCreate:
         monkeypatch.setattr(
             "prefect.tasks.azure.datafactory.azure.mgmt.datafactory", datafactory
         )
-        task = DatafactoryCreate()
-        result = task.run(datafactory_name="df_name", resource_group_name="rg_name")
-        assert result == "df_name"
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(AZ_CREDENTIALS=AZ_CREDENTIALS)):
+                task = DatafactoryCreate()
+                result = task.run(datafactory_name="df_name", resource_group_name="rg_name")
+                assert result == "df_name"
 
 
 class TestPipelineCreate:
@@ -126,14 +136,16 @@ class TestPipelineCreate:
         monkeypatch.setattr(
             "prefect.tasks.azure.datafactory.azure.mgmt.datafactory", datafactory
         )
-        task = PipelineCreate()
-        result = task.run(
-            datafactory_name="df_name",
-            resource_group_name="rg_name",
-            pipeline_name="p_name",
-            activities=["activity"],
-        )
-        assert result == "p_name"
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(AZ_CREDENTIALS=AZ_CREDENTIALS)):
+                task = PipelineCreate()
+                result = task.run(
+                    datafactory_name="df_name",
+                    resource_group_name="rg_name",
+                    pipeline_name="p_name",
+                    activities=["activity"],
+                )
+                assert result == "p_name"
 
 
 class TestPipelineRun:
@@ -181,9 +193,11 @@ class TestPipelineRun:
             "prefect.tasks.azure.datafactory.azure.mgmt.datafactory", datafactory
         )
         task = PipelineRun()
-        result = task.run(
-            datafactory_name="df_name",
-            resource_group_name="rg_name",
-            pipeline_name="p_name",
-        )
-        assert result == {"result": "success"}
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with prefect.context(secrets=dict(AZ_CREDENTIALS=AZ_CREDENTIALS)):
+                result = task.run(
+                    datafactory_name="df_name",
+                    resource_group_name="rg_name",
+                    pipeline_name="p_name",
+                )
+                assert result == {"result": "success"}
