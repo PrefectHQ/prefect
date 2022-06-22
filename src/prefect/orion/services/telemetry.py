@@ -5,7 +5,6 @@ The Telemetry service.
 import asyncio
 import os
 import platform
-import sys
 from uuid import uuid4
 
 import httpx

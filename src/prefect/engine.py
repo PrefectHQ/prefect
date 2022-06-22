@@ -30,7 +30,12 @@ import prefect.context
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
 from prefect.client import OrionClient, get_client, inject_client
-from prefect.context import FlowRunContext, TagsContext, TaskRunContext
+from prefect.context import (
+    FlowRunContext,
+    PrefectObjectRegistry,
+    TagsContext,
+    TaskRunContext,
+)
 from prefect.deployments import load_flow_from_deployment
 from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
@@ -48,13 +53,12 @@ from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import Failed, Pending, Running, State, StateDetails
-from prefect.settings import PREFECT_DEBUG_MODE, get_current_settings
+from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.states import (
     exception_to_crashed_state,
     return_value_to_state,
     safe_encode_exception,
 )
-from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     gather,
@@ -79,6 +83,15 @@ def enter_flow_run_engine_from_flow_call(
     for flow run execution with minimal overhead.
     """
     setup_logging()
+
+    registry = PrefectObjectRegistry.get()
+    if registry.code_execution_blocked:
+        engine_logger.warning(
+            f"Script loading is in progress, flow {flow.name!r} will not be executed. "
+            "Consider updating the script to only call the flow if executed directly:\n\n"
+            f'\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+        )
+        return None
 
     if TaskRunContext.get():
         raise RuntimeError(
@@ -503,6 +516,12 @@ async def orchestrate_flow_run(
 
         state = await return_value_to_state(result, serializer="cloudpickle")
 
+    # Before setting the flow run state, store state.data using
+    # block storage and send the resulting data document to the Orion API instead.
+    # This prevents the pickled return value of flow runs
+    # from being sent to the Orion API and stored in the Orion database.
+    # state.data is left as is, otherwise we would have to load
+    # the data from block storage again after storing.
     state = await client.propose_state(
         state=state,
         flow_run_id=flow_run.id,
@@ -511,6 +530,8 @@ async def orchestrate_flow_run(
                 state.data.json().encode(), block=flow_run_context.result_storage
             )
             if state.data is not None and flow_run_context
+            # if None is passed, state.data will be sent
+            # to the Orion API and stored in the database
             else None
         ),
     )
@@ -521,7 +542,6 @@ async def orchestrate_flow_run(
 def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
-    dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
@@ -545,7 +565,7 @@ def enter_task_run_engine(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=dynamic_key,
+        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
     )
 
@@ -828,6 +848,12 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
+        # Before setting the terminal task run state, store state.data using
+        # block storage and send the resulting data document to the Orion API instead.
+        # This prevents the pickled return value of flow runs
+        # from being sent to the Orion API and stored in the Orion database.
+        # terminal_state.data is left as is, otherwise we would have to load
+        # the data from block storage again after storing.
         state = await client.propose_state(
             terminal_state,
             task_run_id=task_run.id,
@@ -836,7 +862,9 @@ async def orchestrate_task_run(
                     terminal_state.data.json().encode(),
                     block=task_run_context.result_storage,
                 )
-                if state.data is not None
+                if terminal_state.data is not None
+                # if None is passed, terminal_state.data will be sent
+                # to the Orion API and stored in the database
                 else None
             ),
         )
@@ -976,6 +1004,15 @@ async def resolve_inputs(
         visit_fn=visit_fn,
         return_data=return_data,
     )
+
+
+def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
+    if task.task_key not in context.task_run_dynamic_keys:
+        context.task_run_dynamic_keys[task.task_key] = 0
+    else:
+        context.task_run_dynamic_keys[task.task_key] += 1
+
+    return context.task_run_dynamic_keys[task.task_key]
 
 
 if __name__ == "__main__":
