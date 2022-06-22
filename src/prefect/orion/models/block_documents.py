@@ -254,6 +254,7 @@ async def _construct_full_block_document(
                     "id": block_document.id,
                     "name": block_document.name,
                     "block_type": block_document.block_type,
+                    "is_anonymous": block_document.is_anonymous,
                     "block_document_references": full_child_block_document.block_document_references,
                 }
             }
