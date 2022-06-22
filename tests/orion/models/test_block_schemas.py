@@ -513,7 +513,8 @@ class TestReadBlockSchemas:
         assert db_block_schema.fields == block_schema.fields
         assert db_block_schema.block_type_id == block_schema.block_type_id
 
-    async def test_read_all_block_schemas(self, session):
+    @pytest.fixture
+    async def nested_schemas(self, session):
         class A(Block):
             d: str
             e: str
@@ -536,7 +537,7 @@ class TestReadBlockSchemas:
         await models.block_types.create_block_type(
             session=session, block_type=Z._to_block_type()
         )
-        await models.block_types.create_block_type(
+        block_type_y = await models.block_types.create_block_type(
             session=session, block_type=Y._to_block_type()
         )
         block_type_x = await models.block_types.create_block_type(
@@ -550,19 +551,78 @@ class TestReadBlockSchemas:
             ),
         )
 
+        await session.commit()
+
+        return (A, X, Y, Z, block_type_x, block_type_y)
+
+    async def test_read_all_block_schemas(self, session, nested_schemas):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
         db_block_schemas = await models.block_schemas.read_block_schemas(
             session=session
         )
 
         assert len(db_block_schemas) == 4
-        assert db_block_schemas[0].checksum == X._calculate_schema_checksum()
-        assert db_block_schemas[1].checksum == Y._calculate_schema_checksum()
-        assert db_block_schemas[2].checksum == Z._calculate_schema_checksum()
-        assert db_block_schemas[3].checksum == A._calculate_schema_checksum()
-        assert db_block_schemas[0].fields == X.schema()
-        assert db_block_schemas[1].fields == Y.schema()
-        assert db_block_schemas[2].fields == Z.schema()
-        assert db_block_schemas[3].fields == A.schema()
+        assert db_block_schemas[0].checksum == A._calculate_schema_checksum()
+        assert db_block_schemas[1].checksum == Z._calculate_schema_checksum()
+        assert db_block_schemas[2].checksum == Y._calculate_schema_checksum()
+        assert db_block_schemas[3].checksum == X._calculate_schema_checksum()
+        assert db_block_schemas[0].fields == A.schema()
+        assert db_block_schemas[1].fields == Z.schema()
+        assert db_block_schemas[2].fields == Y.schema()
+        assert db_block_schemas[3].fields == X.schema()
+
+    async def test_read_all_block_schemas_with_limit(self, session, nested_schemas):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session, limit=2
+        )
+
+        assert len(db_block_schemas) == 2
+        assert db_block_schemas[0].checksum == A._calculate_schema_checksum()
+        assert db_block_schemas[1].checksum == Z._calculate_schema_checksum()
+        assert db_block_schemas[0].fields == A.schema()
+        assert db_block_schemas[1].fields == Z.schema()
+
+    async def test_read_all_block_schemas_with_limit_and_offset(
+        self, session, nested_schemas
+    ):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session, limit=2, offset=2
+        )
+
+        assert len(db_block_schemas) == 2
+        assert db_block_schemas[0].checksum == Y._calculate_schema_checksum()
+        assert db_block_schemas[1].checksum == X._calculate_schema_checksum()
+        assert db_block_schemas[0].fields == Y.schema()
+        assert db_block_schemas[1].fields == X.schema()
+
+    async def test_read_all_block_schemas_with_filters(self, session, nested_schemas):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id])
+            ),
+        )
+
+        assert len(db_block_schemas) == 1
+        assert db_block_schemas[0].block_type_id == block_type_x.id
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id, block_type_y.id])
+            ),
+        )
+
+        assert len(db_block_schemas) == 2
+        assert db_block_schemas[0].block_type_id == block_type_y.id
+        assert db_block_schemas[1].block_type_id == block_type_x.id
 
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z

@@ -1,22 +1,23 @@
-import json
 import os
 import shutil
 import warnings
 from contextlib import contextmanager
-from multiprocessing.sharedctypes import Value
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from types import TracebackType
-from typing import Dict, Generator, Iterable, List, Optional, TextIO, Type, Union
+from typing import Generator, Iterable, List, Optional, TextIO, Type, Union
+from urllib.parse import urlsplit
 
+import pendulum
 from docker import DockerClient
 from docker.errors import APIError
+from docker.models.images import Image
+from slugify import slugify
 from typing_extensions import Self
 
 
 @contextmanager
-def docker_client() -> Generator[DockerClient, None, None]:
-    """Get the environmentally-configured Docker client"""
+def silence_docker_warnings() -> Generator[None, None, None]:
     with warnings.catch_warnings():
         # Silence warnings due to use of deprecated methods within dockerpy
         # See https://github.com/docker/docker-py/pull/2931
@@ -26,27 +27,19 @@ def docker_client() -> Generator[DockerClient, None, None]:
             category=DeprecationWarning,
         )
 
+        yield
+
+
+@contextmanager
+def docker_client() -> Generator[DockerClient, None, None]:
+    """Get the environmentally-configured Docker client"""
+    with silence_docker_warnings():
         client = DockerClient.from_env()
 
     try:
         yield client
     finally:
         client.close()
-
-
-def _event_stream(
-    api_response_stream: Generator[bytes, None, None]
-) -> Generator[Dict, None, None]:
-    """Given a Docker SDK low-level API response stream, decode and produce the
-    individual JSON events from the stream as they happen"""
-    for chunk in api_response_stream:
-        events = chunk.split(b"\r\n")
-        for event in events:
-            if not event.strip():
-                continue
-
-            event = json.loads(event)
-            yield event
 
 
 class BuildError(Exception):
@@ -56,6 +49,7 @@ class BuildError(Exception):
 def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
+    pull: bool = False,
     stream_progress_to: Optional[TextIO] = None,
 ) -> str:
     """Builds a Docker image, returning the image ID
@@ -63,6 +57,7 @@ def build_image(
     Args:
         context: the root directory for the Docker build context
         dockerfile: the path to the Dockerfile, relative to the context
+        pull: True to pull the base image during the build
         stream_progress_to: an optional stream (like sys.stdout, or an io.TextIO) that
             will collect the build output as it is reported by Docker
 
@@ -77,13 +72,15 @@ def build_image(
 
     image_id = None
     with docker_client() as client:
-        stream = client.api.build(
+        events = client.api.build(
             path=str(context),
             dockerfile=dockerfile,
+            pull=pull,
+            decode=True,
         )
 
         try:
-            for event in _event_stream(stream):
+            for event in events:
                 if "stream" in event:
                     if not stream_progress_to:
                         continue
@@ -189,10 +186,13 @@ class ImageBuilder:
 
         self.add_line(f"COPY {source} {destination}")
 
-    def build(self, stream_progress_to: Optional[TextIO] = None) -> str:
+    def build(
+        self, pull: bool = False, stream_progress_to: Optional[TextIO] = None
+    ) -> str:
         """Build the Docker image from the current state of the ImageBuilder
 
         Args:
+            pull: True to pull the base image during the build
             stream_progress_to: an optional stream (like sys.stdout, or an io.TextIO)
                 that will collect the build output as it is reported by Docker
 
@@ -205,6 +205,66 @@ class ImageBuilder:
             dockerfile.writelines(line + "\n" for line in self.dockerfile_lines)
 
         try:
-            return build_image(self.context, stream_progress_to=stream_progress_to)
+            return build_image(
+                self.context, pull=pull, stream_progress_to=stream_progress_to
+            )
         finally:
             os.unlink(dockerfile_path)
+
+
+class PushError(Exception):
+    """Raised when a Docker image push fails"""
+
+
+def push_image(
+    image_id: str,
+    registry_url: str,
+    name: str,
+    tag: Optional[str] = None,
+    stream_progress_to: Optional[TextIO] = None,
+) -> str:
+    """Pushes a local image to a Docker registry, returning the registry-qualified tag
+    for that image
+
+    This assumes that the environment's Docker daemon is already authenticated to the
+    given registry, and currently makes no attempt to authenticate.
+
+    Args:
+        image_id (str): a Docker image ID
+        registry_url (str): the URL of a Docker registry
+        name (str): the name of this image
+        tag (str): the tag to give this image (defaults to a short representation of
+            the image's ID)
+        stream_progress_to: an optional stream (like sys.stdout, or an io.TextIO) that
+            will collect the build output as it is reported by Docker
+
+    Returns:
+        A registry-qualified tag, like my-registry.example.com/my-image:abcdefg
+    """
+
+    if not tag:
+        tag = slugify(pendulum.now("utc").isoformat())
+
+    _, registry, _, _, _ = urlsplit(registry_url)
+    repository = f"{registry}/{name}"
+
+    with docker_client() as client:
+        image: Image = client.images.get(image_id)
+        image.tag(repository, tag=tag)
+        events = client.api.push(repository, tag=tag, stream=True, decode=True)
+        try:
+            for event in events:
+                if "status" in event:
+                    if not stream_progress_to:
+                        continue
+                    stream_progress_to.write(event["status"])
+                    if "progress" in event:
+                        stream_progress_to.write(" " + event["progress"])
+                    stream_progress_to.write("\n")
+                    stream_progress_to.flush()
+                elif "error" in event:
+                    raise PushError(event["error"])
+        finally:
+            client.api.remove_image(f"{repository}:{tag}", noprune=True)
+
+    return f"{repository}:{tag}"

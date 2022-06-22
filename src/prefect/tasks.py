@@ -123,7 +123,7 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
-        self.name = _register_task(self, (name or self.fn.__name__))
+        self.name = name or self.fn.__name__
 
         if "wait_for" in inspect.signature(self.fn).parameters:
             raise ReservedArgumentError(
@@ -142,7 +142,6 @@ class Task(Generic[P, R]):
             str(sorted(self.tags or [])),
         )
 
-        self._dynamic_key = 0
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
 
@@ -151,6 +150,8 @@ class Task(Generic[P, R]):
         #       validate that the user passes positive numbers here
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
+
+        _register_task(self)
 
     def with_options(
         self,
@@ -348,28 +349,11 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        # Get the dynamic key for this call
-        dynamic_key = self.get_and_update_dynamic_key()
-
-        # Update the dynamic key so future task calls are distinguishable from this one
         return enter_task_run_engine(
             self,
             parameters=parameters,
-            dynamic_key=dynamic_key,
             wait_for=wait_for,
         )
-
-    def get_and_update_dynamic_key(self) -> str:
-        """
-        When tasks are called, they call this method to get a key unique to that task
-        call; this allows the backend to distinguish repeated task calls.
-        """
-        current_key = str(self._dynamic_key)
-
-        # Increment the key
-        self._dynamic_key += 1
-
-        return current_key
 
 
 @overload
@@ -502,36 +486,34 @@ def task(
         )
 
 
-def _register_task(task: Task, name: str) -> str:
+def _register_task(task: Task) -> None:
     """
     Collect the `Task` object on the PrefectObjectRegistry.tasks dictionary. If
-    multiple tasks with the same name are created a number will be appended to
-    the name to avoid collisions.
-
-    Returns the name the task should use.
+    multiple tasks with the same name, but different functions are registered a
+    warning will be emitted.
     """
     from prefect.context import PrefectObjectRegistry
 
     registry = PrefectObjectRegistry.get()
 
-    if name in registry.tasks:
-        original_name = name
+    # Warn if this task's `name` conflicts with another task while having a
+    # different function. This is to detect the case where two or more tasks
+    # share a name or are lambdas, which should result in a warning, and to
+    # differentiate it from the case where the task was 'copied' via
+    # `with_options`, which should not result in a warning.
 
-        count = 1
-        while f"{name}-{count}" in registry.tasks:
-            count += 1
-
-        name = f"{name}-{count}"
-
+    if any(
+        other
+        for other in registry.tasks
+        if other.name == task.name and id(other.fn) != id(task.fn)
+    ):
         file = inspect.getsourcefile(task.fn)
         line_number = inspect.getsourcelines(task.fn)[1]
         warnings.warn(
-            f"A task with name {original_name!r} already exists. The task "
-            f"defined at '{file}:{line_number}' will be renamed to {name!r}. "
-            "Consider specifying a unique `name` parameter in the task "
-            "definition:\n\n `@task(name='my_unique_name', ...)`"
+            f"A task named {task.name!r} and defined at '{file}:{line_number}' "
+            "conflicts with another task. Consider specifying a unique `name` "
+            "parameter in the task definition:\n\n "
+            "`@task(name='my_unique_name', ...)`"
         )
 
-    registry.tasks[name] = task
-
-    return name
+    registry.tasks.append(task)

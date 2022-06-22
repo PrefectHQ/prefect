@@ -8,10 +8,16 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 import pytest
+from docker import DockerClient
+from docker.errors import ImageNotFound
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
+from typer.testing import CliRunner
 
 import prefect
 import prefect.settings
+from prefect.cli.dev import dev_app
+from prefect.docker import docker_client
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
@@ -65,6 +71,18 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Exclude all tests except service integration tests.",
+    )
+
+    parser.addoption(
+        "--disable-docker-image-builds",
+        action="store_true",
+        default=False,
+        help=(
+            "Do not build the prefect Docker image during tests.  Tests that require "
+            "the image will fail if the image is not present or has an outdated "
+            "version of `prefect` installed.  Used during CI to run the test suite "
+            "against images built with our production release build process."
+        ),
     )
 
 
@@ -208,6 +226,17 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
         # Create an empty temporary database for use in the tests
         connection = await asyncpg.connect(postgres_url)
         try:
+            # remove any connections to the test database. For example if a SQL IDE
+            # is being used to investigate it, it will block the drop database command.
+            await connection.execute(
+                f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{quoted_db_name}'
+                AND pid <> pg_backend_pid();
+                """
+            )
+
             await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
             await connection.execute(f"CREATE DATABASE {quoted_db_name}")
         finally:
@@ -286,3 +315,55 @@ def testing_session_settings(test_database_url: str):
             setup_logging()
 
             yield ctx
+
+
+@pytest.fixture(scope="session")
+def docker() -> Generator[DockerClient, None, None]:
+    with docker_client() as client:
+        yield client
+
+
+@pytest.fixture(scope="session")
+def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
+    """Ensure that the prefect dev image is available and up-to-date"""
+    image_name = get_prefect_image_name()
+
+    image_exists, version_is_right = False, False
+
+    try:
+        image_exists = bool(docker.images.get(image_name))
+    except ImageNotFound:
+        pass
+
+    if image_exists:
+        output = docker.containers.run(image_name, ["prefect", "--version"])
+        image_version = output.decode().strip()
+        version_is_right = image_version == prefect.__version__
+
+    if not image_exists or not version_is_right:
+        if pytestconfig.getoption("--disable-docker-image-builds"):
+            if not image_exists:
+                raise Exception(
+                    "The --disable-docker-image-builds flag is set, but "
+                    f"there is no local {image_name} image"
+                )
+            if not version_is_right:
+                raise Exception(
+                    "The --disable-docker-image-builds flag is set, but "
+                    f"{image_name} includes {image_version}, not {prefect.__version__}"
+                )
+
+        CliRunner().invoke(dev_app, ["build-image"])
+
+    return image_name
+
+
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    """
+    Ensures each test has a clean object registry.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry():
+        yield

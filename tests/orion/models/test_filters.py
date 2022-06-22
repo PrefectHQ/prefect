@@ -25,6 +25,9 @@ d_3_1_id = uuid4()
 
 @pytest.fixture(autouse=True, scope="module")
 async def data(database_engine, flow_function, db):
+    # This fixture uses the prefix of `test-` whenever the value is going to be
+    # used for a filter in the actual tests below ensuring that the
+    # auto-generated names never conflict.
 
     session = await db.session()
     async with session:
@@ -82,7 +85,7 @@ async def data(database_engine, flow_function, db):
         fr_1_1 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
-                name="happy-duck",
+                name="test-happy-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
                 deployment_id=d_1_1.id,
@@ -100,7 +103,7 @@ async def data(database_engine, flow_function, db):
         fr_1_3 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
-                name="happy-mallard",
+                name="test-happy-mallard",
                 tags=["db", "red"],
                 state=states.Failed(),
                 deployment_id=d_1_1.id,
@@ -126,7 +129,7 @@ async def data(database_engine, flow_function, db):
         fr_2_1 = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_2.id,
-                name="another-happy-duck",
+                name="another-test-happy-duck",
                 tags=["db", "blue"],
                 state=states.Completed(),
             )
@@ -285,12 +288,14 @@ class TestCountFlowsModels:
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 3],
         [
-            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             2,
         ],
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+                flow_run_filter=filters.FlowRunFilter(
+                    name=dict(like_="test-happy-mallard")
+                )
             ),
             1,
         ],
@@ -434,12 +439,14 @@ class TestCountFlowRunModels:
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
         [
-            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             3,
         ],
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+                flow_run_filter=filters.FlowRunFilter(
+                    name=dict(like_="test-happy-mallard")
+                )
             ),
             1,
         ],
@@ -628,12 +635,14 @@ class TestCountTaskRunsModels:
             3,
         ],
         [
-            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))),
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             3,
         ],
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy-mallard"))
+                flow_run_filter=filters.FlowRunFilter(
+                    name=dict(like_="test-happy-mallard")
+                )
             ),
             0,
         ],
@@ -833,7 +842,7 @@ class TestCountDeploymentModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(like_="f-2"))), 0],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
-        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="happy"))), 1],
+        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))), 1],
         [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="nothing!"))), 0],
         [
             dict(
