@@ -2,6 +2,7 @@
 Functions for interacting with block schema ORM objects.
 Intended for internal use by the Orion API.
 """
+import json
 from typing import Dict, List, Optional, Tuple, Union
 from uuid import UUID
 
@@ -674,8 +675,12 @@ async def read_block_schema_by_checksum(
 async def read_available_block_capabilities(
     session: sa.orm.Session, db: OrionDBInterface
 ) -> List[str]:
-    query = sa.select(db.json_arr_agg(db.BlockSchema.capabilities.distinct()))
+    query = sa.select(
+        db.json_arr_agg(db.cast_to_json(db.BlockSchema.capabilities.distinct()))
+    )
     capability_combinations = (await session.execute(query)).scalars().first() or list()
+    if db.uses_json_strings and isinstance(capability_combinations, str):
+        capability_combinations = json.loads(capability_combinations)
     return list({c for capabilities in capability_combinations for c in capabilities})
 
 
