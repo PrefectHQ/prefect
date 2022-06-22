@@ -16,6 +16,7 @@ $ python -m asyncio
 </div>
 """
 
+import copy
 import datetime
 import sys
 import threading
@@ -31,6 +32,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Type,
     Union,
 )
 from uuid import UUID
@@ -40,7 +42,8 @@ import httpx
 import pydantic
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
-from httpx import Response
+from httpx import HTTPStatusError, Response
+from typing_extensions import Self
 
 import prefect
 import prefect.exceptions
@@ -48,15 +51,11 @@ import prefect.orion.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.blocks.storage import StorageBlock, TempStorageBlock
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
 from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.actions import (
-    BlockDocumentUpdate,
-    LogCreate,
-    WorkQueueCreate,
-    WorkQueueUpdate,
-)
+from prefect.orion.schemas.actions import LogCreate, WorkQueueCreate, WorkQueueUpdate
 from prefect.orion.schemas.core import (
     BlockDocument,
     BlockSchema,
@@ -205,6 +204,39 @@ async def app_lifespan_context(app: FastAPI) -> ContextManager[None]:
                     await context.__aexit__(*exc_info)
 
 
+class PrefectResponse(httpx.Response):
+    """
+    A Prefect wrapper for the `httpx.Response` class.
+
+    Provides more informative error messages.
+    """
+
+    def raise_for_status(self) -> None:
+        """
+        Raise an exception if the response contains an HTTPStatusError.
+
+        The `PrefectHTTPStatusError` contains useful additional information that
+        is not contained in the `HTTPStatusError`.
+        """
+        try:
+            return super().raise_for_status()
+        except HTTPStatusError as exc:
+            raise PrefectHTTPStatusError.from_httpx_error(exc) from exc.__cause__
+
+    @classmethod
+    def from_httpx_response(cls: Type[Self], response: httpx.Response) -> Self:
+        """
+        Create a `PrefectReponse` from an `httpx.Response`.
+
+        By changing the `__class__` attribute of the Response, we change the method
+        resolution order to look for methods defined in PrefectResponse, while leaving
+        everything else about the original Response instance intact.
+        """
+        new_response = copy.copy(response)
+        new_response.__class__ = cls
+        return new_response
+
+
 class PrefectHttpxClient(httpx.AsyncClient):
     """
     A Prefect wrapper for the async httpx client with support for CloudFlare-style
@@ -220,8 +252,9 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     async def send(self, *args, **kwargs) -> Response:
         retry_count = 0
-        response = await super().send(*args, **kwargs)
-
+        response = PrefectResponse.from_httpx_response(
+            await super().send(*args, **kwargs)
+        )
         while (
             response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
             and retry_count < self.RETRY_MAX
@@ -241,6 +274,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
         #       `OrionClient`
+
         response.raise_for_status()
 
         return response
@@ -1126,7 +1160,7 @@ class OrionClient:
         flow_runner: "FlowRunner" = None,
     ) -> UUID:
         """
-        Create a flow deployment in Orion.
+        Create a deployment.
 
         Args:
             flow_id: the flow ID to create a deployment for
@@ -1154,6 +1188,23 @@ class OrionClient:
 
         response = await self._client.post(
             "/deployments/", json=deployment_create.dict(json_compatible=True)
+        )
+        deployment_id = response.json().get("id")
+        if not deployment_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(deployment_id)
+
+    async def _create_deployment_from_schema(
+        self, schema: schemas.actions.DeploymentCreate
+    ) -> UUID:
+        """
+        Create a deployment from a prepared `DeploymentCreate` schema.
+        """
+        # TODO: We are likely to remove this method once we have considered the
+        #       packaging interface for deployments further.
+        response = await self._client.post(
+            "/deployments/", json=schema.dict(json_compatible=True)
         )
         deployment_id = response.json().get("id")
         if not deployment_id:

@@ -57,10 +57,22 @@ class FlowFilterName(PrefectFilterBaseModel):
         example=["my-flow-1", "my-flow-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Flow.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Flow.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -135,10 +147,22 @@ class FlowRunFilterName(PrefectFilterBaseModel):
         example=["my-flow-run-1", "my-flow-run-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.FlowRun.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -438,10 +462,22 @@ class TaskRunFilterName(PrefectFilterBaseModel):
         example=["my-task-run-1", "my-task-run-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.TaskRun.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -616,10 +652,22 @@ class DeploymentFilterName(PrefectFilterBaseModel):
         example=["my-deployment-1", "my-deployment-2"],
     )
 
+    like_: str = Field(
+        None,
+        description=(
+            "A case-insensitive partial match. For example, "
+            " passing 'marvin' will match "
+            "'marvin', 'sad-Marvin', and 'marvin-robot'."
+        ),
+        example="marvin",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Deployment.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Deployment.name.ilike(f"%{self.like_}%"))
         return filters
 
 
@@ -824,3 +872,97 @@ class FilterSet(PrefectBaseModel):
         default_factory=DeploymentFilter,
         description="Filters that apply to deployments",
     )
+
+
+class BlockSchemaFilterBlockTypeId(PrefectFilterBaseModel):
+    """Filter by `BlockSchema.block_type_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of block type ids to include")
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.BlockSchema.block_type_id.in_(self.any_))
+        return filters
+
+
+class BlockSchemaFilter(PrefectFilterBaseModel):
+    """Filter BlockSchemas"""
+
+    block_type_id: Optional[BlockSchemaFilterBlockTypeId] = Field(
+        None, description="Filter criteria for `BlockSchema.block_type_id`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.block_type_id is not None:
+            filters.append(self.block_type_id.as_sql_filter(db))
+
+        return filters
+
+
+class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
+    """Filter by `BlockDocument.is_anonymous`."""
+
+    eq_: bool = Field(
+        None,
+        description="Filter block documents for only those that are or are not anonymous.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.BlockDocument.is_anonymous.is_(self.eq_))
+        return filters
+
+
+class BlockDocumentFilter(PrefectFilterBaseModel):
+    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+
+    is_anonymous: Optional[BlockDocumentFilterIsAnonymous] = Field(
+        # default is to exclude anonymous blocks
+        BlockDocumentFilterIsAnonymous(eq_=False),
+        description=(
+            "Filter criteria for `BlockDocument.is_anonymous`. "
+            "Defaults to excluding anonymous blocks."
+        ),
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.is_anonymous is not None:
+            filters.append(self.is_anonymous.as_sql_filter(db))
+
+        return filters
+
+
+class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
+    """Filter by `FlowRunNotificationPolicy.is_active`."""
+
+    eq_: bool = Field(
+        None,
+        description="Filter notification policies for only those that are or are not active.",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.eq_ is not None:
+            filters.append(db.FlowRunNotificationPolicy.is_active.is_(self.eq_))
+        return filters
+
+
+class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
+    """Filter FlowRunNotificationPolicies."""
+
+    is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
+        FlowRunNotificationPolicyFilterIsActive(eq_=False),
+        description=("Filter criteria for `FlowRunNotificationPolicy.is_active`. "),
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.is_active is not None:
+            filters.append(self.is_active.as_sql_filter(db))
+
+        return filters
