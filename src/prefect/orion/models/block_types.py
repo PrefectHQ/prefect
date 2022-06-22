@@ -2,6 +2,7 @@
 Functions for interacting with block type ORM objects.
 Intended for internal use by the Orion API.
 """
+import html
 from typing import Optional
 from uuid import UUID
 
@@ -33,6 +34,14 @@ async def create_block_type(
     insert_values = block_type.dict(
         shallow=True, exclude_unset=False, exclude={"created", "updated", "id"}
     )
+    if insert_values.get("description") is not None:
+        insert_values["description"] = html.escape(
+            insert_values["description"], quote=False
+        )
+    if insert_values.get("code_example") is not None:
+        insert_values["code_example"] = html.escape(
+            insert_values["code_example"], quote=False
+        )
     insert_stmt = (await db.insert(db.BlockType)).values(**insert_values)
     if override:
         insert_stmt = insert_stmt.on_conflict_do_update(

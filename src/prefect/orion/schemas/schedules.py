@@ -4,14 +4,14 @@ Schedule schemas
 
 import asyncio
 import datetime
-from typing import List, Set, Union
+from typing import List, Union
 
 import pendulum
 import pytz
 from croniter import croniter
 from dateutil import rrule
 from dateutil import tz as dateutil_tz
-from pydantic import Field, conint, validator
+from pydantic import Field, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
 

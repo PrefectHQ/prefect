@@ -2,13 +2,16 @@
 Prefect-specific exceptions.
 """
 from types import ModuleType, TracebackType
-from typing import Iterable, Optional, Type
+from typing import TYPE_CHECKING, Iterable, Optional, Type
 
 from httpx._exceptions import HTTPStatusError
 from rich.traceback import Traceback
 from typing_extensions import Self
 
 import prefect
+
+if TYPE_CHECKING:
+    from prefect.deployments import DeploymentSpec
 
 
 def _trim_traceback(
@@ -44,15 +47,11 @@ class PrefectException(Exception):
     Base exception type for Prefect errors.
     """
 
-    pass
-
 
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
     """
-
-    pass
 
 
 class UnspecifiedFlowError(PrefectException):
@@ -60,15 +59,11 @@ class UnspecifiedFlowError(PrefectException):
     Raised when multiple flows are found in the expected script and no name is given.
     """
 
-    pass
-
 
 class MissingDeploymentError(PrefectException):
     """
     Raised when a given deployment name is not found in the expected script.
     """
-
-    pass
 
 
 class UnspecifiedDeploymentError(PrefectException):
@@ -76,15 +71,31 @@ class UnspecifiedDeploymentError(PrefectException):
     Raised when multiple deployments are found in the expected script and no name is given.
     """
 
-    pass
 
-
-class SpecValidationError(PrefectException, ValueError):
+class DeploymentValidationError(PrefectException, ValueError):
     """
-    Raised when a value for a specification is inorrect
+    Raised when a value for a specification is incorrect
     """
 
-    pass
+    def __init__(self, message: str, deployment: "DeploymentSpec") -> None:
+        self.message = message
+        self.deployment = deployment
+
+    def __str__(self) -> str:
+        # Attempt to recover a helpful name
+        if self.deployment.flow_name and self.deployment.name:
+            identifier = f"{self.deployment.flow_name}/{self.deployment.name}"
+        elif self.deployment.name:
+            identifier = f"{self.deployment.name}"
+        elif self.deployment._source:
+            identifier = f"{str(self.deployment._source['file'])!r}, line {self.deployment._source['line']}"
+        else:
+            identifier = ""
+
+        if identifier:
+            identifier = f" {identifier!r}"
+
+        return f"Deployment specification{identifier} failed validation: {self.message}"
 
 
 class ScriptError(PrefectException):
@@ -139,8 +150,6 @@ class ParameterTypeError(PrefectException):
     Raised when a value passed as a flow parameter does not pass validation.
     """
 
-    pass
-
 
 class ObjectNotFound(PrefectException):
     """
@@ -168,8 +177,6 @@ class UpstreamTaskError(PrefectException):
     'COMPLETE'
     """
 
-    pass
-
 
 class MissingContextError(PrefectException, RuntimeError):
     """
@@ -177,15 +184,11 @@ class MissingContextError(PrefectException, RuntimeError):
     active but one cannot be found.
     """
 
-    pass
-
 
 class MissingProfileError(PrefectException, ValueError):
     """
     Raised when a profile name does not exist.
     """
-
-    pass
 
 
 class ReservedArgumentError(PrefectException, TypeError):
@@ -194,23 +197,17 @@ class ReservedArgumentError(PrefectException, TypeError):
     reserved for a Prefect feature
     """
 
-    pass
-
 
 class InvalidNameError(PrefectException, ValueError):
     """
     Raised when a name contains characters that are not permitted.
     """
 
-    pass
-
 
 class PrefectSignal(BaseException):
     """
     Base type for signal-like exceptions that should never be caught by users.
     """
-
-    pass
 
 
 class Abort(PrefectSignal):
@@ -219,8 +216,6 @@ class Abort(PrefectSignal):
 
     Indicates that the run should exit immediately.
     """
-
-    pass
 
 
 class PrefectHTTPStatusError(HTTPStatusError):

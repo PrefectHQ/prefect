@@ -726,14 +726,14 @@ _FROM_ENV_CACHE: Dict[int, Settings] = {}
 
 def get_current_settings() -> Settings:
     """
-    Returns a settings object populated with values from the current profile or, if no
-    profile is active, the environment.
+    Returns a settings object populated with values from the current settings context
+    or, if no settings context is active, the environment.
     """
     from prefect.context import SettingsContext
 
-    profile = SettingsContext.get()
-    if profile is not None:
-        return profile.settings
+    settings_context = SettingsContext.get()
+    if settings_context is not None:
+        return settings_context.settings
 
     return get_settings_from_env()
 
