@@ -469,24 +469,43 @@ class Block(BaseModel, ABC):
 
             cls._block_schema_id = block_schema.id
 
-    async def save(self, name: Optional[str] = None):
+    async def save(self, name: Optional[str] = None, is_anonymous: bool = False):
         """
-        Used to create Block Documents from a Block instance. If an name is not provided,
-        a generated name will be created for the block.
+        Saves the values of a block as a block document.
 
         Args:
-            name: Name to give saved block document which can later be used to load the
-                block document. If a name is not given, then a name will be generated
-                for the saved block document.
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+            is_anonymous: Boolean value specifying if the block document should or should
+                not be stored without a user specified name.
+
+        Raises:
+            ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
+                `is_anonymous` is `True`.
         """
-        # Ensure block type and schema are registered before saving
+        if name is None and not is_anonymous:
+            raise ValueError(
+                "You're attempting to save a block document without a name. "
+                "Please either save a block document with a name or set "
+                "is_anonymous to True."
+            )
+
+        if name is not None and is_anonymous:
+            raise ValueError(
+                "You're attempting to save an anonymous block document with a name. "
+                "Please either save a block document without a name or set "
+                "is_anonymous to False."
+            )
+
+        # Ensure block type and schema are registered before saving block document.
         await self.register_type_and_schema()
 
-        self._is_anonymous = True if name is None else False
+        self._is_anonymous = is_anonymous
         async with prefect.client.get_client() as client:
             block_document = await client.create_block_document(
                 block_document=self._to_block_document(name=name)
             )
 
+        # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
