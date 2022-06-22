@@ -14,6 +14,7 @@ import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.utilities.collections import listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -678,7 +679,7 @@ class FlowRunNotificationPolicy(ORMBaseModel):
         None,
         description=(
             "A templatable notification message. Use {braces} to add variables. "
-            f'Valid variables include: {", ".join(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS))}'
+            f'Valid variables include: {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'
         ),
         example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
     )
