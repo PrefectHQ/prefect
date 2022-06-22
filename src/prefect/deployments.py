@@ -45,7 +45,6 @@ Examples:
     ```
 """
 
-import abc
 import os
 import pathlib
 import sys
@@ -81,7 +80,7 @@ from prefect.utilities.filesystem import is_local_path, tmpchdir
 from prefect.utilities.importtools import objects_from_script
 
 
-class DeploymentSpec(PrefectBaseModel, abc.ABC):
+class DeploymentSpec(PrefectBaseModel):
     """
     A type for specifying a deployment of a flow.
 
@@ -129,8 +128,8 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
         super().__init__(**data)
 
         # Detect the definition location for reporting validation failures
-        # Walk up two frames to the subclass init then the user's declaration
-        frame = sys._getframe().f_back.f_back
+        # Walk up one frame to the user's declaration
+        frame = sys._getframe().f_back
         self._source = {
             "file": frame.f_globals["__file__"],
             "line": frame.f_lineno,

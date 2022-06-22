@@ -356,3 +356,13 @@ def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
         CliRunner().invoke(dev_app, ["build-image"])
 
     return image_name
+
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    """
+    Ensures each test has a clean object registry.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry():
+        yield
