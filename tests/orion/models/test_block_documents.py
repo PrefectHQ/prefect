@@ -591,6 +591,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -664,6 +665,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
