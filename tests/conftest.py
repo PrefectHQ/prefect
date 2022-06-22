@@ -1,31 +1,36 @@
 import asyncio
 import logging
+import os
 import pathlib
 import tempfile
-import warnings
-from typing import Set
+from typing import Generator, Optional
+from urllib.parse import urlsplit, urlunsplit
 
+import asyncpg
 import pytest
+from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_ORION_ANALYTICS_ENABLED,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
 
-# isort: off
+# isort: split
 # Import fixtures
 
-from prefect.testing.fixtures import *
 from prefect.testing.cli import *
+from prefect.testing.fixtures import *
 
 from .fixtures.api import *
 from .fixtures.client import *
@@ -36,11 +41,10 @@ from .fixtures.storage import *
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--service",
-        action="append",
-        metavar="SERVICE",
-        default=[],
-        help="Include service integration tests for SERVICE.",
+        "--exclude-services",
+        action="store_true",
+        default=False,
+        help="Exclude all service integration tests from the test run.",
     )
     parser.addoption(
         "--only-service",
@@ -50,76 +54,58 @@ def pytest_addoption(parser):
         help="Exclude all tests except service integration tests for SERVICE.",
     )
     parser.addoption(
-        "--not-service",
+        "--exclude-service",
         action="append",
         metavar="SERVICE",
         default=[],
         help="Exclude service integration tests for SERVICE.",
     )
     parser.addoption(
-        "--all-services",
-        action="store_true",
-        default=False,
-        help="Include all service integration tests",
-    )
-    parser.addoption(
         "--only-services",
         action="store_true",
         default=False,
-        help="Exclude all tests except service integration tests",
+        help="Exclude all tests except service integration tests.",
     )
-
-
-def skip_exclude_services(services: Set[str], items):
-    """
-    Utility to skip service tests that are excluded by `--not-service`.
-
-    For use with `--all-services` and `--only-services` which would otherwise run tests
-    for all services.
-    """
-    if services:
-        for item in items:
-            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-            excluded_services = item_services.intersection(services)
-            if excluded_services:
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Excluding tests for service(s): "
-                        f"{', '.join(repr(s) for s in excluded_services)}."
-                    )
-                )
 
 
 def pytest_collection_modifyitems(session, config, items):
     """
     Update tests to skip in accordance with service requests
     """
-    not_services = set(config.getoption("--not-service"))
+    exclude_all_services = config.getoption("--exclude-services")
+    if exclude_all_services:
+        for item in items:
+            item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+            if item_services:
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Excluding tests for services. This test requires service(s): "
+                        f"{', '.join(repr(s) for s in item_services)}."
+                    )
+                )
 
-    if config.getoption("--all-services"):
-        skip_exclude_services(not_services, items)
-
-        if config.getoption("--only-service") or config.getoption("--only-services"):
-            warnings.warn(
-                "`--only-service` cannot be used with `--all-services`. "
-                "`--only-service` will be ignored."
+    exclude_services = set(config.getoption("--exclude-service"))
+    for item in items:
+        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
+        excluded_services = item_services.intersection(exclude_services)
+        if excluded_services:
+            item.add_marker(
+                pytest.mark.skip(
+                    "Excluding tests for service(s): "
+                    f"{', '.join(repr(s) for s in excluded_services)}."
+                )
             )
-        return
 
     only_run_service_tests = config.getoption("--only-services")
     if only_run_service_tests:
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             if not item_services:
-                item.add_marker(pytest.mark.skip("Only running tests for services."))
-
-        skip_exclude_services(not_services, items)
-
-        if config.getoption("--service"):
-            warnings.warn(
-                "`--service` cannot be used with `--only-services`. "
-                "`--service` will be ignored."
-            )
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Only running tests for services. This test does not require a service."
+                    )
+                )
         return
 
     only_services = set(config.getoption("--only-service"))
@@ -128,27 +114,20 @@ def pytest_collection_modifyitems(session, config, items):
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             not_in_only_services = only_services.difference(item_services)
-            if not_in_only_services:
-                item.add_marker(pytest.mark.skip(only_running_blurb))
 
-        if config.getoption("--service"):
-            warnings.warn(
-                "`--service` cannot be used with `--only-service`. "
-                "`--service` will be ignored."
-            )
-        return
-
-    run_services = set(config.getoption("--service"))
-    for item in items:
-        item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
-        missing_services = item_services.difference(run_services)
-        if missing_services:
-            item.add_marker(
-                pytest.mark.skip(
-                    f"Requires service(s): {', '.join(repr(s) for s in missing_services)}. "
-                    "Use '--service NAME' to include."
+            if item_services:
+                requires_blurb = (
+                    "This test requires service(s): "
+                    f"{', '.join(repr(s) for s in item_services)}"
                 )
-            )
+            else:
+                requires_blurb = "This test does not require a service."
+
+            if not_in_only_services:
+                item.add_marker(
+                    pytest.mark.skip(only_running_blurb + " " + requires_blurb)
+                )
+        return
 
 
 @pytest.fixture(scope="session")
@@ -197,32 +176,112 @@ def tests_dir() -> pathlib.Path:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def testing_session_settings():
+async def test_database_url(worker_id: str) -> Generator[Optional[str], None, None]:
+    """Prepares an alternative test database URL, if necessary, for the current
+    connection URL.
+
+    For databases without a server (i.e. SQLite), produces `None`, indicating we should
+    just use the currently configured value.
+
+    For databases with a server (i.e. Postgres), creates an additional database on the
+    server for each test worker, using the provided connection URL as the starting
+    point.  Requires that the given database user has permission to connect to the
+    server and create new databases."""
+    original_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    if not original_url:
+        yield None
+        return
+
+    scheme, netloc, database, query, fragment = urlsplit(original_url)
+    if scheme == "sqlite+aiosqlite":
+        # SQLite databases will be scoped by the PREFECT_HOME setting, which will
+        # be in an isolated temporary directory
+        yield None
+        return
+
+    if scheme == "postgresql+asyncpg":
+        test_db_name = database.strip("/") + f"_tests_{worker_id}"
+        quoted_db_name = postgres_dialect().identifier_preparer.quote(test_db_name)
+
+        postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
+
+        # Create an empty temporary database for use in the tests
+        connection = await asyncpg.connect(postgres_url)
+        try:
+            # remove any connections to the test database. For example if a SQL IDE
+            # is being used to investigate it, it will block the drop database command.
+            await connection.execute(
+                f"""
+                SELECT pg_terminate_backend(pg_stat_activity.pid)
+                FROM pg_stat_activity
+                WHERE pg_stat_activity.datname = '{quoted_db_name}'
+                AND pid <> pg_backend_pid();
+                """
+            )
+
+            await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
+            await connection.execute(f"CREATE DATABASE {quoted_db_name}")
+        finally:
+            await connection.close()
+
+        new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
+
+        # TODO: https://github.com/PrefectHQ/orion/issues/2045
+        # Also temporarily override the environment variable, so that child
+        # subprocesses that we spin off are correctly configured as well
+        original_envvar = os.environ.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
+        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = new_url
+
+        yield new_url
+
+        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = original_envvar
+
+        # Now drop the temporary database we created
+        connection = await asyncpg.connect(postgres_url)
+        try:
+            await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
+        except asyncpg.exceptions.ObjectInUseError:
+            # If we aren't able to drop the database because there's still a connection,
+            # open, that's okay.  If we're in CI, then this DB is going away permanently
+            # anyway, and if we're testing locally, in the beginning of this fixture,
+            # we drop the database prior to creating it.  The worst case is that we
+            # leave a DB catalog lying around on your local Postgres, which will get
+            # cleaned up before the next test suite run.
+            pass
+        finally:
+            await connection.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def testing_session_settings(test_database_url: str):
     """
     Creates a fixture for the scope of the test session that modifies setting defaults.
 
     This ensures that tests are isolated from existing settings, databases, etc.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
+        test_settings = {
+            # Set PREFECT_HOME to a temporary directory to avoid clobbering
+            # environments and settings
+            PREFECT_HOME: tmpdir,
+            PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Enable debug logging
+            PREFECT_LOGGING_LEVEL: "DEBUG",
+            # Disable shipping logs to the API;
+            # can be enabled by the `enable_orion_handler` mark
+            PREFECT_LOGGING_ORION_ENABLED: False,
+            # Disable services for test runs
+            PREFECT_ORION_ANALYTICS_ENABLED: False,
+            PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
+            PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
+            PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+        }
+
+        if test_database_url:
+            test_settings[PREFECT_ORION_DATABASE_CONNECTION_URL] = test_database_url
+
         profile = prefect.settings.Profile(
-            name="test-session",
-            settings={
-                # Set PREFECT_HOME to a temporary directory to avoid clobbering
-                # environments and settings
-                PREFECT_HOME: tmpdir,
-                PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
-                # Enable debug logging
-                PREFECT_LOGGING_LEVEL: "DEBUG",
-                # Disable shipping logs to the API;
-                # can be enabled by the `enable_orion_handler` mark
-                PREFECT_LOGGING_ORION_ENABLED: False,
-                # Disable services for test runs
-                PREFECT_ORION_ANALYTICS_ENABLED: False,
-                PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
-                PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
-                PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
-            },
-            source=__file__,
+            name="test-session", settings=test_settings, source=__file__
         )
 
         with prefect.context.use_profile(
@@ -238,3 +297,14 @@ def testing_session_settings():
             setup_logging()
 
             yield ctx
+
+
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    """
+    Ensures each test has a clean object registry.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry():
+        yield

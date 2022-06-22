@@ -6,7 +6,7 @@ import pytest
 from prefect import flow, task
 from prefect.client import get_client
 from prefect.orion import schemas
-from prefect.settings import PREFECT_API_URL, PREFECT_ORION_DATABASE_CONNECTION_URL
+from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 
 

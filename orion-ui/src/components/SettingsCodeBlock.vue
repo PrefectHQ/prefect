@@ -11,7 +11,7 @@
 <script lang="ts" setup>
   import { OrionSettings } from '@prefecthq/orion-design'
   import { PCode } from '@prefecthq/prefect-design'
-  import { defineProps, computed } from 'vue'
+  import { computed } from 'vue'
 
   const props = defineProps<{
     engineSettings: OrionSettings,
