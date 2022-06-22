@@ -47,15 +47,20 @@ Examples:
 
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.flow_runners.base import FlowRunner, FlowRunnerSettings
+from prefect.flow_runners.base import (
+    FlowRunner,
+    FlowRunnerSettings,
+    UniversalFlowRunner,
+)
 from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.orion import schemas
+from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.file import FilePackager
 from prefect.utilities.collections import listrepr
@@ -75,7 +80,7 @@ def source_to_flow(flow_source: FlowSource) -> Flow:
     elif isinstance(flow_source, FlowScript):
         return load_flow_from_script(flow_source.path, name=flow_source.name)
     elif isinstance(flow_source, PackageManifest):
-        raise TypeError("Cannot resolve a package manifest directly into a flow.")
+        return flow_source.__packager__.unpackage(flow_source)
     else:
         raise TypeError(
             "Unknown type {type(flow_source).__name__!r} for flow source. "
@@ -98,16 +103,44 @@ class Deployment(BaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
     # TODO: Change to 'infrastructure'
-    flow_runner: Union[FlowRunner, FlowRunnerSettings] = None
+    flow_runner: FlowRunner = Field(default_factory=UniversalFlowRunner)
 
-    @inject_client
-    async def create(self, client: OrionClient):
+    @validator("flow_runner", pre=True)
+    def cast_flow_runner_settings(cls, value):
+        if isinstance(value, FlowRunnerSettings):
+            return FlowRunner.from_settings(value)
+        return value
+
+    def validate(self):
         if "packager" in self.__fields_set__ and isinstance(self.flow, PackageManifest):
             raise ValueError(
                 "A packager cannot be provided if a package manifest is provided "
                 "instead of a flow. Provide a local flow instead or leave the packager "
                 "field empty."
             )
+
+    @inject_client
+    async def create(self, client: OrionClient):
+
+        flow = source_to_flow(self.flow)
+        flow_id = await client.create_flow(flow)
+
+        if isinstance(self.flow, PackageManifest):
+            manifest = self.flow
+        else:
+            manifest = self.packager.package(flow)
+
+        flow_data = DataDocument.encode("package-manifest", manifest)
+
+        client.create_deployment(
+            flow_id=flow_id,
+            name=self.name,
+            flow_data=flow_data,
+            schedule=self.schedule,
+            parameters=self.parameters,
+            tags=self.tags,
+            flow_runner=self.flow_runner,
+        )
 
     class Config:
         arbitrary_types_allowed = True

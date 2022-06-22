@@ -5,12 +5,16 @@ These serializers are registered for use with `DataDocument` types
 """
 import base64
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import cloudpickle
 
 from prefect.orion.serializers import register_serializer
+from prefect.packaging.serializers import from_qualified_name, to_qualified_name
+
+if TYPE_CHECKING:
+    from prefect.packaging.base import PackageManifest
 
 
 @register_serializer("json")
@@ -95,3 +99,22 @@ class BlockStorageSerializer:
             "data": json.loads(block_document["data"]),
             "block_document_id": block_document_id,
         }
+
+
+@register_serializer("package-manifest")
+class PackageManifestSerializer:
+    """
+    Serializes a package manifest.
+    """
+
+    @staticmethod
+    def dumps(data: "PackageManifest") -> bytes:
+        return json.dumps(
+            {"type": to_qualified_name(data), "data": data.json()}
+        ).encode()
+
+    @staticmethod
+    def loads(blob: bytes) -> "PackageManifest":
+        payload = json.loads(blob)
+        cls: PackageManifest = from_qualified_name(payload["type"])
+        return cls.parse_raw(payload["data"])
