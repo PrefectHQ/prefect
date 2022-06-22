@@ -475,9 +475,10 @@ class Block(BaseModel, ABC):
 
             cls._block_schema_id = block_schema.id
 
-    async def save(self, name: Optional[str] = None, is_anonymous: bool = False):
+    async def _save(self, name: Optional[str] = None, is_anonymous: bool = False):
         """
-        Saves the values of a block as a block document.
+        Saves the values of a block as a block document with an option to save as an
+        anonymous block document.
 
         Args:
             name: User specified name to give saved block document which can later be used to load the
@@ -515,3 +516,13 @@ class Block(BaseModel, ABC):
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
+
+    async def save(self, name: str):
+        """
+        Saves the values of a block as a block document.
+
+        Args:
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+        """
+        await self._save(name=name)
