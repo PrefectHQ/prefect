@@ -1,5 +1,6 @@
 import io
 import sys
+from pathlib import Path
 from typing import Generator
 from uuid import uuid4
 
@@ -14,6 +15,11 @@ from slugify import slugify
 from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
 
 pytestmark = pytest.mark.service("docker")
+
+
+@pytest.fixture
+def contexts() -> Path:
+    return Path(__file__).parent / "contexts"
 
 
 @pytest.fixture(scope="module")
