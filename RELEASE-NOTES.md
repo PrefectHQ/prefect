@@ -26,7 +26,9 @@ This release includes a number of important improvements and bug fixes in respon
 - [prefect-ray](https://prefecthq.github.io/prefect-ray/)
 - [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/)
 - [prefect-openmetadata](https://prefecthq.github.io/prefect-openmetadata/)
-- Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
+- [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/)
+
+Note that the Dask and Ray task runners have been moved out of the Prefect core library to reduce the number of dependencies we require for most use cases. Install from the command line with `pip install prefect-dask` and import with `from prefect_dask.task_runners import DaskTaskRunner`.
 
 ### Bug squashing
 - [Allow Orion UI to run on Windows](https://github.com/PrefectHQ/prefect/pull/5802)
