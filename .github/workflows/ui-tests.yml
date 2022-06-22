@@ -27,29 +27,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-orion-design:
-    name: Build orion-design
-    runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: --max_old_space_size=8192
-      
-    steps:
-      - uses: actions/checkout@v3
-
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version-file: '.nvmrc'
-          cache-dependency-path: '**/package-lock.json'
-
-      - name: Install orion-design dependencies
-        working-directory: ./orion-ui/packages/orion-design
-        run: npm ci install
-
-      - name: Build orion-design
-        working-directory: ./orion-ui/packages/orion-design
-        run: npm run build
-
   build-orion-ui:
     name: Build orion-ui
     runs-on: ubuntu-latest

@@ -13,7 +13,6 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-import prefect.settings
 from prefect.logging import get_logger
 from prefect.orion.api.run_history import run_history
 from prefect.orion.models.flow_runs import DependencyResult

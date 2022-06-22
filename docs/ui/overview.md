@@ -14,7 +14,7 @@ The Prefect UI provides an overview of all of your flows. It was designed around
 There are two ways to access the UI:
 
 - The [Prefect UI](#using-the-orion-ui) gives you insight into the flows running with any local Prefect API server instance.
-- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts and workspaces.
+- [Prefect Cloud](/ui/cloud/) is a hosted service that provides all the capabilities of the Prefect API server and orchestration engine, plus personal accounts, workspaces, and collaborators.
 
 The UI displays many useful insights about your flow runs, including:
 
@@ -32,6 +32,7 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 The Prefect UI is available in any environment where the Prefect API server is running with `prefect orion start`.
 
+<div class="terminal">
 ```bash
 $ prefect orion start
 Starting...
@@ -47,29 +48,33 @@ Configure Prefect to communicate with the server with:
 
 Check out the dashboard at http://127.0.0.1:4200
 ```
+</div>
 
 When the Prefect API server is running, you can access the UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
-![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
+![Prefect UI](/img/ui/orion-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 
-- [Dashboard](/ui/dashboard/) provides a high-level overview of your flows, tasks, and deployments.
-- [Flows and Tasks](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
-- [Filters](/ui/filters/) enable you to customize the display based on flow state, tags, execution time, and more.
-- [Work Queues](/ui/work-queues/) enable you to create and manage work queues that enable agents to pick up flow runs.
+- [Flow Runs](/ui/dashboard/) page provides a high-level overview of your flow runs.
+- [Flow and flow run](/ui/flows-and-tasks/) pages let you dig into details of flow runs and task runs.
+- [Filters](/ui/dashboard/#filters) enable you to customize the display based on flow state, tags, execution time, and more.
+- [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
+- [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
+- [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
 
 ## Navigating the UI
 
-Icons on the left side of the Prefect UI help you navigate to commonly used pages.
+Use the left side of the Prefect UI to navigate between pages.
 
-The Prefect icon always takes you back to the dashboard. In Prefect Cloud, it returns you to the list of workspaces.
-
-| Icon | Description |
+| Page | Description |
 | --- | --- |
-| ![Workspace](/img/ui/workspace-icon.png) | **Workspace** returns to the dashboard of the current workspace. ([Prefect Cloud](#prefect-cloud) only) |
-| ![Flows](/img/ui/flows-icon.png) | **Flows** displays a searchable list of flows tracked by the API. |
-| ![Work Queues](/img/ui/work-queues-icon.png) | **Work Queues** displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+| **Flow Runs**   | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create filters](/ui/dashboard/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
+| **Flows**       | Displays a searchable list of flows tracked by the API. |
+| **Deployment**  | Displays flow [deployments](/concepts/deployments/) created on the API. |
+| <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+
+In Prefect Cloud, the Prefect icon returns you to the workspaces list. Currently, you can create only one workspace per personal account, but you may have access to other workspaces as a collaborator. See the [Prefect Cloud Workspaces](/ui/cloud/#workspaces) documentation for details. 
 
 ## Prefect Cloud
 

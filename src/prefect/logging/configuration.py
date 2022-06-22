@@ -13,7 +13,6 @@ from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_SETTINGS_PATH,
     SETTING_VARIABLES,
-    Settings,
 )
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 

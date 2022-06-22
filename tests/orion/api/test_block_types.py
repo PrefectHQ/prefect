@@ -1,3 +1,4 @@
+from textwrap import dedent
 from typing import List
 from uuid import uuid4
 
@@ -7,6 +8,18 @@ from fastapi import status
 
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.orion.schemas.core import BlockDocument, BlockType
+from tests.orion.models.test_block_types import CODE_EXAMPLE
+
+CODE_EXAMPLE = dedent(
+    """\
+        ```python
+        from prefect_collection import CoolBlock
+
+        rad_block = await CoolBlock.load("rad")
+        rad_block.crush()
+        ```
+        """
+)
 
 
 class TestCreateBlockType:
@@ -17,6 +30,8 @@ class TestCreateBlockType:
                 name="x",
                 logo_url="http://example.com/logo.png",
                 documentation_url="http://example.com/docs.html",
+                description="A block, verily",
+                code_example=CODE_EXAMPLE,
             ).dict(),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -25,12 +40,16 @@ class TestCreateBlockType:
         assert result.name == "x"
         assert result.logo_url == "http://example.com/logo.png"
         assert result.documentation_url == "http://example.com/docs.html"
+        assert result.description == "A block, verily"
+        assert result.code_example == CODE_EXAMPLE
 
         response = await client.get(f"/block_types/{result.id}")
         api_block_type = BlockType.parse_obj(response.json())
         assert api_block_type.name == "x"
         assert api_block_type.logo_url == "http://example.com/logo.png"
         assert api_block_type.documentation_url == "http://example.com/docs.html"
+        assert api_block_type.description == "A block, verily"
+        assert api_block_type.code_example == CODE_EXAMPLE
 
     async def test_create_block_type_with_existing_name(self, client):
         response = await client.post(
@@ -148,6 +167,8 @@ class TestUpdateBlockType:
             json=BlockTypeUpdate(
                 logo_url="http://foo.com/bar.png",
                 documentation_url="http://foo.com/bar.html",
+                description="A block, verily",
+                code_example=CODE_EXAMPLE,
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -159,6 +180,8 @@ class TestUpdateBlockType:
         assert updated_block.name == block_type_x.name
         assert updated_block.logo_url == "http://foo.com/bar.png"
         assert updated_block.documentation_url == "http://foo.com/bar.html"
+        assert updated_block.description == "A block, verily"
+        assert updated_block.code_example == CODE_EXAMPLE
 
     async def test_update_nonexistent_block_type(self, client):
         response = await client.patch(

@@ -1,6 +1,3 @@
-import subprocess
-import sys
-import time
 import warnings
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -9,10 +6,7 @@ import cloudpickle
 import distributed
 import pytest
 
-import prefect
-
 # Import the local 'tests' module to pickle to ray workers
-import tests
 from prefect import flow, task
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import DataDocument, State, StateType

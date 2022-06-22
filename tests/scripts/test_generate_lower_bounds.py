@@ -14,7 +14,7 @@ def script_path(tests_dir):
 @pytest.fixture(scope="module")
 def generate_lower_bounds(script_path):
     """Retrieves the function that generates lower bounds"""
-    globals = runpy.run_path(script_path)
+    globals = runpy.run_path(str(script_path))
     return globals["generate_lower_bounds"]
 
 

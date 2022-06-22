@@ -96,15 +96,15 @@ nav:
         - Storage: concepts/storage.md
         - Settings: concepts/settings.md
         - Logging: concepts/logs.md
-    - UI & Prefect Cloud:
+    - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
         - ui/flows-and-tasks.md
-        - ui/filters.md
+        - ui/deployments.md
         - ui/work-queues.md
         - Prefect Cloud:
-            - Overview: ui/cloud.md
-            - Getting Started: ui/cloud-getting-started.md
+            - Prefect Cloud Overview: ui/cloud.md
+            - Prefect Cloud Quickstart: ui/cloud-getting-started.md
     - Collections:
         - Overview: collections/overview.md
         - Collections Catalog: collections/catalog.md
@@ -122,6 +122,7 @@ nav:
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.logging': api-ref/prefect/logging.md
+            - 'prefect.packaging': api-ref/prefect/packaging.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md
@@ -198,6 +199,7 @@ nav:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
         - Troubleshooting: contributing/common-mistakes.md
+        - Testing Flow Runners: contributing/testing-flow-runners.md
 
 extra:
   analytics:

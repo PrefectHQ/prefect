@@ -24,6 +24,14 @@ Prefect currently provides the following task runners:
 - [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
 
+!!! warning "Dask and Ray task runner collections"
+
+    Note that the Prefect-developed Dask and Ray task runners are moving to [Prefect Collections](/collections/overview/).
+
+    In the recent 2.0b6 release, you may continue using `DaskTaskRunner` and `RayTaskRunner` imports from `prefect.task_runners`, but these imports will be removed in a future release.
+    
+    We recommend using the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) and [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collections in new development and to migrate existing flows to use these collections. See the task runner collection documentation for details.
+
 ## Using a task runner
 
 While all flows require a task runner to execute tasks, you do not need to specify a task runner unless your tasks require specific execution. If you do not specify a task runner, Prefect uses the default `ConcurrentTaskRunner`.
@@ -43,13 +51,17 @@ If you specify an uninitialized task runner class, a task runner instance of tha
 
 ## Running tasks on Dask
 
+!!! warning "Dask task runner moving to a collection"
+
+    Note that the Prefect-developed `DaskTaskRunner` is moving to [Prefect Collections](/collections/overview/). See the [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) collection documentation for details on installing and using the new `DaskTaskRunner` collection.
+
 The [`DaskTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.DaskTaskRunner) is a parallel task runner that submits tasks to the [`dask.distributed`](http://distributed.dask.org/) scheduler. By default, a temporary Dask cluster is created for the duration of the flow run. If you already have a Dask cluster running, either local or cloud hosted, you can provide the connection URL via the `address` kwarg.
 
 To configure your flow to use the `DaskTaskRunner`, import it from [`prefect.task_runners`](/api-ref/prefect/task-runners/) and assign it as the task runner when the flow is defined.
 
 ```python hl_lines="4"
 from prefect import flow
-from prefect.task_runner import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 @flow(task_runner=DaskTaskRunner(address="http://my-dask-cluster"))
 def my_flow():
@@ -215,6 +227,10 @@ def my_flow():
 ```
 
 ## Running tasks on Ray
+
+!!! warning "Ray task runner moving to a collection"
+
+    Note that the Prefect-developed `RayTaskRunner` is moving to [Prefect Collections](/collections/overview/). See the [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) collection documentation for details on installing and using the new `RayTaskRunner` collection.
 
 The [`RayTaskRunner`](/api-ref/prefect/task-runners/#prefect.task_runners.RayTaskRunner) is a parallel task runner that submits tasks to [Ray](https://www.ray.io/). By default, a temporary Ray instance is created for the duration of the flow run. If you already have a Ray instance running, you can provide the connection URL via the `address` kwarg.
 

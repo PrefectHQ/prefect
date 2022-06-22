@@ -1,49 +1,39 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "declaration": true,
-    "strict": true,
-    "jsx": "preserve",
-    "importHelpers": true,
-    "moduleResolution": "node",
-    "experimentalDecorators": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "sourceMap": true,
     "baseUrl": ".",
-    "types": [
-      "@types/jest",
-      "@types/d3",
-      "@types/puppeteer",
-      "@types/jest-environment-puppeteer",
-      "@types/expect-puppeteer"
-    ],
-    "typeRoots": [
-      "./typings"
-    ],
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    },
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "esModuleInterop": true,
+    "importHelpers": true,
+    "jsx": "preserve",
     "lib": [
       "esnext",
       "dom",
       "dom.iterable",
       "scripthost"
-    ]
+    ],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "outDir": "./dist/types/",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "esnext"
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
+    "src/**/*.d.ts",
     "src/**/*.vue",
-    "**/*.ts",
-    
-  ],
-  "exclude": [
-    "node_modules"
+    "./*.ts",
+    "./*.d.ts",
+    "./postcss.config.js",
+    "./tailwind.config.js"
   ]
 }
