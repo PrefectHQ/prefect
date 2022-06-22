@@ -42,15 +42,8 @@ class PythonEnvironment(BaseModel):
     def from_file(cls: Type[Self], path: Path) -> Self:
         return PythonEnvironment(pip_requirements=path.read_text().strip().splitlines())
 
-    def install_commands(self, multiline: bool = False) -> List[str]:
+    def install_commands(self) -> List[List[str]]:
         if not self.pip_requirements:
             return []
 
-        if multiline:
-            requires = "\\\n    "  # Start on a newline with indentation
-            requires += " \\\n    ".join(f"'{req}'" for req in self.pip_requirements)
-            requires += "\n"
-        else:
-            requires = " ".join(f"'{req}'" for req in self.pip_requirements)
-
-        return [f"pip install {requires}"]
+        return [["pip", "install", *(str(req) for req in self.pip_requirements)]]

@@ -181,17 +181,12 @@ class CondaEnvironment(PythonEnvironment):
             python_version=python_version,
         )
 
-    def install_commands(self, multiline: bool = False) -> List[str]:
-        pip_install_commands = super().install_commands(multiline=multiline)
+    def install_commands(self) -> List[str]:
+        pip_install_commands = super().install_commands()
 
         if not self.conda_requirements:
             return pip_install_commands
 
-        if multiline:
-            requires = "\\\n    "  # Start on a newline with indentation
-            requires += " \\\n    ".join(f"'{req}'" for req in self.conda_requirements)
-            requires += "\n"
-        else:
-            requires = " ".join(f"'{req}'" for req in self.conda_requirements)
-
-        return [f"conda install {requires}"] + pip_install_commands
+        return [
+            ["conda", "install", *(str(req) for req in self.conda_requirements)]
+        ] + pip_install_commands

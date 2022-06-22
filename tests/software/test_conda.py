@@ -325,44 +325,18 @@ class TestCondaEnvironment:
             pip_requirements=["foo", "bar>=2"],
             conda_requirements=["foobar", "x=1.0=afsfs_x"],
         )
-
         commands = reqs.install_commands()
         assert commands == [
-            "conda install 'foobar' 'x=1.0=afsfs_x'",
-            "pip install 'foo' 'bar>=2'",
+            ["conda", "install", "foobar", "x=1.0=afsfs_x"],
+            ["pip", "install", "foo", "bar>=2"],
         ]
 
     def test_install_commands_empty_pip(self):
         reqs = CondaEnvironment(conda_requirements=["foobar", "x=1.0=afsfs_x"])
-
         commands = reqs.install_commands()
-        assert commands == ["conda install 'foobar' 'x=1.0=afsfs_x'"]
+        assert commands == [["conda", "install", "foobar", "x=1.0=afsfs_x"]]
 
     def test_install_commands_empty_conda(self):
         reqs = CondaEnvironment(pip_requirements=["foo", "bar>=2"])
-
         commands = reqs.install_commands()
-        assert commands == ["pip install 'foo' 'bar>=2'"]
-
-    def test_install_commands_multiline(self):
-        reqs = CondaEnvironment(
-            conda_requirements=["foobar", "x=1.0=afsfs_x"],
-            pip_requirements=["foo", "bar>=2"],
-        )
-        commands = reqs.install_commands(multiline=True)
-
-        assert len(commands) == 2
-        assert (
-            "\n".join(commands)
-            == dedent(
-                r"""
-                conda install \
-                    'foobar' \
-                    'x=1.0=afsfs_x'
-
-                pip install \
-                    'foo' \
-                    'bar>=2'
-                """
-            ).lstrip()
-        )
+        assert commands == [["pip", "install", "foo", "bar>=2"]]
