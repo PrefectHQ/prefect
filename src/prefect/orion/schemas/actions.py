@@ -8,7 +8,6 @@ from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.utilities.collections import listrepr
 
 
 class FlowCreate(
