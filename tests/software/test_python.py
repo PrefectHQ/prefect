@@ -22,7 +22,6 @@ class TestPythonEnvironment:
                 """
             )
         )
-
         reqs = PythonEnvironment.from_file(reqs_file)
         assert reqs.pip_requirements == [
             PipRequirement("foo"),
@@ -31,28 +30,10 @@ class TestPythonEnvironment:
 
     def test_install_commands(self):
         reqs = PythonEnvironment(pip_requirements=["foo", "bar>=2"])
-
         commands = reqs.install_commands()
-        assert commands == ["pip install 'foo' 'bar>=2'"]
-
-    def test_install_commands_multiline(self):
-        reqs = PythonEnvironment(pip_requirements=["foo", "bar>=2"])
-        commands = reqs.install_commands(multiline=True)
-
-        assert len(commands) == 1
-        assert (
-            commands[0]
-            == dedent(
-                r"""
-                pip install \
-                    'foo' \
-                    'bar>=2'
-                """
-            ).lstrip()
-        )
+        assert commands == [["pip", "install", "foo", "bar>=2"]]
 
     def test_install_commands_empty(self):
         reqs = PythonEnvironment(pip_requirements=[])
-
         commands = reqs.install_commands()
         assert commands == []
