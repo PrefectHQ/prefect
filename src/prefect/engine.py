@@ -542,7 +542,6 @@ async def orchestrate_flow_run(
 def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
-    dynamic_key: str,
     wait_for: Optional[Iterable[PrefectFuture]],
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
@@ -566,7 +565,7 @@ def enter_task_run_engine(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
-        dynamic_key=dynamic_key,
+        dynamic_key=_dynamic_key_for_task_run(flow_run_context, task),
         wait_for=wait_for,
     )
 
@@ -1005,6 +1004,15 @@ async def resolve_inputs(
         visit_fn=visit_fn,
         return_data=return_data,
     )
+
+
+def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
+    if task.task_key not in context.task_run_dynamic_keys:
+        context.task_run_dynamic_keys[task.task_key] = 0
+    else:
+        context.task_run_dynamic_keys[task.task_key] += 1
+
+    return context.task_run_dynamic_keys[task.task_key]
 
 
 if __name__ == "__main__":

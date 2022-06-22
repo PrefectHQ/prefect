@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 import pydantic
 import pytest
@@ -62,6 +63,7 @@ EVEN = set()
 async def visit_even_numbers(x):
     if isinstance(x, int) and x % 2 == 0:
         EVEN.add(x)
+    return x
 
 
 @pytest.fixture(autouse=True)
@@ -92,22 +94,69 @@ class PrivatePydantic(pydantic.BaseModel):
 
     x: int
     _y: int
-    _z: pydantic.PrivateAttr()
+    _z: Any = pydantic.PrivateAttr()
 
     class Config:
         underscore_attrs_are_private = True
+        extra = pydantic.Extra.forbid  # Forbid extras to raise in tests
 
 
-class ImPrivatePydantic(pydantic.BaseModel):
-    """Immutable pydantic model with pyrivate attrs"""
-
-    x: int
-    _y: int
-    _z: pydantic.PrivateAttr()
-
+class ImmutablePrivatePydantic(PrivatePydantic):
     class Config:
-        underscore_attrs_are_private = True
         allow_mutation = False
+
+
+class TestPydanticObjects:
+    """
+    Checks that the Pydantic test objects defined in this file behave as expected.
+
+    These tests do not cover Prefect functionality and may break if Pydantic introduces
+    breaking changes.
+    """
+
+    async def test_private_pydantic_behaves_as_expected(self):
+        input = PrivatePydantic(x=1)
+
+        # Public attr accessible immediately
+        assert input.x == 1
+        # Extras not allowed
+        with pytest.raises(ValueError):
+            input._a = 1
+        # Private attr not accessible until set
+        with pytest.raises(AttributeError):
+            input._y
+
+        # Private attrs accessible after setting
+        input._y = 4
+        input._z = 5
+        assert input._y == 4
+        assert input._z == 5
+
+    async def test_immutable_pydantic_behaves_as_expected(self):
+
+        input = ImmutablePrivatePydantic(x=1)
+
+        # Public attr accessible immediately
+        assert input.x == 1
+        # Extras not allowed
+        with pytest.raises(ValueError):
+            input._a = 1
+        # Private attr not accessible until set
+        with pytest.raises(AttributeError):
+            input._y
+
+        # Private attrs accessible after setting
+        input._y = 4
+        input._z = 5
+        assert input._y == 4
+        assert input._z == 5
+
+        # Mutating not allowed
+        with pytest.raises(TypeError):
+            input.x = 2
+
+        # Can still mutate private attrs
+        input._y = 6
 
 
 class TestVisitCollection:
@@ -156,116 +205,47 @@ class TestVisitCollection:
         assert result is None
         assert EVEN == expected
 
-    async def test_private_pydantic_behaves_as_expected(self):
-        """Test that the PrivatePydantic class is behaving correctly.
-
-        Note: this test is checking the behavior of pydantic for use in tests, not checking
-        Prefect functionality
+    async def test_visit_collection_with_private_pydantic_attributes(self):
         """
-        input = PrivatePydantic(x=1, _y=2, _z=3)
-
-        # Public attr accessible immediately
-        assert input.x == 1
-        # Extras not allowed
-        with pytest.raises(ValueError):
-            input._a = 1
-        # Private attr not accessible until set
-        with pytest.raises(AttributeError):
-            input._y
-
-        # Private attrs accessible after setting
-        input._y = 4
-        input._z = 5
-        assert input._y == 4
-        assert input._z == 5
-
-    async def test_im_private_pydantic_behaves_as_expected(self):
-        """Test that the ImPrivatePydantic test is behaving correctly.
-
-        Note: this test is checking the behavior of pydantic for use in tests, not checking
-        Prefect functionality
+        We should not visit private fields on Pydantic models.
         """
-        input = ImPrivatePydantic(x=1, _y=2, _z=3)
-
-        # Public attr accessible immediately
-        assert input.x == 1
-        # Extras not allowed
-        with pytest.raises(ValueError):
-            input._a = 1
-        # Private attr not accessible until set
-        with pytest.raises(AttributeError):
-            input._y
-
-        # Private attrs accessible after setting
-        input._y = 4
-        input._z = 5
-        assert input._y == 4
-        assert input._z == 5
-
-        # Mutating not allowed
-        with pytest.raises(TypeError):
-            input.x = 2
-
-        # Can still mutate private attrs
-        input._y = 6
-
-    async def test_visit_collection_with_private_pydantic_no_return(self):
-        """Check that we successfully capture private pydantic fields"""
-        input = PrivatePydantic(x=1)
-        input._y = 2
+        input = PrivatePydantic(x=2)
+        input._y = 3
         input._z = 4
 
         result = await visit_collection(
             input, visit_fn=visit_even_numbers, return_data=False
         )
-        assert result is None
-        assert EVEN == {2, 4}
+        assert EVEN == {2}, "Only the public field should be visited"
+        assert result is None, "Data should not be returned"
 
-    async def test_visit_collection_with_private_pydantic_with_return(self):
-        """Check that we successfully capture private pydantic fields"""
-        input = PrivatePydantic(x=1)
-        input._y = 2
+        # The original model should not be mutated
+        assert input._y == 3
+        assert input._z == 4
+
+    @pytest.mark.parametrize("immutable", [True, False])
+    async def test_visit_collection_mutation_with_private_pydantic_attributes(
+        self, immutable
+    ):
+        model = ImmutablePrivatePydantic if immutable else PrivatePydantic
+        input = model(x=2)
+        input._y = 3
         input._z = 4
 
         result = await visit_collection(
             input, visit_fn=negative_even_numbers, return_data=True
         )
-        assert result == input
+
+        assert result.x == -2, "The public attribute should be modified"
+
+        # Pydantic dunders are retained
         assert result.__private_attributes__ == input.__private_attributes__
         assert result.__fields__ == input.__fields__
         assert result.__fields_set__ == input.__fields_set__
 
-        assert result._y == -2
-        assert result._z == -4
-
-    async def test_visit_collection_with_im_private_pydantic_no_return(self):
-        """Check that we successfully capture private pydantic fields when immutable"""
-        input = ImPrivatePydantic(x=1)
-        input._y = 2
-        input._z = 4
-
-        result = await visit_collection(
-            input, visit_fn=visit_even_numbers, return_data=False
-        )
-        assert result is None
-        assert EVEN == {2, 4}
-
-    async def test_visit_collection_with_private_pydantic_with_return(self):
-        """Check that we successfully capture private pydantic fields when immutable"""
-        input = ImPrivatePydantic(x=1)
-        input._y = 2
-        input._z = 4
-
-        result = await visit_collection(
-            input, visit_fn=negative_even_numbers, return_data=True
-        )
-        assert result == input
-        assert result.__private_attributes__ == input.__private_attributes__
-        assert result.__fields__ == input.__fields__
-        assert result.__fields_set__ == input.__fields_set__
-
-        assert result._y == -2
-        assert result._z == -4
+        # Private attributes are retained without modification
+        assert result._y == 3
+        assert result._z == 4
 
 
 class TestPartialModel:
