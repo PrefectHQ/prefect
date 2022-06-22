@@ -16,14 +16,14 @@ class Requirement:
             return cls(str(value))
         return value
 
-    def __eq__(self, __o: object) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Requirements are equal if their string specification matches.
         """
-        if not isinstance(__o, Requirement):
-            raise NotImplementedError()
+        if not isinstance(other, Requirement):
+            return NotImplemented
 
-        return str(self) == str(__o)
+        return str(self) == str(other)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({str(self)!r})"
