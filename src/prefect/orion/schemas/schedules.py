@@ -175,7 +175,9 @@ class CronSchedule(PrefectBaseModel):
 
     @validator("cron")
     def valid_cron_string(cls, v):
-        if not croniter.is_valid(v) or "R" in v:
+        # croniter allows "random" and "hashed" expressions
+        # which we do not support https://github.com/kiorky/croniter
+        if not croniter.is_valid(v) or "R" in v or "H" in v:
             raise ValueError(f'Invalid cron string: "{v}"')
         return v
 

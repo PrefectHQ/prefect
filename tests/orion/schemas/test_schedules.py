@@ -126,7 +126,7 @@ class TestCreateCronSchedule:
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
             CronSchedule(cron="5 4 * * *", timezone="fake")
 
-    @pytest.mark.parametrize("cron_string", ["invalid cron", "5 4 R * *"])
+    @pytest.mark.parametrize("cron_string", ["invalid cron", "5 4 R * *", "H H * * *"])
     def test_invalid_cron_string(self, cron_string):
         with pytest.raises(ValidationError, match="(Invalid cron)"):
             CronSchedule(cron=cron_string)
