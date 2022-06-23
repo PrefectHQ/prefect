@@ -8,6 +8,13 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+## Add protected column for block types
+
+## Add indexes for block entity filtering
+
+SQLite: `dff8da7a6c2c`
+Postgres: `7296741dff68`
+
 ## Add indexes for block schemas
 
 SQLite: `9e2a1c08c6f1`

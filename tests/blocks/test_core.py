@@ -74,10 +74,15 @@ class TestAPICompatibility:
             # could use a little confidence
             _block_type_id = uuid4()
 
-        @register_block
-        class CapableBlock(Block):
-            # kind of rude to the other Blocks
+        class CanBluff(Block):
             _block_schema_capabilities = ["bluffing"]
+
+            def bluff(self):
+                pass
+
+        @register_block
+        class CapableBlock(CanBluff, Block):
+            # kind of rude to the other Blocks
             _block_type_id = uuid4()
             all_the_answers: str = "42 or something"
 
@@ -341,6 +346,37 @@ class TestAPICompatibility:
             block_schema.capabilities == []
         ), "No capabilities should be defined for this Block and defaults to []"
 
+    def test_collecting_capabilities(self):
+        class CanRun(Block):
+            _block_schema_capabilities = ["run"]
+
+        class CanFly(Block):
+            _block_schema_capabilities = ["fly"]
+
+        class CanSwim(Block):
+            _block_schema_capabilities = ["swim"]
+
+        class Duck(CanSwim, CanFly):
+            pass
+
+        class Bird(CanFly):
+            pass
+
+        class Crow(Bird, CanRun):
+            pass
+
+        class Cat(CanRun):
+            pass
+
+        class FlyingCat(Cat, Bird):
+            pass
+
+        assert Duck.get_block_capabilities() == {"swim", "fly"}
+        assert Bird.get_block_capabilities() == {"fly"}
+        assert Cat.get_block_capabilities() == {"run"}
+        assert Crow.get_block_capabilities() == {"fly", "run"}
+        assert FlyingCat.get_block_capabilities() == {"fly", "run"}
+
     def test_create_block_schema_from_nested_blocks(self):
 
         block_schema_id = uuid4()
@@ -498,8 +534,24 @@ class TestAPICompatibility:
         assert block_instance._block_document_id == outer_block_document.id
         assert block_instance._block_type_id == outer_block_document.block_type_id
         assert block_instance._block_schema_id == outer_block_document.block_schema_id
-        assert block_instance.c == {"y": 2}
-        assert block_instance.d == {"b": {"x": 1}, "z": "ztop"}
+        assert block_instance.c.dict() == {
+            "y": 2,
+            "_block_document_id": middle_block_document_1.id,
+            "_block_document_name": "middle_block_document_1",
+            "_is_anonymous": False,
+        }
+        assert block_instance.d.dict() == {
+            "b": {
+                "x": 1,
+                "_block_document_id": inner_block_document.id,
+                "_block_document_name": "inner_block_document",
+                "_is_anonymous": False,
+            },
+            "z": "ztop",
+            "_block_document_id": middle_block_document_2.id,
+            "_block_document_name": "middle_block_document_2",
+            "_is_anonymous": False,
+        }
 
     async def test_create_block_from_nonexistent_name(self, test_block):
         with pytest.raises(
@@ -655,6 +707,175 @@ class TestRegisterBlock:
             "class and not on the Block class directly.",
         ):
             await Block.register_type_and_schema()
+
+
+class TestSaveBlock:
+    @pytest.fixture
+    def NewBlock(self):
+        class NewBlock(Block):
+            a: str
+            b: str
+            c: int
+
+        return NewBlock
+
+    @pytest.fixture
+    def InnerBlock(self):
+        class InnerBlock(Block):
+            size: int
+
+        return InnerBlock
+
+    @pytest.fixture
+    def OuterBlock(self, InnerBlock):
+        class OuterBlock(Block):
+            size: int
+            contents: InnerBlock
+
+        return OuterBlock
+
+    async def test_save_block(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar", c=1)
+        new_block_name = "my-block"
+        await new_block.save(new_block_name)
+
+        assert new_block._block_document_name == new_block_name
+        assert new_block._block_document_id is not None
+        assert not new_block._is_anonymous
+
+        loaded_new_block = await new_block.load(new_block_name)
+
+        assert loaded_new_block._block_document_name == new_block_name
+        assert loaded_new_block._block_document_id == new_block._block_document_id
+        assert not loaded_new_block._is_anonymous
+
+        assert loaded_new_block._block_type_name == new_block._block_type_name
+        assert loaded_new_block._block_type_id == new_block._block_type_id
+
+        assert loaded_new_block == new_block
+
+    async def test_save_anonymous_block(self, NewBlock):
+        new_anon_block = NewBlock(a="foo", b="bar", c=1)
+        await new_anon_block._save(is_anonymous=True)
+
+        assert new_anon_block._block_document_name is not None
+        assert new_anon_block._block_document_id is not None
+        assert new_anon_block._is_anonymous
+
+        loaded_new_anon_block = await NewBlock.load(new_anon_block._block_document_name)
+
+        assert (
+            loaded_new_anon_block._block_document_name
+            == new_anon_block._block_document_name
+        )
+        assert (
+            loaded_new_anon_block._block_document_id
+            == new_anon_block._block_document_id
+        )
+        assert loaded_new_anon_block._is_anonymous
+
+        assert loaded_new_anon_block._block_type_name == new_anon_block._block_type_name
+        assert loaded_new_anon_block._block_type_id == new_anon_block._block_type_id
+
+        assert loaded_new_anon_block == new_anon_block
+
+    async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
+        new_block = NewBlock(a="foo", b="bar", c=1)
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save a block document without a name.",
+        ):
+            await new_block._save()
+
+        with pytest.raises(
+            ValueError,
+            match="You're attempting to save an anonymous block document with a name.",
+        ):
+            await new_block._save(name="my-new-block", is_anonymous=True)
+
+    async def test_save_nested_blocks(self):
+        block_name = "biggest-block-in-all-the-land"
+
+        class Big(Block):
+            id: UUID = Field(default_factory=uuid4)
+            size: int
+
+        class Bigger(Block):
+            size: int
+            contents: Big
+            random_other_field: Dict[str, float]
+
+        class Biggest(Block):
+            size: int
+            contents: Bigger
+
+        new_big_block = Big(size=1)
+        await new_big_block.save("big-block")
+
+        loaded_big_block = await Big.load("big-block")
+        assert loaded_big_block == new_big_block
+
+        new_bigger_block = Bigger(
+            size=10, random_other_field={}, contents=new_big_block
+        )
+        await new_bigger_block.save("bigger-block")
+
+        loaded_bigger_block = await Bigger.load("bigger-block")
+        assert loaded_bigger_block == new_bigger_block
+
+        new_biggest_block = Biggest(
+            size=100,
+            contents=new_bigger_block,
+        )
+
+        await new_biggest_block.save(block_name)
+
+        loaded_biggest_block = await Biggest.load(block_name)
+        assert loaded_biggest_block == new_biggest_block
+
+    async def test_save_named_block_nested_in_anonymous_block(
+        self, InnerBlock, OuterBlock
+    ):
+        named_inner_block = InnerBlock(size=1)
+        await named_inner_block.save("the-inside-block")
+
+        anonymous_outer_block = OuterBlock(size=10, contents=named_inner_block)
+        await anonymous_outer_block._save(is_anonymous=True)
+
+        assert anonymous_outer_block._block_document_name is not None
+        assert anonymous_outer_block._is_anonymous
+
+        loaded_anonymous_outer_block = await OuterBlock.load(
+            anonymous_outer_block._block_document_name
+        )
+        assert loaded_anonymous_outer_block == anonymous_outer_block
+
+    async def test_save_anonymous_block_nested_in_named_block(
+        self, InnerBlock, OuterBlock
+    ):
+        anonymous_inner_block = InnerBlock(size=1)
+        await anonymous_inner_block._save(is_anonymous=True)
+
+        assert anonymous_inner_block._block_document_name is not None
+        assert anonymous_inner_block._is_anonymous
+
+        named_outer_block = OuterBlock(size=10, contents=anonymous_inner_block)
+        await named_outer_block.save("the-outer-block")
+
+        loaded_anonymous_outer_block = await OuterBlock.load("the-outer-block")
+        assert loaded_anonymous_outer_block == named_outer_block
+
+    async def test_save_nested_block_without_references(self, InnerBlock, OuterBlock):
+        new_inner_block = InnerBlock(size=1)
+        new_outer_block = OuterBlock(size=10, contents=new_inner_block)
+        await new_outer_block.save("outer-block-no-references")
+
+        loaded_outer_block = await OuterBlock.load("outer-block-no-references")
+        assert loaded_outer_block == new_outer_block
+        assert isinstance(loaded_outer_block.contents, InnerBlock)
+        assert loaded_outer_block.contents == new_inner_block
+        assert loaded_outer_block.contents._block_document_id is None
+        assert loaded_outer_block.contents._block_document_name is None
 
 
 class TestToBlockType:

@@ -76,6 +76,22 @@ class TestCreateFlowRunNotificationPolicy:
         assert policy.name == "My Success Policy"
         assert policy.state_names == ["Completed"]
 
+    async def test_create_policy_with_message(self, client, notifier_block):
+        response = await client.post(
+            "/flow_run_notification_policies/",
+            json=dict(
+                schemas.actions.FlowRunNotificationPolicyCreate(
+                    name="My Success Policy",
+                    state_names=["Completed"],
+                    tags=[],
+                    block_document_id=notifier_block.id,
+                    message_template="Hello there {flow_run_name}",
+                ).dict(json_compatible=True),
+            ),
+        )
+        policy = FlowRunNotificationPolicy.parse_obj(response.json())
+        assert policy.message_template == "Hello there {flow_run_name}"
+
 
 class TestReadFlowRunNotificationPolicy:
     async def test_read_policy(self, client, completed_policy):
@@ -177,6 +193,24 @@ class TestUpdateFlowRunNotificationPolicy:
         )
         assert policy.state_names == ["Completed"]
         assert policy.is_active is False
+
+    async def test_update_policy_message_template(
+        self, session, client, completed_policy
+    ):
+        response = await client.patch(
+            f"/flow_run_notification_policies/{completed_policy.id}",
+            json=schemas.actions.FlowRunNotificationPolicyUpdate(
+                message_template="Hi there {flow_run_name}"
+            ).dict(json_compatible=True, exclude_unset=True),
+        )
+        assert response.status_code == 204
+
+        policy_id = completed_policy.id
+        session.expire_all()
+        policy = await models.flow_run_notification_policies.read_flow_run_notification_policy(
+            session=session, flow_run_notification_policy_id=policy_id
+        )
+        assert policy.message_template == "Hi there {flow_run_name}"
 
     async def test_update_missing_policy(self, client, completed_policy):
         response = await client.patch(
