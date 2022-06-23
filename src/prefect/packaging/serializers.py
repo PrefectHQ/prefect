@@ -7,6 +7,7 @@ from typing import Any
 import pydantic
 
 from prefect.packaging.base import Serializer
+from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 
 class PickleSerializer(Serializer):
