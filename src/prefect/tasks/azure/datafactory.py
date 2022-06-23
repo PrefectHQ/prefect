@@ -115,7 +115,9 @@ class DatafactoryCreate(Task):
             )
             time.sleep(1)
             if create_factory.provisioning_state == "Failed":
-                raise RuntimeError(f"Failed to provision the {datafactory_name} factory")
+                raise RuntimeError(
+                    f"Failed to provision the {datafactory_name} factory"
+                )
 
         return datafactory_name
 
