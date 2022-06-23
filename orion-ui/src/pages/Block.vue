@@ -1,6 +1,8 @@
 <template>
   <p-layout-default v-if="blockDocument" class="block">
-    <PageHeadingBlock :block-document="blockDocument" />
+    <template #header>
+      <PageHeadingBlock :block-document="blockDocument" />
+    </template>
   </p-layout-default>
 </template>
 
