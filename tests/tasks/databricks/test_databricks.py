@@ -672,3 +672,55 @@ class TestDatabricksSubmitMultitaskRun:
             )
             == expected_result
         )
+
+    def test_convert_dict_to_input_allow_extra(self):
+        expected_result = {
+            "tasks": [
+                JobTaskSettings(
+                    task_key="Match",
+                    description="Matches orders with user sessions",
+                    new_cluster=NewCluster(
+                        spark_version="7.3.x-scala2.12",
+                        node_type_id="i3.xlarge",
+                        spark_conf={"spark.speculation": True},
+                        aws_attributes=AwsAttributes(
+                            availability=AwsAvailability.SPOT, zone_id="us-west-2a"
+                        ),
+                        autoscale=AutoScale(min_workers=2, max_workers=16),
+                        amazing_new_feature=True,
+                    ),
+                    unsupported_argument="ignore_me",
+                ),
+            ],
+            "run_name": "A multitask job run",
+            "timeout_seconds": 86400,
+            "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
+        }
+
+        assert (
+            DatabricksSubmitMultitaskRun.convert_dict_to_kwargs(
+                {
+                    "tasks": [
+                        {
+                            "task_key": "Match",
+                            "description": "Matches orders with user sessions",
+                            "new_cluster": {
+                                "spark_version": "7.3.x-scala2.12",
+                                "node_type_id": "i3.xlarge",
+                                "spark_conf": {"spark.speculation": True},
+                                "aws_attributes": {
+                                    "availability": "SPOT",
+                                    "zone_id": "us-west-2a",
+                                },
+                                "autoscale": {"min_workers": 2, "max_workers": 16},
+                                "amazing_new_feature": True
+                            },
+                        },
+                    ],
+                    "run_name": "A multitask job run",
+                    "timeout_seconds": 86400,
+                    "idempotency_token": "8f018174-4792-40d5-bcbc-3e6a527352c8",
+                }
+            )
+            == expected_result
+        )
