@@ -37,14 +37,14 @@ Flow runners are specific to the environments in which flows will run. Prefect c
 Check out the [virtual environments](/tutorials/virtual-environments/) for getting started running a flow in a Python virtual environment.
 
 
-!!! note "What about tasks?" 
+!!! note "What about tasks?"
 
     Flows and tasks can both use runners to manage the environment in which code runs. While flows use flow runners, tasks use task runners. For more on how task runners work, see [Task Runners](/concepts/task-runners/).
 
 
 ## Using a flow runner
 
-To use a flow runner, pass an instance of the desired flow runner type into a deployment specification. 
+To use a flow runner, pass an instance of the desired flow runner type into a deployment specification.
 
 For example, when using a `DeploymentSpec`, you can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a local subprocess:
 
@@ -196,7 +196,10 @@ Requirements for `KubernetesFlowRunner`:
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/) such as S3, Google Cloud Storage, or Azure Blob Storage. Local storage configuration such as Local Storage or Temporary Local Storage are not supported for Kubernetes.
 
-The Prefect CLI command `prefect orion kubernetes-manifest` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
+The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
+
+!!! note "CLI syntax change for manifests"
+    Prefect 2.0 beta versions prior to 2.0b6 used the CLI command `prefect orion kubernetes-manifest`.
 
 `KubernetesFlowRunner` supports the following settings:
 

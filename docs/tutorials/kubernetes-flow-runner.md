@@ -16,18 +16,18 @@ For this tutorial, we'll deploy a Orion flow to a local Kubernetes cluster.
 
 ## Requirements
 
-To run the steps in this tutorial, you'll need a few easily configured prerequisites: 
+To run the steps in this tutorial, you'll need a few easily configured prerequisites:
 
 - `kubectl` configured to connect to a cluster.
 - A remote [Storage](/concepts/storage/) configuration, not Local Storage or Temporary Local Storage.
 
 An easy way to get started is to use [Docker Desktop](https://www.docker.com/products/docker-desktop), turning on the [Kubernetes server and client](https://docs.docker.com/desktop/kubernetes/) and Docker CLI integration.
 
-You'll also need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details. 
+You'll also need to configure a remote store such as S3, Google Cloud Storage, or Azure Blob Storage. See the [Storage](/concepts/storage/) documentation for details.
 
 ## A simple Kubernetes deployment
 
-We'll create a simple flow that simply logs a message, indicating that it ran in the Kubernetes cluster. We'll include the [deployment specification](/concepts/deployments/#deployment-specifications) alongside the flow code. 
+We'll create a simple flow that simply logs a message, indicating that it ran in the Kubernetes cluster. We'll include the [deployment specification](/concepts/deployments/#deployment-specifications) alongside the flow code.
 
 Save the following script to the file `kubernetes-deployment.py`:
 
@@ -55,23 +55,23 @@ In future when we reference the deployment, we'll use the format "flow name/depl
 
 ## Run Orion on Kubernetes
 
-The easiest way to get started with the Kubernetes flow runner is to run Orion itself on Kubernetes. 
+The easiest way to get started with the Kubernetes flow runner is to run Orion itself on Kubernetes.
 
-The Prefect CLI includes a command that automatically generates a manifest that runs Orion as a Kubernetes deployment. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary. 
+The Prefect CLI includes a command that automatically generates a manifest that runs Orion as a Kubernetes deployment. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
 The default name for the deployment is "orion" and it uses a pre-built Prefect image for its containers.
 
 In this case, we'll pipe the output directly to `kubectl` and apply the manifest to a Kubernetes cluster:
 
 ```bash
-prefect orion kubernetes-manifest | kubectl apply -f -
+prefect kubernetes manifest orion | kubectl apply -f -
 ```
 
 After applying the output of this command to your cluster, a Kubernetes deployment named "orion" should start running.
 
 <div class='termy'>
 ```
-$ prefect orion kubernetes-manifest | kubectl apply -f -
+$ prefect kubernetes manifest orion | kubectl apply -f -
 deployment.apps/orion created
 service/orion created
 role.rbac.authorization.k8s.io/flow-runner created
@@ -114,7 +114,7 @@ Agent started! Looking for work from queue 'kubernetes'...
 ```
 </div>
 
-This Kubernetes deployment runs the Orion API and UI servers, creates a [work queue](/concepts/work-queues/), and starts and agent &mdash; all within the cluster. 
+This Kubernetes deployment runs the Orion API and UI servers, creates a [work queue](/concepts/work-queues/), and starts and agent &mdash; all within the cluster.
 
 Don't worry about the `No work queue found named 'kubernetes'` warning here. A new Prefect Orion API server does not start with a default work queue from which the agent can pick up work. We'll create the work queue in a future step.
 
@@ -127,7 +127,7 @@ To interact with the Prefect Orion API running in Kubernetes, we need to make su
 
 ## Forward ports
 
-First, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. 
+First, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster.
 
 ```bash
 kubectl port-forward deployment/orion 4200:4200
@@ -172,7 +172,7 @@ Since we previously configured port forwarding for the localhost port to the Kub
 
 ## Configure storage
 
-Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data. 
+Now that we can communicate with the Orion API running on the Kubernetes cluster, lets configure [storage](/concepts/storage/) for flow and task run data.
 
 Note that if you created remote storage for the [Docker flow runner tutorial](/tutorials/docker-flow-runner/#configure-storage), you'll still need to create a new storage configuration here: storage is configured on the Orion server, and in this case we need to configure storage on the server running in Kubernetes rather than the one you ran locally in the Docker tutorial.
 
@@ -260,7 +260,7 @@ You can also run the flow from the Prefect Orion UI. Open a browser tab and navi
 
 ![Screenshot showing the "my-kubernetes-flow" flow](/img/tutorials/k8s-test-flow.png)
 
-Click **Deployments** to see the entry for this deployment, `k8s-example`. You can run the flow interactively using the **Quick Run** button. 
+Click **Deployments** to see the entry for this deployment, `k8s-example`. You can run the flow interactively using the **Quick Run** button.
 
 ![Screenshot showing deployed “k8s-example” deployment](/img/tutorials/k8s-test-deploy.png)
 
