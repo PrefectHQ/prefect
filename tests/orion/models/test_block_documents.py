@@ -10,9 +10,26 @@ from prefect.orion.schemas.actions import BlockDocumentCreate
 
 @pytest.fixture
 async def block_schemas(session):
+    class CanRun(Block):
+        _block_schema_capabilities = ["run"]
+
+        def run(self):
+            pass
+
+    class CanFly(Block):
+        _block_schema_capabilities = ["fly"]
+
+        def fly(self):
+            pass
+
+    class CanSwim(Block):
+        _block_schema_capabilities = ["swim"]
+
+        def swim(self):
+            pass
+
     class A(Block):
-        _block_schema_type = "abc"
-        pass  # noqa
+        pass
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()
@@ -21,8 +38,7 @@ async def block_schemas(session):
         session=session, block_schema=A._to_block_schema(block_type_id=block_type_a.id)
     )
 
-    class B(Block):
-        _block_schema_type = "abc"
+    class B(CanFly, Block):
 
         x: int
 
@@ -33,7 +49,7 @@ async def block_schemas(session):
         session=session, block_schema=B._to_block_schema(block_type_id=block_type_b.id)
     )
 
-    class C(Block):
+    class C(CanRun, Block):
         y: int
 
     block_type_c = await models.block_types.create_block_type(
@@ -43,7 +59,7 @@ async def block_schemas(session):
         session=session, block_schema=C._to_block_schema(block_type_id=block_type_c.id)
     )
 
-    class D(Block):
+    class D(CanFly, CanSwim, Block):
         b: B
         z: str
 
@@ -263,6 +279,7 @@ class TestCreateBlockDocument:
                     "id": nested_block_document.id,
                     "name": nested_block_document.name,
                     "block_type": nested_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -281,6 +298,7 @@ class TestCreateBlockDocument:
                     "id": nested_block_document.id,
                     "name": nested_block_document.name,
                     "block_type": nested_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -344,6 +362,7 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
                     "block_type": middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -352,12 +371,14 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -384,6 +405,7 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
                     "block_type": middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -392,12 +414,14 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -421,6 +445,7 @@ class TestCreateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -591,6 +616,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -664,6 +690,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -677,10 +704,10 @@ class TestReadBlockDocument:
 
 class TestReadBlockDocuments:
     @pytest.fixture(autouse=True)
-    async def blocks(self, session, block_schemas):
+    async def block_documents(self, session, block_schemas):
 
-        blocks = []
-        blocks.append(
+        block_documents = []
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -690,7 +717,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -701,7 +728,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -712,7 +739,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -722,7 +749,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -732,7 +759,7 @@ class TestReadBlockDocuments:
                 ),
             )
         )
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -743,7 +770,7 @@ class TestReadBlockDocuments:
             )
         )
 
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
@@ -751,82 +778,128 @@ class TestReadBlockDocuments:
                     block_schema_id=block_schemas[3].id,
                     block_type_id=block_schemas[3].block_type_id,
                     data={
-                        "b": {"$ref": {"block_document_id": blocks[1].id}},
+                        "b": {"$ref": {"block_document_id": block_documents[1].id}},
                         "z": "index",
                     },
                 ),
             )
         )
 
-        blocks.append(
+        block_documents.append(
             await models.block_documents.create_block_document(
                 session=session,
                 block_document=schemas.actions.BlockDocumentCreate(
                     name="Nested Block 2",
-                    block_schema_id=block_schemas[3].id,
-                    block_type_id=block_schemas[3].block_type_id,
+                    block_schema_id=block_schemas[4].id,
+                    block_type_id=block_schemas[4].block_type_id,
                     data={
-                        "c": {"$ref": {"block_document_id": blocks[2].id}},
-                        "d": {"$ref": {"block_document_id": blocks[5].id}},
+                        "c": {"$ref": {"block_document_id": block_documents[2].id}},
+                        "d": {"$ref": {"block_document_id": block_documents[5].id}},
                     },
                 ),
             )
         )
 
         await session.commit()
-        return sorted(blocks, key=lambda b: b.name)
+        return sorted(block_documents, key=lambda b: b.name)
 
-    async def test_read_blocks(self, session, blocks):
+    async def test_read_block_documents(self, session, block_documents):
         read_blocks = await models.block_documents.read_block_documents(session=session)
 
-        # by default, exclude anonymous blocks
+        # by default, exclude anonymous block documents
         assert {b.id for b in read_blocks} == {
-            b.id for b in blocks if not b.is_anonymous
+            b.id for b in block_documents if not b.is_anonymous
         }
 
-        # sorted by block type name, block name
-        assert read_blocks == [b for b in blocks if not b.is_anonymous]
+        # sorted by block type name, block document name
+        assert read_blocks == [b for b in block_documents if not b.is_anonymous]
 
-    async def test_read_blocks_with_is_anonymous_filter(self, session, blocks):
-        non_anonymous_blocks = await models.block_documents.read_block_documents(
-            session=session,
-            block_document_filter=schemas.filters.BlockDocumentFilter(
-                is_anonymous=dict(eq_=False)
-            ),
+    async def test_read_block_documents_with_is_anonymous_filter(
+        self, session, block_documents
+    ):
+        non_anonymous_block_documents = (
+            await models.block_documents.read_block_documents(
+                session=session,
+                block_document_filter=schemas.filters.BlockDocumentFilter(
+                    is_anonymous=dict(eq_=False)
+                ),
+            )
         )
 
-        anonymous_blocks = await models.block_documents.read_block_documents(
+        anonymous_block_documents = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
                 is_anonymous=dict(eq_=True)
             ),
         )
 
-        all_blocks = await models.block_documents.read_block_documents(
+        all_block_documents = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
                 is_anonymous=None
             ),
         )
 
-        assert {b.id for b in non_anonymous_blocks} == {
-            b.id for b in blocks if not b.is_anonymous
+        assert {b.id for b in non_anonymous_block_documents} == {
+            b.id for b in block_documents if not b.is_anonymous
         }
-        assert {b.id for b in anonymous_blocks} == {
-            b.id for b in blocks if b.is_anonymous
+        assert {b.id for b in anonymous_block_documents} == {
+            b.id for b in block_documents if b.is_anonymous
         }
-        assert {b.id for b in all_blocks} == {b.id for b in blocks}
+        assert {b.id for b in all_block_documents} == {b.id for b in block_documents}
 
-    async def test_read_blocks_limit_offset(self, session, blocks):
+    async def test_read_block_documents_limit_offset(self, session, block_documents):
         # sorted by block type name, block name
-        read_blocks = await models.block_documents.read_block_documents(
+        read_block_documents = await models.block_documents.read_block_documents(
             session=session, limit=2
         )
-        assert [b.id for b in read_blocks] == [blocks[0].id, blocks[1].id]
-        read_blocks = await models.block_documents.read_block_documents(
+        assert [b.id for b in read_block_documents] == [
+            block_documents[0].id,
+            block_documents[1].id,
+        ]
+        read_block_documents = await models.block_documents.read_block_documents(
             session=session, limit=2, offset=2
         )
-        assert [b.id for b in read_blocks] == [blocks[2].id, blocks[3].id]
+        assert [b.id for b in read_block_documents] == [
+            block_documents[2].id,
+            block_documents[3].id,
+        ]
+
+    async def test_read_block_documents_filter_capabilities(
+        self, session, block_documents
+    ):
+        fly_and_swim_block_documents = (
+            await models.block_documents.read_block_documents(
+                session=session,
+                block_schema_filter=schemas.filters.BlockSchemaFilter(
+                    block_capabilities=dict(all_=["fly", "swim"])
+                ),
+            )
+        )
+        assert len(fly_and_swim_block_documents) == 1
+        assert fly_and_swim_block_documents == [block_documents[5]]
+
+        fly_block_documents = await models.block_documents.read_block_documents(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_capabilities=dict(all_=["fly"])
+            ),
+        )
+        assert len(fly_block_documents) == 3
+        assert fly_block_documents == [
+            block_documents[1],
+            block_documents[3],
+            block_documents[5],
+        ]
+
+        swim_block_documents = await models.block_documents.read_block_documents(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_capabilities=dict(all_=["swim"])
+            ),
+        )
+        assert len(swim_block_documents) == 1
+        assert swim_block_documents == [block_documents[5]]
 
 
 class TestDeleteBlockDocument:
@@ -1173,6 +1246,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1199,6 +1273,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1243,6 +1318,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1286,6 +1362,7 @@ class TestUpdateBlockDocument:
                     "id": new_inner_block_document.id,
                     "name": new_inner_block_document.name,
                     "block_type": new_inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1432,6 +1509,7 @@ class TestUpdateBlockDocument:
                 "block_document": {
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
+                    "is_anonymous": False,
                     "block_type": middle_block_document_1.block_type,
                     "block_document_references": {},
                 },
@@ -1441,12 +1519,14 @@ class TestUpdateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -1500,6 +1580,7 @@ class TestUpdateBlockDocument:
                     "id": new_middle_block_document_1.id,
                     "name": new_middle_block_document_1.name,
                     "block_type": new_middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -1508,12 +1589,14 @@ class TestUpdateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }

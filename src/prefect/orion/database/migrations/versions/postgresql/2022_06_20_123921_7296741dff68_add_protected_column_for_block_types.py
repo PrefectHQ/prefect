@@ -1,4 +1,4 @@
-"""Add system column for block types
+"""Add protected column for block types
 
 Revision ID: 7296741dff68
 Revises: d335ad57d5ba
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "7296741dff68"
-down_revision = "d335ad57d5ba"
+down_revision = "29ad9bef6147"
 branch_labels = None
 depends_on = None
 

@@ -13,8 +13,26 @@ from prefect.orion.schemas.core import BlockDocument
 
 @pytest.fixture
 async def block_schemas(session, block_type_x, block_type_y):
+    class CanRun(Block):
+        _block_schema_capabilities = ["run"]
+
+        def run(self):
+            pass
+
+    class CanFly(Block):
+        _block_schema_capabilities = ["fly"]
+
+        def fly(self):
+            pass
+
+    class CanSwim(Block):
+        _block_schema_capabilities = ["swim"]
+
+        def swim(self):
+            pass
+
     class A(Block):
-        _block_schema_type = "abc"
+        pass
 
     block_type_a = await models.block_types.create_block_type(
         session=session, block_type=A._to_block_type()
@@ -23,8 +41,7 @@ async def block_schemas(session, block_type_x, block_type_y):
         session=session, block_schema=A._to_block_schema(block_type_id=block_type_a.id)
     )
 
-    class B(Block):
-        _block_schema_type = "abc"
+    class B(CanFly, Block):
 
         x: int
 
@@ -35,7 +52,7 @@ async def block_schemas(session, block_type_x, block_type_y):
         session=session, block_schema=B._to_block_schema(block_type_id=block_type_b.id)
     )
 
-    class C(Block):
+    class C(CanRun, Block):
         y: int
 
     block_type_c = await models.block_types.create_block_type(
@@ -45,7 +62,7 @@ async def block_schemas(session, block_type_x, block_type_y):
         session=session, block_schema=C._to_block_schema(block_type_id=block_type_c.id)
     )
 
-    class D(Block):
+    class D(CanSwim, CanFly, Block):
         b: B
         z: str
 
@@ -353,6 +370,36 @@ class TestReadBlockDocuments:
             )
         )
 
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    name="Nested Block 1",
+                    block_schema_id=block_schemas[3].id,
+                    block_type_id=block_schemas[3].block_type_id,
+                    data={
+                        "b": {"$ref": {"block_document_id": block_documents[1].id}},
+                        "z": "index",
+                    },
+                ),
+            )
+        )
+
+        block_documents.append(
+            await models.block_documents.create_block_document(
+                session=session,
+                block_document=schemas.actions.BlockDocumentCreate(
+                    name="Nested Block 2",
+                    block_schema_id=block_schemas[4].id,
+                    block_type_id=block_schemas[4].block_type_id,
+                    data={
+                        "c": {"$ref": {"block_document_id": block_documents[2].id}},
+                        "d": {"$ref": {"block_document_id": block_documents[5].id}},
+                    },
+                ),
+            )
+        )
+
         await session.commit()
         return sorted(block_documents, key=lambda b: b.name)
 
@@ -392,7 +439,7 @@ class TestReadBlockDocuments:
     ):
         response = await client.post(
             "/block_documents/filter",
-            json=dict(block_document_filter=dict(is_anonymous=dict(eq_=is_anonymous))),
+            json=dict(block_documents=dict(is_anonymous=dict(eq_=is_anonymous))),
         )
         assert response.status_code == status.HTTP_200_OK
         read_block_documents = pydantic.parse_obj_as(
@@ -415,7 +462,7 @@ class TestReadBlockDocuments:
         """
         response = await client.post(
             "/block_documents/filter",
-            json=dict(block_document_filter=dict(is_anonymous=is_anonymous_filter)),
+            json=dict(block_documents=dict(is_anonymous=is_anonymous_filter)),
         )
         assert response.status_code == status.HTTP_200_OK
         read_block_documents = pydantic.parse_obj_as(
@@ -445,6 +492,49 @@ class TestReadBlockDocuments:
             block_documents[2].id,
             block_documents[3].id,
         ]
+
+    async def test_read_block_documents_filter_capabilities(
+        self, client, block_documents
+    ):
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(
+                block_schemas=dict(block_capabilities=dict(all_=["fly", "swim"]))
+            ),
+        )
+        assert response.status_code == 200
+        fly_and_swim_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+
+        assert len(fly_and_swim_block_documents) == 1
+        assert fly_and_swim_block_documents[0].id == block_documents[5].id
+
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
+        )
+        assert response.status_code == 200
+        fly_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+        assert len(fly_block_documents) == 3
+        assert [b.id for b in fly_block_documents] == [
+            block_documents[1].id,
+            block_documents[3].id,
+            block_documents[5].id,
+        ]
+
+        response = await client.post(
+            "/block_documents/filter",
+            json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
+        )
+        assert response.status_code == 200
+        swim_block_documents = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+        assert len(swim_block_documents) == 1
+        assert swim_block_documents[0].id == block_documents[5].id
 
 
 class TestDeleteBlockDocument:
@@ -705,6 +795,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -734,6 +825,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -782,6 +874,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -828,6 +921,7 @@ class TestUpdateBlockDocument:
                     "id": new_inner_block_document.id,
                     "name": new_inner_block_document.name,
                     "block_type": new_inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
