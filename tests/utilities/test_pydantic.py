@@ -206,7 +206,7 @@ class TestTypeDispatchField:
 
         instance = Foo()
         with pytest.raises(
-            KeyError, match="No class found in registry for type name 'foo'."
+            KeyError, match="No class found in registry for dispatch key 'foo'."
         ):
             Base.parse_raw(instance.json())
 
