@@ -385,8 +385,8 @@ def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
                     "The --disable-docker-image-builds flag is set, but "
                     f"{image_name} includes {image_version}, not {prefect.__version__}"
                 )
-
-        CliRunner().invoke(dev_app, ["build-image"])
+        else:
+            CliRunner().invoke(dev_app, ["build-image"])
 
     return image_name
 
