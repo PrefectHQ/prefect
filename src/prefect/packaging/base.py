@@ -1,10 +1,9 @@
 import abc
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
-if TYPE_CHECKING:
-    from prefect.flows import Flow
+from prefect.flows import Flow
 
 D = TypeVar("D")
 

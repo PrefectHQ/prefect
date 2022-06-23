@@ -102,7 +102,7 @@ class PickleSerializer(Serializer):
 
 class SourceSerializer(Serializer):
     """
-    Serializes objects by retrieving their source code.
+    Serializes objects by retrieving the source code of the module they are defined in.
 
     Creates a JSON blob with keys:
         source: The source code
@@ -112,11 +112,22 @@ class SourceSerializer(Serializer):
     """
 
     def dumps(self, obj: Any) -> bytes:
+        module = inspect.getmodule(obj)
+        if module is None:
+            raise ValueError(
+                f"Cannot determine module for object: {obj!r}. "
+                "Its source code cannot be found."
+            )
+        if module.__name__ == "__main__":
+            raise ValueError(
+                f"Found module '__main__' for source of object: {obj!r}. "
+                "Its source code cannot be retrieved."
+            )
+        source, _ = inspect.getsourcelines(module)
+
         return json.dumps(
             {
-                # TODO: This will just get the source code for the flow itself but not
-                #       all of the relevant context in its file
-                "source": inspect.getsource(obj),
+                "source": source,
                 "symbol_name": obj.__name__,
             }
         )
