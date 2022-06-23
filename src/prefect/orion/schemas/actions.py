@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel, ForbidExtraFieldsMixin
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class FlowCreate(
