@@ -136,7 +136,7 @@ async def delete_block_type(
     )
 
 
-@router.get("/name/{name}/block_documents", tags=["Block documents"])
+@router.get("/name/{name}/block_documents", tags=router.tags + ["Block documents"])
 async def read_block_documents_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
     block_type_name: str = Path(..., description="The block type name", alias="name"),
@@ -156,7 +156,7 @@ async def read_block_documents_for_block_type(
 
 @router.get(
     "/name/{block_type_name}/block_documents/name/{block_document_name}",
-    tags=["Block documents"],
+    tags=router.tags + ["Block documents"],
 )
 async def read_block_document_by_name_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
