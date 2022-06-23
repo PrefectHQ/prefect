@@ -37,6 +37,7 @@ class IntervalSchedule(PrefectBaseModel):
     """
 
     class Config:
+        extra = "forbid"
         exclude_none = True
 
     interval: datetime.timedelta
@@ -160,6 +161,9 @@ class CronSchedule(PrefectBaseModel):
 
     """
 
+    class Config:
+        extra = "forbid"
+
     cron: str = Field(..., example="0 0 * * *")
     timezone: str = Field(None, example="America/New_York")
     day_or: bool = Field(
@@ -271,6 +275,9 @@ class RRuleSchedule(PrefectBaseModel):
     time-aware start date will maintain a local 9am time through DST boundaries;
     a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
     """
+
+    class Config:
+        extra = "forbid"
 
     rrule: str
     timezone: str = Field(None, example="America/New_York")
