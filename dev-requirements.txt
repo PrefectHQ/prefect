@@ -1,4 +1,7 @@
 black
 graphviz >= 0.8
 jinja2 >= 2.0, < 4.0
+mkdocs-gen-files
+mkdocs-material
+mkdocstrings-python-legacy
 Pygments >= 2.2, < 3.0
