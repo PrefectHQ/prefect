@@ -11,7 +11,7 @@ from uuid import UUID
 import cloudpickle
 
 from prefect.orion.serializers import register_serializer
-from prefect.packaging.serializers import from_qualified_name, to_qualified_name
+from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest

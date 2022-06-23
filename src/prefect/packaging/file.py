@@ -4,17 +4,21 @@ from pydantic import Field
 
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Serializer
-from prefect.packaging.serializers import PickleSerializer
+from prefect.packaging.serializers import SourceSerializer
 from prefect.utilities.hashing import stable_hash
 
 
 class FilePackager:
-    serializer: Serializer = Field(default_factory=PickleSerializer)
+    """
+    This packager stores the flow as a single file.
+
+    By default, the file is the source code of the module the flow is defined in.
+    Alternative serialization modes are available in `prefect.packaging.serializers`.
+    """
+
+    serializer: Serializer = Field(default_factory=SourceSerializer)
 
     async def package(self, flow: Flow) -> "FilePackageManifest":
-        """
-        Package a flow as a file.
-        """
         content = self.serializer.dumps(flow)
         key = stable_hash(content)
         path = self.basepath / key
