@@ -26,7 +26,7 @@ T = TypeVar("T", bound=Type)
 _TYPE_REGISTRIES: Dict[Type, Dict[str, Type]] = {}
 
 
-def _get_registry_for_type(cls: T) -> Optional[Dict[str, T]]:
+def get_registry_for_type(cls: T) -> Optional[Dict[str, T]]:
     """
     Get the first matching registry for a class or any of its base classes.
 
@@ -93,7 +93,7 @@ def register_type(cls: T) -> T:
     One of the classes base types must be registered using `register_base_type`.
     """
     # Lookup the registry for this type
-    registry = _get_registry_for_type(cls)
+    registry = get_registry_for_type(cls)
 
     # Check if a base type is registered
     if registry is None:
@@ -112,7 +112,7 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
     Look up a dispatch key in the type registry for the given class.
     """
     # Get the first matching registry for the class or one of its bases
-    registry = _get_registry_for_type(cls)
+    registry = get_registry_for_type(cls)
 
     # Look up this type in the registry
     subcls = registry.get(dispatch_key)
