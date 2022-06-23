@@ -1,10 +1,10 @@
 """
 Utilities for creating and working with Orion API schemas.
 """
-
 import copy
 import datetime
 import json
+import os
 from typing import Any, Dict, List, Set, TypeVar
 from uuid import UUID, uuid4
 
@@ -97,7 +97,10 @@ class PrefectBaseModel(BaseModel):
     class Config:
         # extra attributes are forbidden in order to raise meaningful errors for
         # bad API payloads
-        extra = "allow"
+        if os.getenv("PREFECT_TEST_MODE"):
+            extra = "forbid"
+        else:
+            extra = "allow"
 
         # prevent Pydantic from copying nested models on
         # validation, otherwise ORMBaseModel.copy() is run
