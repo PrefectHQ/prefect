@@ -196,11 +196,13 @@ class Block(BaseModel, ABC):
         # create references to those saved block documents.
         for key in data_keys:
             field_value = getattr(self, key)
-            if isinstance(field_value, Block):
-                if field_value._block_document_id is not None:
-                    block_document_data[key] = {
-                        "$ref": {"block_document_id": field_value._block_document_id}
-                    }
+            if (
+                isinstance(field_value, Block)
+                and field_value._block_document_id is not None
+            ):
+                block_document_data[key] = {
+                    "$ref": {"block_document_id": field_value._block_document_id}
+                }
 
         return BlockDocument(
             id=self._block_document_id or uuid4(),
@@ -363,10 +365,8 @@ class Block(BaseModel, ABC):
         Recursively populates metadata fields on nested blocks based on the
         provided block document references.
         """
-        for (
-            field_name,
-            block_document_reference,
-        ) in block_document_references.items():
+        for item in block_document_references.items():
+            field_name, block_document_reference = item
             nested_block = getattr(self, field_name)
             if isinstance(nested_block, Block):
                 nested_block_document_info = block_document_reference.get(
@@ -377,9 +377,7 @@ class Block(BaseModel, ABC):
                 )
                 nested_block_document_id = nested_block_document_info.get("id")
                 nested_block._block_document_id = (
-                    UUID(nested_block_document_id)
-                    if nested_block_document_id is not None
-                    else None
+                    UUID(nested_block_document_id) if nested_block_document_id else None
                 )
                 nested_block._block_document_name = nested_block_document_info.get(
                     "name"
