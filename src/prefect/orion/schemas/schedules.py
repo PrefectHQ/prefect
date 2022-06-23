@@ -175,7 +175,7 @@ class CronSchedule(PrefectBaseModel):
 
     @validator("cron")
     def valid_cron_string(cls, v):
-        if not croniter.is_valid(v):
+        if not croniter.is_valid(v) or "R" in v:
             raise ValueError(f'Invalid cron string: "{v}"')
         return v
 
