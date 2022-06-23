@@ -204,12 +204,26 @@ class Block(BaseModel, ABC):
             )
 
         data_keys = self.schema()["properties"].keys()
+        block_document_data = self.dict(include=data_keys)
+
+        # Iterate through and find blocks that already have saved block documents to
+        # create references to those saved block documents.
+        for key in data_keys:
+            field_value = getattr(self, key)
+            if (
+                isinstance(field_value, Block)
+                and field_value._block_document_id is not None
+            ):
+                block_document_data[key] = {
+                    "$ref": {"block_document_id": field_value._block_document_id}
+                }
+
         return BlockDocument(
             id=self._block_document_id or uuid4(),
             name=name or self._block_document_name,
             block_schema_id=block_schema_id or self._block_schema_id,
             block_type_id=block_type_id or self._block_type_id,
-            data=self.dict(include=data_keys),
+            data=block_document_data,
             block_schema=self._to_block_schema(
                 block_type_id=block_type_id or self._block_type_id,
             ),
@@ -343,13 +357,46 @@ class Block(BaseModel, ABC):
                 checksum=block_document.block_schema.checksum,
             )
         )
+
         block = block_schema_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
-        block._block_schema_id = block_document.block_schema_id
-        block._block_type_id = block_document.block_type_id
+        block.__class__._block_schema_id = block_document.block_schema_id
+        block.__class__._block_type_id = block_document.block_type_id
         block._block_document_name = block_document.name
         block._is_anonymous = block_document.is_anonymous
+        block._define_metadata_on_nested_blocks(
+            block_document.block_document_references
+        )
+
         return block
+
+    def _define_metadata_on_nested_blocks(
+        self, block_document_references: Dict[str, Dict[str, Any]]
+    ):
+        """
+        Recursively populates metadata fields on nested blocks based on the
+        provided block document references.
+        """
+        for item in block_document_references.items():
+            field_name, block_document_reference = item
+            nested_block = getattr(self, field_name)
+            if isinstance(nested_block, Block):
+                nested_block_document_info = block_document_reference.get(
+                    "block_document", {}
+                )
+                nested_block._define_metadata_on_nested_blocks(
+                    nested_block_document_info.get("block_document_references", {})
+                )
+                nested_block_document_id = nested_block_document_info.get("id")
+                nested_block._block_document_id = (
+                    UUID(nested_block_document_id) if nested_block_document_id else None
+                )
+                nested_block._block_document_name = nested_block_document_info.get(
+                    "name"
+                )
+                nested_block._is_anonymous = nested_block_document_info.get(
+                    "is_anonymous"
+                )
 
     @classmethod
     async def load(cls, name: str):
@@ -437,3 +484,55 @@ class Block(BaseModel, ABC):
                 )
 
             cls._block_schema_id = block_schema.id
+
+    async def _save(self, name: Optional[str] = None, is_anonymous: bool = False):
+        """
+        Saves the values of a block as a block document with an option to save as an
+        anonymous block document.
+
+        Args:
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+            is_anonymous: Boolean value specifying if the block document should or should
+                not be stored without a user specified name.
+
+        Raises:
+            ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
+                `is_anonymous` is `True`.
+        """
+        if name is None and not is_anonymous:
+            raise ValueError(
+                "You're attempting to save a block document without a name. "
+                "Please either save a block document with a name or set "
+                "is_anonymous to True."
+            )
+
+        if name is not None and is_anonymous:
+            raise ValueError(
+                "You're attempting to save an anonymous block document with a name. "
+                "Please either save a block document without a name or set "
+                "is_anonymous to False."
+            )
+
+        # Ensure block type and schema are registered before saving block document.
+        await self.register_type_and_schema()
+
+        self._is_anonymous = is_anonymous
+        async with prefect.client.get_client() as client:
+            block_document = await client.create_block_document(
+                block_document=self._to_block_document(name=name)
+            )
+
+        # Update metadata on block instance for later use.
+        self._block_document_name = block_document.name
+        self._block_document_id = block_document.id
+
+    async def save(self, name: str):
+        """
+        Saves the values of a block as a block document.
+
+        Args:
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+        """
+        await self._save(name=name)
