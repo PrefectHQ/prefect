@@ -118,6 +118,30 @@ async def test_service_sends_notifications(
     )
 
 
+async def test_service_uses_message_template(
+    session, db, flow, flow_run, completed_policy, capsys
+):
+    # modify the template
+    await models.flow_run_notification_policies.update_flow_run_notification_policy(
+        session=session,
+        flow_run_notification_policy_id=completed_policy.id,
+        flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
+            message_template="Hi there {flow_run_name}"
+        ),
+    )
+
+    # set a completed state
+    await models.flow_runs.set_flow_run_state(
+        session=session, flow_run_id=flow_run.id, state=schemas.states.Completed()
+    )
+    await session.commit()
+
+    await FlowRunNotifications().start(loops=1)
+
+    captured = capsys.readouterr()
+    assert f"Hi there {flow_run.name}" in captured.out
+
+
 async def test_service_sends_multiple_notifications(
     session, db, flow, flow_run, completed_policy, failed_policy, capsys
 ):
