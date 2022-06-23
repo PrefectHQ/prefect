@@ -291,6 +291,7 @@ class FlowRunNotificationPolicyCreate(
             "state_names",
             "tags",
             "block_document_id",
+            "message_template",
         ],
     )
 ):
@@ -300,15 +301,9 @@ class FlowRunNotificationPolicyCreate(
 class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run notification policy."""
 
-    name: str = Field(None, description="A name for the notification policy")
-    is_active: bool = Field(None, description="Whether the policy is currently active")
-    state_names: List[str] = Field(
-        None, description="The flow run states that trigger notifications"
-    )
-    tags: List[str] = Field(
-        None,
-        description="The flow run tags that trigger notifications (set [] to disable)",
-    )
-    block_document_id: UUID = Field(
-        None, description="The block document ID used for sending notifications"
-    )
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    state_names: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    block_document_id: Optional[UUID] = None
+    message_template: Optional[str] = None
