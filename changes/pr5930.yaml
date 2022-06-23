@@ -1,5 +1,5 @@
 enhancement:
-  - "Allow extra arguments to Databricks NewCluster - [#5903](https://github.com/PrefectHQ/prefect/pull/5930)"
+  - "Allow extra arguments to Databricks NewCluster - [#5930](https://github.com/PrefectHQ/prefect/pull/5930)"
 
 contributor:
   - "[EmilRex](https://github.com/EmilRex)"
