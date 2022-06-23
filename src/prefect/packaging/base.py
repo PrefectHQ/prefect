@@ -32,17 +32,20 @@ class PackageManifest(BaseModel, abc.ABC):
 class Packager(BaseModel, abc.ABC):
     """
     Creates a package for a flow.
+
+    A package contains the flow and is typically stored outside of Prefect. To faciliate
+    interaction with the package, a manifest is returned that describes how to access
+    and use the package.
     """
 
     @abc.abstractmethod
     async def package(self, flow: Flow) -> "PackageManifest":
         """
-        Package a flow and returns a manifest describing how the package can be used
-        in a deployment.
+        Package a flow and return a manifest describing the created package.
         """
 
     @abc.abstractstaticmethod
     def unpackage(manifest: "PackageManifest") -> Flow:
         """
-        Unpackage a flow using the manifest.
+        Retrieve a flow from a package.
         """
