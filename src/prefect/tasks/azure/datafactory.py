@@ -114,6 +114,8 @@ class DatafactoryCreate(Task):
                 f"{create_factory.provisioning_state}"
             )
             time.sleep(1)
+            if create_factory.provisioning_state == "Failed":
+                raise RuntimeError(f"Failed to provision the {datafactory_name} factory")
 
         return datafactory_name
 
@@ -334,8 +336,13 @@ class PipelineRun(Task):
             resource_group_name, datafactory_name, create_run.run_id
         )
         while pipeline_run.status != "Succeeded":
+            pipeline_run = datafactory_client.pipeline_runs.get(
+                resource_group_name, datafactory_name, create_run.run_id
+            )
             self.logger.info(f"The pipeline run status: {pipeline_run.status}")
             time.sleep(1)
+            if pipeline_run.status == "Failed":
+                raise RuntimeError(pipeline_run.message)
 
         filter_params = azure.mgmt.datafactory.models.RunFilterParameters(
             last_updated_after=last_updated_after,
