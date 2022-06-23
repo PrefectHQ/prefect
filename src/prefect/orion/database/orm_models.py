@@ -737,6 +737,9 @@ class ORMBlockType:
     documentation_url = sa.Column(sa.String, nullable=True)
     description = sa.Column(sa.String, nullable=True)
     code_example = sa.Column(sa.String, nullable=True)
+    is_protected = sa.Column(
+        sa.Boolean, nullable=False, server_default="0", default=False
+    )
 
     @declared_attr
     def __table_args__(cls):
