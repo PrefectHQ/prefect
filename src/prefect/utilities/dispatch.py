@@ -55,9 +55,9 @@ def get_dispatch_key(
         else type(cls_or_instance).__name__
     )
 
-    if allow_missing and dispatch_key is None:
-        return None
-    elif dispatch_key is None:
+    if dispatch_key is None:
+        if allow_missing:
+            return None
         raise ValueError(
             f"Type {type_name!r} does not define a value for "
             "'__dispatch_key__' which is required for registry lookup."
@@ -65,6 +65,9 @@ def get_dispatch_key(
 
     if callable(dispatch_key):
         dispatch_key = dispatch_key()
+
+    if allow_missing and dispatch_key is None:
+        return None
 
     if not isinstance(dispatch_key, str):
         raise TypeError(
