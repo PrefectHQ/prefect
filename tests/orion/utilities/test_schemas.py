@@ -5,7 +5,6 @@ import pendulum
 import pydantic
 import pytest
 
-from prefect.orion.schemas import actions
 from prefect.orion.utilities.schemas import (
     IDBaseModel,
     ORMBaseModel,
@@ -15,27 +14,13 @@ from prefect.orion.utilities.schemas import (
 from prefect.testing.utilities import assert_does_not_warn
 
 
-class TestExtra:
-    def test_base_model_allows_extra(self):
+class TestExtraForbidden:
+    def test_extra_attributes_are_forbidden_during_unit_tests(self):
         class Model(PrefectBaseModel):
-            x: int
-
-        assert Model(x=1, y=2)
-
-    def test_base_model_extra_can_be_overridden(self):
-        class Model(PrefectBaseModel):
-            class Config:
-                extra = "forbid"
-
             x: int
 
         with pytest.raises(pydantic.ValidationError):
             Model(x=1, y=2)
-
-    def test_action_models_forbid_extra(self):
-
-        with pytest.raises(pydantic.ValidationError):
-            actions.FlowCreate(name="name", tags=[], extra_field=1)
 
 
 class TestPydanticSubclass:
