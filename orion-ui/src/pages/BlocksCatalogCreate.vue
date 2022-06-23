@@ -3,6 +3,7 @@
     <template #header>
       <PageHeadingBlocksCatalogCreate :block-type="blockType" />
     </template>
+
     <p-card class="blocks-catalog-create__card">
       <template v-if="blockSchema">
         <BlockSchemaForm
