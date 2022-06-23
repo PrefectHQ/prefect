@@ -4,6 +4,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, status
 
+import prefect
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -174,3 +175,26 @@ async def read_block_document_by_name_for_block_type(
             status.HTTP_404_NOT_FOUND, detail="Block document not found"
         )
     return block_document
+
+
+@router.post("/install_system_block_types")
+async def install_system_block_types(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    """Install block types that the system expects to be present"""
+    for block in [
+        prefect.blocks.system.JSON,
+        prefect.blocks.system.String,
+        prefect.blocks.system.DateTime,
+    ]:
+        block_type = block._to_block_type()
+        block_type.is_protected = True
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=block_type, override=True
+        )
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=block._to_block_schema(block_type_id=block_type.id),
+            override=True,
+        )

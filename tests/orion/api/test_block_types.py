@@ -2,10 +2,12 @@ from textwrap import dedent
 from typing import List
 from uuid import uuid4
 
+import pendulum
 import pydantic
 import pytest
 from fastapi import status
 
+import prefect
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockTypeCreate, BlockTypeUpdate
@@ -421,3 +423,62 @@ class TestReadBlockDocumentByNameForBlockType:
             f"/block_types/name/{block_type_x.name}/block_documents/name/nonsense"
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestSystemBlockTypes:
+    async def test_install_system_block_types(self, client):
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) == 0
+
+        r = await client.post("/block_types/install_system_block_types")
+        assert r.status_code == status.HTTP_200_OK
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) > 0
+
+    async def test_install_system_block_types_multiple_times(self, client):
+
+        response = await client.post("/block_types/filter")
+        block_types = pydantic.parse_obj_as(List[BlockType], response.json())
+        assert len(block_types) == 0
+
+        await client.post("/block_types/install_system_block_types")
+        await client.post("/block_types/install_system_block_types")
+        await client.post("/block_types/install_system_block_types")
+
+    async def test_create_system_block_type(self, client, session):
+        # install system blocks
+        await client.post("/block_types/install_system_block_types")
+
+        # create a datetime block
+        datetime_block_type = await client.get("/block_types/name/DateTime")
+        datetime_block_schema = await client.post(
+            "/block_schemas/filter",
+            json=dict(
+                block_schema_filter=dict(
+                    block_type_id=dict(any_=[datetime_block_type.json()["id"]])
+                ),
+                limit=1,
+            ),
+        )
+        block = prefect.blocks.system.DateTime(value="2022-01-01T00:00:00+00:00")
+        response = await client.post(
+            "/block_documents/",
+            json=block._to_block_document(
+                name="MyTestDateTime",
+                block_type_id=datetime_block_type.json()["id"],
+                block_schema_id=datetime_block_schema.json()[0]["id"],
+            ).dict(
+                json_compatible=True,
+                exclude_unset=True,
+                exclude={"id", "block_schema", "block_type"},
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # load the datetime block
+        api_block = await prefect.blocks.system.DateTime.load("MyTestDateTime")
+        assert api_block.value == pendulum.datetime(2022, 1, 1, tz="UTC")
