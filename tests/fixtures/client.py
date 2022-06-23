@@ -11,17 +11,6 @@ async def orion_client(testing_session_settings):
         yield client
 
 
-@pytest.fixture(autouse=True)
-async def assert_lifespan_is_not_left_open():
-    # This fixture checks for regressions where the application lifespan is left open
-    # across tests.
-    from prefect.client import APP_LIFESPANS
-
-    yield
-
-    assert not APP_LIFESPANS, "Lifespans should be cleared at the end of each test."
-
-
 @pytest.fixture(scope="module")
 def flow_function():
     @flow

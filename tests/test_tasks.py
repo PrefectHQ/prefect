@@ -1,11 +1,13 @@
 import datetime
 import inspect
+import warnings
 from unittest.mock import MagicMock
 
 import anyio
 import pytest
 
 from prefect import flow, get_run_logger, tags
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRunResult
@@ -13,14 +15,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
-
-
-@pytest.fixture(autouse=True)
-def reset_object_registry():
-    from prefect.context import PrefectObjectRegistry
-
-    registry = PrefectObjectRegistry()
-    registry.__enter__()
 
 
 def comparable_inputs(d):
@@ -41,13 +35,6 @@ class TestTaskName:
             pass
 
         assert my_task.name == "another_name"
-
-    def test_conflicting_task_names(self):
-        my_first_task = task(lambda: None, name="my_task")
-        my_second_task = task(lambda: None, name="my_task")
-
-        assert my_first_task.name == "my_task"
-        assert my_second_task.name == "my_task-1"
 
 
 class TestTaskCall:
@@ -156,26 +143,6 @@ class TestTaskCall:
         assert task_state.result(raise_on_failure=False) is True
         assert task_state.message == "Test returned state"
 
-    async def test_task_runs_correctly_populate_dynamic_keys(self, orion_client):
-        @task
-        def bar():
-            return "foo"
-
-        @flow(version="test")
-        def foo():
-            return bar().run_id, bar().run_id
-
-        flow_state = foo()
-        task_run_ids = flow_state.result()
-
-        task_runs = [
-            await orion_client.read_task_run(run_id) for run_id in task_run_ids
-        ]
-
-        # Assert dynamic key is set correctly
-        assert task_runs[0].dynamic_key == "0"
-        assert task_runs[1].dynamic_key == "1"
-
     def test_task_called_with_task_dependency(self):
         @task
         def foo(x):
@@ -273,7 +240,7 @@ class TestTaskFutures:
         @flow
         async def my_flow():
             future = await foo()
-            state = await future.wait(1)
+            state = await future.wait(5)
             assert state is not None
             assert state.is_completed()
 
@@ -301,7 +268,7 @@ class TestTaskFutures:
         @flow
         async def my_flow():
             future = await foo()
-            result = await future.result(timeout=1)
+            result = await future.result(timeout=5)
             assert result == 1
 
         (await my_flow()).result()
@@ -1302,7 +1269,7 @@ class TestTaskWithOptions:
 
         assert task_with_options is not initial_task
         assert (
-            task_with_options.name == "Initial task-1"
+            task_with_options.name == "Initial task"
         )  # The registry renames tasks to avoid collisions.
         assert task_with_options.description == "Task before with options"
         assert set(task_with_options.tags) == {"tag1", "tag2"}
@@ -1335,3 +1302,37 @@ class TestTaskWithOptions:
         # `self` isn't in task decorator
         with_options_params.remove("self")
         assert task_params == with_options_params
+
+
+class TestTaskRegistration:
+    def test_task_is_registered(self):
+        @task
+        def my_task():
+            pass
+
+        registry = PrefectObjectRegistry.get()
+        assert my_task in registry.tasks
+
+    def test_warning_name_conflict_different_function(self):
+        with pytest.warns(
+            UserWarning,
+            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+        ):
+
+            @task(name="my_task")
+            def task_one():
+                pass
+
+            @task(name="my_task")
+            def task_two():
+                pass
+
+    def test_no_warning_name_conflict_task_with_options(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+
+            @task(name="my_task")
+            def task_one():
+                pass
+
+            task_one.with_options(tags=["hello"])

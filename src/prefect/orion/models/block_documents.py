@@ -15,6 +15,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMBlockDocument
 from prefect.orion.schemas.actions import BlockDocumentReferenceCreate
 from prefect.orion.schemas.core import BlockDocument, BlockDocumentReference
+from prefect.orion.schemas.filters import BlockDocumentFilterIsAnonymous
 from prefect.utilities.hashing import hash_objects
 
 
@@ -254,6 +255,7 @@ async def _construct_full_block_document(
                     "id": block_document.id,
                     "name": block_document.name,
                     "block_type": block_document.block_type,
+                    "is_anonymous": block_document.is_anonymous,
                     "block_document_references": full_child_block_document.block_document_references,
                 }
             }
@@ -347,7 +349,7 @@ async def read_block_documents(
     session: sa.orm.Session,
     db: OrionDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_type_id: Optional[UUID] = None,
+    block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
@@ -357,21 +359,24 @@ async def read_block_documents(
     # if no filter is provided, one is created that excludes anonymous blocks
     if block_document_filter is None:
         block_document_filter = schemas.filters.BlockDocumentFilter(
-            is_anonymous=dict(eq_=False)
+            is_anonymous=BlockDocumentFilterIsAnonymous(eq_=False)
         )
 
     filtered_block_documents_query = sa.select(db.BlockDocument.id).order_by(
         db.BlockDocument.name
     )
 
-    if block_document_filter:
-        filtered_block_documents_query = filtered_block_documents_query.where(
-            block_document_filter.as_sql_filter(db)
-        )
+    filtered_block_documents_query = filtered_block_documents_query.where(
+        block_document_filter.as_sql_filter(db)
+    )
 
-    if block_type_id is not None:
+    if block_schema_filter is not None:
+        exists_clause = sa.select(db.BlockSchema).where(
+            db.BlockSchema.id == db.BlockDocument.block_schema_id,
+            block_schema_filter.as_sql_filter(db),
+        )
         filtered_block_documents_query = filtered_block_documents_query.where(
-            db.BlockDocument.block_type_id == block_type_id
+            exists_clause.exists()
         )
 
     if offset is not None:

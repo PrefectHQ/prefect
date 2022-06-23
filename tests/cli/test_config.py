@@ -80,7 +80,6 @@ def test_set_with_unknown_setting():
     )
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_set_with_invalid_value_type():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 
@@ -199,7 +198,6 @@ def test_unset_retains_other_keys():
     assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_unset_warns_if_present_in_environment(monkeypatch):
     monkeypatch.setenv("PREFECT_API_KEY", "TEST")
     save_profiles(
@@ -319,7 +317,6 @@ def test_unset_multiple_settings():
     assert profiles["foo"].settings == {}
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     # Clear the environment
     for key in SETTING_VARIABLES:
@@ -371,7 +368,6 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
     ), "All settings were expected; we should only have a subset."
 
 
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_view_includes_unset_settings_with_show_defaults():
     expected_settings = prefect.settings.get_current_settings().dict()
 
@@ -406,7 +402,6 @@ def test_view_includes_unset_settings_with_show_defaults():
         ["config", "view", "--show-defaults"],
     ],
 )
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_view_shows_setting_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 
@@ -452,7 +447,6 @@ def test_view_shows_setting_sources(monkeypatch, command):
         ["config", "view", "--hide-sources", "--show-defaults"],
     ],
 )
-@pytest.mark.usefixtures("disable_terminal_wrapping")
 def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
     monkeypatch.setenv("PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT", "2.5")
 

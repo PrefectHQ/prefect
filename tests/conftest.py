@@ -8,13 +8,21 @@ from urllib.parse import urlsplit, urlunsplit
 
 import asyncpg
 import pytest
+from docker import DockerClient
+from docker.errors import ImageNotFound
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
+from typer.testing import CliRunner
 
 import prefect
 import prefect.settings
+from prefect.cli.dev import dev_app
+from prefect.docker import docker_client
+from prefect.flow_runners.base import get_prefect_image_name
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
     PREFECT_HOME,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -65,6 +73,18 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Exclude all tests except service integration tests.",
+    )
+
+    parser.addoption(
+        "--disable-docker-image-builds",
+        action="store_true",
+        default=False,
+        help=(
+            "Do not build the prefect Docker image during tests.  Tests that require "
+            "the image will fail if the image is not present or has an outdated "
+            "version of `prefect` installed.  Used during CI to run the test suite "
+            "against images built with our production release build process."
+        ),
     )
 
 
@@ -175,6 +195,34 @@ def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):
+    """
+    This hook will be called within the test run. Allowing us to raise errors or add
+    assertions to every test. On error, the test will be marked as failed. If we used
+    a fixture instead, the test teardown would report an error instead.
+    """
+    yield
+    assert_lifespan_is_not_left_open()
+
+
+def assert_lifespan_is_not_left_open():
+    # This checks for regressions where the application lifespan is left open
+    # across tests.
+    from prefect.client import APP_LIFESPANS
+
+    yield
+
+    open_lifespans = APP_LIFESPANS.copy()
+    if open_lifespans:
+        # Clean out the lifespans to avoid erroring every future test
+        APP_LIFESPANS.clear()
+        raise RuntimeError(
+            "Lifespans should be cleared at the end of each test, but "
+            f"{len(open_lifespans)} lifespans were not closed: {open_lifespans!r}"
+        )
+
+
 @pytest.fixture(scope="session", autouse=True)
 async def test_database_url(worker_id: str) -> Generator[Optional[str], None, None]:
     """Prepares an alternative test database URL, if necessary, for the current
@@ -265,6 +313,9 @@ def testing_session_settings(test_database_url: str):
             # environments and settings
             PREFECT_HOME: tmpdir,
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Disable pretty CLI output for easier assertions
+            PREFECT_CLI_COLORS: False,
+            PREFECT_CLI_WRAP_LINES: False,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
@@ -297,3 +348,55 @@ def testing_session_settings(test_database_url: str):
             setup_logging()
 
             yield ctx
+
+
+@pytest.fixture(scope="session")
+def docker() -> Generator[DockerClient, None, None]:
+    with docker_client() as client:
+        yield client
+
+
+@pytest.fixture(scope="session")
+def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
+    """Ensure that the prefect dev image is available and up-to-date"""
+    image_name = get_prefect_image_name()
+
+    image_exists, version_is_right = False, False
+
+    try:
+        image_exists = bool(docker.images.get(image_name))
+    except ImageNotFound:
+        pass
+
+    if image_exists:
+        output = docker.containers.run(image_name, ["prefect", "--version"])
+        image_version = output.decode().strip()
+        version_is_right = image_version == prefect.__version__
+
+    if not image_exists or not version_is_right:
+        if pytestconfig.getoption("--disable-docker-image-builds"):
+            if not image_exists:
+                raise Exception(
+                    "The --disable-docker-image-builds flag is set, but "
+                    f"there is no local {image_name} image"
+                )
+            if not version_is_right:
+                raise Exception(
+                    "The --disable-docker-image-builds flag is set, but "
+                    f"{image_name} includes {image_version}, not {prefect.__version__}"
+                )
+        else:
+            CliRunner().invoke(dev_app, ["build-image"])
+
+    return image_name
+
+
+@pytest.fixture(autouse=True)
+def reset_object_registry():
+    """
+    Ensures each test has a clean object registry.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry():
+        yield

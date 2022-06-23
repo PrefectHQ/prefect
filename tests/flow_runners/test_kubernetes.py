@@ -28,7 +28,7 @@ from prefect.flow_runners import (
     base_flow_run_environment,
 )
 from prefect.flow_runners.kubernetes import KubernetesManifest
-from prefect.orion.schemas.core import FlowRun
+from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, temporary_settings
 from prefect.testing.utilities import kubernetes_environments_equal
@@ -1029,6 +1029,64 @@ class TestCustomizingJob:
 
         variable = self.find_environment_variable(customized, "PREFECT_HOME")
         assert variable["value"] == "custom"
+
+
+@pytest.mark.parametrize(
+    "runner",
+    [
+        KubernetesFlowRunner(),
+        KubernetesFlowRunner(
+            job={
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "metadata": {"labels": {"my-custom-label": "sweet"}},
+                "spec": {
+                    "template": {
+                        "spec": {
+                            "containers": [
+                                {
+                                    "name": "prefect-job",
+                                    "env": [],
+                                }
+                            ]
+                        }
+                    }
+                },
+            }
+        ),
+        KubernetesFlowRunner(customizations=JsonPatch([])),
+        KubernetesFlowRunner(
+            customizations=[
+                {
+                    "op": "add",
+                    "path": "/spec/template/spec/containers/0/command/0",
+                    "value": "opentelemetry-instrument",
+                },
+            ]
+        ),
+        KubernetesFlowRunner(
+            customizations=JsonPatch(
+                [
+                    {
+                        "op": "add",
+                        "path": "/spec/template/spec/containers/0/command/0",
+                        "value": "opentelemetry-instrument",
+                    },
+                ]
+            )
+        ),
+    ],
+)
+class TestJSONSerializingKubernetesFlowRunner:
+    def test_flow_runner_is_json_serializable(self, runner: KubernetesFlowRunner):
+        roundtripped = KubernetesFlowRunner.parse_raw(runner.json())
+        assert roundtripped.job == runner.job
+        assert roundtripped.customizations == runner.customizations
+
+    def test_flow_runner_usable_as_settings(self, runner: KubernetesFlowRunner):
+        settings = runner.to_settings()
+        roundtripped = FlowRunnerSettings.parse_raw(settings.json())
+        assert settings == roundtripped
 
 
 class TestLoadingManifestsFromFiles:

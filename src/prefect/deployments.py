@@ -45,7 +45,6 @@ Examples:
     ```
 """
 
-import abc
 import os
 import pathlib
 import sys
@@ -81,7 +80,7 @@ from prefect.utilities.filesystem import is_local_path, tmpchdir
 from prefect.utilities.importtools import objects_from_script
 
 
-class DeploymentSpec(PrefectBaseModel, abc.ABC):
+class DeploymentSpec(PrefectBaseModel):
     """
     A type for specifying a deployment of a flow.
 
