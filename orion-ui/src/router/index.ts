@@ -115,7 +115,7 @@ const routeRecords: AppRouteRecord[] = [
       },
       {
         name: 'block.edit',
-        path: '/edit',
+        path: 'edit',
         component: (): RouteComponent => import('@/pages/BlockEdit.vue'),
       },
     ],
