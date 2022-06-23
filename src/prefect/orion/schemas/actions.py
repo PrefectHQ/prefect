@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import Field, root_validator
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel, ForbidExtraFieldsMixin
 
 
 class FlowCreate(
@@ -18,11 +18,17 @@ class FlowCreate(
 ):
     """Data used by the Orion API to create a flow."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowUpdate(
     schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
 ):
     """Data used by the Orion API to update a flow."""
+
+    class Config:
+        extra = "forbid"
 
 
 class DeploymentCreate(
@@ -42,6 +48,9 @@ class DeploymentCreate(
 ):
     """Data used by the Orion API to create a deployment."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
@@ -50,6 +59,9 @@ class FlowRunUpdate(
     )
 ):
     """Data used by the Orion API to update a flow run."""
+
+    class Config:
+        extra = "forbid"
 
 
 class StateCreate(
@@ -65,6 +77,9 @@ class StateCreate(
     )
 ):
     """Data used by the Orion API to create a new state."""
+
+    class Config:
+        extra = "forbid"
 
 
 class TaskRunCreate(
@@ -109,6 +124,9 @@ class FlowRunCreate(
 ):
     """Data used by the Orion API to create a flow run."""
 
+    class Config:
+        extra = "forbid"
+
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = Field(None, description="The state of the flow run to create")
 
@@ -128,6 +146,9 @@ class DeploymentFlowRunCreate(
 ):
     """Data used by the Orion API to create a flow run from a deployment."""
 
+    class Config:
+        extra = "forbid"
+
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = Field(None, description="The state of the flow run to create")
 
@@ -140,6 +161,9 @@ class SavedSearchCreate(
 ):
     """Data used by the Orion API to create a saved search."""
 
+    class Config:
+        extra = "forbid"
+
 
 class ConcurrencyLimitCreate(
     schemas.core.ConcurrencyLimit.subclass(
@@ -148,6 +172,9 @@ class ConcurrencyLimitCreate(
     )
 ):
     """Data used by the Orion API to create a concurrency limit."""
+
+    class Config:
+        extra = "forbid"
 
 
 class BlockTypeCreate(
@@ -164,9 +191,15 @@ class BlockTypeCreate(
 ):
     """Data used by the Orion API to create a block type."""
 
+    class Config:
+        extra = "forbid"
+
 
 class BlockTypeUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block type."""
+
+    class Config:
+        extra = "forbid"
 
     logo_url: Optional[str] = None
     documentation_url: Optional[str] = None
@@ -182,6 +215,9 @@ class BlockSchemaCreate(
 ):
     """Data used by the Orion API to create a block schema."""
 
+    class Config:
+        extra = "forbid"
+
 
 class BlockDocumentCreate(
     schemas.core.BlockDocument.subclass(
@@ -196,6 +232,9 @@ class BlockDocumentCreate(
     )
 ):
     """Data used by the Orion API to create a block document."""
+
+    class Config:
+        extra = "forbid"
 
     @root_validator
     def check_anonymous_name(cls, values):
@@ -216,6 +255,9 @@ class BlockDocumentCreate(
 class BlockDocumentUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a block document."""
 
+    class Config:
+        extra = "forbid"
+
     name: Optional[str] = None
     data: Optional[dict] = None
 
@@ -233,6 +275,9 @@ class BlockDocumentReferenceCreate(
 ):
     """Data used to create block document reference."""
 
+    class Config:
+        extra = "forbid"
+
 
 class LogCreate(
     schemas.core.Log.subclass(
@@ -249,6 +294,9 @@ class LogCreate(
 ):
     """Data used by the Orion API to create a log."""
 
+    class Config:
+        extra = "forbid"
+
 
 class WorkQueueCreate(
     schemas.core.WorkQueue.subclass(
@@ -264,6 +312,9 @@ class WorkQueueCreate(
 ):
     """Data used by the Orion API to create a work queue."""
 
+    class Config:
+        extra = "forbid"
+
 
 class WorkQueueUpdate(
     schemas.core.WorkQueue.subclass(
@@ -278,6 +329,9 @@ class WorkQueueUpdate(
     )
 ):
     """Data used by the Orion API to update a work queue."""
+
+    class Config:
+        extra = "forbid"
 
     name: Optional[str] = Field(None, description="The name of the work queue.")
 
@@ -297,9 +351,15 @@ class FlowRunNotificationPolicyCreate(
 ):
     """Data used by the Orion API to create a flow run notification policy."""
 
+    class Config:
+        extra = "forbid"
+
 
 class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     """Data used by the Orion API to update a flow run notification policy."""
+
+    class Config:
+        extra = "forbid"
 
     name: Optional[str] = None
     is_active: Optional[bool] = None

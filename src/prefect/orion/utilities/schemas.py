@@ -97,7 +97,7 @@ class PrefectBaseModel(BaseModel):
     class Config:
         # extra attributes are forbidden in order to raise meaningful errors for
         # bad API payloads
-        extra = "forbid"
+        extra = "allow"
 
         # prevent Pydantic from copying nested models on
         # validation, otherwise ORMBaseModel.copy() is run
