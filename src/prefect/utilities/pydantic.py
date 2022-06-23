@@ -1,4 +1,4 @@
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Dict, Generic, Type, TypeVar
 
 import pydantic
 from typing_extensions import Self
@@ -8,6 +8,17 @@ from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=pydantic.BaseModel)
 
+TYPE_REGISTRY: Dict[Type[pydantic.BaseModel], Dict[str, Type[pydantic.BaseModel]]] = {}
+
+
+def get_registry_for_type(cls: Type[M]) -> Dict[str, Type[M]]:
+    """
+    Get the first matching registry for a class or any of its base classes.
+
+    If not found, an empty dictionary is returned.
+    """
+    return next(filter(None, (TYPE_REGISTRY.get(cls) for cls in cls.mro())), {})
+
 
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     """
@@ -15,6 +26,9 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     on serialization and dynamically imports the model on deserialization. This allows
     automatic resolution to subtypes of the decorated model.
     """
+    if "__typename__" in getattr(model_cls, "__annotations__", {}):
+        TYPE_REGISTRY[model_cls] = {}
+
     if "type" in model_cls.__fields__:
         raise ValueError(
             f"Model class {model_cls.__name__!r} includes reserved field 'type' used "
@@ -33,18 +47,61 @@ def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     cls_new = model_cls.__new__
 
     def __init__(__pydantic_self__, **data: Any) -> None:
-        data.setdefault("type", to_qualified_name(__pydantic_self__.__class__))
+        data.setdefault(
+            "type",
+            __pydantic_self__.__typename__
+            if hasattr(__pydantic_self__, "__typename__")
+            else to_qualified_name(__pydantic_self__.__class__),
+        )
         cls_init(__pydantic_self__, **data)
 
     def __new__(cls: Type[Self], **kwargs) -> Self:
         if "type" in kwargs:
-            subcls = from_qualified_name(kwargs["type"])
+            # Get the first matching registry for this class or one of its bases
+            registry = get_registry_for_type(cls)
+            registry_cls = registry.get(kwargs["type"])
+
+            # If no registry was found, attempt to import the name
+            subcls = registry_cls or from_qualified_name(kwargs["type"])
+
+            # Check that we got a valid subclass, in-case we
+            if not isinstance(subcls, type):
+                raise ValueError(
+                    f"Found invalid object {subcls!r}: expected 'type' object."
+                )
+            if not issubclass(subcls, cls):
+                raise ValueError(
+                    f"Found invalid class {subcls!r}: not a subclass of {cls!r}."
+                )
+
             return cls_new(subcls)
         else:
             return cls_new(cls)
 
     model_cls.__init__ = __init__
     model_cls.__new__ = __new__
+
+    return model_cls
+
+
+def register_dispatch_type(model_cls: Type[M]) -> Type[M]:
+    # Validate the model type
+
+    base = model_cls.__base__
+    if base not in TYPE_REGISTRY:
+        raise KeyError(
+            f"Base type {base.__name__!r} for model {model_cls.__name__!r} not found "
+            "in registry."
+        )
+
+    if not getattr(model_cls, "__typename__", None):
+        raise ValueError(
+            f"Model {model_cls.__name__!r} does not define a value for "
+            "'__typename__' which is requried for registry lookup."
+        )
+
+    # Add to the registry
+    TYPE_REGISTRY[base][model_cls.__typename__] = model_cls
 
     return model_cls
 
