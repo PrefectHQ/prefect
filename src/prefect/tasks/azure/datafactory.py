@@ -38,7 +38,8 @@ class DatafactoryCreate(Task):
         - resource_group_name (str): Name of the resource group.
         - azure_credentials_secret (str): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`.
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            "AZ_CREDENTIALS".
         - location (str, optional): The location of the datafactory.
         - options (dict, optional): The options to be passed to the
             `create_or_update` method.
