@@ -11,18 +11,19 @@ D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=pydantic.BaseModel)
 
 
-def _reduce_model(model: pydantic.BaseModel, **kwargs):
+def _reduce_model(model: pydantic.BaseModel):
     """
     Helper for serializing a cythonized model with cloudpickle.
 
     Keyword arguments can provide additional settings to the `json` call. Since
-    `__reduce__` takes no arguments, these must be set with `partial`.
+    `__reduce__` takes no arguments, these are set on the `__reduce_kwargs__` attr.
     """
-
-    breakpoint()
     return (
         _unreduce_model,
-        (to_qualified_name(type(model)), model.json(**kwargs)),
+        (
+            to_qualified_name(type(model)),
+            model.json(**getattr(model, "__reduce_kwargs__", {})),
+        ),
     )
 
 
@@ -61,7 +62,8 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
     See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
     """
     if __model_cls:
-        __model_cls.__reduce__ = partial(_reduce_model, **kwargs)
+        __model_cls.__reduce__ = _reduce_model
+        __model_cls.__reduce_kwargs__ = kwargs
         return __model_cls
     else:
         return cast(
