@@ -1,3 +1,4 @@
+from asyncore import poll
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -41,6 +42,8 @@ class DatafactoryCreate(Task):
             `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
             "AZ_CREDENTIALS".
         - location (str, optional): The location of the datafactory.
+        - polling_interval (int, optional): The interval, in seconds, to check the provisioning
+            state of the datafactory Defaults to 10.
         - options (dict, optional): The options to be passed to the
             `create_or_update` method.
         - **kwargs (dict, optional): Additional keyword arguments to pass to the
@@ -53,6 +56,7 @@ class DatafactoryCreate(Task):
         resource_group_name: str = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
         location: str = "eastus",
+        polling_interval: int = 10,
         options: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
@@ -60,6 +64,7 @@ class DatafactoryCreate(Task):
         self.resource_group_name = resource_group_name
         self.azure_credentials_secret = azure_credentials_secret
         self.location = location
+        self.polling_interval = polling_interval
         self.options = options
         super().__init__(**kwargs)
 
@@ -68,6 +73,7 @@ class DatafactoryCreate(Task):
         "resource_group_name",
         "azure_credentials_secret",
         "location",
+        "polling_interval",
         "options",
     )
     def run(
@@ -75,7 +81,8 @@ class DatafactoryCreate(Task):
         datafactory_name: str = None,
         resource_group_name: str = None,
         azure_credentials_secret: str = None,
-        location: str = None,
+        location: Optional[str] = None,
+        polling_interval: Optional[int] = None,
         options: Optional[Dict[str, Any]] = None,
     ) -> Dict[Any, Any]:
         """
@@ -86,8 +93,11 @@ class DatafactoryCreate(Task):
             - resource_group_name (str): Name of the resource group.
             - azure_credentials_secret (str): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`.
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                "AZ_CREDENTIALS".
             - location (str, optional): The location of the datafactory.
+            - polling_interval (int, optional): The interval, in seconds, to check the provisioning
+            state of the datafactory Defaults to 10.
             - options (dict, optional): The options to be passed to the
                 `create_or_update` method.
 
@@ -114,7 +124,7 @@ class DatafactoryCreate(Task):
                 f"The {datafactory_name} factory status: "
                 f"{create_factory.provisioning_state}"
             )
-            time.sleep(1)
+            time.sleep(polling_interval)
             if create_factory.provisioning_state == "Failed":
                 raise RuntimeError(
                     f"Failed to provision the {datafactory_name} factory"
@@ -135,7 +145,8 @@ class PipelineCreate(Task):
         - activities (list): The list of activities to run in the pipeline.
         - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`.
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            "AZ_CREDENTIALS".
         - parameters (dict): The parameters to be used in pipeline.
         - options (dict, optional): The options to be passed to the
             `create_or_update` method.
@@ -193,7 +204,8 @@ class PipelineCreate(Task):
             - parameters (dict): The parameters to be used in pipeline.
             - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`.
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                "AZ_CREDENTIALS".
             - options (dict, optional): The options to be passed to the
                 `create_or_update` method.
 
@@ -241,8 +253,11 @@ class PipelineRun(Task):
         - pipeline_name (str): Name of the pipeline.
         - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`.
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            "AZ_CREDENTIALS".
         - parameters (dict, optional): The parameters to be used in pipeline.
+        - polling_interval (int, optional): The interval, in seconds, to check the status of the run.
+            Defaults to 10.
         - last_updated_after (datetime, optional): The time at or after which the run event
             was updated; used to filter and query the pipeline run, and defaults to yesterday.
         - last_updated_before (datetime, optional): The time at or before which the run event
@@ -258,6 +273,7 @@ class PipelineRun(Task):
         pipeline_name: str = None,
         azure_credentials_secret: str = "AZ_CREDENTIALS",
         parameters: Optional[Dict[str, Any]] = None,
+        polling_interval: int = 10,
         last_updated_after: Optional[datetime] = None,
         last_updated_before: Optional[datetime] = None,
         **kwargs,
@@ -287,6 +303,7 @@ class PipelineRun(Task):
         pipeline_name: str = None,
         azure_credentials_secret: str = None,
         parameters: Optional[Dict[str, Any]] = None,
+        polling_interval: Optional[int] = None,
         last_updated_after: Optional[datetime] = None,
         last_updated_before: Optional[datetime] = None,
     ) -> Dict[Any, Any]:
@@ -299,8 +316,11 @@ class PipelineRun(Task):
             - pipeline_name (str): Name of the pipeline.
             - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`.
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                "AZ_CREDENTIALS".
             - parameters (dict, optional): The parameters to be used in pipeline.
+            - polling_interval (int, optional): The interval, in seconds, to check the status of the run.
+                Defaults to 10.
             - last_updated_after (datetime, optional): The time at or after which the run event
                 was updated; used to filter and query the pipeline run, and defaults to yesterday.
             - last_updated_before (datetime, optional): The time at or before which the run event
@@ -343,8 +363,8 @@ class PipelineRun(Task):
                 resource_group_name, datafactory_name, create_run.run_id
             )
             self.logger.info(f"The pipeline run status: {pipeline_run.status}")
-            time.sleep(1)
-            if pipeline_run.status == "Failed":
+            time.sleep(polling_interval)
+            if pipeline_run.status.lower() not in ["queued", "inprogress", "succeeded"]:
                 raise RuntimeError(pipeline_run.message)
 
         filter_params = azure.mgmt.datafactory.models.RunFilterParameters(
