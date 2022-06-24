@@ -10,7 +10,7 @@ from prefect.deployments import Deployment, FlowScript
 from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.packaging import OrionPackager
+from prefect.packaging import FilePackager, OrionPackager
 from prefect.packaging.base import PackageManifest
 
 
@@ -20,19 +20,15 @@ def my_flow(x: int = 1):
 
 
 async def test_deployment_defaults(orion_client: OrionClient):
-    deploy = Deployment(flow=my_flow)
+    spec = Deployment(flow=my_flow)
 
     # Default packager type
-    assert deploy.packager == OrionPackager()
+    assert spec.packager == OrionPackager()
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
     deployment = await orion_client.read_deployment(deployment_id)
 
-    # The flow data should be a package manifest
-    manifest = deployment.flow_data.decode()
-    assert isinstance(manifest, PackageManifest)
-
-    # Default values for other fields
+    # Default values for fields
     assert deployment.name == my_flow.name
     assert deployment.parameters == {}
     assert deployment.flow_runner == UniversalFlowRunner().to_settings()
@@ -42,29 +38,33 @@ async def test_deployment_defaults(orion_client: OrionClient):
     # The flow was registered
     assert deployment.flow_id == await orion_client.create_flow(my_flow)
 
+    # The flow data should be a package manifest
+    manifest = deployment.flow_data.decode()
+    assert isinstance(manifest, PackageManifest)
+
 
 async def test_deployment_name(orion_client: OrionClient):
-    deploy = Deployment(flow=my_flow, name="test")
+    spec = Deployment(flow=my_flow, name="test")
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.name == "test"
 
 
 async def test_deployment_tags(orion_client: OrionClient):
-    deploy = Deployment(flow=my_flow, tags=["a", "b"])
+    spec = Deployment(flow=my_flow, tags=["a", "b"])
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.tags == ["a", "b"]
 
 
 async def test_deployment_parameters(orion_client: OrionClient):
-    deploy = Deployment(flow=my_flow, parameters={"x": 2})
+    spec = Deployment(flow=my_flow, parameters={"x": 2})
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.parameters == {"x": 2}
@@ -72,9 +72,9 @@ async def test_deployment_parameters(orion_client: OrionClient):
 
 @pytest.mark.parametrize("schedule", [{"interval": 10}, IntervalSchedule(interval=10)])
 async def test_deployment_schedule(orion_client: OrionClient, schedule):
-    deploy = Deployment(flow=my_flow, schedule=schedule)
+    spec = Deployment(flow=my_flow, schedule=schedule)
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.schedule == IntervalSchedule(interval=10)
@@ -88,9 +88,9 @@ async def test_deployment_schedule(orion_client: OrionClient, schedule):
     ],
 )
 async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
-    deploy = Deployment(flow=my_flow, flow_runner=flow_runner)
+    spec = Deployment(flow=my_flow, flow_runner=flow_runner)
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
 
     deployment = await orion_client.read_deployment(deployment_id)
     assert (
@@ -103,9 +103,58 @@ async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
     [{"path": __file__, "name": "my-flow"}, FlowScript(path=__file__, name="my-flow")],
 )
 async def test_deployment_flow_script_source(flow_script, orion_client: OrionClient):
-    deploy = Deployment(flow=flow_script)
+    spec = Deployment(flow=flow_script)
 
-    deployment_id = await deploy.create()
+    deployment_id = await spec.create()
+    deployment = await orion_client.read_deployment(deployment_id)
+
+    # The flow data should be a package manifest
+    manifest = deployment.flow_data.decode()
+    assert isinstance(manifest, PackageManifest)
+
+    flow = await manifest.unpackage()
+    assert isinstance(flow, Flow)
+    assert flow.name == "my-flow"
+
+
+async def test_deployment_manifest_source(orion_client: OrionClient):
+    manifest = await OrionPackager().package(flow)
+    spec = Deployment(flow=manifest)
+
+    deployment_id = await spec.create()
+    deployment = await orion_client.read_deployment(deployment_id)
+
+    # The flow data should be a package manifest
+    server_manifest = deployment.flow_data.decode()
+    assert server_manifest == manifest
+
+
+@pytest.mark.parametrize(
+    "packager",
+    [
+        {"type": "file"},
+        FilePackager(),
+    ],
+)
+async def test_deployment_packager_can_be_dict_or_instance(
+    orion_client: OrionClient, packager
+):
+    spec = Deployment(flow=my_flow, packager=packager)
+    assert spec.packager == FilePackager()
+
+
+@pytest.mark.parametrize(
+    "packager",
+    [
+        OrionPackager(),
+        FilePackager(),
+    ],
+)
+async def test_deployment_by_packager_type(orion_client: OrionClient, packager):
+    spec = Deployment(flow=my_flow, packager=packager)
+
+    deployment_id = await spec.create()
+
     deployment = await orion_client.read_deployment(deployment_id)
 
     # The flow data should be a package manifest

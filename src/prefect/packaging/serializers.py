@@ -127,7 +127,7 @@ class SourceSerializer(Serializer):
                 "file_name": os.path.basename(module.__file__),
                 "symbol_name": obj.__name__,
             }
-        )
+        ).encode()
 
     def loads(self, blob: bytes) -> Any:
         document = json.loads(blob)

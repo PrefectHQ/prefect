@@ -6,6 +6,7 @@ from typing_extensions import Literal
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
 from prefect.packaging.serializers import SourceSerializer
+from prefect.settings import PREFECT_HOME
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.hashing import stable_hash
 
@@ -31,8 +32,11 @@ class FilePackager(Packager):
     Alternative serialization modes are available in `prefect.packaging.serializers`.
     """
 
+    # TODO: This should use a storage block as a backend for a file system
+
     type: Literal["file"] = "file"
     serializer: Serializer = Field(default_factory=SourceSerializer)
+    basepath: Path = Field(default_factory=lambda: PREFECT_HOME.value() / "storage")
 
     async def package(self, flow: Flow) -> FilePackageManifest:
         content = self.serializer.dumps(flow)
