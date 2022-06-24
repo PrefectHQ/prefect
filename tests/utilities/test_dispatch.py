@@ -109,7 +109,27 @@ def test_register_type_with_unregistered_parent():
     class Parent:
         pass
 
-    with pytest.raises(ValueError, match="No registry found for type 'Child'"):
+    with pytest.raises(
+        ValueError, match="No registry found for type 'Child' with bases 'Parent'."
+    ):
+
+        @register_type
+        class Child(Parent):
+            __dispatch_key__ = "child"
+
+
+def test_register_type_with_unregistered_parent_shows_known_bases():
+    class Parent:
+        pass
+
+    @register_base_type
+    class RegisteredBase:
+        pass
+
+    with pytest.raises(
+        ValueError,
+        match="Did you mean to inherit from one of the following known types: 'RegisteredBase'.",
+    ):
 
         @register_type
         class Child(Parent):

@@ -113,10 +113,23 @@ def register_type(cls: T) -> T:
 
     # Check if a base type is registered
     if registry is None:
+
+        # Include a description of registered base types
         known = ", ".join(repr(base.__name__) for base in _TYPE_REGISTRIES)
+        known_message = (
+            f" Did you mean to inherit from one of the following known types: {known}."
+            if known
+            else ""
+        )
+
+        # And a list of all base types for the type they tried to register
+        bases = ", ".join(
+            repr(base.__name__) for base in cls.mro() if base not in (object, cls)
+        )
+
         raise ValueError(
-            f"No registry found for type {cls.__name__!r} with bases {cls.mro()!r}. "
-            f"Did you mean to inherit from one of the following known types: {known}."
+            f"No registry found for type {cls.__name__!r} with bases {bases}."
+            + known_message
         )
 
     key = get_dispatch_key(cls)
