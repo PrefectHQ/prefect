@@ -53,7 +53,6 @@
 
 <script lang="ts" setup>
   import {
-    useRouteParam,
     PageHeadingFlowRun,
     FlowRunDetails,
     RadarSmall,
@@ -66,7 +65,7 @@
     FlowRunSubFlows
   } from '@prefecthq/orion-design'
   import { PDivider, media } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
