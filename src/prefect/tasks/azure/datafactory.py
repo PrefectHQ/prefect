@@ -1,5 +1,5 @@
-from asyncore import poll
 import time
+from asyncore import poll
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -39,7 +39,7 @@ class DatafactoryCreate(Task):
         - resource_group_name (str): Name of the resource group.
         - azure_credentials_secret (str): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
             "AZ_CREDENTIALS".
         - location (str, optional): The location of the datafactory.
         - polling_interval (int, optional): The interval, in seconds, to check the provisioning
@@ -93,7 +93,7 @@ class DatafactoryCreate(Task):
             - resource_group_name (str): Name of the resource group.
             - azure_credentials_secret (str): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
                 "AZ_CREDENTIALS".
             - location (str, optional): The location of the datafactory.
             - polling_interval (int, optional): The interval, in seconds, to check the provisioning
@@ -145,7 +145,7 @@ class PipelineCreate(Task):
         - activities (list): The list of activities to run in the pipeline.
         - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
             "AZ_CREDENTIALS".
         - parameters (dict): The parameters to be used in pipeline.
         - options (dict, optional): The options to be passed to the
@@ -204,7 +204,7 @@ class PipelineCreate(Task):
             - parameters (dict): The parameters to be used in pipeline.
             - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
                 "AZ_CREDENTIALS".
             - options (dict, optional): The options to be passed to the
                 `create_or_update` method.
@@ -253,7 +253,7 @@ class PipelineRun(Task):
         - pipeline_name (str): Name of the pipeline.
         - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
             your Azure credentials; This Secret must be JSON string with the keys
-            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+            `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
             "AZ_CREDENTIALS".
         - parameters (dict, optional): The parameters to be used in pipeline.
         - polling_interval (int, optional): The interval, in seconds, to check the status of the run.
@@ -316,7 +316,7 @@ class PipelineRun(Task):
             - pipeline_name (str): Name of the pipeline.
             - azure_credentials_secret (str, optional): Name of the Prefect Secret that stores
                 your Azure credentials; This Secret must be JSON string with the keys
-                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to 
+                `subscription_id`, `client_id`, `secret`, and `tenant`. Defaults to
                 "AZ_CREDENTIALS".
             - parameters (dict, optional): The parameters to be used in pipeline.
             - polling_interval (int, optional): The interval, in seconds, to check the status of the run.
