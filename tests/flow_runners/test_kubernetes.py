@@ -608,7 +608,7 @@ class TestIntegrationWithRealKubernetesCluster:
         k8s cluster.
 
         NOTE: Before running this, you will need to do the following:
-            - Create an orion deployment: `prefect orion kubernetes-manifest | kubectl apply -f -`
+            - Create an orion deployment: `prefect kubernetes manifest orion | kubectl apply -f -`
             - Forward port 4200 in the cluster to port 4205 locally: `kubectl port-forward deployment/orion 4205:4200`
         """
         fake_status = MagicMock(spec=anyio.abc.TaskStatus)
