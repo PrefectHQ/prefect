@@ -10,7 +10,21 @@ from prefect.exceptions import ScriptError
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 
-def import_object(name: str) -> Any:
+def to_qualified_name(obj: Any) -> str:
+    """
+    Given an object, returns its fully-qualified name: a string that represents its
+    Python import path.
+
+    Args:
+        obj (Any): an importable Python object
+
+    Returns:
+        str: the qualified name
+    """
+    return obj.__module__ + "." + obj.__qualname__
+
+
+def from_qualified_name(name: str) -> Any:
     """
     Import an object given a fully-qualified name.
 
