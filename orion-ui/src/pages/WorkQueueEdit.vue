@@ -9,8 +9,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueForm, useRouteParam, PageHeadingWorkQueueEdit, IWorkQueueRequest } from '@prefecthq/orion-design'
+  import { WorkQueueForm, PageHeadingWorkQueueEdit, IWorkQueueRequest } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
+  import { useRouteParam } from '@prefecthq/vue-compositions'
   import router from '@/router'
   import { workQueuesApi } from '@/services/workQueuesApi'
 
