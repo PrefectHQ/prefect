@@ -27,7 +27,6 @@
   const name = ref(blockDocument.name)
 
   function submit(): void {
-
     blockDocumentsApi
       .updateBlockDocument(blockDocument.id, {
         name: name.value,
