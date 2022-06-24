@@ -362,7 +362,7 @@ class Block(BaseModel, ABC):
             cls
             if cls.__name__ != "Block"
             # Look up the block class by dispatch
-            else cls.block_from_schema(block_document.block_schema)
+            else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
         block = block_cls.parse_obj(block_document.data)
@@ -378,7 +378,7 @@ class Block(BaseModel, ABC):
         return block
 
     @classmethod
-    def block_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
+    def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
         """
         Retieve the block class implementation given a schema.
         """
