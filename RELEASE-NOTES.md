@@ -56,7 +56,7 @@ Here's a preview of the type hints that you'll start seeing now in editors like 
 
 Note that this release makes a **breaking change** to the Blocks API, making the `2.0b6` Orion server incompatible with previous Orion client versions. You may not be familiar with Blocks, but it's likely that you have already used one in the `flow_storage` part of your `DeploymentSpec`. This change is foundational for powerful new features we're working on for upcoming releases. Blocks will make all sorts of exciting new use cases possible.
 
-After the upgrade your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:  
+After the upgrade your data will remain intact, but you will need to upgrade to `2.0b6` to continue using the Cloud 2.0 API. You can upgrade in just a few simple steps:
 
 -   Install the latest Prefect 2.0 python package: `pip install -U "prefect>=2.0b6"`
 -   Restart any existing agent processes
@@ -293,7 +293,9 @@ Orion captures valuable metadata about your flows, deployments, and their runs. 
 ## 2.0a11
 
 ### Run Orion on Kubernetes
-You can now can run the Orion API, UI, and agent on Kubernetes. We've included a new Prefect CLI command, `prefect orion kubernetes-manifest`, that you can use to automatically generate a manifest that runs Orion as a Kubernetes deployment.
+You can now can run the Orion API, UI, and agent on Kubernetes. We've included a new Prefect CLI command, `prefect kubernetes manifest orion`, that you can use to automatically generate a manifest that runs Orion as a Kubernetes deployment.
+
+Note: Prefect 2.0 beta versions prior to 2.0b6 used the CLI command `prefect orion kubernetes-manifest`.
 
 ### Run flows on Kubernetes
 With the Kubernetes [flow runner](https://orion-docs.prefect.io/concepts/flow-runners/), you can now run flows as Kubernetes Jobs. You may specify the Kubernetes flow runner when creating a deployment. If you're running Orion in Kubernetes, you don't need to configure any networking. When the agent runs your deployment, it will create a job, which will start a pod, which creates a container, which runs your flow. You can use standard Kubernetes tooling to display flow run jobs, e.g. `kubectl get jobs -l app=orion`.

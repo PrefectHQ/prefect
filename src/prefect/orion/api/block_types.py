@@ -4,6 +4,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, status
 
+import prefect
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -19,6 +20,13 @@ async def create_block_type(
     """
     Create a new block type
     """
+    # API-created blocks cannot start with the word "Prefect"
+    # as it is reserved for system use
+    if block_type.name.lower().startswith("prefect"):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Block type names beginning with 'Prefect' are reserved.",
+        )
     try:
         created_block_type = await models.block_types.create_block_type(
             session, block_type=block_type
@@ -92,11 +100,19 @@ async def update_block_type(
     """
     Update a block type.
     """
-    result = await models.block_types.update_block_type(
+    db_block_type = await models.block_types.read_block_type(
+        session=session, block_type_id=block_type_id
+    )
+    if db_block_type is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
+    elif db_block_type.is_protected:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="protected block types cannot be updated.",
+        )
+    await models.block_types.update_block_type(
         session=session, block_type=block_type, block_type_id=block_type_id
     )
-    if not result:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block type not found")
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -104,16 +120,24 @@ async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
-    result = await models.block_types.delete_block_type(
+    db_block_type = await models.block_types.read_block_type(
         session=session, block_type_id=block_type_id
     )
-    if not result:
+    if db_block_type is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Block type not found"
         )
+    elif db_block_type.is_protected:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="protected block types cannot be deleted.",
+        )
+    await models.block_types.delete_block_type(
+        session=session, block_type_id=block_type_id
+    )
 
 
-@router.get("/name/{name}/block_documents", tags=["Block documents"])
+@router.get("/name/{name}/block_documents", tags=router.tags + ["Block documents"])
 async def read_block_documents_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
     block_type_name: str = Path(..., description="The block type name", alias="name"),
@@ -133,7 +157,7 @@ async def read_block_documents_for_block_type(
 
 @router.get(
     "/name/{block_type_name}/block_documents/name/{block_document_name}",
-    tags=["Block documents"],
+    tags=router.tags + ["Block documents"],
 )
 async def read_block_document_by_name_for_block_type(
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -151,3 +175,26 @@ async def read_block_document_by_name_for_block_type(
             status.HTTP_404_NOT_FOUND, detail="Block document not found"
         )
     return block_document
+
+
+@router.post("/install_system_block_types")
+async def install_system_block_types(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    """Install block types that the system expects to be present"""
+    for block in [
+        prefect.blocks.system.JSON,
+        prefect.blocks.system.String,
+        prefect.blocks.system.DateTime,
+    ]:
+        block_type = block._to_block_type()
+        block_type.is_protected = True
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=block_type, override=True
+        )
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=block._to_block_schema(block_type_id=block_type.id),
+            override=True,
+        )
