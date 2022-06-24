@@ -45,7 +45,13 @@ def get_dispatch_key(
     cls_or_instance: Any, allow_missing: bool = False
 ) -> Optional[str]:
     """
-    Retrieve the unqi
+    Retrieve the unique dispatch key for a class type or instance.
+
+    This key is defined at the `__dispatch_key__` attribute. If it is a callable, it
+    will be resolved.
+
+    If `allow_missing` is `False`, an exception will be raised if the attribute is not
+    defined or the key is null. If `True`, `None` will be returned in these cases.
     """
     dispatch_key = getattr(cls_or_instance, "__dispatch_key__", None)
 
@@ -79,6 +85,13 @@ def get_dispatch_key(
 
 
 def register_base_type(cls: T) -> T:
+    """
+    Register a base type allowing child types to be registered for dispatch with
+    `register_type`.
+
+    The base class may or may not define a `__dispatch_key__` to allow lookups of the
+    base type.
+    """
     registry = _TYPE_REGISTRIES.setdefault(cls, {})
     base_key = get_dispatch_key(cls, allow_missing=True)
     if base_key is not None:
@@ -89,6 +102,8 @@ def register_base_type(cls: T) -> T:
 def register_type(cls: T) -> T:
     """
     Register a type for lookup with dispatch.
+
+    The type or one of its parents must define a unique `__dispatch_key__`.
 
     One of the classes base types must be registered using `register_base_type`.
     """
