@@ -19,6 +19,10 @@ def add_type_dispatch_field(model_cls: Type[M]) -> Type[M]:
     The base class must define a `__dispatch_key__` class method that is used to
     determine the unique key for each subclass. Alternatively, each subclass can define
     the `__dispatch_key__` as a string literal.
+
+    The base class must not define a 'type' field. If it is not desirable to add a field
+    to the model and the dispatch key can be tracked separately, the lower level
+    utilities in `prefect.utilities.dispatch` should be used directly.
     """
     if not hasattr(model_cls, "__dispatch_key__") and not "__dispatch_key__" in getattr(
         model_cls, "__annotations__", {}
