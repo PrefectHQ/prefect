@@ -1,12 +1,76 @@
-from typing import Any, Generic, Type, TypeVar
+from functools import partial
+from typing import Any, Callable, Generic, Type, TypeVar, cast, overload
 
 import pydantic
 from typing_extensions import Self
 
 from prefect.utilities.dispatch import get_dispatch_key, lookup_type, register_base_type
+from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 D = TypeVar("D", bound=Any)
 M = TypeVar("M", bound=pydantic.BaseModel)
+
+
+def _reduce_model(model: pydantic.BaseModel, **kwargs):
+    """
+    Helper for serializing a cythonized model with cloudpickle.
+
+    Keyword arguments can provide additional settings to the `json` call. Since
+    `__reduce__` takes no arguments, these must be set with `partial`.
+    """
+
+    breakpoint()
+    return (
+        _unreduce_model,
+        (to_qualified_name(type(model)), model.json(**kwargs)),
+    )
+
+
+def _unreduce_model(model_name, json):
+    """Helper for restoring model after serialization"""
+    model = from_qualified_name(model_name)
+    return model.parse_raw(json)
+
+
+@overload
+def add_cloudpickle_reduction(__model_cls: Type[M]) -> Type[M]:
+    ...
+
+
+@overload
+def add_cloudpickle_reduction(
+    **kwargs: Any,
+) -> Callable[[Type[M]], Type[M]]:
+    ...
+
+
+def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
+    """
+    Adds a `__reducer__` to the given class that ensures it is cloudpickle compatible.
+
+    Workaround for issues with cloudpickle when using cythonized pydantic which
+    throws exceptions when attempting to pickle the class which has "compiled"
+    validator methods dynamically attached to it.
+
+    We cannot define this utility in the model class itself because the class is the
+    type that contains unserializable methods.
+
+    Any model using some features of Pydantic (e.g. `Path` validation) with a Cython
+    compiled Pydantic installation may encounter pickling issues.
+
+    See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
+    """
+    if __model_cls:
+        __model_cls.__reduce__ = partial(_reduce_model, **kwargs)
+        return __model_cls
+    else:
+        return cast(
+            Callable[[Type[M]], Type[M]],
+            partial(
+                add_cloudpickle_reduction,
+                **kwargs,
+            ),
+        )
 
 
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:

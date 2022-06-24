@@ -1,16 +1,65 @@
 import json
+from pathlib import Path
 
+import cloudpickle
 import pydantic
 import pytest
 from typing_extensions import Literal
 
 from prefect.utilities.dispatch import register_type
-from prefect.utilities.pydantic import PartialModel, add_type_dispatch
+from prefect.utilities.pydantic import (
+    PartialModel,
+    add_cloudpickle_reduction,
+    add_type_dispatch,
+)
 
 
 class SimplePydantic(pydantic.BaseModel):
     x: int
     y: int
+
+
+REDUCTION_MODELS_EXC = None
+
+try:
+    # Capture exceptions to prevent errors from being thrown during collection
+    # Models must be defined at the top-level to use the reduction decorator since it
+    # imports types
+    @add_cloudpickle_reduction
+    class CythonFieldModel(pydantic.BaseModel):
+        x: Path  # The pydantic validator for 'Path' is compiled in cythonized builds
+
+    @add_cloudpickle_reduction(exclude={"x"})
+    class ReductionWithKwargs(pydantic.BaseModel):
+        x: int = 0
+        y: str
+
+except Exception as exc:
+    REDUCTION_MODELS_EXC = exc
+
+
+class TestCloudpickleReduction:
+    @pytest.fixture(autouse=True)
+    def check_for_model_decoration_exception(self):
+        if REDUCTION_MODELS_EXC:
+            raise RuntimeError("Failed to create test model.") from REDUCTION_MODELS_EXC
+
+    def test_add_cloudpickle_reduction(self):
+        model = CythonFieldModel(x="./foo.txt")
+        result = cloudpickle.loads(cloudpickle.dumps(model))
+        assert result == model
+
+    def test_add_cloudpickle_reduction_with_kwargs(self):
+        model = ReductionWithKwargs(x=1, y="test")
+
+        # A mock is hard to use here because it is not serializable so we exclude a
+        # field instead
+        result = cloudpickle.loads(cloudpickle.dumps(model))
+
+        assert (
+            result.x == 0
+        ), "'x' should return to the default value since it was excluded"
+        assert result.y == "test"
 
 
 class TestPartialModel:
