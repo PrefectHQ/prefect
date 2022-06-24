@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
+    """
+    Defines the unique key used to lookup the Block class for a given schema.
+    """
     return f"{schema.block_type.name}:{schema.checksum}"
 
 
