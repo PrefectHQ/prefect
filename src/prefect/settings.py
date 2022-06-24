@@ -373,9 +373,9 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
-    description="""Password to orion database, intended to be used via templating for the database connection url.
-    Usage: postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion
-    Defaults to None.""",
+    description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
+    This is useful if the password must be provided separately from the connection URL. 
+    To use this setting, you must include it in your connection URL.""",
 )
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
@@ -395,6 +395,12 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
         should only be used for simple tests.
 
         Defaults to a sqlite database stored in the Prefect home directory.
+
+        If you need to provide password via a different environment variable, you use
+        the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
+        
+        PREFECT_ORION_DATABASE_PASSWORD='mypassword'
+        PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
         """
     ),
     value_callback=template_with_settings(
