@@ -12,6 +12,16 @@ EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 
 @pytest.fixture
+async def system_block_type(session):
+    block_type = await models.block_types.create_block_type(
+        session=session,
+        block_type=schemas.core.BlockType(name="system_block", is_protected=True),
+    )
+    await session.commit()
+    return block_type
+
+
+@pytest.fixture
 async def block_schemas(session, block_type_x, block_type_y):
     block_schema_0 = await models.block_schemas.create_block_schema(
         session=session,
@@ -133,6 +143,21 @@ class TestCreateBlockSchema:
         assert response.status_code == 409
         assert "Identical block schema already exists." in response.json()["detail"]
 
+    async def test_create_block_schema_for_system_block_type_fails(
+        self, client, system_block_type
+    ):
+        response = await client.post(
+            "/block_schemas/",
+            json=BlockSchemaCreate(fields={}, block_type_id=system_block_type.id).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == 403
+        assert (
+            response.json()["detail"]
+            == "Block schemas for protected block types cannot be created."
+        )
+
 
 class TestDeleteBlockSchema:
     async def test_delete_block_schema(self, session, client, block_schemas):
@@ -150,6 +175,24 @@ class TestDeleteBlockSchema:
     async def test_delete_nonexistant_block_schema(self, session, client):
         response = await client.delete(f"/block_schemas/{uuid4()}")
         assert response.status_code == 404
+
+    async def test_delete_block_schema_for_system_block_type_fails(
+        self, session, client, system_block_type
+    ):
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=system_block_type.id
+            ),
+        )
+        await session.commit()
+
+        response = await client.delete(f"/block_schemas/{block_schema.id}")
+        assert response.status_code == 403
+        assert (
+            response.json()["detail"]
+            == "Block schemas for protected block types cannot be deleted."
+        )
 
 
 class TestReadBlockSchema:

@@ -41,10 +41,10 @@ pip install $(./scripts/precommit-versions.py)
 You'll need to run `black` and `isort` before a contribution can be accepted.
 
 !!! note "Windows support is under development"
-    Support for Prefect on Windows is a work in progress. 
-    
-    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI. 
-    
+    Support for Prefect on Windows is a work in progress.
+
+    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI.
+
     Currently, we cannot guarantee that the tooling for developing Prefect itself in a Windows environment is fully functional.
 
 ## Contribution standards and best practices
@@ -117,7 +117,7 @@ kubectl port-forward deployment/orion 4200:4200
 ```
 </div>
 
-This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment. 
+This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment.
 
 To tell the local `prefect` command how to communicate with the Orion API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
 
@@ -130,4 +130,3 @@ export PREFECT_API_URL=http://localhost:4200/api
 Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
 
 For a demonstration, see the [Running flows in Kubernetes](/tutorials/kubernetes-flow-runner/) tutorial.
-
