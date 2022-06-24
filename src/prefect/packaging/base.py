@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 from pydantic import BaseModel
 
 from prefect.flows import Flow
+from prefect.utilities.pydantic import add_type_dispatch
 
 D = TypeVar("D")
 
@@ -29,6 +30,7 @@ class PackageManifest(BaseModel, abc.ABC):
     __packager__: "Packager"
 
 
+@add_type_dispatch
 class Packager(BaseModel, abc.ABC):
     """
     Creates a package for a flow.
@@ -37,6 +39,8 @@ class Packager(BaseModel, abc.ABC):
     interaction with the package, a manifest is returned that describes how to access
     and use the package.
     """
+
+    type: str
 
     @abc.abstractmethod
     async def package(self, flow: Flow) -> "PackageManifest":
