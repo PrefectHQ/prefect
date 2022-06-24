@@ -99,7 +99,7 @@ The steps to run `orion` for testing in your cluster's `default` namespace are:
 
 ```bash
 # Deploy orion to your cluster
-prefect orion kubernetes-manifest | kubectl apply -f -
+prefect kubernetes manifest orion | kubectl apply -f -
 
 # Expose port 4205 for the test suite to connect
 kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-port 4200 --port 4205
@@ -137,7 +137,7 @@ output the manifest to a file, edit what you need, and apply it:
 <div class="terminal">
 
 ```bash
-prefect orion kubernetes-manifest > orion.yaml
+prefect kubernetes manifest orion > orion.yaml
 # ... edit orion.yaml ...
 kubectl apply -f orion.yaml
 ```
