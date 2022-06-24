@@ -6,6 +6,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 import inspect
 import os
+import warnings
 from functools import partial, update_wrapper
 from tempfile import NamedTemporaryFile
 from typing import (
@@ -43,9 +44,9 @@ from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
-from prefect.utilities.collections import extract_instances, listrepr
+from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import objects_from_script
+from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -143,6 +144,9 @@ class Flow(Generic[P, R]):
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
                 ) from exc
+
+        # Add to the object registry
+        _register_flow(self)
 
     def with_options(
         self,
@@ -497,6 +501,28 @@ def select_flow(
         return list(flows.values())[0]
 
 
+def _register_flow(flow: Flow):
+    from prefect.context import PrefectObjectRegistry
+
+    registry = PrefectObjectRegistry.get()
+
+    if any(
+        other
+        for other in registry.flows.values()
+        if other.name == flow.name and id(other.fn) != id(flow.fn)
+    ):
+        file = inspect.getsourcefile(flow.fn)
+        line_number = inspect.getsourcelines(flow.fn)[1]
+        warnings.warn(
+            f"A flow named {flow.name!r} and defined at '{file}:{line_number}' "
+            "conflicts with another flow. Consider specifying a unique `name` "
+            "parameter in the flow definition:\n\n "
+            "`@flow(name='my_unique_name', ...)`"
+        )
+
+    registry.flows[flow.name] = flow
+
+
 def load_flows_from_script(path: str) -> Set[Flow]:
     """
     Load all flow objects from the given python script. All of the code in the file
@@ -512,9 +538,9 @@ def load_flows_from_script(path: str) -> Set[Flow]:
 
     with PrefectObjectRegistry() as registry:
         with registry.block_code_execution():
-            objects = objects_from_script(path)
+            load_script_as_module(path)
 
-    return set(extract_instances(objects.values(), types=Flow))
+    return set(registry.flows.values())
 
 
 def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
