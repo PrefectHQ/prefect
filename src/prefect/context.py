@@ -8,7 +8,6 @@ import sys
 import warnings
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from types import ModuleType
 from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
 
 import pendulum
@@ -30,7 +29,6 @@ from prefect.orion.schemas.states import State
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
-from prefect.utilities.importtools import load_entrypoints
 
 T = TypeVar("T")
 
@@ -449,19 +447,3 @@ def initialize_object_registry():
 
     GLOBAL_OBJECT_REGISTRY = PrefectObjectRegistry()
     GLOBAL_OBJECT_REGISTRY.__enter__()
-
-
-def discover_prefect_collections() -> Dict[str, ModuleType]:
-    """
-    Load all Prefect collections that define an entrypoint in the group
-    `prefect.collections`.
-    """
-    collections = load_entrypoints(group="prefect.collections")
-
-    # TODO: Consider the utility of this once we've established this pattern.
-    #       We cannot use a logger here because logging is not yet initialized
-    if prefect.settings.PREFECT_TEST_MODE or prefect.settings.PREFECT_DEBUG_MODE:
-        for name in collections:
-            print(f"Discovered collection {name!r}.")
-
-    return collections
