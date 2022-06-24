@@ -62,7 +62,8 @@ from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
-from prefect.packaging.file import FilePackager
+from prefect.packaging.orion import OrionPackager
+from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import listrepr
 
 
@@ -74,13 +75,13 @@ class FlowScript:
 FlowSource = Union[Flow, FlowScript, PackageManifest]
 
 
-def source_to_flow(flow_source: FlowSource) -> Flow:
+async def source_to_flow(flow_source: FlowSource) -> Flow:
     if isinstance(flow_source, Flow):
         return flow_source
     elif isinstance(flow_source, FlowScript):
         return load_flow_from_script(flow_source.path, name=flow_source.name)
     elif isinstance(flow_source, PackageManifest):
-        return flow_source.__packager__.unpackage(flow_source)
+        return await flow_source.unpackage()
     else:
         raise TypeError(
             "Unknown type {type(flow_source).__name__!r} for flow source. "
@@ -96,7 +97,7 @@ class Deployment(BaseModel):
 
     # The source of the flow
     flow: FlowSource
-    packager: Optional[Packager] = Field(default_factory=FilePackager)
+    packager: Optional[Packager] = Field(default_factory=OrionPackager)
 
     # Flow run fields
     parameters: Dict[str, Any] = Field(default_factory=dict)
@@ -119,22 +120,23 @@ class Deployment(BaseModel):
                 "field empty."
             )
 
+    @sync_compatible
     @inject_client
     async def create(self, client: OrionClient):
 
-        flow = source_to_flow(self.flow)
+        flow = await source_to_flow(self.flow)
         flow_id = await client.create_flow(flow)
 
         if isinstance(self.flow, PackageManifest):
             manifest = self.flow
         else:
-            manifest = self.packager.package(flow)
+            manifest = await self.packager.package(flow)
 
         flow_data = DataDocument.encode("package-manifest", manifest)
 
-        client.create_deployment(
+        return await client.create_deployment(
             flow_id=flow_id,
-            name=self.name,
+            name=self.name or flow.name,
             flow_data=flow_data,
             schedule=self.schedule,
             parameters=self.parameters,
@@ -228,13 +230,15 @@ async def load_flow_from_deployment(
     maybe_flow = await client.resolve_datadoc(deployment.flow_data)
     if isinstance(maybe_flow, (str, bytes)):
         flow = load_flow_from_text(maybe_flow, flow_model.name)
+    elif isinstance(maybe_flow, PackageManifest):
+        flow = await maybe_flow.unpackage()
     else:
-        if not isinstance(maybe_flow, Flow):
-            raise TypeError(
-                "Deployment `flow_data` did not resolve to a `Flow`. "
-                f"Found {maybe_flow}"
-            )
         flow = maybe_flow
+
+    if not isinstance(flow, Flow):
+        raise TypeError(
+            "Deployment `flow_data` did not resolve to a `Flow`. " f"Found: {flow!r}."
+        )
 
     return flow
 

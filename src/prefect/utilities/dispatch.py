@@ -170,6 +170,9 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
     subcls = registry.get(dispatch_key)
 
     if subcls is None:
-        raise KeyError(f"No class found in registry for dispatch key {dispatch_key!r}.")
+        raise KeyError(
+            f"No class found for dispatch key {dispatch_key!r} in registry for type "
+            f"{cls.__name__!r}."
+        )
 
     return subcls
