@@ -4,24 +4,14 @@
       <PageHeadingBlocksCatalogCreate :block-type="blockType" />
     </template>
 
-    <p-card class="blocks-catalog-create__card">
-      <template v-if="blockSchema">
-        <BlockSchemaForm
-          v-model:data="data"
-          v-model:name="name"
-          :block-schema="blockSchema"
-          class="blocks-catalog-create__form"
-          v-on="{ save, cancel }"
-        />
-      </template>
-
-      <BlockTypeCard :block-type="blockType" class="block-catalog-create__type" />
-    </p-card>
+    <template v-if="blockSchema">
+      <BlockSchemaFormCard v-model:data="data" v-model:name="name" :block-schema="blockSchema" v-on="{ submit, cancel }" />
+    </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, useRouteParam, titleCase, BlockSchemaForm, BlockDocumentData, BlockTypeCard } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, useRouteParam, titleCase, BlockSchemaFormCard, BlockDocumentData } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -66,7 +56,7 @@
   const blockSchemaSubscription = useSubscriptionWithDependencies(blockSchemasApi.getBlockSchemas, blockSchemaSubscriptionArgs)
   const blockSchema = computed(() => blockSchemaSubscription.response?.[0])
 
-  function save(): void {
+  function submit(): void {
     if (!blockSchema.value || !blockType.value) {
       return
     }
@@ -92,31 +82,3 @@
     router.back()
   }
 </script>
-
-<style>
-.blocks-catalog-create__card {
-  grid-template-areas: "type"
-                       "form";
-}
-
-@screen md {
-  .blocks-catalog-create__card {
-    grid-template-areas: "form type";
-  }
-}
-
-.blocks-catalog-create__card { @apply
-  grid
-  gap-4
-  md:grid-cols-[minmax(0,1fr)_250px]
-}
-
-.blocks-catalog-create__form {
-  grid-area: form;
-}
-
-.block-catalog-create__type {
-  align-self: start;
-  grid-area: type;
-}
-</style>
