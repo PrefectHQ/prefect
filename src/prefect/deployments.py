@@ -75,11 +75,11 @@ class FlowScript(BaseModel):
 FlowSource = Union[Flow, FlowScript, PackageManifest]
 
 
-async def source_to_flow(flow_source: FlowSource) -> Flow:
+async def _source_to_flow(flow_source: FlowSource) -> Flow:
     if isinstance(flow_source, Flow):
         return flow_source
     elif isinstance(flow_source, FlowScript):
-        return load_flow_from_script(flow_source.path, name=flow_source.name)
+        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
     elif isinstance(flow_source, PackageManifest):
         return await flow_source.unpackage()
     else:
@@ -104,9 +104,11 @@ class Deployment(BaseModel):
     schedule: schemas.schedules.SCHEDULE_TYPES = None
 
     # TODO: Change to 'infrastructure'
-    flow_runner: FlowRunner = Field(default_factory=UniversalFlowRunner)
+    flow_runner: Union[FlowRunner, FlowRunnerSettings] = Field(
+        default_factory=UniversalFlowRunner
+    )
 
-    @validator("flow_runner", pre=True)
+    @validator("flow_runner")
     def cast_flow_runner_settings(cls, value):
         if isinstance(value, FlowRunnerSettings):
             return FlowRunner.from_settings(value)
@@ -124,7 +126,7 @@ class Deployment(BaseModel):
     @inject_client
     async def create(self, client: OrionClient):
 
-        flow = await source_to_flow(self.flow)
+        flow = await _source_to_flow(self.flow)
         flow_id = await client.create_flow(flow)
 
         if isinstance(self.flow, PackageManifest):

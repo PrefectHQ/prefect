@@ -2,7 +2,6 @@ import base64
 import inspect
 import json
 import os.path
-import runpy
 import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,7 +12,11 @@ from typing_extensions import Literal
 
 from prefect.packaging.base import Serializer
 from prefect.utilities.dispatch import register_type
-from prefect.utilities.importtools import from_qualified_name, to_qualified_name
+from prefect.utilities.importtools import (
+    from_qualified_name,
+    load_script_as_module,
+    to_qualified_name,
+)
 
 
 @register_type
@@ -96,6 +99,7 @@ class SourceSerializer(Serializer):
 
     Creates a JSON blob with keys:
         source: The source code
+        file_name: The name of the file the source was in
         symbol_name: The name of the object to extract from the source code
 
     Deserialization requires the code to run with `exec`.
@@ -107,10 +111,7 @@ class SourceSerializer(Serializer):
         module = inspect.getmodule(obj)
 
         if module is None:
-            raise ValueError(
-                f"Cannot determine module for object: {obj!r}. "
-                "Its source code cannot be found."
-            )
+            raise ValueError(f"Cannot determine source module for object: {obj!r}.")
 
         if not module.__file__:
             raise ValueError(
@@ -123,7 +124,7 @@ class SourceSerializer(Serializer):
         return json.dumps(
             {
                 "source": source,
-                "module_filename": os.path.basename(module.__file__),
+                "file_name": os.path.basename(module.__file__),
                 "symbol_name": obj.__name__,
             }
         )
@@ -132,22 +133,22 @@ class SourceSerializer(Serializer):
         document = json.loads(blob)
         if not isinstance(document, dict) or set(document.keys()) != {
             "source",
-            "module_filename",
+            "file_name",
             "symbol_name",
         }:
             raise ValueError(
                 "Invalid serialized data. "
-                "Expected dictionary with keys 'source', 'module_filename', and "
+                "Expected dictionary with keys 'source', 'file_name', and "
                 "'symbol_name'. "
                 f"Got: {document}"
             )
 
         with TemporaryDirectory() as tmpdir:
-            temp_script = Path(tmpdir) / document["module_filename"]
+            temp_script = Path(tmpdir) / document["file_name"]
             temp_script.write_text(document["source"])
-            symbols = runpy.run_path(str(temp_script))
+            module = load_script_as_module(str(temp_script))
 
-        return symbols[document["symbol_name"]]
+        return getattr(module, document["symbol_name"])
 
 
 @register_type

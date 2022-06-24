@@ -6,8 +6,9 @@ import pytest
 
 from prefect import flow
 from prefect.client import OrionClient
-from prefect.deployments import Deployment
+from prefect.deployments import Deployment, FlowScript
 from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner
+from prefect.flows import Flow
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.packaging import OrionPackager
 from prefect.packaging.base import PackageManifest
@@ -82,7 +83,7 @@ async def test_deployment_schedule(orion_client: OrionClient, schedule):
 @pytest.mark.parametrize(
     "flow_runner",
     [
-        {"typename": "subprocess", "config": {"env": {"FOO": "BAR"}}},
+        {"type": "subprocess", "config": {"env": {"FOO": "BAR"}}},
         SubprocessFlowRunner(env={"FOO": "BAR"}),
     ],
 )
@@ -97,6 +98,20 @@ async def test_deployment_flow_runner(orion_client: OrionClient, flow_runner):
     )
 
 
-#     assert isinstance(manifest, OrionPackageManifest)
-#     unpackaged_flow = await manifest.unpackage()
-#     assert unpackaged_flow == my_flow
+@pytest.mark.parametrize(
+    "flow_script",
+    [{"path": __file__, "name": "my-flow"}, FlowScript(path=__file__, name="my-flow")],
+)
+async def test_deployment_flow_script_source(flow_script, orion_client: OrionClient):
+    deploy = Deployment(flow=flow_script)
+
+    deployment_id = await deploy.create()
+    deployment = await orion_client.read_deployment(deployment_id)
+
+    # The flow data should be a package manifest
+    manifest = deployment.flow_data.decode()
+    assert isinstance(manifest, PackageManifest)
+
+    flow = await manifest.unpackage()
+    assert isinstance(flow, Flow)
+    assert flow.name == "my-flow"
