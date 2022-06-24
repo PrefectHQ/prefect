@@ -8,7 +8,7 @@
         <BlocksPageEmptyState />
       </template>
       <template v-else>
-        <BlockDocumentsTable :block-documents="blockDocuments" />
+        <BlockDocumentsTable :block-documents="blockDocuments" @delete="blockDocumentsSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
