@@ -28,9 +28,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { useRouteParam, PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, formatSchedule } from '@prefecthq/orion-design'
+  import { PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, formatSchedule } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router'
