@@ -84,6 +84,27 @@ def test_register_type_with_invalid_dispatch_key():
             __dispatch_key__ = 1
 
 
+def test_register_type_with_dispatch_key_collission():
+    @register_base_type
+    class Parent:
+        pass
+
+    @register_type
+    class Child(Parent):
+        __dispatch_key__ = "a"
+
+    with pytest.warns(
+        UserWarning,
+        match="Type 'OtherChild' has key 'a' that matches existing registered type 'Child'. The existing type will be overridden.",
+    ):
+
+        @register_type
+        class OtherChild(Parent):
+            __dispatch_key__ = "a"
+
+    assert lookup_type(Parent, "a") == OtherChild
+
+
 def test_register_type_with_unregistered_parent():
     class Parent:
         pass
