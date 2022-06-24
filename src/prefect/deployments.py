@@ -67,7 +67,7 @@ from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import listrepr
 
 
-class FlowScript:
+class FlowScript(BaseModel):
     path: str
     name: Optional[str] = None
 
