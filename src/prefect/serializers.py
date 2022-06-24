@@ -11,7 +11,6 @@ from uuid import UUID
 import cloudpickle
 
 from prefect.orion.serializers import register_serializer
-from prefect.utilities.importtools import from_qualified_name, to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest
@@ -109,12 +108,10 @@ class PackageManifestSerializer:
 
     @staticmethod
     def dumps(data: "PackageManifest") -> bytes:
-        return json.dumps(
-            {"type": to_qualified_name(data), "data": data.json()}
-        ).encode()
+        return data.json().encode()
 
     @staticmethod
     def loads(blob: bytes) -> "PackageManifest":
-        payload = json.loads(blob)
-        cls: PackageManifest = from_qualified_name(payload["type"])
-        return cls.parse_raw(payload["data"])
+        from prefect.packaging.base import PackageManifest
+
+        return PackageManifest.parse_raw(blob)

@@ -9,10 +9,13 @@ from prefect.utilities.pydantic import add_type_dispatch
 D = TypeVar("D")
 
 
+@add_type_dispatch
 class Serializer(BaseModel, Generic[D], abc.ABC):
     """
     A serializer that can encode objects of type 'D' into bytes.
     """
+
+    type: str
 
     def dumps(self, obj: D) -> bytes:
         """Encode the object into a blob of bytes."""
@@ -21,13 +24,19 @@ class Serializer(BaseModel, Generic[D], abc.ABC):
         """Decode the blob of bytes into an object."""
 
 
+@add_type_dispatch
 class PackageManifest(BaseModel, abc.ABC):
     """
     Describes a package.
     """
 
-    # The packager implementation for this manifest
-    __packager__: "Packager"
+    type: str
+
+    @abc.abstractmethod
+    async def unpackage(self) -> Flow:
+        """
+        Retrieve a flow from the package.
+        """
 
 
 @add_type_dispatch
@@ -46,10 +55,4 @@ class Packager(BaseModel, abc.ABC):
     async def package(self, flow: Flow) -> "PackageManifest":
         """
         Package a flow and return a manifest describing the created package.
-        """
-
-    @abc.abstractstaticmethod
-    def unpackage(manifest: "PackageManifest") -> Flow:
-        """
-        Retrieve a flow from a package.
         """
