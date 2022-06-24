@@ -19,6 +19,7 @@ key = get_dispatch_key(Foo)  # 'foo'
 lookup_type(Base, key) # Foo
 ```
 """
+import warnings
 from typing import Any, Dict, Optional, Type, TypeVar
 
 T = TypeVar("T", bound=Type)
@@ -118,8 +119,16 @@ def register_type(cls: T) -> T:
             f"Did you mean to inherit from one of the following known types: {known}."
         )
 
+    key = get_dispatch_key(cls)
+    existing_value = registry.get(key)
+    if existing_value is not None:
+        warnings.warn(
+            f"Type {cls.__name__!r} has key {key!r} that matches existing registered "
+            f"type {existing_value.__name__!r}. The existing type will be overridden."
+        )
+
     # Add to the registry
-    registry[get_dispatch_key(cls)] = cls
+    registry[key] = cls
 
     return cls
 
