@@ -1,7 +1,10 @@
 import importlib
+import importlib.util
 import os
 import runpy
+import sys
 from tempfile import NamedTemporaryFile
+from types import ModuleType
 from typing import Any, Dict, Union
 
 import fsspec
@@ -62,6 +65,16 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
 
     Supports remote paths by copying to a local temporary file.
 
+    WARNING: The Python documentation does not recommend using runpy for this pattern.
+
+    > Furthermore, any functions and classes defined by the executed code are not
+    > guaranteed to work correctly after a runpy function has returned. If that
+    > limitation is not acceptable for a given use case, importlib is likely to be a
+    > more suitable choice than this module.
+
+    The function `load_script_as_module` uses importlib instead and should be used
+    instead for loading objects from scripts.
+
     Args:
         path: The path to the script to run
         text: Optionally, the text of the script. Skips loading the contents if given.
@@ -101,3 +114,18 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
             return objects_from_script(path, contents)
         else:
             return run_script(path)
+
+
+def load_script_as_module(path: str) -> ModuleType:
+    """
+    Execute a script at the given path.
+
+    Sets the module name to `__prefect_loader__`.
+
+    See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
+    """
+    spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["__prefect_loader__"] = module
+    spec.loader.exec_module(module)
+    return module
