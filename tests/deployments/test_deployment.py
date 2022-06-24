@@ -118,7 +118,7 @@ async def test_deployment_flow_script_source(flow_script, orion_client: OrionCli
 
 
 async def test_deployment_manifest_source(orion_client: OrionClient):
-    manifest = await OrionPackager().package(flow)
+    manifest = await OrionPackager().package(my_flow)
     spec = Deployment(flow=manifest)
 
     deployment_id = await spec.create()
