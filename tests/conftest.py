@@ -223,6 +223,65 @@ def assert_lifespan_is_not_left_open():
         )
 
 
+# Stores the temporary directory that is used for the test run
+TEST_PREFECT_HOME = None
+
+
+def pytest_sessionstart(session):
+    """
+    Creates a profile for the scope of the test session that modifies setting defaults.
+
+    This ensures that tests are isolated from existing settings, databases, etc.
+
+    We set the test profile during session startup instead of a fixture to ensure that
+    when tests are collected they respect the setting values.
+    """
+    global TEST_PREFECT_HOME
+    TEST_PREFECT_HOME = tempfile.mkdtemp()
+
+    profile = prefect.settings.Profile(
+        name="test-session",
+        settings={
+            # Set PREFECT_HOME to a temporary directory to avoid clobbering
+            # environments and settings
+            PREFECT_HOME: TEST_PREFECT_HOME,
+            PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Disable pretty CLI output for easier assertions
+            PREFECT_CLI_COLORS: False,
+            PREFECT_CLI_WRAP_LINES: False,
+            # Enable debug logging
+            PREFECT_LOGGING_LEVEL: "DEBUG",
+            # Disable shipping logs to the API;
+            # can be enabled by the `enable_orion_handler` mark
+            PREFECT_LOGGING_ORION_ENABLED: False,
+            # Disable services for test runs
+            PREFECT_ORION_ANALYTICS_ENABLED: False,
+            PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
+            PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
+            PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+        },
+        source=__file__,
+    )
+
+    prefect.context.use_profile(
+        profile,
+        override_environment_variables=True,
+        include_current_context=False,
+    ).__enter__()
+
+    assert (
+        PREFECT_API_URL.value() is None
+    ), "Tests cannot be run connected to an external API."
+
+    setup_logging()
+
+
+def pytest_sessionfinish(session):
+    # Delete the temporary directory
+    if TEST_PREFECT_HOME is not None:
+        os.rmdir(TEST_PREFECT_HOME)
+
+
 @pytest.fixture(scope="session", autouse=True)
 async def test_database_url(worker_id: str) -> Generator[Optional[str], None, None]:
     """Prepares an alternative test database URL, if necessary, for the current
@@ -280,7 +339,8 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
         original_envvar = os.environ.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
         os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = new_url
 
-        yield new_url
+        with temporary_settings({PREFECT_ORION_DATABASE_CONNECTION_URL: new_url}):
+            yield
 
         os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = original_envvar
 
@@ -298,56 +358,6 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
             pass
         finally:
             await connection.close()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def testing_session_settings(test_database_url: str):
-    """
-    Creates a fixture for the scope of the test session that modifies setting defaults.
-
-    This ensures that tests are isolated from existing settings, databases, etc.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        test_settings = {
-            # Set PREFECT_HOME to a temporary directory to avoid clobbering
-            # environments and settings
-            PREFECT_HOME: tmpdir,
-            PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
-            # Disable pretty CLI output for easier assertions
-            PREFECT_CLI_COLORS: False,
-            PREFECT_CLI_WRAP_LINES: False,
-            # Enable debug logging
-            PREFECT_LOGGING_LEVEL: "DEBUG",
-            # Disable shipping logs to the API;
-            # can be enabled by the `enable_orion_handler` mark
-            PREFECT_LOGGING_ORION_ENABLED: False,
-            # Disable services for test runs
-            PREFECT_ORION_ANALYTICS_ENABLED: False,
-            PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
-            PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
-            PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
-        }
-
-        if test_database_url:
-            test_settings[PREFECT_ORION_DATABASE_CONNECTION_URL] = test_database_url
-
-        profile = prefect.settings.Profile(
-            name="test-session", settings=test_settings, source=__file__
-        )
-
-        with prefect.context.use_profile(
-            profile,
-            override_environment_variables=True,
-            include_current_context=False,
-        ) as ctx:
-
-            assert (
-                PREFECT_API_URL.value() is None
-            ), "Tests cannot be run connected to an external API."
-
-            setup_logging()
-
-            yield ctx
 
 
 @pytest.fixture(scope="session")
