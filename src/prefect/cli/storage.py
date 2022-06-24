@@ -108,7 +108,7 @@ async def create():
 
     name = typer.prompt("Choose a name for this storage configuration")
 
-    block_cls = Block.block_from_schema(schema)
+    block_cls = Block.get_block_class_from_schema(schema)
 
     app.console.print("Validating configuration...")
     try:
