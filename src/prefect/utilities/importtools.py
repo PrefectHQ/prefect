@@ -2,13 +2,11 @@ import importlib
 import os
 import runpy
 from tempfile import NamedTemporaryFile
-from types import ModuleType
 from typing import Any, Dict, Union
 
 import fsspec
 
 from prefect.exceptions import ScriptError
-from prefect.utilities.compat import EntryPoints, entry_points
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 
@@ -89,15 +87,3 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
             return objects_from_script(path, contents)
         else:
             return run_script(path)
-
-
-def load_entrypoints(group: str) -> Dict[str, ModuleType]:
-    entrypoints: EntryPoints = entry_points(group=group)
-    # TODO: `load()` claims to return module types but could return objects if
-    #       specified. We can ignore the incorrect typing and return our own
-    #       if expected. We may also want to validate the type for the group
-    #       for entrypoints that have a specific type we expect.
-    loaded_entrypoints = {
-        entrypoint.name: entrypoint.load() for entrypoint in entrypoints
-    }
-    return loaded_entrypoints
