@@ -44,9 +44,9 @@ class Packager(BaseModel, abc.ABC):
     """
     Creates a package for a flow.
 
-    A package contains the flow and is typically stored outside of Prefect. To faciliate
-    interaction with the package, a manifest is returned that describes how to access
-    and use the package.
+    A package contains the flow and is typically stored outside of Prefect. To
+    facilitate interaction with the package, a manifest is returned that describes how
+    to access and use the package.
     """
 
     type: str
