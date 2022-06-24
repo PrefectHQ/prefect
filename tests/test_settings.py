@@ -19,6 +19,8 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
+    PREFECT_ORION_DATABASE_PASSWORD,
     PREFECT_ORION_UI_API_URL,
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
@@ -265,6 +267,26 @@ class TestSettingAccess:
 
     def test_ui_api_url_from_defaults(self):
         assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
+
+    def test_database_connection_url_templates_password(self):
+        with temporary_settings(
+            {
+                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test",
+                PREFECT_ORION_DATABASE_PASSWORD: "password",
+            }
+        ):
+            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "password/test"
+
+    def test_database_connection_url_templates_null_password(self):
+        # Not exactly beautiful behavior here, but I think it's clear.
+        # In the future, we may want to consider raising if attempting to template
+        # a null value.
+        with temporary_settings(
+            {
+                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test"
+            }
+        ):
+            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "None/test"
 
     @pytest.mark.parametrize(
         "value,expected",
