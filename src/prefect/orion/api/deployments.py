@@ -3,7 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
-from typing import List
+from typing import Any, List
 from uuid import UUID
 
 import pendulum
@@ -286,3 +286,25 @@ async def create_flow_run_from_deployment(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
     return model
+
+
+@router.get("/{id}/work_queues")
+async def get_work_queues_for_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> Any:
+    """
+    Get work-queues that are able to pick up the specified deployment.
+    """
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    tags = deployment.tags
+    work_queues = await models.work_queues.read_work_queues_for_deployment(
+        session=session, tags=tags
+    )
+    return work_queues
