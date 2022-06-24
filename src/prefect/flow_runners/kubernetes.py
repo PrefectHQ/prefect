@@ -12,6 +12,7 @@ from pydantic import Field, PrivateAttr, validator
 from slugify import slugify
 from typing_extensions import Literal
 
+from prefect.blocks.kubernetes import KubernetesCluster
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
@@ -87,6 +88,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     job_watch_timeout_seconds: int = 5
     pod_watch_timeout_seconds: int = 5
     stream_output: bool = True
+    cluster_block: KubernetesCluster = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -160,16 +162,24 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
-        # Python won't let us use self._k8s.config.ConfigException, it seems
-        from kubernetes.config import ConfigException
+        # if a k8s cluster block is provided to the flow runner, use that
+        if self.cluster_block:
+            self._k8s.config.kube_config.KubeConfigLoader(
+                config_dict=self.cluster_config.config,
+                context=self.cluster_config.context,
+            )
+        else:
+            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
+            # work, try to load the configuration from the local environment, allowing
+            # any further ConfigExceptions to bubble up.
 
-        # Try to load Kubernetes configuration within a cluster first. If that doesn't
-        # work, try to load the configuration from the local environment, allowing
-        # any further ConfigExceptions to bubble up.
-        try:
-            self._k8s.config.incluster_config.load_incluster_config()
-        except ConfigException:
-            self._k8s.config.load_kube_config()
+            # Python won't let us use self._k8s.config.ConfigException, it seems
+            from kubernetes.config import ConfigException
+
+            try:
+                self._k8s.config.incluster_config.load_incluster_config()
+            except ConfigException:
+                self._k8s.config.load_kube_config()
 
         manifest = self.build_job(flow_run)
         job_name = await run_sync_in_worker_thread(self._create_job, flow_run, manifest)
