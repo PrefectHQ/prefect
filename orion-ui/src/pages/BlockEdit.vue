@@ -11,8 +11,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { BlockSchemaFormCard, BlockDocumentData, PageHeadingBlockEdit, useRouteParam } from '@prefecthq/orion-design'
+  import { BlockSchemaFormCard, BlockDocumentData, PageHeadingBlockEdit } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
+  import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { routes } from '@/router/routes'
