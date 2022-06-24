@@ -21,8 +21,9 @@ class OrionPackageManifest(PackageManifest):
     async def unpackage(self, client: OrionClient) -> Flow:
         document = await client.read_block_document(self.block_document_id)
         block = JSON._from_block_document(document)
-        serialized_flow = block.value["flow"]
-        return self.serializer.loads(serialized_flow)
+        serialized_flow: str = block.value["flow"]
+        # Cast to bytes before deserialization
+        return self.serializer.loads(serialized_flow.encode())
 
 
 @register_type
