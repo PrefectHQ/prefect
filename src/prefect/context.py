@@ -15,6 +15,7 @@ from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field, PrivateAttr
 
+import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
