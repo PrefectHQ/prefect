@@ -7,8 +7,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlock, useRouteParam } from '@prefecthq/orion-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { PageHeadingBlock } from '@prefecthq/orion-design'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
