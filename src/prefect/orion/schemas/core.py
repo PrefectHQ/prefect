@@ -378,6 +378,9 @@ class BlockType(ORMBaseModel):
     code_example: Optional[str] = Field(
         None, description="A code snippet demonstrating use of the corresponding block"
     )
+    is_protected: bool = Field(
+        False, description="Protected block types cannot be modified via API."
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):

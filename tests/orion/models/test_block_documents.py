@@ -279,6 +279,7 @@ class TestCreateBlockDocument:
                     "id": nested_block_document.id,
                     "name": nested_block_document.name,
                     "block_type": nested_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -297,6 +298,7 @@ class TestCreateBlockDocument:
                     "id": nested_block_document.id,
                     "name": nested_block_document.name,
                     "block_type": nested_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -360,6 +362,7 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
                     "block_type": middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -368,12 +371,14 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -400,6 +405,7 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
                     "block_type": middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -408,12 +414,14 @@ class TestCreateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -437,6 +445,7 @@ class TestCreateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -607,6 +616,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -680,6 +690,7 @@ class TestReadBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1235,6 +1246,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1261,6 +1273,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1305,6 +1318,7 @@ class TestUpdateBlockDocument:
                     "id": inner_block_document.id,
                     "name": inner_block_document.name,
                     "block_type": inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1348,6 +1362,7 @@ class TestUpdateBlockDocument:
                     "id": new_inner_block_document.id,
                     "name": new_inner_block_document.name,
                     "block_type": new_inner_block_document.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 }
             }
@@ -1494,6 +1509,7 @@ class TestUpdateBlockDocument:
                 "block_document": {
                     "id": middle_block_document_1.id,
                     "name": middle_block_document_1.name,
+                    "is_anonymous": False,
                     "block_type": middle_block_document_1.block_type,
                     "block_document_references": {},
                 },
@@ -1503,12 +1519,14 @@ class TestUpdateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
@@ -1562,6 +1580,7 @@ class TestUpdateBlockDocument:
                     "id": new_middle_block_document_1.id,
                     "name": new_middle_block_document_1.name,
                     "block_type": new_middle_block_document_1.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {},
                 },
             },
@@ -1570,12 +1589,14 @@ class TestUpdateBlockDocument:
                     "id": middle_block_document_2.id,
                     "name": middle_block_document_2.name,
                     "block_type": middle_block_document_2.block_type,
+                    "is_anonymous": False,
                     "block_document_references": {
                         "b": {
                             "block_document": {
                                 "id": inner_block_document.id,
                                 "name": inner_block_document.name,
                                 "block_type": inner_block_document.block_type,
+                                "is_anonymous": False,
                                 "block_document_references": {},
                             }
                         }
