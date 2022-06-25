@@ -1021,6 +1021,7 @@ class OrionClient:
                 "/block_documents/",
                 json=block_document.dict(
                     json_compatible=True,
+                    include_secrets=True,
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
                 ),

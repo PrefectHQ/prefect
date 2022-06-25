@@ -1,9 +1,10 @@
+import json
 from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import Field
+from pydantic import Field, SecretBytes, SecretStr
 
 from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
 from prefect.client import OrionClient
@@ -54,7 +55,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:295c039674c2d9e8c697063e0a5c188a21cf5f564b94ed71b13ebfabdbb27ac3"
+            == "sha256:9eb03f9b88e743e43af6e889e1c1783135798022fde5c1a2ca969e1136d211c8"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
@@ -66,7 +67,66 @@ class TestAPICompatibility:
             "block_schema_references": {},
             "block_type_name": "MyRegisteredBlock",
             "required": ["x"],
+            "secret_fields": [],
         }
+
+    def test_create_api_block_with_secret_fields_reflected_in_schema(self):
+        @register_block
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        assert SecretBlock.schema()["secret_fields"] == ["x", "y"]
+        block_type_id = uuid4()
+        schema = SecretBlock._to_block_schema(block_type_id=block_type_id)
+        assert schema.fields["secret_fields"] == ["x", "y"]
+        assert schema.fields == {
+            "block_schema_references": {},
+            "block_type_name": "SecretBlock",
+            "properties": {
+                "x": {
+                    "format": "password",
+                    "title": "X",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "y": {
+                    "format": "password",
+                    "title": "Y",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "z": {"title": "Z", "type": "string"},
+            },
+            "required": ["x", "y", "z"],
+            "secret_fields": ["x", "y"],
+            "title": "SecretBlock",
+            "type": "object",
+        }
+
+    def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
+        @register_block
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        block = SecretBlock(x="x", y=b"y", z="z")
+
+        block_type_id = uuid4()
+        block_schema_id = uuid4()
+        blockdoc = block._to_block_document(
+            name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
+        )
+        assert isinstance(blockdoc.data["x"], SecretStr)
+        assert isinstance(blockdoc.data["y"], SecretBytes)
+
+        json_blockdoc = json.loads(blockdoc.json())
+        assert json_blockdoc["data"] == {"x": "**********", "y": "**********", "z": "z"}
+
+        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        assert json_blockdoc_with_secrets["data"] == {"x": "x", "y": "y", "z": "z"}
 
     def test_registering_blocks_with_capabilities(self):
         @register_block
@@ -113,7 +173,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:0ee40e3d110beef563d12af1e5b234d042237cffa3b344917f574b653d2a3b89"
+            == "sha256:351d6cd6cb58e8d0797009d7c0e4804d7af5ad76a18587bdb0883c45a4e9f112"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
@@ -126,6 +186,7 @@ class TestAPICompatibility:
             "block_type_name": "MyOtherRegisteredBlock",
             "block_schema_references": {},
             "required": ["x"],
+            "secret_fields": [],
         }
 
     def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
@@ -406,16 +467,18 @@ class TestAPICompatibility:
             "block_type_name": "ParentBlock",
             "block_schema_references": {
                 "z": {
-                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
+                    "block_schema_checksum": "sha256:1b6b8b7af872288437cf5856080e66589f6ef5eef270f653a3558378bb611466",
                     "block_type_name": "Nested Block",
                 }
             },
+            "secret_fields": [],
             "definitions": {
                 "NestedBlock": {
                     "block_schema_references": {},
                     "block_type_name": "Nested Block",
                     "properties": {"x": {"title": "X", "type": "string"}},
                     "required": ["x"],
+                    "secret_fields": [],
                     "title": "NestedBlock",
                     "type": "object",
                 },
@@ -876,6 +939,25 @@ class TestSaveBlock:
         assert loaded_outer_block.contents == new_inner_block
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
+
+    async def test_save_block_with_secrets_includes_secret_data(self, session):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        block = SecretBlock(x="x", y=b"y", z="z")
+        await block.save("secret block")
+
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session, block_document_id=block._block_document_id
+        )
+        assert db_block.data == {"x": "x", "y": "y", "z": "z"}
+
+        api_block = await SecretBlock.load("secret block")
+        assert api_block.x.get_secret_value() == "x"
+        assert api_block.y.get_secret_value() == b"y"
+        assert api_block.z == "z"
 
 
 class TestToBlockType:
