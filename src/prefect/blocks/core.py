@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from typing_extensions import get_args, get_origin
 
 import prefect
@@ -53,6 +53,7 @@ class Block(BaseModel, ABC):
             """
             schema["block_type_name"] = model.get_block_type_name()
 
+            # create block schema references
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
                 if Block.is_block_class(field.type_):
@@ -64,6 +65,12 @@ class Block(BaseModel, ABC):
                             refs[field.name].append(
                                 type_._to_block_schema_reference_dict()
                             )
+
+            # create a list of secret field names
+            secrets = schema["secret_fields"] = []
+            for field in model.__fields__.values():
+                if field.type_ in [SecretStr, SecretBytes]:
+                    secrets.append(field.name)
 
     """
     A base class for implementing a block that wraps an external service.

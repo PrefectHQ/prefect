@@ -1,7 +1,6 @@
 """
 Full schemas of Orion API objects.
 """
-
 import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
