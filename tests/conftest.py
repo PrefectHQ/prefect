@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import pathlib
+import shutil
 import tempfile
 from typing import Generator, Optional
 from urllib.parse import urlsplit, urlunsplit
@@ -226,6 +227,10 @@ def assert_lifespan_is_not_left_open():
 # Stores the temporary directory that is used for the test run
 TEST_PREFECT_HOME = None
 
+# Stores the profile context manager used for the test run, preventing early exit from
+# garbage collection when the sessionstart function exits.
+TEST_PROFILE_CTX = None
+
 
 def pytest_sessionstart(session):
     """
@@ -236,7 +241,7 @@ def pytest_sessionstart(session):
     We set the test profile during session startup instead of a fixture to ensure that
     when tests are collected they respect the setting values.
     """
-    global TEST_PREFECT_HOME
+    global TEST_PREFECT_HOME, TEST_PROFILE_CTX
     TEST_PREFECT_HOME = tempfile.mkdtemp()
 
     profile = prefect.settings.Profile(
@@ -246,6 +251,8 @@ def pytest_sessionstart(session):
             # environments and settings
             PREFECT_HOME: TEST_PREFECT_HOME,
             PREFECT_PROFILES_PATH: "$PREFECT_HOME/profiles.toml",
+            # Disable connection to an API
+            PREFECT_API_URL: None,
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
@@ -263,23 +270,36 @@ def pytest_sessionstart(session):
         source=__file__,
     )
 
-    prefect.context.use_profile(
+    TEST_PROFILE_CTX = prefect.context.use_profile(
         profile,
         override_environment_variables=True,
         include_current_context=False,
-    ).__enter__()
+    )
+    TEST_PROFILE_CTX.__enter__()
 
-    assert (
-        PREFECT_API_URL.value() is None
-    ), "Tests cannot be run connected to an external API."
-
+    # Ensure logging is configured for the test session
     setup_logging()
 
 
 def pytest_sessionfinish(session):
     # Delete the temporary directory
     if TEST_PREFECT_HOME is not None:
-        os.rmdir(TEST_PREFECT_HOME)
+        shutil.rmtree(TEST_PREFECT_HOME)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def safety_check_settings():
+    # Safety check for connection to an external API
+    assert (
+        PREFECT_API_URL.value() is None
+    ), "Tests should not be run connected to an external API."
+
+    # Safety check for home directory
+    user_home = pathlib.Path("~").expanduser().resolve()
+
+    assert (
+        user_home not in PREFECT_HOME.value().resolve().parents
+    ), "Tests should not be run against a directory in the user's home"
 
 
 @pytest.fixture(scope="session", autouse=True)
