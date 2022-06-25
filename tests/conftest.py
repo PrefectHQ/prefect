@@ -1,3 +1,21 @@
+"""
+Base configuration of pytest for testing the 'prefect' module.
+
+Here we make the following changes to pytest:
+- Add service flags to the CLI
+- Skip tests with the in accordance with service marks and flags
+- Override the test event loop to allow async session/module scoped fixtures
+- Inject a check for open Orion client lifespans after every test call
+- Create a test Prefect settings profile before test collection that will be used
+  for the duration of the test run. This ensures tests are run in a temporary
+  environment.
+
+WARNING: Prefect settings cannot be modified in async fixtures.
+    Async fixtures are run in a different async context than tests and the modified
+    settings will not be present in tests. If a setting needs to be modified by an async
+    fixture, a sync fixture must be defined that consumes the async fixture to perform
+    the settings context change. See `test_database_connection_url` for example.
+"""
 import asyncio
 import logging
 import os
@@ -301,7 +319,9 @@ def safety_check_settings():
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def test_database_url(worker_id: str) -> Generator[Optional[str], None, None]:
+async def generate_test_database_connection_url(
+    worker_id: str,
+) -> Generator[Optional[str], None, None]:
     """Prepares an alternative test database URL, if necessary, for the current
     connection URL.
 
@@ -351,16 +371,7 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
 
         new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
 
-        # TODO: https://github.com/PrefectHQ/orion/issues/2045
-        # Also temporarily override the environment variable, so that child
-        # subprocesses that we spin off are correctly configured as well
-        original_envvar = os.environ.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
-        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = new_url
-
-        with temporary_settings({PREFECT_ORION_DATABASE_CONNECTION_URL: new_url}):
-            yield
-
-        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = original_envvar
+        yield new_url
 
         # Now drop the temporary database we created
         connection = await asyncpg.connect(postgres_url)
@@ -376,6 +387,31 @@ async def test_database_url(worker_id: str) -> Generator[Optional[str], None, No
             pass
         finally:
             await connection.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def test_database_connection_url(generate_test_database_connection_url):
+    """
+    Update the setting for the database connection url to the generated value from
+    `generate_test_database_connection_url`
+
+    This _must_ be separate from the generation of the test url because async fixtures
+    are run in a separate context from the test suite.
+    """
+    url = generate_test_database_connection_url
+    if url is None:
+        yield None
+    else:
+        # TODO: https://github.com/PrefectHQ/orion/issues/2045
+        # Also temporarily override the environment variable, so that child
+        # subprocesses that we spin off are correctly configured as well
+        original_envvar = os.environ.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
+        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = url
+
+        with temporary_settings({PREFECT_ORION_DATABASE_CONNECTION_URL: url}):
+            yield url
+
+        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = original_envvar
 
 
 @pytest.fixture(scope="session")
