@@ -295,11 +295,9 @@ def safety_check_settings():
     ), "Tests should not be run connected to an external API."
 
     # Safety check for home directory
-    user_home = pathlib.Path("~").expanduser().resolve()
-
     assert (
-        user_home not in PREFECT_HOME.value().resolve().parents
-    ), "Tests should not be run against a directory in the user's home"
+        str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
+    ), "Tests should use the temporary test directory"
 
 
 @pytest.fixture(scope="session", autouse=True)
