@@ -1,7 +1,6 @@
 import datetime
 import enum
 from typing import List
-from asyncpg import SQLJsonArrayNotFoundError
 
 import pendulum
 import pydantic
