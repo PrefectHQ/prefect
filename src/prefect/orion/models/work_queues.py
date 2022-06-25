@@ -5,7 +5,7 @@ Intended for internal use by the Orion API.
 
 import datetime
 import json
-from typing import List
+from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -236,38 +236,24 @@ async def get_runs_in_work_queue(
 
 @inject_db
 async def read_work_queues_for_deployment(
-    db: OrionDBInterface,
-    session: sa.orm.Session,
-    tags: List[str],
-    deployment_id: str,
-    flow_runner_type: str,
+    db: OrionDBInterface, session: sa.orm.Session, deployment: Any
 ):
     """
-    Read WorkQueues.
-
-    Args:
-        session (sa.orm.Session): A database session
-        offset (int): Query offset
-        limit(int): Query limit
+    Read WorkQueues that can pikc up the specified deployment.
 
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
-    print("****************")
-    print(tags)
-    print(deployment_id)
-    print(type(deployment_id))
-    print("****************")
-    # don't want to check all permutations of the tags list because we don't guarantee order
     query = (
         select(db.WorkQueue)
         # work queue tags are a subset of deployment tags
-        .filter(json_contains(tags, db.WorkQueue.filter["tags"]))
+        .filter(json_contains(json.dumps(deployment.tags), db.WorkQueue.filter["tags"]))
         # deployment_ids is null or contains the deployment's ID
         .filter(
             or_(
                 json_contains(
-                    db.WorkQueue.filter["deployment_ids"], json.dumps(deployment_id)
+                    db.WorkQueue.filter["deployment_ids"],
+                    json.dumps(str(deployment.id)),
                 ),
                 json_contains(None, db.WorkQueue.filter["deployment_ids"]),
             )
@@ -277,7 +263,7 @@ async def read_work_queues_for_deployment(
             or_(
                 json_contains(
                     db.WorkQueue.filter["flow_runner_types"],
-                    json.dumps(flow_runner_type),
+                    json.dumps(deployment.flow_runner_type),
                 ),
                 json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
             )
@@ -285,11 +271,4 @@ async def read_work_queues_for_deployment(
     )
 
     result = await session.execute(query)
-    r = result.all()
-    # for i in r:
-    #     print(i)
-    #     try:
-    #         # print(dir(i))
-    #     except:
-    #         print("No dice")
-    return r
+    return result.all()
