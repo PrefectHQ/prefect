@@ -29,7 +29,8 @@ from prefect.orion.schemas.states import (
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-from prefect.utilities.collections import PartialModel, quote
+from prefect.utilities.collections import quote
+from prefect.utilities.pydantic import PartialModel
 
 
 class TestOrchestrateTaskRun:

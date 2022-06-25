@@ -24,6 +24,7 @@ from .flows import flow
 from .tasks import task
 from .context import tags
 from .client import get_client
+from .utilities.dispatch import register_type
 
 # Import the serializers so they are registered
 import prefect.serializers
@@ -33,3 +34,9 @@ import prefect.context
 
 prefect.context.enter_root_settings_context()
 prefect.context.initialize_object_registry()
+
+
+# Ensure collections are imported and have the opportunity to register types
+import prefect.plugins
+
+prefect.plugins.load_prefect_collections()
