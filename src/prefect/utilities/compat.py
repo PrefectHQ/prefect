@@ -5,6 +5,11 @@ Utilities for Python version compatibility
 
 import sys
 
+if sys.version_info < (3, 10):
+    from importlib_metadata import EntryPoint, EntryPoints, entry_points
+else:
+    from importlib.metadata import EntryPoint, EntryPoints, entry_points
+
 if sys.version_info < (3, 9):
     # https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread
 
