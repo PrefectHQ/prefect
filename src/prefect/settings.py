@@ -43,6 +43,7 @@ import logging
 import os
 import string
 import textwrap
+import warnings
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -212,6 +213,23 @@ def max_log_size_smaller_than_batch_size(values):
     ):
         raise ValueError(
             "`PREFECT_LOGGING_ORION_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_ORION_BATCH_SIZE`"
+        )
+    return values
+
+
+def warn_on_database_password_value_without_usage(values):
+    """
+    Validator for settings warning if the database password is set but not used.
+    """
+    if (
+        values["PREFECT_ORION_DATABASE_PASSWORD"]
+        and "PREFECT_ORION_DATABASE_PASSWORD"
+        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+    ):
+        warnings.warn(
+            "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+            "The provided password will be ignored."
         )
     return values
 
@@ -661,6 +679,7 @@ class Settings(SettingsFieldsMixin):
         #       approach for now. We can explore more interesting validation features
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
+        values = warn_on_database_password_value_without_usage(values)
         return values
 
     def copy_with_update(

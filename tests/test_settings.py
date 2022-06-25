@@ -288,6 +288,23 @@ class TestSettingAccess:
         ):
             assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "None/test"
 
+    def test_warning_if_database_password_set_without_template_string(self):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
+                "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+                "The provided password will be ignored."
+            ),
+        ):
+            with temporary_settings(
+                {
+                    PREFECT_ORION_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_ORION_DATABASE_PASSWORD: "password",
+                }
+            ):
+                pass
+
     @pytest.mark.parametrize(
         "value,expected",
         [
