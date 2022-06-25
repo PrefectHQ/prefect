@@ -304,7 +304,13 @@ async def get_work_queues_for_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
     tags = deployment.tags
+    deployment_id = str(deployment.id)
+    flow_runner_type = deployment.flow_runner_type
+
     work_queues = await models.work_queues.read_work_queues_for_deployment(
-        session=session, tags=tags
+        session=session,
+        tags=tags,
+        deployment_id=deployment_id,
+        flow_runner_type=flow_runner_type,
     )
     return work_queues
