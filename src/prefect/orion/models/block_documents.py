@@ -393,7 +393,7 @@ async def read_block_documents(
         sa.select(db.BlockDocumentReference)
         .filter(
             db.BlockDocumentReference.parent_block_document_id.in_(
-                filtered_block_documents_query
+                filtered_block_document_ids
             )
         )
         .cte("block_document_references", recursive=True)
@@ -423,7 +423,7 @@ async def read_block_documents(
         )
         .filter(
             sa.or_(
-                db.BlockDocument.id.in_(filtered_block_documents_query),
+                db.BlockDocument.id.in_(filtered_block_document_ids),
                 recursive_block_document_references_cte.c.parent_block_document_id.is_not(
                     None
                 ),
