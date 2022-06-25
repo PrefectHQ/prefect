@@ -4,7 +4,7 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-from itertools import combinations
+import json
 from typing import List
 from uuid import UUID
 
@@ -17,7 +17,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.utilities.database import json_has_all_keys
+from prefect.orion.utilities.database import json_contains
 
 
 @inject_db
@@ -239,8 +239,8 @@ async def read_work_queues_for_deployment(
     db: OrionDBInterface,
     session: sa.orm.Session,
     tags: List[str],
-    # deployment: str,
-    # id: UUID
+    deployment_id: str,
+    flow_runner_type: str,
 ):
     """
     Read WorkQueues.
@@ -253,23 +253,43 @@ async def read_work_queues_for_deployment(
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
-    # A work queue who tags are a subset of the deployment's tags is a possible
-    # work queue
-    possible_tags = []
-    for n in range(len(tags) + 1):
-        possible_tags += list(combinations(tags, n))
-
-    query = select(db.WorkQueue).where(
-        or_(*(json_has_all_keys(db.WorkQueue.filter["tags"], p) for p in possible_tags))
-    )
     print("****************")
     print(tags)
+    print(deployment_id)
+    print(type(deployment_id))
     print("****************")
-    # if offset is not None:
-    #     query = query.offset(offset)
-    # if limit is not None:
-    #     query = query.limit(limit)
+    # don't want to check all permutations of the tags list because we don't guarantee order
+    query = (
+        select(db.WorkQueue)
+        # work queue tags are a subset of deployment tags
+        .filter(json_contains(tags, db.WorkQueue.filter["tags"]))
+        # deployment_ids is null or contains the deployment's ID
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["deployment_ids"], json.dumps(deployment_id)
+                ),
+                json_contains(None, db.WorkQueue.filter["deployment_ids"]),
+            )
+        )
+        # flow_runner_types is null or contains the deployment's flow runner type
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["flow_runner_types"],
+                    json.dumps(flow_runner_type),
+                ),
+                json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
+            )
+        )
+    )
 
-    print("***************")
     result = await session.execute(query)
-    return result.all()
+    r = result.all()
+    # for i in r:
+    #     print(i)
+    #     try:
+    #         # print(dir(i))
+    #     except:
+    #         print("No dice")
+    return r
