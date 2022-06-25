@@ -1,6 +1,7 @@
 import datetime
 import enum
 from typing import List
+from asyncpg import SQLJsonArrayNotFoundError
 
 import pendulum
 import pydantic
@@ -243,15 +244,78 @@ class TestJSON:
             ([2], [5]),
             ([[2]], [6]),
             ([[2], 3], [6]),
+            # Postgres disregards repeated keys
+            (["a", "a", "a"], [1, 3, 4]),
         ],
     )
-    async def test_json_contains(self, session, keys, ids):
+    async def test_json_contains_right_side_literal(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
             .where(json_contains(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
+
+    @pytest.mark.parametrize(
+        "keys,ids",
+        [
+            (["a"], [1]),
+            (["b"], [2]),
+            (["a", "c"], [1]),
+            (["a", "b", "c"], [1, 2, 3]),
+            (["a", "b", "c", "d"], [1, 2, 3]),
+            (["d", [2], 3, 4, 5, 6], [6]),
+            # tests to make sure SQLite counting logic doesn't double-count
+            (["a", "a", "a"], [1]),
+        ],
+    )
+    async def test_json_contains_left_side_literal(self, session, keys, ids):
+        query = (
+            sa.select(SQLJSONModel)
+            .where(json_contains(keys, SQLJSONModel.data))
+            .order_by(SQLJSONModel.id)
+        )
+        assert await self.get_ids(session, query) == ids
+
+    @pytest.mark.parametrize(
+        "left,right,match",
+        [
+            (["a"], ["a"], True),
+            (["a", "b"], ["a"], True),
+            (["a", "b"], ["a", "b"], True),
+            (["a"], ["a", "b"], False),
+        ],
+    )
+    async def test_json_contains_both_sides_literal(self, session, left, right, match):
+        query = sa.select(sa.literal("match")).where(json_contains(left, right))
+        result = await session.execute(query)
+        assert (result.scalar() == "match") == match
+
+    @pytest.mark.parametrize(
+        "id_for_keys,ids_for_results",
+        [
+            [1, [1, 3, 4]],
+            [3, [3]],
+        ],
+    )
+    async def test_json_contains_both_sides_columns(
+        self, session, id_for_keys, ids_for_results
+    ):
+
+        query = (
+            sa.select(SQLJSONModel)
+            .where(
+                json_contains(
+                    SQLJSONModel.data,
+                    # select the data corresponding to the `id_for_keys` id
+                    sa.select(SQLJSONModel.data)
+                    .where(SQLJSONModel.id == id_for_keys)
+                    .scalar_subquery(),
+                )
+            )
+            .order_by(SQLJSONModel.id)
+        )
+        assert await self.get_ids(session, query) == ids_for_results
 
     @pytest.mark.parametrize(
         "keys,ids",
