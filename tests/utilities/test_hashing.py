@@ -2,8 +2,7 @@ import hashlib
 
 import pytest
 
-import prefect
-from prefect.utilities.hashing import file_hash, stable_hash, to_qualified_name
+from prefect.utilities.hashing import file_hash, stable_hash
 
 
 @pytest.mark.parametrize(
@@ -32,24 +31,6 @@ def test_stable_hash(inputs, hash_algo, expected):
         assert stable_hash(*inputs) == expected
     else:
         assert stable_hash(*inputs, hash_algo=hash_algo) == expected
-
-
-def my_fn():
-    pass
-
-
-@pytest.mark.parametrize(
-    "obj,expected",
-    [
-        (to_qualified_name, "prefect.utilities.hashing.to_qualified_name"),
-        (prefect.tasks.Task, "prefect.tasks.Task"),
-        (prefect.tasks.Task.__call__, "prefect.tasks.Task.__call__"),
-        (lambda x: x + 1, "tests.utilities.test_hashing.<lambda>"),
-        (my_fn, "tests.utilities.test_hashing.my_fn"),
-    ],
-)
-def test_to_qualified_name(obj, expected):
-    assert to_qualified_name(obj) == expected
 
 
 class TestFileHash:
