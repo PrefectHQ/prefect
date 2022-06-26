@@ -10,6 +10,7 @@ from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
+from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
 
 
 @pytest.fixture(autouse=True)
@@ -78,8 +79,8 @@ class TestAPICompatibility:
             z: str
 
         assert SecretBlock.schema()["secret_fields"] == ["x", "y"]
-        block_type_id = uuid4()
-        schema = SecretBlock._to_block_schema(block_type_id=block_type_id)
+
+        schema = SecretBlock._to_block_schema(block_type_id=uuid4())
         assert schema.fields["secret_fields"] == ["x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
@@ -105,6 +106,63 @@ class TestAPICompatibility:
             "type": "object",
         }
 
+    def test_create_api_block_with_nested_secret_fields_reflected_in_schema(self):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        assert Child.schema()["secret_fields"] == ["a"]
+        assert Parent.schema()["secret_fields"] == ["a", "child.a"]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["a", "child.a"]
+        assert schema.fields == {
+            "block_schema_references": {
+                "child": {
+                    "block_schema_checksum": "sha256:e2a81e50e25acdeeb19210a359ea58507ac7477afa20e2101ed546fe3cea99ed",
+                    "block_type_name": "Child",
+                }
+            },
+            "block_type_name": "Parent",
+            "definitions": {
+                "Child": {
+                    "block_schema_references": {},
+                    "block_type_name": "Child",
+                    "properties": {
+                        "a": {
+                            "format": "password",
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                        },
+                        "b": {"title": "B", "type": "string"},
+                    },
+                    "required": ["a", "b"],
+                    "secret_fields": ["a"],
+                    "title": "Child",
+                    "type": "object",
+                }
+            },
+            "properties": {
+                "a": {
+                    "format": "password",
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {"$ref": "#/definitions/Child"},
+            },
+            "required": ["a", "b", "child"],
+            "secret_fields": ["a", "child.a"],
+            "title": "Parent",
+            "type": "object",
+        }
+
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
         @register_block
         class SecretBlock(Block):
@@ -127,6 +185,39 @@ class TestAPICompatibility:
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {"x": "x", "y": "y", "z": "z"}
+
+    def test_create_nested_api_block_with_secret_values_are_obfuscated_by_default(self):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block_type_id = uuid4()
+        block_schema_id = uuid4()
+        blockdoc = block._to_block_document(
+            name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
+        )
+        assert isinstance(blockdoc.data["a"], SecretStr)
+        assert isinstance(blockdoc.data["child"]["a"], SecretStr)
+
+        json_blockdoc = json.loads(blockdoc.json())
+        assert json_blockdoc["data"] == {
+            "a": "**********",
+            "b": "b",
+            "child": {"a": "**********", "b": "b"},
+        }
+
+        json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
+        assert json_blockdoc_with_secrets["data"] == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b"},
+        }
 
     def test_registering_blocks_with_capabilities(self):
         @register_block
@@ -940,7 +1031,7 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_id is None
         assert loaded_outer_block.contents._block_document_name is None
 
-    async def test_save_block_with_secrets_includes_secret_data(self, session):
+    async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
         class SecretBlock(Block):
             x: SecretStr
             y: SecretBytes
@@ -949,15 +1040,118 @@ class TestSaveBlock:
         block = SecretBlock(x="x", y=b"y", z="z")
         await block.save("secret block")
 
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "x": OBFUSCATED_SECRET,
+            "y": OBFUSCATED_SECRET,
+            "z": "z",
+        }
+
+        # read from DB with secrets
         db_block = await models.block_documents.read_block_document_by_id(
-            session=session, block_document_id=block._block_document_id
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
         )
         assert db_block.data == {"x": "x", "y": "y", "z": "z"}
 
+        # load block with secrets
         api_block = await SecretBlock.load("secret block")
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
         assert api_block.z == "z"
+
+    async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
+        self, session
+    ):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        await block.save("secret block")
+
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "a": OBFUSCATED_SECRET,
+            "b": "b",
+            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+        }
+
+        # read from DB with secrets
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
+        )
+        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+
+        # load block with secrets
+        api_block = await Parent.load("secret block")
+        assert api_block.a.get_secret_value() == "a"
+        assert api_block.b == "b"
+        assert api_block.child.a.get_secret_value() == "a"
+        assert api_block.child.b == "b"
+
+    async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
+        class Child(Block):
+            a: SecretStr
+            b: str
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        child = Child(a="a", b="b")
+        await child.save("child block")
+        block = Parent(a="a", b="b", child=child)
+        await block.save("parent block")
+
+        # read from DB without secrets
+        db_block_without_secrets = (
+            await models.block_documents.read_block_document_by_id(
+                session=session,
+                block_document_id=block._block_document_id,
+            )
+        )
+        assert db_block_without_secrets.data == {
+            "a": OBFUSCATED_SECRET,
+            "b": "b",
+            "child": {"a": OBFUSCATED_SECRET, "b": "b"},
+        }
+
+        # read from DB with secrets
+        db_block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=block._block_document_id,
+            include_secrets=True,
+        )
+        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+
+        # load block with secrets
+        api_block = await Parent.load("parent block")
+        assert api_block.a.get_secret_value() == "a"
+        assert api_block.b == "b"
+        assert api_block.child.a.get_secret_value() == "a"
+        assert api_block.child.b == "b"
 
 
 class TestToBlockType:
