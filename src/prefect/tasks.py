@@ -32,7 +32,8 @@ from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.utilities.hashing import hash_objects, stable_hash
+from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
