@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
+    class Config:
+        extra = "forbid"
+
     def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)

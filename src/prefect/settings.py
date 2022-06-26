@@ -66,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
 
@@ -555,37 +556,6 @@ SETTING_VARIABLES = {
 for __name, __setting in SETTING_VARIABLES.items():
     __setting.name = __name
 
-# Define the pydantic model for loading from the environment / validating settings
-
-
-def reduce_settings(settings):
-    """
-    Workaround for issues with cloudpickle when using cythonized pydantic which
-    throws exceptions when attempting to pickle the class which has "compiled"
-    validator methods dynamically attached to it.
-
-    We cannot define this in the model class because the class is the type that
-    contains unserializable methods.
-
-    Note that issue is not specific to the `Settings` model or its implementation.
-    Any model using some features of Pydantic (e.g. `Path` validation) with a Cython
-    compiled Pydantic installation may encounter pickling issues.
-
-    See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
-    """
-    # TODO: Consider moving this to the cloudpickle serializer and applying it to all
-    #       pydantic models
-    return (
-        unreduce_settings,
-        (settings.json(),),
-    )
-
-
-def unreduce_settings(json):
-    """Helper for restoring settings"""
-    return Settings.parse_raw(json)
-
-
 # Dynamically create a pydantic model that includes all of our settings
 
 SettingsFieldsMixin = create_model(
@@ -605,6 +575,7 @@ SettingsFieldsMixin = create_model(
 # an object which has __doc__ set.
 
 
+@add_cloudpickle_reduction
 class Settings(SettingsFieldsMixin):
     """
     Contains validated Prefect settings.
@@ -728,8 +699,6 @@ class Settings(SettingsFieldsMixin):
 
     class Config:
         frozen = True
-
-    __reduce__ = reduce_settings
 
 
 # Functions to instantiate `Settings` instances

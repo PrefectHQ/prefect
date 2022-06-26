@@ -5,15 +5,20 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
+import os
 from functools import partial, update_wrapper
+from tempfile import NamedTemporaryFile
 from typing import (
     Any,
+    AnyStr,
     Awaitable,
     Callable,
     Coroutine,
     Dict,
     Generic,
+    Iterable,
     NoReturn,
+    Set,
     Type,
     TypeVar,
     Union,
@@ -27,14 +32,20 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.exceptions import ParameterTypeError
+from prefect.exceptions import (
+    MissingFlowError,
+    ParameterTypeError,
+    UnspecifiedFlowError,
+)
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
+from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.importtools import objects_from_script
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -443,3 +454,112 @@ def flow(
                 validate_parameters=validate_parameters,
             ),
         )
+
+
+def select_flow(
+    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+) -> Flow:
+    """
+    Select the only flow in an iterable or a flow specified by name.
+
+    Returns
+        A single flow object
+
+    Raises:
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+    """
+    # Convert to flows by name
+    flows = {f.name: f for f in flows}
+
+    # Add a leading space if given, otherwise use an empty string
+    from_message = (" " + from_message) if from_message else ""
+
+    if not flows:
+        raise MissingFlowError(f"No flows found{from_message}.")
+
+    elif flow_name and flow_name not in flows:
+        raise MissingFlowError(
+            f"Flow {flow_name!r} not found{from_message}. "
+            f"Found the following flows: {listrepr(flows.keys())}"
+        )
+
+    elif not flow_name and len(flows) > 1:
+        raise UnspecifiedFlowError(
+            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
+            "Specify a flow name to select a flow.",
+        )
+
+    if flow_name:
+        return flows[flow_name]
+    else:
+        return list(flows.values())[0]
+
+
+def load_flows_from_script(path: str) -> Set[Flow]:
+    """
+    Load all flow objects from the given python script. All of the code in the file
+    will be executed.
+
+    Returns:
+        A set of flows
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    with PrefectObjectRegistry() as registry:
+        with registry.block_code_execution():
+            objects = objects_from_script(path)
+
+    return set(extract_instances(objects.values(), types=Flow))
+
+
+def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
+    """
+    Extract a flow object from a script by running all of the code in the file.
+
+    If the script has multiple flows in it, a flow name must be provided to specify
+    the flow to return.
+
+    Args:
+        path: A path to a Python script containing flows
+        flow_name: An optional flow name to look for in the script
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        See `load_flows_from_script` and `select_flow`
+    """
+    return select_flow(
+        load_flows_from_script(path),
+        flow_name=flow_name,
+        from_message=f"in script '{path}'",
+    )
+
+
+def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+    """
+    Load a flow from a text script.
+
+    The script will be written to a temporary local file path so errors can refer
+    to line numbers and contextual tracebacks can be provided.
+    """
+    with NamedTemporaryFile(
+        mode="wt" if isinstance(script_contents, str) else "wb",
+        prefix=f"flow-script-{flow_name}",
+        suffix=".py",
+        delete=False,
+    ) as tmpfile:
+        tmpfile.write(script_contents)
+        tmpfile.flush()
+    try:
+        flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
+    finally:
+        # windows compat
+        tmpfile.close()
+        os.remove(tmpfile.name)
+    return flow
