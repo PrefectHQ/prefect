@@ -1087,7 +1087,10 @@ class OrionClient:
             A block document or None.
         """
         try:
-            response = await self._client.get(f"/block_documents/{block_document_id}")
+            response = await self._client.get(
+                f"/block_documents/{block_document_id}",
+                params=dict(include_secrets=True),
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -1117,6 +1120,7 @@ class OrionClient:
         try:
             response = await self._client.get(
                 f"/block_types/name/{block_type_name}/block_documents/name/{name}",
+                params=dict(include_secrets=True),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1146,7 +1150,12 @@ class OrionClient:
         """
         response = await self._client.post(
             f"/block_documents/filter",
-            json=dict(block_schema_type=block_schema_type, offset=offset, limit=limit),
+            json=dict(
+                block_schema_type=block_schema_type,
+                offset=offset,
+                limit=limit,
+                include_secrets=True,
+            ),
         )
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
 

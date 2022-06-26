@@ -53,6 +53,21 @@ class Block(BaseModel, ABC):
             """
             schema["block_type_name"] = model.get_block_type_name()
 
+            # create a list of secret field names
+            # secret fields include both top-level keys and dot-delimited nested secret keys
+            # for example: ["x", "y", "child.a"]
+            # means the top-level keys "x" and "y" are secret, as is the key "a" of a block
+            # nested under the "child" key. There is no limit to nesting.
+            secrets = schema["secret_fields"] = []
+            for field in model.__fields__.values():
+                if field.type_ in [SecretStr, SecretBytes]:
+                    secrets.append(field.name)
+                elif Block.is_block_class(field.type_):
+                    secrets.extend(
+                        f"{field.name}.{s}"
+                        for s in field.type_.schema()["secret_fields"]
+                    )
+
             # create block schema references
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
@@ -65,12 +80,6 @@ class Block(BaseModel, ABC):
                             refs[field.name].append(
                                 type_._to_block_schema_reference_dict()
                             )
-
-            # create a list of secret field names
-            secrets = schema["secret_fields"] = []
-            for field in model.__fields__.values():
-                if field.type_ in [SecretStr, SecretBytes]:
-                    secrets.append(field.name)
 
     """
     A base class for implementing a block that wraps an external service.
