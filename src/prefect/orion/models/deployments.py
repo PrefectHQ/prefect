@@ -472,9 +472,9 @@ async def _insert_scheduled_flow_runs(
 @inject_db
 async def get_work_queues_for_deployment(
     db: OrionDBInterface, session: sa.orm.Session, deployment: Any
-):
+) -> List[schemas.core.WorkQueue]:
     """
-    Read WorkQueues that can pikc up the specified deployment.
+    Get work queues that can pick up the specified deployment.
 
     Returns:
         List[db.WorkQueue]: WorkQueues

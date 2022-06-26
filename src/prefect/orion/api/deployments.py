@@ -3,7 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
-from typing import Any, List
+from typing import List
 from uuid import UUID
 
 import pendulum
@@ -292,7 +292,7 @@ async def create_flow_run_from_deployment(
 async def get_work_queues_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> Any:
+) -> List[schemas.core.WorkQueue]:
     """
     Get work-queues that are able to pick up the specified deployment.
     """
