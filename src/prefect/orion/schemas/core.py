@@ -12,7 +12,11 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug
-from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import (
+    OBFUSCATED_SECRET,
+    ORMBaseModel,
+    PrefectBaseModel,
+)
 from prefect.utilities.collections import listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -485,13 +489,38 @@ class BlockDocument(ORMBaseModel):
         cls,
         session,
         orm_block_document: "prefect.orion.database.orm_models.ORMBlockDocument",
+        include_secrets: bool = False,
     ):
+        data = await orm_block_document.decrypt_data(session=session)
+
+        # if secrets are not included, obfuscate them based on the schema's
+        # `secret_fields`. Note this walks any nested blocks as well. If the
+        # nested blocks were recovered from named blocks, they will already
+        # be obfuscated, but if nested fields were hardcoded into the parent
+        # blocks data, this is the only opportunity to obfuscate them.
+        if not include_secrets:
+            for field in orm_block_document.block_schema.fields.get(
+                "secret_fields", []
+            ):
+                data_dict = data
+                split_fields = field.split(".")
+                k, keys = split_fields[0], split_fields[1:]
+                # while there are children fields, walk the data dict
+                while keys:
+                    data_dict = data_dict.get(k)
+                    if data_dict is None:
+                        break
+                    k = keys.pop(0)
+
+                if data_dict is not None:
+                    data_dict[k] = OBFUSCATED_SECRET
+
         return cls(
             id=orm_block_document.id,
             created=orm_block_document.created,
             updated=orm_block_document.updated,
             name=orm_block_document.name,
-            data=await orm_block_document.decrypt_data(session=session),
+            data=data,
             block_schema_id=orm_block_document.block_schema_id,
             block_schema=orm_block_document.block_schema,
             block_type_id=orm_block_document.block_type_id,
