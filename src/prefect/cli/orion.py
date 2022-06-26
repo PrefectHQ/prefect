@@ -60,8 +60,10 @@ def generate_welcome_blub(base_url, ui_enabled: bool):
         Configure Prefect to communicate with the server with:
 
             prefect config set PREFECT_API_URL={api_url}
+
+        View the API reference documentation at {docs_url}
         """
-    ).format(api_url=base_url + "/api")
+    ).format(api_url=base_url + "/api", docs_url=base_url + "/docs")
 
     visit_dashboard = textwrap.dedent(
         f"""
