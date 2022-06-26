@@ -42,12 +42,13 @@ class EnvironmentVariable(Block):
     """
     A block that pulls its value from an environment variable.
 
-    The env var it uses is configurable and can be set in the Prefect UI; the
-    block will recover its value only at runtime from the specified env var.
+    The variable it uses is configurable and can be set in the Prefect UI; the
+    block will recover its value at runtime from that variable. This allows
+    behavior to be modified remotely by changing the environment variable name.
 
     Example:
     ```python
-    block = EnvVar(name="MY_ENV_VAR")
+    block = EnvironmentVariable(name="MY_ENV_VAR")
 
     # loads the value of MY_ENV_VAR
     block.get()
