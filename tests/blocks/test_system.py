@@ -21,9 +21,9 @@ async def test_datetime():
     assert api_block.value == pendulum.datetime(2022, 1, 1)
 
 
-async def test_env_var(monkeypatch):
-    await system.EnvVar(env_var="ORION_TEST_EV").save(name="test")
-    api_block = await system.EnvVar.load("test")
+async def test_environment_variable_block(monkeypatch):
+    await system.EnvironmentVariable(name="ORION_TEST_EV").save(name="test")
+    api_block = await system.EnvironmentVariable.load("test")
     assert api_block.get() is None
 
     monkeypatch.setenv("ORION_TEST_EV", "123")
