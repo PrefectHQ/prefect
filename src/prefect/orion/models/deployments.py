@@ -4,16 +4,18 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-from typing import Dict, List
+import json
+from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
@@ -465,3 +467,43 @@ async def _insert_scheduled_flow_runs(
         await session.execute(stmt)
 
     return inserted_flow_run_ids
+
+
+@inject_db
+async def get_work_queues_for_deployment(
+    db: OrionDBInterface, session: sa.orm.Session, deployment: Any
+):
+    """
+    Read WorkQueues that can pikc up the specified deployment.
+
+    Returns:
+        List[db.WorkQueue]: WorkQueues
+    """
+    query = (
+        select(db.WorkQueue)
+        # work queue tags are a subset of deployment tags
+        .filter(json_contains(json.dumps(deployment.tags), db.WorkQueue.filter["tags"]))
+        # deployment_ids is null or contains the deployment's ID
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["deployment_ids"],
+                    json.dumps(str(deployment.id)),
+                ),
+                json_contains(None, db.WorkQueue.filter["deployment_ids"]),
+            )
+        )
+        # flow_runner_types is null or contains the deployment's flow runner type
+        .filter(
+            or_(
+                json_contains(
+                    db.WorkQueue.filter["flow_runner_types"],
+                    json.dumps(deployment.flow_runner_type),
+                ),
+                json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
+            )
+        )
+    )
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
