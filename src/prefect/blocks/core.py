@@ -171,7 +171,7 @@ class Block(BaseModel, ABC):
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
         fields_for_checksum = remove_nested_keys(
-            ["description", "definitions"], block_schema_fields
+            ["description", "definitions", "secret_fields"], block_schema_fields
         )
         checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
