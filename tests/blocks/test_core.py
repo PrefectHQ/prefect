@@ -56,7 +56,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:9eb03f9b88e743e43af6e889e1c1783135798022fde5c1a2ca969e1136d211c8"
+            == "sha256:295c039674c2d9e8c697063e0a5c188a21cf5f564b94ed71b13ebfabdbb27ac3"
         )
         assert block_schema.fields == {
             "title": "MyRegisteredBlock",
@@ -123,7 +123,7 @@ class TestAPICompatibility:
         assert schema.fields == {
             "block_schema_references": {
                 "child": {
-                    "block_schema_checksum": "sha256:e2a81e50e25acdeeb19210a359ea58507ac7477afa20e2101ed546fe3cea99ed",
+                    "block_schema_checksum": "sha256:c6b7886dfd347159cbf5160d88310978b5b75b5f481aed6dca64c45b1b011284",
                     "block_type_name": "Child",
                 }
             },
@@ -264,7 +264,7 @@ class TestAPICompatibility:
         )
         assert (
             block_schema.checksum
-            == "sha256:351d6cd6cb58e8d0797009d7c0e4804d7af5ad76a18587bdb0883c45a4e9f112"
+            == "sha256:0ee40e3d110beef563d12af1e5b234d042237cffa3b344917f574b653d2a3b89"
         )
         assert block_schema.fields == {
             "title": "MyOtherRegisteredBlock",
@@ -558,7 +558,7 @@ class TestAPICompatibility:
             "block_type_name": "ParentBlock",
             "block_schema_references": {
                 "z": {
-                    "block_schema_checksum": "sha256:1b6b8b7af872288437cf5856080e66589f6ef5eef270f653a3558378bb611466",
+                    "block_schema_checksum": "sha256:1cb4f9a642f5f230f9ad221f0bbade2496aea3effd607bae27210fa056c96fc5",
                     "block_type_name": "Nested Block",
                 }
             },
