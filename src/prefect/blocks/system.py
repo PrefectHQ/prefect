@@ -13,7 +13,6 @@ class JSON(Block):
     A block that represents JSON
     """
 
-    # any JSON-compatible value
     value: Any = Field(..., description="A JSON-compatible value")
 
 
@@ -39,7 +38,7 @@ class DateTime(Block):
 
 
 @register_block
-class EnvVar(Block):
+class EnvironmentVariable(Block):
     """
     A block that pulls its value from an environment variable.
 
@@ -48,7 +47,7 @@ class EnvVar(Block):
 
     Example:
     ```python
-    block = EnvVar(env_var="MY_ENV_VAR")
+    block = EnvVar(name="MY_ENV_VAR")
 
     # loads the value of MY_ENV_VAR
     block.get()
@@ -56,10 +55,10 @@ class EnvVar(Block):
 
     """
 
-    env_var: str = Field(
+    name: str = Field(
         ...,
         description="The name of an environment variable that holds the value for this block",
     )
 
     def get(self):
-        return os.getenv(self.env_var)
+        return os.getenv(self.name)
