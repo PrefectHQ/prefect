@@ -4,20 +4,17 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-import json
-from typing import Any
 from uuid import UUID
 
 import sqlalchemy as sa
 from pydantic import parse_obj_as
-from sqlalchemy import delete, or_, select
+from sqlalchemy import delete, select
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.utilities.database import json_contains
 
 
 @inject_db
@@ -232,43 +229,3 @@ async def get_runs_in_work_queue(
         limit=open_concurrency_slots,
         sort=schemas.sorting.FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
     )
-
-
-@inject_db
-async def read_work_queues_for_deployment(
-    db: OrionDBInterface, session: sa.orm.Session, deployment: Any
-):
-    """
-    Read WorkQueues that can pikc up the specified deployment.
-
-    Returns:
-        List[db.WorkQueue]: WorkQueues
-    """
-    query = (
-        select(db.WorkQueue)
-        # work queue tags are a subset of deployment tags
-        .filter(json_contains(json.dumps(deployment.tags), db.WorkQueue.filter["tags"]))
-        # deployment_ids is null or contains the deployment's ID
-        .filter(
-            or_(
-                json_contains(
-                    db.WorkQueue.filter["deployment_ids"],
-                    json.dumps(str(deployment.id)),
-                ),
-                json_contains(None, db.WorkQueue.filter["deployment_ids"]),
-            )
-        )
-        # flow_runner_types is null or contains the deployment's flow runner type
-        .filter(
-            or_(
-                json_contains(
-                    db.WorkQueue.filter["flow_runner_types"],
-                    json.dumps(deployment.flow_runner_type),
-                ),
-                json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
-            )
-        )
-    )
-
-    result = await session.execute(query)
-    return result.all()
