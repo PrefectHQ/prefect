@@ -855,3 +855,54 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
             type="override", config={"apple": "berry"}
         ).dict(json_compatible=True)
+
+
+class TestGetDeploymentWorkQueues:
+    async def test_404_on_bad_id(self, client):
+        response = await client.get(f"deployments/{uuid4()}/work_queues")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_well_formed_response(self, session, client, flow, flow_function):
+        await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name=f"First",
+                filter=schemas.core.QueueFilter(
+                    tags=["a"], flow_runner_types=["subprocess", "kubernetes"]
+                ),
+            ),
+        )
+        await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.core.WorkQueue(
+                name=f"Second",
+                filter=schemas.core.QueueFilter(
+                    tags=["b"], flow_runner_types=["subprocess"]
+                ),
+            ),
+        )
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+                tags=["a", "b", "c"],
+                flow_runner=schemas.core.FlowRunnerSettings(type="subprocess"),
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(f"deployments/{deployment.id}/work_queues")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+
+        q1, q2 = response.json()
+        assert {q1["name"], q2["name"]} == {"First", "Second"}
+        assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
+        assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+        assert set(
+            q1["filter"]["flow_runner_types"] + q2["filter"]["flow_runner_types"]
+        ) == {"subprocess", "kubernetes"}
