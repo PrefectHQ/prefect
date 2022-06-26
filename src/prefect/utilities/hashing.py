@@ -1,7 +1,7 @@
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 import cloudpickle
 
@@ -38,20 +38,6 @@ def file_hash(path: str, hash_algo=hashlib.md5) -> str:
     """
     contents = Path(path).read_bytes()
     return stable_hash(contents, hash_algo=hash_algo)
-
-
-def to_qualified_name(obj: Any) -> str:
-    """
-    Given an object, returns its fully-qualified name, meaning a string that represents its
-    Python import path
-
-    Args:
-        obj (Any): an importable Python object
-
-    Returns:
-        str: the qualified name
-    """
-    return obj.__module__ + "." + obj.__qualname__
 
 
 def hash_objects(*args, hash_algo=hashlib.md5, **kwargs) -> Optional[str]:
