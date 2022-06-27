@@ -146,6 +146,9 @@ docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage
 
+# MkDocs
+site/
+
 
 # credentials and key material
 config
