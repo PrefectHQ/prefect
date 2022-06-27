@@ -40,6 +40,7 @@ from uuid import UUID
 import anyio
 import httpx
 import pydantic
+from anyio import sleep
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI, status
 from httpx import HTTPStatusError, Response
@@ -268,7 +269,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             else:
                 retry_seconds = 2**retry_count
 
-            await anyio.sleep(retry_seconds)
+            await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
 
         # Always raise bad responses
@@ -1813,7 +1814,7 @@ class OrionClient:
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
             )
-            await anyio.sleep(response.details.delay_seconds)
+            await sleep(response.details.delay_seconds)
             return await self.propose_state(
                 state,
                 task_run_id=task_run_id,

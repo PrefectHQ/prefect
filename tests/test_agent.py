@@ -229,7 +229,7 @@ async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
 
     sleep = AsyncMock(side_effect=move_forward_in_time)
     monkeypatch.setattr("pendulum.now", get_now)
-    monkeypatch.setattr("anyio.sleep", sleep)
+    monkeypatch.setattr("prefect.client.sleep", sleep)
 
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
