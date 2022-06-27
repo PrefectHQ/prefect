@@ -74,6 +74,7 @@ class Secret:
 
     Args:
         - name (str): The name of the secret
+        - retries (int): Number of times to retry getting a secret
 
     The value of the `Secret` is not set upon initialization and instead is set
     either in `prefect.context` or on the server, with behavior dependent on the value
@@ -84,8 +85,9 @@ class Secret:
     JSON documents to avoid ambiguous behavior (e.g., `"42"` being parsed as `42`).
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, retries: int = 0):
         self.name = name
+        self.retries = retries
 
     @property
     def client(self) -> Client:
@@ -130,47 +132,53 @@ class Secret:
             - ClientError: if the client experiences an unexpected error communicating with the
                 backend
         """
-        if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
-            raise ValueError(
-                "Secrets should only be retrieved during a Flow run, not while building a Flow."
-            )
+        current_attempt = 0
+        while current_attempt <= self.retries:
+            current_attempt += 1
+            another_attempt = current_attempt <= self.retries
+            if isinstance(prefect.context.get("flow"), prefect.core.flow.Flow):
+                raise ValueError(
+                    "Secrets should only be retrieved during a Flow run, not while building a Flow."
+                )
 
-        secrets = prefect.context.get("secrets", {})
-        try:
-            value = secrets[self.name]
-        except KeyError:
-            if prefect.config.backend != "cloud":
-                raise ValueError(
-                    'Local Secret "{}" was not found.'.format(self.name)
-                ) from None
-            if prefect.context.config.cloud.use_local_secrets is False:
-                try:
-                    result = self.client.graphql(
-                        """
-                        query($name: String!) {
-                            secret_value(name: $name)
-                        }
-                        """,
-                        variables=dict(name=self.name),
-                    )
-                except ClientError as exc:
-                    if "No value found for the requested key" in str(exc):
-                        raise KeyError(
-                            f"The secret {self.name} was not found.  Please ensure that it "
-                            f"was set correctly in your tenant: https://docs.prefect.io/"
-                            f"orchestration/concepts/secrets.html"
-                        ) from exc
-                    else:
-                        raise exc
-                # the result object is a Box, so we recursively restore builtin
-                # dict/list classes
-                result_dict = result.to_dict()
-                value = result_dict["data"]["secret_value"]
-            else:
-                raise ValueError(
-                    'Local Secret "{}" was not found.'.format(self.name)
-                ) from None
-        try:
-            return json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return value
+            secrets = prefect.context.get("secrets", {})
+            try:
+                value = secrets[self.name]
+            except KeyError:
+                if prefect.config.backend != "cloud":
+                    raise ValueError(
+                        'Local Secret "{}" was not found.'.format(self.name)
+                    ) from None
+                if prefect.context.config.cloud.use_local_secrets is False:
+                    try:
+                        result = self.client.graphql(
+                            """
+                            query($name: String!) {
+                                secret_value(name: $name)
+                            }
+                            """,
+                            variables=dict(name=self.name),
+                        )
+                    except ClientError as exc:
+                        if "No value found for the requested key" in str(exc):
+                            raise KeyError(
+                                f"The secret {self.name} was not found.  Please ensure that it "
+                                f"was set correctly in your tenant: https://docs.prefect.io/"
+                                f"orchestration/concepts/secrets.html"
+                            ) from exc
+                        else:
+                            if another_attempt:
+                                continue
+                            raise exc
+                    # the result object is a Box, so we recursively restore builtin
+                    # dict/list classes
+                    result_dict = result.to_dict()
+                    value = result_dict["data"]["secret_value"]
+                else:
+                    raise ValueError(
+                        'Local Secret "{}" was not found.'.format(self.name)
+                    ) from None
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
