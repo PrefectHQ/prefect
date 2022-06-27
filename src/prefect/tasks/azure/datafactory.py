@@ -10,12 +10,10 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-def _get_datafactory_client(azure_credentials_secret: str):
+def _get_datafactory_client(azure_credentials):
     """
     Helper function to create datafactory client.
     """
-    azure_credentials = Secret(azure_credentials_secret).get()
-
     client_secret_credential = azure.identity.ClientSecretCredential(
         client_id=azure_credentials["client_id"],
         client_secret=azure_credentials["client_secret"],
@@ -108,7 +106,8 @@ class DatafactoryCreate(Task):
         if not resource_group_name:
             raise ValueError("The resource_group_name must be specified.")
 
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+        azure_credentials = Secret(azure_credentials_secret).get()
+        datafactory_client = _get_datafactory_client(azure_credentials)
 
         self.logger.info(
             f"Preparing to create the {datafactory_name} datafactory under "
@@ -220,7 +219,8 @@ class PipelineCreate(Task):
         if not activities:
             raise ValueError("The activities must be specified.")
 
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+        azure_credentials = Secret(azure_credentials_secret).get()
+        datafactory_client = _get_datafactory_client(azure_credentials)
 
         self.logger.info(
             f"Preparing to create the {pipeline_name} pipeline "
@@ -335,7 +335,8 @@ class PipelineRun(Task):
         if not pipeline_name:
             raise ValueError("The pipeline_name must be specified.")
 
-        datafactory_client = _get_datafactory_client(azure_credentials_secret)
+        azure_credentials = Secret(azure_credentials_secret).get()
+        datafactory_client = _get_datafactory_client(azure_credentials)
         last_updated_after = last_updated_after or datetime.utcnow() - timedelta(days=1)
         last_updated_before = last_updated_before or datetime.utcnow() + timedelta(
             days=1
