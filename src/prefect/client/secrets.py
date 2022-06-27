@@ -61,7 +61,8 @@ references to: `..../toml/decoder.py`.
 """
 
 import json
-from typing import Any, Optional
+from time import sleep
+from typing import Any, Optional, Union
 
 import prefect
 from prefect.client.client import Client
@@ -74,7 +75,8 @@ class Secret:
 
     Args:
         - name (str): The name of the secret
-        - retries (int): Number of times to retry getting a secret
+        - retries (int, optional): The number of times to retry getting a secret
+        - delay (Union[float, int], optional): An amount of time to wait before a retry
 
     The value of the `Secret` is not set upon initialization and instead is set
     either in `prefect.context` or on the server, with behavior dependent on the value
@@ -85,9 +87,10 @@ class Secret:
     JSON documents to avoid ambiguous behavior (e.g., `"42"` being parsed as `42`).
     """
 
-    def __init__(self, name: str, retries: int = 0):
+    def __init__(self, name: str, retries: int = 0, delay: Union[float, int] = .5):
         self.name = name
         self.retries = retries
+        self.delay = delay
 
     @property
     def client(self) -> Client:
@@ -168,6 +171,7 @@ class Secret:
                             ) from exc
                         else:
                             if another_attempt:
+                                sleep(self.delay)
                                 continue
                             raise exc
                     # the result object is a Box, so we recursively restore builtin
