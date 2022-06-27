@@ -298,8 +298,12 @@ def pytest_sessionstart(session):
     setup_logging()
 
 
+@pytest.hookimpl(hookwrapper=True)
 def pytest_sessionfinish(session):
-    # Delete the temporary directory
+    # Allow all other finish fixture to complete first
+    yield
+
+    # Then, delete the temporary directory
     if TEST_PREFECT_HOME is not None:
         shutil.rmtree(TEST_PREFECT_HOME)
 
