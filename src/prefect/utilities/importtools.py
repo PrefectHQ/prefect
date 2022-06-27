@@ -122,10 +122,18 @@ def load_script_as_module(path: str) -> ModuleType:
 
     Sets the module name to `__prefect_loader__`.
 
+    If an exception occurs during execution of the script, a
+    `prefect.exceptions.ScriptError` is created to wrap the exception and raised.
+
     See https://docs.python.org/3/library/importlib.html#importing-a-source-file-directly
     """
     spec = importlib.util.spec_from_file_location("__prefect_loader__", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["__prefect_loader__"] = module
-    spec.loader.exec_module(module)
+
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise ScriptError(user_exc=exc, path=path) from exc
+
     return module
