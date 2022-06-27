@@ -398,7 +398,7 @@ class BlockSchema(ORMBaseModel):
     fields: dict = Field(
         default_factory=dict, description="The block schema's field schema"
     )
-    block_type_id: UUID = Field(..., description="A block type ID")
+    block_type_id: Optional[UUID] = Field(..., description="A block type ID")
     block_type: Optional[BlockType] = Field(
         None, description="The associated block type"
     )
