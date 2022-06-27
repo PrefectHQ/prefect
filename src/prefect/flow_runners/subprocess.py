@@ -20,6 +20,7 @@ from prefect.flow_runners.base import (
     register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRun
+from prefect.settings import SETTING_VARIABLES
 
 
 @register_flow_runner
@@ -145,7 +146,15 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         # Include the base environment and current process environment
         env = base_flow_run_environment()
         if include_os_environ:
-            env.update(os.environ)
+            env.update(
+                {
+                    key: value
+                    for key, value in os.environ.items()
+                    # Allow override of base environment keys unless they are settings
+                    # Otherwise, settings in a context could be ignored
+                    if key not in env or key not in SETTING_VARIABLES
+                }
+            )
 
         # Set up defaults
         command = []

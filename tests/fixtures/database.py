@@ -15,7 +15,7 @@ from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture(scope="session", autouse=True)
-def db(testing_session_settings):
+def db(test_database_connection_url, safety_check_settings):
     return provide_database_interface()
 
 
