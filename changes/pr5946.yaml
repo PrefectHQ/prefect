@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds a retry with delay mechanism to Secret.get() - [#5946](https://github.com/PrefectHQ/prefect/pull/5946)"
+
+contributor:
+  - "[Connor Martin](https://github.com/cjmartian)"
