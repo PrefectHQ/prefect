@@ -110,7 +110,9 @@ async def create_block_document(
         # then the block already exists and we return that block
         if idempotent_id != orm_block.id:
             return await read_block_document_by_id(
-                session=session, block_document_id=idempotent_id
+                session=session,
+                block_document_id=idempotent_id,
+                include_secrets=False,
             )
 
     # Create a block document reference for each reference in the block document data
@@ -126,7 +128,9 @@ async def create_block_document(
 
     # reload the block document in order to load the associated block schema relationship
     return await read_block_document_by_id(
-        session=session, block_document_id=orm_block.id
+        session=session,
+        block_document_id=orm_block.id,
+        include_secrets=False,
     )
 
 
@@ -171,6 +175,7 @@ async def read_block_document_by_id(
     session: sa.orm.Session,
     block_document_id: UUID,
     db: OrionDBInterface,
+    include_secrets: bool = False,
 ):
     block_document_references_query = (
         sa.select(db.BlockDocumentReference)
@@ -212,7 +217,9 @@ async def read_block_document_by_id(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(session, result.all())
+    return await _construct_full_block_document(
+        session, result.all(), include_secrets=include_secrets
+    )
 
 
 async def _construct_full_block_document(
@@ -221,12 +228,13 @@ async def _construct_full_block_document(
         Tuple[ORMBlockDocument, Optional[str], Optional[UUID]]
     ],
     parent_block_document: Optional[BlockDocument] = None,
+    include_secrets: bool = False,
 ) -> Optional[BlockDocument]:
     if len(block_documents_with_references) == 0:
         return None
     if parent_block_document is None:
         parent_block_document = await _find_parent_block_document(
-            session, block_documents_with_references
+            session, block_documents_with_references, include_secrets=include_secrets
         )
 
     if parent_block_document is None:
@@ -242,12 +250,13 @@ async def _construct_full_block_document(
     ) in block_documents_with_references:
         if parent_block_document_id == parent_block_document.id and name != None:
             block_document = await BlockDocument.from_orm_model(
-                session, orm_block_document
+                session, orm_block_document, include_secrets=include_secrets
             )
             full_child_block_document = await _construct_full_block_document(
                 session,
                 block_documents_with_references,
                 parent_block_document=block_document,
+                include_secrets=include_secrets,
             )
             parent_block_document.data[name] = full_child_block_document.data
             parent_block_document.block_document_references[name] = {
@@ -263,7 +272,9 @@ async def _construct_full_block_document(
     return parent_block_document
 
 
-async def _find_parent_block_document(session, block_documents_with_references):
+async def _find_parent_block_document(
+    session, block_documents_with_references, include_secrets: bool = False
+):
     parent_orm_block_document = next(
         (
             block_document
@@ -277,7 +288,11 @@ async def _find_parent_block_document(session, block_documents_with_references):
         None,
     )
     return (
-        await BlockDocument.from_orm_model(session, parent_orm_block_document)
+        await BlockDocument.from_orm_model(
+            session,
+            parent_orm_block_document,
+            include_secrets=include_secrets,
+        )
         if parent_orm_block_document is not None
         else None
     )
@@ -289,6 +304,7 @@ async def read_block_document_by_name(
     name: str,
     block_type_name: str,
     db: OrionDBInterface,
+    include_secrets: bool = False,
 ):
     """
     Read a block document with the given name and block type name. If a block schema checksum
@@ -341,7 +357,9 @@ async def read_block_document_by_name(
     )
 
     result = await session.execute(nested_block_documents_query)
-    return await _construct_full_block_document(session, result.all())
+    return await _construct_full_block_document(
+        session, result.all(), include_secrets=include_secrets
+    )
 
 
 @inject_db
@@ -350,6 +368,7 @@ async def read_block_documents(
     db: OrionDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
+    include_secrets: bool = False,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
 ):
@@ -444,11 +463,14 @@ async def read_block_documents(
             and root_orm_block_document.id not in visited_block_document_ids
         ):
             root_block_document = await BlockDocument.from_orm_model(
-                session, root_orm_block_document
+                session, root_orm_block_document, include_secrets=include_secrets
             )
             fully_constructed_block_documents.append(
                 await _construct_full_block_document(
-                    session, block_documents_with_references, root_block_document
+                    session,
+                    block_documents_with_references,
+                    root_block_document,
+                    include_secrets=include_secrets,
                 )
             )
             visited_block_document_ids.append(root_orm_block_document.id)
@@ -568,7 +590,9 @@ def _find_block_document_reference(
 
 @inject_db
 async def get_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
+    session: sa.orm.Session,
+    db: OrionDBInterface,
+    include_secrets: bool = True,
 ):
     query = (
         sa.select(db.BlockDocument)
@@ -580,7 +604,9 @@ async def get_default_storage_block_document(
     orm_block_document = result.scalar()
     if orm_block_document is None:
         return None
-    return await BlockDocument.from_orm_model(session, orm_block_document)
+    return await BlockDocument.from_orm_model(
+        session, orm_block_document, include_secrets=include_secrets
+    )
 
 
 @inject_db
