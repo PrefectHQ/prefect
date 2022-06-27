@@ -2,6 +2,7 @@
 Tests for `prefect.deployments.Deployment`
 """
 
+import pydantic
 import pytest
 
 from prefect import flow
@@ -20,10 +21,18 @@ def my_flow(x: int = 1):
     pass
 
 
-def test_deployment_registers():
-    dpl = Deployment(flow=my_flow)
+def test_deployment_added_to_registry():
+    dpl1 = Deployment(flow=my_flow)
+    assert PrefectObjectRegistry.get().deployments == [dpl1]
+    dpl2 = Deployment(flow=my_flow)
+    assert PrefectObjectRegistry.get().deployments == [dpl1, dpl2]
 
-    assert PrefectObjectRegistry.get().deployments == [dpl]
+
+def test_deployment_not_added_to_registry_on_failure():
+    with pytest.raises(pydantic.ValidationError):
+        Deployment(flow="foobar")
+
+    assert PrefectObjectRegistry.get().deployments == []
 
 
 async def test_deployment_defaults(orion_client: OrionClient):
