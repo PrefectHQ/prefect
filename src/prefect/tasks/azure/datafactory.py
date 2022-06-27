@@ -10,7 +10,7 @@ from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
-def _get_datafactory_client(azure_credentials):
+def _get_datafactory_client(azure_credentials: Dict[str, str]):
     """
     Helper function to create datafactory client.
     """
