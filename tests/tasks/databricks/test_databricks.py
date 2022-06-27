@@ -690,6 +690,7 @@ class TestDatabricksSubmitMultitaskRun:
                         amazing_new_feature=True,
                     ),
                     unsupported_argument="ignore_me",
+                    another_unsupported_argument="ignore_me",
                 ),
             ],
             "run_name": "A multitask job run",
