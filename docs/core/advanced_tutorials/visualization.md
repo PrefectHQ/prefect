@@ -27,9 +27,8 @@ with Flow("math") as f:
 f.visualize()
 ```
 
-::: tip
-Prefect tasks support basic python operations such as addition, subtraction, and comparisons.
-:::
+!!! tip Python in tasks
+    Prefect tasks support basic Python operations such as addition, subtraction, and comparisons.
 
 ![underlying flow graph](/output_1_0.svg){.viz-xs .viz-padded}
 
@@ -69,8 +68,8 @@ From this visualization we can learn a lot about how Prefect is operating under 
 
 In addition to viewing the structure of our DAG, Prefect allows you to easily visualize the post-run states of your tasks as well. Using our flow from above, suppose we were curious about how states would propagate if we set `x=1` and `y=2` (a condition not handled by the `switch`). In this case, we can first execute the flow, and then provide all the task states to the `flow.visualize` method to see how the states propagated!
 
-::: tip State colors
-The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/latest/engine/state.html).
+!!! tip State colors
+    The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/latest/engine/state.html).
 :::
 
 ```python
@@ -82,6 +81,6 @@ f.visualize(flow_state=flow_state)
 
 We can see that both branches of the `switch` were skipped in this case.
 
-::: tip Live Updating Visualizations
-All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../orchestration/ui/flow-run.html#schematic).
+!!! tip Live Updating Visualizations
+    All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../orchestration/ui/flow-run.html#schematic).
 :::

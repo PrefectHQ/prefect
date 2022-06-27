@@ -2,8 +2,8 @@
 
 The management of sensitive information (private keys, api access strings, passwords, etc.) is an integral aspect of production workflows. Prefect has a few ways to securely manage and use this sensitive information. This document will cover the use of local secrets _only_ however they easily translate to using [Prefect Cloud's secret management](/orchestration/concepts/secrets.html) option. For more information on Prefect Secrets visit the relevant [concept document](/core/concepts/secrets.html).
 
-::: warning use_local_secrets
-In order for local Secrets to be used make sure that the value of `prefect.config.use_local_secrets` is set to `True` (it is true by default).
+!!! warning use_local_secrets
+    In order for local Secrets to be used make sure that the value of `prefect.config.use_local_secrets` is set to `True` (it is true by default).
 :::
 
 ### Setting Secrets

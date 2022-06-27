@@ -25,20 +25,20 @@ $ prefect run --name "hello-world" --watch
 
 See `prefect run --help` or [optional settings](#optional-settings) for additional flags that can be passed.
 
-::: tip Local flow runs
-`prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
+!!! tip Local flow runs
+    `prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
 :::
 
 
-::: tip Agentless flow run execution
+!!! tip Agentless flow run execution
 
-`prefect run` can be used to create and execute a flow run in the current environment, without requiring an agent. Just provide the `--execute` flag. This allows you to take ownership of your flow's execution environment or run flows locally while retaining the benefits of the backend API. There are a few different behaviors from typical flow runs:
+    `prefect run` can be used to create and execute a flow run in the current environment, without requiring an agent. Just provide the `--execute` flag. This allows you to take ownership of your flow's execution environment or run flows locally while retaining the benefits of the backend API. There are a few different behaviors from typical flow runs:
 
-- Other than environment variables, your `RunConfig` will be ignored; by using this, you are taking ownership of your flow's environment.
-- The flow run will be given a special label to indicate that it should not be picked up by an agent.
-- If the process executing the flow run fails, the flow run will be marked as failed.
-- If the flow run has a task with a long retry, the process will sleep. With agents, it would exit fully and be re-deployed when ready.
-- `breakpoint()` can be used in tasks to enter a debugging session with local executors
+    - Other than environment variables, your `RunConfig` will be ignored; by using this, you are taking ownership of your flow's environment.
+    - The flow run will be given a special label to indicate that it should not be picked up by an agent.
+    - If the process executing the flow run fails, the flow run will be marked as failed.
+    - If the flow run has a task with a long retry, the process will sleep. With agents, it would exit fully and be re-deployed when ready.
+    - `breakpoint()` can be used in tasks to enter a debugging session with local executors
 
 :::
 
@@ -193,8 +193,8 @@ mutation {
 
 ::::
 
-::: tip Generating time strings for GraphQL
-GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
+!!! tip Generating time strings for GraphQL
+    GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
 :::
 
 ### Idempotency

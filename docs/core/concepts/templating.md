@@ -21,9 +21,8 @@ All templatable objects are passed:
 - The contents of the [Prefect context](/api/latest/utilities/context.html)
 - The inputs to the task
 
-::: warning Naming collisions
-
-The variables are loaded in the order shown above. Collisions will be resolved such that the last loaded value overwrites those above it. For example, if your a task input name is the same as the name of a variable in the context, the input variable value will overwrite context value.
+!!! warning Naming collisions
+    The variables are loaded in the order shown above. Collisions will be resolved such that the last loaded value overwrites those above it. For example, if your a task input name is the same as the name of a variable in the context, the input variable value will overwrite context value.
 
 :::
 
@@ -128,20 +127,19 @@ with Flow("local-result-with-date-parsing") as flow:
     my_task()
 ```
 
-::: tip Python date formatting
+!!! tip Python date formatting
+    You can also format dates with the [Python built-in formatting](https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior). 
+    For example, the following will create a name like `Tuesday-Dec-29`
 
-You can also format dates with the [Python built-in formatting](https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior). 
-For example, the following will create a name like `Tuesday-Dec-29`
+    ```python
+    from prefect import task, Flow
 
-```python
-from prefect import task, Flow
+    @task(task_run_name="{date:%A}-{date:%b}-{date:%d}")
+    def compute():
+        pass
 
-@task(task_run_name="{date:%A}-{date:%b}-{date:%d}")
-def compute():
-    pass
-
-with Flow("template-example") as flow:
-    compute()
-```
+    with Flow("template-example") as flow:
+        compute()
+    ```
 
 :::

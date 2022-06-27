@@ -4,10 +4,10 @@ Targets in Prefect are [templatable]((/core/concepts/templating.html)) location 
 
 The flow below will write the result of the first task to a target specified with a filepath of `{task_name}-{today}`. These values are not hardcoded and instead will be interpolated using [templating](/core/concepts/templating.html). This is a powerful construct because it means that only the first run of this task on any given day will run and write the result. Any other runs up until the next calendar day will use the cached result found at `{task_name}-{today}`.
 
-::: warning Result Types
-Please review the [documentation for each result type](/api/latest/engine/results.html) before you configure. Some types have specific configuration options for where to write the result.
+!!! warning Result Types
+    Please review the [documentation for each result type](/api/latest/engine/results.html) before you configure. Some types have specific configuration options for where to write the result.
 
-For example: the `LocalResult` below has an optional `dir` kwargs which accepts an absolute path to a directory for storing results and in this case the `target` value will be appended to the directory of choice.
+    For example: the `LocalResult` below has an optional `dir` kwargs which accepts an absolute path to a directory for storing results and in this case the `target` value will be appended to the directory of choice.
 :::
 
 :::: tabs
@@ -54,10 +54,10 @@ print_data.set_upstream(get_data, key="data", flow=flow)
 :::
 ::::
 
-::: warning Result Locations and Targets
-If you provide a `location` to a task's `Result` and a `target` then the target will be used as the location of the result.
+!!! warning Result Locations and Targets
+    If you provide a `location` to a task's `Result` and a `target` then the target will be used as the location of the result.
 :::
 
-::: tip Flow Result
-A `Result` can be set on the flow object and then all tasks will use that Result type. This is useful when you want to easily set all tasks in your flow to write their results to a single directory or bucket and then you could use the target as a way to verify the existence of that result prior to each task run.
+!!! tip Flow Result
+    A `Result` can be set on the flow object and then all tasks will use that Result type. This is useful when you want to easily set all tasks in your flow to write their results to a single directory or bucket and then you could use the target as a way to verify the existence of that result prior to each task run.
 :::

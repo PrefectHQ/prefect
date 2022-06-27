@@ -15,12 +15,12 @@ script-based storage. All other classes require you to opt-in by passing
 
 ### Example script based workflow
 
-::: warning GitHub dependency
-This idiom requires that `git` is installed as well as Prefect's `github` extra dependencies:
+!!! warning GitHub dependency
+    This idiom requires that `git` is installed as well as Prefect's `github` extra dependencies:
 
-```bash
-pip install 'prefect[github]'
-```
+    ```bash
+    pip install 'prefect[github]'
+    ```
 :::
 
 In this example we will walk through a potential workflow you may use when registering flows with
@@ -96,57 +96,57 @@ The flow is ready to run! Every time you need to change the code inside your flo
 you need to do is commit that code to the same location in the repository and each subsequent run will
 use that code.
 
-::: warning Flow Structure
-If you change any of the structure of your flow such as task names, rearrange task order, etc. then you
-will need to re-register that flow.
+!!! warning Flow Structure
+    If you change any of the structure of your flow such as task names, rearrange task order, etc. then you
+    will need to re-register that flow.
 :::
 
-::: tip GitLab users
-This example applies to GitLab as well. To use GitLab storage, install the `gitlab` extra:
+!!! tip GitLab users
+    This example applies to GitLab as well. To use GitLab storage, install the `gitlab` extra:
 
-```bash
-pip install 'prefect[gitlab]'
-```
+    ```bash
+    pip install 'prefect[gitlab]'
+    ```
 
-You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
+    You can replace `GitHub` instances in the example above with `GitLab`, use the `"GITLAB_ACCESS_TOKEN"` secret rather than `"GITHUB_ACCESS_TOKEN"`, and then you may run the example as written.
 
-```python
-from prefect import task, Flow
-from prefect.storage import GitLab
+    ```python
+    from prefect import task, Flow
+    from prefect.storage import GitLab
 
-...
+    ...
 
-flow.storage = GitLab(
-    repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
-    access_token_secret="GITLAB_ACCESS_TOKEN"   # name of personal access token secret
-)
-```
+    flow.storage = GitLab(
+        repo="org/repo",                            # name of repo
+        path="flows/my_flow.py",                    # location of flow file in repo
+        access_token_secret="GITLAB_ACCESS_TOKEN"   # name of personal access token secret
+    )
+    ```
 
 :::
 
-:::tip Bitbucket users
-Similarly, to use Bitbucket (Server only) based storage, install the `bitbucket` extra:
+::: tip Bitbucket users
+    Similarly, to use Bitbucket (Server only) based storage, install the `bitbucket` extra:
 
-```bash
-pip install 'prefect[bitbucket]'
-```
+    ```bash
+    pip install 'prefect[bitbucket]'
+    ```
 
-Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bitbucket` and use the `BITBUCKET_ACCESS_TOKEN` secret.  However, Bitbucket requires an additional argument: `project`.  The `flow.storage` in the above example would be declared as follows for Bitbucket storage:
+    Bitbucket storage also operates largely the same way. Replace `GitHub` with `Bitbucket` and use the `BITBUCKET_ACCESS_TOKEN` secret.  However, Bitbucket requires an additional argument: `project`.  The `flow.storage` in the above example would be declared as follows for Bitbucket storage:
 
-```python
-from prefect import task, Flow
-from prefect.storage import Bitbucket
+    ```python
+    from prefect import task, Flow
+    from prefect.storage import Bitbucket
 
-...
+    ...
 
-flow.storage = Bitbucket(
-    project="project",                              # name of project that repo resides in
-    repo="org/repo",                                # name of repo
-    path="flows/my_flow.py",                        # location of flow file in repo
-    access_token_secret="BITBUCKET_ACCESS_TOKEN"    # name of personal access token secret
-)
-```
+    flow.storage = Bitbucket(
+        project="project",                              # name of project that repo resides in
+        repo="org/repo",                                # name of repo
+        path="flows/my_flow.py",                        # location of flow file in repo
+        access_token_secret="BITBUCKET_ACCESS_TOKEN"    # name of personal access token secret
+    )
+    ```
 :::
 
 ### Script based Docker storage

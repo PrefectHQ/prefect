@@ -10,8 +10,8 @@ Thanks for contributing to Prefect! This section of the docs is designed to help
 If you're stuck, don't be shy about asking for help [on GitHub](https://github.com/PrefectHQ/prefect/issues/new/choose) or in the `#prefect-contributors` channel of our [Slack community](https://www.prefect.io/slack). You can also ask us any question in our [Discourse](https://discourse.prefect.io) forum.
 
 
-::: tip Working on Server & UI
-The source code for [Prefect Server](https://github.com/PrefectHQ/server) and [Prefect UI](https://github.com/PrefectHQ/ui) is contained in their respective development repos.
+!!! tip Working on Server & UI
+    The source code for [Prefect Server](https://github.com/PrefectHQ/server) and [Prefect UI](https://github.com/PrefectHQ/ui) is contained in their respective development repos.
 :::
 
 ## Getting Started

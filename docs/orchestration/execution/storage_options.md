@@ -1,9 +1,9 @@
 # Storage Options
 
-::: warning
-Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
+!!! warning
+    Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
 
-See [Storage](/orchestration/flow_config/storage.html) for current Flow definition storage capabilities.
+    See [Storage](/orchestration/flow_config/storage.html) for current Flow definition storage capabilities.
 :::
 
 Prefect includes a variety of `Storage` options for saving flows.
@@ -30,14 +30,14 @@ flow.storage.build()
 
 The flow is now available under `~/.prefect/flows/local-flow.prefect`.
 
-::: tip Automatic Labels
-Flows registered with this storage option will automatically be labeled with
-the hostname of the machine from which it was registered. This prevents agents
-not running on the same machine from attempting to run this flow.
+!!! tip Automatic Labels
+    Flows registered with this storage option will automatically be labeled with
+    the hostname of the machine from which it was registered. This prevents agents
+    not running on the same machine from attempting to run this flow.
 :::
 
-::: tip Flow Results
-In more recent releases of Prefect Core, your flow will default to using a `LocalResult` for persisting any task results in the same file location.
+!!! tip Flow Results
+    In more recent releases of Prefect Core, your flow will default to using a `LocalResult` for persisting any task results in the same file location.
 :::
 
 ## Azure Blob Storage
@@ -55,12 +55,12 @@ flow.storage.build()
 
 The flow is now available in the container under `azure-flow/slugified-current-timestamp`.
 
-::: tip Flow Results
-In more recent releases of Core your flow will default to using a `AzureResult` for persisting any task results in the same Azure container.
+!!! tip Flow Results
+    In more recent releases of Core your flow will default to using a `AzureResult` for persisting any task results in the same Azure container.
 :::
 
-:::tip Azure Credentials
-Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
+!!! tip Azure Credentials
+    Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
 :::
 
 ## AWS S3
@@ -78,12 +78,12 @@ flow.storage.build()
 
 The flow is now available in the bucket under `s3-flow/slugified-current-timestamp`.
 
-::: tip Flow Results
-In more recent releases of Core your flow will default to using a `S3Result` for persisting any task results in the same S3 bucket.
+!!! tip Flow Results
+    In more recent releases of Core your flow will default to using a `S3Result` for persisting any task results in the same S3 bucket.
 :::
 
-:::tip AWS Credentials
-S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
+!!! tip AWS Credentials
+    S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
 :::
 
 ## Google Cloud Storage
@@ -101,12 +101,12 @@ flow.storage.build()
 
 The flow is now available in the bucket under `gcs-flow/slugified-current-timestamp`.
 
-::: tip Flow Results
-In more recent releases of Core your flow will default to using a `GCSResult` for persisting any task results in the same GCS location.
+!!! tip Flow Results
+    In more recent releases of Core your flow will default to using a `GCSResult` for persisting any task results in the same GCS location.
 :::
 
-:::tip Google Cloud Credentials
-GCS Storage uses Google Cloud credentials the same way as the standard [google.cloud library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python) which means both upload (build) and download (local agent) times need to have the proper Google Application Credentials configuration.
+!!! tip Google Cloud Credentials
+    GCS Storage uses Google Cloud credentials the same way as the standard [google.cloud library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python) which means both upload (build) and download (local agent) times need to have the proper Google Application Credentials configuration.
 :::
 
 ## GitHub
@@ -115,8 +115,8 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 For a detailed look on how to use GitHub storage visit the [Using script based storage](/core/idioms/script-based.html) idiom.
 
-:::tip GitHub Credentials
-GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
+!!! tip GitHub Credentials
+    GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
 :::
 
 ## GitLab
@@ -125,12 +125,12 @@ GitHub storage uses a [personal access token](https://help.github.com/en/github/
 
 Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to GitLab as well.
 
-:::tip GitLab Credentials
-GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for authenticating with repositories.
+!!! tip GitLab Credentials
+    GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for authenticating with repositories.
 :::
 
-:::tip GitLab Server
-GitLab server users can point the `host` argument to their personal GitLab instance.
+!!! tip GitLab Server
+    GitLab server users can point the `host` argument to their personal GitLab instance.
 :::
 
 ## Bitbucket
@@ -139,24 +139,24 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
-:::tip Bitbucket Credentials
-Bitbucket storage uses a [personal access token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) for authenticating with repositories.
+!!! tip Bitbucket Credentials
+    Bitbucket storage uses a [personal access token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) for authenticating with repositories.
 :::
 
-:::tip Bitbucket Server
-Bitbucket server users can point the `host` argument to their personal or organization Bitbucket instance.
+!!! tip Bitbucket Server
+    Bitbucket server users can point the `host` argument to their personal or organization Bitbucket instance.
 :::
 
-:::tip Bitbucket Projects
-Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
+!!! tip Bitbucket Projects
+    Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
 :::
 
 ## CodeCommit
 
 [CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that reads flows from a GitHub repository as .py files at runtime.
 
-:::tip AWS Credentials
-CodeCommit uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
+!!! tip AWS Credentials
+    CodeCommit uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
 :::
 
 ## Docker
@@ -176,8 +176,8 @@ The flow is now available in the container registry under `my-registry.io/my_flo
 
 If you do not specify a `registry_url` for your Docker Storage then the image will not attempt to be pushed to a container registry and instead the image will live only on your local machine. This is useful when using the Docker Agent because it will not need to perform a pull of the image since it already exists locally.
 
-:::tip Container Registry Credentials
-Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the image and push to a registry. Make sure you have the Docker daemon running locally and you are configured to push to your desired container registry. Additionally make sure whichever platform Agent deploys the container also has permissions to pull from that same registry.
+!!! tip Container Registry Credentials
+    Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the image and push to a registry. Make sure you have the Docker daemon running locally and you are configured to push to your desired container registry. Additionally make sure whichever platform Agent deploys the container also has permissions to pull from that same registry.
 :::
 
 ## Webhook
@@ -253,8 +253,8 @@ This example flow can now be run using an agent that orchestrates containerized 
 prefect agent kubernetes start -l s3-flow-storage
 ```
 
-::: tip Default Labels
-The addition of these default labels can be disabled by passing `add_default_labels=False` to the flow's storage option. If this is set then the agents can ignore having to also set these labels. For more information on labels visit [the documentation](/orchestration/execution/overview.html#labels).
+!!! tip Default Labels
+    The addition of these default labels can be disabled by passing `add_default_labels=False` to the flow's storage option. If this is set then the agents can ignore having to also set these labels. For more information on labels visit [the documentation](/orchestration/execution/overview.html#labels).
 :::
 
 #### Authentication for using Cloud Storage with Containerized Environments
@@ -269,8 +269,8 @@ flow.storage = S3(bucket="my-flows", secrets=["AWS_CREDENTIALS"])
 flow.environment = LocalEnvironment(metadata={"image": "prefecthq/prefect"})
 ```
 
-::: warning Dependencies
-It is important to make sure that the `image` set in the environment's metadata contains the dependencies required to use the storage option. For example, using `S3` storage requires Prefect's `aws` dependencies.
+!!! warning Dependencies
+    It is important to make sure that the `image` set in the environment's metadata contains the dependencies required to use the storage option. For example, using `S3` storage requires Prefect's `aws` dependencies.
 
-These are generally packaged with custom built images or optionally you could use the `prefecthq/prefect` image which contains all of Prefect's orchestration extras.
+    These are generally packaged with custom built images or optionally you could use the `prefecthq/prefect` image which contains all of Prefect's orchestration extras.
 :::

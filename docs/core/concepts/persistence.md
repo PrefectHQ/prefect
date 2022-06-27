@@ -13,8 +13,8 @@ When running a Prefect flow, it's common to have tasks that will need to be re-r
 
 Whenever Prefect detects that a task will need to be run in the future, it automatically caches any information that the task needs to run and stores it on the resulting `State`. The next time Prefect encounters the task, the critical information is deserialized and used to run the task.
 
-::: tip Automatic caching
-Input caching is an automatic caching. Prefect will automatically apply it whenever necessary.
+!!! tip Automatic caching
+    Input caching is an automatic caching. Prefect will automatically apply it whenever necessary.
 :::
 
 ## Output Caching
@@ -40,8 +40,8 @@ task_2 = prefect.Task(
     cache_validator=prefect.engine.cache_validators.all_parameters)
 ```
 
-::: warning The cache is stored in context
-Note that when running Prefect Core locally, your Tasks' cached states will be stored in memory within `prefect.context`.
+!!! warning The cache is stored in context
+    Note that when running Prefect Core locally, your Tasks' cached states will be stored in memory within `prefect.context`.
 :::
 
 ## Persisting Output
@@ -72,8 +72,8 @@ def func_task():
 
 There are many different `Result` classes aligning with different storage backends depending on your needs, such as `GCSResult` and `S3Result`. See the whole list in the [API docs for results](../../api/latest/engine/results.md).
 
-::: tip Check your global configuration, too
-The default setting in Prefect Core is that checkpointing is globally turned _off_, and the default setting in Prefect Cloud 0.9.1+ is that checkpointing is globally turned _on_. For more information, read the concepts documentation on [Results](results.md) and the setup tutorial on [Using Results](../advanced_tutorials/using-results.html).
+!!! tip Check your global configuration, too
+    The default setting in Prefect Core is that checkpointing is globally turned _off_, and the default setting in Prefect Cloud 0.9.1+ is that checkpointing is globally turned _on_. For more information, read the concepts documentation on [Results](results.md) and the setup tutorial on [Using Results](../advanced_tutorials/using-results.html).
 :::
 
 ## Output Caching based on a file target
@@ -93,20 +93,20 @@ def func_task():
     return 99
 ```
 
-::: tip Targets can be templated
-Note that `target`s can optionally be templated, using [values found in `prefect.context`](/api/latest/utilities/context.html).  For example, the following target specification will store data based on the day of the week the flow is run on:
+!!! tip Targets can be templated
+    Note that `target`s can optionally be templated, using [values found in `prefect.context`](/api/latest/utilities/context.html).  For example, the following target specification will store data based on the day of the week the flow is run on:
 
-```python
-from prefect.engine.results import LocalResult
-from prefect import task, Task
+    ```python
+    from prefect.engine.results import LocalResult
+    from prefect import task, Task
 
 
-# create a task via the task decorator
-@task(target="{date:%A}/{task_name}.txt", checkpoint=True, result=LocalResult(dir="~/.prefect"))
-def func_task():
-    return 99
-```
+    # create a task via the task decorator
+    @task(target="{date:%A}/{task_name}.txt", checkpoint=True, result=LocalResult(dir="~/.prefect"))
+    def func_task():
+        return 99
+    ```
 
-See the [official Python documentation](https://www.python.org/dev/peps/pep-3101/#format-strings) for more information on the flexibility of string formatting.
+    See the [official Python documentation](https://www.python.org/dev/peps/pep-3101/#format-strings) for more information on the flexibility of string formatting.
 :::
 

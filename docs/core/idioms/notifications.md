@@ -6,8 +6,8 @@ Sending notifications based on events in Prefect is a common pattern. Types of n
 
 Adding tasks to your flow that respond to upstream events is one way of sending notifications. These tasks can be built in any way you would like and the Prefect task library even ships with a few [notification tasks](/api/latest/tasks/notifications.html)! Below is an example of using the [`SlackTask`](/api/latest/tasks/notifications.html#slacktask) to send a notification to Slack.
 
-::: warning Slack Webhook URL
-This code below makes use of a [Slack Webhook URL](https://api.slack.com/messaging/webhooks) as a Prefect Secret. For more information on using Prefect Secrets visit the [concept documentation](/core/concepts/secrets.html).
+!!! warning Slack Webhook URL
+    This code below makes use of a [Slack Webhook URL](https://api.slack.com/messaging/webhooks) as a Prefect Secret. For more information on using Prefect Secrets visit the [concept documentation](/core/concepts/secrets.html).
 :::
 
 :::: tabs

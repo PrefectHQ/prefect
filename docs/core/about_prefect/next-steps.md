@@ -60,9 +60,8 @@ def tear_down_cluster(cluster):
 
 All other code remains the same. Now the `tear_down_cluster` task will *always* run, even -- or especially -- when the `submitted` task fails.
 
-::: tip Tasks never run before upstream tasks finish
-Prefect will never run a task before its upstream tasks finish. This is why the `all_finished` and `always_run` triggers are synonymous.
-:::
+!!! tip Tasks never run before upstream tasks finish
+    Prefect will never run a task before its upstream tasks finish. This is why the `all_finished` and `always_run` triggers are synonymous.
 
 ## Reference Tasks
 
@@ -92,9 +91,8 @@ There are other, more interesting signals available. For example, raising a `RET
 
 Another useful signal is the `SKIP` signal. When a task is skipped, downstream tasks are also skipped unless they specifically set `skip_on_upstream_skip=False`. This means that users can set up entire workflow branches that can be skipped if a condition isn't met.
 
-::: tip SKIP is treated like SUCCESS
-When a task is skipped, it's usually treated as if it ran successfully. This is because tasks only skip if users specifically introduce skipping logic, so the result is compliant with the user's design.
-:::
+!!! tip SKIP is treated like SUCCESS
+    When a task is skipped, it's usually treated as if it ran successfully. This is because tasks only skip if users specifically introduce skipping logic, so the result is compliant with the user's design.
 
 To raise a signal, simply use it inside your task's run() function:
 

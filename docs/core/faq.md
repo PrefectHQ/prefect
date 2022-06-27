@@ -39,9 +39,8 @@ Ultimately, Python is Prefect's API; consequently, to run a process external to 
 
 We have developed an innovative "hybrid" model for Prefect Cloud. It is probably more accurate to think of Prefect Cloud as "on-prem lite". Prefect Cloud hosts a database and associated services which are responsible for tracking _metadata_ about your flows and tasks. The actual execution of your workflows occurs in _your infrastructure_, and is orchestrated through your Prefect agent.
 
-::: tip Prefect Cloud requires no access to your infrastructure
-Prefect Cloud requires _no access_ to your infrastructure or code. Information and communication is always initiated in one direction - _from_ your agent and workflows _to_ Cloud, but never the other way around. To better understand how data is managed, please see our write-up on [Cloud Dataflow](/orchestration/faq/dataflow.html).
-:::
+!!! tip Prefect Cloud requires no access to your infrastructure
+    Prefect Cloud requires _no access_ to your infrastructure or code. Information and communication is always initiated in one direction - _from_ your agent and workflows _to_ Cloud, but never the other way around. To better understand how data is managed, please see our write-up on [Cloud Dataflow](/orchestration/faq/dataflow.html).
 
 ### How does the Prefect Scheduler work?
 
@@ -54,9 +53,8 @@ There are two distinct "implementations" of the scheduler:
 
 Note that regardless of which scheduler is being used, dependencies between Prefect tasks typically _do not involve a scheduler_; rather, the executor being used for the flow run handles when each dependency is finished and the next can begin.
 
-::: tip In Prefect Cloud, flow.run() is never called
-As previously stated, `flow.run` is purely a convenience method for running your Flows on schedule locally and testing flow execution locally. When the Prefect agent submits a flow for execution, a `CloudFlowRunner` is created and interacted with directly.
-:::
+!!! tip In Prefect Cloud, flow.run() is never called
+    As previously stated, `flow.run` is purely a convenience method for running your Flows on schedule locally and testing flow execution locally. When the Prefect agent submits a flow for execution, a `CloudFlowRunner` is created and interacted with directly.
 
 ### Do you have an integration for service X?
 

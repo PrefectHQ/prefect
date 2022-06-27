@@ -1,7 +1,7 @@
 # Dask Cloud Provider Environment
 
-::: warning
-Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
+!!! warning
+    Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
 :::
 
 [[toc]]
@@ -14,18 +14,18 @@ the [Dask Cloud Provider](https://cloudprovider.dask.org/) project to create a D
 workers using cloud provider services, e.g. AWS Fargate. This Environment aims to provide a very
 easy way to achieve high scalability without the complexity of Kubernetes.
 
-:::tip AWS, Azure Only
-Dask Cloud Provider currently supports AWS (using either Fargate or ECS)
-and Azure (using AzureML).
-Support for GCP is [coming soon](https://github.com/dask/dask-cloudprovider/pull/131).
+!!! tip AWS, Azure Only
+    Dask Cloud Provider currently supports AWS (using either Fargate or ECS)
+    and Azure (using AzureML).
+    Support for GCP is [coming soon](https://github.com/dask/dask-cloudprovider/pull/131).
 :::
 
-:::warning Security Considerations
-By default, Dask Cloud Provider may create a Dask cluster in some environments (e.g. Fargate)
-that is accessible via a public IP, without any authentication, and configured to NOT encrypt
-network traffic. Please be conscious of security issues if you test this environment.
-(Also see pull requests [85](https://github.com/dask/dask-cloudprovider/pull/85) and
-[91](https://github.com/dask/dask-cloudprovider/pull/91) in the Dask Cloud Provider project.)
+!!! warning Security Considerations
+    By default, Dask Cloud Provider may create a Dask cluster in some environments (e.g. Fargate)
+    that is accessible via a public IP, without any authentication, and configured to NOT encrypt
+    network traffic. Please be conscious of security issues if you test this environment.
+    (Also see pull requests [85](https://github.com/dask/dask-cloudprovider/pull/85) and
+    [91](https://github.com/dask/dask-cloudprovider/pull/91) in the Dask Cloud Provider project.)
 :::
 
 ## Process
@@ -59,19 +59,23 @@ The above code will create a Dask scheduler and one Dask worker using AWS Fargat
 time that a Flow using that environment runs.
 
 
-:::warning Fargate Task Startup Latency
-AWS Fargate Task startup time can be slow and increases as your Docker
-image size increases. Total startup time for a Dask scheduler and workers can
-be several minutes. This environment is appropriate for production
-deployments of scheduled Flows where there's little sensitivity to startup
-time. `DaskCloudProviderEnvironment` is a particularly good fit for automated
-deployment of scheduled Flows in a CI/CD pipeline where the infrastructure for each Flow
-should be as independent as possible, e.g. each Flow could have its own docker
-image, dynamically create the Dask cluster for each Flow run, etc. However, for
-development and interactive testing, either using ECS (instead of Fargate) or
-creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using
-`LocalEnvironment` configured with a `DaskExecutor` will result
-in a much better and faster development experience.
+!!! warning Fargate Task Startup Latency
+    AWS Fargate Task startup time can be slow and increases as your Docker
+    image size increases. Total startup time for a Dask scheduler and workers can
+    be several minutes. 
+    
+    This environment is appropriate for production
+    deployments of scheduled Flows where there's little sensitivity to startup
+    time. `DaskCloudProviderEnvironment` is a particularly good fit for automated
+    deployment of scheduled Flows in a CI/CD pipeline where the infrastructure for each Flow
+    should be as independent as possible, e.g. each Flow could have its own docker
+    image, dynamically create the Dask cluster for each Flow run, etc. 
+    
+    However, for
+    development and interactive testing, either using ECS (instead of Fargate) or
+    creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using
+    `LocalEnvironment` configured with a `DaskExecutor` will result
+    in a much better and faster development experience.
 :::
 
 #### Requirements
@@ -172,13 +176,13 @@ The following example will execute your Flow on a cluster that uses Dask's adapt
 to dynamically select the number of workers based on load of the Flow. The cluster
 will start with a single worker and dynamically scale up to five workers as needed.
 
-:::tip Dask Adaptive Mode vs. Fixed Number of Workers
-While letting Dask dynamically choose the number of workers with adaptive mode is
-attractive, the slow startup time of Fargate workers may cause Dask to quickly request
-the maximum number of workers. You may find that manually specifying the number of
-workers with `n_workers` is more effective. You can also do your own calculation
-of `n_workers` based on Flow run parameters at execution time in your own `on_execute()`
-callback function. (See the last code example on this page.)
+!!! tip Dask Adaptive Mode vs. Fixed Number of Workers
+    While letting Dask dynamically choose the number of workers with adaptive mode is
+    attractive, the slow startup time of Fargate workers may cause Dask to quickly request
+    the maximum number of workers. You may find that manually specifying the number of
+    workers with `n_workers` is more effective. You can also do your own calculation
+    of `n_workers` based on Flow run parameters at execution time in your own `on_execute()`
+    callback function. (See the last code example on this page.)
 :::
 
 ```python

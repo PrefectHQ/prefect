@@ -4,12 +4,12 @@ sidebarDepth: 0
 
 # Adding Parameters
 
-::: tip Follow along in the Terminal
+!!! tip Follow along in the Terminal
 
-```
-cd examples/tutorial
-python 03_parameterized_etl_flow.py
-```
+    ```
+    cd examples/tutorial
+    python 03_parameterized_etl_flow.py
+    ```
 
 :::
 
@@ -87,7 +87,7 @@ Lastly, take note that our execution graph has changed -- fetching live data now
 
 ![Graph ETL](/prefect-tutorial-etl-parameterized-dataflow.png)
 
-::: warning Up Next!
+!!! warning Up Next!
 
 What happens when a task fails? And how can we customize actions taken when things go wrong?
 

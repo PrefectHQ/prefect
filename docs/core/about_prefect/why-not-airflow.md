@@ -4,8 +4,8 @@ sidebarDepth: 1
 
 # Why Not Airflow?
 
-:::tip Read the original post
-You can view the original version of this post [on our blog](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
+!!! tip Read the original post
+    You can view the original version of this post [on our blog](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
 :::
 
 > Why should I choose Prefect over Airflow?

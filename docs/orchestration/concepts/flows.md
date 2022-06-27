@@ -24,11 +24,11 @@ The CLI command supports several additional options, see the
 [docs](/api/latest/cli/register.md#register) for more information.
 
 
-::: tip Get started quickly
-Prefect provides a classic Hello World flow to get you started. Just register the flow included in the Prefect Python package.
-```bash
-$ prefect register --project "my project" --module "prefect.hello_world"
-```
+!!! tip Get started quickly
+    Prefect provides a classic Hello World flow to get you started. Just register the flow included in the Prefect Python package.
+    ```bash
+    $ prefect register --project "my project" --module "prefect.hello_world"
+    ```
 :::
 
 ### Core Client
@@ -39,24 +39,23 @@ To register a flow from Prefect Core, use its `register()` method:
 flow.register(project_name="my project")
 ```
 
-:::warning Projects
-Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
+!!! warning Projects
+    Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
 :::
 
-:::tip Deduplicating registration calls
+!!! tip Deduplicating registration calls
+    Each call to `flow.register()` will bump the version of the flow in the
+    backend.  If you are registering flows using automation, you may want to pass
+    an `idempotency_key` which will only create a new version when the key changes.
+    For example, we can take advantage of the hash of the serialized flow to only
+    register a new version of the flow when it has changed:
 
-Each call to `flow.register()` will bump the version of the flow in the
-backend.  If you are registering flows using automation, you may want to pass
-an `idempotency_key` which will only create a new version when the key changes.
-For example, we can take advantage of the hash of the serialized flow to only
-register a new version of the flow when it has changed:
-
-```python
-flow.register(
-    project_name="Hello, World!",
-    idempotency_key=flow.serialized_hash()
-)
-```
+    ```python
+    flow.register(
+        project_name="Hello, World!",
+        idempotency_key=flow.serialized_hash()
+    )
+    ```
 :::
 
 
@@ -125,8 +124,8 @@ Running your flows with a Prefect backend has several insurance policies to ensu
 
 These safeguards can be toggled on a flow-by-flow basis using flow settings.
 
-::: warning Disabling safeguards
-Disabling these safeguards can alter fundamental assumptions about how flows run in Cloud. Be sure to read the docs and understand how each of these settings alters flow behavior in Cloud.
+!!! warning Disabling safeguards
+    Disabling these safeguards can alter fundamental assumptions about how flows run in Cloud. Be sure to read the docs and understand how each of these settings alters flow behavior in Cloud.
 :::
 
 ### Toggling Heartbeats

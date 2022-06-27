@@ -79,7 +79,7 @@ flow.run(executor=executor)
 
 If you happen to have `bokeh` installed, you can visit the [Dask Web UI](https://distributed.readthedocs.io/en/latest/web.html) and see your tasks being processed when the flow run begins!
 
-::: tip Advanced Dask Configuration
+## Advanced Dask Configuration
 
 To interface with a secure, production-hardened Dask cluster via [Dask Gateway](https://gateway.dask.org/) you may need to provide TLS details to the `DaskExecutor`. These details can be found on the [GatewayCluster object on creation](https://gateway.dask.org/usage.html#usage-create-new-cluster):
 
@@ -113,8 +113,6 @@ executor = DaskExecutor(
 )
 flow.run(executor=executor)
 ```
-
-:::
 
 ## Next Steps
 

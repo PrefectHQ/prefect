@@ -125,22 +125,22 @@ flow = Flow("local-flow", storage=Local())
 After registration, the flow will be stored at
 `~/.prefect/flows/<slugified-flow-name>/<slugified-current-timestamp>`.
 
-:::tip Automatic Labels
-Flows registered with this storage option will automatically be labeled with
-the hostname of the machine from which it was registered; this prevents agents
-not running on the same machine from attempting to run this flow. This default
-prevents the common issue where an agent cannot find a flow that is stored on a
-different machine. You can override this behavior by passing `add_default_labels=False`
-to the object, but then you must make sure that the flow file is available on
-the local file system of other agents.
-```python
-flow = Flow("local-flow", storage=Local(add_default_labels=False))
-```
+!!! tip Automatic Labels
+    Flows registered with this storage option will automatically be labeled with
+    the hostname of the machine from which it was registered; this prevents agents
+    not running on the same machine from attempting to run this flow. This default
+    prevents the common issue where an agent cannot find a flow that is stored on a
+    different machine. You can override this behavior by passing `add_default_labels=False`
+    to the object, but then you must make sure that the flow file is available on
+    the local file system of other agents.
+    ```python
+    flow = Flow("local-flow", storage=Local(add_default_labels=False))
+    ```
 :::
 
-:::tip Flow Results
-Flows configured with `Local` storage also default to using a `LocalResult` for
-persisting any task results in the same filesystem.
+!!! tip Flow Results
+    Flows configured with `Local` storage also default to using a `LocalResult` for
+    persisting any task results in the same filesystem.
 :::
 
 ### Module
@@ -176,16 +176,16 @@ flow = Flow("s3-flow", storage=S3(bucket="<my-bucket>"))
 After registration, the flow will be stored in the specified bucket under
 `<slugified-flow-name>/<slugified-current-timestamp>`.
 
-:::tip Flow Results
+!!! tip Flow Results
 Flows configured with `S3` storage also default to using a `S3Result` for
 persisting any task results in the same S3 bucket.
 :::
 
-:::tip AWS Credentials
-S3 Storage uses AWS credentials the same way as
-[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html),
-which means both upload (build) and download (local agent) times need to have
-proper AWS credential configuration.
+!!! tip AWS Credentials
+    S3 Storage uses AWS credentials the same way as
+    [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html),
+    which means both upload (build) and download (local agent) times need to have
+    proper AWS credential configuration.
 :::
 
 ### Azure Blob Storage
@@ -209,18 +209,18 @@ flow = Flow(
 After registration, the flow will be stored in the container under
 `<slugified-flow-name>/<slugified-current-timestamp>`.
 
-:::tip Flow Results
-Flows configured with `Azure` storage also default to using an `AzureResult` for
-persisting any task results to the same container in Azure Blob storage.
+!!! tip Flow Results
+    Flows configured with `Azure` storage also default to using an `AzureResult` for
+    persisting any task results to the same container in Azure Blob storage.
 :::
 
-:::tip Azure Credentials
-Azure Storage uses an Azure [connection
-string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string),
-which means both upload (build) and download (local agent) times need to have a
-working Azure connection string. Azure Storage will also look in the
-environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to
-the class directly.
+!!! tip Azure Credentials
+    Azure Storage uses an Azure [connection
+    string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string),
+    which means both upload (build) and download (local agent) times need to have a
+    working Azure connection string. Azure Storage will also look in the
+    environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to
+    the class directly.
 :::
 
 ### Google Cloud Storage
@@ -238,22 +238,22 @@ flow = Flow("gcs-flow", storage=GCS(bucket="<my-bucket>"))
 After registration the flow will be stored in the specified bucket under
 `<slugified-flow-name>/<slugified-current-timestamp>`.
 
-:::tip Flow Results
-Flows configured with `GCS` storage also default to using a `GCSResult` for
-persisting any task results in the same GCS location.
+!!! tip Flow Results
+    Flows configured with `GCS` storage also default to using a `GCSResult` for
+    persisting any task results in the same GCS location.
 :::
 
-:::tip Google Cloud Credentials
-GCS Storage uses Google Cloud credentials the same way as the standard
-[google.cloud
-library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python),
-which means both upload (build) and download (local agent) times need to have
-the proper Google Application Credentials configuration.
+!!! tip Google Cloud Credentials
+    GCS Storage uses Google Cloud credentials the same way as the standard
+    [google.cloud
+    library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python),
+    which means both upload (build) and download (local agent) times need to have
+    the proper Google Application Credentials configuration.
 :::
 
-:::tip Extra dependency
-You need to install `google` PIP extra (`pip install prefect[google]`) to use
-GCS Storage.
+!!! tip Extra dependency
+    You need to install `google` PIP extra (`pip install prefect[google]`) to use
+    GCS Storage.
 :::
 
 ### Git
@@ -329,8 +329,8 @@ storage = Git(
 ```
 
 
-:::tip Loading additional files from a git repository
-`Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage).
+!!! tip Loading additional files from a git repository
+    `Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage).
 :::
 
 ### GitHub
@@ -355,12 +355,12 @@ flow = Flow(
 For a detailed look on how to use GitHub storage see the [Using script based
 storage](/core/idioms/script-based.md) idiom.
 
-:::tip GitHub Credentials
-When used with private repositories, GitHub storage requires configuring a
-[personal access
-token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
-This token should have `repo` scope, and will be used to read the flow's source
-from its respective repository.
+!!! tip GitHub Credentials
+    When used with private repositories, GitHub storage requires configuring a
+    [personal access
+    token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
+    This token should have `repo` scope, and will be used to read the flow's source
+    from its respective repository.
 :::
 
 ### GitLab
@@ -385,15 +385,15 @@ flow = Flow(
 Much of the GitHub example in the [script based
 storage](/core/idioms/script-based.md) documentation applies to GitLab as well.
 
-:::tip GitLab Credentials
-GitLab storage uses a [personal access
-token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for
-authenticating with repositories.
+!!! tip GitLab Credentials
+    GitLab storage uses a [personal access
+    token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for
+    authenticating with repositories.
 :::
 
-:::tip GitLab Server
-GitLab server users can point the `host` argument to their personal GitLab
-instance.
+!!! tip GitLab Server
+    GitLab server users can point the `host` argument to their personal GitLab
+    instance.
 :::
 
 ### Bitbucket
@@ -419,16 +419,16 @@ flow = Flow(
 Much of the GitHub example in the [script based
 storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
-:::tip Bitbucket Credentials
-Bitbucket storage uses a [personal access
-token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
-for authenticating with repositories.
+!!! tip Bitbucket Credentials
+    Bitbucket storage uses a [personal access
+    token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
+    for authenticating with repositories.
 :::
 
-:::tip Bitbucket Projects
-Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo
-must be associated with a Project. Bitbucket storage requires a `project` argument
-pointing to the correct project name.
+!!! tip Bitbucket Projects
+    Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo
+    must be associated with a Project. Bitbucket storage requires a `project` argument
+    pointing to the correct project name.
 :::
 
 ### CodeCommit
@@ -450,11 +450,11 @@ flow = Flow(
 )
 ```
 
-:::tip AWS Credentials
-CodeCommit uses AWS credentials the same way as
-[boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
-which download (local agent) times need to
-have proper AWS credential configuration.
+!!! tip AWS Credentials
+    CodeCommit uses AWS credentials the same way as
+    [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
+    which download (local agent) times need to
+    have proper AWS credential configuration.
 :::
 
 ### Docker
@@ -485,12 +485,12 @@ will live only on your local machine. This is useful when using the Docker
 Agent because it will not need to perform a pull of the image since it already
 exists locally.
 
-:::tip Container Registry Credentials
-Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the
-image and push to a registry. Make sure you have the Docker daemon running
-locally and you are configured to push to your desired container registry.
-Additionally, make sure whichever platform Agent deploys the container also has
-permissions to pull from that same registry.
+!!! tip Container Registry Credentials
+    Docker Storage uses the [Docker SDK for Python](https://docker-py.readthedocs.io/en/stable/index.html) to build the
+    image and push to a registry. Make sure you have the Docker daemon running
+    locally and you are configured to push to your desired container registry.
+    Additionally, make sure whichever platform Agent deploys the container also has
+    permissions to pull from that same registry.
 :::
 
 ### Webhook

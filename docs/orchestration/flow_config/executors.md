@@ -97,26 +97,26 @@ flow.executor = LocalDaskExecutor(scheduler="threads", num_workers=8)
 flow.executor = LocalDaskExecutor(scheduler="processes", num_workers=8)
 ```
 
-::: tip Selecting a `scheduler` and `num_workers`
-You should use `scheduler="threads"` if:
+!!! tip Selecting a `scheduler` and `num_workers`
+    You should use `scheduler="threads"` if:
 
-- Your tasks are often IO bound (e.g. API requests, uploading/downloading data,
-  database calls, etc...). Tasks like these can sometimes benefit from having
-  more threads than cores, but usually not more than by a factor of 2-4 (e.g.
-  if you have 4 cores available, set `num_workers=16` at most).
+    - Your tasks are often IO bound (e.g. API requests, uploading/downloading data,
+      database calls, etc...). Tasks like these can sometimes benefit from having
+      more threads than cores, but usually not more than by a factor of 2-4 (e.g.
+      if you have 4 cores available, set `num_workers=16` at most).
 
-- Your tasks make use of separate processes (e.g.
-  [ShellTask](/api/latest/tasks/shell.md)).
+    - Your tasks make use of separate processes (e.g.
+      [ShellTask](/api/latest/tasks/shell.md)).
 
-- Your tasks make use of libraries like `numpy`, `pandas`, or `scikit-learn`
-  that release the [global interpreter lock
-  (GIL)](https://wiki.python.org/moin/GlobalInterpreterLock). The default
-  value for `num_workers` is likely sufficient - tasks like these are CPU
-  bound and won't benefit from multiple threads per core.
+    - Your tasks make use of libraries like `numpy`, `pandas`, or `scikit-learn`
+      that release the [global interpreter lock
+      (GIL)](https://wiki.python.org/moin/GlobalInterpreterLock). The default
+      value for `num_workers` is likely sufficient - tasks like these are CPU
+      bound and won't benefit from multiple threads per core.
 
-You should use `scheduler="processes"` in most other cases. These tasks are
-also usually CPU bound, so the default value of `num_workers` should be
-sufficient.
+    You should use `scheduler="processes"` in most other cases. These tasks are
+    also usually CPU bound, so the default value of `num_workers` should be
+    sufficient.
 :::
 
 ## DaskExecutor

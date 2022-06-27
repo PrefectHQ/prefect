@@ -45,8 +45,8 @@ Currently you can configure automations for the following events:
 - A flow run fails to finish after running for a certain amount of time (**Standard plan and above**).
 - Some number of agents with the same [`agent_config_id`](/orchestration/agents/overview.html#health-checks) become unhealthy (**Standard plan and above**)
 
-::: tip Hooks
-When you create an automation in the UI, you are actually creating a `Hook` between an `Event` type and an `Action` instance. This name difference will be apparent if you are attempting to work with automations by calling the GraphQL API directly
+!!! tip Hooks
+    When you create an automation in the UI, you are actually creating a `Hook` between an `Event` type and an `Action` instance. This name difference will be apparent if you are attempting to work with automations by calling the GraphQL API directly
 :::
 
 ## Actions

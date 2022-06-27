@@ -3,12 +3,12 @@ sidebarDepth: 0
 ---
 # Running on Schedule
 
-::: tip Follow along in the Terminal
+!!! tip Follow along in the Terminal
 
-```
-cd examples/tutorial
-python 05_schedules.py
-```
+    ```
+    cd examples/tutorial
+    python 05_schedules.py
+    ```
 
 :::
 
@@ -40,14 +40,11 @@ with Flow("Aircraft-ETL", schedule=schedule) as flow:
 
 When invoking `flow.run()` our flow will never stop, always starting a new run every minute.
 
-::: tip More on Schedules
-
-There are several ways to configure schedules to meet a wide variety of needs. For more on Schedules [see our docs](/core/concepts/schedules.html#schedules).
+!!! tip More on Schedules
+    There are several ways to configure schedules to meet a wide variety of needs. For more on Schedules [see our docs](/core/concepts/schedules.html#schedules).
 
 :::
 
-::: warning Up Next!
-
-Run Tasks in parallel easily!
+Up Next! Run Tasks in parallel easily!
 
 :::

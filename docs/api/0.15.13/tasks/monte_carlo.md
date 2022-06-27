@@ -4,7 +4,7 @@ editLink: false
 ---
 # Monte Carlo Tasks
 
-::: tip Verified by Prefect
+!!! tip Verified by Prefect
 <div class="verified-task">
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
 <circle cx="24" cy="24" r="24" fill="#42b983"/>
@@ -12,10 +12,9 @@ editLink: false
 <path d="M19 24L22.4375 27L29 20.5" stroke="#fff" stroke-width="2"/>
 </svg>
 <div>
-These tasks have been tested and verified by Prefect.
+    These tasks have been tested and verified by Prefect.
 </div>
 </div>
-:::
 
 ---
 

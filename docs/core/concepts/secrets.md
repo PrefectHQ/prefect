@@ -11,8 +11,8 @@ Prefect provides a mechanism called `Secrets` for working with sensitive informa
 
 The most common case for secrets is to authenticate to third-party systems. For more information on best practices to do so, see our deployment recipe on [Third Party Authentication](../../orchestration/recipes/third_party_auth.md).
 
-::: tip Keep secrets secret!
-Though Prefect takes steps to ensure that `Secret` objects do not reveal sensitive information, other tasks may not be so careful. Once a secret value is loaded into your flow, it can be used for any purpose. Please use caution anytime you are working with sensitive data.
+!!! tip Keep secrets secret!
+    Though Prefect takes steps to ensure that `Secret` objects do not reveal sensitive information, other tasks may not be so careful. Once a secret value is loaded into your flow, it can be used for any purpose. Please use caution anytime you are working with sensitive data.
 :::
 
 ## Mechanisms

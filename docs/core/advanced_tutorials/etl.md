@@ -18,9 +18,8 @@ Let's get started by defining three functions that will serve as our extract, tr
 
 All we have to do in order to invoke Prefect is apply the `@task` decorator to our functions.
 
-::: tip Passing data between tasks
-Don't worry about passing large data objects between tasks. As long as it fits in memory, Prefect can handle it with no special settings. If it doesn't, there are ways to distribute the operation across a cluster.
-:::
+!!! tip Passing data between tasks
+    Don't worry about passing large data objects between tasks. As long as it fits in memory, Prefect can handle it with no special settings. If it doesn't, there are ways to distribute the operation across a cluster.
 
 ```python
 from prefect import task
@@ -45,9 +44,8 @@ def load(data):
 
 Now that we have our tasks, we create a `Flow` and call the tasks as if they were functions. In the background, Prefect is generating a computational graph that tracks all dependencies between our tasks.
 
-::: tip Deferred execution
-It may look like we're calling our ETL functions, but nothing is actually being executed here. In Prefect, calling a task is a convenient way to tell the framework how it relates to other tasks; Prefect uses that information to build the computational graph. Nothing actually happens until you call `flow.run()`.
-:::
+!!! tip Deferred execution
+    It may look like we're calling our ETL functions, but nothing is actually being executed here. In Prefect, calling a task is a convenient way to tell the framework how it relates to other tasks; Prefect uses that information to build the computational graph. Nothing actually happens until you call `flow.run()`.
 
 ```python
 from prefect import Flow
@@ -80,6 +78,5 @@ flow.set_dependencies(load, keyword_tasks=dict(data=transform))
 flow.run() # prints "Here's your data: [10, 20, 30]"
 ```
 
-::: tip Mix-and-match
-Prefect's functional API and imperative API can be utilized at any time, even for a single line in a script that uses the other style for everything else. One of the only key differences is that the functional API requires code to be run in an active `Flow` context.
-:::
+!!! tip Mix-and-match
+    Prefect's functional API and imperative API can be utilized at any time, even for a single line in a script that uses the other style for everything else. One of the only key differences is that the functional API requires code to be run in an active `Flow` context.

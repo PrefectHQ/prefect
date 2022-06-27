@@ -1,8 +1,8 @@
 """
-::: warning Secret Tasks are preferred
-While this Secrets API is fully supported, using a [Prefect Secret Task](../tasks/secrets) is
-typically preferred for better reuse of Secret values and visibility into the secrets used
-within Tasks / Flows.
+!!! warning Secret Tasks are preferred
+    While this Secrets API is fully supported, using a [Prefect Secret Task](../tasks/secrets) is
+    typically preferred for better reuse of Secret values and visibility into the secrets used
+    within Tasks / Flows.
 :::
 
 A Secret is a serializable object used to represent a secret key & value.
@@ -45,17 +45,17 @@ or specify the secret via environment variable:
 export PREFECT__CONTEXT__SECRETS__MY_KEY="MY_VALUE"
 ```
 
-::: tip Default secrets
-Special default secret names can be used to authenticate to third-party systems in a
-installation-wide way. Read more about this in our [Secrets concept
-documentation](/core/concepts/secrets.md#default-secrets).
+!!! tip Default secrets
+    Special default secret names can be used to authenticate to third-party systems in a
+    installation-wide way. Read more about this in our [Secrets concept
+    documentation](/core/concepts/secrets.md#default-secrets).
 :::
 
-::: tip
-When setting secrets via `.toml` config files, you can use the [TOML
-Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running
-`prefect` commands with invalid `.toml` config files will lead to tracebacks that contain
-references to: `..../toml/decoder.py`.
+!!! tip
+    When setting secrets via `.toml` config files, you can use the [TOML
+    Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running
+    `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain
+    references to: `..../toml/decoder.py`.
 :::
 
 """

@@ -1,7 +1,7 @@
 # Dask Kubernetes Environment
 
-::: warning
-Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
+!!! warning
+    Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
 :::
 
 [[toc]]
@@ -20,12 +20,12 @@ _For more information on the Dask Kubernetes environment visit the relevant [API
 
 The `DaskKubernetesEnvironment` can optionally accept two worker-dependent arguments `min_workers` and `max_workers`. These options set the minimum and maximum number of workers you want to dynamically scale to for your Dask cluster; these default to 1 and 2 workers respectively.
 
-:::tip Auto Scaling
-If you do not want your Dask cluster to automatically scale the number of workers between the bounds of `min_workers` and `max_workers` then set the two options to the same value.
+!!! tip Auto Scaling
+    If you do not want your Dask cluster to automatically scale the number of workers between the bounds of `min_workers` and `max_workers` then set the two options to the same value.
 :::
 
-:::warning Private Registries
-When running your flows that are registered with a private container registry, you should either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment` or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
+!!! warning Private Registries
+    When running your flows that are registered with a private container registry, you should either specify the name of an `image_pull_secret` on the flow's `DaskKubernetesEnvironment` or directly set the `imagePullSecrets` on your custom worker/scheduler specs.
 :::
 
 **Custom Configuration:**
@@ -34,14 +34,14 @@ The `DaskKubernetesEnvironment` also has two optional arguments for loading comp
 
 Providing custom YAML configuration is useful in a lot of cases, especially when you may want to control resource usage, node allocation, RBAC, etc.
 
-:::warning YAML Override
-If you choose to provide any custom YAML spec files they will take precedence over the quick configuration arguments when creating the Dask cluster.
+!!! warning YAML Override
+    If you choose to provide any custom YAML spec files they will take precedence over the quick configuration arguments when creating the Dask cluster.
 :::
 
-:::warning Image
-When using the custom YAML spec files it is recommended that you ensure the `image` is the same image name and tag that was built for your Flow on registration. This is to ensure consistency of dependencies for your Flow's execution.
+!!! warning Image
+    When using the custom YAML spec files it is recommended that you ensure the `image` is the same image name and tag that was built for your Flow on registration. This is to ensure consistency of dependencies for your Flow's execution.
 
-e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec should contain `- image: gcr.io/dev/etl-flow:0.1.0`.
+    e.g. If you push a Flow's storage as `gcr.io/dev/etl-flow:0.1.0` then your custom YAML spec should contain `- image: gcr.io/dev/etl-flow:0.1.0`.
 :::
 
 #### Requirements
@@ -80,8 +80,8 @@ roleRef:
 
 #### Setup
 
-::: warning Deprecated
-As of version `0.11.3` setting `docker_secret` and `private_registry` is deprecated. Image pull secrets should be set on custom YAML for the scheduler and worker pods or directly through the `image_pull_secret` kwarg. For more information on Kubernetes imagePullSecets go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret).
+!!! warning Deprecated
+    As of version `0.11.3` setting `docker_secret` and `private_registry` is deprecated. Image pull secrets should be set on custom YAML for the scheduler and worker pods or directly through the `image_pull_secret` kwarg. For more information on Kubernetes imagePullSecets go [here](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-pod-that-uses-your-secret).
 :::
 
 The Dask Kubernetes environment setup step is responsible for checking the [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) for a provided `docker_secret` only if `private_registry=True`. If the Kubernetes Secret is not found then it will attempt to create one based off of the value set in the Prefect Secret matching the name specified for `docker_secret`.

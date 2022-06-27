@@ -5,8 +5,8 @@ Alerts, notifications, and dynamically responding to task state are important fe
 In addition to working with the `state_handler` API directly, Prefect provides higher level wrappers for implementing common use cases
 such as failure callbacks.
 
-::: tip Prefect States
-State handlers are intimately connected with Prefect's concept of "State". We recommend reviewing [the concept doc on States](states.html) before reading further.
+!!! tip Prefect States
+    State handlers are intimately connected with Prefect's concept of "State". We recommend reviewing [the concept doc on States](states.html) before reading further.
 :::
 
 ## State Handlers
@@ -80,8 +80,8 @@ Running("Starting task run.") to Success("Task run succeeded.")
 
 At the end of the day, that's all there is to it! However, the simplicity of the API belies the many possible usage patterns for this feature, which is what we will look at next.
 
-::: tip Note
-For the sake of simplicity, for the rest of this document we will focus on _task_ state handlers, but everything we discuss applies equally to flows.
+!!! tip Note
+    For the sake of simplicity, for the rest of this document we will focus on _task_ state handlers, but everything we discuss applies equally to flows.
 :::
 
 ## Sending a simple notification
@@ -111,12 +111,12 @@ flow.run()
 
 Here we are responding to state by only sending a notification when the task's state is considered "finished"; this includes `Success` states as well as `Failed` states, but does not include states such as `Retrying` or `Scheduled`.
 
-::: warning Notification failure causes Task failure
-We could have raised an error if the POST request returned a non-200 status code. This is fine, but be warned: Prefect considers state handlers an integral part of task execution, and consequently if an error is raised when calling a task's state handlers, the task run will be aborted and the task will be marked "Failed".
+!!! warning Notification failure causes Task failure
+    We could have raised an error if the POST request returned a non-200 status code. This is fine, but be warned: Prefect considers state handlers an integral part of task execution, and consequently if an error is raised when calling a task's state handlers, the task run will be aborted and the task will be marked "Failed".
 :::
 
-::: tip Handlers can use Prefect Secrets
-Most notification systems will require some form of authentication. Don't despair - state handlers can retrieve Prefect Secrets just like Tasks.  (See post_to_slack above for an example.)
+!!! tip Handlers can use Prefect Secrets
+    Most notification systems will require some form of authentication. Don't despair - state handlers can retrieve Prefect Secrets just like Tasks.  (See post_to_slack above for an example.)
 :::
 
 ## Responding to State
@@ -145,9 +145,9 @@ flow.run() # the notifier is never run
 
 This uses the `start_time` attribute of `Retrying` states to alert the user with more useful information.
 
-::: tip Think outside the box
-Because Prefect allows tasks to return data, we can actually have our state handler respond based on the outputs of the task. Even more interesting,
-_any_ Prefect State can carry data - this includes `Failed` states.
+!!! tip Think outside the box
+    Because Prefect allows tasks to return data, we can actually have our state handler respond based on the outputs of the task. Even more interesting,
+    _any_ Prefect State can carry data - this includes `Failed` states.
 :::
 
 Let's implement a task that has a special mode of failure; if this failure mode occurs, we want to be alerted immediately.
@@ -191,8 +191,8 @@ Note that we can reuse this pattern of attaching information to our `FAIL` signa
 
 You might have noticed that the `state_handlers` argument is plural and accepts a list. This is because Prefect allows you to attach as many state handlers to a task as you wish! This pattern is useful for composing state handlers with different use cases (e.g., a special handler for failure and another for retries). It is also useful if there is are certain critical circumstances you want to be alerted for -- you can implement many different and various state handlers to make sure you are alerted ASAP.
 
-::: tip State handlers are called in order
-If you choose to provide multiple state handlers to a task, note that they will be called in the order in which they are provided.
+!!! tip State handlers are called in order
+    If you choose to provide multiple state handlers to a task, note that they will be called in the order in which they are provided.
 :::
 
 ## Higher level API

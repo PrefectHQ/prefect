@@ -18,6 +18,6 @@ flow.run(parameters=dict(x=100)) # prints 101
 flow.run() #prints 3
 ```
 
-:::tip Parameter names
-While parameters can have any name, there can only be one parameter with that name in the flow. This is achieved by requiring a `Parameter's` slug to be the same as its name.
+!!! tip Parameter names
+    While parameters can have any name, there can only be one parameter with that name in the flow. This is achieved by requiring a `Parameter's` slug to be the same as its name.
 :::

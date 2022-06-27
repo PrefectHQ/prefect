@@ -13,11 +13,11 @@ need to add the `gcp` extra via `pip`.
 pip install prefect[gcp]
 ```
 
-::: warning Prefect Server
-In order to use this agent with Prefect Server the server's GraphQL API
-endpoint must be accessible. This _may_ require changes to your Prefect Server
-deployment and/or [configuring the Prefect API
-address](./overview.md#prefect-api-address) on the agent.
+!!! warning Prefect Server
+    In order to use this agent with Prefect Server the server's GraphQL API
+    endpoint must be accessible. This _may_ require changes to your Prefect Server
+    deployment and/or [configuring the Prefect API
+    address](./overview.md#prefect-api-address) on the agent.
 :::
 
 ## Flow Configuration
@@ -51,9 +51,9 @@ The Vertex agent can be started from the Prefect CLI as
 prefect agent vertex start
 ```
 
-::: tip API Keys <Badge text="Cloud"/>
-When using Prefect Cloud, this will require a service account API key, see
-[here](./overview.md#api_keys) for more information.
+!!! tip API Keys <Badge text="Cloud"/>
+    When using Prefect Cloud, this will require a service account API key, see
+    [here](./overview.md#api_keys) for more information.
 :::
 
 Below we cover a few common configuration options, see the [CLI

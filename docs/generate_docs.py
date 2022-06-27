@@ -374,7 +374,7 @@ editLink: false
 
 {header}
 
-::: tip Registering with Prefect Cloud/Server
+!!! tip Registering with Prefect Cloud/Server
 
 This example can be registered in Prefect Cloud or Server by running:
 
@@ -628,7 +628,7 @@ if __name__ == "__main__":
                     if experimental:
                         f.write(
                             f"""# {title}\n
-::: warning Experimental
+!!! warning Experimental
 <div class="experimental-warning">
 <svg
     aria-hidden="true"
@@ -656,7 +656,7 @@ The functionality here is experimental, and may change between versions without 
                     elif page.get("verified_task"):
                         f.write(
                             f"""# {title}\n
-::: tip Verified by Prefect
+!!! tip Verified by Prefect
 <div class="verified-task">
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
 <circle cx="24" cy="24" r="24" fill="#42b983"/>

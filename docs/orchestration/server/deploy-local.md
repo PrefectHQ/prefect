@@ -18,15 +18,15 @@ $ prefect server start
 ```
 
 
-::: warning Changes in Prefect 0.15.5
-To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
+!!! warning Changes in Prefect 0.15.5
+    To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
 
-```bash
-$ prefect server start --expose
-```
+    ```bash
+    $ prefect server start --expose
+    ```
 
 
-This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
+    This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
 :::
 
 
@@ -35,13 +35,13 @@ you should see some "Prefect Server" ASCII art along with the logs output from e
 [http://localhost:8080](http://localhost:8080).
 
 
-::: tip Installing Docker
-We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
+!!! tip Installing Docker
+    We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
 :::
 
 
-::: tip Just show me the config
-`prefect server start` templates a basic docker-compose file to conform to the options you pass. Sometimes, you just want to generate this file then manage running it yourself (or make further customizations). We provide a `prefect server config` command that takes all the same settings as `prefect server start` and prints the file to stdout. Try piping it to a file `prefect server config > docker-compose.yaml`.
+!!! tip Just show me the config
+    `prefect server start` templates a basic docker-compose file to conform to the options you pass. Sometimes, you just want to generate this file then manage running it yourself (or make further customizations). We provide a `prefect server config` command that takes all the same settings as `prefect server start` and prints the file to stdout. Try piping it to a file `prefect server config > docker-compose.yaml`.
 :::
 
 ## UI configuration
@@ -96,15 +96,15 @@ config.vm.network "forwarded_port", guest: 8080, host: 8080
 ```
 
 
-::: tip You don't need to host the UI yourself!
-Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
+!!! tip You don't need to host the UI yourself!
+    Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
 
-To achieve this:
+    To achieve this:
 
-- [sign up for a free account](https://cloud.prefect.io/)
-- login; if you click the status indicator to the right of the nav-bar, the UI will switch the endpoint that it talks to
-- you can further configure the location of this endpoint on the Home page
-  :::
+    - [sign up for a free account](https://cloud.prefect.io/)
+    - login; if you click the status indicator to the right of the nav-bar, the UI will switch the endpoint that it talks to
+    - you can further configure the location of this endpoint on the Home page
+:::
 
 ## Database persistence and migrations
 

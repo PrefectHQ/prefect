@@ -62,10 +62,10 @@ flow.run(executor=executor)
 
 This `DaskExecutor` will connect to a Dask scheduler over the address `tcp://localhost:8786` and begin submitting work to be executed on Dask workers.
 
-:::tip Dynamic Scheduler
-If no scheduler `address` is specified for the `DaskExecutor` than an in-process scheduler will be created and torn down upon completion. See the [DaskExecutor API Documentation](/api/latest/executors.html#daskexecutor) for more information.
+!!! tip Dynamic Scheduler
+    If no scheduler `address` is specified for the `DaskExecutor` than an in-process scheduler will be created and torn down upon completion. See the [DaskExecutor API Documentation](/api/latest/executors.html#daskexecutor) for more information.
 :::
 
-:::warning LocalDaskExecutor vs DaskExecutor
-The key difference between the `LocalDaskExecutor` and the `DaskExecutor` is the choice of scheduler. The `LocalDaskExecutor` is configurable to use [any number of schedulers](https://docs.dask.org/en/latest/scheduler-overview.html) while the `DaskExecutor` uses the [distributed scheduler](https://docs.dask.org/en/latest/scheduling.html). This means that the `LocalDaskExecutor` can help achieve some multithreading / multiprocessing however it does not provide as many distributed features as the `DaskExecutor`.
+!!! warning LocalDaskExecutor vs DaskExecutor
+    The key difference between the `LocalDaskExecutor` and the `DaskExecutor` is the choice of scheduler. The `LocalDaskExecutor` is configurable to use [any number of schedulers](https://docs.dask.org/en/latest/scheduler-overview.html) while the `DaskExecutor` uses the [distributed scheduler](https://docs.dask.org/en/latest/scheduling.html). This means that the `LocalDaskExecutor` can help achieve some multithreading / multiprocessing however it does not provide as many distributed features as the `DaskExecutor`.
 :::

@@ -39,9 +39,9 @@ There are many different `Result` classes aligning with different storage backen
 
 In addition, you can specify a `Serializer` that transforms Python objects into bytes prior to being written to storage by a `Result`. The same `Serializer` will be used to recover the object from bytes later.
 
-::: tip NoResult vs. a None Result
-To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
-also provides a `NoResult` object representing the _absence_ of computation / data. This is in contrast to a `Result` whose value is `None`.
+!!! tip NoResult vs. a None Result
+    To distinguish between a Task that runs but does not return output from a Task that has yet to run, Prefect
+    also provides a `NoResult` object representing the _absence_ of computation / data. This is in contrast to a `Result` whose value is `None`.
 :::
 
 ### Interacting with task `Result` objects
@@ -89,8 +89,8 @@ def my_task():
 
 If checkpointing is turned on, the Prefect pipeline will persist the return value of tasks using the `write` method of the task's configured `Result` subclass. Consider the following example task configured to store its return value as a `LocalResult` into the `~/Desktop/HelloWorld/results` directory.
 
-::: tip Enabling Checkpointing During Local Testing
-Checkpointing is only turned on by default when running on Prefect Cloud or Server. To enable checkpointing for local testing, set the `PREFECT__FLOWS__CHECKPOINTING` environment variable to `true`.
+!!! tip Enabling Checkpointing During Local Testing
+    Checkpointing is only turned on by default when running on Prefect Cloud or Server. To enable checkpointing for local testing, set the `PREFECT__FLOWS__CHECKPOINTING` environment variable to `true`.
 :::
 
 ```python
@@ -134,10 +134,10 @@ To showcase this, below is the same example with a flow configured to checkpoint
 '3'
 ```
 
-::: warning Handle your data carefully
-Using checkpointing with results means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
+!!! warning Handle your data carefully
+    Using checkpointing with results means that data will be persisted beyond the Prefect's Python process to a storage location, so it is worth taking some extra time to consider what data is safe to persist where.
 
-In particular, when running on Prefect Cloud, the `location` attribute of the result is what is stored in the state database. When using `PrefectResult` or a custom result subclass, pay special attention to what data is in the `location` attribute.
+    In particular, when running on Prefect Cloud, the `location` attribute of the result is what is stored in the state database. When using `PrefectResult` or a custom result subclass, pay special attention to what data is in the `location` attribute.
 :::
 
 ## How to configure task result persistence
@@ -151,16 +151,16 @@ Configuring a task to persist results requires two steps. First, enable checkpoi
 1. You can specify a Flow-level result at Flow-initialization using the `result` keyword argument. If you never specify another result, this is the one that will be used for all your tasks in this particular Flow.
 1. Alternatively, you can set a Task-level result. This is achieved using the `result` keyword argument at Task initialization (or in the `@task` decorator). If you provide a result here, it will _always_ be used if the _output_ of this Task needs to be cached for any reason whatsoever.
 
-::: tip The Hierarchy
-Task-level results will _always_ be used over flow-level results. Neither will be used if a task's `checkpoint` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
+!!! tip The Hierarchy
+    Task-level results will _always_ be used over flow-level results. Neither will be used if a task's `checkpoint` kwarg is set to `False`, or the global `prefect.config.tasks.checkpointing` value is set to `False`.
 :::
 
-::: warning `Results` are always attached to their task's outputs
-For example, suppose task A is configured to use result A, and task B to use result B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use results to persist the input cache](https://docs.prefect.io/orchestration/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use the result configured on A.
+!!! warning `Results` are always attached to their task's outputs
+    For example, suppose task A is configured to use result A, and task B to use result B, and that A passes data downstream to B. If B fails and requests a retry, it needs to cache its inputs, one of which came from A. If you are using Cloud, [Cloud will use results to persist the input cache](https://docs.prefect.io/orchestration/faq/dataflow.html#when-is-data-persisted), and since the data is from task A it will use the result configured on A.
 :::
 
-::: warning Parameters are different
-There is one exception to the rule for Results: Prefect Parameters. Prefect Parameters always use the `PrefectResult` so that their cached values are inspectable in the UI.
+!!! warning Parameters are different
+    There is one exception to the rule for Results: Prefect Parameters. Prefect Parameters always use the `PrefectResult` so that their cached values are inspectable in the UI.
 :::
 
 ### Choose a `Serializer`

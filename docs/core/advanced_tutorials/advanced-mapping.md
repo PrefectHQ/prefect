@@ -4,11 +4,10 @@
 
 Here we will dig into some of the more advanced features that Prefect offers; in the process, we will construct a real world workflow that highlights how Prefect can be a powerful tool for local development, allowing us to expressively and efficiently create, inspect and extend custom data workflows.
 
-::: tip Our Goal
-Inspired by the revival of the TV show "The X-Files" along with recent advances in Natural Language Processing, we seek to scrape transcripts of every X-Files episode from the internet and save them to a database so that we can create a chatbot based on the character of Dana Scully (actually creating the chatbot is left as an exercise to the reader).
+!!! tip Our Goal
+    Inspired by the revival of the TV show "The X-Files" along with recent advances in Natural Language Processing, we seek to scrape transcripts of every X-Files episode from the internet and save them to a database so that we can create a chatbot based on the character of Dana Scully (actually creating the chatbot is left as an exercise to the reader).
 
 All code examples are intended to be executable on your local machine within an interactive Python or IPython session.
-:::
 
 ## Outline
 
@@ -21,15 +20,13 @@ We will proceed in stages, introducing Prefect functionality as we go:
 
 As we proceed, we hope to ensure that our Flow is _reproducible_ and _reusable_ in the future.
 
-::: warning BeautifulSoup4
-To easily navigate the webpages, we will be using the package [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/bs4/doc/), which is not a requirement for Prefect. To install `BeautifulSoup4`, run either:
+!!! warning BeautifulSoup4
+    To easily navigate the webpages, we will be using the package [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/bs4/doc/), which is not a requirement for Prefect. To install `BeautifulSoup4`, run either:
 
-```
-pip install beautifulsoup4 # OR
-conda install beautifulsoup4
-```
-
-:::
+    ```
+    pip install beautifulsoup4 # OR
+    conda install beautifulsoup4
+    ```
 
 ## Setting up the flow for a single episode
 
@@ -195,7 +192,7 @@ with Flow("xfiles") as flow:
     dialogue = scrape_dialogue.map(episode)
 ```
 
-::: tip Parameters
+!!! tip Parameters
 The `Parameter` class has a few useful settings that we need in the above example:
 
 - `default`: The default value the parameter should take; in our case, we want `bypass=False`
@@ -210,12 +207,11 @@ flow.visualize()
 
 ![full scrape flow](/full_scrape_flow.svg){.viz-md .viz-padded}
 
-::: tip How mapped tasks are returned
-In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state. This `Mapped` state has two special attributes worth knowing about:
+!!! tip How mapped tasks are returned
+    In a flow run, `flow_state.result[task]` returns the post-run `State` of the `task` (e.g., `Success("Task run succeeded")`). If the task was the result of calling `.map()`, `flow_state.result[task]` will be a special kind of state called a `Mapped` state. This `Mapped` state has two special attributes worth knowing about:
 
-- `map_states`: this attribute contains a list of all the states of all the individual mapped instances
-- `result`: the result of a `Mapped` task is a list of all the results of its individual mapped instances
-  :::
+    - `map_states`: this attribute contains a list of all the states of all the individual mapped instances
+    - `result`: the result of a `Mapped` task is a list of all the results of its individual mapped instances
 
 Now let's run our flow, time its execution, and print the states for the first five scraped episodes:
 
@@ -242,15 +238,13 @@ our flow: we provide an executor which can handle parallelism in our call to
 `run`. In the local case, Prefect offers the `DaskExecutor` for executing
 parallel flows.
 
-:::tip What is an executor, anyway?
-A Prefect executor is the core driver of computation - an executor specifies _how_ and _where_ each task in a flow should be run.
-:::
+!!! tip What is an executor, anyway?
+    A Prefect executor is the core driver of computation - an executor specifies _how_ and _where_ each task in a flow should be run.
 
-::: warning System limits
-Using parallelism locally can open large numbers of ["file descriptors"](https://stackoverflow.com/a/5256705/1617887) on your machine and occasionally cause cryptic errors - you should check your system limit and increase it if necessary.
+!!! warning System limits
+    Using parallelism locally can open large numbers of ["file descriptors"](https://stackoverflow.com/a/5256705/1617887) on your machine and occasionally cause cryptic errors - you should check your system limit and increase it if necessary.
 
-If you are following along and executing the code locally, it is recommended you do so using an interactive Python or IPython session; because the `DaskExecutor` will spawn new subprocesses, [issues can arise if executed within a script incorrectly](https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods).
-:::
+    If you are following along and executing the code locally, it is recommended you do so using an interactive Python or IPython session; because the `DaskExecutor` will spawn new subprocesses, [issues can arise if executed within a script incorrectly](https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods).
 
 ```python
 from prefect.executors import DaskExecutor
@@ -319,11 +313,10 @@ with flow:
     final = insert_episode.map(script=ep_script, upstream_tasks=[unmapped(db)])
 ```
 
-::: tip task.map()
-In the above example, we utilize a new call signature for `task.map()`. It is often the case that some arguments to your task should _not_ be mapped over (they remain static). This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`. In our example above, the argument `"db"` is _not_ mapped over and is provided as-is to `insert_episode`.
+!!! tip task.map()
+    In the above example, we utilize a new call signature for `task.map()`. It is often the case that some arguments to your task should _not_ be mapped over (they remain static). This can be specified with the special `unmapped` container which we use to wrap such arguments to `map`. In our example above, the argument `"db"` is _not_ mapped over and is provided as-is to `insert_episode`.
 
-You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is a way of functionally specifying upstream dependencies which do not pass any data.
-:::
+    You also might notice the special `upstream_tasks` keyword argument; this is not unique to `map` and is a way of functionally specifying upstream dependencies which do not pass any data.
 
 ```python
 flow.visualize()

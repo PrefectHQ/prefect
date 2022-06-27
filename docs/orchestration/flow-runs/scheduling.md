@@ -2,8 +2,8 @@
 
 If a flow has a schedule attached, then the Prefect backend can [automatically create new flow runs](#scheduled-flow-run-creation) according to that schedule.
 
-::: tip
-Scheduling in this manner is nothing more than a convenient way to generate new runs; you can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
+!!! tip
+    Scheduling in this manner is nothing more than a convenient way to generate new runs; you can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
 :::
 
 Flow schedules can be defined when your flow is registered using the Prefect Core library or after registration using the Prefect API or UI. For details on defining a schedule at registration time, see the [Core scheduling documentation](../../core/concepts/schedules.md). The Core documentation will also be useful for understanding the basic building blocks of schedules, but if you'd like to venture forward here's a quick summary:
@@ -19,13 +19,13 @@ If you're looking to run a flow _once_ in the future instead of creating a recur
 
 Flow schedules are attached to the flow group and can be set using the `set_flow_group_schedule` mutation.
 
-::: warning Existing schedules
-Setting flow group schedules will remove any existing schedules.
+!!! warning Existing schedules
+    Setting flow group schedules will remove any existing schedules.
 :::
 
-::: tip Scheduling in the Prefect UI
-The UI provides a friendly interface for setting schedules in the [flow group settings page](../ui/flow.md#settings).
-The UI will preserve existing schedules and generate CRON clocks for you.
+!!! tip Scheduling in the Prefect UI
+    The UI provides a friendly interface for setting schedules in the [flow group settings page](../ui/flow.md#settings).
+    The UI will preserve existing schedules and generate CRON clocks for you.
 :::
 
 In this example, two interval clocks are set for a flow group. The first runs every hour and sets the parameter `name` to `"Marvin 1hr"`. The second runs every two hours and sets the parameter `name` to `"Marvin 2hr"`.
@@ -61,20 +61,20 @@ mutation {
 }
 ```
 
-::: warning Scheduling with parameters
-Prefect cannot auto-schedule flows that have required parameters, because the scheduler won't know what value to use. You will get an error if you try to turn on scheduling for such a flow.
+!!! warning Scheduling with parameters
+    Prefect cannot auto-schedule flows that have required parameters, because the scheduler won't know what value to use. You will get an error if you try to turn on scheduling for such a flow.
 
-To resolve this, provide a default value for your parameters in your flow code or the schedule clock:
+    To resolve this, provide a default value for your parameters in your flow code or the schedule clock:
 
-```python
-from prefect import Parameter
+    ```python
+    from prefect import Parameter
 
-x = Parameter('x', default=1)
-```
+    x = Parameter('x', default=1)
+    ```
 
-```graphql
-{..., parameter_defaults: "{\"x\": 1}"}
-```
+    ```graphql
+    {..., parameter_defaults: "{\"x\": 1}"}
+    ```
 :::
 
 ## Scheduled flow run creation

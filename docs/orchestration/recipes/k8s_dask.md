@@ -90,13 +90,13 @@ spec:
             ]
 ```
 
-:::warning Required dependencies
-When running Dask on Kubernetes you must ensure your image contains the
-dependencies your flow needs to execute, either by using the flow's Docker
-storage as the image for Dask or by building a custom image with all the
-required dependencies. The manifest above uses the `prefecthq/prefect:latest`
-image for both the Dask scheduler & worker pods, since our flow has no external
-dependencies beyond Prefect.
+!!! warning Required dependencies
+    When running Dask on Kubernetes you must ensure your image contains the
+    dependencies your flow needs to execute, either by using the flow's Docker
+    storage as the image for Dask or by building a custom image with all the
+    required dependencies. The manifest above uses the `prefecthq/prefect:latest`
+    image for both the Dask scheduler & worker pods, since our flow has no external
+    dependencies beyond Prefect.
 :::
 
 ## Flow Source

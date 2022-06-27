@@ -14,7 +14,7 @@ Users can generate API keys to interact with the API with their personal permiss
 
 To generate an API key for your User, navigate to Account Settings > API Keys within the UI and click "Create an API Key".
 
-::: tip Security best practice
+!!! tip Security best practice
 When you need to create a long-lived key for CI, a Prefect Agent, or any use beyond local development, create an API key for a service account instead of for your user. Actions performed in an automated setting should not be linked to your user identity and should not require the permissions of a full user.
 :::
 
@@ -27,20 +27,20 @@ When creating an API key, you can configure the following attributes:
 - **API Key Name**: The name of this key; this is useful for organizational and bookkeeping purposes
 - **API Key Expiration**: An optional expiration date for the key - if no expiration is provided, the key will never expire
 
-::: tip Service account creation
-Note that service accounts can only be created by tenant admins.
+!!! tip Service account creation
+    Note that service accounts can only be created by tenant admins.
 :::
 
-::: tip GraphQL API
-To create an API key using GraphQL use the `create_api_key` mutation. For more information on how to use the GraphQL API go [here](api.html). For a user_id, supply either your user id or a service account id.
+!!! tip GraphQL API
+    To create an API key using GraphQL use the `create_api_key` mutation. For more information on how to use the GraphQL API go [here](api.html). For a user_id, supply either your user id or a service account id.
 
-```graphql
-mutation {
-  create_api_key(input: { user_id: <user_id>, name: "my-api-key" }) {
-    key
-  }
-}
-```
+    ```graphql
+    mutation {
+      create_api_key(input: { user_id: <user_id>, name: "my-api-key" }) {
+        key
+      }
+    }
+    ```
 :::
 
 
@@ -84,12 +84,12 @@ tenant_id = "<TENANT-ID>"
 ::::
 
 
-::: tip Specifying a key for agents
-Agents will load keys from these default locations as described above, but you can also pass an override directly to the agent when you start it. For example:
+!!! tip Specifying a key for agents
+    Agents will load keys from these default locations as described above, but you can also pass an override directly to the agent when you start it. For example:
 
-```bash
-$ prefect agent local start --key "<YOUR-KEY>"
-```
+    ```bash
+    $ prefect agent local start --key "<YOUR-KEY>"
+    ```
 :::
 
 ## Querying for API key metadata
@@ -199,12 +199,12 @@ mutation {
 
 ## Using API keys with older versions of Prefect
 
-::: warning
-As of version 1.0.0, API tokens are no longer supported as an authentication method.
+!!! warning
+    As of version 1.0.0, API tokens are no longer supported as an authentication method.
 
-This section describes how you can use API keys for authentication in place of how you may have previously used tokens.
+    This section describes how you can use API keys for authentication in place of how you may have previously used tokens.
 
-Note that, if you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.
+    Note that, if you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.
 :::
 
 If you are running a version of Prefect older than 0.15.0, note that:

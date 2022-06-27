@@ -6,26 +6,26 @@ sidebarDepth: 0
 
 Before we even `import prefect`, let's begin by reviewing a typical real-life ETL workflow.
 
-::: tip Follow along in the Terminal
+!!! tip Follow along in the Terminal
 
-Grab the tutorial code:
+    Grab the tutorial code:
 
-```
-git clone --depth 1 https://github.com/PrefectHQ/prefect.git
-cd prefect/examples/tutorial
+    ```
+    git clone --depth 1 https://github.com/PrefectHQ/prefect.git
+    cd prefect/examples/tutorial
 
-# Optionally, create a virtual environment for this tutorial
-python3 -m venv env  
-source env/bin/activate   
+    # Optionally, create a virtual environment for this tutorial
+    python3 -m venv env  
+    source env/bin/activate   
 
-pip install -r requirements.txt
-```
+    pip install -r requirements.txt
+    ```
 
-Run this example:
+    Run this example:
 
-```
-python 01_etl.py
-```
+    ```
+    python 01_etl.py
+    ```
 
 :::
 
@@ -76,8 +76,5 @@ Additionally, an unnecessarily-linear flow introduces a second problem: workflow
 
 These poor behaviors are indicators that the script is not well engineered. The "missing engineering" involved here are the things that we at Prefect refer to as "negative engineering", or the inherent precautions one must take to ensure that the workflow will be well-behaved. The code above has very little (if any) of these precautions.
 
-::: warning Up Next!
-
 Next, we'll take our ETL example and use Prefect to improve the behavior of our workflow.
 
-:::

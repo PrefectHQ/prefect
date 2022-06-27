@@ -1,9 +1,9 @@
 # Environments Overview
 
-::: warning
-Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
+!!! warning
+    Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
 
-See [Storage](/orchestration/flow_config/storage.html) for current Flow definition storage capabilities.
+    See [Storage](/orchestration/flow_config/storage.html) for current Flow definition storage capabilities.
 :::
 
 Executing flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows can be saved, shared, and executed across various platforms.
@@ -46,21 +46,21 @@ f.storage = Docker()
 f.register("My First Project", registry_url="prefecthq/storage-example")
 ```
 
-::: tip Pre-Build Storage
-You are also able to optionally build your storage separate from the `register` command and specify that you do not want to build it again at registration-time:
+!!! tip Pre-Build Storage
+    You are also able to optionally build your storage separate from the `register` command and specify that you do not want to build it again at registration-time:
 
-```python
-from prefect.storage import Docker
+    ```python
+    from prefect.storage import Docker
 
-f = Flow("example-storage")
-f.storage = Docker(registry_url="prefecthq/storage-example")
+    f = Flow("example-storage")
+    f.storage = Docker(registry_url="prefecthq/storage-example")
 
-# Pre-build storage
-f.storage.build()
+    # Pre-build storage
+    f.storage.build()
 
-# Register but don't rebuild storage
-f.register("My First Project", build=False)
-```
+    # Register but don't rebuild storage
+    f.register("My First Project", build=False)
+    ```
 
 :::
 
@@ -188,6 +188,6 @@ LocalAgent(labels=["dev"]).start()
 # Flow will NOT be picked up by this agent
 ```
 
-:::tip Empty Labels
-An empty label list is effectively considered a label. This means that if you register a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
+!!! tip Empty Labels
+    An empty label list is effectively considered a label. This means that if you register a flow with no environment labels it will only be picked up by Agents which also do not have labels specified.
 :::

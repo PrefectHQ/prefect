@@ -40,28 +40,28 @@ def my_task():
     logger.warning("A warning message.")
 ```
 
-::: tip Make sure to only access context while your task is running
-The Prefect `context` is populated when your task runs. Therefore, you should only access the context logger while your task is running. For example, this WON'T work:
+!!! tip Make sure to only access context while your task is running
+    The Prefect `context` is populated when your task runs. Therefore, you should only access the context logger while your task is running. For example, this WON'T work:
 
-```python
-logger = prefect.context.get("logger")
+    ```python
+    logger = prefect.context.get("logger")
 
-@task
-def my_task():
+    @task
+    def my_task():
 
-    logger.info("An info message.")
-    logger.warning("A warning message.")
-```
-Note, pickling context objects is explicitly not supported. You should always access context as an attribute of the `prefect` module. For example, this WON'T work:
-```python
-from prefect import context
+        logger.info("An info message.")
+        logger.warning("A warning message.")
+    ```
+    Note, pickling context objects is explicitly not supported. You should always access context as an attribute of the `prefect` module. For example, this WON'T work:
+    ```python
+    from prefect import context
 
-@task
-def my_task():
-    logger = context.get("logger") # will not work
-    logger.info("An info message.")
-    logger.warning("A warning message.")
-```
+    @task
+    def my_task():
+        logger = context.get("logger") # will not work
+        logger.info("An info message.")
+        logger.warning("A warning message.")
+    ```
 
 :::
 

@@ -13,12 +13,12 @@ Link artifacts render a clickable hyperlink as an artifact.
 
 Markdown artifacts render strings that can include [Github-flavored Markdown](https://github.github.com/gfm/) markup for formatting. 
 
-::: tip Artifacts render individually
-Note that each artifact you create in a task renders as an individual artifact in the Prefect UI. In other words, each call to `create_link_artifact()` or `create_markdown_artifact()` creates its own, separate artifact.
+!!! tip Artifacts render individually
+    Note that each artifact you create in a task renders as an individual artifact in the Prefect UI. In other words, each call to `create_link_artifact()` or `create_markdown_artifact()` creates its own, separate artifact.
 
-Within a task, you may use these commands as many times as necessary, but they do not operate in the same manner as a `print()` command where you might string together multiple calls to add additional items to a report. 
+    Within a task, you may use these commands as many times as necessary, but they do not operate in the same manner as a `print()` command where you might string together multiple calls to add additional items to a report. 
 
-As a best practice, such as when using `create_markdown_artifact()` to create artifacts like reports or summaries, compile your message string separately, then pass to `create_markdown_artifact()` or `update_markdown_artifact()` to create the full artifact.
+    As a best practice, such as when using `create_markdown_artifact()` to create artifacts like reports or summaries, compile your message string separately, then pass to `create_markdown_artifact()` or `update_markdown_artifact()` to create the full artifact.
 :::
 
 For more background on the design goals for the Artifacts API, see the [Introducing: The Artifacts API](https://www.prefect.io/blog/introducing-the-artifacts-api) blog post and the [Great Expectations task](/api/latest/tasks/great_expectations.html).
@@ -43,8 +43,8 @@ You can navigate between the artifacts created for a task run by clicking the do
 
 To create link artifacts, just import `create_link_artifact` from `prefect.backend.artifacts`, then add a call to `create_link_artifact()` to any task orchestrated through a Prefect API. 
 
-::: tip Import path
-If you are using a version prior to Prefect 0.15.8, import `create_link` from `prefect.artifacts`.
+!!! tip Import path
+    If you are using a version prior to Prefect 0.15.8, import `create_link` from `prefect.artifacts`.
 :::
 
 Pass `create_link_artifact()` a string containing the absolute URL of the location to which you want to link. 
@@ -71,8 +71,8 @@ Note that `update_link_artifact()` updates an existing link artifact by replacin
 
 To create link artifacts, just import `create_markdown_artifact` from `prefect.backend.artifacts`, then add a call to `create_markdown_artifact()` to any task orchestrated through a Prefect API. 
 
-::: tip Import path
-If you are using a version prior to Prefect 0.15.8, import `create_markdown` from `prefect.artifacts`.
+!!! tip Import path
+    If you are using a version prior to Prefect 0.15.8, import `create_markdown` from `prefect.artifacts`.
 :::
 
 Pass `create_markdown_artifact()` a string that will be rendered as an artifact. The string can contain any [Github-flavored Markdown](https://github.github.com/gfm/) markup including image references, links, and tables. 
@@ -122,8 +122,8 @@ with Flow(name="appending-artifact") as flow:
     add_to_report(artifact_id, report)
 ```
 
-::: tip Markdown strings and line endings
-Explicit line endings and blank lins are important to rendering markdown correctly. When formatting markdown for artifacts, make sure that you include explicit line endings (`\n` or equivalent) where appropriate.
+!!! tip Markdown strings and line endings
+    Explicit line endings and blank lins are important to rendering markdown correctly. When formatting markdown for artifacts, make sure that you include explicit line endings (`\n` or equivalent) where appropriate.
 :::
 
 ## Deleting Artifacts

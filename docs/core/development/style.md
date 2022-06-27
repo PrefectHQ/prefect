@@ -27,31 +27,29 @@ In addition, a number of extensions are available for popular editors that will 
 
 Prefect auto-generates API documentation from docstrings by compiling them to Markdown. In order for docstrings to compile correctly, please follow these rules:
 
-:::tip Docstring Formatting
+!!! tip Docstring Formatting
+    - All documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring.
+    - Any references to "code" or variable names should be surrounded by backticks so it will be properly formatted in Markdown.
+    - Arguments are indicated by the word `Args:` followed by a Markdown list that indicates each argument's name, type, and description:
+    ```
+    Args:
+        - x (int): a number that provides the initial value.
+    ```
 
-- All documentation about class initialization should go into the class docstring, _not_ the `__init__` method docstring.
-- Any references to "code" or variable names should be surrounded by backticks so it will be properly formatted in Markdown.
-- Arguments are indicated by the word `Args:` followed by a Markdown list that indicates each argument's name, type, and description:
-  ```
-  Args:
-      - x (int): a number that provides the initial value.
-  ```
+    * The return value is indicated by the word `Returns:` followed by a Markdown list that indicates the return value's type and description. Note that a list is required even though there is only a single return type:
 
-* The return value is indicated by the word `Returns:` followed by a Markdown list that indicates the return value's type and description. Note that a list is required even though there is only a single return type:
+    ```
+    Returns:
+        - int: a number representing the output
+    ```
 
-  ```
-  Returns:
-      - int: a number representing the output
-  ```
+    * Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list that indicates each exception's type and description:
 
-* Any errors raised by a function are indicated by the word `Raises:` followed by a Markdown list that indicates each exception's type and description:
+    ```
+    Raises:
+        - ValueError: if the input is zero or negative
+    ```
 
-  ```
-  Raises:
-      - ValueError: if the input is zero or negative
-  ```
-
-:::
 Here is an example of a fully-documented module:
 
 ```python

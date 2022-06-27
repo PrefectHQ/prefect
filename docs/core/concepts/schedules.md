@@ -59,24 +59,24 @@ schedule = Schedule(clocks=[IntervalClock(timedelta(hours=24))])
 schedule.next(5)
 ```
 
-::: tip Time Zones
-Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock:
+!!! tip Time Zones
+    Want to pin your schedule to a time zone? Specify a `start_date` corresponding to that time zone for your clock:
 
-```python
-import pendulum
+    ```python
+    import pendulum
 
-schedules.clocks.IntervalClock(
-    start_date=pendulum.datetime(2019, 1, 1, tz="America/New_York"),
-    interval=timedelta(days=1),
-)
-```
+    schedules.clocks.IntervalClock(
+        start_date=pendulum.datetime(2019, 1, 1, tz="America/New_York"),
+        interval=timedelta(days=1),
+    )
+    ```
 
 :::
 
-::: warning Daylight Saving Time
-If the `IntervalClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself appropriately. Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals. For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this will result in two runs that _appear_ to both be scheduled for 1am local time, even though they are an hour apart in UTC time. For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
+!!! warning Daylight Saving Time
+    If the `IntervalClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself appropriately. Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals. For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this will result in two runs that _appear_ to both be scheduled for 1am local time, even though they are an hour apart in UTC time. For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-Note that this behavior is different from the `CronClock`.
+    Note that this behavior is different from the `CronClock`.
 :::
 
 #### Cron clocks
@@ -93,10 +93,10 @@ schedule = Schedule(clocks=[CronClock("0 0 * * *")])
 schedule.next(5)
 ```
 
-::: warning Daylight Saving Time
-If the `CronClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself. Cron's rules for DST are based on clock times, not intervals. This means that an hourly cron schedule will fire on every new clock hour, not every elapsed hour; for example, when clocks are set back this will result in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. Longer schedules, such as one that fires at 9am every morning, will automatically adjust for DST.
+!!! warning Daylight Saving Time
+    If the `CronClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself. Cron's rules for DST are based on clock times, not intervals. This means that an hourly cron schedule will fire on every new clock hour, not every elapsed hour; for example, when clocks are set back this will result in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. Longer schedules, such as one that fires at 9am every morning, will automatically adjust for DST.
 
-Note that this behavior is different from the `IntervalClock`.
+    Note that this behavior is different from the `IntervalClock`.
 :::
 
 #### Date clocks

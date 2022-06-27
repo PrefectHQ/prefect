@@ -6,17 +6,17 @@ sidebarDepth: 1
 
 ![slack-banner](https://uploads-ssl.webflow.com/5ba446b0e783e26d5a2f2382/5bc4f20bd534b99be66f24aa_slack.png){.viz-md}
 
-::: warning Deprecation warning
+!!! warning Deprecation warning
 
-Note that this tutorial is outdated and will be removed in a future release.
+    Note that this tutorial is outdated and will be removed in a future release.
 
-For Slack notifications, we recommend:
+    For Slack notifications, we recommend:
 
-- [Automations](/orchestration/ui/automations.html)
-- [SlackTask](/api/latest/tasks/notifications.html#slacktask)
-- [Notifications and State Handlers](/core/concepts/notifications.html)
+    - [Automations](/orchestration/ui/automations.html)
+    - [SlackTask](/api/latest/tasks/notifications.html#slacktask)
+    - [Notifications and State Handlers](/core/concepts/notifications.html)
 
-You'll find an excellent tutorial demonstrating [How to send Slack notifications using the SlackTask](https://discourse.prefect.io/t/how-to-send-slack-notifications-using-the-slacktask/497) in the [Prefect Community Discourse](https://discourse.prefect.io/).
+    You'll find an excellent tutorial demonstrating [How to send Slack notifications using the SlackTask](https://discourse.prefect.io/t/how-to-send-slack-notifications-using-the-slacktask/497) in the [Prefect Community Discourse](https://discourse.prefect.io/).
 
 :::
 
@@ -67,9 +67,8 @@ After making your decisions, click the green "Authorize" button to proceed. Assu
 
 That's it! Save the URL in your secure location of choice.
 
-::: tip Multiple Installations
-It's perfectly OK to integrate the Prefect App multiple times into the same workspace; for example, you and a coworker who both use Prefect might want customized notifications. Follow these steps as many times as you desire, but make sure to keep track of which channel each URL is attached to!
-:::
+!!! tip Multiple Installations
+    It's perfectly OK to integrate the Prefect App multiple times into the same workspace; for example, you and a coworker who both use Prefect might want customized notifications. Follow these steps as many times as you desire, but make sure to keep track of which channel each URL is attached to!
 
 ## Using your URL to get notifications
 
@@ -82,9 +81,8 @@ Alternatively, for testing and development, you can include it in the `[context.
 SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/XXXXXXXXX/xxxxxxxxx/XXXXXXXXXXX"
 ```
 
-::: warning Storing Secrets
-This method of storing secrets is intended _only_ for local development and testing! For production usage, use a Prefect Secret instead.
-:::
+!!! warning Storing Secrets
+    This method of storing secrets is intended _only_ for local development and testing! For production usage, use a Prefect Secret instead.
 
 Almost there - all that's left is to actually hook up the `slack_notifier` state handler to your favorite task or flow! All task and flow initializations accept an optional `state_handler` keyword argument. This should consist of a _list_ of "state handler" callables with call signature
 

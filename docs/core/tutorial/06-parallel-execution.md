@@ -3,12 +3,12 @@ sidebarDepth: 0
 ---
 # Scaling Out
 
-::: tip Follow along in the Terminal
+!!! tip Follow along in the Terminal
 
-```
-cd examples/tutorial
-python 06_parallel_execution.py
-```
+    ```
+    cd examples/tutorial
+    python 06_parallel_execution.py
+    ```
 
 :::
 
@@ -36,8 +36,6 @@ flow.run(
 
 Furthermore, you can implement your own `Executor` for use with any Prefect `Flow`, as long as the object provided satisfies [the `Executor` interface](https://github.com/PrefectHQ/prefect/blob/master/src/prefect/executors/base.py) (i.e. appropriate `submit`, `map`, and `wait` functions, similar to Python's [`concurrent.futures.Executor`](https://docs.python.org/3/library/concurrent.futures.html#executor-objects) interface). In this way, the sky is the limit!
 
-::: warning Up Next!
-
-What else can Prefect do?...
+Up Next! What else can Prefect do?...
 
 :::
