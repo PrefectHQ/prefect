@@ -708,6 +708,14 @@ class TestRegisterBlock:
         ):
             await Block.register_type_and_schema()
 
+    def test_save_and_load_sync_compatible(self):
+        class CoolBlock(Block):
+            cool_factor: int
+
+        CoolBlock(cool_factor=1000000).save("my-rad-block")
+        loaded_block = CoolBlock.load("my-rad-block")
+        assert loaded_block.cool_factor == 1000000
+
 
 class TestSaveBlock:
     @pytest.fixture
