@@ -31,7 +31,7 @@
       return null
     }
 
-    return [titleCase(blockTypeNameParam.value)]
+    return [blockTypeNameParam.value]
   })
 
   const blockTypeSubscription = useSubscriptionWithDependencies(blockTypesApi.getBlockTypeByName, blockTypeSubscriptionArgs)
