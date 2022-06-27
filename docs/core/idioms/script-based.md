@@ -123,9 +123,7 @@ use that code.
     )
     ```
 
-:::
-
-::: tip Bitbucket users
+!!! tip Bitbucket users
     Similarly, to use Bitbucket (Server only) based storage, install the `bitbucket` extra:
 
     ```bash

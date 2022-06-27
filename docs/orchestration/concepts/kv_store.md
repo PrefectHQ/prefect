@@ -51,8 +51,8 @@ CLI:
 $ prefect kv get foo
 Key 'foo' has value 'bar'
 ```
-:::
-::: tab GraphQL API
+
+GraphQL API:
 ```graphql
 query {
   key_value (where: {key: {_eq: "foo"}}) {
