@@ -6,18 +6,23 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import Field, SecretBytes, SecretStr
 
-from prefect.blocks.core import BLOCK_REGISTRY, Block, get_block_class, register_block
+from prefect.blocks.core import Block
 from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
+from prefect.utilities.dispatch import get_registry_for_type, lookup_type, register_type
 
 
 @pytest.fixture(autouse=True)
-def reset_registered_blocks(monkeypatch):
-    _copy = BLOCK_REGISTRY.copy()
-    monkeypatch.setattr("prefect.blocks.core.BLOCK_REGISTRY", _copy)
+def reset_registered_blocks():
+    registry = get_registry_for_type(Block)
+    before = registry.copy()
+
     yield
+
+    registry.clear()
+    registry.update(before)
 
 
 class TestAPICompatibility:
@@ -25,12 +30,12 @@ class TestAPICompatibility:
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyRegisteredBlock(Block):
         x: str
         y: int = 1
 
-    @register_block
+    @register_type
     class MyOtherRegisteredBlock(Block):
         x: str
         y: int = 1
@@ -38,17 +43,19 @@ class TestAPICompatibility:
 
     def test_registration_checksums(self):
         assert (
-            get_block_class(self.MyRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyRegisteredBlock.__dispatch_key__())
             is self.MyRegisteredBlock
         )
 
         assert (
-            get_block_class(self.MyOtherRegisteredBlock._calculate_schema_checksum())
+            lookup_type(Block, self.MyOtherRegisteredBlock.__dispatch_key__())
             is self.MyOtherRegisteredBlock
         )
 
-        with pytest.raises(ValueError, match="(No block schema exists)"):
-            get_block_class(self.MyBlock._calculate_schema_checksum())
+        with pytest.raises(
+            KeyError, match="No class found in registry for dispatch key"
+        ):
+            lookup_type(Block, self.MyBlock.__dispatch_key__())
 
     def test_create_api_block_schema(self, block_type_x):
         block_schema = self.MyRegisteredBlock._to_block_schema(
@@ -220,7 +227,7 @@ class TestAPICompatibility:
         }
 
     def test_registering_blocks_with_capabilities(self):
-        @register_block
+        @register_type
         class IncapableBlock(Block):
             # could use a little confidence
             _block_type_id = uuid4()
@@ -231,7 +238,7 @@ class TestAPICompatibility:
             def bluff(self):
                 pass
 
-        @register_block
+        @register_type
         class CapableBlock(CanBluff, Block):
             # kind of rude to the other Blocks
             _block_type_id = uuid4()
@@ -244,7 +251,7 @@ class TestAPICompatibility:
         assert incapable_schema.capabilities == []
 
     def test_create_api_block_schema_only_includes_pydantic_fields(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
@@ -458,7 +465,7 @@ class TestAPICompatibility:
         assert block._block_type_id == block_type_id
 
     def test_create_block_document_from_block(self, block_type_x):
-        @register_block
+        @register_type
         class MakesALottaAttributes(Block):
             real_field: str
             authentic_field: str
