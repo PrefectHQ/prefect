@@ -172,7 +172,7 @@ class PrefectBaseModel(BaseModel):
         """
         Returns a representation of the model as JSON.
 
-        If include_secrets=True, then `SecretStr` and `SecretBytes` objects are
+        If `include_secrets=True`, then `SecretStr` and `SecretBytes` objects are
         fully revealed. Otherwise they are obfuscated.
 
         """
