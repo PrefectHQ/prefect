@@ -80,6 +80,19 @@ def test_register_type():
     assert lookup_type(Parent, "child") is Child
 
 
+def test_register_type_can_be_repeated_for_same_class():
+    @register_base_type
+    class Parent:
+        pass
+
+    @register_type
+    @register_type
+    class Child(Parent):
+        __dispatch_key__ = "child"
+
+    assert lookup_type(Parent, "child") is Child
+
+
 def test_register_type_with_invalid_dispatch_key():
     @register_base_type
     class Parent:

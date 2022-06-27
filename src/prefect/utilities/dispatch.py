@@ -147,7 +147,7 @@ def register_type(cls: T) -> T:
 
     key = get_dispatch_key(cls)
     existing_value = registry.get(key)
-    if existing_value is not None:
+    if existing_value is not None and id(existing_value) != id(cls):
         warnings.warn(
             f"Type {cls.__name__!r} has key {key!r} that matches existing registered "
             f"type {existing_value.__name__!r}. The existing type will be overridden."
