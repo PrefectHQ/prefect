@@ -38,7 +38,7 @@ class DateTime(Block):
     )
 
 
-@register_block
+@register_type
 class EnvironmentVariable(Block):
     """
     A block that pulls its value from an environment variable.
