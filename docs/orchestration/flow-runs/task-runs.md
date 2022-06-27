@@ -20,9 +20,7 @@ The Prefect Core library provides an object for inspecting task runs without wri
 
 A `TaskRunView` is created by querying the backend for task run data. You can use the task `slug` or the task run `id` to look up the data for a `TaskRunView`.
 
-:::: tabs
-
-::: tab Task slug
+Task slug:
 
 When using a task slug, the `flow_run_id` is needed because the task may have been run in multiple flow runs.
 ```python
@@ -38,9 +36,7 @@ task_run = TaskRunView.from_task_slug("say_hello-1", flow_run_id="8e445d74-9ca6-
 # )
 ```
 
-:::
-
-::: tab Task run id
+Task run id:
 
 ```python
 from prefect.backend import TaskRunView
@@ -55,9 +51,6 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 # )
 ```
 
-:::
-
-::::
 
 #### Task run results
 

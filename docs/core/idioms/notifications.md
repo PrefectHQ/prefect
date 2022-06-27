@@ -10,8 +10,7 @@ Adding tasks to your flow that respond to upstream events is one way of sending 
     This code below makes use of a [Slack Webhook URL](https://api.slack.com/messaging/webhooks) as a Prefect Secret. For more information on using Prefect Secrets visit the [concept documentation](/core/concepts/secrets.html).
 :::
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import task, Flow
 from prefect.tasks.notifications import SlackTask
@@ -26,9 +25,8 @@ with Flow("slack-test") as flow:
     value = get_value()
     slack_task(message=value)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Task, Flow
 from prefect.tasks.notifications import SlackTask
@@ -44,8 +42,7 @@ slack_task = SlackTask()
 
 slack_task.set_upstream(value, key="message", flow=flow)
 ```
-:::
-::::
+
 
 In this example the `SlackTask` notification will execute every time the upstream task is successful. To enable a different behavior where this task runs due to different upstream task states attach a [trigger](/api/latest/triggers.html#triggers) to the task. For example, you could execute this task in certain situations such as upstream failures using an `any_failed` trigger.
 

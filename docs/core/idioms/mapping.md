@@ -8,8 +8,7 @@ In this example let's take a flow where we want to pass in a [Parameter](/core/c
 
 This flow is going to map over the output from the `get_numbers` task, generating `total` additional tasks with random numbers, and then it is going to output each of those numbers multiplied by the supplied `multiple`.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from random import sample
 
@@ -31,9 +30,8 @@ with Flow("unmapped-values") as flow:
 
     output_value.map(numbers, multiple=unmapped(multiple))
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from random import sample
 
@@ -59,5 +57,4 @@ output_value = OutputValue()
 output_value.set_upstream(numbers, key="n", mapped=True, flow=flow)
 output_value.set_upstream(multiple, key="multiple", mapped=False, flow=flow)
 ```
-:::
-::::
+

@@ -4,8 +4,7 @@ Since Prefect flows are Python objects they can be tested in any way you would n
 
 Use the following flow as an example:
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import task, Flow
 
@@ -26,9 +25,8 @@ with Flow("testing-example") as flow:
     t = transform(e)
     l = load(t)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Task, Flow
 
@@ -53,8 +51,7 @@ l = Load()
 flow.add_edge(upstream_task=e, downstream_task=t, key="x")
 flow.add_edge(upstream_task=t, downstream_task=l, key="x")
 ```
-:::
-::::
+
 
 #### Testing flow composition
 

@@ -14,22 +14,18 @@ Agent aren't [installed by default](/core/getting_started/installation.md). If
 you're a `pip` user you'll need to add the `kubernetes` extra. Likewise, with
 `conda` you'll need to install the extra `kubernetes` package:
 
-:::: tabs
-::: tab Pip
+Pip:
 
 ```bash
 pip install prefect[kubernetes]
 ```
 
-:::
-::: tab Conda
+Conda:
 
 ```bash
 conda install -c conda-forge prefect python-kubernetes
 ```
 
-:::
-::::
 
 If you're deploying the Kubernetes Agent in-cluster, you won't need to worry
 about this.

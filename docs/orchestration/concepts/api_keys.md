@@ -56,18 +56,15 @@ This will store your key on disk and load it each time you use Prefect locally. 
 
 You may also provide your key with an environment variable or the config. This is often preferable for CI jobs. If you want to use a tenant other than the default tenant associated with the key, you'll need to set that as well.
 
-:::: tabs
-
-::: tab Environment
+Environment:
 
 ```bash
 $ export PREFECT__CLOUD__API_KEY="<YOUR-KEY>"
 # Optional
 $ export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
 ```
-:::
 
-::: tab Prefect Config
+Prefect Config:
 
 Modify `~/.prefect/config.toml`
 
@@ -79,9 +76,6 @@ api_key = "<YOUR-KEY>"
 tenant_id = "<TENANT-ID>"
 ```
 
-:::
-
-::::
 
 
 !!! tip Specifying a key for agents
@@ -96,9 +90,7 @@ tenant_id = "<TENANT-ID>"
 
 Your API key metadata can be viewed in several ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant.
 
-:::: tabs
-
-::: tab CLI
+CLI:
 
 To see keys from the CLI, use the `prefect auth list-keys` command
 
@@ -111,9 +103,7 @@ my_key        5441f413-4b9d-4630-8b1c-0103aa38736e  NEVER
 their_key     01c0e2ea-8bfe-49e3-8c63-c477cf2ec024  2021-06-15T09:42:07.802718
 ```
 
-:::
-
-::: tab GraphQL
+GraphQL:
 
 To query for information about API keys with GraphQL, use the `auth_api_key` query.
 
@@ -155,23 +145,16 @@ Example response:
   }
 ```
 
-:::
-
-::::
 
 ## Revoking Keys
 
-:::: tabs
-
-::: tab UI
+UI:
 
 To revoke an API key in the UI navigate to Team Settings > Service Accounts or Account Settings > API Keys. On your list of keys click the trash bin icon next to any key in order to revoke it. A confirmation box should appear asking if you are sure you want to revoke the key.
 
 ![api key revoke](/api_key_revoke.png)
 
-:::
-
-::: tab CLI
+CLI:
 
 To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
 
@@ -179,9 +162,7 @@ To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` com
 $ prefect auth revoke-key --id API_KEY_ID
 ```
 
-:::
-
-::: tab GraphQL
+GraphQL:
 
 To revoke an API key using GraphQL execute the `delete_api_key` mutation. For information on how to find an API key's ID, see [Querying for API key metadata]](api_keys.html#querying-for-api-key-metadata).
 
@@ -193,9 +174,6 @@ mutation {
 }
 ```
 
-:::
-
-::::
 
 ## Using API keys with older versions of Prefect
 

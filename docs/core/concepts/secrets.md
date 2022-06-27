@@ -21,26 +21,25 @@ The most common case for secrets is to authenticate to third-party systems. For 
 
 The base `Secret` class first checks for secrets in local context, under `prefect.context.secrets`. This is useful for local testing, as secrets can be added to context by setting environment variables matching the configuration syntax `PREFECT__CONTEXT__SECRETS__{SECRETNAME}={SECRETVALUE}`. (Learn more about configuration in our [Configuration concept docs](configuration.md).)
 
-For example, given an environment with the environment variable `PREFECT__CONTEXT__SECRETS__FOO=mypassword`, the value `"mypassword"` could be retrieved by using a `PrefectSecret` task or by using the secrets API directly, as shown below.
+For example, given an environment with the environment variable `PREFECT__CONTEXT__SECRETS__FOO=mypassword`, the value `"mypassword"` could be retrieved by using a `PrefectSecret` task or by using the Secrets API directly, as shown below.
 
-:::: tabs
-::: tab PrefectSecret
+`PrefectSecret`:
+
 ```python
 >>> from prefect.tasks.secrets import PrefectSecret
 >>> p = PrefectSecret('foo')
 >>> p.run()
 'mypassword'
 ```
-:::
-::: tab Secret API
+
+Secrets API:
+
 ```python
 >>> from prefect.client.secrets import Secret
 >>> s = Secret("FOO")
 >>> s.get()
 'mypassword'
 ```
-:::
-::::
 
 ### Environment Variables
 

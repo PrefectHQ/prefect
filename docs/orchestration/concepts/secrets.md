@@ -61,19 +61,19 @@ To configure a secret locally (not using Prefect Cloud), you can set the value
 in your [Prefect configuration file](/core/concepts/configuration.md) through
 either the `~/.prefect/config.toml` file or an environment variable.
 
-:::: tabs
-::: tab `~/.prefect/config.toml`
+
+`~/.prefect/config.toml`
+
 ```toml
 [context.secrets]
 MYSECRET = "MY SECRET VALUE"
 ```
-:::
-::: tab Environment Variable
+
+Environment Variable:
 ```bash
 $ export PREFECT__CONTEXT__SECRETS__MYSECRET="MY SECRET VALUE"
 ```
-:::
-::::
+
 
 Note that this configuration only affects the environment in which it's
 configured. So if you set values locally, they'll affect flows run locally or

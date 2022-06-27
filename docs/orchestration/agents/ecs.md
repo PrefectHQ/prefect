@@ -10,22 +10,17 @@ default](/core/getting_started/installation.md). If you're a `pip` user you'll
 need to add the `aws` extra. Likewise, with `conda` you'll need to install
 `boto3`:
 
-:::: tabs
-::: tab Pip
+Pip:
 
 ```bash
 pip install prefect[aws]
 ```
 
-:::
-::: tab Conda
+Conda:
 
 ```bash
 conda install -c conda-forge prefect boto3
 ```
-
-:::
-::::
 
 !!! warning Prefect Server
     In order to use this agent with Prefect Server the server's GraphQL API
@@ -86,8 +81,7 @@ When possible we recommend using the `~/.aws/config` file, but
 [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables)
 also work:
 
-:::: tabs
-::: tab Config file
+Config file:
 
 ```toml
 # ~/.aws/config
@@ -97,15 +91,11 @@ aws_secret_access_key=...
 region=...
 ```
 
-:::
-::: tab Environment Variables
+Environment Variables:
 
 ```bash
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...
 ```
-
-:::
-::::
 
 ### Cluster
 
@@ -153,8 +143,7 @@ ECS provides a builtin policy `AmazonECSTaskExecutionRolePolicy` that provides
 common settings. This supports pulling images from ECR and enables using
 CloudWatch logs. The full policy is below:
 
-:::: tabs
-::: tab Execution Role Policy
+Execution Role Policy:
 ```json
 {
   "Version": "2012-10-17",
@@ -174,8 +163,8 @@ CloudWatch logs. The full policy is below:
   ]
 }
 ```
-:::
-::: tab Agent Role Policy
+
+Agent Role Policy:
 ```json
 {
     "Version": "2012-10-17",
@@ -214,13 +203,11 @@ CloudWatch logs. The full policy is below:
     ]
 }
 ```
-:::
-::: tab Prefect Tasks Role Policy
+
+Prefect Tasks Role Policy:
 ```
 Depends on AWS API calls your Prefect tasks make. For example, if your Prefect task make calls to DynamoDB, you need to attach a policy with DynamoDB permissions to the task role, and provide this role to `task-role-arn` option in ECSRun config or prefect ecs agent.
 ```
-:::
-::::
 
 Usually AWS will automatically create an IAM role with this policy named
 `ecsTaskExecutionRole` (if not, you may need to create one yourself, see [the

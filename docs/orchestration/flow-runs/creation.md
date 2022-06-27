@@ -97,25 +97,21 @@ See [optional settings](#optional-settings) for additional options that can be p
 
 A flow run can be provided new parameters.
 
-:::: tabs
-
-::: tab CLI
+CLI:
 ```bash
 $ prefect run --id "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7" --param a=2
 $ prefect run --path flow.py --param "a param with space"=2
 ```
-:::
 
-::: tab Python client
+Python client:
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
     parameters={"a": 2}
 )
 ```
-:::
 
-::: tab GraphQL API
+GraphQL API:
 ```graphql
 mutation {
   create_flow_run(input: { 
@@ -126,32 +122,26 @@ mutation {
   }
 }
 ```
-:::
 
-::::
 
 ### Flow run names
 
 By default, a flow run is given an automatically generated name. However, a custom run name can be passed.
 
-:::: tabs
-
-::: tab CLI
+CLI:
 ```bash
 $ prefect run --id "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7" --run-name "docs example hello-world"
 ```
-:::
 
-::: tab Python client
+Python client:
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
     flow_run_name="docs example hello-world"
 )
 ```
-:::
 
-::: tab GraphQL API
+GraphQL API:
 ```graphql
 mutation {
   create_flow_run(input: { 
@@ -159,26 +149,21 @@ mutation {
   flow_run_name: "docs example hello-world",
 }
 ```
-:::
 
-::::
 
 ### Start times
 
 Flows can be assigned a start time in the future rather than being marked for execution immediately.
 
-:::: tabs
-
-::: tab Python client
+Python client:
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
     scheduled_start_time=pendulum.now().add(minutes=10)
 )
 ```
-:::
 
-::: tab GraphQL API
+GraphQL API:
 ```graphql
 mutation {
   create_flow_run(input: { 
@@ -189,9 +174,7 @@ mutation {
   }
 }
 ```
-:::
 
-::::
 
 !!! tip Generating time strings for GraphQL
     GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
@@ -201,18 +184,15 @@ mutation {
 
 If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Note that idempotency keys do not expire. To create a new run, a new idempotency key must be provided. 
 
-:::: tabs
-
-::: tab Python client
+Python client:
 ```python
 client.create_flow_run(
     flow_id="d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
     idempotency_key="do-not-create-two-runs"
 )
 ```
-:::
 
-::: tab GraphQL API
+GraphQL API:
 ```graphql
 mutation {
   create_flow_run(input: { flow_id: "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", idempotency_key: "any-key" }) {
@@ -220,9 +200,7 @@ mutation {
   }
 }
 ```
-:::
 
-::::
 
 
 ### Flow groups vs flows

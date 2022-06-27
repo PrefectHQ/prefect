@@ -88,8 +88,7 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"></
 Just like any other Prefect [task](/core/concepts/tasks.html), tasks in the task library can be
 used by importing and adding them to your flow.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 
 ```python
 from prefect import task, Flow
@@ -106,9 +105,7 @@ with Flow("list_files") as flow:
     show_output(ls)
 ```
 
-:::
-
-::: tab Imperative API
+Imperative API:
 
 ```python
 from prefect import Task, Flow
@@ -125,14 +122,11 @@ flow = Flow("list_files")
 show_output.set_upstream(ls_task, key="std_out", flow=flow)
 ```
 
-:::
-::::
 
 Keyword arguments for tasks imported from the task library can either be set at initialization for reuse
 purposed or optionally set and overwritten when defining the flow.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 
 ```python
 from prefect import task, Flow
@@ -154,9 +148,7 @@ with Flow("count_files") as flow:
     show_output(ls_count)
 ```
 
-:::
-
-::: tab Imperative API
+Imperative API:
 
 ```python
 from prefect import Task, Flow
@@ -177,8 +169,6 @@ show_output.set_upstream(ls_task, key="std_out", flow=flow)
 show_output2.set_upstream(ls_count, key="std_out", flow=flow)
 ```
 
-:::
-::::
 
 For more information on the tasks available for use in the task library visit the API
 [reference documentation](/api/latest) for the `prefect.tasks` and if you are interested in contributing to the task library visit the [contributing page](/core/task_library/contributing.html)!

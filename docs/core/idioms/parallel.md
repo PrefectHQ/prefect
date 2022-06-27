@@ -6,8 +6,7 @@ Prefect supports fully asynchronous / parallel running of a flow's tasks and the
 
 This flow takes in a [Parameter](/core/concepts/parameters.html) `stop` and then in three separate tasks it generates random numbers up until that `stop`. Those numbers are then turned into a list and their sum is printed in the final `sum_numbers` task.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from random import randrange
 
@@ -32,9 +31,8 @@ with Flow("parallel-execution") as flow:
 
     sum_numbers = sum_numbers(numbers=[number_1, number_2, number_3])
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from random import randrange
 
@@ -66,8 +64,7 @@ sum_numbers = Sum()
 
 sum_numbers.bind(numbers=[number_1, number_2, number_3], flow=flow)
 ```
-:::
-::::
+
 
 By default Prefect uses a
 [LocalExecutor](/api/latest/executors.html#localexecutor) which executes

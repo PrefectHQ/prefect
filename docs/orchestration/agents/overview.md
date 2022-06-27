@@ -94,16 +94,13 @@ By default, agents have no set labels and will only pick up runs from flows
 with no specified labels. Labels can be provided to an agent
 through a few methods:
 
-:::: tabs
-::: tab CLI
+CLI:
 
 ```bash
 prefect agent <AGENT TYPE> start --label dev --label staging
 ```
 
-:::
-
-::: tab Python API
+Python API:
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -111,9 +108,7 @@ from prefect.agent.docker import DockerAgent
 DockerAgent(labels=["dev", "staging"]).start()
 ```
 
-:::
-
-::: tab Prefect Config
+Prefect Config:
 
 ```toml
 # ~/.prefect/config.toml
@@ -121,16 +116,12 @@ DockerAgent(labels=["dev", "staging"]).start()
 labels = ["dev", "staging"]
 ```
 
-:::
-
-::: tab Environment Variable
+Environment Variable:
 
 ```bash
 export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
 ```
 
-:::
-::::
 
 ### Environment Variables
 
@@ -140,16 +131,13 @@ applied to _all_ flow runs, whereas the `env` option in a flow's
 [RunConfig](/orchestration/flow_config/run_configs.md) only applies to runs of a
 specific flow.
 
-:::: tabs
-::: tab CLI
+CLI:
 
 ```bash
 prefect agent <AGENT TYPE> start --env KEY=VALUE --env KEY2=VALUE2
 ```
 
-:::
-
-::: tab Python API
+Python API:
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -157,8 +145,6 @@ from prefect.agent.docker import DockerAgent
 DockerAgent(env_vars={"KEY": "VALUE", "KEY2": "VALUE2"})
 ```
 
-:::
-::::
 
 ### Agent Automations <Badge text="Cloud"/>
 
@@ -179,16 +165,13 @@ running properly and take actions (such as restarting the agent) if it's not.
 
 A few ways to configure:
 
-:::: tabs
-::: tab CLI
+CLI:
 
 ```bash
 prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 ```
 
-:::
-
-::: tab Python API
+Python API:
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -196,9 +179,7 @@ from prefect.agent.docker import DockerAgent
 DockerAgent(agent_address="http://localhost:8080").start()
 ```
 
-:::
-
-::: tab Prefect Config
+Prefect Config:
 
 ```toml
 # ~/.prefect/config.toml
@@ -206,16 +187,12 @@ DockerAgent(agent_address="http://localhost:8080").start()
 agent_address = "http://localhost:8080"
 ```
 
-:::
-
-::: tab Environment Variable
+Environment Variable:
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 ```
 
-:::
-::::
 
 If enabled, the HTTP health check will be available via the `/api/health`
 route at the configured agent address. This route returns `200 OK` if the

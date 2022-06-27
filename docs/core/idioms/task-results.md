@@ -6,8 +6,7 @@ When working on your flows locally Prefect makes it easy to retrieve the [result
     This currently does not cover retrieving result values when running in the context of an [API backend](/orchestration/) run using Prefect Core's server or Prefect Cloud.
 :::
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import task, Flow
 
@@ -34,9 +33,8 @@ assert state.result[v].result == 10
 assert state.result[v_added].result == 20
 assert state.result[p].result == None     # task does not return a result
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Task, Flow
 
@@ -67,5 +65,3 @@ assert state.result[get_value].result == 10
 assert state.result[add_value].result == 20
 assert state.result[print_value].result == None
 ```
-:::
-::::

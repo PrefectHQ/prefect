@@ -10,8 +10,7 @@ The flow below will write the result of the first task to a target specified wit
     For example: the `LocalResult` below has an optional `dir` kwargs which accepts an absolute path to a directory for storing results and in this case the `target` value will be appended to the directory of choice.
 :::
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import task, Flow
 from prefect.engine.results import LocalResult
@@ -29,9 +28,8 @@ with Flow("using-targets") as flow:
     data = get_data()
     print_data(data)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Task, Flow
 from prefect.engine.results import LocalResult
@@ -51,8 +49,7 @@ get_data = GetData(result=LocalResult(), target="{task_name}-{today}")
 print_data = PrintData()
 print_data.set_upstream(get_data, key="data", flow=flow)
 ```
-:::
-::::
+
 
 !!! warning Result Locations and Targets
     If you provide a `location` to a task's `Result` and a `target` then the target will be used as the location of the result.

@@ -26,9 +26,7 @@ Labels can also be set per flow run, see the [flow run creation documentation](.
 
 ### Setting concurrency limits
 
-:::: tabs
-
-::: tab UI
+UI:
 
 To set flow concurrency limits from the UI, go to Prefect Cloud and navigate to Team -> Flow Concurrency.
 
@@ -43,9 +41,8 @@ This means that Prefect Cloud will ensure that _no more than 10 flow runs with t
 You can edit and remove the concurrency limit of labels at any time. Select the blue edit icon for your label to change its concurrency limit. Select the red delete icon for your label to remove its concurrency limit.
 
 ![](/orchestration/ui/flow-concurrency-limit-icons.png)
-:::
 
-::: tab GraphQL
+GraphQL:
 
 To update your flow concurrency limits with GraphQL, issue the following mutation:
 
@@ -65,22 +62,18 @@ mutation {
     success
   }
 }
+```
 
-::::
 
 ### Inspecting concurrency limits
 
-:::: tabs
-
-::: tab UI
+UI:
 
 You can view your flow concurrency limits by navigating to Team -> Flow Concurrency. You can also view the current number of flow runs that are utilizing available concurrency space.
 
 ![](/orchestration/ui/flow-concurrency-limit-usage.png)
 
-:::
-
-::: tab GraphQL
+GraphQL:
 
 GraphQL allows you to retrieve tag limit IDs, which is useful for deleting limits:
 
@@ -104,9 +97,7 @@ query {
   }
 }
 ```
-:::
 
-::::
 
 ## Task run limits <Badge text="Cloud"/>
 
@@ -144,9 +135,7 @@ These tags are then available via the `tags` attribute on your `Task` instances.
 
 Once you have tagged your various tasks and [registered your Flow(s)](flows.md#registering-a-flow-from-prefect-core) to Prefect Cloud, you can set concurrency limits on as few or as many tags as you wish. You can set limits in any of the following three ways.
 
-:::: tabs
-
-::: tab UI
+UI:
 
 To set task tag concurrency limits from the UI, go to Prefect Cloud and navigate to Team Settings -> Task Concurrency.
 
@@ -161,9 +150,8 @@ This means that Prefect Cloud will ensure that _no more than 10 tasks with the "
 You can edit and remove the concurrency limit of tags at any time. Select the blue edit icon for your tag to change its concurrency limit. Select the red delete icon for your tag to remove its concurrency limit.
 
 ![](/orchestration/ui/task-concurrency-limit-icons.png)
-:::
 
-::: tab Python client
+Python client:
 
 To update your tag concurrency limits programmatically, use the Prefect library client:
 
@@ -175,9 +163,8 @@ client = Client()
 # set a concurrency limit of 10 on the 'database' tag
 client.update_task_tag_limit("database", 10)
 ```
-:::
 
-::: tab GraphQL
+GraphQL:
 
 To update your tag concurrency limits with GraphQL, issue the following mutation:
 
@@ -198,25 +185,19 @@ mutation {
   }
 }
 ```
-:::
 
-::::
 
 ### Inspecting concurrency limits
 
 If you wish to query for the currently set limit on a tag, or see _all_ of your limits across all of your tags, you can do so in any of the following three ways.
 
-:::: tabs
-
-::: tab UI
+UI:
 
 You can view your Task tag concurrency limits by navigating to Team Settings -> Task Concurrency. You can also view the current number of task runs that are utilizing available concurrency space.
 
 ![](/orchestration/ui/task-concurrency-limit-usage.png)
 
-:::
-
-::: tab Python client
+Python client:
 
 ```python
 from prefect import Client
@@ -228,9 +209,7 @@ client = Client()
 client.get_task_tag_limit("database")
 ```
 
-:::
-
-::: tab GraphQL
+GraphQL:
 
 GraphQL allows you to retrieve tag limit IDs, which is useful for deleting limits:
 
@@ -253,9 +232,6 @@ query {
   }
 }
 ```
-:::
-
-::::
 
 ### Execution Behavior
 

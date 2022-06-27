@@ -8,8 +8,7 @@ Tasks in Prefect provide a way for dynamically naming task runs based on the inp
 
 In the example snippet below we have a flow that maps over a set of data returned from an upstream task and (for demonstration purposes) it raises an error when it receives the `demo` string as an input.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import task, Flow
 
@@ -26,9 +25,8 @@ with Flow("task_run_names") as flow:
     vals = get_values()
     compute.map(vals)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Task, Flow
 
@@ -48,8 +46,7 @@ compute = Compute()
 
 compute.set_upstream(vals, flow=flow, key="val", mapped=True)
 ```
-:::
-::::
+
 
 ![task runs no names](/idioms/task_runs_no_names.png)
 
@@ -61,8 +58,7 @@ task_run_name="{val}"
 
 The backend will template the task run's name based on the `val` input it receives:
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python{7}
 from prefect import task, Flow
 
@@ -79,9 +75,8 @@ with Flow("task_run_names") as flow:
     vals = get_values()
     compute.map(vals)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python{15}
 from prefect import Task, Flow
 
@@ -101,8 +96,7 @@ compute = Compute(task_run_name="{val}")
 
 compute.set_upstream(vals, flow=flow, key="val", mapped=True)
 ```
-:::
-::::
+
 
 ![task runs with names](/idioms/task_runs_names.png)
 

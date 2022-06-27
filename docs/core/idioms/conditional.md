@@ -30,8 +30,8 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches.png)
 
 
-:::: tabs
-::: tab Functional API
+Functional API:
+
 ```python
 from random import random
 
@@ -65,9 +65,9 @@ with Flow("conditional-branches") as flow:
         val = action_if_false()
         another_action(val)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
+
 ```python
 from random import random
 
@@ -105,8 +105,6 @@ with case(check_condition, False):
     flow.add_task(val)
     AnotherAction().bind(val=val, flow=flow)
 ```
-:::
-::::
 
 ## Merging branches in a flow
 
@@ -133,8 +131,7 @@ The resulting flow looks like:
 ![Flow with conditional branches](/idioms/conditional-branches-merge.png)
 
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from random import random
 
@@ -171,9 +168,8 @@ with Flow("conditional-branches") as flow:
 
     another_action(val)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from random import random
 
@@ -213,5 +209,4 @@ with case(check_condition, False):
 val = merge(val1, val2, flow=flow)
 AnotherAction().bind(val=val, flow=flow)
 ```
-:::
-::::
+

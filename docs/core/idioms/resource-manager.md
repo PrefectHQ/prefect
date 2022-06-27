@@ -70,8 +70,7 @@ resources. For things where a failure to cleanup an object isn't detrimental
 Here we provide a full example for using a `ResourceManager` to setup and
 cleanup a temporary [Dask](https://dask.org) cluster.
 
-:::: tabs
-::: tab Functional API
+Functional API:
 ```python
 from prefect import Flow, task, resource_manager, Parameter
 import dask
@@ -125,9 +124,8 @@ with Flow("dask-example") as flow:
     # be under the `DaskCluster` context
     write_csv(summary, out_path)
 ```
-:::
 
-::: tab Imperative API
+Imperative API:
 ```python
 from prefect import Flow, Task, resource_manager, Parameter
 import dask
@@ -181,5 +179,4 @@ with DaskCluster(n_workers=n_workers, flow=flow) as client:
 # be under the `DaskCluster` context
 WriteCSV().bind(summary, out_path, flow=flow)
 ```
-:::
-::::
+
