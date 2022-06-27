@@ -87,7 +87,7 @@ class Secret:
     JSON documents to avoid ambiguous behavior (e.g., `"42"` being parsed as `42`).
     """
 
-    def __init__(self, name: str, retries: int = 0, delay: Union[float, int] = .5):
+    def __init__(self, name: str, retries: int = 0, delay: Union[float, int] = 0.5):
         self.name = name
         self.retries = retries
         self.delay = delay
@@ -182,7 +182,9 @@ class Secret:
                     raise ValueError(
                         'Local Secret "{}" was not found.'.format(self.name)
                     ) from None
-            try:
-                return json.loads(value)
-            except (json.JSONDecodeError, TypeError):
-                return value
+            if value:
+                break
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return value
