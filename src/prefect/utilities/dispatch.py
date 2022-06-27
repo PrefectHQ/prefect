@@ -85,6 +85,14 @@ def get_dispatch_key(
     return dispatch_key
 
 
+@classmethod
+def _register_subclass_of_base_type(cls, **kwargs):
+    if cls.__init_subclass_original__:
+        cls.__init_subclass_original__(**kwargs)
+
+    register_type(cls)
+
+
 def register_base_type(cls: T) -> T:
     """
     Register a base type allowing child types to be registered for dispatch with
@@ -97,6 +105,11 @@ def register_base_type(cls: T) -> T:
     base_key = get_dispatch_key(cls, allow_missing=True)
     if base_key is not None:
         registry[base_key] = cls
+
+    # Add automatic subtype registration
+    cls.__init_subclass_original__ = getattr(cls, "__init_subclass__")
+    cls.__init_subclass__ = _register_subclass_of_base_type
+
     return cls
 
 
