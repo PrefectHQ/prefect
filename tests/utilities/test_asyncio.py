@@ -92,10 +92,13 @@ async def test_run_sync_in_interruptible_worker_thread_does_not_hide_exceptions(
 
 
 async def test_run_sync_in_interruptible_worker_thread_does_not_hide_base_exceptions():
-    def foo():
-        raise KeyboardInterrupt("test")
+    class LikeKeyboardInterrupt(BaseException):
+        """Like a keyboard interrupt but not for real"""
 
-    with pytest.raises(KeyboardInterrupt, match="test"):
+    def foo():
+        raise LikeKeyboardInterrupt("test")
+
+    with pytest.raises(LikeKeyboardInterrupt, match="test"):
         await run_sync_in_interruptible_worker_thread(foo)
 
 
