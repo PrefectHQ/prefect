@@ -298,6 +298,7 @@ class TestCreateBlockSchema:
             "required": ["a", "b"],
             "title": "Y",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema.fields == Y.schema()
 
@@ -353,6 +354,7 @@ class TestCreateBlockSchema:
             "required": ["d", "e"],
             "title": "A",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema.fields == A.schema()
 
@@ -410,6 +412,7 @@ class TestCreateBlockSchema:
             "required": ["d", "e"],
             "title": "A",
             "type": "object",
+            "secret_fields": [],
         }
         assert nested_block_schema_a.fields == A.schema()
 
