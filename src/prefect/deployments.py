@@ -48,6 +48,7 @@ Examples:
     ```
 """
 
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from pydantic import BaseModel, Field, root_validator, validator
@@ -71,7 +72,7 @@ from prefect.utilities.collections import listrepr
 
 
 class FlowScript(BaseModel):
-    path: str
+    path: Path
     name: Optional[str] = None
 
 
