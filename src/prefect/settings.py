@@ -43,6 +43,7 @@ import logging
 import os
 import string
 import textwrap
+import warnings
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -66,6 +67,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
 
@@ -212,6 +214,23 @@ def max_log_size_smaller_than_batch_size(values):
     ):
         raise ValueError(
             "`PREFECT_LOGGING_ORION_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_ORION_BATCH_SIZE`"
+        )
+    return values
+
+
+def warn_on_database_password_value_without_usage(values):
+    """
+    Validator for settings warning if the database password is set but not used.
+    """
+    if (
+        values["PREFECT_ORION_DATABASE_PASSWORD"]
+        and "PREFECT_ORION_DATABASE_PASSWORD"
+        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+    ):
+        warnings.warn(
+            "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+            "The provided password will be ignored."
         )
     return values
 
@@ -370,6 +389,13 @@ PREFECT_AGENT_PREFETCH_SECONDS = Setting(
     prefetched. Defaults to `10`.""",
 )
 
+PREFECT_ORION_DATABASE_PASSWORD = Setting(
+    str,
+    default=None,
+    description="""Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
+    This is useful if the password must be provided separately from the connection URL. 
+    To use this setting, you must include it in your connection URL.""",
+)
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     str,
@@ -388,9 +414,17 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
         should only be used for simple tests.
 
         Defaults to a sqlite database stored in the Prefect home directory.
+
+        If you need to provide password via a different environment variable, you use
+        the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
+        
+        PREFECT_ORION_DATABASE_PASSWORD='mypassword'
+        PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
         """
     ),
-    value_callback=template_with_settings(PREFECT_HOME),
+    value_callback=template_with_settings(
+        PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
+    ),
 )
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
@@ -555,37 +589,6 @@ SETTING_VARIABLES = {
 for __name, __setting in SETTING_VARIABLES.items():
     __setting.name = __name
 
-# Define the pydantic model for loading from the environment / validating settings
-
-
-def reduce_settings(settings):
-    """
-    Workaround for issues with cloudpickle when using cythonized pydantic which
-    throws exceptions when attempting to pickle the class which has "compiled"
-    validator methods dynamically attached to it.
-
-    We cannot define this in the model class because the class is the type that
-    contains unserializable methods.
-
-    Note that issue is not specific to the `Settings` model or its implementation.
-    Any model using some features of Pydantic (e.g. `Path` validation) with a Cython
-    compiled Pydantic installation may encounter pickling issues.
-
-    See related issue at https://github.com/cloudpipe/cloudpickle/issues/408
-    """
-    # TODO: Consider moving this to the cloudpickle serializer and applying it to all
-    #       pydantic models
-    return (
-        unreduce_settings,
-        (settings.json(),),
-    )
-
-
-def unreduce_settings(json):
-    """Helper for restoring settings"""
-    return Settings.parse_raw(json)
-
-
 # Dynamically create a pydantic model that includes all of our settings
 
 SettingsFieldsMixin = create_model(
@@ -605,6 +608,7 @@ SettingsFieldsMixin = create_model(
 # an object which has __doc__ set.
 
 
+@add_cloudpickle_reduction
 class Settings(SettingsFieldsMixin):
     """
     Contains validated Prefect settings.
@@ -646,6 +650,7 @@ class Settings(SettingsFieldsMixin):
         #       approach for now. We can explore more interesting validation features
         #       in the future.
         values = max_log_size_smaller_than_batch_size(values)
+        values = warn_on_database_password_value_without_usage(values)
         return values
 
     def copy_with_update(
@@ -728,8 +733,6 @@ class Settings(SettingsFieldsMixin):
 
     class Config:
         frozen = True
-
-    __reduce__ = reduce_settings
 
 
 # Functions to instantiate `Settings` instances

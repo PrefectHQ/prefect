@@ -9,12 +9,11 @@ from pydantic import ValidationError
 
 from prefect.blocks.core import Block
 from prefect.blocks.storage import FileStorageBlock, LocalStorageBlock
-from prefect.deployments import (
+from prefect.deployments import load_flow_from_deployment
+from prefect.deprecated.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
-    load_flow_from_deployment,
-    load_flow_from_script,
 )
 from prefect.exceptions import (
     DeploymentValidationError,
@@ -30,7 +29,7 @@ from prefect.flow_runners import (
     SubprocessFlowRunner,
     UniversalFlowRunner,
 )
-from prefect.flows import Flow, flow
+from prefect.flows import Flow, flow, load_flow_from_script
 from prefect.orion.schemas.core import Deployment
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule

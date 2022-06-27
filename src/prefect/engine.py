@@ -67,7 +67,8 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import PartialModel, Quote, visit_collection
+from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
