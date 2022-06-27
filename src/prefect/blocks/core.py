@@ -546,6 +546,8 @@ class Block(BaseModel, ABC):
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
 
+        return self._block_document_id
+
     @sync_compatible
     async def save(self, name: str) -> UUID:
         """
