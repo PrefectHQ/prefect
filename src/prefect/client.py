@@ -1011,17 +1011,24 @@ class OrionClient:
     async def create_block_document(
         self,
         block_document: schemas.actions.BlockDocumentCreate,
+        include_secrets: bool = True,
     ) -> BlockDocument:
         """
-        Create a block document in Orion. This data is used to configure a corresponding
-        Block.
+        Create a block document in Orion. This data is used to configure a
+        corresponding Block.
+
+        Args:
+            include_secrets (bool): whether to include secret values
+                on the stored Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. Note Blocks may not work as expected if
+                this is set to `False`.
         """
         try:
             response = await self._client.post(
                 "/block_documents/",
                 json=block_document.dict(
                     json_compatible=True,
-                    include_secrets=True,
+                    include_secrets=include_secrets,
                     exclude_unset=True,
                     exclude={"id", "block_schema", "block_type"},
                 ),
@@ -1073,12 +1080,22 @@ class OrionClient:
         response = await self._client.post(f"/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
-    async def read_block_document(self, block_document_id: UUID):
+    async def read_block_document(
+        self,
+        block_document_id: UUID,
+        include_secrets: bool = True,
+    ):
         """
         Read the block document with the specified ID.
 
         Args:
             block_document_id: the block document id
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
 
         Raises:
             httpx.RequestError: if the block document was not found for any reason
@@ -1089,7 +1106,7 @@ class OrionClient:
         try:
             response = await self._client.get(
                 f"/block_documents/{block_document_id}",
-                params=dict(include_secrets=True),
+                params=dict(include_secrets=include_secrets),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1102,6 +1119,7 @@ class OrionClient:
         self,
         name: str,
         block_type_name: str,
+        include_secrets: bool = True,
     ):
         """
         Read the block document with the specified name that corresponds to a
@@ -1110,6 +1128,12 @@ class OrionClient:
         Args:
             name: The block document name.
             block_type_name: The block type name
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
 
         Raises:
             httpx.RequestError: if the block document was not found for any reason
@@ -1120,7 +1144,7 @@ class OrionClient:
         try:
             response = await self._client.get(
                 f"/block_types/name/{block_type_name}/block_documents/name/{name}",
-                params=dict(include_secrets=True),
+                params=dict(include_secrets=include_secrets),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -1134,6 +1158,7 @@ class OrionClient:
         block_schema_type: Optional[str] = None,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
+        include_secrets: bool = True,
     ):
         """
         Read block documents
@@ -1142,8 +1167,12 @@ class OrionClient:
             block_schema_type: an optional block schema type
             offset: an offset
             limit: the number of blocks to return
-            as_json: if False, fully hydrated Blocks are loaded. Otherwise,
-                JSON is returned from the API.
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
 
         Returns:
             A list of block documents
@@ -1154,7 +1183,7 @@ class OrionClient:
                 block_schema_type=block_schema_type,
                 offset=offset,
                 limit=limit,
-                include_secrets=True,
+                include_secrets=include_secrets,
             ),
         )
         return pydantic.parse_obj_as(List[BlockDocument], response.json())
@@ -1399,19 +1428,28 @@ class OrionClient:
         response = await self._client.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
-    async def get_default_storage_block_document(self) -> Optional[BlockDocument]:
+    async def get_default_storage_block_document(
+        self, include_secrets: bool = True
+    ) -> Optional[BlockDocument]:
         """Returns the default storage block
 
         Args:
             as_json (bool, optional): if True, the raw JSON from the API is
                 returned. This can avoid instantiating a storage block (and any side
                 effects) Defaults to False.
+            include_secrets (bool): whether to include secret values
+                on the Block, corresponding to Pydantic's `SecretStr` and
+                `SecretBytes` fields. These fields are automatically obfuscated
+                by Pydantic, but users can additionally choose not to receive
+                their values from the API. Note that any business logic on the
+                Block may not work if this is `False`.
 
         Returns:
             Optional[Block]:
         """
         response = await self._client.post(
-            "/block_documents/get_default_storage_block_document"
+            "/block_documents/get_default_storage_block_document",
+            json=dict(include_secrets=include_secrets),
         )
         if not response.content:
             return None

@@ -590,7 +590,9 @@ def _find_block_document_reference(
 
 @inject_db
 async def get_default_storage_block_document(
-    session: sa.orm.Session, db: OrionDBInterface
+    session: sa.orm.Session,
+    db: OrionDBInterface,
+    include_secrets: bool = True,
 ):
     query = (
         sa.select(db.BlockDocument)
@@ -603,7 +605,7 @@ async def get_default_storage_block_document(
     if orm_block_document is None:
         return None
     return await BlockDocument.from_orm_model(
-        session, orm_block_document, include_secrets=True
+        session, orm_block_document, include_secrets=include_secrets
     )
 
 
