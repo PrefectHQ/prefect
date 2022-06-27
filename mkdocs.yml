@@ -88,14 +88,15 @@ nav:
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
         - Task Runners: concepts/task-runners.md
-        - Deployments: concepts/deployments.md
         - Flow Runners: concepts/flow-runners.md
+        - Deployments: concepts/deployments.md
+        - Storage: concepts/storage.md
+        - Blocks: concepts/blocks.md
         - Work Queues & Agents: concepts/work-queues.md
         - Schedules: concepts/schedules.md
-        - Database: concepts/database.md
-        - Storage: concepts/storage.md
-        - Settings: concepts/settings.md
         - Logging: concepts/logs.md
+        - Database: concepts/database.md
+        - Settings: concepts/settings.md
     - Prefect UI & Prefect Cloud:
         - Overview: ui/overview.md
         - ui/dashboard.md
