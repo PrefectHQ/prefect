@@ -936,11 +936,11 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        from prefect.orion.utilities.database import json_contains
+        from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
         if self.all_ is not None:
-            filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
+            filters.append(json_has_all_keys(db.BlockSchema.capabilities, self.all_))
         return filters
 
 
