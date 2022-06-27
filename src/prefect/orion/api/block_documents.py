@@ -166,9 +166,12 @@ async def set_default_storage_block_document(
 async def get_default_storage_block_document(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    include_secrets: bool = Body(
+        True, description="Whether to include sensitive values in the block document."
+    ),
 ) -> Optional[schemas.core.BlockDocument]:
     block_document = await models.block_documents.get_default_storage_block_document(
-        session=session
+        session=session, include_secrets=include_secrets
     )
     if block_document is not None:
         return block_document
