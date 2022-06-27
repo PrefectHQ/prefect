@@ -78,20 +78,6 @@ class FlowScript(BaseModel):
 FlowSource = Union[Flow, FlowScript, PackageManifest]
 
 
-async def _source_to_flow(flow_source: FlowSource) -> Flow:
-    if isinstance(flow_source, Flow):
-        return flow_source
-    elif isinstance(flow_source, FlowScript):
-        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
-    elif isinstance(flow_source, PackageManifest):
-        return await flow_source.unpackage()
-    else:
-        raise TypeError(
-            "Unknown type {type(flow_source).__name__!r} for flow source. "
-            "Expected one of 'Flow', 'FlowScript', or 'PackageManifest'."
-        )
-
-
 class Deployment(BaseModel):
 
     # Metadata fields
@@ -252,6 +238,20 @@ async def load_flow_from_deployment(
         )
 
     return flow
+
+
+async def _source_to_flow(flow_source: FlowSource) -> Flow:
+    if isinstance(flow_source, Flow):
+        return flow_source
+    elif isinstance(flow_source, FlowScript):
+        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
+    elif isinstance(flow_source, PackageManifest):
+        return await flow_source.unpackage()
+    else:
+        raise TypeError(
+            "Unknown type {type(flow_source).__name__!r} for flow source. "
+            "Expected one of 'Flow', 'FlowScript', or 'PackageManifest'."
+        )
 
 
 def _register_deployment(deployment: Deployment) -> None:
