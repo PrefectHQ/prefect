@@ -18,7 +18,6 @@ WARNING: Prefect settings cannot be modified in async fixtures.
 """
 import asyncio
 import logging
-import os
 import pathlib
 import shutil
 import tempfile
@@ -402,16 +401,8 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        # TODO: https://github.com/PrefectHQ/orion/issues/2045
-        # Also temporarily override the environment variable, so that child
-        # subprocesses that we spin off are correctly configured as well
-        original_envvar = os.environ.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
-        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = url
-
         with temporary_settings({PREFECT_ORION_DATABASE_CONNECTION_URL: url}):
             yield url
-
-        os.environ["PREFECT_ORION_DATABASE_CONNECTION_URL"] = original_envvar
 
 
 @pytest.fixture(scope="session")
