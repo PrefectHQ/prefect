@@ -181,7 +181,8 @@ def test_lookup_type_with_unknown_dispatch_key():
         __dispatch_key__ = "child"
 
     with pytest.raises(
-        KeyError, match="No class found in registry for dispatch key 'foo'"
+        KeyError,
+        match="No class found for dispatch key 'foo' in registry for type 'Parent'",
     ):
         lookup_type(Parent, "foo")
 
