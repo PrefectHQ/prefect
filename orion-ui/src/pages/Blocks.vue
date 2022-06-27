@@ -1,12 +1,14 @@
 <template>
   <p-layout-default class="blocks">
-    <PageHeadingBlocks />
+    <template #header>
+      <PageHeadingBlocks />
+    </template>
     <template v-if="loaded">
       <template v-if="empty">
         <BlocksPageEmptyState />
       </template>
       <template v-else>
-        <BlockDocumentsTable :block-documents="blockDocuments" />
+        <BlockDocumentsTable :block-documents="blockDocuments" @delete="blockDocumentsSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
