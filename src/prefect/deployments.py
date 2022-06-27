@@ -47,7 +47,7 @@ Examples:
 
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
@@ -108,19 +108,25 @@ class Deployment(BaseModel):
         default_factory=UniversalFlowRunner
     )
 
+    def __init__(__pydantic_self__, **data: Any) -> None:
+        super().__init__(**data)
+        _register_deployment(__pydantic_self__)
+
     @validator("flow_runner")
     def cast_flow_runner_settings(cls, value):
         if isinstance(value, FlowRunnerSettings):
             return FlowRunner.from_settings(value)
         return value
 
-    def validate(self):
-        if "packager" in self.__fields_set__ and isinstance(self.flow, PackageManifest):
+    @root_validator(pre=True)
+    def packager_cannot_be_provided_with_manifest(cls, values):
+        if "packager" in values and isinstance(values.get("flow"), PackageManifest):
             raise ValueError(
                 "A packager cannot be provided if a package manifest is provided "
                 "instead of a flow. Provide a local flow instead or leave the packager "
                 "field empty."
             )
+        return values
 
     @sync_compatible
     @inject_client
@@ -243,6 +249,21 @@ async def load_flow_from_deployment(
         )
 
     return flow
+
+
+def _register_deployment(deployment: Deployment) -> None:
+    """
+    Add the `Deployment` object to the `PrefectObjectRegistry`.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    assert isinstance(deployment, Deployment)
+
+    registry = PrefectObjectRegistry.get()
+    if not registry:
+        return
+
+    registry.deployments.append(deployment)
 
 
 # Backwards compatibility
