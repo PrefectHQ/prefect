@@ -1,12 +1,16 @@
 <template>
-  <p-layout-default v-if="blockDocument" class="block">
-    <PageHeadingBlock :block-document="blockDocument" />
+  <p-layout-default v-if="blockDocument" class="block-view">
+    <template #header>
+      <PageHeadingBlock :block-document="blockDocument" />
+    </template>
+
+    <BlockDocumentCard :block-document="blockDocument" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlock, useRouteParam } from '@prefecthq/orion-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { PageHeadingBlock, BlockDocumentCard } from '@prefecthq/orion-design'
+  import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
