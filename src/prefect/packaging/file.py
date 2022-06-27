@@ -43,6 +43,7 @@ class FilePackager(Packager):
         key = stable_hash(content)
         path = self.basepath / key
 
+        self.basepath.mkdir(parents=True, exist_ok=True)
         with open(path, mode="wb") as file:
             file.write(content)
 
