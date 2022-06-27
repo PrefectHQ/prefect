@@ -234,7 +234,7 @@ async def load_flow_from_deployment(
 
     if not isinstance(flow, Flow):
         raise TypeError(
-            "Deployment `flow_data` did not resolve to a `Flow`. " f"Found: {flow!r}."
+            "Deployment `flow_data` did not resolve to a `Flow`. Found: {flow!r}."
         )
 
     return flow
