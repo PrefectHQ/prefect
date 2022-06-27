@@ -12,7 +12,7 @@ from pydantic import Field, PrivateAttr, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.blocks.kubernetes import KubernetesCluster
+from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.orion.schemas.core import FlowRun
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
@@ -88,7 +88,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
     job_watch_timeout_seconds: int = 5
     pod_watch_timeout_seconds: int = 5
     stream_output: bool = True
-    cluster_block: KubernetesCluster = None
+    cluster_config: KubernetesClusterConfig = None
 
     _client: "CoreV1Api" = PrivateAttr(None)
     _batch_client: "BatchV1Api" = PrivateAttr(None)
@@ -163,7 +163,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         self._assert_orion_settings_are_compatible()
 
         # if a k8s cluster block is provided to the flow runner, use that
-        if self.cluster_block:
+        if self.cluster_config:
             self._k8s.config.kube_config.KubeConfigLoader(
                 config_dict=self.cluster_config.config,
                 context=self.cluster_config.context,
