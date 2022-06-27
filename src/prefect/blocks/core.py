@@ -13,7 +13,7 @@ from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncio import asyncnullcontext
+from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
 
@@ -399,6 +399,7 @@ class Block(BaseModel, ABC):
                 )
 
     @classmethod
+    @sync_compatible
     async def load(cls, name: str):
         """
         Retrieves data from the block document with the given name for the block type
@@ -527,6 +528,7 @@ class Block(BaseModel, ABC):
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
 
+    @sync_compatible
     async def save(self, name: str):
         """
         Saves the values of a block as a block document.
