@@ -112,12 +112,10 @@ class ScriptError(PrefectException):
         super().__init__(message)
         self.user_exc = user_exc
 
-        import runpy
-
         # Strip script run information from the traceback
         self.user_exc.__traceback__ = _trim_traceback(
             self.user_exc.__traceback__,
-            remove_modules=[prefect.utilities.importtools, runpy],
+            remove_modules=[prefect.utilities.importtools],
         )
 
 
