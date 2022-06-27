@@ -1,6 +1,7 @@
 from abc import abstractmethod
 
-from prefect.blocks.core import Block, register_block
+from prefect.blocks.core import Block
+from prefect.utilities.dispatch import register_type
 
 
 class NotificationBlock(Block):
@@ -15,7 +16,7 @@ class NotificationBlock(Block):
         """
 
 
-@register_block
+@register_type
 class DebugPrintNotification(NotificationBlock):
     """
     Notification block that prints a message, useful for debugging.
