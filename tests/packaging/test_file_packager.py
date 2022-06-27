@@ -11,8 +11,8 @@ from prefect.packaging.serializers import (
 
 
 @flow
-def foo(suffix):
-    return f"foo {suffix}"
+def howdy(name):
+    return f"howdy {name}"
 
 
 @pytest.mark.parametrize(
@@ -20,8 +20,8 @@ def foo(suffix):
 )
 async def test_file_packager_by_serializer(serializer):
     packager = FilePackager(serializer=serializer)
-    manifest = await packager.package(foo)
+    manifest = await packager.package(howdy)
 
     assert isinstance(manifest, FilePackageManifest)
-    unpackaged_foo = await manifest.unpackage()
-    assert unpackaged_foo("bar").result() == "foo bar"
+    unpackaged_howdy = await manifest.unpackage()
+    assert unpackaged_howdy("bro").result() == "howdy bro"

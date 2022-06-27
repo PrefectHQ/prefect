@@ -11,8 +11,8 @@ from prefect.packaging.serializers import (
 
 
 @flow
-def foo(suffix):
-    return f"foo {suffix}"
+def towdy(name):
+    return f"towdy {name}"
 
 
 @pytest.mark.parametrize(
@@ -20,8 +20,8 @@ def foo(suffix):
 )
 async def test_orion_packager_by_serializer(serializer):
     packager = OrionPackager(serializer=serializer)
-    manifest = await packager.package(foo)
+    manifest = await packager.package(towdy)
 
     assert isinstance(manifest, OrionPackageManifest)
-    unpackaged_foo = await manifest.unpackage()
-    assert unpackaged_foo("bar").result() == "foo bar"
+    unpackaged_towdy = await manifest.unpackage()
+    assert unpackaged_towdy("bro").result() == "towdy bro"
