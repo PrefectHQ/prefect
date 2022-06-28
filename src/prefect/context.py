@@ -6,9 +6,22 @@ These contexts should never be directly mutated by the user.
 import os
 import sys
 import warnings
+from collections import defaultdict
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
-from typing import ContextManager, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ContextManager,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pendulum
 from anyio.abc import BlockingPortal, CancelScope
@@ -20,17 +33,20 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient
-from prefect.deployments import Deployment, DeploymentSpec
 from prefect.exceptions import MissingContextError
-from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.states import State
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.task_runners import BaseTaskRunner
-from prefect.tasks import Task
+from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")
+
+if TYPE_CHECKING:
+
+    from prefect.flows import Flow
+    from prefect.tasks import Task
 
 
 class ContextModel(BaseModel):
@@ -81,39 +97,79 @@ class PrefectObjectRegistry(ContextModel):
     registered during load and execution.
 
     Attributes:
-        start_time: The time the loading context was entered
-
-        flows: A dictionary containing all Flow objects that are initialized
-            during load / execution.
-        deployment_specs: A list containing all deployment specification objects
-            that are initialized during load / execution. The name of the deployment
-            may not be determined yet so they cannot be stored in a dictionary.
-        tasks: A dictionary containing all Task objects that are initialized
-            during load / execution.
+        start_time: The time the object registry was created.
+        block_code_execution: If set, flow calls will be ignored.
+        capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
-    flows: Dict[str, Flow] = Field(default_factory=dict)
-    deployment_specs: List[DeploymentSpec] = Field(default_factory=list)
-    deployments: List[Deployment] = Field(default_factory=list)
-    tasks: List[Task] = Field(default_factory=list)
+    _registry: Dict[Type[T], List[T]] = PrivateAttr(
+        default_factory=lambda: defaultdict(list)
+    )
 
-    _block_code_execution: bool = PrivateAttr(default=False)
+    # Failures will be a tuple of (exception, instance, args, kwargs)
+    _failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = PrivateAttr(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    block_code_execution: bool = False
+    capture_failures: bool = False
 
     __var__ = ContextVar("object_registry")
 
-    @property
-    def code_execution_blocked(self):
-        return self._block_code_execution
+    @classmethod
+    def load_from_script(
+        cls,
+        path: str,
+        block_code_execution: bool = True,
+        capture_failures: bool = True,
+    ):
+        with cls(
+            block_code_execution=block_code_execution,
+            capture_failures=capture_failures,
+        ) as self:
+            load_script_as_module(path)
 
-    @contextmanager
-    def block_code_execution(self) -> None:
-        self._block_code_execution = True
-        try:
-            yield
-        finally:
-            self._block_code_execution = False
+        return self
+
+    def get_instances_of(self, type_: Type[T]) -> List[T]:
+        return self._registry[type_]
+
+    def get_failures_for(
+        self, type_: Type[T]
+    ) -> List[Tuple[Exception, T, Tuple, Dict]]:
+        return self._failures[type_]
+
+    def register(self, object):
+        self._registry[type(object)].append(object)
+
+    def register_failure(
+        self, exc: Exception, object: Any, init_args: Tuple, init_kwargs: Dict
+    ):
+        self._failures[type(object)].append((exc, object, init_args, init_kwargs))
+
+    @classmethod
+    def register_instances(cls, __init__):
+        """
+        Decorator for __init__ that adds registration to the `PrefectObjectRegistry`
+        on initialization of a type.
+        """
+
+        def __register_init__(__self__, *args, **kwargs):
+            registry = cls.get()
+            try:
+                __init__(__self__, *args, **kwargs)
+            except Exception as exc:
+                if not registry or not registry.capture_failures:
+                    raise
+                else:
+                    registry.register_failure(exc, __self__, args, kwargs)
+            else:
+                if registry:
+                    registry.register(__self__)
+
+        return __register_init__
 
 
 class RunContext(ContextModel):
@@ -146,7 +202,7 @@ class FlowRunContext(RunContext):
         timeout_scope: The cancellation scope for flow level timeouts
     """
 
-    flow: Flow
+    flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
     result_storage: StorageBlock
@@ -175,7 +231,7 @@ class TaskRunContext(RunContext):
         result_storage: A block to used to persist run state data
     """
 
-    task: Task
+    task: "Task"
     task_run: TaskRun
     result_storage: StorageBlock
 

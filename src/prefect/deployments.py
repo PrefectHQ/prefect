@@ -55,6 +55,7 @@ from pydantic import BaseModel, Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
+from prefect.context import PrefectObjectRegistry
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import (
@@ -98,9 +99,9 @@ class Deployment(BaseModel):
         default_factory=UniversalFlowRunner
     )
 
+    @PrefectObjectRegistry.register_instances
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
-        _register_deployment(__pydantic_self__)
 
     @validator("flow_runner")
     def cast_flow_runner_settings(cls, value):

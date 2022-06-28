@@ -18,8 +18,8 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    List,
     NoReturn,
-    Set,
     Type,
     TypeVar,
     Union,
@@ -33,6 +33,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -46,7 +47,6 @@ from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.importtools import load_script_as_module
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -90,6 +90,7 @@ class Flow(Generic[P, R]):
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
     #       exactly in the @flow decorator
+    @PrefectObjectRegistry.register_instances
     def __init__(
         self,
         fn: Callable[P, R],
@@ -145,8 +146,22 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
-        # Add to the object registry
-        _register_flow(self)
+        # Check for collision in the registry
+        registry = PrefectObjectRegistry.get()
+
+        if registry and any(
+            other
+            for other in registry.get_instances_of(Flow)
+            if other.name == self.name and id(other.fn) != id(self.fn)
+        ):
+            file = inspect.getsourcefile(self.fn)
+            line_number = inspect.getsourcelines(self.fn)[1]
+            warnings.warn(
+                f"A flow named {self.name!r} and defined at '{file}:{line_number}' "
+                "conflicts with another flow. Consider specifying a unique `name` "
+                "parameter in the flow definition:\n\n "
+                "`@flow(name='my_unique_name', ...)`"
+            )
 
     def with_options(
         self,
@@ -501,46 +516,20 @@ def select_flow(
         return list(flows.values())[0]
 
 
-def _register_flow(flow: Flow):
-    from prefect.context import PrefectObjectRegistry
-
-    registry = PrefectObjectRegistry.get()
-
-    if any(
-        other
-        for other in registry.flows.values()
-        if other.name == flow.name and id(other.fn) != id(flow.fn)
-    ):
-        file = inspect.getsourcefile(flow.fn)
-        line_number = inspect.getsourcelines(flow.fn)[1]
-        warnings.warn(
-            f"A flow named {flow.name!r} and defined at '{file}:{line_number}' "
-            "conflicts with another flow. Consider specifying a unique `name` "
-            "parameter in the flow definition:\n\n "
-            "`@flow(name='my_unique_name', ...)`"
-        )
-
-    registry.flows[flow.name] = flow
-
-
-def load_flows_from_script(path: str) -> Set[Flow]:
+def load_flows_from_script(path: str) -> List[Flow]:
     """
     Load all flow objects from the given python script. All of the code in the file
     will be executed.
 
     Returns:
-        A set of flows
+        A list of flows
 
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
     from prefect.context import PrefectObjectRegistry
 
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            load_script_as_module(path)
-
-    return set(registry.flows.values())
+    return PrefectObjectRegistry.load_from_script(path).get_instances_of(Flow)
 
 
 def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
