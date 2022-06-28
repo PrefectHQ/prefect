@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shutil
 import warnings
@@ -9,9 +10,6 @@ from typing import Generator, Iterable, List, Optional, TextIO, Type, Union
 from urllib.parse import urlsplit
 
 import pendulum
-from docker import DockerClient
-from docker.errors import APIError
-from docker.models.images import Image
 from slugify import slugify
 from typing_extensions import Self
 
@@ -27,7 +25,23 @@ def silence_docker_warnings() -> Generator[None, None, None]:
             category=DeprecationWarning,
         )
 
+        warnings.filterwarnings(
+            "ignore",
+            message="The distutils package is deprecated and slated for removal.*",
+            category=DeprecationWarning,
+        )
+
         yield
+
+
+# docker-py has some deprecation warnings that fire off during import, and we don't
+# want to have those popping up in various modules and test suites.  Instead,
+# consolidate the imports we need here, and expose them via this module.
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.errors import APIError, ImageNotFound, NotFound  # noqa: F401
+    from docker.models.containers import Container  # noqa: F401
+    from docker.models.images import Image
 
 
 @contextmanager
@@ -174,7 +188,7 @@ class ImageBuilder:
             source = Path(source)
 
         if source.is_absolute():
-            source = source.relative_to(self.base_directory)
+            source = source.resolve().relative_to(self.base_directory)
 
         if self.temporary_directory:
             os.makedirs(self.context / source.parent, exist_ok=True)
@@ -185,6 +199,17 @@ class ImageBuilder:
                 shutil.copy2(self.base_directory / source, self.context / source)
 
         self.add_line(f"COPY {source} {destination}")
+
+    def write_text(self, text: str, destination: Union[str, PurePosixPath]):
+        if not self.context:
+            raise Exception("No context available")
+
+        if not isinstance(destination, PurePosixPath):
+            destination = PurePosixPath(destination)
+
+        source_hash = hashlib.sha256(text.encode()).hexdigest()
+        (self.context / f".{source_hash}").write_text(text)
+        self.add_line(f"COPY .{source_hash} {destination}")
 
     def build(
         self, pull: bool = False, stream_progress_to: Optional[TextIO] = None
@@ -210,6 +235,73 @@ class ImageBuilder:
             )
         finally:
             os.unlink(dockerfile_path)
+
+    def assert_has_line(self, line: str) -> None:
+        """Asserts that the given line is in the Dockerfile"""
+        all_lines = "\n".join(
+            [f"  {i+1:>3}: {line}" for i, line in enumerate(self.dockerfile_lines)]
+        )
+        message = (
+            f"Expected {line!r} not found in Dockerfile.  Dockerfile:\n{all_lines}"
+        )
+        assert line in self.dockerfile_lines, message
+
+    def assert_line_absent(self, line: str) -> None:
+        """Asserts that the given line is absent from the Dockerfile"""
+        if line not in self.dockerfile_lines:
+            return
+
+        i = self.dockerfile_lines.index(line)
+
+        surrounding_lines = "\n".join(
+            [
+                f"  {i+1:>3}: {line}"
+                for i, line in enumerate(self.dockerfile_lines[i - 2 : i + 2])
+            ]
+        )
+        message = (
+            f"Unexpected {line!r} found in Dockerfile at line {i+1}.  "
+            f"Surrounding lines:\n{surrounding_lines}"
+        )
+
+        assert line not in self.dockerfile_lines, message
+
+    def assert_line_before(self, first: str, second: str) -> None:
+        """Asserts that the first line appears before the second line"""
+        self.assert_has_line(first)
+        self.assert_has_line(second)
+
+        first_index = self.dockerfile_lines.index(first)
+        second_index = self.dockerfile_lines.index(second)
+
+        surrounding_lines = "\n".join(
+            [
+                f"  {i+1:>3}: {line}"
+                for i, line in enumerate(
+                    self.dockerfile_lines[second_index - 2 : first_index + 2]
+                )
+            ]
+        )
+
+        message = (
+            f"Expected {first!r} to appear before {second!r} in the Dockerfile, but "
+            f"{first!r} was at line {first_index+1} and {second!r} as at line "
+            f"{second_index+1}.  Surrounding lines:\n{surrounding_lines}"
+        )
+
+        assert first_index < second_index, message
+
+    def assert_line_after(self, second: str, first: str) -> None:
+        """Asserts that the second line appears after the first line"""
+        self.assert_line_before(first, second)
+
+    def assert_has_file(self, source: Path, container_path: PurePosixPath) -> None:
+        """Asserts that the given file or directory will be copied into the container
+        at the given path"""
+        if source.is_absolute():
+            source = source.relative_to(self.base_directory)
+
+        self.assert_has_line(f"COPY {source} {container_path}")
 
 
 class PushError(Exception):
@@ -268,3 +360,27 @@ def push_image(
             client.api.remove_image(f"{repository}:{tag}", noprune=True)
 
     return f"{repository}:{tag}"
+
+
+def to_run_command(command: List[str]) -> str:
+    """
+    Convert a process-style list of command arguments to a single Dockerfile RUN
+    instruction.
+    """
+    if not command:
+        return ""
+
+    run_command = f"RUN {command[0]}"
+    if len(command) > 1:
+        run_command += " " + " ".join([repr(arg) for arg in command[1:]])
+
+    # TODO: Consider performing text-wrapping to improve readability of the generated
+    #       Dockerfile
+    # return textwrap.wrap(
+    #     run_command,
+    #     subsequent_indent=" " * 4,
+    #     break_on_hyphens=False,
+    #     break_long_words=False
+    # )
+
+    return run_command
