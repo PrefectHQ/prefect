@@ -545,8 +545,6 @@ class Block(BaseModel, ABC):
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
-        return block_document.id
-
         return self._block_document_id
 
     @sync_compatible
