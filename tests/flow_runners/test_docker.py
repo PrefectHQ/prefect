@@ -6,11 +6,9 @@ from unittest.mock import MagicMock
 import anyio
 import anyio.abc
 import pytest
-from docker.errors import ImageNotFound, NotFound
-from docker.models.images import Image
 
 import prefect
-from prefect.docker import docker_client
+from prefect.docker import Image, ImageNotFound, NotFound, docker_client
 from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,

@@ -25,8 +25,9 @@ from .tasks import task
 from .context import tags
 from .client import get_client
 
-# Import the serializers so they are registered
+# Import modules that register types
 import prefect.serializers
+import prefect.packaging
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
