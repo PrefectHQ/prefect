@@ -122,12 +122,39 @@ async def test_creating_deployments(prefect_base_image: str, orion_client: Orion
     assert IMAGE_ID_PATTERN.match(manifest.image)
 
 
-async def test_unpackaing_outside_container(contexts: Path):
+@pytest.fixture
+def howdy_context(prefect_base_image: str, tmp_path: Path) -> Path:
+    (tmp_path / "Dockerfile").write_text(
+        textwrap.dedent(
+            f"""
+            FROM {prefect_base_image}
+            COPY howdy.py /howdy.py
+            """
+        )
+    )
+
+    (tmp_path / "howdy.py").write_text(
+        textwrap.dedent(
+            """
+            from prefect import flow
+
+
+            @flow
+            def howdy(name: str) -> str:
+                return f"howdy, {name}!"
+            """
+        )
+    )
+
+    return tmp_path
+
+
+async def test_unpackaging_outside_container(howdy_context: Path):
     # This test is contrived to pretend we're in a Docker container right now and giving
     # a known test file path as the image_flow_location
     manifest = DockerPackageManifest(
         image="any-one",
-        image_flow_location=str(contexts / "howdy-flow" / "howdy.py"),
+        image_flow_location=str(howdy_context / "howdy.py"),
         flow_name="howdy",
     )
     unpackaged_howdy = await manifest.unpackage()
@@ -148,9 +175,9 @@ async def test_unpackaging_inside_container(
     assert_unpackaged_flow_works(docker, manifest)
 
 
-async def test_custom_dockerfile_unpackaging(contexts: Path, docker: DockerClient):
+async def test_custom_dockerfile_unpackaging(howdy_context: Path, docker: DockerClient):
     packager = DockerPackager(
-        dockerfile=contexts / "howdy-flow" / "Dockerfile",
+        dockerfile=howdy_context / "Dockerfile",
         image_flow_location="/howdy.py",
     )
     manifest = await packager.package(howdy)
