@@ -62,6 +62,7 @@ The following sections provide details about Prefect UI pages and visualizations
 - [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
 - [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
+- [Notifications](/ui/notifications/) enable you to configure alerts when flow runs enter specified states.
 
 ## Navigating the UI
 
