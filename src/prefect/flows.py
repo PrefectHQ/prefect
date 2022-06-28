@@ -33,7 +33,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.context import PrefectObjectRegistry
+from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
@@ -527,9 +527,8 @@ def load_flows_from_script(path: str) -> List[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-    from prefect.context import PrefectObjectRegistry
 
-    return PrefectObjectRegistry.load_from_script(path).get_instances_of(Flow)
+    return registry_from_script(path).get_instances_of(Flow)
 
 
 def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
