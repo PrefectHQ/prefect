@@ -2,7 +2,11 @@ from typing import Dict
 
 import yaml
 from kubernetes.client import ApiClient
-from kubernetes.config import list_kube_config_contexts, new_client_from_config_dict
+from kubernetes.config import (
+    ConfigException,
+    list_kube_config_contexts,
+    new_client_from_config_dict,
+)
 
 from prefect.blocks.core import Block, register_block
 
@@ -13,49 +17,65 @@ class KubernetesClusterConfig(Block):
     A `Block` class for holding information about kubernetes clusters.
     """
 
-    config: Dict = None
+    active_config: Dict = None
+    config_file_dict: Dict = None
     context: str = None
 
-    def get_config_by_context(self, contents: Dict, context: str) -> Dict:
+    @staticmethod
+    def get_config_from_dict(contents: Dict, context: str) -> Dict:
         for cluster_config in contents["clusters"]:
             if cluster_config["name"] == context:
                 return cluster_config
 
         raise KeyError(f"No context found in config file with name: {context!r}")
 
+    def load_config_file(self, config_filepath: str):
+        with open(config_filepath, "r") as f:
+            self.config_file_dict = yaml.safe_load(f)
+
     @classmethod
-    def from_file(cls, filepath: str, context: str):
+    def from_file(cls, config_filepath: str, context: str):
         """
-        Class method to extract dict representing k8s config from config file.
+        Factory method to create instance of this block from ~/.kube/config and a context
         """
-        with open(filepath, "r") as f:
+        with open(config_filepath, "r") as f:
             contents = yaml.safe_load(f)
-            cluster_config = cls.get_config_by_context(
+            cluster_config = cls.get_config_from_dict(
                 contents=contents, context=context
             )
-            return cls(config=cluster_config, context=context)
+            return cls(
+                active_config=cluster_config, config_file_dict=contents, context=context
+            )
 
-    @classmethod
-    def from_current_context(cls):
-        # list_kube_config_contexts returns a tuple (all_context, current)
+    def use_current_context(self):
+        """
+        Set the active_config member variable to the currently active k8s context
+
+        list_kube_config_contexts returns a tuple (all_contexts, current_context)
+        """
         current_context = list_kube_config_contexts()[1]
 
-        if cls.config:
-            cluster_config = cls.get_config_by_context(
-                contents=cls.config, context=current_context
+        if self.config_file_dict:
+            cluster_config = self.get_config_from_dict(
+                contents=self.config_file_dict, context=current_context["name"]
             )
-            return cls(config=cluster_config, context=current_context)
-        else:
-            raise AssertionError
+            self.active_config = cluster_config
 
-    def get_client_from_config_dict(self) -> ApiClient:
+        else:
+            raise Exception(
+                "No config file provided, call load_config_file on this object"
+            )
+
+    def get_api_client(self, context: str, config_filepath: str = None) -> ApiClient:
+        """
+        Returns an instance of the kubernetes api client with a specific context
+        """
+        if not config_filepath:
+            self.load_config_file(filepath=config_filepath)
 
         try:
-            assert self.config
-
             return new_client_from_config_dict(
-                config_dict=self.config, context=self.context
+                config_dict=self.config_file_dict, context=context
             )
-
-        except AssertionError:
-            raise ("config is not populated")
+        except ConfigException:
+            raise
