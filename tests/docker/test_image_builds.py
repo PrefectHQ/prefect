@@ -160,6 +160,21 @@ def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: 
     assert output == "Can't bear oceans."
 
 
+def test_copied_paths_are_resolved(
+    contexts: Path, docker: DockerClient, prefect_base_image: str
+):
+    with ImageBuilder(prefect_base_image) as image:
+        image.add_line("WORKDIR /tiny/")
+        image.copy(contexts / "tiny" / ".." / "tiny" / "hello.txt", "hello.txt")
+        image.add_line('ENTRYPOINT [ "/bin/cat", "hello.txt" ]')
+        image_id = image.build()
+
+        image.assert_has_line("COPY tests/docker/contexts/tiny/hello.txt hello.txt")
+
+    output = docker.containers.run(image_id, remove=True).decode().strip()
+    assert output == "Can't bear oceans."
+
+
 def test_copying_file_to_absolute_location(
     contexts: Path, docker: DockerClient, prefect_base_image: str
 ):
