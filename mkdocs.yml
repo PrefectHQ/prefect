@@ -102,6 +102,7 @@ nav:
         - ui/flows-and-tasks.md
         - ui/deployments.md
         - ui/work-queues.md
+        - ui/notifications.md
         - Prefect Cloud:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
