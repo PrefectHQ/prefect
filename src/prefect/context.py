@@ -120,8 +120,9 @@ class PrefectObjectRegistry(ContextModel):
 
     def get_instances(self, type_: Type[T]) -> List[T]:
         instances = []
-        for type__ in type_.mro():
-            instances.extend(self._instance_registry[type__])
+        for registered_type, type_instances in self._instance_registry.items():
+            if type_ in registered_type.mro():
+                instances.extend(type_instances)
         return instances
 
     def get_instance_failures(
@@ -133,6 +134,7 @@ class PrefectObjectRegistry(ContextModel):
         return failures
 
     def register_instance(self, object):
+        # TODO: Consider using a 'Set' to avoid duplicate entries
         self._instance_registry[type(object)].append(object)
 
     def register_init_failure(
@@ -143,11 +145,12 @@ class PrefectObjectRegistry(ContextModel):
         )
 
     @classmethod
-    def register_instances(cls, __init__):
+    def register_instances(cls, type_: Type):
         """
-        Decorator for __init__ that adds registration to the `PrefectObjectRegistry`
-        on initialization of a type.
+        Decorator for a class that adds registration to the `PrefectObjectRegistry`
+        on initialization of instances.
         """
+        __init__ = type_.__init__
 
         def __register_init__(__self__, *args, **kwargs):
             registry = cls.get()
@@ -162,7 +165,9 @@ class PrefectObjectRegistry(ContextModel):
                 if registry:
                     registry.register_instance(__self__)
 
-        return __register_init__
+        type_.__init__ = __register_init__
+
+        return type_
 
 
 class RunContext(ContextModel):
