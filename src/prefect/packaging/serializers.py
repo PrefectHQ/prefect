@@ -44,12 +44,12 @@ class PickleSerializer(Serializer):
                 f"Failed to import requested pickle library: {value!r}."
             ) from exc
 
-        if not hasattr(pickler, "dumps"):
+        if not callable(getattr(pickler, "dumps", None)):
             raise ValueError(
                 f"Pickle library at {value!r} does not have a 'dumps' method."
             )
 
-        if not hasattr(pickler, "loads"):
+        if not callable(getattr(pickler, "loads", None)):
             raise ValueError(
                 f"Pickle library at {value!r} does not have a 'loads' method."
             )
@@ -62,11 +62,14 @@ class PickleSerializer(Serializer):
         Infers a default value for `picklelib_version` if null or ensures it matches
         the version retrieved from the `pickelib`.
         """
-        picklelib = values["picklelib"]
+        picklelib = values.get("picklelib")
         picklelib_version = values.get("picklelib_version")
 
+        if not picklelib:
+            raise ValueError("Unable to check version of unrecognized picklelib module")
+
         pickler = from_qualified_name(picklelib)
-        pickler_version = getattr(pickler, "__version__")
+        pickler_version = getattr(pickler, "__version__", None)
 
         if not picklelib_version:
             values["picklelib_version"] = pickler_version
@@ -113,7 +116,7 @@ class SourceSerializer(Serializer):
         if module is None:
             raise ValueError(f"Cannot determine source module for object: {obj!r}.")
 
-        if not module.__file__:
+        if not getattr(module, "__file__", None):
             raise ValueError(
                 f"Found module {module!r} without source code file while serializing "
                 f"object: {obj!r}."
