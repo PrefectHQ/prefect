@@ -33,3 +33,9 @@ import prefect.context
 
 prefect.context.enter_root_settings_context()
 prefect.context.initialize_object_registry()
+
+
+# Ensure collections are imported and have the opportunity to register types
+import prefect.plugins
+
+prefect.plugins.load_prefect_collections()

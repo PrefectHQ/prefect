@@ -8,12 +8,12 @@ from uuid import UUID, uuid4
 from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
 from typing_extensions import get_args, get_origin
 
 import prefect
 from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncio import asyncnullcontext
+from prefect.utilities.asyncio import asyncnullcontext, sync_compatible
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.hashing import hash_objects
 
@@ -53,6 +53,22 @@ class Block(BaseModel, ABC):
             """
             schema["block_type_name"] = model.get_block_type_name()
 
+            # create a list of secret field names
+            # secret fields include both top-level keys and dot-delimited nested secret keys
+            # for example: ["x", "y", "child.a"]
+            # means the top-level keys "x" and "y" are secret, as is the key "a" of a block
+            # nested under the "child" key. There is no limit to nesting.
+            secrets = schema["secret_fields"] = []
+            for field in model.__fields__.values():
+                if field.type_ in [SecretStr, SecretBytes]:
+                    secrets.append(field.name)
+                elif Block.is_block_class(field.type_):
+                    secrets.extend(
+                        f"{field.name}.{s}"
+                        for s in field.type_.schema()["secret_fields"]
+                    )
+
+            # create block schema references
             refs = schema["block_schema_references"] = {}
             for field in model.__fields__.values():
                 if Block.is_block_class(field.type_):
@@ -155,7 +171,7 @@ class Block(BaseModel, ABC):
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
         fields_for_checksum = remove_nested_keys(
-            ["description", "definitions"], block_schema_fields
+            ["description", "definitions", "secret_fields"], block_schema_fields
         )
         checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
@@ -399,6 +415,7 @@ class Block(BaseModel, ABC):
                 )
 
     @classmethod
+    @sync_compatible
     async def load(cls, name: str):
         """
         Retrieves data from the block document with the given name for the block type
@@ -527,6 +544,7 @@ class Block(BaseModel, ABC):
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
 
+    @sync_compatible
     async def save(self, name: str):
         """
         Saves the values of a block as a block document.
