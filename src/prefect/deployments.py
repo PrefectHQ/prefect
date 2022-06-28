@@ -250,7 +250,7 @@ async def _source_to_flow(flow_source: FlowSource) -> Flow:
         return await flow_source.unpackage()
     else:
         raise TypeError(
-            "Unknown type {type(flow_source).__name__!r} for flow source. "
+            f"Unknown type {type(flow_source).__name__!r} for flow source. "
             "Expected one of 'Flow', 'FlowScript', or 'PackageManifest'."
         )
 
