@@ -166,7 +166,6 @@ class PrefectObjectRegistry(ContextModel):
                     registry.register_instance(__self__)
 
         type_.__init__ = __register_init__
-
         return type_
 
 
