@@ -79,7 +79,6 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
-        @register_block
         class SecretBlock(Block):
             x: SecretStr
             y: SecretBytes
@@ -171,7 +170,6 @@ class TestAPICompatibility:
         }
 
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
-        @register_block
         class SecretBlock(Block):
             x: SecretStr
             y: SecretBytes
@@ -722,13 +720,13 @@ class TestAPICompatibility:
             await test_block.load("blocky")
 
 
-class TestRegisterBlock:
+class TestRegisterBlockTypeAndSchema:
     class NewBlock(Block):
         a: str
         b: str
         c: int
 
-    async def test_register_block(self, orion_client: OrionClient):
+    async def test_register_type_and_schema(self, orion_client: OrionClient):
         await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_name(name="NewBlock")
