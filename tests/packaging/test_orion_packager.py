@@ -1,6 +1,5 @@
 import pytest
 
-from prefect import flow
 from prefect.packaging import OrionPackager
 from prefect.packaging.orion import OrionPackageManifest
 from prefect.packaging.serializers import (
@@ -9,10 +8,7 @@ from prefect.packaging.serializers import (
     SourceSerializer,
 )
 
-
-@flow
-def towdy(name):
-    return f"towdy {name}"
+from . import howdy
 
 
 @pytest.mark.parametrize(
@@ -20,8 +16,8 @@ def towdy(name):
 )
 async def test_orion_packager_by_serializer(serializer):
     packager = OrionPackager(serializer=serializer)
-    manifest = await packager.package(towdy)
+    manifest = await packager.package(howdy)
 
     assert isinstance(manifest, OrionPackageManifest)
-    unpackaged_towdy = await manifest.unpackage()
-    assert unpackaged_towdy("bro").result() == "towdy bro"
+    unpackaged_howdy = await manifest.unpackage()
+    assert unpackaged_howdy("bro").result() == "howdy, bro!"

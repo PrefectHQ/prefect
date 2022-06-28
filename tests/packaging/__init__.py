@@ -1,6 +1,6 @@
-import prefect
+from prefect import flow
 
 
-@prefect.flow
+@flow
 def howdy(name: str) -> str:
     return f"howdy, {name}!"
