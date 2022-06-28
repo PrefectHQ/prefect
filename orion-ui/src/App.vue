@@ -25,6 +25,9 @@
 
 <script lang="ts" setup>
   import {
+    blockDocumentsApiKey,
+    blockSchemasApiKey,
+    blockTypesApiKey,
     deploymentsApiKey,
     flowRunsApiKey,
     flowsApiKey,
@@ -42,10 +45,18 @@
     deploymentRouteKey,
     workQueueRouteKey,
     workQueueCreateRouteKey,
-    editQueueRouteKey
+    editQueueRouteKey,
+    editNotificationRouteKey,
+    notificationsApiKey,
+    notificationCreateRouteKey,
+    notificationsRouteKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
+  import { blockDocumentsApi } from './services/blockDocumentsApi'
+  import { blockSchemasApi } from './services/blockSchemasApi'
+  import { blockTypesApi } from './services/blockTypesApi'
+  import { notificationsApi } from './services/notificationsApi'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import { routes } from '@/router/routes'
   import { deploymentsApi } from '@/services/deploymentsApi'
@@ -56,6 +67,9 @@
   import { workQueuesApi } from '@/services/workQueuesApi'
   import { can } from '@/utilities/permissions'
 
+  provide(blockDocumentsApiKey, blockDocumentsApi)
+  provide(blockSchemasApiKey, blockSchemasApi)
+  provide(blockTypesApiKey, blockTypesApi)
   provide(deploymentsApiKey, deploymentsApi)
   provide(flowRunsApiKey, flowRunsApi)
   provide(flowsApiKey, flowsApi)
@@ -74,6 +88,10 @@
   provide(workQueueRouteKey, routes.workQueue)
   provide(workQueueCreateRouteKey, routes.workQueueCreate)
   provide(editQueueRouteKey, routes.workQueueEdit)
+  provide(notificationsApiKey, notificationsApi)
+  provide(notificationCreateRouteKey, routes.notificationCreate)
+  provide(editNotificationRouteKey, routes.notificationEdit)
+  provide(notificationsRouteKey, routes.notifications)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
