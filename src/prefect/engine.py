@@ -64,10 +64,12 @@ from prefect.utilities.asyncio import (
     gather,
     in_async_main_thread,
     run_async_from_worker_thread,
+    run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import PartialModel, Quote, visit_collection
+from prefect.utilities.collections import Quote, visit_collection
+from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
 engine_logger = get_logger("engine")
@@ -823,7 +825,9 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await task.fn(*args, **kwargs)
                 else:
-                    result = await run_sync_in_worker_thread(task.fn, *args, **kwargs)
+                    result = await run_sync_in_interruptible_worker_thread(
+                        task.fn, *args, **kwargs
+                    )
 
         except Exception as exc:
             logger.error(

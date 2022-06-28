@@ -2,10 +2,12 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
+from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate
+from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
 
 
 @pytest.fixture
@@ -1604,3 +1606,144 @@ class TestUpdateBlockDocument:
                 }
             },
         }
+
+
+class TestSecretBlockDocuments:
+    @pytest.fixture()
+    async def secret_block_type_and_schema(self, session):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        secret_block_type = await models.block_types.create_block_type(
+            session=session, block_type=SecretBlock._to_block_type()
+        )
+        secret_block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=SecretBlock._to_block_schema(
+                block_type_id=secret_block_type.id
+            ),
+        )
+
+        await session.commit()
+        return secret_block_type, secret_block_schema
+
+    @pytest.fixture()
+    async def secret_block_document(self, session, secret_block_type_and_schema):
+        secret_block_type, secret_block_schema = secret_block_type_and_schema
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="secret block",
+                data=dict(x="x", y="y", z="z"),
+                block_type_id=secret_block_type.id,
+                block_schema_id=secret_block_schema.id,
+            ),
+        )
+        await session.commit()
+        return block
+
+    async def test_create_secret_block_document_obfuscates_results(
+        self, session, secret_block_type_and_schema
+    ):
+        secret_block_type, secret_block_schema = secret_block_type_and_schema
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="secret block",
+                data=dict(x="x", y="y", z="z"),
+                block_type_id=secret_block_type.id,
+                block_schema_id=secret_block_schema.id,
+            ),
+        )
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_id_obfuscates_results(
+        self, session, secret_block_document
+    ):
+
+        block = await models.block_documents.read_block_document_by_id(
+            session=session, block_document_id=secret_block_document.id
+        )
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_id_with_secrets(
+        self, session, secret_block_document
+    ):
+
+        block = await models.block_documents.read_block_document_by_id(
+            session=session,
+            block_document_id=secret_block_document.id,
+            include_secrets=True,
+        )
+
+        assert block.data["x"] == "x"
+        assert block.data["y"] == "y"
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_name_obfuscates_results(
+        self, session, secret_block_document
+    ):
+
+        block = await models.block_documents.read_block_document_by_name(
+            session=session,
+            name=secret_block_document.name,
+            block_type_name=secret_block_document.block_type.name,
+        )
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_name_with_secrets(
+        self, session, secret_block_document
+    ):
+
+        block = await models.block_documents.read_block_document_by_name(
+            session=session,
+            name=secret_block_document.name,
+            block_type_name=secret_block_document.block_type.name,
+            include_secrets=True,
+        )
+
+        assert block.data["x"] == "x"
+        assert block.data["y"] == "y"
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_documents_obfuscates_results(
+        self, session, secret_block_document
+    ):
+
+        blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                block_type_id=dict(any_=[secret_block_document.block_type_id])
+            ),
+        )
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == OBFUSCATED_SECRET
+        assert blocks[0].data["y"] == OBFUSCATED_SECRET
+        assert blocks[0].data["z"] == "z"
+
+    async def test_read_secret_block_documents_with_secrets(
+        self, session, secret_block_document
+    ):
+
+        blocks = await models.block_documents.read_block_documents(
+            session=session,
+            block_document_filter=schemas.filters.BlockDocumentFilter(
+                block_type_id=dict(any_=[secret_block_document.block_type_id])
+            ),
+            include_secrets=True,
+        )
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == "x"
+        assert blocks[0].data["y"] == "y"
+        assert blocks[0].data["z"] == "z"

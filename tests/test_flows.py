@@ -710,8 +710,6 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
-        # Unfortunately, the worker thread continues running and we cannot stop it from
-        # doing so. The canary file _will_ be created.
         time.sleep(2)
         assert canary_file.exists()
 
