@@ -71,6 +71,7 @@ def task_input_hash(
     )
 
 
+@PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -104,7 +105,6 @@ class Task(Generic[P, R]):
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
     #       exactly in the @task decorator
-    @PrefectObjectRegistry.register_instances
     def __init__(
         self,
         fn: Callable[P, R],
