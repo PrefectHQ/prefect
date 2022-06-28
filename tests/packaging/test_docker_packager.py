@@ -1,14 +1,16 @@
 import re
 import textwrap
+import warnings
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from tarfile import TarFile, TarInfo
+from unittest.mock import MagicMock
 
+import anyio.abc
 import pytest
 from docker import DockerClient
 from docker.models.containers import Container
 
-import prefect
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
 from prefect.flow_runners.docker import DockerFlowRunner
@@ -16,24 +18,55 @@ from prefect.orion.schemas.states import StateType
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
 
+from . import howdy
+
 pytestmark = pytest.mark.service("docker")
 
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
 
-@prefect.flow
-def howdy() -> str:
-    import requests
-
-    assert requests.__version__ == "2.28.0"
-
-    return "howdy!"
+@pytest.fixture(autouse=True)
+def silence_user_warnings_about_editable_packages():
+    # For the duration of these tests, ignore our UserWarning coming from
+    # prefect.software.pip.current_environment_requirements about editable packages;
+    # when working locally, the prefect package is almost always editable
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="The following requirements will not be installable.*",
+            category=UserWarning,
+            module="prefect.software.pip",
+        )
+        yield
 
 
 @pytest.fixture
 def contexts() -> Path:
     return Path(__file__).parent.parent / "docker" / "contexts"
+
+
+def test_building_or_dockerfile_required():
+    with pytest.raises(ValueError, match="One of `base_image` or `dockerfile`"):
+        DockerPackager(base_image=None, dockerfile=None)
+
+
+def test_dockerfile_exclusive_with_building():
+    with pytest.raises(ValueError, match="Either `base_image` or `dockerfile`"):
+        DockerPackager(base_image="yep", dockerfile="nope")
+
+
+def test_python_environment_autodetected_when_building():
+    packager = DockerPackager(base_image="yep", python_environment=None)
+    assert packager.base_image == "yep"
+    assert packager.python_environment
+    assert packager.python_environment.pip_requirements
+
+
+def test_python_environment_not_autodetected_with_dockerfile():
+    packager = DockerPackager(dockerfile="Docky")
+    assert packager.dockerfile == PurePosixPath("Docky")
+    assert not packager.python_environment
 
 
 async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
@@ -89,6 +122,18 @@ async def test_creating_deployments(prefect_base_image: str, orion_client: Orion
     assert IMAGE_ID_PATTERN.match(manifest.image)
 
 
+async def test_unpackaing_outside_container(contexts: Path):
+    # This test is contrived to pretend we're in a Docker container right now and giving
+    # a known test file path as the image_flow_location
+    manifest = DockerPackageManifest(
+        image="any-one",
+        image_flow_location=str(contexts / "howdy-flow" / "howdy.py"),
+        flow_name="howdy",
+    )
+    unpackaged_howdy = await manifest.unpackage()
+    assert unpackaged_howdy("dude").result() == "howdy, dude!"
+
+
 async def test_unpackaging_inside_container(
     prefect_base_image: str, docker: DockerClient
 ):
@@ -122,7 +167,7 @@ def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageMa
 
     flow = asyncio.get_event_loop().run_until_complete(manifest.unpackage())
 
-    assert flow().result() == 'howdy!'
+    assert flow('there').result() == 'howdy, there!'
     """
     )
 
@@ -161,6 +206,7 @@ async def test_end_to_end(
                 pip_requirements=["requests==2.28.0"],
             ),
         ),
+        parameters={"name": "partner"},
     )
     deployment_id = await deployment.create()
 
@@ -170,7 +216,8 @@ async def test_end_to_end(
 
     flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
 
-    assert await runner.submit_flow_run(flow_run)
+    task_status = MagicMock(spec=anyio.abc.TaskStatus)
+    assert await runner.submit_flow_run(flow_run, task_status)
 
     flow_run = await orion_client.read_flow_run(flow_run.id)
     assert flow_run.state.type == StateType.COMPLETED, flow_run.state.message
