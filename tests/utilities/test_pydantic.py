@@ -237,21 +237,6 @@ class TestTypeDispatchField:
         assert isinstance(post_foo, Foo)
         assert isinstance(post_second_foo, SecondFoo)
 
-    def test_unregistered_subtype_cannot_be_resolved_with_base_parse(self):
-        @add_type_dispatch
-        class Base(pydantic.BaseModel):
-            __dispatch_key__: str
-
-        class Foo(Base):
-            __dispatch_key__ = "foo"
-
-        instance = Foo()
-        with pytest.raises(
-            KeyError,
-            match="No class found for dispatch key 'foo' in registry for type 'Base'",
-        ):
-            Base.parse_raw(instance.json())
-
     def test_register_type_without_known_base(self):
         class DispatchlessBase(pydantic.BaseModel):
             pass
