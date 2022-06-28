@@ -28,7 +28,7 @@ markdown_extensions:
 theme:
     name: material
     custom_dir: overrides
-    favicon: img/favicon.ico
+    favicon: /img/favicon.ico
     features:
         - toc.integrate
         - navigation.tabs
@@ -39,7 +39,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-2.0-logo-mark-white.png
+    logo: img/assets/logomark-light.svg
     palette:
         primary: blue
         accent: blue
@@ -60,7 +60,7 @@ plugins:
             - src/prefect/
     search: {}
 nav:
-  - Home: index.md
+  - Prefect 1.0: index.md
   - Core:
     - Overview: core/README.md
     - About Prefect:

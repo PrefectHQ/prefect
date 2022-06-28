@@ -1,26 +1,14 @@
 ---
-home: true
-heroText: ' '
-tagline: ' '
-footer: Copyright © 2018-present Prefect Technologies, Inc.
+description: 
+title: Prefect 1.0
 ---
 
-<div class="hero">
-   <img src="/assets/prefect-logo-gradient-navy.svg" width="500" style="max-width: 500px;">
-   <p class="description">Don't Panic.</p>
-    <div class="action">
-        <router-link to="core/">
-            <button class="action-button"  to="core/">
-                Core Workflow Engine
-            </button>
-         </router-link>
-        <router-link to="orchestration/">
-            <button class="action-button">
-                Orchestration & API
-            </button>
-        </router-link>
-    </div>
-</div>
+<img src="/img/assets/prefect-logo-gradient-navy.svg" width="500" style="max-width: 500px;">
+
+## Don't Panic!
+
+* [Core Workflow Engine](/core/)
+* [Orchestration & API](/orchestration/)
 
 
 Prefect Core is now Prefect 1.0! Check [this blog post](https://www.prefect.io/blog/prefect-core-is-now-prefect-1-0/) to learn more.
@@ -36,34 +24,19 @@ If you use a previous version of Prefect (before the 1.0 release), you may eithe
 If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
 
 
-
-<div class="features">
-<div class="feature">
-
 ## Automate all the things
 
 If you can do it with Python, you can automate it with Prefect.
-
-</div>
-<div class="feature">
 
 ## Test local, deploy global
 
 Workflows are developed and tested locally, then deployed for execution at scale.
 
-</div>
-<div class="feature">
-
 ## Simple but powerful
 
 Prefect Cloud is powered by GraphQL, Dask, and Kubernetes, so it's ready for anything.
 
-</div>
-</div>
-
----
-
-### Prefect
+## Prefect is...
 
 We've rebuilt data engineering for the data science era.
 
@@ -71,7 +44,7 @@ Prefect is a new workflow management system, designed for modern infrastructure 
 
 Read the [docs](/core/); get the [code](https://github.com/PrefectHQ/prefect); ask us [anything](https://www.prefect.io/slack); chat with the community via [Prefect Discourse](https://discourse.prefect.io/)!
 
-### Hello, world! 👋
+## Hello, world! 👋
 
 ```python
 from prefect import task, Flow, Parameter
