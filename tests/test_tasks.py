@@ -1311,7 +1311,7 @@ class TestTaskRegistration:
             pass
 
         registry = PrefectObjectRegistry.get()
-        assert my_task in registry.get_instances_of(Task)
+        assert my_task in registry.get_instances(Task)
 
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(

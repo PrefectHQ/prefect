@@ -151,7 +151,7 @@ class Flow(Generic[P, R]):
 
         if registry and any(
             other
-            for other in registry.get_instances_of(Flow)
+            for other in registry.get_instances(Flow)
             if other.name == self.name and id(other.fn) != id(self.fn)
         ):
             file = inspect.getsourcefile(self.fn)
@@ -528,7 +528,7 @@ def load_flows_from_script(path: str) -> List[Flow]:
         FlowScriptError: If an exception is encountered while running the script
     """
 
-    return registry_from_script(path).get_instances_of(Flow)
+    return registry_from_script(path).get_instances(Flow)
 
 
 def load_flow_from_script(path: str, flow_name: str = None) -> Flow:

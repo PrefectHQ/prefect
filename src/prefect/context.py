@@ -104,35 +104,43 @@ class PrefectObjectRegistry(ContextModel):
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
-    _registry: Dict[Type[T], List[T]] = PrivateAttr(
+    _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = PrivateAttr(
-        default_factory=lambda: defaultdict(list)
-    )
+    _instance_init_failures: Dict[
+        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
+    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
 
     block_code_execution: bool = False
     capture_failures: bool = False
 
     __var__ = ContextVar("object_registry")
 
-    def get_instances_of(self, type_: Type[T]) -> List[T]:
-        return self._registry[type_]
+    def get_instances(self, type_: Type[T]) -> List[T]:
+        instances = []
+        for type__ in type_.mro():
+            instances.extend(self._instance_registry[type__])
+        return instances
 
-    def get_failures_for(
+    def get_instance_failures(
         self, type_: Type[T]
     ) -> List[Tuple[Exception, T, Tuple, Dict]]:
-        return self._failures[type_]
+        failures = []
+        for type__ in type_.mro():
+            failures.extend(self._instance_init_failures[type__])
+        return failures
 
-    def register(self, object):
-        self._registry[type(object)].append(object)
+    def register_instance(self, object):
+        self._instance_registry[type(object)].append(object)
 
-    def register_failure(
+    def register_init_failure(
         self, exc: Exception, object: Any, init_args: Tuple, init_kwargs: Dict
     ):
-        self._failures[type(object)].append((exc, object, init_args, init_kwargs))
+        self._instance_init_failures[type(object)].append(
+            (exc, object, init_args, init_kwargs)
+        )
 
     @classmethod
     def register_instances(cls, __init__):
@@ -149,10 +157,10 @@ class PrefectObjectRegistry(ContextModel):
                 if not registry or not registry.capture_failures:
                     raise
                 else:
-                    registry.register_failure(exc, __self__, args, kwargs)
+                    registry.register_init_failure(exc, __self__, args, kwargs)
             else:
                 if registry:
-                    registry.register(__self__)
+                    registry.register_instance(__self__)
 
         return __register_init__
 
