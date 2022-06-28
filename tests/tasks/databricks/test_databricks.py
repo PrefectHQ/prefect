@@ -714,7 +714,7 @@ class TestDatabricksSubmitMultitaskRun:
                                     "zone_id": "us-west-2a",
                                 },
                                 "autoscale": {"min_workers": 2, "max_workers": 16},
-                                "amazing_new_feature": True
+                                "amazing_new_feature": True,
                             },
                         },
                     ],
