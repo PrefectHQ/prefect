@@ -11,7 +11,7 @@ from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.context import PrefectObjectRegistry
+from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow, load_flow_from_script
@@ -251,7 +251,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
 
 
 def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
-    return PrefectObjectRegistry.load_from_script(path).get_instances_of(DeploymentSpec)
+    return registry_from_script(path).get_instances_of(DeploymentSpec)
 
 
 def _register_spec(spec: DeploymentSpec) -> None:

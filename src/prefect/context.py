@@ -118,21 +118,6 @@ class PrefectObjectRegistry(ContextModel):
 
     __var__ = ContextVar("object_registry")
 
-    @classmethod
-    def load_from_script(
-        cls,
-        path: str,
-        block_code_execution: bool = True,
-        capture_failures: bool = True,
-    ):
-        with cls(
-            block_code_execution=block_code_execution,
-            capture_failures=capture_failures,
-        ) as self:
-            load_script_as_module(path)
-
-        return self
-
     def get_instances_of(self, type_: Type[T]) -> List[T]:
         return self._registry[type_]
 
@@ -387,6 +372,23 @@ def tags(*new_tags: str) -> Set[str]:
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
+
+
+def registry_from_script(
+    path: str,
+    block_code_execution: bool = True,
+    capture_failures: bool = True,
+) -> PrefectObjectRegistry:
+    """
+    Return a fresh registry with instances populated from execution of a script.
+    """
+    with PrefectObjectRegistry(
+        block_code_execution=block_code_execution,
+        capture_failures=capture_failures,
+    ) as registry:
+        load_script_as_module(path)
+
+    return registry
 
 
 @contextmanager
