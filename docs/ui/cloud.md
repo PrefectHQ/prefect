@@ -14,13 +14,15 @@ tags:
 Prefect Cloud is an orchestration-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect UI](/ui/overview/) in a hosted environment, including:
 
 - Flow run summaries
-- Flow deployment details
-- Create ad-hoc flow runs from deployments
 - Details of upcoming scheduled flow runs
 - Warnings for late or failed runs
 - Task run details 
 - Radar flow and task dependency visualizer 
 - Logs
+- [Deployments](/concepts/deployments/)
+- [Work queues](/concepts/work-queues/)
+- [Notifications](/ui/notifications/)
+- Create ad-hoc flow runs from deployments
 
 Features only available on Prefect Cloud include:
 
@@ -54,6 +56,7 @@ Each workspace keeps track of its own:
 - [Deployments](/concepts/deployments/)
 - [Storage](/concepts/storage/)
 - [Work queues](/concepts/work-queues/)
+- [Notifications](/ui/notifications/)
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. The next steps will show you how to [get started with Prefect Cloud](/ui/cloud-getting-started/). 
 
