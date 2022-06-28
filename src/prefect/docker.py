@@ -34,9 +34,13 @@ def silence_docker_warnings() -> Generator[None, None, None]:
         yield
 
 
+# docker-py has some deprecation warnings that fire off during import, and we don't
+# want to have those popping up in various modules and test suites.  Instead,
+# consolidate the imports we need here, and expose them via this module.
 with silence_docker_warnings():
     from docker import DockerClient
-    from docker.errors import APIError
+    from docker.errors import APIError, ImageNotFound, NotFound  # noqa: F401
+    from docker.models.containers import Container  # noqa: F401
     from docker.models.images import Image
 
 

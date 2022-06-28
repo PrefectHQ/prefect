@@ -11,18 +11,13 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
-from prefect.docker import silence_docker_warnings
+from prefect.docker import Container, DockerClient
 from prefect.flow_runners.docker import DockerFlowRunner
 from prefect.orion.schemas.states import StateType
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
 
 from . import howdy
-
-with silence_docker_warnings():
-    from docker import DockerClient
-    from docker.models.containers import Container
-
 
 pytestmark = pytest.mark.service("docker")
 
