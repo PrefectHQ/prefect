@@ -1,9 +1,10 @@
 """
 Command line interface for working with deployments.
 """
+import textwrap
 import traceback
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 from uuid import UUID
 
 import pendulum
@@ -14,12 +15,17 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import OrionClient, get_client, inject_client
-from prefect.deployments import load_flow_from_deployment
-from prefect.deprecated.deployments import (
-    DeploymentSpec,
-    deployment_specs_from_script,
-    deployment_specs_from_yaml,
+from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.deployments import (
+    DataDocument,
+    Deployment,
+    FlowScript,
+    PackageManifest,
+    _source_to_flow,
+    load_deployments_from_yaml,
+    load_flow_from_deployment,
 )
+from prefect.deprecated.deployments import DeploymentSpec
 from prefect.exceptions import DeploymentValidationError, ObjectNotFound, ScriptError
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowFilter
@@ -159,34 +165,35 @@ async def execute(name: str):
         exit_with_success("Flow run completed!")
 
 
-def _load_deployment_specs(path: Path, quietly=False) -> List[DeploymentSpec]:
-    """Load the deployment specification from the path the user gave on the command line, giving
-    helpful error messages if they cannot be loaded."""
+def _load_deployments(path: Path, quietly=False) -> PrefectObjectRegistry:
+    """
+    Load deployments from the path the user gave on the command line, giving helpful
+    error messages if they cannot be loaded.
+    """
     if path.suffix == ".py":
         from_msg = "python script"
-        loader = deployment_specs_from_script
+        loader = registry_from_script
 
     elif path.suffix in (".yaml", ".yml"):
         from_msg = "yaml file"
-        loader = deployment_specs_from_yaml
+        loader = load_deployments_from_yaml
 
     else:
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
     if not quietly:
         app.console.print(
-            f"Loading deployment specifications from {from_msg} "
-            f"at [green]{str(path)!r}[/]..."
+            f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]..."
         )
     try:
         specs = loader(path)
     except ScriptError as exc:
         app.console.print(exc)
         app.console.print(exception_traceback(exc.user_exc))
-        exit_with_error(f"Failed to load specifications from {str(path)!r}")
+        exit_with_error(f"Failed to load deployments from {str(path)!r}")
 
     if not specs:
-        exit_with_error("No deployment specifications found!", style="yellow")
+        exit_with_error("No deployments found!", style="yellow")
 
     return specs
 
@@ -239,25 +246,114 @@ async def create(path: Path):
             name: "my-other-flow"
         ```
     """
-    specs = _load_deployment_specs(path)
+    # Load the deployments into a registry
+    registry = _load_deployments(path)
 
-    from prefect.context import registry_from_script
-
-    registry = registry_from_script(path)
     valid_deployments = registry.get_instances(Deployment)
     invalid_deployments = registry.get_instance_failures(Deployment)
 
     if invalid_deployments:
+        app.console.print(f"[red]Found {len(invalid_deployments)} invalid deployments:")
         # Display all invalid deployments
         for exc, inst, args, kwargs in invalid_deployments:
-            assert inst.__dict__ == {}
-            partial_inst = type(inst).construct(*args, **kwargs)
-        exit(1)
+            # Reconstruct the deployment as much as possible
+            deployment = type(inst).construct(*args, **kwargs)
 
+            # Attempt to recover a helpful name
+            identifier = ""
+            if deployment.name:
+                identifier += f" for deployment with name {deployment.name!r}"
+            if deployment.flow and hasattr(deployment.flow, "name"):
+                identifier += f" for flow {deployment.flow.name!r}"
+            identifier = identifier or ""
+
+            app.console.print(
+                textwrap.indent(
+                    str(exc).replace(" for Deployment", identifier), prefix=" " * 4
+                )
+            )
+
+            # Add a newline if we're displaying multiple
+            if len(invalid_deployments) > 1:
+                app.console.print()
+
+        exit_with_error(
+            "Invalid deployments must be removed or fixed before creation can continue."
+        )
+
+    # Backwards compatibility
+    deployment_specs = registry.get_instances(DeploymentSpec)
+    failed, created = await _create_from_specifications_deprecated(deployment_specs)
+
+    async with get_client() as client:
+        for deployment in valid_deployments:
+            try:
+                await _create_deployment(deployment, client=client)
+            except Exception as exc:
+                app.console.print(exception_traceback(exc))
+                app.console.print(f"Failed to create deployment!", style="red")
+                failed += 1
+            else:
+                created += 1
+
+    if failed:
+        exit_with_error(
+            f"Failed to create {failed} out of {len(valid_deployments) + len(deployment_specs)} deployments."
+        )
+    else:
+        s = "s" if created > 1 else ""
+        exit_with_success(f"Created {created} deployment{s}!")
+
+
+async def _create_deployment(deployment: Deployment, client: OrionClient):
+    if isinstance(deployment.flow, FlowScript):
+        # TODO: Add a utility for path display that will do this logic
+        relative_path = str(deployment.flow.path.relative_to(Path(".").resolve()))
+        absolute_path = str(deployment.flow.path)
+        display_path = (
+            relative_path if len(relative_path) < len(absolute_path) else absolute_path
+        )
+        app.console.print(
+            f"Retrieving flow from script at [green]{display_path!r}[/]..."
+        )
+    elif isinstance(deployment.flow, PackageManifest):
+        app.console.print(f"Retrieving flow from {deployment.flow.type!r} package...")
+
+    flow = await _source_to_flow(deployment.flow)
+
+    name = deployment.name or flow.name
+    stylized_name = f"[blue]'{flow.name}/[/][bold blue]{name}'[/]"
+
+    if isinstance(deployment.flow, PackageManifest):
+        manifest = deployment.flow
+    else:
+        app.console.print(f"Packaging flow for deployment {stylized_name}...")
+        manifest = await deployment.packager.package(flow)
+
+    flow_data = DataDocument.encode("package-manifest", manifest)
+
+    app.console.print(f"Registering deployment {stylized_name} with the server...")
+    flow_id = await client.create_flow(flow)
+    deployment_id = await client.create_deployment(
+        flow_id=flow_id,
+        name=name,
+        flow_data=flow_data,
+        schedule=deployment.schedule,
+        parameters=deployment.parameters,
+        tags=deployment.tags,
+        flow_runner=deployment.flow_runner,
+    )
+    # TODO: Display a link to the UI if available
+    app.console.print(f"Created deployment {stylized_name} ({deployment_id}).")
+
+
+async def _create_from_specifications_deprecated(
+    specs: List[DeploymentSpec],
+) -> Tuple[int, int]:
     failed = 0
     for spec in specs:
         try:
-            await _create(spec)
+            await _create_from_specification(spec)
         except DeploymentValidationError as exc:
             app.console.print(str(exc), style="red")
             failed += 1
@@ -266,14 +362,11 @@ async def create(path: Path):
             app.console.print(f"Failed to create deployment!", style="red")
             failed += 1
 
-    if failed:
-        exit_with_error(f"Failed to create {failed} out of {len(specs)} deployments.")
-    else:
-        exit_with_success(f"Created {len(specs)} deployments!")
+    return failed, len(specs)
 
 
 @inject_client
-async def _create(spec: DeploymentSpec, client: OrionClient):
+async def _create_from_specification(spec: DeploymentSpec, client: OrionClient):
     await spec.validate(client=client)
 
     # Generate a stylized name after validation
@@ -286,13 +379,6 @@ async def _create(spec: DeploymentSpec, client: OrionClient):
     await client._create_deployment_from_schema(deployment_create)
 
     app.console.print(f"Created deployment {stylized_name}!")
-
-    # TODO: Check for an API url and link to the UI instead if a hosted API
-    #       exists
-    app.console.print(
-        "View your new deployment with: "
-        f"\n\n    prefect deployment inspect {stylized_name}"
-    )
 
 
 @deployment_app.command()

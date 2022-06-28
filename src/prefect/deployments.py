@@ -51,7 +51,7 @@ Examples:
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, parse_raw_as, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
@@ -75,6 +75,10 @@ from prefect.utilities.collections import listrepr
 class FlowScript(BaseModel):
     path: Path
     name: Optional[str] = None
+
+    @validator("path")
+    def resolve_path_to_absolute_location(cls, value):
+        return value.resolve()
 
 
 FlowSource = Union[Flow, FlowScript, PackageManifest]
@@ -258,19 +262,42 @@ async def _source_to_flow(flow_source: FlowSource) -> Flow:
         )
 
 
-def _register_deployment(deployment: Deployment) -> None:
+import fsspec
+import yaml
+
+from prefect.utilities.filesystem import tmpchdir
+
+
+def load_deployments_from_yaml(
+    path: str,
+) -> PrefectObjectRegistry:
     """
-    Add the `Deployment` object to the `PrefectObjectRegistry`.
+    Load deployments from a yaml file.
     """
-    from prefect.context import PrefectObjectRegistry
+    with fsspec.open(path, "r") as f:
+        contents = f.read()
 
-    assert isinstance(deployment, Deployment)
+    # Parse into a yaml tree to retrieve separate documents
+    nodes = yaml.compose_all(contents)
 
-    registry = PrefectObjectRegistry.get()
-    if not registry:
-        return
+    with PrefectObjectRegistry(capture_failures=True) as registry:
+        for node in nodes:
+            line = node.start_mark.line + 1
 
-    registry.deployments.append(deployment)
+            # Load deployments relative to the yaml file's directory
+            with tmpchdir(path):
+                raw_deployment = yaml.serialize(node)
+                deployment = parse_raw_as(
+                    Union[Deployment, DeploymentSpec],
+                    raw_deployment,
+                    json_loads=yaml.safe_load,
+                )
+
+            if isinstance(deployment, DeploymentSpec):
+                # Update the source to be from the YAML file instead of this utility
+                deployment._source = {"file": str(path), "line": line}
+
+    return registry
 
 
 # Backwards compatibility
