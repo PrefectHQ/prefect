@@ -174,11 +174,11 @@ class JSON(TypeDecorator):
 
     def load_dialect_impl(self, dialect):
         if dialect.name == "postgresql":
-            return dialect.type_descriptor(postgresql.JSONB())
+            return dialect.type_descriptor(postgresql.JSONB(none_as_null=True))
         elif dialect.name == "sqlite":
-            return dialect.type_descriptor(sqlite.JSON())
+            return dialect.type_descriptor(sqlite.JSON(none_as_null=True))
         else:
-            return dialect.type_descriptor(sa.JSON())
+            return dialect.type_descriptor(sa.JSON(none_as_null=True))
 
 
 class Pydantic(TypeDecorator):
@@ -408,7 +408,8 @@ def _date_diff_sqlite(element, compiler, **kwargs):
 
 class json_contains(FunctionElement):
     """
-    Platform independent json_contains operator.
+    Platform independent json_contains operator, tests if the
+    `left` expression contains the `right` expression.
 
     On postgres this is equivalent to the @> containment operator.
     https://www.postgresql.org/docs/current/functions-json.html
@@ -419,9 +420,9 @@ class json_contains(FunctionElement):
     # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
     inherit_cache = False
 
-    def __init__(self, json_expr, values: List):
-        self.json_expr = json_expr
-        self.values = values
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
         super().__init__()
 
 
@@ -429,39 +430,50 @@ class json_contains(FunctionElement):
 @compiles(json_contains)
 def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
-        sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
+        sa.type_coerce(element.left, postgresql.JSONB).contains(element.right),
         **kwargs,
     )
+
+
+def _json_contains_sqlite_fn(left, right, compiler, **kwargs):
+    # if the value is literal, convert to a JSON string
+    if isinstance(left, (list, dict, tuple)):
+        left = json.dumps(left)
+
+    # if the value is literal, convert to a JSON string
+    if isinstance(right, (list, dict, tuple)):
+        right = json.dumps(right)
+
+    json_each_left = sa.func.json_each(left).alias("left")
+    json_each_right = sa.func.json_each(right).alias("right")
+
+    # compute equality by counting the number of distinct matches between
+    # the left items and the right items (e.g. the number of rows resulting from a join)
+    # and seeing if it exceeds the number of distinct keys in the right operand
+    #
+    # note that using distinct emulates postgres behavior to disregard duplicates
+    distinct_matches = (
+        sa.select(sa.func.count(sa.distinct(sa.literal_column("left.value"))))
+        .select_from(json_each_left)
+        .join(
+            json_each_right,
+            sa.literal_column("left.value") == sa.literal_column("right.value"),
+        )
+        .scalar_subquery()
+    )
+
+    distinct_keys = (
+        sa.select(sa.func.count(sa.distinct(sa.literal_column("right.value"))))
+        .select_from(json_each_right)
+        .scalar_subquery()
+    )
+
+    return compiler.process(distinct_matches >= distinct_keys)
 
 
 @compiles(json_contains, "sqlite")
 def _json_contains_sqlite(element, compiler, **kwargs):
-
-    json_values = []
-    for v in element.values:
-
-        # sqlite appears to store JSON as a string with whitespace removed,
-        # so non-scalar equality needs to be formatted identically
-        if isinstance(v, (dict, list)):
-            v = json.dumps(v, separators=(",", ":"))
-        json_values.append(v)
-
-    json_each = sa.func.json_each(element.json_expr).alias("json_each")
-
-    # attempt to match each of the provided values at least once
-    return compiler.process(
-        sa.and_(
-            *[
-                sa.select(1)
-                .select_from(json_each)
-                .where(sa.literal_column("json_each.value") == v)
-                .exists()
-                for v in json_values
-            ]
-            or [True]
-        ),
-        **kwargs,
-    )
+    return _json_contains_sqlite_fn(element.left, element.right, compiler, **kwargs)
 
 
 class json_has_any_key(FunctionElement):
@@ -527,8 +539,10 @@ class json_has_all_keys(FunctionElement):
 
     def __init__(self, json_expr, values: List):
         self.json_expr = json_expr
-        if not all(isinstance(v, str) for v in values):
-            raise ValueError("json_has_all_key values must be strings")
+        if isinstance(values, list) and not all(isinstance(v, str) for v in values):
+            raise ValueError(
+                "json_has_all_key values must be strings if provided as a literal list"
+            )
         self.values = values
         super().__init__()
 
@@ -550,13 +564,12 @@ def _json_has_all_keys_postgresql(element, compiler, **kwargs):
 
 @compiles(json_has_all_keys, "sqlite")
 def _json_has_all_keys_sqlite(element, compiler, **kwargs):
-    # attempt to match all of the provided values at least once
-    # by applying an "any_key" match to each one individually
-    return compiler.process(
-        sa.and_(
-            *[json_has_any_key(element.json_expr, [v]) for v in element.values]
-            or [True]
-        )
+    # "has all keys" is equivalent to "json contains"
+    return _json_contains_sqlite_fn(
+        left=element.json_expr,
+        right=element.values,
+        compiler=compiler,
+        **kwargs,
     )
 
 

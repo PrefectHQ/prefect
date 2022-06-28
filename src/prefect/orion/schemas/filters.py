@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
+    class Config:
+        extra = "forbid"
+
     def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)
@@ -933,11 +936,11 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        from prefect.orion.utilities.database import json_contains
+        from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
         if self.all_ is not None:
-            filters.append(json_contains(db.BlockSchema.capabilities, self.all_))
+            filters.append(json_has_all_keys(db.BlockSchema.capabilities, self.all_))
         return filters
 
 

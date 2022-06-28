@@ -1,11 +1,14 @@
 """
 Utilities for interoperability with async functions and workers from various contexts.
 """
+import ctypes
 import inspect
+import threading
 import warnings
 from contextlib import asynccontextmanager
 from functools import partial, wraps
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, TypeVar, Union
+from threading import Thread
+from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, TypeVar, Union
 from uuid import UUID, uuid4
 
 import anyio
@@ -51,6 +54,75 @@ async def run_sync_in_worker_thread(
     """
     call = partial(__fn, *args, **kwargs)
     return await anyio.to_thread.run_sync(call, cancellable=True)
+
+
+def raise_async_exception_in_thread(thread: Thread, exc_type: Type[BaseException]):
+    """
+    Raise an exception in a thread asynchronously.
+
+    This will not interrupt long-running system calls like `sleep` or `wait`.
+    """
+    ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        ctypes.c_long(thread.ident), ctypes.py_object(exc_type)
+    )
+    if ret == 0:
+        raise ValueError("Thread not found.")
+
+
+async def run_sync_in_interruptible_worker_thread(
+    __fn: Callable[..., T], *args: Any, **kwargs: Any
+) -> T:
+    """
+    Runs a sync function in a new interruptible worker thread so that the main
+    thread's event loop is not blocked
+
+    Unlike the anyio function, this performs best-effort cancellation of the
+    thread using the C API. Cancellation will not interrupt system calls like
+    `sleep`.
+    """
+
+    class NotSet:
+        pass
+
+    thread: Thread = None
+    result = NotSet
+
+    def capture_worker_thread_and_result():
+        # Captures the worker thread that AnyIO is using to execute the function so
+        # the main thread can perform actions on it
+        nonlocal thread, result
+        try:
+            thread = threading.current_thread()
+            result = __fn(*args, **kwargs)
+        except BaseException as exc:
+            result = exc
+            raise
+
+    async def send_interrupt_to_thread():
+        # This task waits until the result is returned from the thread, if cancellation
+        # occurs during that time, we will raise the exception in the thread as well
+        try:
+            while result is NotSet:
+                await anyio.sleep(0)
+        except anyio.get_cancelled_exc_class():
+            # NOTE: We could send a SIGINT here which allow us to interrupt system
+            # calls but the interrupt bubbles from the child thread into the main thread
+            # and there is not a clear way to prevent it.
+            raise_async_exception_in_thread(thread, anyio.get_cancelled_exc_class())
+            raise
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(send_interrupt_to_thread)
+        tg.start_soon(
+            partial(
+                anyio.to_thread.run_sync,
+                capture_worker_thread_and_result,
+                cancellable=True,
+            )
+        )
+
+    assert result is not NotSet
+    return result
 
 
 def run_async_from_worker_thread(

@@ -1,3 +1,4 @@
+import time
 from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
@@ -29,12 +30,41 @@ from prefect.orion.schemas.states import (
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal
-from prefect.utilities.collections import PartialModel, quote
+from prefect.utilities.collections import quote
+from prefect.utilities.pydantic import PartialModel
+
+
+@pytest.fixture
+def mock_client_sleep(monkeypatch):
+    """
+    Mock sleep used by the orion_client to not actually sleep but to set the
+    current time to now + sleep delay seconds.
+    """
+    original_now = pendulum.now
+    time_shift = 0
+
+    async def callback(delay_in_seconds):
+        nonlocal time_shift
+        time_shift += delay_in_seconds
+
+    monkeypatch.setattr(
+        "pendulum.now", lambda *args: original_now(*args).add(seconds=time_shift)
+    )
+
+    sleep = AsyncMock(side_effect=callback)
+    monkeypatch.setattr("prefect.client.sleep", sleep)
+
+    return sleep
 
 
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, flow_run, monkeypatch, local_storage_block
+        self,
+        orion_client,
+        flow_run,
+        mock_client_sleep,
+        local_storage_block,
+        monkeypatch,
     ):
         @task
         def foo():
@@ -52,20 +82,6 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        # Mock sleep for a fast test; force transition into a new scheduled state so we
-        # don't repeatedly propose the state
-        async def reset_scheduled_time(*_):
-            await orion_client.set_task_run_state(
-                task_run_id=task_run.id,
-                state=State(
-                    type=StateType.SCHEDULED,
-                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
-                ),
-                force=True,
-            )
-
-        sleep = AsyncMock(side_effect=reset_scheduled_time)
-        monkeypatch.setattr("anyio.sleep", sleep)
         state = await orchestrate_task_run(
             task=foo,
             task_run=task_run,
@@ -75,12 +91,12 @@ class TestOrchestrateTaskRun:
             client=orion_client,
         )
 
-        sleep.assert_awaited_once()
+        mock_client_sleep.assert_awaited_once()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run, monkeypatch, local_storage_block
+        self, orion_client, flow_run, mock_client_sleep, local_storage_block
     ):
         @task
         def foo():
@@ -98,8 +114,6 @@ class TestOrchestrateTaskRun:
             ),
         )
 
-        sleep = AsyncMock()
-        monkeypatch.setattr("anyio.sleep", sleep)
         state = await orchestrate_task_run(
             task=foo,
             task_run=task_run,
@@ -109,12 +123,12 @@ class TestOrchestrateTaskRun:
             client=orion_client,
         )
 
-        sleep.assert_not_called()
+        mock_client_sleep.assert_not_called()
         assert state.is_completed()
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, monkeypatch, orion_client, flow_run, local_storage_block
+        self, mock_client_sleep, orion_client, flow_run, local_storage_block
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -136,21 +150,6 @@ class TestOrchestrateTaskRun:
             dynamic_key="0",
         )
 
-        # Mock sleep for a fast test; force transition into a new scheduled state so we
-        # don't repeatedly propose the state
-        async def reset_scheduled_time(*_):
-            await orion_client.set_task_run_state(
-                task_run_id=task_run.id,
-                state=State(
-                    type=StateType.SCHEDULED,
-                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
-                ),
-                force=True,
-            )
-
-        sleep = AsyncMock(side_effect=reset_scheduled_time)
-        monkeypatch.setattr("anyio.sleep", sleep)
-
         # Actually run the task
         state = await orchestrate_task_run(
             task=flaky_function,
@@ -167,8 +166,8 @@ class TestOrchestrateTaskRun:
         # Assert that the sleep was called
         # due to network time and rounding, the expected sleep time will be less than
         # 43 seconds so we test a window
-        sleep.assert_awaited_once()
-        assert 40 < sleep.call_args[0][0] < 43
+        mock_client_sleep.assert_awaited_once()
+        assert 40 < mock_client_sleep.call_args[0][0] < 43
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run.id)
@@ -177,7 +176,6 @@ class TestOrchestrateTaskRun:
             StateType.PENDING,
             StateType.RUNNING,
             StateType.SCHEDULED,
-            StateType.SCHEDULED,  # This is a forced state change to speedup the test
             StateType.RUNNING,
             StateType.COMPLETED,
         ]
@@ -315,6 +313,37 @@ class TestOrchestrateTaskRun:
         # Check that the state completed happily
         assert state.is_completed()
 
+    async def test_interrupt_task(self):
+        i = 0
+
+        @task()
+        def just_sleep():
+            nonlocal i
+            for i in range(100):  # Sleep for 10 seconds
+                time.sleep(0.1)
+
+        @flow
+        def my_flow():
+            with pytest.raises(TimeoutError):
+                with anyio.fail_after(1):
+                    just_sleep()
+
+        t0 = time.perf_counter()
+        my_flow()
+        t1 = time.perf_counter()
+
+        runtime = t1 - t0
+        assert runtime < 2, "The call should be return quickly after timeout"
+
+        # Sleep for an extra second to check if the thread is still running. We cannot
+        # check `thread.is_alive()` because it is still alive — presumably this is because
+        # AnyIO is using long-lived worker threads instead of creating a new thread per
+        # task. Without a check like this, the thread can be running after timeout in the
+        # background and we will not know — the next test will start.
+        await anyio.sleep(1)
+
+        assert i <= 10, "`just_sleep` should not be running after timeout"
+
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
@@ -327,7 +356,7 @@ class TestOrchestrateFlowRun:
         )
 
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, monkeypatch, partial_flow_run_context
+        self, orion_client, mock_client_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -343,21 +372,6 @@ class TestOrchestrateFlowRun:
             ),
         )
 
-        # Mock sleep for a fast test; force transition into a new scheduled state so we
-        # don't repeatedly propose the state
-        async def reset_scheduled_time(*_):
-            await orion_client.set_flow_run_state(
-                flow_run_id=flow_run.id,
-                state=State(
-                    type=StateType.SCHEDULED,
-                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
-                ),
-                force=True,
-            )
-
-        sleep = AsyncMock(side_effect=reset_scheduled_time)
-        monkeypatch.setattr("anyio.sleep", sleep)
-
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
@@ -366,7 +380,7 @@ class TestOrchestrateFlowRun:
             partial_flow_run_context=partial_flow_run_context,
         )
 
-        sleep.assert_awaited_once()
+        mock_client_sleep.assert_awaited_once()
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
