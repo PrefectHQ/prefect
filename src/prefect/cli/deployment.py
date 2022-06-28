@@ -196,44 +196,47 @@ async def create(path: Path):
     """
     Create or update a deployment from a file.
 
-    File must contain one or more deployment specifications in either Python or YAML
+    File must contain one or more deployments in either Python or YAML
 
         \b
         ```python
-        from prefect.deployments import DeploymentSpec
+        from prefect.deployments import Deployment
         \b
-        DeploymentSpec(
-            name="my-first-deploy", flow_location="./my_flow.py"
+        Deployment(
+            name="my-first-deploy", flow=my_flow,
         )
         ```
 
         \b
         ```yaml
         name: "my-first-deploy"
-        flow_location: "./my_flow.py"
+        flow:
+            path: "./my_flow.py"
         ```
 
     Multiple deployments can be declared in each file
 
         \b
         ```python
-        from prefect.deployments import DeploymentSpec
+        from prefect.deployments import Deployment
         \b
-        DeploymentSpec(
-            name="my-first-deploy", flow_location="./my_flow.py"
+        Deployment(
+            name="my-first-deploy", flow=my_flow,
         )
         \b
-        DeploymentSpec(
-            name="my-second-deploy", flow_location="./my_other_flow.py"
+        Deployment(
+            name="my-second-deploy", flow=my_other_flow,
         )
         ```
 
         \b
         ```yaml
         - name: "my-first-deploy"
-          flow_location: "./my_flow.py"
+            path: "./my_flows.py"
+            name: "my-flow"
         - name: "my-second-deploy"
-          flow_location: "./my_other_flowflow.py"
+            path: "./my_flows.py"
+            name: "my-other-flow"
         ```
     """
     specs = _load_deployment_specs(path)
