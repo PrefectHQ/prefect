@@ -5,10 +5,9 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 from _pytest.capture import CaptureFixture
-from docker import DockerClient
 
 import prefect
-from prefect.docker import BuildError, ImageBuilder, build_image
+from prefect.docker import BuildError, DockerClient, ImageBuilder, build_image
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
@@ -155,6 +154,21 @@ def test_copying_file(contexts: Path, docker: DockerClient, prefect_base_image: 
         image.copy(contexts / "tiny" / "hello.txt", "hello.txt")
         image.add_line('ENTRYPOINT [ "/bin/cat", "hello.txt" ]')
         image_id = image.build()
+
+    output = docker.containers.run(image_id, remove=True).decode().strip()
+    assert output == "Can't bear oceans."
+
+
+def test_copied_paths_are_resolved(
+    contexts: Path, docker: DockerClient, prefect_base_image: str
+):
+    with ImageBuilder(prefect_base_image) as image:
+        image.add_line("WORKDIR /tiny/")
+        image.copy(contexts / "tiny" / ".." / "tiny" / "hello.txt", "hello.txt")
+        image.add_line('ENTRYPOINT [ "/bin/cat", "hello.txt" ]')
+        image_id = image.build()
+
+        image.assert_has_line("COPY tests/docker/contexts/tiny/hello.txt hello.txt")
 
     output = docker.containers.run(image_id, remove=True).decode().strip()
     assert output == "Can't bear oceans."

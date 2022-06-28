@@ -7,12 +7,9 @@ from uuid import uuid4
 import pendulum
 import pytest
 from _pytest.capture import CaptureFixture
-from docker import DockerClient
-from docker.errors import NotFound
-from docker.models.containers import Container
 from slugify import slugify
 
-from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
+from prefect.docker import DockerClient, ImageBuilder, NotFound, PushError, push_image
 
 pytestmark = pytest.mark.service("docker")
 
@@ -20,31 +17,6 @@ pytestmark = pytest.mark.service("docker")
 @pytest.fixture
 def contexts() -> Path:
     return Path(__file__).parent / "contexts"
-
-
-@pytest.fixture(scope="module")
-def registry(docker: DockerClient) -> Generator[str, None, None]:
-    """Starts a Docker registry locally, returning its URL"""
-
-    with silence_docker_warnings():
-        # Clean up any previously-created registry:
-        try:
-            preexisting: Container = docker.containers.get("orion-test-registry")
-            preexisting.remove(force=True)  # pragma: no cover
-        except NotFound:
-            pass
-
-        container: Container = docker.containers.run(
-            "registry:2",
-            detach=True,
-            remove=True,
-            name="orion-test-registry",
-            ports={"5000/tcp": 5555},
-        )
-        try:
-            yield "http://localhost:5555"
-        finally:
-            container.remove(force=True)
 
 
 @pytest.fixture(scope="module")
