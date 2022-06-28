@@ -251,7 +251,7 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
 
 
 def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
-    return registry_from_script(path).get_instances_of(DeploymentSpec)
+    return registry_from_script(path).get_instances(DeploymentSpec)
 
 
 def _register_spec(spec: DeploymentSpec) -> None:
@@ -266,4 +266,4 @@ def _register_spec(spec: DeploymentSpec) -> None:
 
     """
     registry = PrefectObjectRegistry.get()
-    registry.register(spec)
+    registry.register_instance(spec)
