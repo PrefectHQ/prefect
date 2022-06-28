@@ -117,7 +117,7 @@ flow.executor = LocalDaskExecutor(scheduler="processes", num_workers=8)
     You should use `scheduler="processes"` in most other cases. These tasks are
     also usually CPU bound, so the default value of `num_workers` should be
     sufficient.
-:::
+
 
 ## DaskExecutor
 

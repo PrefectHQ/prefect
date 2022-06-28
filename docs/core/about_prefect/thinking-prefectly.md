@@ -48,7 +48,7 @@ def say_hello(person: str) -> None:
 
 !!! tip Type annotations
     Notice how we used Python 3 annotations to tell Prefect our input and output types. This is **completely optional**, but the system may be able to enhance your workflow if you provide typing information.
-:::
+
 
 ### Task classes
 
@@ -114,7 +114,7 @@ The flow's `run()` method is a convenience function that handles some of the mos
 
 !!! tip Deferred execution
     When you build a flow in Prefect, you're defining a _computational graph_ that can be executed sometime in the future, possibly in a distributed environment. That's why most of this documentation follows a simple pattern: the flow is built (usually in a "`with Flow():`" context), and then the flow is `run()` as a second step. In production, you probably won't call `flow.run()` yourself, but rather let a management API handle execution.
-:::
+
 
 ### Parameters
 
@@ -181,7 +181,7 @@ Let's take a very quick look into what a flow orchestrated with Prefect Core's s
 
 After [starting and configuring Core's server](/orchestration/server/deploy-local.md), navigate to `http://localhost:8080` to see the Prefect UI:
 
-![](/orchestration/server/new-server-dashboard.png)
+![](/img/orchestration/server/new-server-dashboard.png)
 
 !!! warning Backend configuration
     Before registering your flow with your local backend make sure you have called `prefect backend server` from the CLI to configure Prefect for local orchestration.
@@ -194,7 +194,7 @@ Flow: http://localhost:8080/flow/796f7ad4-26c8-4e5d-bab1-dc687691da88
 ```
 You can use the URL returned from the `register()` call to navigate directly to the flow in your Prefect server's UI:
 
-![](/orchestration/server/first-flow-registered-server.png)
+![](/img/orchestration/server/first-flow-registered-server.png)
 
 Start a [local agent](/orchestration/agents/local.md) that can communicate between the server and your flow code.
 
@@ -211,4 +211,4 @@ And then trigger your flow from the UI using the ["Run" button](/orchestration/u
 
 And the UI will be updated with the state of the flow run:
 
-![](/orchestration/server/completed-flow-run-server.png)
+![](/img/orchestration/server/completed-flow-run-server.png)

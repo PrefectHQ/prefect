@@ -18,7 +18,7 @@ sidebarDepth: 1
 
     You'll find an excellent tutorial demonstrating [How to send Slack notifications using the SlackTask](https://discourse.prefect.io/t/how-to-send-slack-notifications-using-the-slacktask/497) in the [Prefect Community Discourse](https://discourse.prefect.io/).
 
-:::
+
 
 Prefect lets you easily setup callback hooks to get notified when certain state changes occur within your flows or for a given task.
 This can be as simple as:

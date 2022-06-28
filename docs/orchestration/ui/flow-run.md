@@ -29,7 +29,7 @@ If you want to restart the run from a specific task, visit the corresponding [ta
 
 !!! warning Results
     The confirmation box notes that if your failed tasks require data from upstream tasks, and you did not specify a result to serialize that data, then your retry will fail. This is because without the upstream data, there's no way for your tasks to run. All Prefect `Storage` classes except `Docker` have default `Result` subclasses; if your flow runs in a Docker container you will need to specify a result subclass when you register your flow for this feature to work.
-:::
+
 ![](/orchestration/ui/flowrun-restart.png)
 
 ## Updating State

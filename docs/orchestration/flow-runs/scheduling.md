@@ -4,7 +4,7 @@ If a flow has a schedule attached, then the Prefect backend can [automatically c
 
 !!! tip
     Scheduling in this manner is nothing more than a convenient way to generate new runs; you can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
-:::
+
 
 Flow schedules can be defined when your flow is registered using the Prefect Core library or after registration using the Prefect API or UI. For details on defining a schedule at registration time, see the [Core scheduling documentation](../../core/concepts/schedules.md). The Core documentation will also be useful for understanding the basic building blocks of schedules, but if you'd like to venture forward here's a quick summary:
 
@@ -21,12 +21,12 @@ Flow schedules are attached to the flow group and can be set using the `set_flow
 
 !!! warning Existing schedules
     Setting flow group schedules will remove any existing schedules.
-:::
+
 
 !!! tip Scheduling in the Prefect UI
     The UI provides a friendly interface for setting schedules in the [flow group settings page](../ui/flow.md#settings).
     The UI will preserve existing schedules and generate CRON clocks for you.
-:::
+
 
 In this example, two interval clocks are set for a flow group. The first runs every hour and sets the parameter `name` to `"Marvin 1hr"`. The second runs every two hours and sets the parameter `name` to `"Marvin 2hr"`.
 
@@ -75,7 +75,7 @@ mutation {
     ```graphql
     {..., parameter_defaults: "{\"x\": 1}"}
     ```
-:::
+
 
 ## Scheduled flow run creation
 

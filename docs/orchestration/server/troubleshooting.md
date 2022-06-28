@@ -26,13 +26,13 @@ t-hasura-1 exited with code 137
 
 !!! tip Finding this line
     You may need to search with your terminal to find this line of output &mdash; it won't be the last line printed.
-:::
+
 
 The solution to this problem is configuring Docker to use more memory. The default in Docker Desktop is 2GB, which may not be enough to run Prefect Server. We recommend giving Docker at least 8GB of memory.
 
 !!! tip Docker memory is shared
     Note that the memory that you configure for Docker is shared between all running containers.
-:::
+
 
 You can adjust the memory that Docker makes available to containers in the Settings or Preferences menu of Docker Desktop. To find this menu, consult the User Manual for your version of Docker Desktop in the [Docker Desktop documentation](https://docs.docker.com/desktop/).
 
@@ -45,4 +45,4 @@ The [Prefect Community Slack](https://prefect.io/slack) is a great place to ask 
 
 !!! tip Save the output from `prefect server start`
     If you ask for help, someone may ask to see the text that the `prefect server start` command generated when you ran it. Saving a copy of that text now will help speed up troubleshooting later!
-:::
+

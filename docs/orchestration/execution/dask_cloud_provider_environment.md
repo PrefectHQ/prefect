@@ -2,7 +2,7 @@
 
 !!! warning
     Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
-:::
+
 
 [[toc]]
 
@@ -18,7 +18,7 @@ easy way to achieve high scalability without the complexity of Kubernetes.
     Dask Cloud Provider currently supports AWS (using either Fargate or ECS)
     and Azure (using AzureML).
     Support for GCP is [coming soon](https://github.com/dask/dask-cloudprovider/pull/131).
-:::
+
 
 !!! warning Security Considerations
     By default, Dask Cloud Provider may create a Dask cluster in some environments (e.g. Fargate)
@@ -26,7 +26,7 @@ easy way to achieve high scalability without the complexity of Kubernetes.
     network traffic. Please be conscious of security issues if you test this environment.
     (Also see pull requests [85](https://github.com/dask/dask-cloudprovider/pull/85) and
     [91](https://github.com/dask/dask-cloudprovider/pull/91) in the Dask Cloud Provider project.)
-:::
+
 
 ## Process
 
@@ -76,7 +76,7 @@ time that a Flow using that environment runs.
     creating a Dask cluster manually (with Dask Cloud Provider or otherwise) and then using
     `LocalEnvironment` configured with a `DaskExecutor` will result
     in a much better and faster development experience.
-:::
+
 
 #### Requirements
 
@@ -183,7 +183,7 @@ will start with a single worker and dynamically scale up to five workers as need
     workers with `n_workers` is more effective. You can also do your own calculation
     of `n_workers` based on Flow run parameters at execution time in your own `on_execute()`
     callback function. (See the last code example on this page.)
-:::
+
 
 ```python
 from dask_cloudprovider import FargateCluster

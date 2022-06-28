@@ -102,7 +102,7 @@ Here we have created an equivalent Task to the one above - the `@task` decorator
     ```
 
     If you violate any of these restrictions, an error will be thrown immediately at Task creation informing you.
-:::
+
 
 ### Prefect Context contains useful information
 
@@ -196,7 +196,7 @@ If you are interested in pursuing this further, the following API reference docu
 
 !!! tip Flows have runners, too
     In addition to `TaskRunner`s, Prefect also has a concept of a `FlowRunner`, which is the object responsible for making a _single_ pass through your Flow and its task states. The keyword arguments on the `run` method of both Task and Flow runners are useful to explore when testing your Flows.
-:::
+
 
 ## Task Inputs and Outputs
 
@@ -285,7 +285,7 @@ print(f.tasks) # {<Task: number_task>}
 
     This can be useful for overriding Task triggers, tags, names, etc.
 
-:::
+
 
 To see some of these subtleties in action, let's work out a more complicated example using our `add_task` Task created above. First, let's use the [`set_dependencies` method](https://docs.prefect.io/api/latest/core/flow.html#prefect-core-flow-flow-set-dependencies) of the imperative API:
 
@@ -347,7 +347,7 @@ We see here that a _copy_ of the `add_task` was created and added to the Flow.
 
     The `Constant` Task tells Prefect to treat its input as a raw constant, with no further introspection.
 
-:::
+
 
 As a final illustration of how / when Tasks are added to Flows in the functional API, let's elevate these values to `Parameter`s with default values:
 
@@ -394,7 +394,7 @@ Our final observation is that the Parameters were added to the Flow as-is (no co
         result = task_B(upstream_tasks=[task_A])
 ```
 
-:::
+
 
 ## Mapping
 
@@ -487,7 +487,7 @@ When this flow runs, we will see _four_ print statements, one corresponding to e
 
 !!! warning Order Matters
     Note that order matters in Prefect mapping. Internally, Prefect tracks your mapped child tasks via a "map index" which describes its position in the mapping. For this reason we don't recommend mapping over dictionaries, sets, or anything else without a natural of ordering.
-:::
+
 
 ## Best Practices in Writing Tasks
 
@@ -570,7 +570,7 @@ We've found this pattern of setting defaults which are optionally overwritten at
 
 !!! warning Always call the parent Task initialization method
     Anytime you subclass `Task`, _make sure to call the parent initialization method_! This ensures Prefect will recognize your custom Task as an actual Task. In addition, we highly recommend always allowing for arbitrary keyword arguments (i.e., `**kwargs`) which are passed to the Task `__init__` method. This ensures that you can still set things such as Task tags, custom names, results, etc.
-:::
+
 
 ## State Handlers
 
@@ -603,4 +603,4 @@ Whenever this Task runs, it will undergo many state changes. For example, from `
 
 !!! warning State Handler failure results in Task failure
     Because state handlers are considered a part of your custom Task logic in Prefect, if your state handler raises an error for any reason your Task will be placed in a Failed state. For this reason we highly recommend being thoughtful with how you implement your state handlers / callbacks.
-:::
+

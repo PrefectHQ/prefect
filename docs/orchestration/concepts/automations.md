@@ -47,7 +47,7 @@ Currently you can configure automations for the following events:
 
 !!! tip Hooks
     When you create an automation in the UI, you are actually creating a `Hook` between an `Event` type and an `Action` instance. This name difference will be apparent if you are attempting to work with automations by calling the GraphQL API directly
-:::
+
 
 ## Actions
 

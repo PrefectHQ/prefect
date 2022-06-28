@@ -8,7 +8,7 @@ The flow below will write the result of the first task to a target specified wit
     Please review the [documentation for each result type](/api/latest/engine/results.html) before you configure. Some types have specific configuration options for where to write the result.
 
     For example: the `LocalResult` below has an optional `dir` kwargs which accepts an absolute path to a directory for storing results and in this case the `target` value will be appended to the directory of choice.
-:::
+
 
 Functional API:
 ```python
@@ -53,8 +53,8 @@ print_data.set_upstream(get_data, key="data", flow=flow)
 
 !!! warning Result Locations and Targets
     If you provide a `location` to a task's `Result` and a `target` then the target will be used as the location of the result.
-:::
+
 
 !!! tip Flow Result
     A `Result` can be set on the flow object and then all tasks will use that Result type. This is useful when you want to easily set all tasks in your flow to write their results to a single directory or bucket and then you could use the target as a way to verify the existence of that result prior to each task run.
-:::
+

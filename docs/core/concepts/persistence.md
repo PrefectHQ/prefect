@@ -15,7 +15,7 @@ Whenever Prefect detects that a task will need to be run in the future, it autom
 
 !!! tip Automatic caching
     Input caching is an automatic caching. Prefect will automatically apply it whenever necessary.
-:::
+
 
 ## Output Caching
 
@@ -42,7 +42,7 @@ task_2 = prefect.Task(
 
 !!! warning The cache is stored in context
     Note that when running Prefect Core locally, your Tasks' cached states will be stored in memory within `prefect.context`.
-:::
+
 
 ## Persisting Output
 
@@ -74,7 +74,7 @@ There are many different `Result` classes aligning with different storage backen
 
 !!! tip Check your global configuration, too
     The default setting in Prefect Core is that checkpointing is globally turned _off_, and the default setting in Prefect Cloud 0.9.1+ is that checkpointing is globally turned _on_. For more information, read the concepts documentation on [Results](results.md) and the setup tutorial on [Using Results](../advanced_tutorials/using-results.html).
-:::
+
 
 ## Output Caching based on a file target
 
@@ -108,5 +108,5 @@ def func_task():
     ```
 
     See the [official Python documentation](https://www.python.org/dev/peps/pep-3101/#format-strings) for more information on the flexibility of string formatting.
-:::
+
 

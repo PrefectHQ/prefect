@@ -136,12 +136,12 @@ After registration, the flow will be stored at
     ```python
     flow = Flow("local-flow", storage=Local(add_default_labels=False))
     ```
-:::
+
 
 !!! tip Flow Results
     Flows configured with `Local` storage also default to using a `LocalResult` for
     persisting any task results in the same filesystem.
-:::
+
 
 ### Module
 
@@ -179,14 +179,14 @@ After registration, the flow will be stored in the specified bucket under
 !!! tip Flow Results
 Flows configured with `S3` storage also default to using a `S3Result` for
 persisting any task results in the same S3 bucket.
-:::
+
 
 !!! tip AWS Credentials
     S3 Storage uses AWS credentials the same way as
     [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html),
     which means both upload (build) and download (local agent) times need to have
     proper AWS credential configuration.
-:::
+
 
 ### Azure Blob Storage
 
@@ -212,7 +212,7 @@ After registration, the flow will be stored in the container under
 !!! tip Flow Results
     Flows configured with `Azure` storage also default to using an `AzureResult` for
     persisting any task results to the same container in Azure Blob storage.
-:::
+
 
 !!! tip Azure Credentials
     Azure Storage uses an Azure [connection
@@ -221,7 +221,7 @@ After registration, the flow will be stored in the container under
     working Azure connection string. Azure Storage will also look in the
     environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to
     the class directly.
-:::
+
 
 ### Google Cloud Storage
 
@@ -241,7 +241,7 @@ After registration the flow will be stored in the specified bucket under
 !!! tip Flow Results
     Flows configured with `GCS` storage also default to using a `GCSResult` for
     persisting any task results in the same GCS location.
-:::
+
 
 !!! tip Google Cloud Credentials
     GCS Storage uses Google Cloud credentials the same way as the standard
@@ -249,12 +249,12 @@ After registration the flow will be stored in the specified bucket under
     library](https://cloud.google.com/docs/authentication/production#auth-cloud-implicit-python),
     which means both upload (build) and download (local agent) times need to have
     the proper Google Application Credentials configuration.
-:::
+
 
 !!! tip Extra dependency
     You need to install `google` PIP extra (`pip install prefect[google]`) to use
     GCS Storage.
-:::
+
 
 ### Git
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
@@ -331,7 +331,7 @@ storage = Git(
 
 !!! tip Loading additional files from a git repository
     `Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage).
-:::
+
 
 ### GitHub
 
@@ -361,7 +361,7 @@ storage](/core/idioms/script-based.md) idiom.
     token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
     This token should have `repo` scope, and will be used to read the flow's source
     from its respective repository.
-:::
+
 
 ### GitLab
 
@@ -389,12 +389,12 @@ storage](/core/idioms/script-based.md) documentation applies to GitLab as well.
     GitLab storage uses a [personal access
     token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for
     authenticating with repositories.
-:::
+
 
 !!! tip GitLab Server
     GitLab server users can point the `host` argument to their personal GitLab
     instance.
-:::
+
 
 ### Bitbucket
 
@@ -423,13 +423,13 @@ storage](/core/idioms/script-based.html) documentation applies to Bitbucket as w
     Bitbucket storage uses a [personal access
     token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html)
     for authenticating with repositories.
-:::
+
 
 !!! tip Bitbucket Projects
     Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo
     must be associated with a Project. Bitbucket storage requires a `project` argument
     pointing to the correct project name.
-:::
+
 
 ### CodeCommit
 
@@ -455,7 +455,7 @@ flow = Flow(
     [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html)
     which download (local agent) times need to
     have proper AWS credential configuration.
-:::
+
 
 ### Docker
 
@@ -491,7 +491,7 @@ exists locally.
     locally and you are configured to push to your desired container registry.
     Additionally, make sure whichever platform Agent deploys the container also has
     permissions to pull from that same registry.
-:::
+
 
 ### Webhook
 

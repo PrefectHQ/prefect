@@ -14,7 +14,7 @@ Tasks will only evaluate their triggers if all upstream tasks are in `Finished` 
 
 !!! tip Use a manual_only trigger to pause a flow
     The `manual_only` trigger always puts the task in a `Paused` state, so the flow will never run a `manual_only` task automatically. This allows users to pause a flow mid-run. To resume, put the task in a `Resume` state and set it as one of the run's `start_tasks`. This will treat is as a root task with no upstream tasks, and skip the trigger check entirely.
-:::
+
 
 For example, suppose we want to construct a flow with one root task; if this task
 succeeds, we want to run task B.  If instead it fails, we want to run task C.  We
@@ -162,10 +162,10 @@ Using this context can be useful to write time-aware tasks, such as tasks that t
 
 !!! tip What else is in context?
     For an exhaustive list of values that you can find in context, see the corresponding [API documentation](../../api/latest/utilities/context.html).
-:::
+
 
 !!! warning Caveats to modifying Prefect-supplied context
     Since Prefect uses some context internally to track metadata during the flow and task run logic, modifying Prefect-supplied context keys can have unintended consequences. It is recommended to generally avoid overriding the key names described in the API documentation.
 
     One exception to this is the timestamp related keys such as `prefect.context.today`. Users may wish to modify this context per flow run in order to implement "backfills", where individual flow runs execute on a subset of timeseries data.
-:::
+

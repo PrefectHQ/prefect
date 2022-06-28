@@ -2,7 +2,7 @@
 
 Now that you have Prefect installed,  you're ready to run a flow.
 
-A [flow](/core/concepts/flows.html) is a container for [tasks](/core/concepts/tasks.html) and shows the direction of work and the dependencies between tasks.
+A [flow](/core/concepts/flows/) is a container for [tasks](/core/concepts/tasks/) and shows the direction of work and the dependencies between tasks.
 
 To run your flow, paste the code below into an interactive Python REPL session: 
 
@@ -23,7 +23,7 @@ flow.run()
 
 You should see the following logs after running `flow.run()`:
 
-```
+```bash
 [2020-01-08 23:49:00,239] INFO - prefect.FlowRunner | Beginning Flow run for 'hello-flow'
 [2020-01-08 23:49:00,242] INFO - prefect.FlowRunner | Starting flow run.
 [2020-01-08 23:49:00,249] INFO - prefect.TaskRunner | Task 'hello_task': Starting task run...

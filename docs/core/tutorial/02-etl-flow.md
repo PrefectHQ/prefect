@@ -13,7 +13,7 @@ In this tutorial, we'll use Prefect to improve the overall structure of the ETL 
     python 02_etl_flow.py
     ```
 
-:::
+
 
 ## It's E, T, L, not ETL
 
@@ -146,6 +146,6 @@ At this point, the `Tasks` (our Python functions) are executed in the appropriat
 !!! tip Prefect Task Library
     Prefect provides a [Task Library](/core/task_library/overview.html) that includes common Task implementations and integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, and more!
 
-:::
+
 
 Up Next! Let's parameterize our Flow to make it more reusable.

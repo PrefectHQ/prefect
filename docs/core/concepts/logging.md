@@ -63,7 +63,7 @@ def my_task():
         logger.warning("A warning message.")
     ```
 
-:::
+
 
 ### Logging stdout
 

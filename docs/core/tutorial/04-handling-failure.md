@@ -11,7 +11,7 @@ sidebarDepth: 0
     python 04_handle_failures.py
     ```
 
-:::
+
 
 ## If at first you don't succeed...
 
@@ -44,6 +44,6 @@ This is a simple measure that helps our `Flow` gracefully handle transient error
     - [**State Handlers**](/core/concepts/states.html#state-handlers-callbacks): provide a Python function that is invoked whenever a `Flow` or `Task` changes state - see all the things!
     - [**Notifications**](/core/concepts/notifications.html): Get [Slack notifications](/core/advanced_tutorials/slack-notifications.html#slack-notifications) upon state changes of interest or use the [EmailTask](/api/latest/tasks/notifications.html#emailtask) in combination with Task Triggers.
 
-:::
+
 
 Up Next! Schedule our Flow to run periodically or on a custom schedule.

@@ -97,7 +97,7 @@ spec:
     required dependencies. The manifest above uses the `prefecthq/prefect:latest`
     image for both the Dask scheduler & worker pods, since our flow has no external
     dependencies beyond Prefect.
-:::
+
 
 ## Flow Source
 

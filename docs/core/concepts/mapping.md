@@ -51,7 +51,7 @@ assert state.result[reduced_result].result == 9
 
 !!! tip Dynamically-generated children tasks are first-class tasks
     Even though the user didn't create them explicitly, the children tasks of a mapped task are first-class Prefect tasks. They can do anything a "normal" task can do, including succeed, fail, retry, pause, or skip.
-:::
+
 
 ## Simple mapping
 
@@ -74,7 +74,7 @@ The result of the `mapped_result` task will be `[11, 12, 13]` when the flow is r
 
 !!! tip Child task execution
     The actual execution of the child tasks which are applied to each element of the list, can be concurrent or parallel. This depends on how the workflow is configured.
-:::
+
 
 ## Iterated mapping
 
@@ -96,7 +96,7 @@ When this flow runs, the result of the `mapped_result_2` task will be `[21, 22, 
 
 !!! tip No reduce required
     Even though we observed that the result of `mapped_result` was a list, Prefect won't apply a reduce step to gather that list unless the user requires it. In this example, we never needed the entire list (we only needed each of its elements), so no reduce took place. The two mapped tasks generated three completely-independent pipelines, each one containing two tasks.
-:::
+
 
 ## Flat-mapping
 
@@ -127,7 +127,7 @@ with Flow('flat map') as f:
 
 !!! tip
     `flatten()` can be used on any task input, even if it isn't being mapped over.
-:::
+
 
 
 ## Reduce
@@ -221,7 +221,7 @@ The `unmapped` annotation can be applied to any number of input arguments. This 
 
 !!! tip
     Prefect also provides a `mapped()` annotation that can be used to indicate that an input should be mapped over when binding inputs without calling `.map()`
-:::
+
 ## Complex mapped pipelines
 
 Sometimes you want to encode a more complex structure in your mapped pipelines

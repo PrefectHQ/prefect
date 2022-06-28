@@ -6,9 +6,8 @@ sidebarDepth: 1
 
 !!! tip Read the original post
     You can view the original version of this post [on our blog](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
-:::
 
-> Why should I choose Prefect over Airflow?
+## Why should I choose Prefect over Airflow?
 
 Airflow is a historically important tool in the data engineering ecosystem, and we have spent a great deal of time working on it. It introduced the ability to combine a strict Directed Acyclic Graph (DAG) model with Pythonic flexibility in a way that made it appropriate for a wide variety of use cases. However, Airflow’s applicability is limited by its legacy as a monolithic batch scheduler aimed at data engineers principally concerned with orchestrating third-party systems employed by others in their organizations.
 

@@ -12,7 +12,7 @@ If you're stuck, don't be shy about asking for help [on GitHub](https://github.c
 
 !!! tip Working on Server & UI
     The source code for [Prefect Server](https://github.com/PrefectHQ/server) and [Prefect UI](https://github.com/PrefectHQ/ui) is contained in their respective development repos.
-:::
+
 
 ## Getting Started
 

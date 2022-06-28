@@ -60,11 +60,11 @@ RUN sed -i 's/DEFAULT@SECLEVEL=2/DEFAULT@SECLEVEL=1/g' /etc/ssl/openssl.cnf
 Note that we used `python3.7` above, but you should attempt to match the version of Python you used in building your flow.
 !!! tip What types of Docker images are allowed as base images?
     Note that the _only_ universal requirement for your Flow's Docker images are that the Prefect python package can be installed into them (note that Prefect will attempt to install itself at build time if your base image doesn't already have it installed).
-:::
+
 
 !!! warning Prefect defaults
     Prefect attempts to infer sensible defaults for as much as it can, including the version of Python you are using and the version of Prefect.  Additionally, Prefect attempts to run various "healthchecks" which ensure your Flow's Docker image is compatible with your Flow code.  However, there is only so much Prefect can infer - if your Flow requires complicated dependencies you may need to experiment with various Docker images.
-:::
+
 
 For completeness sake, we would perform the following steps to register this Flow using a configured Docker storage object:
 - save the above Dockerfile script into a file called `Dockerfile`

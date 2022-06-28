@@ -27,7 +27,7 @@ $ prefect server start
 
 
     This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
-:::
+
 
 
 Note that this command may take a bit to complete, as the various docker images are pulled. Once running,
@@ -37,12 +37,12 @@ you should see some "Prefect Server" ASCII art along with the logs output from e
 
 !!! tip Installing Docker
     We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
-:::
+
 
 
 !!! tip Just show me the config
     `prefect server start` templates a basic docker-compose file to conform to the options you pass. Sometimes, you just want to generate this file then manage running it yourself (or make further customizations). We provide a `prefect server config` command that takes all the same settings as `prefect server start` and prints the file to stdout. Try piping it to a file `prefect server config > docker-compose.yaml`.
-:::
+
 
 ## UI configuration
 
@@ -104,7 +104,7 @@ config.vm.network "forwarded_port", guest: 8080, host: 8080
     - [sign up for a free account](https://cloud.prefect.io/)
     - login; if you click the status indicator to the right of the nav-bar, the UI will switch the endpoint that it talks to
     - you can further configure the location of this endpoint on the Home page
-:::
+
 
 ## Database persistence and migrations
 

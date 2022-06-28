@@ -39,7 +39,7 @@ All `Task` subclasses must have a `run()` method.
     plus_one.run(2)  # 3
     ```
 
-:::
+
 
 Tasks allow a great deal of customization via arguments that may be provided to either the `Task` class constructor or the `@task` decorator. Examples include retry behavior, triggers, names, tags, and more. For a complete description, see the [Task API docs](/api/latest/core/task.html).
 
@@ -64,7 +64,7 @@ assert b.name == "b"
     Prefect encourages "small tasks" -- each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
     To be clear, there's nothing stopping you from putting all of your code in a single task -- Prefect will happily run it! However, if any line of code fails, the entire task will fail and need to be retried from the beginning. This can be trivially avoided by splitting the code into multiple dependent tasks.
-:::
+
 
 ## Retries
 
@@ -77,7 +77,7 @@ Task(max_retries=3, retry_delay=datetime.timedelta(minutes=10))
 
 !!! tip Retries don't create new task runs
     A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
-:::
+
 
 ## Triggers
 
@@ -85,7 +85,7 @@ Before a Prefect task runs, it evaluates a "trigger function" to decide whether 
 
 !!! tip Skips are treated as successes
     In Prefect, skipped tasks are treated as if they succeeded. This is because skips only take place if users want them to, so they represent the "successful" execution of a user's design. However, by default, skips also propagate: a task that follows a skipped task will also skip, unless it receives `skip_on_upstream_skip=False`.
-:::
+
 
 Built-in trigger functions include:
 
@@ -148,7 +148,7 @@ These operators automatically add new tasks to the active flow context.
 
 !!! warning Operator validation
     Because Prefect flows are not executed when you create them, Prefect can not validate that operators are being applied to compatible types. For example, you could subtract a task that produces a list from a task that produces an integer. This would create an error at runtime, but not during task definition.
-:::
+
 
 ## Collections
 
@@ -197,7 +197,7 @@ This will automatically add a `GetItem` task to the flow that receives `x` as it
 
 !!! warning Key validation
     Because Prefect flows are not executed when you create them, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
-:::
+
 
 ## Multiple Return Values
 

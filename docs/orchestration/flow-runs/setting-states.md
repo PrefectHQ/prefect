@@ -14,7 +14,7 @@ If you need to manually update the state of a flow run, you can do so by providi
 
 !!! tip State versions
     Prefect implements a form of optimistic locking for state updates. In order to update a state, you must provide a version number that matches the current version. This proves to the system that you're working with the most up-to-date knowledge. If your version doesn't match, it means that someone or some process updated the state since the last time you checked it, and the update will fail.
-:::
+
 
 First, query for the current state version:
 

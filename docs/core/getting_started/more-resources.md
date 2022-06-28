@@ -9,7 +9,7 @@ This is just the beginning; Prefect has many more resources and concepts to expl
 
 ## Orchestration
 
-If you want greater orchestration for your flows, check out our [orchestration docs](/orchestration/README.md) about how to add an API and UI layer for your flows. 
+If you want greater orchestration for your flows, check out our [orchestration docs](/orchestration/) about how to add an API and UI layer for your flows. 
 
 ## Video Guides
 
@@ -21,7 +21,7 @@ The [Prefect blog](https://www.prefect.io/resources) has lots of ideas and guide
 
 ## Examples
 
-Prefect provides a number of [examples](/core/examples/overview.md) that illustrate
+Prefect provides a number of [examples](/core/examples/overview/) that illustrate
 different aspects of developing and running flows. These examples can all be run
 locally or through Prefect Cloud/Server. To create a new project and register all
 examples, run the following:
@@ -34,10 +34,10 @@ $ prefect create project "Prefect Examples"
 $ prefect register --json https://docs.prefect.io/examples.json --project "Prefect Examples"
 ```
 
-See the [examples](/core/examples/overview.md) page for more information.
+See the [examples](/core/examples/overview/) page for more information.
 
 ## Concepts
 
-Visit the [Core Concepts](/core/concepts/tasks.html) docs for more information on tasks, flows and parameters and states. You can also see how to set up [notifications](/core/concepts/notifications.html#state-handlers) and find out how Prefect [caches and persists data](/core/concepts/persistence.html).
+Visit the [Core Concepts](/core/concepts/tasks/) docs for more information on tasks, flows and parameters and states. You can also see how to set up [notifications](/core/concepts/notifications/#state-handlers) and find out how Prefect [caches and persists data](/core/concepts/persistence/).
 
 

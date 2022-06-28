@@ -10,7 +10,7 @@ sidebarDepth: 0
     python 05_schedules.py
     ```
 
-:::
+
 
 Now that our Aircraft ETL flow is trustworthy enough, we want to be able to run it continuously on a schedule. Prefect provides `Schedule` objects that can be attached to `Flows`:
 
@@ -43,8 +43,8 @@ When invoking `flow.run()` our flow will never stop, always starting a new run e
 !!! tip More on Schedules
     There are several ways to configure schedules to meet a wide variety of needs. For more on Schedules [see our docs](/core/concepts/schedules.html#schedules).
 
-:::
+
 
 Up Next! Run Tasks in parallel easily!
 
-:::
+

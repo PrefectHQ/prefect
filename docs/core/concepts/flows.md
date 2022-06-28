@@ -50,7 +50,7 @@ with Flow('My Functional Flow') as flow:
 
     Instantiation is when properties including the task's `retry_delay`, `trigger`, and `caching` mechanisms are set. With the functional API, these properties can be passed as arguments to the `@task` decorator.
 
-:::
+
 
 ### Imperative API
 
@@ -81,7 +81,7 @@ flow.visualize()
 
 !!! tip
     `flow.set_dependencies()` and `task.set_dependencies()` (the latter is only available inside an active flow context) are the main entrypoints for the imperative API. Flows also provide some lower-level methods like `add_task()` and `add_edge()` that can be used to manipulate the graph directly.
-:::
+
 
 ## Running a flow
 
@@ -121,7 +121,7 @@ If `flow.run()` is called for a flow with a schedule attached, then it will run 
 
 !!! warning Concurrent flow runs are not supported by `flow.run()`
     `flow.run()` is a convenient way to run a flow on schedule, but it does not support concurrent flow runs. It will wait for a run to completely finish, including things like tasks that require retries, before starting the next run. However, Prefect schedules never return start times in the past. This means that if a flow run is still running when another flow run is supposed to start, the second flow run won't happen at all. If you require concurrent runs in a local process, consider using the lower-level `FlowRunner` classes directly.
-:::
+
 
 ## Key tasks
 
@@ -133,7 +133,7 @@ Flows are not considered `Finished` until all of their terminal tasks finish, an
 
 !!! tip Run order
     Prefect does not guarantee the order in which tasks will run, other than that tasks will not run before their upstream dependencies are evaluated. Therefore, you might have a terminal task that actually runs before other tasks in your flow, as long as it does not depend on those tasks.
-:::
+
 
 ### Reference tasks
 
@@ -157,7 +157,7 @@ assert flow.reference_tasks() == {c}
 
     Custom reference tasks allow you to alter this behavior to suit your needs.
 
-:::
+
 
 ## Serialization
 

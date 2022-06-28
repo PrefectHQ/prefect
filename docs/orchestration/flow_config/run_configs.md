@@ -59,7 +59,7 @@ not, since the agent's labels are not a *superset* of those on the flow.
     An empty label list is effectively considered a label. This means that if you
     register a flow with no labels it will only be picked up by Agents which also
     do not have labels specified.
-:::
+
 
 ## Types
 
@@ -304,4 +304,4 @@ flow.run_config = VertexRun(worker_pool_specs=worker_pool_specs)
     Prefect will always control the container spec on the 0th entry in the worker pool spec,
     which is the pool that is reserved to run the flow. You will need to provide a container
     spec for any other worker pool specs.
-:::
+

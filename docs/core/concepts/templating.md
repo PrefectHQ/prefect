@@ -24,7 +24,7 @@ All templatable objects are passed:
 !!! warning Naming collisions
     The variables are loaded in the order shown above. Collisions will be resolved such that the last loaded value overwrites those above it. For example, if your a task input name is the same as the name of a variable in the context, the input variable value will overwrite context value.
 
-:::
+
 
 ## Examples
 
@@ -142,4 +142,4 @@ with Flow("local-result-with-date-parsing") as flow:
         compute()
     ```
 
-:::
+

@@ -18,7 +18,7 @@ pip install prefect[gcp]
     endpoint must be accessible. This _may_ require changes to your Prefect Server
     deployment and/or [configuring the Prefect API
     address](./overview.md#prefect-api-address) on the agent.
-:::
+
 
 ## Flow Configuration
 
@@ -54,7 +54,7 @@ prefect agent vertex start
 !!! tip API Keys <Badge text="Cloud"/>
     When using Prefect Cloud, this will require a service account API key, see
     [here](./overview.md#api_keys) for more information.
-:::
+
 
 Below we cover a few common configuration options, see the [CLI
 docs](/api/latest/cli/agent.md#vertex-start) for a full list of options.

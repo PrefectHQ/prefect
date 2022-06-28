@@ -27,7 +27,7 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 
 !!! tip Local flow runs
     `prefect run` can be used to execute a local flow as well if you provide a `--path` or a `--module` to load the flow from
-:::
+
 
 
 !!! tip Agentless flow run execution
@@ -40,7 +40,7 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
     - If the flow run has a task with a long retry, the process will sleep. With agents, it would exit fully and be re-deployed when ready.
     - `breakpoint()` can be used in tasks to enter a debugging session with local executors
 
-:::
+
 
 ## Python client
 
@@ -178,7 +178,7 @@ mutation {
 
 !!! tip Generating time strings for GraphQL
     GraphQL expects ISO formatted datetime strings. This is default when you cast a `pendulum.DateTime` to a string. You can also explicitly call the conversion `pendulum.now().isoformat()` in newer versions of `pendulum`.
-:::
+
 
 ### Idempotency
 

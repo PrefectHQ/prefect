@@ -8,7 +8,7 @@ Adding tasks to your flow that respond to upstream events is one way of sending 
 
 !!! warning Slack Webhook URL
     This code below makes use of a [Slack Webhook URL](https://api.slack.com/messaging/webhooks) as a Prefect Secret. For more information on using Prefect Secrets visit the [concept documentation](/core/concepts/secrets.html).
-:::
+
 
 Functional API:
 ```python

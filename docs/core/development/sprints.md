@@ -9,7 +9,7 @@ Join Prefect at one of our upcoming digital events where core contributors will 
 
 !!! tip Already sprinting?
     If you're already at a sprint and want to get started quickly, jump down to [Getting Started at Sprints](#getting-started-at-sprints).
-:::
+
 
 Prefect is indebted to the open source community. We'd love to meet you and work with you "in person" at one of our upcoming events. If you haven't already, you can let us know you want to get involved by talking to us on Prefect's public [Slack](https://www.prefect.io/slack), or tell us you're coming through [our sign up form](https://forms.gle/mMtATfmhbYKSwqWc9), so we can get you ready for success! **For the most recent list of digital sprints Prefect is participating in or hosting**, checkout our [Meetup page](https://www.meetup.com/Prefect-Community/).
 

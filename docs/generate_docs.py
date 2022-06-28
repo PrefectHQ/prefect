@@ -383,18 +383,18 @@ This example can be registered in Prefect Cloud or Server by running:
 ```
 
 (to register in a different project, replace `'Prefect Examples'` with your project name).
-:::
+
 
 ```python
 {source}
 ```
 
-::: details Output
+ details Output
 ```
 $ python {relpath}
 {output}
 ```
-:::
+
 
 *The flow source is available on GitHub [here](https://github.com/PrefectHQ/prefect/blob/{ref}/{relpath}).*
 """
@@ -648,7 +648,7 @@ d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-1
 The functionality here is experimental, and may change between versions without notice. Use at your own risk.
 </div>
 </div>
-:::
+
 
 ---\n
 """
@@ -667,7 +667,7 @@ The functionality here is experimental, and may change between versions without 
 These tasks have been tested and verified by Prefect.
 </div>
 </div>
-:::
+
 
 ---\n
 """

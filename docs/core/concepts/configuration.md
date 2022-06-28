@@ -19,7 +19,7 @@ export PREFECT__CONTEXT__SECRETS__my_KEY="val"
 ```
 
 will result in two configuration settings: one for `config.logging.level` and one for `config.context.secrets.my_KEY` (note that the casing on the latter is preserved).
-:::
+
 
 ### Automatic type casting
 

@@ -2,7 +2,7 @@
 
 !!! warning
     Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading Environments to RunConfig](/orchestration/faq/upgrade_environments.md) documentation for more information.
-:::
+
 
 [[toc]]
 
@@ -14,7 +14,7 @@ Custom environments can be attached to flows in the same manner as any preexisti
 
 !!! warning Custom Environment Naming
     Make sure the name of your custom environment does not match the names of any preexisting [Prefect environments](/api/latest/environments/execution.html) because it could behave unpredictably when working with Prefect Serializers.
-:::
+
 
 ### Custom Environment Example
 

@@ -4,10 +4,10 @@ sidebarDepth: 0
 ---
 
 <div align="center" style="margin-top:50px; margin-bottom:40px">
-    <img src="/illustrations/core-illustration.svg"  width=500>
-</div>
-<div  style="float:left; width:100%; margin-bottom:40px;">
-    <img src="/assets/prefect-1.0-logo.png"  width=500 >
+    <img src="/img/illustrations/core-illustration.svg"  width=500>
+<!-- </div>
+<div  style="float:left; width:100%; margin-bottom:40px;"> -->
+    <img src="/img/assets/prefect-1.0-logo.png">
 </div>
 
 <!-- # Welcome! -->

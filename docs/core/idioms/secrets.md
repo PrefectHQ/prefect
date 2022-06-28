@@ -4,7 +4,7 @@ The management of sensitive information (private keys, api access strings, passw
 
 !!! warning use_local_secrets
     In order for local Secrets to be used make sure that the value of `prefect.config.use_local_secrets` is set to `True` (it is true by default).
-:::
+
 
 ### Setting Secrets
 

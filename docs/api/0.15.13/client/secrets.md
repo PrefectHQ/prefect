@@ -8,7 +8,7 @@ editLink: false
     While this Secrets API is fully supported, using a [Prefect Secret Task](../tasks/secrets) is
     typically preferred for better reuse of Secret values and visibility into the secrets used
     within Tasks / Flows.
-:::
+
 
 A Secret is a serializable object used to represent a secret key & value.
 

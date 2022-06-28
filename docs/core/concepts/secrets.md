@@ -13,7 +13,7 @@ The most common case for secrets is to authenticate to third-party systems. For 
 
 !!! tip Keep secrets secret!
     Though Prefect takes steps to ensure that `Secret` objects do not reveal sensitive information, other tasks may not be so careful. Once a secret value is loaded into your flow, it can be used for any purpose. Please use caution anytime you are working with sensitive data.
-:::
+
 
 ## Mechanisms
 

@@ -12,7 +12,7 @@ Most use cases that rely on Prefect involve connecting to third party services i
     Be mindful of where you choose to store your secure credentials.  In general it is best practice to store such information in dedicated secret stores; when this is not an option, you should make sure that you are storing your sensitive information in a location that you fully understand and control.  
 
     Moreover, when generating new credentials you should aim to provide only the permissions you need to achieve the task at hand and _no more_.  This helps reduce the chances of a misused credential.
-:::
+
 
 Ultimately there are two distinct authentication patterns to choose from:
 
@@ -33,7 +33,7 @@ Some common patterns for achieving this:
 
 !!! tip This is always the final fallback
     Note that if no Prefect Secrets are configured as described below, all Prefect tasks will fall back on the standard default authentication logic for whatever library you are using. 
-:::
+
 
 ### Using Secrets to configure your flow
 
@@ -60,7 +60,7 @@ Any number of secrets can be declared on your `Storage` option.
 
 !!! warning This only applies to Prefect built-ins
     This off-the-shelf experience generally only applies to interfaces that are natively included as a part of the Prefect package. Note that if you write a completely custom task for interacting with a third party service, you will also need to consider how this task will authenticate.  Whether you choose to use Prefect Secrets or another option is up to you.
-:::
+
 
 #### Passing Secrets from an Agent
 

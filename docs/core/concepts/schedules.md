@@ -71,13 +71,13 @@ schedule.next(5)
     )
     ```
 
-:::
+
 
 !!! warning Daylight Saving Time
     If the `IntervalClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself appropriately. Intervals greater than 24 hours will follow DST conventions, while intervals of less than 24 hours will follow UTC intervals. For example, an hourly schedule will fire every UTC hour, even across DST boundaries. When clocks are set back, this will result in two runs that _appear_ to both be scheduled for 1am local time, even though they are an hour apart in UTC time. For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
     Note that this behavior is different from the `CronClock`.
-:::
+
 
 #### Cron clocks
 
@@ -97,7 +97,7 @@ schedule.next(5)
     If the `CronClock` start time is provided with a DST-observing timezone, then the schedule will adjust itself. Cron's rules for DST are based on clock times, not intervals. This means that an hourly cron schedule will fire on every new clock hour, not every elapsed hour; for example, when clocks are set back this will result in a two-hour pause as the schedule will fire _the first time_ 1am is reached and _the first time_ 2am is reached, 120 minutes later. Longer schedules, such as one that fires at 9am every morning, will automatically adjust for DST.
 
     Note that this behavior is different from the `IntervalClock`.
-:::
+
 
 #### Date clocks
 

@@ -17,7 +17,7 @@ By manipulating a relatively small number of task states, Prefect workflows can 
 
 !!! tip Only runs have states
     Though we often refer to the "state" of a flow or a task, what we really mean is the state of a flow _run_ or a task _run_. Flows and tasks are templates that describe what a system does; only when we run the system does it also take on a state. So while we might refer to a task as "running" or being "successful", we really mean that a specific instance of the task is in that state.
-:::
+
 
 ## State objects
 
@@ -45,7 +45,7 @@ State results carry data associated with the state. For task `Success` states, t
     Because all states have a `result` field, it means that tasks can work with the results of failed upstream tasks. This may seem surprising, but it's incredibly powerful. For example, a task that runs after a failed task could look at the failed result to see exactly why the failure took place. A task following a skipped task could receive a message indicating why the task was skipped.
 
     To be clear: the default trigger will not run tasks that follow failed tasks, so users will have to opt-in to this functionality.
-:::
+
 
 ## State types
 
@@ -55,7 +55,7 @@ At each stage of the execution pipeline, the current state determines what actio
 
 !!! tip Meta-states
     There's actually a fourth kind of state, called a `MetaState`, but it doesn't affect the execution pipeline. Instead, meta-states are used by Prefect to enhance existing states with additional information. For example, two meta-states are `Submitted` and `Queued`. These are used to "wrap" other states in a way that makes the original state recoverable. For example, a `Scheduled` state might be put into a `Submitted` state to indicate that it's been submitted for execution, but the original `Scheduled` state is needed by the engine to perform runtime logic. By wrapping the `Scheduled` state with the `Submitted` meta-state, rather than replacing it, the engine is able to recover the original information it needs.
-:::
+
 
 ## State handlers & callbacks
 

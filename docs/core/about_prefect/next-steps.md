@@ -81,7 +81,7 @@ Now the flow's state will be determined by what happens to this job. If it fails
 
 ## Signals
 
-Prefect's [State](../concepts/states.html) system allows users to set up advanced behaviors through triggers and reference tasks. Each task enters a final state based on what happens in its `run()` function: if the function finishes normally, the task enters a `Success` state; and if the function encounters an error, the task enters a `Failed` state. However, Prefect also gives users fine-grained control over a task's state via a mechanism called "signals."
+Prefect's [State](/core/concepts/states/) system allows users to set up advanced behaviors through triggers and reference tasks. Each task enters a final state based on what happens in its `run()` function: if the function finishes normally, the task enters a `Success` state; and if the function encounters an error, the task enters a `Failed` state. However, Prefect also gives users fine-grained control over a task's state via a mechanism called "signals."
 
 Signals are ways of telling the Prefect engine that a task should be moved immediately into a specific state.
 

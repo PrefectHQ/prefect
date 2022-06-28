@@ -70,7 +70,7 @@ In addition to viewing the structure of our DAG, Prefect allows you to easily vi
 
 !!! tip State colors
     The colors of all states, along with their inheritance relationships can be found in [the API reference for states](/api/latest/engine/state.html).
-:::
+
 
 ```python
 flow_state = f.run(x=1, y=2)
@@ -83,4 +83,4 @@ We can see that both branches of the `switch` were skipped in this case.
 
 !!! tip Live Updating Visualizations
     All of the visualizations are static visualizations that can only be inspected before or after a run is complete.  For live updating views, check out Schematics in the [Prefect Cloud UI](../../orchestration/ui/flow-run.html#schematic).
-:::
+

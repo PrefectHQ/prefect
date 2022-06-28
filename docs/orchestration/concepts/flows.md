@@ -29,7 +29,7 @@ The CLI command supports several additional options, see the
     ```bash
     $ prefect register --project "my project" --module "prefect.hello_world"
     ```
-:::
+
 
 ### Core Client
 
@@ -41,7 +41,7 @@ flow.register(project_name="my project")
 
 !!! warning Projects
     Registering a flow with the backend API requires it to be registered to a project. To create a project see [the "creating a project" tutorial](projects.html#creating-a-project).
-:::
+
 
 !!! tip Deduplicating registration calls
     Each call to `flow.register()` will bump the version of the flow in the
@@ -56,7 +56,7 @@ flow.register(project_name="my project")
         idempotency_key=flow.serialized_hash()
     )
     ```
-:::
+
 
 
 Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](/orchestration/getting-started/set-up.html#authenticate-with-prefect-cloud). For more information on Flow registration see [here](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow).
@@ -126,7 +126,7 @@ These safeguards can be toggled on a flow-by-flow basis using flow settings.
 
 !!! warning Disabling safeguards
     Disabling these safeguards can alter fundamental assumptions about how flows run in Cloud. Be sure to read the docs and understand how each of these settings alters flow behavior in Cloud.
-:::
+
 
 ### Toggling Heartbeats
 

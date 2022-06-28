@@ -21,7 +21,7 @@ script-based storage. All other classes require you to opt-in by passing
     ```bash
     pip install 'prefect[github]'
     ```
-:::
+
 
 In this example we will walk through a potential workflow you may use when registering flows with
 [GitHub](/api/latest/storage.html#github) storage. This example takes place in a GitHub
@@ -99,7 +99,7 @@ use that code.
 !!! warning Flow Structure
     If you change any of the structure of your flow such as task names, rearrange task order, etc. then you
     will need to re-register that flow.
-:::
+
 
 !!! tip GitLab users
     This example applies to GitLab as well. To use GitLab storage, install the `gitlab` extra:
@@ -145,7 +145,7 @@ use that code.
         access_token_secret="BITBUCKET_ACCESS_TOKEN"    # name of personal access token secret
     )
     ```
-:::
+
 
 ### Script based Docker storage
 
