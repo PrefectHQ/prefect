@@ -1,9 +1,10 @@
 """
 Objects for specifying deployments and utilities for loading flows from deployments.
 
-The primary object is the `DeploymentSpec` which can be used to define a deployment.
-Once a specification is written, it can be used with the Orion client or CLI to create
-a deployment in the backend.
+Deployments can be defined with the `Deployment` object.
+
+To use your deployment, it must be registered with the API. The `Deployment.create()`
+method can be used, or the `prefect deployment create` CLI.
 
 Examples:
     Define a flow
@@ -12,29 +13,31 @@ Examples:
     >>> def hello_world(name="world"):
     >>>     print(f"Hello, {name}!")
 
-    Write a deployment specification that sets a new parameter default
-    >>> from prefect.deployments import DeploymentSpec
-    >>> DeploymentSpec(
+    Write a deployment that sets a new parameter default
+    >>> from prefect.deployments import Deployment
+    >>> Deployment(
     >>>     flow=hello_world,
     >>>     name="my-first-deployment",
     >>>     parameters={"name": "Earth"},
     >>>     tags=["foo", "bar"],
     >>> )
 
-    Add a schedule to the deployment specification to run the flow hourly
+    Add a schedule to the deployment to run the flow hourly
     >>> from prefect.orion.schemas.schedules import IntervalSchedule
     >>> from datetime import timedelta
-    >>> DeploymentSpec(
+    >>> Deployment(
     >>>     ...
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
 
-    Deployment specifications can also be written in YAML and refer to the flow's
-    location instead of the `Flow` object
+    Deployments can also be written in YAML and refer to the flow's location instead 
+    of the `Flow` object. If there are multiple flows in the file, a name will needed
+    to load the correct flow.
     ```yaml
     name: my-first-deployment
-    flow_location: ./path-to-the-flow-script.py
-    flow_name: hello-world
+    flow:
+        path: ./path-to-the-flow-script.py
+        name: hello-world
     tags:
     - foo
     - bar
@@ -45,28 +48,106 @@ Examples:
     ```
 """
 
-from typing import Any, Iterable
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Union
+
+from pydantic import BaseModel, Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
-from prefect.flows import Flow, load_flow_from_text
+from prefect.flow_runners.base import (
+    FlowRunner,
+    FlowRunnerSettings,
+    UniversalFlowRunner,
+)
+from prefect.flows import Flow, load_flow_from_script, load_flow_from_text
 from prefect.orion import schemas
+from prefect.orion.schemas.data import DataDocument
+from prefect.packaging.base import PackageManifest, Packager
+from prefect.packaging.orion import OrionPackager
+from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import listrepr
 
 
-class DeploymentSpec(deprecated.DeploymentSpec):
-    def __init__(self, **data: Any) -> None:
-        # TODO: Add deprecation warning when we are ready to transition
+class FlowScript(BaseModel):
+    path: Path
+    name: Optional[str] = None
+
+
+FlowSource = Union[Flow, FlowScript, PackageManifest]
+
+
+class Deployment(BaseModel):
+
+    # Metadata fields
+    name: str = None
+    tags: List[str] = Field(default_factory=list)
+
+    # The source of the flow
+    flow: FlowSource
+    packager: Optional[Packager] = Field(default_factory=OrionPackager)
+
+    # Flow run fields
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    schedule: schemas.schedules.SCHEDULE_TYPES = None
+
+    # TODO: Change to 'infrastructure'
+    flow_runner: Union[FlowRunner, FlowRunnerSettings] = Field(
+        default_factory=UniversalFlowRunner
+    )
+
+    def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
+        _register_deployment(__pydantic_self__)
 
+    @validator("flow_runner")
+    def cast_flow_runner_settings(cls, value):
+        if isinstance(value, FlowRunnerSettings):
+            return FlowRunner.from_settings(value)
+        return value
 
-# Utilities for loading flows and deployment specifications ----------------------------
+    @root_validator(pre=True)
+    def packager_cannot_be_provided_with_manifest(cls, values):
+        if "packager" in values and isinstance(values.get("flow"), PackageManifest):
+            raise ValueError(
+                "A packager cannot be provided if a package manifest is provided "
+                "instead of a flow. Provide a local flow instead or leave the packager "
+                "field empty."
+            )
+        return values
+
+    @sync_compatible
+    @inject_client
+    async def create(self, client: OrionClient):
+
+        flow = await _source_to_flow(self.flow)
+        flow_id = await client.create_flow(flow)
+
+        if isinstance(self.flow, PackageManifest):
+            manifest = self.flow
+        else:
+            manifest = await self.packager.package(flow)
+
+        flow_data = DataDocument.encode("package-manifest", manifest)
+
+        return await client.create_deployment(
+            flow_id=flow_id,
+            name=self.name or flow.name,
+            flow_data=flow_data,
+            schedule=self.schedule,
+            parameters=self.parameters,
+            tags=self.tags,
+            flow_runner=self.flow_runner,
+        )
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 def select_deployment(
-    deployments: Iterable[DeploymentSpec],
+    deployments: Iterable[Deployment],
     deployment_name: str = None,
     flow_name: str = None,
     from_message: str = None,
@@ -147,12 +228,52 @@ async def load_flow_from_deployment(
     maybe_flow = await client.resolve_datadoc(deployment.flow_data)
     if isinstance(maybe_flow, (str, bytes)):
         flow = load_flow_from_text(maybe_flow, flow_model.name)
+    elif isinstance(maybe_flow, PackageManifest):
+        flow = await maybe_flow.unpackage()
     else:
-        if not isinstance(maybe_flow, Flow):
-            raise TypeError(
-                "Deployment `flow_data` did not resolve to a `Flow`. "
-                f"Found {maybe_flow}"
-            )
         flow = maybe_flow
 
+    if not isinstance(flow, Flow):
+        raise TypeError(
+            "Deployment `flow_data` did not resolve to a `Flow`. Found: {flow!r}."
+        )
+
     return flow
+
+
+async def _source_to_flow(flow_source: FlowSource) -> Flow:
+    if isinstance(flow_source, Flow):
+        return flow_source
+    elif isinstance(flow_source, FlowScript):
+        return load_flow_from_script(flow_source.path, flow_name=flow_source.name)
+    elif isinstance(flow_source, PackageManifest):
+        return await flow_source.unpackage()
+    else:
+        raise TypeError(
+            f"Unknown type {type(flow_source).__name__!r} for flow source. "
+            "Expected one of 'Flow', 'FlowScript', or 'PackageManifest'."
+        )
+
+
+def _register_deployment(deployment: Deployment) -> None:
+    """
+    Add the `Deployment` object to the `PrefectObjectRegistry`.
+    """
+    from prefect.context import PrefectObjectRegistry
+
+    assert isinstance(deployment, Deployment)
+
+    registry = PrefectObjectRegistry.get()
+    if not registry:
+        return
+
+    registry.deployments.append(deployment)
+
+
+# Backwards compatibility
+
+
+class DeploymentSpec(deprecated.DeploymentSpec):
+    def __init__(self, **data: Any) -> None:
+        # TODO: Add deprecation warning when we are ready to transition
+        super().__init__(**data)

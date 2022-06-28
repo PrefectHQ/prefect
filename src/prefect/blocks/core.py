@@ -85,9 +85,9 @@ class Block(BaseModel, ABC):
     A base class for implementing a block that wraps an external service.
 
     This class can be defined with an arbitrary set of fields and methods, and
-    couples business logic with data contained in an block document. 
-    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and 
-    `_block_type_id` are reserved by Orion as Block metadata fields, but 
+    couples business logic with data contained in an block document.
+    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    `_block_type_id` are reserved by Orion as Block metadata fields, but
     otherwise a Block can implement arbitrary logic. Blocks can be instantiated
     without populating these metadata fields, but can only be used interactively,
     not with the Orion API.
@@ -502,7 +502,9 @@ class Block(BaseModel, ABC):
 
             cls._block_schema_id = block_schema.id
 
-    async def _save(self, name: Optional[str] = None, is_anonymous: bool = False):
+    async def _save(
+        self, name: Optional[str] = None, is_anonymous: bool = False
+    ) -> UUID:
         """
         Saves the values of a block as a block document with an option to save as an
         anonymous block document.
@@ -543,9 +545,10 @@ class Block(BaseModel, ABC):
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
         self._block_document_id = block_document.id
+        return self._block_document_id
 
     @sync_compatible
-    async def save(self, name: str):
+    async def save(self, name: str) -> UUID:
         """
         Saves the values of a block as a block document.
 
@@ -553,4 +556,6 @@ class Block(BaseModel, ABC):
             name: User specified name to give saved block document which can later be used to load the
                 block document.
         """
-        await self._save(name=name)
+        document_id = await self._save(name=name)
+
+        return document_id
