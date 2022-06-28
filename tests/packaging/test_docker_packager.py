@@ -8,17 +8,21 @@ from unittest.mock import MagicMock
 
 import anyio.abc
 import pytest
-from docker import DockerClient
-from docker.models.containers import Container
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
+from prefect.docker import silence_docker_warnings
 from prefect.flow_runners.docker import DockerFlowRunner
 from prefect.orion.schemas.states import StateType
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
 
 from . import howdy
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.models.containers import Container
+
 
 pytestmark = pytest.mark.service("docker")
 
@@ -77,7 +81,9 @@ async def test_packaging_a_flow_to_local_docker_daemon(prefect_base_image: str):
             pip_requirements=["requests==2.28.0"],
         ),
     )
+
     manifest = await packager.package(howdy)
+
     assert isinstance(manifest, DockerPackageManifest)
     assert IMAGE_ID_PATTERN.match(manifest.image)
     assert manifest.image_flow_location == "/flow.py"
@@ -93,7 +99,9 @@ async def test_packaging_a_flow_to_registry(prefect_base_image: str, registry: s
         ),
         registry_url=registry,
     )
+
     manifest = await packager.package(howdy)
+
     assert isinstance(manifest, DockerPackageManifest)
     assert manifest.image.startswith("localhost:5555/howdy:")
     assert manifest.image_flow_location == "/flow.py"
