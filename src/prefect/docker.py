@@ -10,9 +10,6 @@ from typing import Generator, Iterable, List, Optional, TextIO, Type, Union
 from urllib.parse import urlsplit
 
 import pendulum
-from docker import DockerClient
-from docker.errors import APIError
-from docker.models.images import Image
 from slugify import slugify
 from typing_extensions import Self
 
@@ -28,7 +25,19 @@ def silence_docker_warnings() -> Generator[None, None, None]:
             category=DeprecationWarning,
         )
 
+        warnings.filterwarnings(
+            "ignore",
+            message="The distutils package is deprecated and slated for removal.*",
+            category=DeprecationWarning,
+        )
+
         yield
+
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.errors import APIError
+    from docker.models.images import Image
 
 
 @contextmanager

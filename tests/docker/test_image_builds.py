@@ -5,10 +5,9 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 from _pytest.capture import CaptureFixture
-from docker import DockerClient
 
 import prefect
-from prefect.docker import BuildError, ImageBuilder, build_image
+from prefect.docker import BuildError, DockerClient, ImageBuilder, build_image
 
 IMAGE_ID_PATTERN = re.compile("^sha256:[a-fA-F0-9]{64}$")
 
