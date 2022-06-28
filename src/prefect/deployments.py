@@ -80,6 +80,7 @@ class FlowScript(BaseModel):
 FlowSource = Union[Flow, FlowScript, PackageManifest]
 
 
+@PrefectObjectRegistry.register_instances
 class Deployment(BaseModel):
 
     # Metadata fields
@@ -99,7 +100,6 @@ class Deployment(BaseModel):
         default_factory=UniversalFlowRunner
     )
 
-    @PrefectObjectRegistry.register_instances
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
 

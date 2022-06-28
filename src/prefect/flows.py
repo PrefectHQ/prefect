@@ -55,6 +55,7 @@ P = ParamSpec("P")  # The parameters of the flow
 logger = get_logger("flows")
 
 
+@PrefectObjectRegistry.register_instances
 class Flow(Generic[P, R]):
     """
     A Prefect workflow definition.
@@ -90,7 +91,6 @@ class Flow(Generic[P, R]):
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
     #       exactly in the @flow decorator
-    @PrefectObjectRegistry.register_instances
     def __init__(
         self,
         fn: Callable[P, R],
