@@ -163,9 +163,9 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         self._assert_orion_settings_are_compatible()
 
         # if a k8s cluster block is provided to the flow runner, use that
-        if self.cluster_config:
-            self._k8s.config.kube_config.KubeConfigLoader(
-                config_dict=self.cluster_config.config,
+        if self.cluster_config.config_file_dict:
+            self._k8s.config.kube_config.load_kube_config_from_dict(
+                config_dict=self.cluster_config.config_file_dict,
                 context=self.cluster_config.context,
             )
         else:
