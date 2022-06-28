@@ -1,15 +1,17 @@
 from typing import Generator
 
 import pytest
-from docker import DockerClient
-from docker.errors import ImageNotFound, NotFound
-from docker.models.containers import Container
 from typer.testing import CliRunner
 
 import prefect
 from prefect.cli.dev import dev_app
 from prefect.docker import docker_client, silence_docker_warnings
 from prefect.flow_runners.base import get_prefect_image_name
+
+with silence_docker_warnings():
+    from docker import DockerClient
+    from docker.errors import ImageNotFound, NotFound
+    from docker.models.containers import Container
 
 
 @pytest.fixture(scope="session")
@@ -18,6 +20,7 @@ def docker() -> Generator[DockerClient, None, None]:
         yield client
 
 
+@pytest.mark.timeout(120)
 @pytest.fixture(scope="session")
 def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
     """Ensure that the prefect dev image is available and up-to-date"""
