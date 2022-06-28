@@ -5,13 +5,15 @@ from typer.testing import CliRunner
 
 import prefect
 from prefect.cli.dev import dev_app
-from prefect.docker import docker_client, silence_docker_warnings
+from prefect.docker import (
+    Container,
+    DockerClient,
+    ImageNotFound,
+    NotFound,
+    docker_client,
+    silence_docker_warnings,
+)
 from prefect.flow_runners.base import get_prefect_image_name
-
-with silence_docker_warnings():
-    from docker import DockerClient
-    from docker.errors import ImageNotFound, NotFound
-    from docker.models.containers import Container
 
 
 @pytest.fixture(scope="session")
