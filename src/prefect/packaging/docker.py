@@ -61,7 +61,7 @@ class DockerPackager(Packager):
 
     @root_validator
     def base_image_and_dockerfile_exclusive(cls, values: Mapping[str, Any]):
-        if values.get("base_iamge") and values.get("dockerfile"):
+        if values.get("base_image") and values.get("dockerfile"):
             raise ValueError(
                 "Either `base_image` or `dockerfile` should be provided, but not both"
             )
