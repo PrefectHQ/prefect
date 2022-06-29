@@ -51,6 +51,7 @@ from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
+from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
 # Import fixtures
@@ -459,3 +460,17 @@ def reset_object_registry():
 
     with PrefectObjectRegistry():
         yield
+
+
+@pytest.fixture(autouse=True)
+def reset_registered_blocks():
+    """
+    Ensures each test only has types that were registered at module initialization.
+    """
+    registry = get_registry_for_type(Block)
+    before = registry.copy()
+
+    yield
+
+    registry.clear()
+    registry.update(before)
