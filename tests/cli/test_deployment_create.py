@@ -36,26 +36,32 @@ def test_create_deployment_from_script_with_invalid_deployment():
     )
 
 
-def test_create_deployment_from_script_with_multiple_invalid_deployment():
-    path = EXAMPLES / "multiple_invalid_deployments.py"
+@pytest.mark.parametrize(
+    "path",
+    [
+        EXAMPLES / "multiple_invalid_deployments.py",
+        EXAMPLES / "multiple_invalid_deployments.yaml",
+    ],
+)
+def test_create_deployment_with_multiple_invalid_deployments(path):
     invoke_and_assert(
         ["deployment", "create", str(path)],
-        expected_output_contains=[
-            "deployments from python script",
-            "2 invalid deployment",
-        ],
+        expected_output_contains="2 invalid deployments",
         expected_code=1,
     )
 
 
-def test_create_deployment_from_script_with_mixed_valid_invalid_deployment():
-    path = EXAMPLES / "mixed_valid_invalid_deployments.py"
+@pytest.mark.parametrize(
+    "path",
+    [
+        EXAMPLES / "mixed_valid_invalid_deployments.py",
+        EXAMPLES / "mixed_valid_invalid_deployments.yaml",
+    ],
+)
+def test_create_deployment_with_mixed_valid_invalid_deployments(path):
     invoke_and_assert(
         ["deployment", "create", str(path)],
-        expected_output_contains=[
-            "deployments from python script",
-            "1 invalid deployment",
-        ],
+        expected_output_contains="1 invalid deployment",
         expected_code=1,
     )
 
