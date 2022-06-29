@@ -11,18 +11,7 @@ from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
-from prefect.utilities.dispatch import get_registry_for_type, lookup_type, register_type
-
-
-@pytest.fixture(autouse=True)
-def reset_registered_blocks():
-    registry = get_registry_for_type(Block)
-    before = registry.copy()
-
-    yield
-
-    registry.clear()
-    registry.update(before)
+from prefect.utilities.dispatch import lookup_type, register_type
 
 
 class TestAPICompatibility:
