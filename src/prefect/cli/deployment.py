@@ -238,6 +238,19 @@ async def create(path: Path):
     """
     specs = _load_deployment_specs(path)
 
+    from prefect.context import registry_from_script
+
+    registry = registry_from_script(path)
+    valid_deployments = registry.get_instances(Deployment)
+    invalid_deployments = registry.get_instance_failures(Deployment)
+
+    if invalid_deployments:
+        # Display all invalid deployments
+        for exc, inst, args, kwargs in invalid_deployments:
+            assert inst.__dict__ == {}
+            partial_inst = type(inst).construct(*args, **kwargs)
+        exit(1)
+
     failed = 0
     for spec in specs:
         try:
