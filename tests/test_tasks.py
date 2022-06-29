@@ -1330,6 +1330,9 @@ class TestTaskWithOptions:
         )
         # `with_options` does not accept a new function
         task_params.remove("__fn")
+        # it doesn't make sense to take the same task definition and change versions
+        # tags should be used for distinguishing different calls where necessary
+        task_params.remove("version")
         # `self` isn't in task decorator
         with_options_params.remove("self")
         assert task_params == with_options_params
