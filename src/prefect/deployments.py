@@ -67,7 +67,7 @@ from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
 
 
@@ -227,7 +227,9 @@ async def load_flow_from_deployment(
 
     maybe_flow = await client.resolve_datadoc(deployment.flow_data)
     if isinstance(maybe_flow, (str, bytes)):
-        flow = load_flow_from_text(maybe_flow, flow_model.name)
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_text, maybe_flow, flow_model.name
+        )
     elif isinstance(maybe_flow, PackageManifest):
         flow = await maybe_flow.unpackage()
     else:
