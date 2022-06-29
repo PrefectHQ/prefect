@@ -19,6 +19,7 @@ from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
+    FlowOrchestrationContext,
     OrchestrationContext,
     TaskOrchestrationContext,
 )
@@ -34,6 +35,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
+            RetryFailedFlows,
         ]
 
 
@@ -48,7 +50,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
-            RetryPotentialFailures,
+            RetryFailedTasks,
             RenameReruns,
             CacheInsertion,
             ReleaseTaskConcurrencySlots,
@@ -245,7 +247,41 @@ class CacheRetrieval(BaseOrchestrationRule):
                 )
 
 
-class RetryPotentialFailures(BaseOrchestrationRule):
+class RetryFailedFlows(BaseOrchestrationRule):
+    """
+    Rejects failed states and schedules a retry if the retry limit has not been reached.
+
+    This rule rejects transitions into a failed state if `max_retries` has been
+    set and the run count has not reached the specified limit. The client will be
+    instructed to transition into a scheduled state to retry flow execution.
+
+    TODO: Reset task run states
+    TODO: Consider renaming max retries
+    """
+
+    FROM_STATES = [states.StateType.RUNNING]
+    TO_STATES = [states.StateType.FAILED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: FlowOrchestrationContext,
+    ) -> None:
+        run_settings = context.run_settings
+        run_count = context.run.run_count
+        if run_count <= run_settings.max_retries:
+            retry_state = states.AwaitingRetry(
+                scheduled_time=pendulum.now("UTC").add(
+                    seconds=run_settings.retry_delay_seconds
+                ),
+                message=proposed_state.message,
+                data=proposed_state.data,
+            )
+            await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class RetryFailedTasks(BaseOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
 
