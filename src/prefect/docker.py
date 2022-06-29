@@ -13,6 +13,8 @@ import pendulum
 from slugify import slugify
 from typing_extensions import Self
 
+import prefect
+
 
 @contextmanager
 def silence_docker_warnings() -> Generator[None, None, None]:
@@ -60,6 +62,13 @@ class BuildError(Exception):
     """Raised when a Docker build fails"""
 
 
+# Labels to apply to all images built with Prefect
+IMAGE_LABELS = {
+    "io.prefect/version": prefect.__version__,
+}
+
+
+@silence_docker_warnings()
 def build_image(
     context: Path,
     dockerfile: str = "Dockerfile",
@@ -91,6 +100,7 @@ def build_image(
             dockerfile=dockerfile,
             pull=pull,
             decode=True,
+            labels=IMAGE_LABELS,
         )
 
         try:
@@ -308,6 +318,7 @@ class PushError(Exception):
     """Raised when a Docker image push fails"""
 
 
+@silence_docker_warnings()
 def push_image(
     image_id: str,
     registry_url: str,
