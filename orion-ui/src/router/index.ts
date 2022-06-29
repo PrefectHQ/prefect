@@ -98,7 +98,7 @@ const routeRecords: AppRouteRecord[] = [
         component: (): RouteComponent => import('@/pages/BlocksCatalog.vue'),
       },
       {
-        name: 'blocks.catalog.create',
+        name: 'blocks.create',
         path: 'catalog/:blockTypeName/create',
         component: (): RouteComponent => import('@/pages/BlocksCatalogCreate.vue'),
       },
