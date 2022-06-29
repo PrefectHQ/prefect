@@ -25,16 +25,16 @@ def foo(x: int = 1):
 
 def test_deployment_added_to_registry():
     dpl1 = Deployment(flow=foo)
-    assert PrefectObjectRegistry.get().deployments == [dpl1]
+    assert PrefectObjectRegistry.get().get_instances(Deployment) == [dpl1]
     dpl2 = Deployment(flow=foo)
-    assert PrefectObjectRegistry.get().deployments == [dpl1, dpl2]
+    assert PrefectObjectRegistry.get().get_instances(Deployment) == [dpl1, dpl2]
 
 
 def test_deployment_not_added_to_registry_on_failure():
     with pytest.raises(pydantic.ValidationError):
         Deployment(flow="foobar")
 
-    assert PrefectObjectRegistry.get().deployments == []
+    assert PrefectObjectRegistry.get().get_instances(Deployment) == []
 
 
 async def test_deployment_defaults(orion_client: OrionClient):
