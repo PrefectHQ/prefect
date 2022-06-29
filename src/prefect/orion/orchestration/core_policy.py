@@ -23,7 +23,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import states
+from prefect.orion.schemas import filters, states
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -270,18 +270,23 @@ class RetryFailedFlows(BaseOrchestrationRule):
         context: FlowOrchestrationContext,
         db: OrionDBInterface,
     ) -> None:
+        from prefect.orion.models import task_runs
+
         run_settings = context.run_settings
         run_count = context.run.run_count
         if run_count > run_settings.max_retries:
             return  # Retry count exceeded, allow transition to failed
 
-        # Reset the task run states
-        query = select(db.TaskRun).where(
-            sa.and_(
-                db.FlowRun.id == db.TaskRun.flow_run_id,
-                db.TaskRun.state == FAILED,
-            )
+        failed_task_runs = await task_runs.read_task_runs(
+            context.session,
+            flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
+            task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
         )
+
+        for run in failed_task_runs:
+            await task_runs.set_task_run_state(
+                context.session, run.id, state=states.Pending(), force=True
+            )
 
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
