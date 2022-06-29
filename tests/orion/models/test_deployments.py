@@ -1,12 +1,14 @@
+import asyncio
 import datetime
 import time
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.deployments import get_work_queues_for_deployment
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.data import DataDocument
@@ -728,16 +730,31 @@ class TestScheduledRuns:
 
 
 class TestGetWorkQueuesForDeployment:
-    # Our mock deployment's ID
-    deployment_id_match = UUID("82c11d89-c470-4148-a874-e51537ca1678")
-    # ID without corresponding deployment
-    deployment_id_miss = UUID("406ccdba-f6f5-41a3-b495-450395dd6c68")
+    async def test_object_not_found_error_raised(self, session):
+        with pytest.raises(ObjectNotFoundError):
+            await get_work_queues_for_deployment(session=session, deployment_id=uuid4())
 
     @pytest.fixture
-    async def setup(self, session):
+    async def setup(self, session, flow, flow_function):
         """
-        Create combinations of work queues to make sure that query is working correctly.
+        Create combinations of work queues, and a deployment to make sure that query is working correctly.
         """
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        deployment = (
+            await models.deployments.create_deployment(
+                session=session,
+                deployment=schemas.core.Deployment(
+                    name="My Deployment",
+                    flow_data=flow_data,
+                    flow_id=flow.id,
+                    tags=[],
+                    flow_runner=schemas.core.FlowRunnerSettings(type="subprocess"),
+                ),
+            ),
+        )
+        match_id = deployment[0].id
+        miss_id = uuid4()
+
         tags = [  # "a" and "b" are matches and "y" and "z" are misses
             [],
             ["a"],
@@ -756,16 +773,17 @@ class TestGetWorkQueuesForDeployment:
 
         deployments = [
             [],
-            [self.deployment_id_match],
-            [self.deployment_id_miss],
-            [self.deployment_id_match, self.deployment_id_miss],
+            [match_id],
+            [miss_id],
+            [match_id, miss_id],
         ]
 
+        # General all combinations of work queue
         for t in tags:
             for f in flow_runners:
                 for d in deployments:
 
-                    queue = await models.work_queues.create_work_queue(
+                    await models.work_queues.create_work_queue(
                         session=session,
                         work_queue=schemas.core.WorkQueue(
                             name=f"{t}:{f}:{d}",
@@ -775,85 +793,94 @@ class TestGetWorkQueuesForDeployment:
                         ),
                     )
 
-    async def test_query_picks_up_right_queues(self, session, setup):
+        # return the two IDs needed to compare results
+        return match_id, miss_id
 
-        deployment_id = self.deployment_id_match
-        print(deployment_id)
+    async def test_query_picks_up_right_queues(self, session, setup, flow):
+        def compare_queues(expected, actual):
+            """Utility function for comparing work queues.
 
-        class MockDeployment:
-            def __init__(
-                self,
-                tags,
-            ):
-                self.id = deployment_id
-                self.tags = tags
-                self.flow_runner_type = "subprocess"
+            Makes sure that all expected queues are found, no more, no less
+            """
+            for q in actual:
+                queue_attrs = [
+                    q.filter.tags,
+                    q.filter.flow_runner_types,
+                    q.filter.deployment_ids,
+                ]
+                try:
+                    assert queue_attrs in expected
+                except Exception as e:
+                    print(f"Work queue attrs: {queue_attrs}")
+                    print(f"Expected queues: {expected}")
+                    raise
 
-        tags = [[], ["a"], ["a", "b"]]
+            assert len(expected) == len(actual)
 
-        no_tag_deployment = MockDeployment(tags=[])
-        no_tag_expected = {
-            "[]:[]:[]",
-            "[]:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-            "[]:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-            "[]:['subprocess']:[]",
-            "[]:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-            "[]:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-            "[]:['subprocess', 'kubernetes']:[]",
-            "[]:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-            "[]:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-        }
-        no_tag_res = await get_work_queues_for_deployment(
-            session=session, deployment=no_tag_deployment
+        async def update_deployment_tags(tags):
+            flow_data = DataDocument.encode("json", "test-override")
+            await models.deployments.create_deployment(
+                session=session,
+                deployment=schemas.core.Deployment(
+                    name="My Deployment",
+                    flow_id=flow.id,
+                    flow_data=flow_data,
+                    tags=tags,
+                    flow_runner=schemas.core.FlowRunnerSettings(type="subprocess"),
+                ),
+            )
+            await asyncio.sleep(1.5)
+
+        # Expected queue IDs
+        match_id, miss_id = setup
+        print(f"match_id: {match_id}")  # for test debugging
+
+        no_tag_expected_queues = [
+            [[], [], []],
+            [[], [], [match_id]],
+            [[], [], [match_id, miss_id]],
+            [[], ["subprocess"], []],
+            [[], ["subprocess"], [match_id]],
+            [[], ["subprocess"], [match_id, miss_id]],
+            [[], ["subprocess", "kubernetes"], []],
+            [[], ["subprocess", "kubernetes"], [match_id]],
+            [[], ["subprocess", "kubernetes"], [match_id, miss_id]],
+        ]
+        no_tag_actual_queues = await get_work_queues_for_deployment(
+            session=session, deployment_id=match_id
         )
-        no_tag_results = {r.name for r in no_tag_res}
-        print(
-            f"Empty Tags:\n{no_tag_results.symmetric_difference(no_tag_expected)}"
-        )  # for debugging
-        assert no_tag_results == no_tag_expected
+        compare_queues(expected=no_tag_expected_queues, actual=no_tag_actual_queues)
 
-        single_tag_deployment = MockDeployment(tags=["a"])
-        single_tag_expected = no_tag_expected.union(
-            {
-                "['a']:[]:[]",
-                "['a']:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a']:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-                "['a']:['subprocess']:[]",
-                "['a']:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a']:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-                "['a']:['subprocess', 'kubernetes']:[]",
-                "['a']:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a']:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-            }
+        await update_deployment_tags(["a"])
+        one_tag_expected_queues = no_tag_expected_queues + [
+            [["a"], [], []],
+            [["a"], [], [match_id]],
+            [["a"], [], [match_id, miss_id]],
+            [["a"], ["subprocess"], []],
+            [["a"], ["subprocess"], [match_id]],
+            [["a"], ["subprocess"], [match_id, miss_id]],
+            [["a"], ["subprocess", "kubernetes"], []],
+            [["a"], ["subprocess", "kubernetes"], [match_id]],
+            [["a"], ["subprocess", "kubernetes"], [match_id, miss_id]],
+        ]
+        one_tag_actual_queues = await get_work_queues_for_deployment(
+            session=session, deployment_id=match_id
         )
-        single_tag_res = await get_work_queues_for_deployment(
-            session=session, deployment=single_tag_deployment
-        )
-        single_tag_results = {r.name for r in single_tag_res}
-        print(
-            f"Single Tag:\n{single_tag_results.symmetric_difference(single_tag_expected)}"
-        )  # for debugging
-        assert single_tag_expected == single_tag_results
+        compare_queues(expected=one_tag_expected_queues, actual=one_tag_actual_queues)
 
-        double_tag_deployment = MockDeployment(tags=["a", "b"])
-        double_tag_expected = single_tag_expected.union(
-            {
-                "['a', 'b']:[]:[]",
-                "['a', 'b']:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a', 'b']:[]:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-                "['a', 'b']:['subprocess']:[]",
-                "['a', 'b']:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a', 'b']:['subprocess']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-                "['a', 'b']:['subprocess', 'kubernetes']:[]",
-                "['a', 'b']:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678')]",
-                "['a', 'b']:['subprocess', 'kubernetes']:[UUID('82c11d89-c470-4148-a874-e51537ca1678'), UUID('406ccdba-f6f5-41a3-b495-450395dd6c68')]",
-            }
+        await update_deployment_tags(["a", "b"])
+        two_tag_expected_queues = one_tag_expected_queues + [
+            [["a", "b"], [], []],
+            [["a", "b"], [], [match_id]],
+            [["a", "b"], [], [match_id, miss_id]],
+            [["a", "b"], ["subprocess"], []],
+            [["a", "b"], ["subprocess"], [match_id]],
+            [["a", "b"], ["subprocess"], [match_id, miss_id]],
+            [["a", "b"], ["subprocess", "kubernetes"], []],
+            [["a", "b"], ["subprocess", "kubernetes"], [match_id]],
+            [["a", "b"], ["subprocess", "kubernetes"], [match_id, miss_id]],
+        ]
+        two_tag_actual_queues = await get_work_queues_for_deployment(
+            session=session, deployment_id=match_id
         )
-        double_tag_res = await get_work_queues_for_deployment(
-            session=session, deployment=double_tag_deployment
-        )
-        double_tag_results = {r.name for r in double_tag_res}
-        print(
-            f"Double Tag:\n{double_tag_results.symmetric_difference(double_tag_expected)}"
-        )  # for debugging
-        assert double_tag_expected == double_tag_results
+        compare_queues(expected=two_tag_expected_queues, actual=two_tag_actual_queues)
