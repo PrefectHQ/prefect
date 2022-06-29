@@ -51,6 +51,7 @@ Examples:
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+import yaml
 from pydantic import BaseModel, Field, parse_raw_as, root_validator, validator
 
 import prefect.orion.schemas as schemas
@@ -70,6 +71,7 @@ from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
 from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
+from prefect.utilities.filesystem import tmpchdir
 
 
 class FlowScript(BaseModel):
@@ -262,19 +264,13 @@ async def _source_to_flow(flow_source: FlowSource) -> Flow:
         )
 
 
-import fsspec
-import yaml
-
-from prefect.utilities.filesystem import tmpchdir
-
-
 def load_deployments_from_yaml(
     path: str,
 ) -> PrefectObjectRegistry:
     """
     Load deployments from a yaml file.
     """
-    with fsspec.open(path, "r") as f:
+    with open(path, "r") as f:
         contents = f.read()
 
     # Parse into a yaml tree to retrieve separate documents
