@@ -15,6 +15,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
@@ -296,15 +297,12 @@ async def get_work_queues_for_deployment(
     """
     Get work-queues that are able to pick up the specified deployment.
     """
-    deployment = await models.deployments.read_deployment(
-        session=session, deployment_id=deployment_id
-    )
-    if not deployment:
+    try:
+        work_queues = await models.deployments.get_work_queues_for_deployment(
+            session=session, deployment_id=deployment_id
+        )
+    except ObjectNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
-
-    work_queues = await models.deployments.get_work_queues_for_deployment(
-        session=session, deployment=deployment
-    )
     return work_queues
