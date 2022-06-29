@@ -691,9 +691,10 @@ class TestFlowTimeouts:
 
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
-        Sync flows are not cancellable, we can stop waiting for the worker thread but
-        it will continue running the flow code in the background. This test ensures
-        that the engine continues without waiting for the sleeping flow to finish.
+        Sync flows are cancelled when they change instructions. The flow will return
+        immediately when the timeout is reached, but the thread it executes in will
+        continue until the next instruction is reached. `time.sleep` will return then
+        the thread will be interrupted.
         """
         canary_file = tmp_path / "canary"
 
@@ -711,7 +712,7 @@ class TestFlowTimeouts:
         assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
         time.sleep(2)
-        assert canary_file.exists()
+        assert not canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
@@ -816,7 +817,7 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
-            time.sleep(0.5)
+            time.sleep(10)
             canary_file.touch()  # Should not run
 
         @flow
@@ -835,7 +836,7 @@ class TestFlowTimeouts:
         time.sleep(1)
 
         assert not canary_file.exists()
-        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
+        assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):
