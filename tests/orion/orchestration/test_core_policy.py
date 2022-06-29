@@ -13,7 +13,7 @@ from prefect.orion.orchestration.core_policy import (
     PreventTransitionsFromTerminalStates,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
-    RetryPotentialFailures,
+    RetryFailedTasks,
     SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
@@ -221,7 +221,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures]
+        retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -249,7 +249,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures]
+        retry_policy = [RetryFailedTasks]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)

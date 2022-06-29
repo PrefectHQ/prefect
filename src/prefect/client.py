@@ -577,6 +577,10 @@ class OrionClient:
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
+            empirical_policy=schemas.core.FlowRunPolicy(
+                max_retries=flow.retries,
+                retry_delay_seconds=flow.retry_delay_seconds,
+            ),
             flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 

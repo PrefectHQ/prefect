@@ -1221,3 +1221,19 @@ class TestFlowResults:
 
         retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)
         assert retrieved_result == child_state.result()
+
+
+class TestFlowRetries:
+    def test_flow_retry(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        assert foo().result() == "hello"
+        assert run_count == 2
