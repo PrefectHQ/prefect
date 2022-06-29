@@ -11,6 +11,7 @@ from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
+from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow, load_flow_from_script
@@ -20,7 +21,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.packaging.script import ScriptPackager
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import is_local_path, tmpchdir
-from prefect.utilities.importtools import objects_from_script
 
 
 class DeploymentSpec(PrefectBaseModel, abc.ABC):
@@ -223,18 +223,6 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
                 yield validator
 
 
-def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
-    """
-    Load deployment specifications from a python script.
-    """
-    from prefect.context import PrefectObjectRegistry
-
-    with PrefectObjectRegistry() as registry:
-        with registry.block_code_execution():
-            objects_from_script(path)
-    return registry.deployment_specs
-
-
 def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
     """
     Load deployment specifications from a yaml file.
@@ -262,6 +250,10 @@ def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
     return specs
 
 
+def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
+    return registry_from_script(path).get_instances(DeploymentSpec)
+
+
 def _register_spec(spec: DeploymentSpec) -> None:
     """
     Collect the `DeploymentSpec` object on the
@@ -273,7 +265,5 @@ def _register_spec(spec: DeploymentSpec) -> None:
     variable.
 
     """
-    from prefect.context import PrefectObjectRegistry
-
     registry = PrefectObjectRegistry.get()
-    registry.deployment_specs.append(spec)
+    registry.register_instance(spec)
