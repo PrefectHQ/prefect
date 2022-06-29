@@ -1237,3 +1237,60 @@ class TestFlowRetries:
 
         assert foo().result() == "hello"
         assert run_count == 2
+
+    def test_flow_retry_with_successful_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 1
+
+    def test_flow_retry_with_failed_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 2, "Task should be reset and run again"

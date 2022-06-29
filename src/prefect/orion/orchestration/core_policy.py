@@ -262,23 +262,36 @@ class RetryFailedFlows(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = [states.StateType.FAILED]
 
+    @inject_db
     async def before_transition(
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
+        db: OrionDBInterface,
     ) -> None:
         run_settings = context.run_settings
         run_count = context.run.run_count
-        if run_count <= run_settings.max_retries:
-            retry_state = states.AwaitingRetry(
-                scheduled_time=pendulum.now("UTC").add(
-                    seconds=run_settings.retry_delay_seconds
-                ),
-                message=proposed_state.message,
-                data=proposed_state.data,
+        if run_count > run_settings.max_retries:
+            return  # Retry count exceeded, allow transition to failed
+
+        # Reset the task run states
+        query = select(db.TaskRun).where(
+            sa.and_(
+                db.FlowRun.id == db.TaskRun.flow_run_id,
+                db.TaskRun.state == FAILED,
             )
-            await self.reject_transition(state=retry_state, reason="Retrying")
+        )
+
+        # Generate a new state for the flow
+        retry_state = states.AwaitingRetry(
+            scheduled_time=pendulum.now("UTC").add(
+                seconds=run_settings.retry_delay_seconds
+            ),
+            message=proposed_state.message,
+            data=proposed_state.data,
+        )
+        await self.reject_transition(state=retry_state, reason="Retrying")
 
 
 class RetryFailedTasks(BaseOrchestrationRule):
