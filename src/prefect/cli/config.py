@@ -138,9 +138,9 @@ def view(
     context = prefect.context.get_settings_context()
 
     # Get settings at each level, converted to a flat dictionary for easy comparison
-    default_settings = prefect.settings.get_default_settings().dict()
-    env_settings = prefect.settings.get_settings_from_env().dict()
-    current_profile_settings = context.settings.dict()
+    default_settings = prefect.settings.get_default_settings()
+    env_settings = prefect.settings.get_settings_from_env()
+    current_profile_settings = context.settings
 
     # Display the profile first
     app.console.print(f"PREFECT_PROFILE={context.profile.name!r}")
@@ -148,16 +148,10 @@ def view(
     settings_output = []
 
     # The combination of environment variables and profile settings that are in use
-    profile_overrides = {
-        key: val
-        for key, val in current_profile_settings.items()
-        if val != default_settings[key]
-    }
+    profile_overrides = current_profile_settings.dict(exclude_unset=True)
 
     # Used to see which settings in current_profile_settings came from env vars
-    env_overrides = {
-        key: val for key, val in env_settings.items() if val != default_settings[key]
-    }
+    env_overrides = env_settings.dict(exclude_unset=True)
 
     for key, value in profile_overrides.items():
         source = "env" if env_overrides.get(key) is not None else "profile"
@@ -165,7 +159,7 @@ def view(
         settings_output.append(f"{key}='{value}'{source_blurb}")
 
     if show_defaults:
-        for key, value in default_settings.items():
+        for key, value in default_settings.dict().items():
             if key not in profile_overrides:
                 source_blurb = " (from defaults)" if show_sources else ""
                 settings_output.append(f"{key}='{value}'{source_blurb}")

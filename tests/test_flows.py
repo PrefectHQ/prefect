@@ -11,6 +11,7 @@ import pytest
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
@@ -442,11 +443,7 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        from prefect.context import PrefectObjectRegistry
-
-        registry = PrefectObjectRegistry.get()
-
-        with registry.block_code_execution():
+        with PrefectObjectRegistry(block_code_execution=True):
             state = foo(1, 2)
             assert state is None
 
@@ -691,9 +688,10 @@ class TestFlowTimeouts:
 
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
-        Sync flows are not cancellable, we can stop waiting for the worker thread but
-        it will continue running the flow code in the background. This test ensures
-        that the engine continues without waiting for the sleeping flow to finish.
+        Sync flows are cancelled when they change instructions. The flow will return
+        immediately when the timeout is reached, but the thread it executes in will
+        continue until the next instruction is reached. `time.sleep` will return then
+        the thread will be interrupted.
         """
         canary_file = tmp_path / "canary"
 
@@ -710,10 +708,8 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
         assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
 
-        # Unfortunately, the worker thread continues running and we cannot stop it from
-        # doing so. The canary file _will_ be created.
         time.sleep(2)
-        assert canary_file.exists()
+        assert not canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
@@ -818,7 +814,7 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
-            time.sleep(0.5)
+            time.sleep(10)
             canary_file.touch()  # Should not run
 
         @flow
@@ -837,7 +833,7 @@ class TestFlowTimeouts:
         time.sleep(1)
 
         assert not canary_file.exists()
-        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
+        assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):
