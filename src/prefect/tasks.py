@@ -90,6 +90,7 @@ class Task(Generic[P, R]):
         tags: An optional set of tags to be associated with runs of this task. These
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
+        version: An optional string specifying the version of this task definition
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -109,6 +110,7 @@ class Task(Generic[P, R]):
         name: str = None,
         description: str = None,
         tags: Iterable[str] = None,
+        version: str = None,
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
@@ -125,6 +127,7 @@ class Task(Generic[P, R]):
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
         self.name = name or self.fn.__name__
+        self.version = version
 
         if "wait_for" in inspect.signature(self.fn).parameters:
             raise ReservedArgumentError(
@@ -368,6 +371,7 @@ def task(
     name: str = None,
     description: str = None,
     tags: Iterable[str] = None,
+    version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
@@ -382,6 +386,7 @@ def task(
     name: str = None,
     description: str = None,
     tags: Iterable[str] = None,
+    version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
@@ -399,6 +404,7 @@ def task(
         tags: An optional set of tags to be associated with runs of this task. These
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
+        version: An optional string specifying the version of this task definition
         cache_key_fn: An optional callable that, given the task run context and call
             parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
@@ -465,6 +471,7 @@ def task(
                 name=name,
                 description=description,
                 tags=tags,
+                version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 retries=retries,
@@ -479,6 +486,7 @@ def task(
                 name=name,
                 description=description,
                 tags=tags,
+                version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
                 retries=retries,

@@ -267,7 +267,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             if retry_after:
                 retry_seconds = float(retry_after)
             else:
-                retry_seconds = 2**retry_count
+                retry_seconds = 2 ** retry_count
 
             await sleep(retry_seconds)
             response = await super().send(*args, **kwargs)
@@ -1664,6 +1664,7 @@ class OrionClient:
             task_key=task.task_key,
             dynamic_key=dynamic_key,
             tags=list(tags),
+            task_version=task.version,
             empirical_policy=schemas.core.TaskRunPolicy(
                 max_retries=task.retries,
                 retry_delay_seconds=task.retry_delay_seconds,
