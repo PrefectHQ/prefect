@@ -577,7 +577,7 @@ class TestSubflowCalls:
         assert parent("foo").result().result() == "foo"
 
     async def test_subflow_relationship_tracking(self, orion_client):
-        @flow()
+        @flow(version="inner")
         def child(x, y):
             return x + y
 
@@ -598,6 +598,7 @@ class TestSubflowCalls:
             child_flow_run.parent_task_run_id
         )
 
+        assert parent_flow_run_task.task_version == "inner"
         assert (
             parent_flow_run_id != child_flow_run_id
         ), "The subflow run and parent flow run are distinct"
