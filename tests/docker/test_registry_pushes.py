@@ -1,7 +1,6 @@
 import io
 import sys
 from pathlib import Path
-from typing import Generator
 from uuid import uuid4
 
 import pendulum
@@ -20,11 +19,12 @@ def contexts() -> Path:
 
 
 @pytest.fixture(scope="module")
-def howdy(docker: DockerClient) -> Generator[str, None, None]:
+def howdy(docker: DockerClient, worker_id: str) -> str:
     # Give the image something completely unique so that we know it will generate a
     # new image each time
     message = f"hello from the registry, {str(uuid4())}!"
     with ImageBuilder("busybox") as image:
+        image.add_line(f"LABEL io.prefect.test-worker {worker_id}")
         image.add_line(f'ENTRYPOINT [ "echo", "{message}" ]')
         image_id = image.build()
 
@@ -36,10 +36,7 @@ def howdy(docker: DockerClient) -> Generator[str, None, None]:
     test_run_tag = str(uuid4())
     docker.images.get(image_id).tag(test_run_tag)
 
-    try:
-        yield image_id
-    finally:
-        docker.images.remove(test_run_tag)
+    return image_id
 
 
 def test_pushing_to_registry(docker: DockerClient, registry: str, howdy: str):
