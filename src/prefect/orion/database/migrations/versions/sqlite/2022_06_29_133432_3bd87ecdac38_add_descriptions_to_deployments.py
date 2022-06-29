@@ -1,4 +1,4 @@
-"""Add descriptions to task and flow runs
+"""Add descriptions to deployments.
 
 Revision ID: 3bd87ecdac38
 Revises: dff8da7a6c2c
@@ -18,10 +18,8 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("flow_run", sa.Column("description", sa.TEXT(), nullable=True))
-    op.add_column("task_run", sa.Column("description", sa.TEXT(), nullable=True))
+    op.add_column("deployment", sa.Column("description", sa.TEXT(), nullable=True))
 
 
 def downgrade():
-    op.drop_column("flow_run", "description")
-    op.drop_column("task_run", "description")
+    op.drop_column("deployment", "description")
