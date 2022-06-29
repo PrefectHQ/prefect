@@ -9,6 +9,7 @@ from kubernetes.config.kube_config import (
     load_kube_config_from_dict,
     new_client_from_config_dict,
 )
+from pydantic import validate_arguments
 
 from prefect.blocks.core import Block, register_block
 
@@ -24,16 +25,9 @@ class KubernetesClusterConfig(Block):
     config: Dict
     context: str = None
 
-    @staticmethod
-    def get_config_from_dict(contents: Dict, context: str) -> Dict:
-        for cluster_config in contents["clusters"]:
-            if cluster_config["name"] == context:
-                return cluster_config
-
-        raise KeyError(f"No context found in config file with name: {context!r}")
-
     @classmethod
-    def from_file(cls, path: str, context: str = None):
+    @validate_arguments
+    def from_file(cls, path: Path, context: str = None):
         """
         Factory method to create instance of this block from a ~/.kube/config and a context
 
@@ -42,15 +36,12 @@ class KubernetesClusterConfig(Block):
         """
 
         if not context:
-            context = list_kube_config_contexts()[1]
+            context = list_kube_config_contexts()[1]["name"]
 
-        with open(path, "r") as f:
-            contents = yaml.safe_load(f)
-            cluster_config = cls.get_config_from_dict(
-                contents=contents, context=context["name"]
-            )
+        config_file_contents = path.read_text()
+        config_dict = yaml.safe_load(config_file_contents)
 
-        return cls(config=cluster_config, context=context["name"])
+        return cls(config=config_dict, context=context)
 
     @classmethod
     def from_environment(cls):
