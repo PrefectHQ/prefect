@@ -89,6 +89,15 @@ class FlowRunnerSettings(PrefectBaseModel):
         return self.type, self.config
 
 
+class FlowRunPolicy(PrefectBaseModel):
+    """Defines of how a flow run should retry."""
+
+    # TODO: Determine how to separate between infrastructure and within-process level
+    #       retries
+    max_retries: int = 0
+    retry_delay_seconds: float = 0
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -120,7 +129,9 @@ class FlowRun(ORMBaseModel):
         description="Additional context for the flow run.",
         example={"my_var": "my_val"},
     )
-    empirical_policy: dict = Field(default_factory=dict)
+    empirical_policy: FlowRunPolicy = Field(
+        default_factory=FlowRunPolicy,
+    )
     empirical_config: dict = Field(default_factory=dict)
     tags: List[str] = Field(
         default_factory=list,
