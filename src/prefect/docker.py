@@ -64,7 +64,7 @@ class BuildError(Exception):
 
 # Labels to apply to all images built with Prefect
 IMAGE_LABELS = {
-    "io.prefect/version": prefect.__version__,
+    "io.prefect.version": prefect.__version__,
 }
 
 

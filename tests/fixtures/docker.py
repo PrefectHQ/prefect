@@ -26,18 +26,18 @@ def docker() -> Generator[DockerClient, None, None]:
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
-    IMAGE_LABELS["io.prefect/test-worker"] = worker_id
-    CONTAINER_LABELS["io.prefect/test-worker"] = worker_id
+    IMAGE_LABELS["io.prefect.test-worker"] = worker_id
+    CONTAINER_LABELS["io.prefect.test-worker"] = worker_id
     try:
         yield
     finally:
         for container in docker.containers.list(all=True):
-            if container.labels.get("io.prefect/test-worker") == worker_id:
+            if container.labels.get("io.prefect.test-worker") == worker_id:
                 container.remove(force=True)
-            elif container.labels.get("io.prefect/delete-me"):
+            elif container.labels.get("io.prefect.delete-me"):
                 container.remove(force=True)
 
-        filters = {"label": f"io.prefect/test-worker={worker_id}"}
+        filters = {"label": f"io.prefect.test-worker={worker_id}"}
         for image in docker.images.list(filters=filters):
             for tag in image.tags:
                 docker.images.remove(tag, force=True)
