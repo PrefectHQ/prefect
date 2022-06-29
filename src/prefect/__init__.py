@@ -17,13 +17,16 @@ del _version, pathlib
 
 # User-facing API
 # For details on the import syntax, see https://github.com/microsoft/pyright/blob/main/docs/typed-libraries.md#library-interface
+# TODO: Update these to use normal imports, the relative import syntax will be replaced
+#       with __all__
 
 from .orion.schemas.states import State
 from .logging import get_run_logger
-from .flows import flow
-from .tasks import task
+from .flows import flow, Flow
+from .tasks import task, Task
 from .context import tags
 from .client import get_client
+from .deployments import Deployment
 
 # Import modules that register types
 import prefect.serializers
@@ -35,6 +38,9 @@ import prefect.context
 prefect.context.enter_root_settings_context()
 prefect.context.initialize_object_registry()
 
+# The context needs updated references for flows and tasks
+prefect.context.FlowRunContext.update_forward_refs(Flow=Flow)
+prefect.context.TaskRunContext.update_forward_refs(Task=Task)
 
 # Ensure collections are imported and have the opportunity to register types
 import prefect.plugins
