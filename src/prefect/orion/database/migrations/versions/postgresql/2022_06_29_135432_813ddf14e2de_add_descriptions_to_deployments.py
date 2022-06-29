@@ -8,8 +8,6 @@ Create Date: 2022-06-29 13:54:32.981105
 import sqlalchemy as sa
 from alembic import op
 
-import prefect
-
 # revision identifiers, used by Alembic.
 revision = "813ddf14e2de"
 down_revision = "7296741dff68"
