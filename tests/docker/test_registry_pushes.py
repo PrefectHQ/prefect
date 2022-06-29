@@ -24,7 +24,7 @@ def howdy(docker: DockerClient, worker_id: str) -> str:
     # new image each time
     message = f"hello from the registry, {str(uuid4())}!"
     with ImageBuilder("busybox") as image:
-        image.add_line(f"LABEL io.prefect/test-worker {worker_id}")
+        image.add_line(f"LABEL io.prefect.test-worker {worker_id}")
         image.add_line(f'ENTRYPOINT [ "echo", "{message}" ]')
         image_id = image.build()
 
