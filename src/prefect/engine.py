@@ -449,12 +449,6 @@ async def orchestrate_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    # TODO: Implement state orchestation logic using return values from the API
-    await client.propose_state(
-        Running(),
-        flow_run_id=flow_run.id,
-    )
-
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
         if flow.timeout_seconds
@@ -462,80 +456,102 @@ async def orchestrate_flow_run(
     )
     flow_run_context = None
 
-    try:
-        with timeout_context as timeout_scope:
-            with partial_flow_run_context.finalize(
-                flow=flow,
-                flow_run=flow_run,
-                client=client,
-                timeout_scope=timeout_scope,
-            ) as flow_run_context:
-                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
-                logger.debug(
-                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
-                )
+    state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
-                if PREFECT_DEBUG_MODE:
-                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
-                else:
+    while state.is_running():
+        try:
+            with timeout_context as timeout_scope:
+                with partial_flow_run_context.finalize(
+                    flow=flow,
+                    flow_run=flow_run,
+                    client=client,
+                    timeout_scope=timeout_scope,
+                ) as flow_run_context:
+                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+                        f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                     )
 
-                flow_call = partial(flow.fn, *args, **kwargs)
+                    if PREFECT_DEBUG_MODE:
+                        logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                    else:
+                        logger.debug(
+                            f"Beginning execution...", extra={"state_message": True}
+                        )
 
-                if flow.isasync:
-                    result = await flow_call()
-                else:
-                    result = await run_sync_in_interruptible_worker_thread(flow_call)
+                    flow_call = partial(flow.fn, *args, **kwargs)
 
-            await wait_for_task_runs_and_report_crashes(
-                flow_run_context.task_run_futures, client=client
+                    if flow.isasync:
+                        result = await flow_call()
+                    else:
+                        result = await run_sync_in_interruptible_worker_thread(
+                            flow_call
+                        )
+
+                await wait_for_task_runs_and_report_crashes(
+                    flow_run_context.task_run_futures, client=client
+                )
+
+        except TimeoutError as exc:
+            terminal_state = Failed(
+                name="TimedOut",
+                message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+            )
+        except Exception as exc:
+            logger.error(
+                f"Encountered exception during execution:",
+                exc_info=True,
+            )
+            terminal_state = Failed(
+                message="Flow run encountered an exception.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+        else:
+            if result is None:
+                # All tasks and subflows are reference tasks if there is no return value
+                # If there are no tasks, use `None` instead of an empty iterable
+                result = (
+                    flow_run_context.task_run_futures + flow_run_context.subflow_states
+                ) or None
+
+            terminal_state = await return_value_to_state(
+                result, serializer="cloudpickle"
             )
 
-    except TimeoutError as exc:
-        state = Failed(
-            name="TimedOut",
-            message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
+        # Before setting the flow run state, store state.data using
+        # block storage and send the resulting data document to the Orion API instead.
+        # This prevents the pickled return value of flow runs
+        # from being sent to the Orion API and stored in the Orion database.
+        # state.data is left as is, otherwise we would have to load
+        # the data from block storage again after storing.
+        state = await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+            backend_state_data=(
+                await client.persist_data(
+                    terminal_state.data.json().encode(),
+                    block=flow_run_context.result_storage,
+                )
+                if terminal_state.data is not None and flow_run_context
+                # if None is passed, state.data will be sent
+                # to the Orion API and stored in the database
+                else None
+            ),
         )
-    except Exception as exc:
-        logger.error(
-            f"Encountered exception during execution:",
-            exc_info=True,
-        )
-        state = Failed(
-            message="Flow run encountered an exception.",
-            data=DataDocument.encode("cloudpickle", exc),
-        )
-    else:
-        if result is None:
-            # All tasks and subflows are reference tasks if there is no return value
-            # If there are no tasks, use `None` instead of an empty iterable
-            result = (
-                flow_run_context.task_run_futures + flow_run_context.subflow_states
-            ) or None
 
-        state = await return_value_to_state(result, serializer="cloudpickle")
-
-    # Before setting the flow run state, store state.data using
-    # block storage and send the resulting data document to the Orion API instead.
-    # This prevents the pickled return value of flow runs
-    # from being sent to the Orion API and stored in the Orion database.
-    # state.data is left as is, otherwise we would have to load
-    # the data from block storage again after storing.
-    state = await client.propose_state(
-        state=state,
-        flow_run_id=flow_run.id,
-        backend_state_data=(
-            await client.persist_data(
-                state.data.json().encode(), block=flow_run_context.result_storage
+        if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
+            logger.debug(
+                f"Received new state {state} when proposing final state {terminal_state}",
+                extra={"send_to_orion": False},
             )
-            if state.data is not None and flow_run_context
-            # if None is passed, state.data will be sent
-            # to the Orion API and stored in the database
-            else None
-        ),
-    )
+
+        if not state.is_final():
+            logger.info(
+                f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
+                extra={"send_to_orion": False},
+            )
+            # Attempt to enter a running state again
+            state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
     return state
 
