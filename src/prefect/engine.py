@@ -86,7 +86,7 @@ def enter_flow_run_engine_from_flow_call(
     setup_logging()
 
     registry = PrefectObjectRegistry.get()
-    if registry.code_execution_blocked:
+    if registry and registry.block_code_execution:
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed. "
             "Consider updating the script to only call the flow if executed directly:\n\n"
