@@ -550,7 +550,9 @@ def enter_task_run_engine(
     """
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
-        raise RuntimeError("Tasks cannot be called outside of a flow.")
+        raise RuntimeError(
+            "Tasks cannot be called outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
+        )
 
     if TaskRunContext.get():
         raise RuntimeError(
