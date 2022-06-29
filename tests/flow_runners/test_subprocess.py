@@ -11,6 +11,7 @@ import coolname
 import pytest
 
 from prefect.flow_runners import SubprocessFlowRunner, base_flow_run_environment
+from prefect.settings import SETTING_VARIABLES
 from prefect.testing.utilities import AsyncMock
 
 
@@ -249,7 +250,10 @@ class TestSubprocessFlowRunner:
         # Replicate expected generation of virtual environment call
         virtualenv_path = Path("~/fakevenv").expanduser()
         python_executable = str(virtualenv_path / "bin" / "python")
-        expected_env = {**base_flow_run_environment(), **os.environ}
+        expected_env = {
+            **base_flow_run_environment(),
+            **{k: v for k, v in os.environ.items() if k not in SETTING_VARIABLES},
+        }
         expected_env["PATH"] = (
             str(virtualenv_path / "bin") + os.pathsep + expected_env["PATH"]
         )

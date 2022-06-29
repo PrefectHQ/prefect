@@ -6,11 +6,9 @@ from unittest.mock import MagicMock
 import anyio
 import anyio.abc
 import pytest
-from docker.errors import ImageNotFound, NotFound
-from docker.models.images import Image
 
 import prefect
-from prefect.docker import docker_client
+from prefect.docker import Image, ImageNotFound, NotFound, docker_client
 from prefect.flow_runners import (
     MIN_COMPAT_PREFECT_VERSION,
     DockerFlowRunner,
@@ -209,9 +207,7 @@ class TestDockerFlowRunner:
 
         mock_docker_client.containers.create.assert_called_once()
         call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
-        assert call_labels == {
-            "io.prefect.flow-run-id": str(flow_run.id),
-        }
+        assert call_labels["io.prefect.flow-run-id"] == str(flow_run.id)
 
     async def test_uses_label_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
@@ -788,7 +784,7 @@ class TestDockerFlowRunner:
                     "available. Build the image with " + build_cmd
                 )
 
-            output = client.containers.run(tag, "prefect --version")
+            output = client.containers.run(tag, "prefect --version", remove=True)
             container_version = output.decode().strip()
             test_run_version = prefect.__version__
 

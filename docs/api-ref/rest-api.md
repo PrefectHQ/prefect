@@ -8,6 +8,14 @@ tags:
 
 ## Overview
 
+The Prefect REST API is hosted by the Orion Server or Prefect Cloud.
+
+A complete reference for the API is available at the bottom of this document.
+
+Additionally, the reference can be viewed by visiting `/docs` of the API server. For example, [http://localhost:4200/docs](http://localhost:4200/docs) if running the API with `prefect orion start`.
+
+## OpenAPI
+
 The Prefect REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing [REST APIs](https://technically.dev/posts/apis-for-the-rest-of-us).
 
 To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
@@ -15,6 +23,7 @@ To generate Prefect's complete OpenAPI document, run the following commands in a
 ```python
 from prefect.orion.api.server import create_app
 
+app = create_app()
 openapi_doc = app.openapi()
 ```
 
