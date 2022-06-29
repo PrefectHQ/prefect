@@ -5,10 +5,10 @@ Revises: dff8da7a6c2c
 Create Date: 2022-06-29 13:34:32.879876
 
 """
-from alembic import op
 import sqlalchemy as sa
-import prefect
+from alembic import op
 
+import prefect
 
 # revision identifiers, used by Alembic.
 revision = "3bd87ecdac38"
@@ -22,4 +22,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column("deployment", "description")
+    with op.batch_alter_table("deployment", schema=None) as batch_op:
+        batch_op.drop_column("description")
