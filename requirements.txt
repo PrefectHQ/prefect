@@ -17,7 +17,7 @@ fsspec >= 2021.7.0
 google-cloud-storage >=2.1.0
 griffe >= 0.20.0
 httpx >= 0.22
-importlib_metadata; python_version < 3.10
+importlib_metadata >= 4.4; python_version < 3.10
 jsonpatch >= 1.32
 kubernetes >= 17.17.0
 pendulum >= 2.1.2
