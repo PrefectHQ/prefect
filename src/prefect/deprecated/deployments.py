@@ -216,15 +216,10 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
         super().__init__(**data)
 
         # After initialization; register this deployment specification.
-        from prefect import deployments
 
         # Detect the definition location for reporting validation failures
         # Walk up one frame to the user's declaration
         frame = sys._getframe().f_back
-
-        # Walk an additional frame for use of the deprecated alias
-        if frame.f_globals["__file__"] == deployments.__file__:
-            frame = frame.f_back
 
         self._source = {
             "file": frame.f_globals["__file__"],
