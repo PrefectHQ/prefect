@@ -42,15 +42,15 @@ class KubernetesClusterConfig(Block):
         """
 
         if not context:
-            context = list_kube_config_contexts()[1]["name"]
+            context = list_kube_config_contexts()[1]
 
         with open(path, "r") as f:
             contents = yaml.safe_load(f)
             cluster_config = cls.get_config_from_dict(
-                contents=contents, context=context
+                contents=contents, context=context["name"]
             )
 
-        return cls(config=cluster_config, context=context)
+        return cls(config=cluster_config, context=context["name"])
 
     @classmethod
     def from_environment(cls):
