@@ -40,7 +40,7 @@ class ImagePullPolicy(AutoEnum):
 
 # Labels to apply to all containers started by Prefect
 CONTAINER_LABELS = {
-    "io.prefect/version": prefect.__version__,
+    "io.prefect.version": prefect.__version__,
 }
 
 
