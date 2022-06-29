@@ -32,7 +32,7 @@ from prefect.exceptions import ReservedArgumentError
 from prefect.futures import PrefectFuture
 from prefect.utilities.asyncio import Async, Sync
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.hashing import hash_objects, stable_hash
+from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 
 if TYPE_CHECKING:
@@ -132,16 +132,7 @@ class Task(Generic[P, R]):
             )
 
         self.tags = set(tags if tags else [])
-
-        # the task key is a hash of (name, fn, tags)
-        # which is a stable representation of this unit of work.
-        # note runtime tags are not part of the task key; they will be
-        # recorded as metadata only.
-        self.task_key = stable_hash(
-            self.name,
-            to_qualified_name(self.fn),
-            str(sorted(self.tags or [])),
-        )
+        self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
