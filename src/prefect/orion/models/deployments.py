@@ -5,7 +5,7 @@ Intended for internal use by the Orion API.
 
 import datetime
 import json
-from typing import Any, Dict, List
+from typing import Dict, List
 from uuid import UUID, uuid4
 
 import pendulum
@@ -15,6 +15,7 @@ from sqlalchemy import delete, or_, select
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
@@ -471,7 +472,7 @@ async def _insert_scheduled_flow_runs(
 
 @inject_db
 async def get_work_queues_for_deployment(
-    db: OrionDBInterface, session: sa.orm.Session, deployment: Any
+    db: OrionDBInterface, session: sa.orm.Session, deployment_id: UUID
 ) -> List[schemas.core.WorkQueue]:
     """
     Get work queues that can pick up the specified deployment.
@@ -479,6 +480,11 @@ async def get_work_queues_for_deployment(
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
+    deployment = await session.get(db.Deployment, deployment_id)
+
+    if not deployment:
+        raise ObjectNotFoundError(f"Deployment with id {deployment_id} not found")
+
     query = (
         select(db.WorkQueue)
         # work queue tags are a subset of deployment tags
