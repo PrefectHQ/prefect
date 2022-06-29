@@ -11,6 +11,7 @@ import pytest
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
 from prefect.client import get_client
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
@@ -442,11 +443,7 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        from prefect.context import PrefectObjectRegistry
-
-        registry = PrefectObjectRegistry.get()
-
-        with registry.block_code_execution():
+        with PrefectObjectRegistry(block_code_execution=True):
             state = foo(1, 2)
             assert state is None
 
