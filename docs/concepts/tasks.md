@@ -342,6 +342,90 @@ def my_flow():
     d = task_d(wait_for=[c])
 ```
 
+### When to use `.result()` in flows
+
+Think of `.result()` as an advanced feature. 
+
+The simplest pattern for writing a flow is either only using tasks or only using pure Python functions. When you need to mix the two, use `.result()`.
+
+Using only tasks:
+```python
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    hello = say_hello("Marvin")
+    nice_to_meet_you = nice_to_meet_you(hello)
+```
+
+Using only Python functions:
+```python
+def say_hello(name):
+    return f"Hello {name}!"
+
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    hello = say_hello("Marvin") # because this is just a Python function, calls will not be tracked
+    nice_to_meet_you = nice_to_meet_you(hello)
+```
+
+Mixing the two:
+```python
+def say_hello_extra_nicely_to_marvin(hello): # not a `task`!
+    if hello == "Hello Marvin!":
+        return "HI MARVIN!"
+    return hello
+
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def nice_to_meet_you(hello_greeting):
+    return f"{hello_greeting} Nice to meet you :)"
+
+@flow
+def hello_world():
+    # run a task and get the result
+    hello = say_hello("Marvin").result()
+
+    # use .result() and pure Python conditional logic
+    special_greeting = say_hello_extra_nicely_to_marvin(hello)
+
+    # pass our modified greeting back into tasks
+    nice_to_meet_you = nice_to_meet_you(special_greeting)
+```
+
+Note that `.result()` also limits Prefect's ability to track task dependencies. E.g. in the "mixed" example above, Prefect will not be aware that `say_hello` is upstream of `nice_to_meet_you`.
+
+
+!!! note "Calling `.result()` is blocking"
+    When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
+
+```python
+@task
+def say_hello(name):
+    return f"Hello {name}!"
+
+@task
+def do_important_stuff():
+    print("Doing lots of important stuff!")
+
+@flow
+def hello_world():
+    future = say_hello("Marvin").result() # blocks until `say_hello` has finished
+    do_important_stuff()
+```
+
 ## Async tasks
 
 Coming soon.
