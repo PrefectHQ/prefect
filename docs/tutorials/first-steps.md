@@ -16,9 +16,17 @@ If you've never used Prefect before, let's start by exploring the building block
 
 If you have used Prefect Core and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Orion flows and subflows offer significant new functionality.
 
-## Run a basic flow
+## Flows, tasks, and subflows
 
-A [_flow_](/concepts/flows/) is the basis of Prefect workflows: all workflows are defined within the context of a flow. But it's not complicated: a flow is just a Python function.
+Let's start with the basics, defining the central components of Prefect workflows.
+
+A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator. 
+
+A [task](/concepts/tasks/) is a function decorated with a `@task` decorator. Tasks represents distinct pieces of work executed within a flow. 
+
+All workflows are defined within the context of a flow. Flows can include calls to tasks as well as to other flows, which we call "subflows" in this context. At a high level this is just like writing any other Python applications: you organize specific, repetitive work into functions, and call those "task" functions from other functions.
+
+## Run a basic flow
 
 The simplest way to begin with Prefect is to import `flow` and annotate your a Python function using the [`@flow` decorator][prefect.flows.flow]:
 
