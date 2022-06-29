@@ -384,7 +384,7 @@ class TestOrchestrateFlowRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, monkeypatch, partial_flow_run_context
+        self, orion_client, mock_client_sleep, partial_flow_run_context
     ):
         @flow
         def foo():
@@ -400,9 +400,6 @@ class TestOrchestrateFlowRun:
             ),
         )
 
-        sleep = AsyncMock()
-        monkeypatch.setattr("anyio.sleep", sleep)
-
         with anyio.fail_after(5):
             state = await orchestrate_flow_run(
                 flow=foo,
@@ -412,7 +409,7 @@ class TestOrchestrateFlowRun:
                 partial_flow_run_context=partial_flow_run_context,
             )
 
-        sleep.assert_not_called()
+        mock_client_sleep.assert_not_called()
         assert state.result() == 1
 
 
@@ -650,6 +647,37 @@ class TestFlowRunCrashes:
             "Execution was cancelled by the runtime environment"
             in flow_run.state.message
         )
+
+    async def test_interrupt_flow(self):
+        i = 0
+
+        @flow()
+        def just_sleep():
+            nonlocal i
+            for i in range(100):  # Sleep for 10 seconds
+                time.sleep(0.1)
+
+        @flow
+        def my_flow():
+            with pytest.raises(TimeoutError):
+                with anyio.fail_after(1):
+                    just_sleep()
+
+        t0 = time.perf_counter()
+        my_flow()
+        t1 = time.perf_counter()
+
+        runtime = t1 - t0
+        assert runtime < 2, "The call should be return quickly after timeout"
+
+        # Sleep for an extra second to check if the thread is still running. We cannot
+        # check `thread.is_alive()` because it is still alive — presumably this is because
+        # AnyIO is using long-lived worker threads instead of creating a new thread per
+        # task. Without a check like this, the thread can be running after timeout in the
+        # background and we will not know — the next test will start.
+        await anyio.sleep(1)
+
+        assert i <= 10, "`just_sleep` should not be running after timeout"
 
 
 class TestTaskRunCrashes:
