@@ -796,8 +796,10 @@ async def begin_task_run(
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
-            # TODO: The state's data will need to be resolved from a document into a
-            #       concrete value as would be expected from a normal return value
+            # Hydrate the state data
+            task_run.state.data._cache_data(
+                await client.resolve_datadoc(task_run.state.data)
+            )
             return task_run.state
 
 
