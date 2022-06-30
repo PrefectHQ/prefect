@@ -1528,23 +1528,23 @@ class OrionClient:
 
     async def retrieve_data(
         self,
-        data_document: DataDocument,
+        block_storage_document: dict,
     ) -> bytes:
         """
         Exchange a storage data document for the data previously persisted.
 
         Args:
-            data_document: The data document used to store data.
+            block_storage_document: A JSON blob describing storage of the data.
+                See `prefect.serializers.BlockStorageSerializer.loads()`.
 
         Returns:
             The persisted data in bytes.
         """
-        block_document = data_document.decode()
-        embedded_datadoc = block_document["data"]
+        embedded_datadoc = block_storage_document["data"]
         # Handling for block_id is to account for deployments created pre-2.0b6
-        block_document_id = block_document.get(
+        block_document_id = block_storage_document.get(
             "block_document_id"
-        ) or block_document.get("block_id")
+        ) or block_storage_document.get("block_id")
         if block_document_id is not None:
             storage_block = Block._from_block_document(
                 await self.read_block_document(block_document_id)
@@ -1856,7 +1856,7 @@ class OrionClient:
             if server_state.data:
                 if server_state.data.encoding == "blockstorage":
                     datadoc = DataDocument.parse_raw(
-                        await self.retrieve_data(server_state.data)
+                        await self.retrieve_data(server_state.data.decode())
                     )
                     server_state.data = datadoc
 
@@ -1984,7 +1984,7 @@ class OrionClient:
 
             if isinstance(data, DataDocument):
                 if data.encoding == "blockstorage":
-                    data = await self.retrieve_data(data)
+                    data = await self.retrieve_data(data.decode())
                 else:
                     data = data.decode()
                 return await resolve_inner(data)
