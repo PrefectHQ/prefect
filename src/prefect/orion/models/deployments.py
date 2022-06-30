@@ -4,7 +4,6 @@ Intended for internal use by the Orion API.
 """
 
 import datetime
-import json
 from typing import Dict, List
 from uuid import UUID, uuid4
 
@@ -477,26 +476,46 @@ async def get_work_queues_for_deployment(
     """
     Get work queues that can pick up the specified deployment.
 
+    Work queues will pick up a deployment when all of the following are met:
+    - the deployment has ALL tags that the work queue has (i.e. the work
+    queue's tags must be a subset of the deployment's tags.)
+    - the work queue's specified deployment IDs match the deployment's ID,
+    or the work queue does NOT have specified deployment IDs
+    - the work queue's specified flow runners match the deployment's flow
+    runner or the work queue does NOT have a specified flow runner
+
+    Notes on the query:
+    - our database currently allows either "null" and empty lists as
+    null values in filters, so we need to catch both cases with "or".
+    - json_contains(A, B) should be interepreted as "True if A
+    contains B".
+
     Returns:
         List[db.WorkQueue]: WorkQueues
     """
     deployment = await session.get(db.Deployment, deployment_id)
-
     if not deployment:
         raise ObjectNotFoundError(f"Deployment with id {deployment_id} not found")
 
     query = (
         select(db.WorkQueue)
         # work queue tags are a subset of deployment tags
-        .filter(json_contains(json.dumps(deployment.tags), db.WorkQueue.filter["tags"]))
+        .filter(
+            or_(
+                json_contains(deployment.tags, db.WorkQueue.filter["tags"]),
+                json_contains([], db.WorkQueue.filter["tags"]),
+                json_contains(None, db.WorkQueue.filter["tags"]),
+            )
+        )
         # deployment_ids is null or contains the deployment's ID
         .filter(
             or_(
                 json_contains(
                     db.WorkQueue.filter["deployment_ids"],
-                    json.dumps(str(deployment.id)),
+                    str(deployment.id),
                 ),
                 json_contains(None, db.WorkQueue.filter["deployment_ids"]),
+                json_contains([], db.WorkQueue.filter["deployment_ids"]),
             )
         )
         # flow_runner_types is null or contains the deployment's flow runner type
@@ -504,9 +523,10 @@ async def get_work_queues_for_deployment(
             or_(
                 json_contains(
                     db.WorkQueue.filter["flow_runner_types"],
-                    json.dumps(deployment.flow_runner_type),
+                    deployment.flow_runner_type,
                 ),
                 json_contains(None, db.WorkQueue.filter["flow_runner_types"]),
+                json_contains([], db.WorkQueue.filter["flow_runner_types"]),
             )
         )
     )
