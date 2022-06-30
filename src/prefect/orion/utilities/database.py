@@ -437,11 +437,11 @@ def _json_contains_postgresql(element, compiler, **kwargs):
 
 def _json_contains_sqlite_fn(left, right, compiler, **kwargs):
     # if the value is literal, convert to a JSON string
-    if isinstance(left, (list, dict, tuple)):
+    if isinstance(left, (list, dict, tuple, str)):
         left = json.dumps(left)
 
     # if the value is literal, convert to a JSON string
-    if isinstance(right, (list, dict, tuple)):
+    if isinstance(right, (list, dict, tuple, str)):
         right = json.dumps(right)
 
     json_each_left = sa.func.json_each(left).alias("left")
