@@ -5,11 +5,28 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, INotificationRequest } from '@prefecthq/orion-design'
+  import { showToast } from '@prefecthq/prefect-design'
   import { ref } from 'vue'
+  import router, { routes } from '@/router'
+  import { notificationsApi } from '@/services/notificationsApi'
 
-  const createNotification = ref<Partial<Notification>>({})
-  function submit(notification: Partial<Notification>): void {
-    console.log({ notification })
+
+  const createNotification = ref({})
+  async function submit(notification: Partial<Notification>): Promise<void> {
+    try {
+      const notificationRequest: INotificationRequest = {
+        name: 'polly',
+        state_names: notification.stateNames ?? []!,
+        tags: notification.tags ?? [],
+        is_active: true,
+        block_document_id: notification.blockDocumentId!,
+      }
+      await notificationsApi.createNotification(notificationRequest)
+      router.push(routes.notifications())
+    } catch (error) {
+      showToast('Error creating notification', 'error')
+      console.warn(error)
+    }
   }
 </script>
