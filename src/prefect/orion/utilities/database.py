@@ -430,7 +430,9 @@ class json_contains(FunctionElement):
 @compiles(json_contains)
 def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
-        sa.type_coerce(element.left, postgresql.JSONB).contains(element.right),
+        sa.type_coerce(element.left, postgresql.JSONB).contains(
+            sa.type_coerce(element.right, postgresql.JSONB)
+        ),
         **kwargs,
     )
 
