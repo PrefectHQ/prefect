@@ -285,7 +285,7 @@ class TestSubprocessFlowRunner:
         assert happy_exit
         fake_status.started.assert_called_once()
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.result())
+        runtime_python = await orion_client.resolve_datadoc(state.data)
         assert runtime_python == sys.executable
 
     @pytest.mark.service("environment")
