@@ -1,7 +1,7 @@
 """Add descriptions to deployments.
 
 Revision ID: 3bd87ecdac38
-Revises: dff8da7a6c2c
+Revises: 42762c37b7bc
 Create Date: 2022-06-29 13:34:32.879876
 
 """
@@ -10,7 +10,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "3bd87ecdac38"
-down_revision = "dff8da7a6c2c"
+down_revision = "42762c37b7bc"
 branch_labels = None
 depends_on = None
 
