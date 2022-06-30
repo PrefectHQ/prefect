@@ -5,23 +5,17 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, INotificationRequest } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, INotificationRequest, mapCamelToSnakeCase } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { ref } from 'vue'
   import router, { routes } from '@/router'
   import { notificationsApi } from '@/services/notificationsApi'
 
 
-  const createNotification = ref({})
+  const createNotification = ref({ stateNames: [], tags: [], isActive: true, name: 'name' })
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      const notificationRequest: INotificationRequest = {
-        name: 'polly',
-        state_names: notification.stateNames ?? [],
-        tags: notification.tags ?? [],
-        is_active: true,
-        block_document_id: notification.blockDocumentId!,
-      }
+      const notificationRequest: INotificationRequest = mapCamelToSnakeCase(notification)
       await notificationsApi.createNotification(notificationRequest)
       router.push(routes.notifications())
     } catch (error) {
