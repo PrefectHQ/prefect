@@ -5,6 +5,7 @@ from typing import Dict
 import pytest
 import yaml
 from kubernetes.client import ApiClient
+from kubernetes.config.kube_config import list_kube_config_contexts
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 
@@ -56,7 +57,7 @@ async def test_instantiation_from_file(config_file):
 
 async def test_instantiation_from_file_with_bad_context(config_file):
     with pytest.raises(ValueError):
-        KubernetesClusterConfig.from_file(path=config_file, context="kajsdfhkasj")
+        KubernetesClusterConfig.from_file(path=config_file, context="random_not_real")
 
 
 async def test_get_api_client(config_file):
@@ -64,3 +65,15 @@ async def test_get_api_client(config_file):
     api_client = cluster_config.get_api_client()
 
     assert isinstance(api_client, ApiClient)
+
+
+async def test_activate_configuration(config_file):
+    cluster_config = KubernetesClusterConfig.from_file(path=config_file)
+
+    cluster_config.activate()
+
+    context_dict = list_kube_config_contexts(config_file=str(config_file))
+
+    current_context = context_dict[1]["name"]
+
+    assert cluster_config.context == current_context
