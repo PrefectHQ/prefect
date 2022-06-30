@@ -13,13 +13,20 @@ This gives us a history of changes and will create merge conflicts if two migrat
 SQLite: `3bd87ecdac38`
 Postgres: `813ddf14e2de`
 
-## Add protected column for block types
+## Remove name column for flow run notification policies
 
-## Add indexes for block entity filtering
+SQLite: `42762c37b7bc`
+Postgres: `2f46fc3f3beb`
+
+## Add protected column for block types
 
 SQLite: `dff8da7a6c2c`
 Postgres: `7296741dff68`
 
+## Add indexes for block entity filtering
+
+SQLite: `a205b458d997`
+Postgres: `29ad9bef6147`
 ## Add indexes for block schemas
 
 SQLite: `9e2a1c08c6f1`
