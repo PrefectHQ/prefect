@@ -10,7 +10,7 @@ tags:
 
 # Flows
 
-Flows are the most basic Prefect object. A flow is a function that represents a container for workflow logic and allows users to interact with and reason about the state of their workflows. Flows are the only Prefect abstraction that can be interacted with, displayed, and run without needing to reference any other aspect of the Prefect engine.
+Flows are the most basic Prefect object. Flows are the only Prefect abstraction that can be interacted with, displayed, and run without needing to reference any other aspect of the Prefect engine. A flow is a container for workflow logic and allows users to interact with and reason about the state of their workflows. It is represented in Python as a single function.
 
 ## Flows overview
 
