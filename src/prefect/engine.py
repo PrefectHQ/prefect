@@ -19,7 +19,7 @@ import logging
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import anyio
 import pendulum
@@ -356,10 +356,11 @@ async def create_and_begin_subflow_run(
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
+    dummy_task = Task(name=flow.name, fn=flow.fn, version=flow.version)
     parent_task_run = await client.create_task_run(
-        task=Task(name=flow.name, fn=flow.fn, version=flow.version),
+        task=dummy_task,
         flow_run_id=parent_flow_run_context.flow_run.id,
-        dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
+        dynamic_key=_dynamic_key_for_task_run(parent_flow_run_context, dummy_task),
         task_inputs=task_inputs,
     )
 
