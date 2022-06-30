@@ -254,21 +254,16 @@ class RetryFailedFlows(BaseOrchestrationRule):
     This rule rejects transitions into a failed state if `max_retries` has been
     set and the run count has not reached the specified limit. The client will be
     instructed to transition into a scheduled state to retry flow execution.
-
-    TODO: Reset task run states
-    TODO: Consider renaming max retries
     """
 
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = [states.StateType.FAILED]
 
-    @inject_db
     async def before_transition(
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
-        db: OrionDBInterface,
     ) -> None:
         from prefect.orion.models import task_runs
 
@@ -277,24 +272,28 @@ class RetryFailedFlows(BaseOrchestrationRule):
         if run_count > run_settings.max_retries:
             return  # Retry count exceeded, allow transition to failed
 
+        scheduled_start_time = pendulum.now("UTC").add(
+            seconds=run_settings.retry_delay_seconds
+        )
+
         failed_task_runs = await task_runs.read_task_runs(
             context.session,
             flow_run_filter=filters.FlowRunFilter(id={"any_": [context.run.id]}),
             task_run_filter=filters.TaskRunFilter(state={"type": {"any_": ["FAILED"]}}),
         )
-
         for run in failed_task_runs:
             await task_runs.set_task_run_state(
-                context.session, run.id, state=states.Pending(), force=True
+                context.session,
+                run.id,
+                state=states.AwaitingRetry(scheduled_time=scheduled_start_time),
+                force=True,
             )
             # Reset the run count so that the task run retries still work correctly
             run.run_count = 0
 
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
-            scheduled_time=pendulum.now("UTC").add(
-                seconds=run_settings.retry_delay_seconds
-            ),
+            scheduled_time=scheduled_start_time,
             message=proposed_state.message,
             data=proposed_state.data,
         )
