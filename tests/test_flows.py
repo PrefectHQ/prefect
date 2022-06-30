@@ -10,7 +10,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
-from prefect.client import get_client
+from prefect.client import OrionClient, get_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
@@ -1327,8 +1327,8 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert task_run_count == 2, "Task should be reset and run again"
 
+    @pytest.mark.xfail
     async def test_flow_retry_with_branched_tasks(self, orion_client):
-        task_run_count = 0
         flow_run_count = 0
 
         @task
@@ -1350,6 +1350,8 @@ class TestFlowRetries:
 
             return result
 
+        my_flow()
+
         assert flow_run_count == 2
 
         # The state is pulled from the API and needs to be decoded
@@ -1362,14 +1364,16 @@ class TestFlowRetries:
         # increment each time the task is called, if there branching is different
         # after a flow run retry, the stale value will be pulled from the cache.
 
-    def test_flow_retry_with_no_error_in_flow_and_one_failed_task(self):
-        subflow_run_count = 0
+    async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_run_count = 0
         flow_run_count = 0
 
         @flow
-        def my_subflow():
-            nonlocal subflow_run_count
-            subflow_run_count += 1
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
 
             # Fail on the first flow run but not the retry
             if flow_run_count == 1:
@@ -1378,11 +1382,27 @@ class TestFlowRetries:
             return "hello"
 
         @flow(retries=1)
-        def my_flow():
+        def parent_flow():
             nonlocal flow_run_count
             flow_run_count += 1
-            return my_subflow()
+            return child_flow()
 
-        assert my_flow().result().result() == "hello"
+        state = parent_flow()
+        assert state.result().result() == "hello"
         assert flow_run_count == 2
-        assert subflow_run_count == 2, "Task should be reset and run again"
+        assert child_run_count == 2, "Child flow should be reset and run again"
+
+        from prefect.orion.schemas.filters import FlowRunFilter
+        from prefect.states import StateType
+
+        # Ensure that the tracking task run for the subflow is reset and tracked
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(
+                id={"any_": [state.state_details.flow_run_id]}
+            )
+        )
+        state_types = {task_run.state_type for task_run in task_runs}
+        assert state_types == {StateType.COMPLETED}
+
+        # There should only be the child flow run's task
+        assert len(task_runs) == 1
