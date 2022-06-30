@@ -18,10 +18,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 if TYPE_CHECKING:
-    import kubernetes
     from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
-else:
-    kubernetes = None
 
 from prefect.flow_runners.base import (
     UniversalFlowRunner,
@@ -171,6 +168,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
             # any further ConfigExceptions to bubble up.
 
             # Python won't let us use self._k8s.config.ConfigException, it seems
+            assert self._k8s is not None
             from kubernetes.config import ConfigException
 
             try:
@@ -193,32 +191,29 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         Delayed import of `kubernetes` allowing configuration of the flow runner without
         the extra installed and improves `prefect` import times.
         """
-        global kubernetes
-
-        if kubernetes is None:
-            try:
-                import kubernetes
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Using the `KubernetesFlowRunner` requires `kubernetes` to be "
-                    "installed."
-                ) from exc
+        try:
+            import kubernetes
+        except ImportError as exc:
+            raise RuntimeError(
+                "Using the `KubernetesFlowRunner` requires `kubernetes` to be "
+                "installed."
+            ) from exc
 
         return kubernetes
 
     @contextmanager
     def get_batch_client(self) -> Generator["BatchV1Api", None, None]:
-        with kubernetes.client.ApiClient() as client:
+        with self._k8s.client.ApiClient() as client:
             try:
-                yield kubernetes.client.BatchV1Api(api_client=client)
+                yield self._k8s.client.BatchV1Api(api_client=client)
             finally:
                 client.rest_client.pool_manager.clear()
 
     @contextmanager
     def get_client(self) -> Generator["CoreV1Api", None, None]:
-        with kubernetes.client.ApiClient() as client:
+        with self._k8s.client.ApiClient() as client:
             try:
-                yield kubernetes.client.CoreV1Api(api_client=client)
+                yield self._k8s.client.CoreV1Api(api_client=client)
             finally:
                 client.rest_client.pool_manager.clear()
 

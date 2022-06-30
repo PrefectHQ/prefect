@@ -24,6 +24,10 @@ class KubernetesClusterConfig(Block):
     config: Dict
     context: str = None
 
+    @staticmethod
+    def current_context() -> str:
+        return list_kube_config_contexts()[1]["name"]
+
     @classmethod
     @validate_arguments
     def from_file(cls, path: Path, context: str = None):
@@ -39,7 +43,7 @@ class KubernetesClusterConfig(Block):
             if context not in [i["name"] for i in existing_contexts]:
                 raise ValueError(f"No such context in {path}: {context}")
         else:
-            context = list_kube_config_contexts()[1]["name"]
+            context = cls.current_context()
 
         config_file_contents = path.read_text()
         config_dict = yaml.safe_load(config_file_contents)
@@ -62,15 +66,15 @@ class KubernetesClusterConfig(Block):
             config_dict=self.config, context=self.context
         )
 
-    def activate(self) -> None:
+    def activate(self) -> str:
         """
         Convenience method for activating the k8s config stored in an instance of this block
+
+        Returns current_context for sanity check
         """
-        try:
-            load_kube_config_from_dict(
-                config_dict=self.config,
-                context=self.context,
-            )
-        except AttributeError as ae:
-            print(str(ae))
-            raise
+        load_kube_config_from_dict(
+            config_dict=self.config,
+            context=self.context,
+        )
+
+        return self.current_context()
