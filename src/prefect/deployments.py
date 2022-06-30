@@ -55,6 +55,7 @@ from pydantic import BaseModel, Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
+from prefect.context import PrefectObjectRegistry
 from prefect.deprecated import deployments as deprecated
 from prefect.exceptions import MissingDeploymentError, UnspecifiedDeploymentError
 from prefect.flow_runners.base import (
@@ -67,7 +68,7 @@ from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.packaging.base import PackageManifest, Packager
 from prefect.packaging.orion import OrionPackager
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncio import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.collections import listrepr
 
 
@@ -79,6 +80,7 @@ class FlowScript(BaseModel):
 FlowSource = Union[Flow, FlowScript, PackageManifest]
 
 
+@PrefectObjectRegistry.register_instances
 class Deployment(BaseModel):
 
     # Metadata fields
@@ -100,7 +102,6 @@ class Deployment(BaseModel):
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         super().__init__(**data)
-        _register_deployment(__pydantic_self__)
 
     @validator("flow_runner")
     def cast_flow_runner_settings(cls, value):
@@ -227,7 +228,9 @@ async def load_flow_from_deployment(
 
     maybe_flow = await client.resolve_datadoc(deployment.flow_data)
     if isinstance(maybe_flow, (str, bytes)):
-        flow = load_flow_from_text(maybe_flow, flow_model.name)
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_text, maybe_flow, flow_model.name
+        )
     elif isinstance(maybe_flow, PackageManifest):
         flow = await maybe_flow.unpackage()
     else:
