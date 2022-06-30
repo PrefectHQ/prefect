@@ -31,6 +31,7 @@ class PackageManifest(BaseModel, abc.ABC):
     """
 
     type: str
+    flow_name: str
 
     @abc.abstractmethod
     async def unpackage(self) -> Flow:
