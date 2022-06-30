@@ -206,6 +206,7 @@ class TestOrchestrateTaskRun:
         # incomplete state
         future = PrefectFuture(
             task_run=upstream_task_run,
+            run_key=str(upstream_task_run.id),
             task_runner=None,
             _final_state=upstream_task_state,
         )
