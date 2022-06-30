@@ -267,6 +267,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
+        # Remove any existing result for this task run
+        self._results.pop(task_run.id, None)
+
         # Rely on the event loop for concurrency
         self._task_group.start_soon(
             self._run_and_store_result, task_run.id, run_fn, run_kwargs

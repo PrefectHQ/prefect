@@ -1224,7 +1224,7 @@ class TestFlowResults:
 
 
 class TestFlowRetries:
-    def test_flow_retry(self):
+    def test_flow_retry_with_error_in_flow(self):
         run_count = 0
 
         @flow(retries=1)
@@ -1238,7 +1238,7 @@ class TestFlowRetries:
         assert foo().result() == "hello"
         assert run_count == 2
 
-    def test_flow_retry_with_successful_task(self):
+    def test_flow_retry_with_error_in_flow_and_successful_task(self):
         task_run_count = 0
         flow_run_count = 0
 
@@ -1264,7 +1264,7 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert task_run_count == 1
 
-    def test_flow_retry_with_failed_task(self):
+    def test_flow_retry_with_no_error_in_flow_and_one_failed_task(self):
         task_run_count = 0
         flow_run_count = 0
 
