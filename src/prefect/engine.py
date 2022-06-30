@@ -373,6 +373,9 @@ async def create_and_begin_subflow_run(
     from prefect.orion.schemas.sorting import FlowRunSort
 
     if parent_task_run.state.is_final():
+
+        # Retrieve the already-completed flow run from the database
+
         flow_runs = await client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 parent_task_run_id={"any_": [parent_task_run.id]}
@@ -383,7 +386,6 @@ async def create_and_begin_subflow_run(
         terminal_state = flow_run.state
         resolved = await client.resolve_datadoc(terminal_state.data)
         terminal_state.data._cache_data(resolved)
-        breakpoint()
         logger = flow_run_logger(flow_run, flow)
 
     else:
@@ -653,7 +655,7 @@ async def collect_task_run_inputs(
 
     async def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
-            inputs.add(core.TaskRunResult(id=obj.run_id))
+            inputs.add(core.TaskRunResult(id=obj.task_run.id))
 
         if isinstance(obj, State):
             if obj.state_details.task_run_id:
@@ -698,7 +700,8 @@ async def create_and_submit_task_run(
     logger.info(f"Created task run {task_run.name!r} for task {task.name!r}")
 
     future = await flow_run_context.task_runner.submit(
-        task_run,
+        task_run=task_run,
+        run_key=f"{task_run.name}-{task_run.id.hex}-{flow_run_context.flow_run.run_count}",
         run_fn=begin_task_run,
         run_kwargs=dict(
             task=task,
@@ -973,11 +976,11 @@ async def wait_for_task_runs_and_report_crashes(
         )
         if result.status == SetStateStatus.ACCEPT:
             engine_logger.debug(
-                f"Reported crashed task run {future.task_run.name!r} successfully."
+                f"Reported crashed task run {future.run_key!r} successfully."
             )
         else:
             engine_logger.warning(
-                f"Failed to report crashed task run {future.task_run.name!r}. "
+                f"Failed to report crashed task run {future.run_key!r}. "
                 f"Orchestrator did not accept state: {result!r}"
             )
 

@@ -1262,11 +1262,7 @@ class TestFlowRetries:
 
             return fut
 
-        # TODO: Test failing because the result is now the state from the server and the
-        #       data needs to be retrieved from storage
-        # assert foo().result().result() == "hello"
-        document = foo().result().result()
-        assert await orion_client.resolve_datadoc(document) == "hello"
+        assert foo().result().result() == "hello"
         assert flow_run_count == 2
         assert task_run_count == 1
 
@@ -1356,7 +1352,7 @@ class TestFlowRetries:
 
         # The state is pulled from the API and needs to be decoded
         document = my_flow().result().result()
-        result = await orion_client.resolve_datadoc(document)
+        result = await orion_client.retrieve_data(document)
 
         assert result == "bar"
         # AssertionError: assert 'foo' == 'bar'
