@@ -45,6 +45,8 @@ def create_project(
     Args:
         - obj (Project, Dict, str, bytes): Either a `Project` object itself
             or a config to make a `Project`.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -78,6 +80,8 @@ def create_exam_pool(
             or a config to make a `Training`.
         - project_id (Project, Dict, str, optional): Project ID to assign a training pool to.
             May pass either an object, config or project_id value.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -122,6 +126,8 @@ def create_pool(
             `datetime` object to set exact datetime;
             `timedelta` to set expiration related to the current time.
         - reward_per_assignment (float, optional): Allow to redefine reward per assignment.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -181,6 +187,8 @@ def create_tasks(
         - open_pool (bool, optional): Open the pool immediately after creating a task suite, if closed.
         - skip_invalid_items (bool, optional): Allow to skip invalid tasks.
             You can handle them using resulting TaskBatchCreateResult object.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -225,6 +233,8 @@ def open_pool(
 
     Args:
         - obj (Pool, Dict, str): Pool id or `Pool` object of it's config.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -255,6 +265,8 @@ def open_exam_pool(
 
     Args:
         - obj (Training, Dict, str): Training pool_id or `Training` object of it's config.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -291,6 +303,8 @@ def wait_pool(
         - pool_id (Pool, Dict, str): Either a `Pool` object or it's config or a pool ID value.
         - period (timedelta): Interval between checks. One minute by default.
         - open_pool (bool, optional): Allow to open pool at start if it's closed. False by default.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -343,6 +357,8 @@ def get_assignments(
         - pool_id (Pool, Dict, str): Either a `Pool` object or it's config or a pool ID value.
         - status (str, List[str], optional): A status or a list of statuses to get.
             All statuses (None) by default.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -385,6 +401,8 @@ def get_assignments_df(
         - pool_id (Pool, Dict, str): Either a `Pool` object or it's config or a pool ID value.
         - status (str, List[str], optional): A status or a list of statuses to get.
             All statuses (None) by default.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -474,6 +492,8 @@ def accept_assignment(
         - public_comment (str): Public comment.
         - fail_if_already_set (bool, optional): Fail if the assignment has already been accepted
             (in the UI for example). Skip by default.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.
@@ -520,6 +540,8 @@ def reject_assignment(
         - public_comment (str): Public comment.
         - fail_if_already_set (bool, optional): Fail if the assignment has already been rejected
             (in the UI for example). Skip by default.
+        - token (str, optional): Toloka token value provided with a Prefect Secret. If not provided the task will
+            fallback to using Secret with secret_name.
         - secret_name (str, optional): Allow to use non-default secret for Toloka token.
             Default: "TOLOKA_TOKEN".
         - env (str, optional): Allow to use non-default Toloka environment.

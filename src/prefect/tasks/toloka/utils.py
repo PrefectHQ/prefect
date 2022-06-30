@@ -3,7 +3,7 @@ import json
 import pickle
 from decimal import Decimal
 from functools import partial, wraps
-from typing import Any, Callable, Iterable, Type
+from typing import Any, Callable, Iterable, Type, Optional
 
 from prefect.client import Secret
 
@@ -131,14 +131,14 @@ DEFAULT_TOLOKA_ENV = "PRODUCTION"
 
 def with_toloka_client(func: Callable) -> Callable:
     """
-    Decorator that allows function to pass `secret_name` and `env` args
+    Decorator that allows function to pass `token`, `secret_name` and `env` args
     and operate with `toloka_client` instance.
 
     Args:
         - func (Callable): Function that operate with `toloka_client` argument.
 
     Returns:
-        - Callable: The wrapper, which takes optional `secret_name` and `env` arguments
+        - Callable: The wrapper, which takes optional `token`, `secret_name` and `env` arguments
             and operates with default `toloka_token` if they are not passed.
 
     Example:
@@ -147,17 +147,19 @@ def with_toloka_client(func: Callable) -> Callable:
         ...     toloka_client.create_project(...)
         ...
         >>> some_func()  # Use default toloka_client created using TOLOKA_TOKEN secret.
-        >>> some_func(secret_name='OTHER_ACCOUNT_SECRET')  # Allow to pass other secret.
+        >>> some_func(secret_name="OTHER_ACCOUNT_SECRET")  # Allow to pass other secret name.
+        >>> some_func(token=PrefectSecret("TOLOKA_TOKEN")) # Provide secret directly.
         ...
     """
 
     def _wrapper(
         *args,
+        token: Optional[str] = None,
         secret_name: str = DEFAULT_TOLOKA_SECRET_NAME,
         env: str = DEFAULT_TOLOKA_ENV,
         **kwargs,
     ) -> Any:
-        token = Secret(secret_name).get()
+        token = token or Secret(secret_name).get()
         toloka_client = TolokaClient(token, env)
         return partial(add_headers("prefect")(func), toloka_client=toloka_client)(
             *args, **kwargs
@@ -167,5 +169,5 @@ def with_toloka_client(func: Callable) -> Callable:
         func,
         _wrapper,
         remove_func_args=("toloka_client",),
-        add_wrapper_args=("secret_name", "env"),
+        add_wrapper_args=("token", "secret_name", "env"),
     )

@@ -36,7 +36,7 @@ class TestWithTolokaClient:
             ...
 
         params = set(inspect.signature(some_func).parameters)
-        assert {"arg1", "arg2", "secret_name", "env"} == params, params
+        assert {"arg1", "arg2", "token", "secret_name", "env"} == params, params
 
     def test_new_toloka_client(self, secrets_mock):
         @with_toloka_client
@@ -46,6 +46,7 @@ class TestWithTolokaClient:
 
         some_func(DEFAULT_TOKEN, DEFAULT_TOLOKA_ENV)
         some_func(OTHER_TOKEN, OTHER_ENV, secret_name=OTHER_SECRET_NAME, env=OTHER_ENV)
+        some_func(OTHER_TOKEN, OTHER_ENV, token=OTHER_TOKEN, env=OTHER_ENV)
 
 
 def test_add_headers(secrets_mock):
