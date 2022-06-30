@@ -436,7 +436,7 @@ async def preview(path: Path):
         kind: Job ...
 
     """
-    specs = list(_load_deployment_specs(path, quietly=True))
+    registry = _load_deployments(path, quietly=True)
 
     # create an exemplar FlowRun
     flow_run = FlowRun(
@@ -445,7 +445,19 @@ async def preview(path: Path):
         name="cool-name",
     )
 
-    for spec in specs:
+    deployments = registry.get_instances(Deployment)
+    specifications = registry.get_instances(DeploymentSpec)
+
+    if not deployments and not specifications:
+        exit_with_error("No deployment specifications found!")
+
+    for deployment in deployments:
+        name = repr(deployment.name) if deployment.name else "<unnamed deployment>"
+        app.console.print(f"[green]Preview for {name}[/]:\n")
+        print(await deployment.flow_runner.preview(flow_run))
+        print()
+
+    for spec in specifications:
         name = repr(spec.name) if spec.name else "<unnamed deployment specification>"
         app.console.print(f"[green]Preview for {name}[/]:\n")
         print(await spec.flow_runner.preview(flow_run))

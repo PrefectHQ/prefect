@@ -10,30 +10,30 @@ from prefect.testing.cli import invoke_and_assert
 
 
 @pytest.fixture
-def deployments_path(tests_dir):
+def deployment_specs_path(tests_dir):
     return tests_dir / "deprecated" / "deployment_test_files"
 
 
-def test_preview_error_messaging_with_deployments(deployments_path):
+def test_preview_error_messaging_with_deployments(deployment_specs_path):
     """If there are no deployments at all in the file, warn the user"""
     invoke_and_assert(
         [
             "deployment",
             "preview",
-            str(deployments_path / "single_flow.py"),  # not a deployment file
+            str(deployment_specs_path / "single_flow.py"),  # not a deployment file
         ],
         expected_code=1,
         expected_output_contains="No deployment specifications found!",
     )
 
 
-def test_preview_multiple_deployment_specs(deployments_path):
+def test_preview_multiple_deployment_specs(deployment_specs_path):
     """If there are multiple deployments in the file, they are all rendered"""
     result = invoke_and_assert(
         [
             "deployment",
             "preview",
-            str(deployments_path / "multiple_kubernetes_deployments.py"),
+            str(deployment_specs_path / "multiple_kubernetes_deployments.py"),
         ],
         expected_output_contains="kind: Job",
     )
@@ -41,21 +41,21 @@ def test_preview_multiple_deployment_specs(deployments_path):
     assert "Preview for 'hello-world-weekly'" in result.stdout
 
 
-def test_preview_works_for_unnamed_deployments(deployments_path):
+def test_preview_works_for_unnamed_deployments(deployment_specs_path):
     """Even if the deployments are unnamed, we can still get a preview for a single
     one"""
     result = invoke_and_assert(
         [
             "deployment",
             "preview",
-            str(deployments_path / "single_unnamed_deployment.py"),
+            str(deployment_specs_path / "single_unnamed_deployment.py"),
         ],
         expected_output_contains="kind: Job",
     )
     assert "Preview for <unnamed deployment specification>" in result.stdout
 
 
-def test_previewing_single_kubernetes_deployment_from_python(deployments_path):
+def test_previewing_single_kubernetes_deployment_from_python(deployment_specs_path):
     """`prefect deployment preview my-flow-file.py` should render a single
     Kubernetes Job that will be applied to the cluster"""
 
@@ -63,7 +63,7 @@ def test_previewing_single_kubernetes_deployment_from_python(deployments_path):
         [
             "deployment",
             "preview",
-            str(deployments_path / "single_kubernetes_deployment.py"),
+            str(deployment_specs_path / "single_kubernetes_deployment.py"),
         ],
         expected_output_contains="kind: Job",
     )
@@ -82,7 +82,7 @@ def test_previewing_single_kubernetes_deployment_from_python(deployments_path):
     )
 
 
-def test_previewing_multiple_kubernetes_deployments_from_python(deployments_path):
+def test_previewing_multiple_kubernetes_deployments_from_python(deployment_specs_path):
     """`prefect deployment preview my-flow-file.py` should render multiple
     Kubernetes Jobs from a deployment file"""
 
@@ -90,7 +90,7 @@ def test_previewing_multiple_kubernetes_deployments_from_python(deployments_path
         [
             "deployment",
             "preview",
-            str(deployments_path / "multiple_kubernetes_deployments.py"),
+            str(deployment_specs_path / "multiple_kubernetes_deployments.py"),
         ],
         expected_output_contains="kind: Job",
     )
@@ -118,7 +118,7 @@ def test_previewing_multiple_kubernetes_deployments_from_python(deployments_path
     assert "MY_ENV_VAR" in [variable["name"] for variable in container["env"]]
 
 
-def test_previewing_docker_deployment(deployments_path):
+def test_previewing_docker_deployment(deployment_specs_path):
     """`prefect deployment preview my-flow-file.py` should render the
     Docker API values for the container it will create"""
 
@@ -126,7 +126,7 @@ def test_previewing_docker_deployment(deployments_path):
         [
             "deployment",
             "preview",
-            str(deployments_path / "single_docker_deployment.py"),
+            str(deployment_specs_path / "single_docker_deployment.py"),
         ],
         expected_output_contains="prefect.engine",
     )
@@ -146,7 +146,7 @@ def test_previewing_docker_deployment(deployments_path):
     )
 
 
-def test_previewing_subprocess_deployment(deployments_path):
+def test_previewing_subprocess_deployment(deployment_specs_path):
     """`prefect deployment preview my-flow-file.py` should render the
     shell command that will be run for the subprocess"""
 
@@ -154,7 +154,7 @@ def test_previewing_subprocess_deployment(deployments_path):
         [
             "deployment",
             "preview",
-            str(deployments_path / "single_deployment.py"),
+            str(deployment_specs_path / "single_deployment.py"),
         ],
         expected_output_contains="prefect.engine",
     )
