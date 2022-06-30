@@ -1,6 +1,6 @@
 <template>
   <p-card>
-    <NotificationForm v-model:notification="createNotification" @submit="submit" />
+    <NotificationForm v-model:notification="createNotification" @submit="submit" @cancel="cancel" />
   </p-card>
 </template>
 
@@ -22,5 +22,9 @@
       showToast('Error creating notification', 'error')
       console.warn(error)
     }
+  }
+
+  function cancel(): void {
+    router.push(routes.notifications())
   }
 </script>
