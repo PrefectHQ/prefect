@@ -306,7 +306,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.result())
+        runtime_python = await orion_client.resolve_datadoc(state.data)
         assert runtime_python == str(virtualenv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -327,7 +327,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.result())
+        runtime_python = await orion_client.resolve_datadoc(state.data)
         assert runtime_python == str(venv_environment_path / "bin" / "python")
 
     @pytest.mark.service("environment")
@@ -349,7 +349,7 @@ class TestSubprocessFlowRunner:
 
         assert happy_exit
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        runtime_python = await orion_client.resolve_datadoc(state.result())
+        runtime_python = await orion_client.resolve_datadoc(state.data)
         assert runtime_python == str(conda_environment_path / "bin" / "python")
 
     @pytest.mark.parametrize("stream_output", [True, False])
