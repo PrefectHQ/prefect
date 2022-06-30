@@ -291,7 +291,7 @@ async def create(path: Path):
                 await _create_deployment(deployment, client=client)
             except Exception as exc:
                 app.console.print(exception_traceback(exc))
-                app.console.print(f"Failed to create deployment!", style="red")
+                app.console.print("Failed to create deployment!", style="red")
                 failed += 1
             else:
                 created += 1
@@ -305,38 +305,47 @@ async def create(path: Path):
         exit_with_success(f"Created {created} deployment{s}!")
 
 
-async def _create_deployment(deployment: Deployment, client: OrionClient):
-    if isinstance(deployment.flow, FlowScript):
+def _stylized_flow_name(deployment: Deployment, flow_name: str):
+    second_name = deployment.name or flow_name
+    return f"[blue]'{flow_name}/[/][bold blue]{second_name}'[/]"
+
+
+async def _deployment_to_manifest(deployment: Deployment) -> PackageManifest:
+    flow_source = deployment.flow
+
+    if isinstance(flow_source, PackageManifest):
+        return flow_source
+
+    if isinstance(flow_source, FlowScript):
         # TODO: Add a utility for path display that will do this logic
-        relative_path = str(deployment.flow.path.relative_to(Path(".").resolve()))
-        absolute_path = str(deployment.flow.path)
+        relative_path = str(flow_source.path.relative_to(Path(".").resolve()))
+        absolute_path = str(flow_source.path)
         display_path = (
             relative_path if len(relative_path) < len(absolute_path) else absolute_path
         )
         app.console.print(
             f"Retrieving flow from script at [green]{display_path!r}[/]..."
         )
-    elif isinstance(deployment.flow, PackageManifest):
-        app.console.print(f"Retrieving flow from {deployment.flow.type!r} package...")
 
-    flow = await _source_to_flow(deployment.flow)
+    flow = await _source_to_flow(flow_source)
 
-    name = deployment.name or flow.name
-    stylized_name = f"[blue]'{flow.name}/[/][bold blue]{name}'[/]"
+    app.console.print(
+        f"Packaging flow for deployment {_stylized_flow_name(deployment, flow.name)}..."
+    )
+    return await deployment.packager.package(flow)
 
-    if isinstance(deployment.flow, PackageManifest):
-        manifest = deployment.flow
-    else:
-        app.console.print(f"Packaging flow for deployment {stylized_name}...")
-        manifest = await deployment.packager.package(flow)
+
+async def _create_deployment(deployment: Deployment, client: OrionClient):
+    manifest = await _deployment_to_manifest(deployment)
+    stylized_name = _stylized_flow_name(deployment, manifest.flow_name)
 
     flow_data = DataDocument.encode("package-manifest", manifest)
 
     app.console.print(f"Registering deployment {stylized_name} with the server...")
-    flow_id = await client.create_flow(flow)
+    flow_id = await client.create_flow_from_name(manifest.flow_name)
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
-        name=name,
+        name=deployment.name or manifest.flow_name,
         flow_data=flow_data,
         schedule=deployment.schedule,
         parameters=deployment.parameters,

@@ -30,7 +30,7 @@ Examples:
     >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
 
-    Deployments can also be written in YAML and refer to the flow's location instead 
+    Deployments can also be written in YAML and refer to the flow's location instead
     of the `Flow` object. If there are multiple flows in the file, a name will needed
     to load the correct flow.
     ```yaml
@@ -52,7 +52,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import yaml
-from pydantic import BaseModel, Field, parse_raw_as, root_validator, validator
+from pydantic import BaseModel, Field, parse_obj_as, root_validator, validator
 
 import prefect.orion.schemas as schemas
 from prefect.client import OrionClient, inject_client
@@ -282,12 +282,11 @@ def load_deployments_from_yaml(
 
             # Load deployments relative to the yaml file's directory
             with tmpchdir(path):
-                raw_deployment = yaml.serialize(node)
-                deployment = parse_raw_as(
-                    Union[Deployment, DeploymentSpec],
-                    raw_deployment,
-                    json_loads=yaml.safe_load,
-                )
+                deployment_dict = yaml.safe_load(yaml.serialize(node))
+                if "flow_location" in deployment_dict:
+                    deployment = parse_obj_as(DeploymentSpec, deployment_dict)
+                else:
+                    deployment = parse_obj_as(Deployment, deployment_dict)
 
             if isinstance(deployment, DeploymentSpec):
                 # Update the source to be from the YAML file instead of this utility
