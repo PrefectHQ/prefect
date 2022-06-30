@@ -4,6 +4,7 @@ from typing import Dict
 import yaml
 from kubernetes.client import ApiClient
 from kubernetes.config.kube_config import (
+    KUBE_CONFIG_DEFAULT_LOCATION,
     list_kube_config_contexts,
     load_kube_config_from_dict,
     new_client_from_config_dict,
@@ -11,8 +12,6 @@ from kubernetes.config.kube_config import (
 from pydantic import validate_arguments
 
 from prefect.blocks.core import Block, register_block
-
-KUBE_CONFIG_DEFAULT_LOCATION = f"{Path.home()}/.kube/config"
 
 
 @register_block
