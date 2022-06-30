@@ -65,7 +65,6 @@ from prefect.utilities.asyncio import (
     in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
-    run_sync_in_worker_thread,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import Quote, visit_collection
@@ -87,7 +86,7 @@ def enter_flow_run_engine_from_flow_call(
     setup_logging()
 
     registry = PrefectObjectRegistry.get()
-    if registry.code_execution_blocked:
+    if registry and registry.block_code_execution:
         engine_logger.warning(
             f"Script loading is in progress, flow {flow.name!r} will not be executed. "
             "Consider updating the script to only call the flow if executed directly:\n\n"
@@ -488,7 +487,7 @@ async def orchestrate_flow_run(
                 if flow.isasync:
                     result = await flow_call()
                 else:
-                    result = await run_sync_in_worker_thread(flow_call)
+                    result = await run_sync_in_interruptible_worker_thread(flow_call)
 
             await wait_for_task_runs_and_report_crashes(
                 flow_run_context.task_run_futures, client=client

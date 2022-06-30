@@ -23,7 +23,6 @@ INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
 FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_notification_policy_id",
-    "flow_run_notification_policy_name",
     "flow_id",
     "flow_name",
     "flow_run_id",
@@ -694,7 +693,6 @@ class WorkQueue(ORMBaseModel):
 class FlowRunNotificationPolicy(ORMBaseModel):
     """An ORM representation of a flow run notification."""
 
-    name: str = Field(..., description="A name for the notification policy")
     is_active: bool = Field(True, description="Whether the policy is currently active")
     state_names: List[str] = Field(
         ..., description="The flow run states that trigger notifications"
