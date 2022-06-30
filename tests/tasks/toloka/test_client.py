@@ -1,7 +1,9 @@
 import inspect
+import re
+
 import prefect
 import pytest
-import requests_mock
+import responses
 from prefect.tasks.toloka.utils import (
     DEFAULT_TOLOKA_ENV,
     DEFAULT_TOLOKA_SECRET_NAME,
@@ -51,11 +53,12 @@ def test_add_headers(secrets_mock):
     def make_request(toloka_client):
         return toloka_client.get_pool("123")
 
-    with requests_mock.Mocker(real_http=False) as mocker:
-        mocker.get(requests_mock.ANY, content=b"...")
+    with responses.RequestsMock() as mocker:
+        mocker.get(re.compile('.*'), body=b"...")
+
         with pytest.raises(Exception, match="Expecting value"):
             make_request()
 
-        assert mocker.called
-        headers = mocker.request_history[0].headers
+        assert mocker.calls
+        headers = mocker.calls[0].request.headers
         assert "prefect" == headers["X-Caller-Context"], headers
