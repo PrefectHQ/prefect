@@ -1481,9 +1481,7 @@ class TestFlowRetries:
         # The final flow run is the one returned by the parent flow
         assert child_flow_runs[-1] == child_flow_run
 
-    async def test_flow_retry_with_failed_child_flow_with_failed_task(
-        self, orion_client: OrionClient
-    ):
+    async def test_flow_retry_with_failed_child_flow_with_failed_task(self):
         child_task_run_count = 0
         child_flow_run_count = 0
         flow_run_count = 0
@@ -1590,3 +1588,68 @@ class TestFlowRetries:
 
         assert flow_run_count == 2
         assert task_run_count == 6, "Task should use all of its retries every time"
+
+    async def test_flow_with_failed_child_flow_with_retries(self):
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+
+            # Fail on first try.
+            if child_flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow().result().result() == "hello"
+        assert flow_run_count == 1, "Parent flow should only run once"
+        assert child_flow_run_count == 2, "Child flow should run again"
+
+    async def test_parent_flow_retries_failed_child_flow_with_retries(self):
+        child_flow_retry_count = 0
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count, child_flow_retry_count
+            child_flow_run_count += 1
+            child_flow_retry_count += 1
+
+            # Fail during first parent flow run, but not on parent retry.
+            if flow_run_count == 1:
+                raise ValueError()
+
+            # Fail on first try after parent retry.
+            if child_flow_retry_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count, child_flow_retry_count
+            child_flow_retry_count = 0
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow().result().result() == "hello"
+        assert flow_run_count == 2, "Parent flow should exhaust retries"
+        assert (
+            child_flow_run_count == 4
+        ), "Child flow should run 2 times for each parent run"
