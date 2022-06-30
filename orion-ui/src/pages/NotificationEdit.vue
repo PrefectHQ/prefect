@@ -17,7 +17,6 @@
 
   function mapNotificationUpdateToNotificationUpdateRequest(notificationUpdate: Partial<Notification>): INotificationUpdateRequest {
     return {
-      name: notificationUpdate.name,
       state_names: notificationUpdate.stateNames,
       tags: notificationUpdate.tags,
       is_active: notificationUpdate.isActive,
