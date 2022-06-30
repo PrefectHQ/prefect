@@ -12,7 +12,7 @@
   import { notificationsApi } from '@/services/notificationsApi'
 
 
-  const createNotification = ref({ stateNames: [], tags: [], isActive: true, name: 'name' })
+  const createNotification = ref({ stateNames: [], tags: [], isActive: true })
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
       const notificationRequest: INotificationRequest = mapCamelToSnakeCase(notification)
