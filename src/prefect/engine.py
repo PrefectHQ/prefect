@@ -493,6 +493,8 @@ async def orchestrate_flow_run(
                 )
 
         except TimeoutError as exc:
+            # Report the failed flow without waiting for task runs to complete
+            # TODO: Cancel task runs if feasible
             terminal_state = Failed(
                 name="TimedOut",
                 message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
@@ -502,6 +504,12 @@ async def orchestrate_flow_run(
                 f"Encountered exception during execution:",
                 exc_info=True,
             )
+
+            # Wait for task runs to complete before reporting the failed flow
+            await wait_for_task_runs_and_report_crashes(
+                flow_run_context.task_run_futures, client=client
+            )
+
             terminal_state = Failed(
                 message="Flow run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),
