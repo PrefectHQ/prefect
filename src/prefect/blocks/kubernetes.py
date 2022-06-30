@@ -23,10 +23,6 @@ class KubernetesClusterConfig(Block):
     config: Dict
     context: str = None
 
-    @staticmethod
-    def current_context(path: Path = KUBE_CONFIG_DEFAULT_LOCATION) -> str:
-        return list_kube_config_contexts(config_file=str(path))[1]["name"]
-
     @classmethod
     @validate_arguments
     def from_file(cls, path: Path, context: str = None):
@@ -36,13 +32,15 @@ class KubernetesClusterConfig(Block):
         list_kube_config_contexts returns a tuple (all_contexts, current_context)
 
         """
-        existing_contexts = list_kube_config_contexts(config_file=str(path))[0]
+        existing_contexts, current_context = list_kube_config_contexts(
+            config_file=str(path)
+        )
 
         if context:
             if context not in [i["name"] for i in existing_contexts]:
                 raise ValueError(f"No such context in {path}: {context}")
         else:
-            context = cls.current_context(path=path)
+            context = current_context["name"]
 
         config_file_contents = path.read_text()
         config_dict = yaml.safe_load(config_file_contents)
