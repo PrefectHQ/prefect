@@ -178,9 +178,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 db.FlowRunNotificationPolicy.id.label(
                     "flow_run_notification_policy_id"
                 ),
-                db.FlowRunNotificationPolicy.name.label(
-                    "flow_run_notification_policy_name"
-                ),
                 db.FlowRunNotificationPolicy.message_template.label(
                     "flow_run_notification_policy_message_template"
                 ),
@@ -337,9 +334,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 db.FlowRunNotificationQueue.id.label("queue_id"),
                 db.FlowRunNotificationPolicy.id.label(
                     "flow_run_notification_policy_id"
-                ),
-                db.FlowRunNotificationPolicy.name.label(
-                    "flow_run_notification_policy_name"
                 ),
                 db.FlowRunNotificationPolicy.message_template.label(
                     "flow_run_notification_policy_message_template"
