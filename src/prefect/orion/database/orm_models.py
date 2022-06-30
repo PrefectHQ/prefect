@@ -965,7 +965,6 @@ class ORMAgent:
 
 @declarative_mixin
 class ORMFlowRunNotificationPolicy:
-    name = sa.Column(sa.String, nullable=False, index=True)
     is_active = sa.Column(sa.Boolean, server_default="1", default=True, nullable=False)
     state_names = sa.Column(JSON, server_default="[]", default=[], nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=[], nullable=False)
