@@ -24,7 +24,7 @@ class KubernetesClusterConfig(Block):
     context: str = None
 
     @staticmethod
-    def current_context(path: Path) -> str:
+    def current_context(path: Path = KUBE_CONFIG_DEFAULT_LOCATION) -> str:
         return list_kube_config_contexts(config_file=str(path))[1]["name"]
 
     @classmethod
