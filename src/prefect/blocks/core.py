@@ -52,6 +52,10 @@ class Block(BaseModel, ABC):
             Customizes Pydantic's schema generation feature to add blocks related information.
             """
             schema["block_type_name"] = model.get_block_type_name()
+            # Ensures args and code examples aren't included in the schema
+            description = model.get_description()
+            if description:
+                schema["description"] = model.get_description()
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
