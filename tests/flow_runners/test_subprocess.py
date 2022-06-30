@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import List
 from unittest.mock import ANY, MagicMock
 
 import anyio
@@ -10,6 +11,7 @@ import anyio.abc
 import coolname
 import pytest
 
+import prefect
 from prefect.flow_runners import SubprocessFlowRunner, base_flow_run_environment
 from prefect.settings import SETTING_VARIABLES
 from prefect.testing.utilities import AsyncMock
@@ -29,19 +31,7 @@ def venv_environment_path(tmp_path):
         [sys.executable, "-m", "venv", str(environment_path), "--system-site-packages"]
     )
 
-    # Install prefect within the virtual environment
-    # --system-site-packages makes this irreleveant, but we retain this in case we want
-    # to have a slower test in the future that uses a clean environment.
-    # subprocess.check_output(
-    #     [
-    #         str(environment_path / "bin" / "python"),
-    #         "-m",
-    #         "pip",
-    #         "install",
-    #         "-e",
-    #         f"{prefect.__root_path__}[dev]",
-    #     ]
-    # )
+    install_prefect_if_necessary(python=[str(environment_path / "bin" / "python")])
 
     return environment_path
 
@@ -61,19 +51,7 @@ def virtualenv_environment_path(tmp_path):
         ["virtualenv", str(environment_path), "--system-site-packages"]
     )
 
-    # Install prefect within the virtual environment
-    # --system-site-packages makes this irreleveant, but we retain this in case we want
-    # to have a slower test in the future that uses a clean environment.
-    # subprocess.check_output(
-    #     [
-    #         str(environment_path / "bin" / "python"),
-    #         "-m",
-    #         "pip",
-    #         "install",
-    #         "-e",
-    #         f"{prefect.__root_path__}[dev]",
-    #     ]
-    # )
+    install_prefect_if_necessary(python=[str(environment_path / "bin" / "python")])
 
     return environment_path
 
@@ -131,23 +109,40 @@ def conda_environment_path(tmp_path):
             if not conda_pkg.exists():
                 conda_pkg.symlink_to(local_pkg, target_is_directory=local_pkg.is_dir())
 
-        # Linking is takes ~10s while faster than reinstalling in the environment takes
-        # ~60s. This blurb is retained for the future as we may encounter issues with
-        # linking and prefer to do the slow but correct installation.
-        # subprocess.check_output(
-        #     [
-        #         "conda",
-        #         "run",
-        #         "--prefix",
-        #         str(environment_path),
-        #         "pip",
-        #         "install",
-        #         "-e",
-        #         f"{prefect.__root_path__}[dev]",
-        #     ]
-        # )
+        install_prefect_if_necessary(
+            python=["conda", "run", "--prefix", str(environment_path), "python"]
+        )
 
     return environment_path
+
+
+def install_prefect_if_necessary(python: List[str]):
+    version = None
+    try:
+        # Attempt to import `prefect`, which should be there via site-packages on
+        # CI and systems where folks have installed an editable prefect globally
+        version = subprocess.check_output(
+            python + ["-c", "import prefect; print(prefect.__version__)"],
+            stderr=subprocess.STDOUT,
+        )
+        version = version.decode().strip()
+        print(f"Found `prefect` version {version!r} in environment")
+    except subprocess.CalledProcessError as exc:
+        if b"ModuleNotFoundError" in exc.stdout:
+            print("`prefect` module not found in environment")
+        else:
+            raise
+
+    if version == prefect.__version__:
+        return
+
+    # If it wasn't found or the version wasn't right, then --system-site-packages didn't
+    # get us an installation of prefect so we'll need to do the slower version of
+    # installing it into the virtual environment
+    print(f"Installing `prefect` editably into environment")
+    subprocess.check_output(
+        python + ["-m", "pip", "install", "-e", f"{prefect.__root_path__}"]
+    )
 
 
 class TestSubprocessFlowRunner:
