@@ -1361,3 +1361,28 @@ class TestFlowRetries:
         # Wait, what? Because tasks are identified by dynamic key which is a simple
         # increment each time the task is called, if there branching is different
         # after a flow run retry, the stale value will be pulled from the cache.
+
+    def test_flow_retry_with_no_error_in_flow_and_one_failed_task(self):
+        subflow_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def my_subflow():
+            nonlocal subflow_run_count
+            subflow_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_subflow()
+
+        assert my_flow().result().result() == "hello"
+        assert flow_run_count == 2
+        assert subflow_run_count == 2, "Task should be reset and run again"
