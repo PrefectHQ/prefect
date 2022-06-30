@@ -4,7 +4,6 @@ from typing import Dict
 import yaml
 from kubernetes.client import ApiClient
 from kubernetes.config.kube_config import (
-    ConfigException,
     list_kube_config_contexts,
     load_kube_config_from_dict,
     new_client_from_config_dict,
@@ -34,8 +33,12 @@ class KubernetesClusterConfig(Block):
         list_kube_config_contexts returns a tuple (all_contexts, current_context)
 
         """
+        existing_contexts = list_kube_config_contexts()[0]
 
-        if not context:
+        if context:
+            if context not in [i["name"] for i in existing_contexts]:
+                raise ValueError(f"No such context in {path}: {context}")
+        else:
             context = list_kube_config_contexts()[1]["name"]
 
         config_file_contents = path.read_text()
@@ -44,7 +47,7 @@ class KubernetesClusterConfig(Block):
         return cls(config=config_dict, context=context)
 
     @classmethod
-    def from_environment(cls):
+    def from_default_kube_config(cls):
         """
         Factory method to produce an instance of this class using the default kube config location
         """
@@ -55,19 +58,19 @@ class KubernetesClusterConfig(Block):
         """
         Returns an instance of the kubernetes api client with a specific context
         """
-        try:
-            return new_client_from_config_dict(
-                config_dict=self.config, context=self.context
-            )
-        except ConfigException:
-            raise
+        return new_client_from_config_dict(
+            config_dict=self.config, context=self.context
+        )
 
     def activate(self) -> None:
         """
-        Convenience method for activating the
+        Convenience method for activating the k8s config stored in an instance of this block
         """
-
-        load_kube_config_from_dict(
-            config_dict=self.config,
-            context=self.context,
-        )
+        try:
+            load_kube_config_from_dict(
+                config_dict=self.config,
+                context=self.context,
+            )
+        except AttributeError as ae:
+            print(str(ae))
+            raise
