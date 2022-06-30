@@ -24,6 +24,7 @@ from uuid import UUID
 import anyio
 import pendulum
 from anyio import start_blocking_portal
+from typing_extensions import Literal
 
 import prefect
 import prefect.context
@@ -362,55 +363,76 @@ async def create_and_begin_subflow_run(
         flow_run_id=parent_flow_run_context.flow_run.id,
         dynamic_key=_dynamic_key_for_task_run(parent_flow_run_context, dummy_task),
         task_inputs=task_inputs,
+        state=Pending(),
     )
 
     # Resolve any task futures in the input
     parameters = await resolve_futures_to_data(parameters)
 
-    flow_run = await client.create_flow_run(
-        flow,
-        parameters=flow.serialize_parameters(parameters),
-        parent_task_run_id=parent_task_run.id,
-        state=Pending(),
-        tags=TagsContext.get().current_tags,
-    )
+    from prefect.orion.schemas.filters import FlowRunFilter
+    from prefect.orion.schemas.sorting import FlowRunSort
 
-    parent_logger.info(f"Created subflow run {flow_run.name!r} for flow {flow.name!r}")
-    logger = flow_run_logger(flow_run, flow)
-
-    if flow.should_validate_parameters:
-        try:
-            parameters = flow.validate_parameters(parameters)
-        except Exception as exc:
-            state = Failed(
-                message="Flow run received invalid parameters.",
-                data=DataDocument.encode("cloudpickle", exc),
-            )
-            await client.propose_state(
-                state=state,
-                flow_run_id=flow_run.id,
-            )
-            logger.error("Received invalid parameters", exc_info=True)
-            return state
-
-    async with AsyncExitStack() as stack:
-        await stack.enter_async_context(
-            report_flow_run_crashes(flow_run=flow_run, client=client)
-        )
-        task_runner = await stack.enter_async_context(flow.task_runner.start())
-
-        terminal_state = await orchestrate_flow_run(
-            flow,
-            flow_run=flow_run,
-            parameters=parameters,
-            client=client,
-            partial_flow_run_context=PartialModel(
-                FlowRunContext,
-                sync_portal=parent_flow_run_context.sync_portal,
-                result_storage=parent_flow_run_context.result_storage,
-                task_runner=task_runner,
+    if parent_task_run.state.is_final():
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
             ),
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
         )
+        flow_run = flow_runs[0]
+        terminal_state = flow_run.state
+        resolved = await client.resolve_datadoc(terminal_state.data)
+        terminal_state.data._cache_data(resolved)
+        breakpoint()
+        logger = flow_run_logger(flow_run, flow)
+
+    else:
+        flow_run = await client.create_flow_run(
+            flow,
+            parameters=flow.serialize_parameters(parameters),
+            parent_task_run_id=parent_task_run.id,
+            state=parent_task_run.state,
+            tags=TagsContext.get().current_tags,
+        )
+
+        parent_logger.info(
+            f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
+        )
+        logger = flow_run_logger(flow_run, flow)
+
+        if flow.should_validate_parameters:
+            try:
+                parameters = flow.validate_parameters(parameters)
+            except Exception as exc:
+                state = Failed(
+                    message="Flow run received invalid parameters.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                )
+                await client.propose_state(
+                    state=state,
+                    flow_run_id=flow_run.id,
+                )
+                logger.error("Received invalid parameters", exc_info=True)
+                return state
+
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(
+                report_flow_run_crashes(flow_run=flow_run, client=client)
+            )
+            task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+            terminal_state = await orchestrate_flow_run(
+                flow,
+                flow_run=flow_run,
+                parameters=parameters,
+                client=client,
+                partial_flow_run_context=PartialModel(
+                    FlowRunContext,
+                    sync_portal=parent_flow_run_context.sync_portal,
+                    result_storage=parent_flow_run_context.result_storage,
+                    task_runner=task_runner,
+                ),
+            )
 
     # Display the full state (including the result) if debugging
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -460,6 +482,8 @@ async def orchestrate_flow_run(
     state = await client.propose_state(Running(), flow_run_id=flow_run.id)
 
     while state.is_running():
+        waited_for_task_runs = False
+
         try:
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
@@ -489,12 +513,11 @@ async def orchestrate_flow_run(
                             flow_call
                         )
 
-                await wait_for_task_runs_and_report_crashes(
+                waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
 
         except TimeoutError as exc:
-            # Report the failed flow without waiting for task runs to complete
             # TODO: Cancel task runs if feasible
             terminal_state = Failed(
                 name="TimedOut",
@@ -505,12 +528,6 @@ async def orchestrate_flow_run(
                 f"Encountered exception during execution:",
                 exc_info=True,
             )
-
-            # Wait for task runs to complete before reporting the failed flow
-            await wait_for_task_runs_and_report_crashes(
-                flow_run_context.task_run_futures, client=client
-            )
-
             terminal_state = Failed(
                 message="Flow run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),
@@ -525,6 +542,14 @@ async def orchestrate_flow_run(
 
             terminal_state = await return_value_to_state(
                 result, serializer="cloudpickle"
+            )
+
+        if not waited_for_task_runs:
+            # An exception occured that prevented us from waiting for task runs to
+            # complete. Ensure that we wait for them before proposing a final state
+            # for the flow run.
+            await wait_for_task_runs_and_report_crashes(
+                flow_run_context.task_run_futures, client=client
             )
 
         # Before setting the flow run state, store state.data using
@@ -925,7 +950,7 @@ async def orchestrate_task_run(
 
 async def wait_for_task_runs_and_report_crashes(
     task_run_futures: Iterable[PrefectFuture], client: OrionClient
-) -> None:
+) -> Literal[True]:
     crash_exceptions = []
 
     # Gather states concurrently first
@@ -962,6 +987,8 @@ async def wait_for_task_runs_and_report_crashes(
     for exception in crash_exceptions:
         if isinstance(exception, (KeyboardInterrupt, SystemExit)):
             raise exception
+
+    return True
 
 
 @asynccontextmanager
