@@ -287,6 +287,8 @@ class RetryFailedFlows(BaseOrchestrationRule):
             await task_runs.set_task_run_state(
                 context.session, run.id, state=states.Pending(), force=True
             )
+            # Reset the run count so that the task run retries still work correctly
+            run.run_count = 0
 
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(

@@ -1309,7 +1309,7 @@ class TestFlowRetries:
             return "hello"
 
         @flow(retries=1)
-        def foo():
+        def my_flow():
             nonlocal flow_run_count
             flow_run_count += 1
 
@@ -1321,7 +1321,7 @@ class TestFlowRetries:
 
             return fut
 
-        assert foo().result().result() == "hello"
+        assert my_flow().result().result() == "hello"
         assert flow_run_count == 2
         assert task_run_count == 2, "Task should be reset and run again"
 
@@ -1518,3 +1518,75 @@ class TestFlowRetries:
         assert flow_run_count == 2
         assert child_flow_run_count == 2, "Child flow should run again"
         assert child_task_run_count == 2, "Child taks should run again with child flow"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries(self):
+        task_run_retry_count = 0
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=1)
+        def my_task():
+            nonlocal task_run_count, task_run_retry_count
+            task_run_count += 1
+            task_run_retry_count += 1
+
+            # Always fail on the first flow run
+            if flow_run_count == 1:
+                raise ValueError("Fail on first flow run")
+
+            # Only fail the first time this task is called within a given flow run
+            # This ensures that we will always retry this task so we can ensure
+            # retry logic is preserved
+            if task_run_retry_count == 1:
+                raise ValueError("Fail on first task run")
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count, task_run_retry_count
+            task_run_retry_count = 0
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 4, "Task should use all of its retries every time"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries_cannot_exceed_retries(
+        self,
+    ):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=2)
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            raise ValueError("This task always fails")
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        with pytest.raises(ValueError, match="This task always fails"):
+            my_flow().result().result()
+
+        assert flow_run_count == 2
+        assert task_run_count == 6, "Task should use all of its retries every time"
