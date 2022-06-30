@@ -18,7 +18,7 @@ The fundamental building blocks of Prefect are [flows](/concepts/flows/) and [ta
 
 ## Deployment and Orchestration 
 
-If you are looking to configure the rules that govern your tasks' state transitions, or better understand how runs are orchestrated in the backend then diving into [states](/concepts/states/), [logs](/concepts/logs/) and the [Prefect UI](/ui/overview/) and [Prefect Cloud](/ui/cloud/) should help orient you.
+If you are looking to configure the rules that govern your tasks' state transitions, or better understand how runs are orchestrated in the backend, then diving into [states](/concepts/states/), [logs](/concepts/logs/) and the [Prefect UI](/ui/overview/) or [Prefect Cloud](/ui/cloud/) should help orient you.
 
 Once you are comfortable writing and running workflows interactively or manually via scripts, you will most likely want to package and "deploy" them, which enables you to create flow runs in other execution environments, via the UI, API, or schedules. Deploying a workflow in Prefect requires understanding: 
 

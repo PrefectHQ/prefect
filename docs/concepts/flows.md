@@ -14,11 +14,11 @@ Flows are the most basic Prefect object. Flows are the only Prefect abstraction 
 
 ## Flows overview
 
-Flows are functions: they can take inputs, perform work, and return an output. A Prefect flow can do almost anything a Python function can do.
+Flows are like functions. They can take inputs, perform work, and return an output. In fact, you can turn any function into a Prefect flow by adding the `@flow` decorator. When a function becomes a flow, its behavior changes, giving it advantages.
 
 Flows also take advantage of automatic Prefect logging to capture details about flow runs such as runtime, tags, and final state. Flows are required for [deployments](/concepts/deployments/) &mdash; every deployment points to a specific flow as the entrypoint of an API-generated flow run.
 
-All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#subflows) in this context. Flows may be defined within modules and importd for use as subflows in your flow definitions. 
+All workflows are defined within the context of a flow. Flows can include calls to [tasks](/concepts/tasks/) as well as to other flows, which we call ["subflows"](#subflows) in this context. Flows may be defined within modules and imported for use as subflows in your flow definitions. 
 
 !!! warning Tasks must be called from flows
     All tasks must be called from within a flow. Tasks may not be called from other tasks.
@@ -60,9 +60,9 @@ def hello_world(name="world"):
     
     However, organizing your workflow code into smaller flow and task units lets you take advantage of Prefect features like retries, more granular visibility into runtime state, the ability to determine final state regardless of individual task state, and more.
     
-    In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
+    In addition, if you put all of your workflow logic in a single flow function and any line of code fails, the entire flow will fail and must be retried from the beginning. This can be avoided by breaking up the code into multiple tasks.
 
-    Each Prefect workflow must contain one primary `@flow` function. From that flow function you may call any number of other tasks, subflows, and even regular Python functions. You can pass parameters to your primary flow function that will be used elsewhere in the workflow, and the [final state](#final-state-determination) of that primary flow function determines the final state of your workflow.
+    Each Prefect workflow must contain one primary `@flow` function. From that flow function, you may call any number of other tasks, subflows, and even regular Python functions. You can pass parameters to your primary flow function that will be used elsewhere in the workflow, and the [final state](#final-state-determination) of that primary flow function determines the final state of your workflow.
 
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
@@ -156,7 +156,7 @@ Hello Marvin!
 
 A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
 
-Subflow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a subflow starts, it will create a new task runner and tasks within the subflow are submitted to it. When the subflow completes, the task runner is shut down.
+Subflow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a subflow starts, it will create a new [task runner](/concepts/task-runners/) and tasks within the subflow are submitted to it. When the subflow completes, the task runner is shut down.
 
 Unlike tasks, subflows will block until completion with all task runners. However, asynchronous subflows can be run in parallel by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
@@ -402,8 +402,7 @@ Completed(message='All states completed.', type=COMPLETED, result=Completed(mess
 
 ### Return multiple states or futures
 
-If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states then
-determining if any of the states are not `COMPLETED`.
+If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states, then determining if any of the states are not `COMPLETED`.
 
 ```python hl_lines="20"
 from prefect import task, flow
