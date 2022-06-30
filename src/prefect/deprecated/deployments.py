@@ -9,7 +9,7 @@ from pydantic import Field, PrivateAttr, validator
 
 from prefect.blocks.storage import StorageBlock
 from prefect.client import OrionClient, inject_client
-from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import DeploymentValidationError, MissingFlowError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings, UniversalFlowRunner
 from prefect.flows import Flow, load_flow_from_script
@@ -222,7 +222,15 @@ class DeploymentSpec(PrefectBaseModel, abc.ABC):
 
 
 def deployment_specs_from_script(path: str) -> List[DeploymentSpec]:
+    from prefect.context import registry_from_script
+
     return registry_from_script(path).get_instances(DeploymentSpec)
+
+
+def deployment_specs_from_yaml(path: str) -> List[DeploymentSpec]:
+    from prefect.deployments import load_deployments_from_yaml
+
+    return load_deployments_from_yaml(path).get_instances(DeploymentSpec)
 
 
 def _register_spec(spec: DeploymentSpec) -> None:
