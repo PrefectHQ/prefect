@@ -1317,6 +1317,7 @@ class TestFlowRetries:
 
             fut = my_task()
 
+            # It is important that the flow run fails after the task run is created
             if flow_run_count == 1:
                 raise ValueError()
 
@@ -1325,3 +1326,38 @@ class TestFlowRetries:
         assert foo().result().result() == "hello"
         assert flow_run_count == 2
         assert task_run_count == 2, "Task should be reset and run again"
+
+    async def test_flow_retry_with_branched_tasks(self, orion_client):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def identity(value):
+            return value
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            # Raise on the first run but use 'foo'
+            if flow_run_count == 1:
+                identity("foo")
+                raise ValueError()
+            else:
+                # On the second run, switch to 'bar'
+                result = identity("bar")
+
+            return result
+
+        assert flow_run_count == 2
+
+        # The state is pulled from the API and needs to be decoded
+        document = my_flow().result().result()
+        result = await orion_client.resolve_datadoc(document)
+
+        assert result == "bar"
+        # AssertionError: assert 'foo' == 'bar'
+        # Wait, what? Because tasks are identified by dynamic key which is a simple
+        # increment each time the task is called, if there branching is different
+        # after a flow run retry, the stale value will be pulled from the cache.
