@@ -385,7 +385,7 @@ async def create_and_begin_subflow_run(
 
         # Hydrate the retrieved state
         flow_run.state.data._cache_data(
-            await client.resolve_datadoc(terminal_state.data)
+            await client.resolve_datadoc(flow_run.state.data)
         )
 
         # Set up variables required downstream
