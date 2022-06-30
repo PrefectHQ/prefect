@@ -738,6 +738,9 @@ class TestGetWorkQueuesForDeployment:
     async def setup(self, session, flow, flow_function):
         """
         Create combinations of work queues, and a deployment to make sure that query is working correctly.
+
+        Returns the ID of the deployment that was created and a random ID that was provided to work queues
+        for testing purposes.
         """
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = (
@@ -778,7 +781,7 @@ class TestGetWorkQueuesForDeployment:
             [match_id, miss_id],
         ]
 
-        # General all combinations of work queue
+        # Generate all combinations of work queues
         for t in tags:
             for f in flow_runners:
                 for d in deployments:
@@ -808,16 +811,12 @@ class TestGetWorkQueuesForDeployment:
                     q.filter.flow_runner_types,
                     q.filter.deployment_ids,
                 ]
-                try:
-                    assert queue_attrs in expected
-                except Exception as e:
-                    print(f"Work queue attrs: {queue_attrs}")
-                    print(f"Expected queues: {expected}")
-                    raise
+                assert queue_attrs in expected
 
             assert len(expected) == len(actual)
 
         async def update_deployment_tags(tags):
+            """Utility function to change tags for the test deployment"""
             flow_data = DataDocument.encode("json", "test-override")
             await models.deployments.create_deployment(
                 session=session,
@@ -833,7 +832,6 @@ class TestGetWorkQueuesForDeployment:
 
         # Expected queue IDs
         match_id, miss_id = setup
-        print(f"match_id: {match_id}")  # for test debugging
 
         no_tag_expected_queues = [
             [[], [], []],
