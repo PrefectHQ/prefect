@@ -1,6 +1,6 @@
 <template>
   <p-card>
-    <NotificationForm v-if="notification" :notification="notification" />
+    <NotificationForm v-if="notification" v-model:notification="notification" @submit="submit" />
   </p-card>
 </template>
 
@@ -13,4 +13,7 @@
   const notificationId = useRouteParam('notificationId')
   const notificationSubscription = useSubscription(notificationsApi.getNotification, [notificationId.value])
   const notification = computed(() => notificationSubscription.response)
+  function submit(notification: Partial<Notification>): void {
+    console.log({ notification })
+  }
 </script>
