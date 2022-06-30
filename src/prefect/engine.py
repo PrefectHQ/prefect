@@ -374,18 +374,22 @@ async def create_and_begin_subflow_run(
 
     if parent_task_run.state.is_final():
 
-        # Retrieve the already-completed flow run from the database
-
+        # Retrieve the most recent flow run from the database
         flow_runs = await client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 parent_task_run_id={"any_": [parent_task_run.id]}
             ),
-            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
-        flow_run = flow_runs[0]
+        flow_run = flow_runs[-1]
+
+        # Hydrate the retrieved state
+        flow_run.state.data._cache_data(
+            await client.resolve_datadoc(terminal_state.data)
+        )
+
+        # Set up variables required downstream
         terminal_state = flow_run.state
-        resolved = await client.resolve_datadoc(terminal_state.data)
-        terminal_state.data._cache_data(resolved)
         logger = flow_run_logger(flow_run, flow)
 
     else:
