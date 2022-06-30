@@ -1663,7 +1663,7 @@ class OrionClient:
                 ]
             ],
         ] = None,
-    ) -> UUID:
+    ) -> TaskRun:
         """
         Create a task run
 
@@ -1679,7 +1679,7 @@ class OrionClient:
             task_inputs: the set of inputs passed to the task
 
         Returns:
-            The UUID of the newly created task run
+            The created task run.
         """
         tags = set(task.tags).union(extra_tags or [])
 

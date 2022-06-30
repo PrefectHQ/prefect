@@ -1406,3 +1406,32 @@ class TestFlowRetries:
 
         # There should only be the child flow run's task
         assert len(task_runs) == 1
+
+    async def test_flow_retry_with_error_in_flow_and_one_successful_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            child_state = child_flow()
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return child_state
+
+        state = parent_flow()
+        assert state.result().result() == "hello"
+        assert flow_run_count == 2
+        assert child_run_count == 1, "Child flow should not run again"
