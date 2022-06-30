@@ -1579,7 +1579,9 @@ class OrionClient:
         Returns:
             the persisted object
         """
-        datadoc = DataDocument.parse_raw(await self.retrieve_data(storage_datadoc))
+        datadoc = DataDocument.parse_raw(
+            await self.retrieve_data(storage_datadoc.decode())
+        )
         return datadoc.decode()
 
     async def set_flow_run_state(
