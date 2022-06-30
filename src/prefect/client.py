@@ -396,7 +396,22 @@ class OrionClient:
         Returns:
             the ID of the flow in the backend
         """
-        flow_data = schemas.actions.FlowCreate(name=flow.name)
+        return await self.create_flow_from_name(flow.name)
+
+    async def create_flow_from_name(self, flow_name: str) -> UUID:
+        """
+        Create a flow in Orion.
+
+        Args:
+            flow_name: the name of the new flow
+
+        Raises:
+            httpx.RequestError: if a flow was not created for any reason
+
+        Returns:
+            the ID of the flow in the backend
+        """
+        flow_data = schemas.actions.FlowCreate(name=flow_name)
         response = await self._client.post(
             "/flows/", json=flow_data.dict(json_compatible=True)
         )
