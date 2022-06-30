@@ -23,17 +23,16 @@ class PythonEnvironment(BaseModel):
         return value
 
     @classmethod
-    def from_environment(cls: Type[Self], include_nested: bool = True) -> Self:
+    def from_environment(cls: Type[Self], exclude_nested: bool = False) -> Self:
         """
         Generate requirements from the current environment
 
         Arguments:
-            include_nested: If set, include requirements that are required by other
-                packages. If unset, only top-level requirements will be included.
+            exclude_nested: If True, only top-level requirements will be included.
                 Defaults to including all requirements.
         """
         pip_requirements = current_environment_requirements(
-            include_nested=include_nested, on_uninstallable_requirement="warn"
+            exclude_nested=exclude_nested, on_uninstallable_requirement="warn"
         )
         return cls(pip_requirements=pip_requirements)
 
