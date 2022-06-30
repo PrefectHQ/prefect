@@ -340,7 +340,6 @@ class FlowRunNotificationPolicyCreate(
     schemas.core.FlowRunNotificationPolicy.subclass(
         "FlowRunNotificationPolicyCreate",
         include_fields=[
-            "name",
             "is_active",
             "state_names",
             "tags",
@@ -361,7 +360,6 @@ class FlowRunNotificationPolicyUpdate(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    name: Optional[str] = None
     is_active: Optional[bool] = None
     state_names: Optional[List[str]] = None
     tags: Optional[List[str]] = None

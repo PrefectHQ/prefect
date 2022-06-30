@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 import prefect
 from prefect.cli.dev import dev_app
 from prefect.docker import (
+    IMAGE_LABELS,
     Container,
     DockerClient,
     ImageNotFound,
@@ -14,12 +15,32 @@ from prefect.docker import (
     silence_docker_warnings,
 )
 from prefect.flow_runners.base import get_prefect_image_name
+from prefect.flow_runners.docker import CONTAINER_LABELS
 
 
 @pytest.fixture(scope="session")
 def docker() -> Generator[DockerClient, None, None]:
     with docker_client() as client:
         yield client
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_all_new_docker_objects(docker: DockerClient, worker_id: str):
+    IMAGE_LABELS["io.prefect.test-worker"] = worker_id
+    CONTAINER_LABELS["io.prefect.test-worker"] = worker_id
+    try:
+        yield
+    finally:
+        for container in docker.containers.list(all=True):
+            if container.labels.get("io.prefect.test-worker") == worker_id:
+                container.remove(force=True)
+            elif container.labels.get("io.prefect.delete-me"):
+                container.remove(force=True)
+
+        filters = {"label": f"io.prefect.test-worker={worker_id}"}
+        for image in docker.images.list(filters=filters):
+            for tag in image.tags:
+                docker.images.remove(tag, force=True)
 
 
 @pytest.mark.timeout(120)
@@ -36,7 +57,9 @@ def prefect_base_image(pytestconfig: pytest.Config, docker: DockerClient):
         pass
 
     if image_exists:
-        output = docker.containers.run(image_name, ["prefect", "--version"])
+        output = docker.containers.run(
+            image_name, ["prefect", "--version"], remove=True
+        )
         image_version = output.decode().strip()
         version_is_right = image_version == prefect.__version__
 
