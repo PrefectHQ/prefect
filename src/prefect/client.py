@@ -1041,6 +1041,30 @@ class OrionClient:
                 raise
         return BlockDocument.parse_obj(response.json())
 
+    async def update_block_document(
+        self,
+        block_document_id: UUID,
+        block_document: schemas.actions.BlockDocumentUpdate,
+    ):
+        """
+        Update a block document in Orion.
+        """
+        try:
+            await self._client.patch(
+                f"/block_documents/{block_document_id}",
+                json=block_document.dict(
+                    json_compatible=True,
+                    exclude_unset=True,
+                    include={"name", "data"},
+                    include_secrets=True,
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_block_type_by_name(self, name: str) -> BlockType:
         """
         Read a block type by its name.

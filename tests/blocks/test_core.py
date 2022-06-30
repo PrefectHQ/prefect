@@ -1161,6 +1161,74 @@ class TestSaveBlock:
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
 
+    async def test_save_block_with_overwrite(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+        await inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        assert loaded_inner_block == inner_block
+
+    async def test_save_block_without_overwrite_raises(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        inner_block.size = 2
+
+        with pytest.raises(
+            ValueError,
+            match="You are attempting to save values with a name that is already in "
+            "use for this block type",
+        ):
+            await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 1
+
+    async def test_update_from_loaded_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+        await loaded_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block_after_update = await InnerBlock.load("my-inner-block")
+        assert loaded_inner_block == loaded_inner_block_after_update
+
+    async def test_update_from_in_memory_block(self, InnerBlock):
+        inner_block = InnerBlock(size=1)
+        await inner_block.save("my-inner-block")
+
+        updated_inner_block = InnerBlock(size=2)
+        await updated_inner_block.save("my-inner-block", overwrite=True)
+
+        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block.size = 2
+
+        assert loaded_inner_block == updated_inner_block
+
+    async def test_update_block_with_secrets(self, InnerBlock):
+        class HasSomethingToHide(Block):
+            something_to_hide: SecretStr
+
+        shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
+        await shifty_block.save("my-shifty-block")
+
+        updated_shifty_block = HasSomethingToHide(
+            something_to_hide="a birthday present"
+        )
+        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+
+        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        assert (
+            loaded_shifty_block.something_to_hide.get_secret_value()
+            == "a birthday present"
+        )
+
 
 class TestToBlockType:
     def test_to_block_type_from_block(self, test_block: Type[Block]):
