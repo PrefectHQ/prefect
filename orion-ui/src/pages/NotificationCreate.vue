@@ -17,7 +17,7 @@
     try {
       const notificationRequest: INotificationRequest = {
         name: 'polly',
-        state_names: notification.stateNames ?? []!,
+        state_names: notification.stateNames ?? [],
         tags: notification.tags ?? [],
         is_active: true,
         block_document_id: notification.blockDocumentId!,
