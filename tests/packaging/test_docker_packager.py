@@ -4,16 +4,13 @@ import warnings
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from tarfile import TarFile, TarInfo
-from unittest.mock import MagicMock
 
-import anyio.abc
 import pytest
 
 from prefect.client import OrionClient
 from prefect.deployments import Deployment
 from prefect.docker import Container, DockerClient
 from prefect.flow_runners.docker import DockerFlowRunner
-from prefect.orion.schemas.states import StateType
 from prefect.packaging.docker import DockerPackageManifest, DockerPackager
 from prefect.software.python import PythonEnvironment
 
@@ -221,33 +218,3 @@ def assert_unpackaged_flow_works(docker: DockerClient, manifest: DockerPackageMa
         assert response["StatusCode"] == 0, output
     finally:
         container.remove(force=True)
-
-
-async def test_end_to_end(
-    use_hosted_orion, prefect_base_image: str, orion_client: OrionClient
-):
-    deployment = Deployment(
-        name="howdy-deployed",
-        flow=howdy,
-        packager=DockerPackager(
-            base_image=prefect_base_image,
-            python_environment=PythonEnvironment(
-                python_version="3.9",
-                pip_requirements=["requests==2.28.0"],
-            ),
-        ),
-        parameters={"name": "partner"},
-    )
-    deployment_id = await deployment.create()
-
-    server_deployment = await orion_client.read_deployment(deployment_id)
-    manifest: DockerPackageManifest = server_deployment.flow_data.decode()
-    runner = DockerFlowRunner(image=manifest.image)
-
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
-
-    task_status = MagicMock(spec=anyio.abc.TaskStatus)
-    assert await runner.submit_flow_run(flow_run, task_status)
-
-    flow_run = await orion_client.read_flow_run(flow_run.id)
-    assert flow_run.state.type == StateType.COMPLETED, flow_run.state.message
