@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models.deployments import get_work_queues_for_deployment
+from prefect.orion.models.deployments import check_work_queues_for_deployment
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import StateType
@@ -729,10 +729,12 @@ class TestScheduledRuns:
         assert result.scalar() == 0
 
 
-class TestGetWorkQueuesForDeployment:
+class TestCheckWorkQueuesForDeployment:
     async def test_object_not_found_error_raised(self, session):
         with pytest.raises(ObjectNotFoundError):
-            await get_work_queues_for_deployment(session=session, deployment_id=uuid4())
+            await check_work_queues_for_deployment(
+                session=session, deployment_id=uuid4()
+            )
 
     @pytest.fixture
     async def setup(self, session, flow, flow_function):
@@ -844,7 +846,7 @@ class TestGetWorkQueuesForDeployment:
             [[], ["subprocess", "kubernetes"], [match_id]],
             [[], ["subprocess", "kubernetes"], [match_id, miss_id]],
         ]
-        no_tag_actual_queues = await get_work_queues_for_deployment(
+        no_tag_actual_queues = await check_work_queues_for_deployment(
             session=session, deployment_id=match_id
         )
         compare_queues(expected=no_tag_expected_queues, actual=no_tag_actual_queues)
@@ -861,7 +863,7 @@ class TestGetWorkQueuesForDeployment:
             [["a"], ["subprocess", "kubernetes"], [match_id]],
             [["a"], ["subprocess", "kubernetes"], [match_id, miss_id]],
         ]
-        one_tag_actual_queues = await get_work_queues_for_deployment(
+        one_tag_actual_queues = await check_work_queues_for_deployment(
             session=session, deployment_id=match_id
         )
         compare_queues(expected=one_tag_expected_queues, actual=one_tag_actual_queues)
@@ -878,7 +880,7 @@ class TestGetWorkQueuesForDeployment:
             [["a", "b"], ["subprocess", "kubernetes"], [match_id]],
             [["a", "b"], ["subprocess", "kubernetes"], [match_id, miss_id]],
         ]
-        two_tag_actual_queues = await get_work_queues_for_deployment(
+        two_tag_actual_queues = await check_work_queues_for_deployment(
             session=session, deployment_id=match_id
         )
         compare_queues(expected=two_tag_expected_queues, actual=two_tag_actual_queues)

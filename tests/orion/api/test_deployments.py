@@ -857,9 +857,9 @@ class TestCreateFlowRunFromDeployment:
         ).dict(json_compatible=True)
 
 
-class TestGetDeploymentWorkQueues:
+class TestGetDeploymentWorkQueueCheck:
     async def test_404_on_bad_id(self, client):
-        response = await client.get(f"deployments/{uuid4()}/work_queues")
+        response = await client.get(f"deployments/{uuid4()}/work_queue_check")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_well_formed_response(self, session, client, flow, flow_function):
@@ -895,7 +895,7 @@ class TestGetDeploymentWorkQueues:
         )
         await session.commit()
 
-        response = await client.get(f"deployments/{deployment.id}/work_queues")
+        response = await client.get(f"deployments/{deployment.id}/work_queue_check")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
 
