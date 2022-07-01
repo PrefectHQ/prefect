@@ -289,8 +289,8 @@ async def create_flow_run_from_deployment(
     return model
 
 
-@router.get("/{id}/work_queues")
-async def get_work_queues_for_deployment(
+@router.get("/{id}/work_queue_check")
+async def check_work_queues_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.WorkQueue]:
@@ -298,7 +298,7 @@ async def get_work_queues_for_deployment(
     Get work-queues that are able to pick up the specified deployment.
     """
     try:
-        work_queues = await models.deployments.get_work_queues_for_deployment(
+        work_queues = await models.deployments.check_work_queues_for_deployment(
             session=session, deployment_id=deployment_id
         )
     except ObjectNotFoundError as exc:
