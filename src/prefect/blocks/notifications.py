@@ -38,7 +38,7 @@ class DebugPrintNotification(CanNotify):
 
 # TODO: Move to prefect-slack once collection block auto-registration is
 # available
-@register_block
+@register_type
 class SlackWebhook(CanNotify):
     """
     Enables sending notifications via a provided Slack webhook.
