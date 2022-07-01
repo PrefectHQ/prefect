@@ -152,6 +152,7 @@ class TestReturnValueToState:
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
             task_run=task_run,
+            run_key=str(task_run.id),
             task_runner=None,
             _final_state=state,
         )

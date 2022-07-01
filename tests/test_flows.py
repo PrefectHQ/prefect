@@ -10,14 +10,16 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.storage import TempStorageBlock
-from prefect.client import get_client
+from prefect.client import OrionClient, get_client
 from prefect.context import PrefectObjectRegistry
 from prefect.exceptions import InvalidNameError, ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import State, StateType
-from prefect.states import raise_failed_state
+from prefect.states import StateType, raise_failed_state
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
 from prefect.utilities.collections import flatdict_to_dict
@@ -1221,3 +1223,433 @@ class TestFlowResults:
 
         retrieved_result = await orion_client.resolve_datadoc(child_flow_run.state.data)
         assert retrieved_result == child_state.result()
+
+
+class TestFlowRetries:
+    def test_flow_retry_with_error_in_flow(self):
+        run_count = 0
+
+        @flow(retries=1)
+        def foo():
+            nonlocal run_count
+            run_count += 1
+            if run_count == 1:
+                raise ValueError()
+            return "hello"
+
+        assert foo().result() == "hello"
+        assert run_count == 2
+
+    async def test_flow_retry_with_error_in_flow_and_successful_task(
+        self, orion_client
+    ):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 1
+
+    def test_flow_retry_with_no_error_in_flow_and_one_failed_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return my_task()
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 2, "Task should be reset and run again"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task(self):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert my_flow().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 2, "Task should be reset and run again"
+
+    @pytest.mark.xfail
+    async def test_flow_retry_with_branched_tasks(self, orion_client):
+        flow_run_count = 0
+
+        @task
+        def identity(value):
+            return value
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            # Raise on the first run but use 'foo'
+            if flow_run_count == 1:
+                identity("foo")
+                raise ValueError()
+            else:
+                # On the second run, switch to 'bar'
+                result = identity("bar")
+
+            return result
+
+        my_flow()
+
+        assert flow_run_count == 2
+
+        # The state is pulled from the API and needs to be decoded
+        document = my_flow().result().result()
+        result = await orion_client.retrieve_data(document)
+
+        assert result == "bar"
+        # AssertionError: assert 'foo' == 'bar'
+        # Wait, what? Because tasks are identified by dynamic key which is a simple
+        # increment each time the task is called, if there branching is different
+        # after a flow run retry, the stale value will be pulled from the cache.
+
+    async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            return child_flow()
+
+        state = parent_flow()
+        assert state.result().result() == "hello"
+        assert flow_run_count == 2
+        assert child_run_count == 2, "Child flow should be reset and run again"
+
+        # Ensure that the tracking task run for the subflow is reset and tracked
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(
+                id={"any_": [state.state_details.flow_run_id]}
+            )
+        )
+        state_types = {task_run.state_type for task_run in task_runs}
+        assert state_types == {StateType.COMPLETED}
+
+        # There should only be the child flow run's task
+        assert len(task_runs) == 1
+
+    async def test_flow_retry_with_error_in_flow_and_one_successful_child_flow(self):
+        child_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_run_count
+            child_run_count += 1
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+            child_state = child_flow()
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return child_state
+
+        state = parent_flow()
+        assert state.result().result() == "hello"
+        assert flow_run_count == 2
+        assert child_run_count == 1, "Child flow should not run again"
+
+    async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
+        self, orion_client: OrionClient
+    ):
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+
+            # Fail on the first flow run but not the retry
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            # It is important that the flow run fails after the child flow run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return state
+
+        parent_state = parent_flow()
+        child_state = parent_state.result()
+        assert child_state.result() == "hello"
+        assert flow_run_count == 2
+        assert child_flow_run_count == 2, "Child flow should run again"
+
+        child_flow_run = await orion_client.read_flow_run(
+            child_state.state_details.flow_run_id
+        )
+        child_flow_runs = await orion_client.read_flow_runs(
+            flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
+            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+        )
+
+        assert len(child_flow_runs) == 2
+
+        # The original flow run has its failed state preserved
+        assert child_flow_runs[0].state.is_failed()
+
+        # The final flow run is the one returned by the parent flow
+        assert child_flow_runs[-1] == child_flow_run
+
+    async def test_flow_retry_with_failed_child_flow_with_failed_task(self):
+        child_task_run_count = 0
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @task
+        def child_task():
+            nonlocal child_task_run_count
+            child_task_run_count += 1
+
+            # Fail on the first task run but not the retry
+            if child_task_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+            return child_task()
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow().result().result().result() == "hello"
+        assert flow_run_count == 2
+        assert child_flow_run_count == 2, "Child flow should run again"
+        assert child_task_run_count == 2, "Child taks should run again with child flow"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries(self):
+        task_run_retry_count = 0
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=1)
+        def my_task():
+            nonlocal task_run_count, task_run_retry_count
+            task_run_count += 1
+            task_run_retry_count += 1
+
+            # Always fail on the first flow run
+            if flow_run_count == 1:
+                raise ValueError("Fail on first flow run")
+
+            # Only fail the first time this task is called within a given flow run
+            # This ensures that we will always retry this task so we can ensure
+            # retry logic is preserved
+            if task_run_retry_count == 1:
+                raise ValueError("Fail on first task run")
+
+            return "hello"
+
+        @flow(retries=1)
+        def foo():
+            nonlocal flow_run_count, task_run_retry_count
+            task_run_retry_count = 0
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        assert foo().result().result() == "hello"
+        assert flow_run_count == 2
+        assert task_run_count == 4, "Task should use all of its retries every time"
+
+    def test_flow_retry_with_error_in_flow_and_one_failed_task_with_retries_cannot_exceed_retries(
+        self,
+    ):
+        task_run_count = 0
+        flow_run_count = 0
+
+        @task(retries=2)
+        def my_task():
+            nonlocal task_run_count
+            task_run_count += 1
+            raise ValueError("This task always fails")
+
+        @flow(retries=1)
+        def my_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            fut = my_task()
+
+            # It is important that the flow run fails after the task run is created
+            if flow_run_count == 1:
+                raise ValueError()
+
+            return fut
+
+        with pytest.raises(ValueError, match="This task always fails"):
+            my_flow().result().result()
+
+        assert flow_run_count == 2
+        assert task_run_count == 6, "Task should use all of its retries every time"
+
+    async def test_flow_with_failed_child_flow_with_retries(self):
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count
+            child_flow_run_count += 1
+
+            # Fail on first try.
+            if child_flow_run_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow
+        def parent_flow():
+            nonlocal flow_run_count
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow().result().result() == "hello"
+        assert flow_run_count == 1, "Parent flow should only run once"
+        assert child_flow_run_count == 2, "Child flow should run again"
+
+    async def test_parent_flow_retries_failed_child_flow_with_retries(self):
+        child_flow_retry_count = 0
+        child_flow_run_count = 0
+        flow_run_count = 0
+
+        @flow(retries=1)
+        def child_flow():
+            nonlocal child_flow_run_count, child_flow_retry_count
+            child_flow_run_count += 1
+            child_flow_retry_count += 1
+
+            # Fail during first parent flow run, but not on parent retry.
+            if flow_run_count == 1:
+                raise ValueError()
+
+            # Fail on first try after parent retry.
+            if child_flow_retry_count == 1:
+                raise ValueError()
+
+            return "hello"
+
+        @flow(retries=1)
+        def parent_flow():
+            nonlocal flow_run_count, child_flow_retry_count
+            child_flow_retry_count = 0
+            flow_run_count += 1
+
+            state = child_flow()
+
+            return state
+
+        assert parent_flow().result().result() == "hello"
+        assert flow_run_count == 2, "Parent flow should exhaust retries"
+        assert (
+            child_flow_run_count == 4
+        ), "Child flow should run 2 times for each parent run"

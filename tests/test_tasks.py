@@ -389,7 +389,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.wait()
+            return future.task_run.id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = flow_state.result()
@@ -432,7 +432,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.wait()
+            return future.task_run.id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = flow_state.result()
