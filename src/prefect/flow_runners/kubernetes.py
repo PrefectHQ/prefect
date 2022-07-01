@@ -38,6 +38,7 @@ from prefect.utilities.importtools import lazy_import
 kubernetes: ModuleType("kubernetes") = lazy_import("kubernetes")
 
 if TYPE_CHECKING:
+    import kubernetes.config
     from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
 
 

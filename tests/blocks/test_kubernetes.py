@@ -67,10 +67,10 @@ async def test_get_api_client(config_file):
     assert isinstance(api_client, ApiClient)
 
 
-async def test_activate_configuration(config_file):
+async def test_configure_client(config_file):
     cluster_config = KubernetesClusterConfig.from_file(path=config_file)
 
-    cluster_config.activate()
+    cluster_config.configure_client()
 
     context_dict = list_kube_config_contexts(config_file=str(config_file))
 
