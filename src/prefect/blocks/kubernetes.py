@@ -1,73 +1,81 @@
 from pathlib import Path
-from typing import Dict
+from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
-from kubernetes.client import ApiClient
-from kubernetes.config.kube_config import (
-    KUBE_CONFIG_DEFAULT_LOCATION,
-    list_kube_config_contexts,
-    load_kube_config_from_dict,
-    new_client_from_config_dict,
-)
-from pydantic import validate_arguments
+from typing_extensions import Self
 
 from prefect.blocks.core import Block, register_block
+from prefect.utilities.collections import listrepr
+from prefect.utilities.importtools import lazy_import
+
+if TYPE_CHECKING:
+    import kubernetes.config.kube_config as kube_config
+    from kubernetes.client.api_client import ApiClient
+else:
+    # Lazily import from kubernetes
+    kube_config = lazy_import("kubernetes.config.kube_config")
 
 
 @register_block
 class KubernetesClusterConfig(Block):
     """
-    A `Block` class for holding information about kubernetes clusters.
+    Stores configuration for interaction with Kubernetes clusters.
+
+    See `from_file` for creation.
     """
 
     config: Dict
-    context: str = None
+    context: str
 
     @classmethod
-    @validate_arguments
-    def from_file(cls, path: Path, context: str = None):
+    def from_file(cls: Type[Self], path: Path = None, context: str = None) -> Self:
         """
-        Factory method to create instance of this block from a ~/.kube/config and a context
+        Create a cluster config from the a Kubernetes config file.
 
-        list_kube_config_contexts returns a tuple (all_contexts, current_context)
+        By default, the current context in the default Kubernetes config file will be
+        used.
 
+        An alternative file or context may be specified.
+
+        The entire config file will be loaded and stored.
         """
-        existing_contexts, current_context = list_kube_config_contexts(
+        path = Path(path or kube_config.KUBE_CONFIG_DEFAULT_LOCATION)
+        path = path.expanduser().resolve()
+
+        # Determine the context
+        existing_contexts, current_context = kube_config.list_kube_config_contexts(
             config_file=str(path)
         )
-
+        context_names = {ctx["name"] for ctx in existing_contexts}
         if context:
-            if context not in [i["name"] for i in existing_contexts]:
-                raise ValueError(f"No such context in {path}: {context}")
+            if context not in context_names:
+                raise ValueError(
+                    f"Context {context!r} not found. "
+                    f"Specify one of: {listrepr(context_names, sep=', ')}."
+                )
         else:
             context = current_context["name"]
 
+        # Load the entire config file
         config_file_contents = path.read_text()
         config_dict = yaml.safe_load(config_file_contents)
 
         return cls(config=config_dict, context=context)
 
-    @classmethod
-    def from_default_kube_config(cls):
+    def get_api_client(self) -> "ApiClient":
         """
-        Factory method to produce an instance of this class using the default kube config location
+        Returns a Kubernetes API client for this cluster config.
         """
-
-        return cls.from_file(path=KUBE_CONFIG_DEFAULT_LOCATION)
-
-    def get_api_client(self) -> ApiClient:
-        """
-        Returns an instance of the kubernetes api client with a specific context
-        """
-        return new_client_from_config_dict(
+        return kube_config.new_client_from_config_dict(
             config_dict=self.config, context=self.context
         )
 
-    def activate(self) -> None:
+    def configure_client(self) -> None:
         """
-        Convenience method for activating the k8s config stored in an instance of this block
+        Activates this cluster configuration by loading the configuration into the
+        Kubernetes Python client. After calling this, Kubernetes API clients can use
+        this config's context.
         """
-        load_kube_config_from_dict(
-            config_dict=self.config,
-            context=self.context,
+        kube_config.load_kube_config_from_dict(
+            config_dict=self.config, context=self.context
         )
