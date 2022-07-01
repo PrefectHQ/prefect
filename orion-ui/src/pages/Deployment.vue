@@ -1,7 +1,12 @@
 <template>
   <p-layout-well class="deployment">
     <template #header>
-      <PageHeadingDeployment v-if="deployment" :deployment="deployment" @update="deploymentSubscription.refresh" @delete="routeToDeployments" />
+      <PageHeadingDeployment
+        v-if="deployment"
+        :deployment="deployment"
+        @update="deploymentSubscription.refresh"
+        @delete="routeToDeployments"
+      />
     </template>
 
     <p-tabs v-if="deployment" :tabs="['Overview', 'Parameters']">
@@ -28,7 +33,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable, formatSchedule } from '@prefecthq/orion-design'
+  import { PageHeadingDeployment, DeploymentDetails, DeploymentParametersTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -46,7 +51,7 @@
   const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
-  const schedule = computed(() => deployment.value ? formatSchedule(deployment.value.schedule) : '')
+  const schedule = computed(() => deployment.value?.schedule ?? '')
 
   function routeToDeployments(): void {
     router.push(routes.deployments())

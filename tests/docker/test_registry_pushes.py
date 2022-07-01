@@ -1,18 +1,14 @@
 import io
 import sys
 from pathlib import Path
-from typing import Generator
 from uuid import uuid4
 
 import pendulum
 import pytest
 from _pytest.capture import CaptureFixture
-from docker import DockerClient
-from docker.errors import NotFound
-from docker.models.containers import Container
 from slugify import slugify
 
-from prefect.docker import ImageBuilder, PushError, push_image, silence_docker_warnings
+from prefect.docker import DockerClient, ImageBuilder, NotFound, PushError, push_image
 
 pytestmark = pytest.mark.service("docker")
 
@@ -23,36 +19,12 @@ def contexts() -> Path:
 
 
 @pytest.fixture(scope="module")
-def registry(docker: DockerClient) -> Generator[str, None, None]:
-    """Starts a Docker registry locally, returning its URL"""
-
-    with silence_docker_warnings():
-        # Clean up any previously-created registry:
-        try:
-            preexisting: Container = docker.containers.get("orion-test-registry")
-            preexisting.remove(force=True)  # pragma: no cover
-        except NotFound:
-            pass
-
-        container: Container = docker.containers.run(
-            "registry:2",
-            detach=True,
-            remove=True,
-            name="orion-test-registry",
-            ports={"5000/tcp": 5555},
-        )
-        try:
-            yield "http://localhost:5555"
-        finally:
-            container.remove(force=True)
-
-
-@pytest.fixture(scope="module")
-def howdy(docker: DockerClient) -> Generator[str, None, None]:
+def howdy(docker: DockerClient, worker_id: str) -> str:
     # Give the image something completely unique so that we know it will generate a
     # new image each time
     message = f"hello from the registry, {str(uuid4())}!"
     with ImageBuilder("busybox") as image:
+        image.add_line(f"LABEL io.prefect.test-worker {worker_id}")
         image.add_line(f'ENTRYPOINT [ "echo", "{message}" ]')
         image_id = image.build()
 
@@ -64,10 +36,7 @@ def howdy(docker: DockerClient) -> Generator[str, None, None]:
     test_run_tag = str(uuid4())
     docker.images.get(image_id).tag(test_run_tag)
 
-    try:
-        yield image_id
-    finally:
-        docker.images.remove(test_run_tag)
+    return image_id
 
 
 def test_pushing_to_registry(docker: DockerClient, registry: str, howdy: str):

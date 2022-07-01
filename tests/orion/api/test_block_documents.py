@@ -4,11 +4,13 @@ from uuid import uuid4
 import pydantic
 import pytest
 from fastapi import status
+from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.orion.schemas.core import BlockDocument
+from prefect.orion.utilities.schemas import OBFUSCATED_SECRET
 
 
 @pytest.fixture
@@ -1006,3 +1008,254 @@ class TestUpdateBlockDocument:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+class TestSecretBlockDocuments:
+    @pytest.fixture()
+    async def secret_block_type_and_schema(self, session):
+        class SecretBlock(Block):
+            x: SecretStr
+            y: SecretBytes
+            z: str
+
+        secret_block_type = await models.block_types.create_block_type(
+            session=session, block_type=SecretBlock._to_block_type()
+        )
+        secret_block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=SecretBlock._to_block_schema(
+                block_type_id=secret_block_type.id
+            ),
+        )
+
+        await session.commit()
+        return secret_block_type, secret_block_schema
+
+    @pytest.fixture()
+    async def secret_block_document(self, session, secret_block_type_and_schema):
+        secret_block_type, secret_block_schema = secret_block_type_and_schema
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="secret block",
+                data=dict(x="x", y="y", z="z"),
+                block_type_id=secret_block_type.id,
+                block_schema_id=secret_block_schema.id,
+            ),
+        )
+        await session.commit()
+        return block
+
+    async def test_create_secret_block_document_obfuscates_results(
+        self, client, secret_block_type_and_schema
+    ):
+        secret_block_type, secret_block_schema = secret_block_type_and_schema
+        response = await client.post(
+            "/block_documents/",
+            json=schemas.actions.BlockDocumentCreate(
+                name="secret block",
+                data=dict(x="x", y="y", z="z"),
+                block_type_id=secret_block_type.id,
+                block_schema_id=secret_block_schema.id,
+            ).dict(json_compatible=True),
+        )
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_id_obfuscates_results(
+        self, client, secret_block_document
+    ):
+
+        response = await client.get(
+            f"/block_documents/{secret_block_document.id}",
+            params=dict(),
+        )
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_id_with_secrets(
+        self, client, secret_block_document
+    ):
+
+        response = await client.get(
+            f"/block_documents/{secret_block_document.id}",
+            params=dict(include_secrets=True),
+        )
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+        assert block.data["x"] == "x"
+        assert block.data["y"] == "y"
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_documents_by_name_obfuscates_results(
+        self, client, secret_block_document
+    ):
+        response = await client.get(
+            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            params=dict(),
+        )
+        blocks = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == OBFUSCATED_SECRET
+        assert blocks[0].data["y"] == OBFUSCATED_SECRET
+        assert blocks[0].data["z"] == "z"
+
+    async def test_read_secret_block_documents_by_name_with_secrets(
+        self, client, secret_block_document
+    ):
+
+        response = await client.get(
+            f"/block_types/name/{secret_block_document.block_type.name}/block_documents",
+            params=dict(include_secrets=True),
+        )
+        blocks = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == "x"
+        assert blocks[0].data["y"] == "y"
+        assert blocks[0].data["z"] == "z"
+
+    async def test_read_secret_block_document_by_name_obfuscates_results(
+        self, client, secret_block_document
+    ):
+        response = await client.get(
+            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            params=dict(),
+        )
+        block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
+
+        assert block.data["x"] == OBFUSCATED_SECRET
+        assert block.data["y"] == OBFUSCATED_SECRET
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_document_by_name_with_secrets(
+        self, client, secret_block_document
+    ):
+
+        response = await client.get(
+            f"/block_types/name/{secret_block_document.block_type.name}/block_documents/name/{secret_block_document.name}",
+            params=dict(include_secrets=True),
+        )
+        block = pydantic.parse_obj_as(schemas.core.BlockDocument, response.json())
+
+        assert block.data["x"] == "x"
+        assert block.data["y"] == "y"
+        assert block.data["z"] == "z"
+
+    async def test_read_secret_block_documents_obfuscates_results(
+        self, client, secret_block_document
+    ):
+
+        response = await client.post(
+            f"/block_documents/filter",
+            json=dict(),
+        )
+        blocks = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == OBFUSCATED_SECRET
+        assert blocks[0].data["y"] == OBFUSCATED_SECRET
+        assert blocks[0].data["z"] == "z"
+
+    async def test_read_secret_block_documents_with_secrets(
+        self, client, secret_block_document
+    ):
+
+        response = await client.post(
+            f"/block_documents/filter",
+            json=dict(include_secrets=True),
+        )
+        blocks = pydantic.parse_obj_as(
+            List[schemas.core.BlockDocument], response.json()
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].data["x"] == "x"
+        assert blocks[0].data["y"] == "y"
+        assert blocks[0].data["z"] == "z"
+
+    async def test_nested_block_secrets_are_obfuscated_when_all_blocks_are_saved(
+        self, client, session
+    ):
+        class ChildBlock(Block):
+            x: SecretStr
+            y: str
+
+        class ParentBlock(Block):
+            a: int
+            b: SecretStr
+            child: ChildBlock
+
+        # save the child block
+        child = ChildBlock(x="x", y="y")
+        await child.save("child")
+        # save the parent block
+        block = ParentBlock(a=3, b="b", child=child)
+        await block.save("nested test")
+        await session.commit()
+        response = await client.get(f"/block_documents/{block._block_document_id}")
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+        assert block.data["a"] == 3
+        assert block.data["b"] == OBFUSCATED_SECRET
+        assert block.data["child"]["x"] == OBFUSCATED_SECRET
+        assert block.data["child"]["y"] == "y"
+
+    async def test_nested_block_secrets_are_obfuscated_when_only_top_level_block_is_saved(
+        self, client, session
+    ):
+        class ChildBlock(Block):
+            x: SecretStr
+            y: str
+
+        class ParentBlock(Block):
+            a: int
+            b: SecretStr
+            child: ChildBlock
+
+        # child block is not saved, but hardcoded into the parent block
+        child = ChildBlock(x="x", y="y")
+        # save the parent block
+        block = ParentBlock(a=3, b="b", child=child)
+        await block.save("nested test")
+        await session.commit()
+        response = await client.get(f"/block_documents/{block._block_document_id}")
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+        assert block.data["a"] == 3
+        assert block.data["b"] == OBFUSCATED_SECRET
+        assert block.data["child"]["x"] == OBFUSCATED_SECRET
+        assert block.data["child"]["y"] == "y"
+
+    async def test_nested_block_secrets_are_returned(self, client):
+        class ChildBlock(Block):
+            x: SecretStr
+            y: str
+
+        class ParentBlock(Block):
+            a: int
+            b: SecretStr
+            child: ChildBlock
+
+        block = ParentBlock(a=3, b="b", child=ChildBlock(x="x", y="y"))
+        await block.save("nested test")
+
+        response = await client.get(
+            f"/block_documents/{block._block_document_id}",
+            params=dict(include_secrets=True),
+        )
+        block = schemas.core.BlockDocument.parse_obj(response.json())
+        assert block.data["a"] == 3
+        assert block.data["b"] == "b"
+        assert block.data["child"]["x"] == "x"
+        assert block.data["child"]["y"] == "y"

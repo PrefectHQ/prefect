@@ -34,6 +34,8 @@ class ScriptPackager(Packager):
             definition and results.
     """
 
+    __dispatch_key__ = "deprecated:script"
+
     storage: Optional[Union[StorageBlock, UUID]] = None
 
     @sync_compatible

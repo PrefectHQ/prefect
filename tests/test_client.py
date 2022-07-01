@@ -87,7 +87,7 @@ class TestPrefectHttpxClient:
 
     async def test_prefect_httpx_client_respects_retry_header(self, monkeypatch):
         sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", sleep)
+        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -118,7 +118,7 @@ class TestPrefectHttpxClient:
         self, monkeypatch
     ):
         sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", sleep)
+        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
@@ -150,7 +150,7 @@ class TestPrefectHttpxClient:
         self, monkeypatch
     ):
         sleep = AsyncMock()
-        monkeypatch.setattr(anyio, "sleep", sleep)
+        monkeypatch.setattr("prefect.client.sleep", sleep)
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 

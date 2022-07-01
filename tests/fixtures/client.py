@@ -11,13 +11,13 @@ async def orion_client(test_database_connection_url):
         yield client
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def flow_function():
     @flow
-    def example_flow(param=1):
+    def client_test_flow(param=1):
         return param
 
-    return example_flow
+    return client_test_flow
 
 
 @pytest.fixture(scope="module")
