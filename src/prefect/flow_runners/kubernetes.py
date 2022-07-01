@@ -12,22 +12,25 @@ from pydantic import Field, PrivateAttr, validator
 from slugify import slugify
 from typing_extensions import Literal
 
-from prefect.orion.schemas.core import FlowRun
-from prefect.settings import PREFECT_API_URL
-from prefect.utilities.asyncio import run_sync_in_worker_thread
-
-if TYPE_CHECKING:
-    import kubernetes
-    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
-else:
-    kubernetes = None
-
 from prefect.flow_runners.base import (
     UniversalFlowRunner,
     base_flow_run_environment,
     get_prefect_image_name,
     register_flow_runner,
 )
+from prefect.orion.schemas.core import FlowRun
+from prefect.settings import PREFECT_API_URL
+from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.importtools import lazy_import
+
+# Note that we are attempting to reduce the import time of the library overall, and
+# so we are deferring the import of the `kubernetes` module until it is used.  This
+# means that all further kubernetes imports (except for the TYPE_CHECKING ones) should
+# be done locally in the runtime functions they are needed in.
+kubernetes: ModuleType("kubernetes") = lazy_import("kubernetes")
+
+if TYPE_CHECKING:
+    from kubernetes.client import BatchV1Api, Configuration, CoreV1Api, V1Job, V1Pod
 
 
 class KubernetesImagePullPolicy(enum.Enum):
@@ -160,16 +163,15 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         # Throw an error immediately if the flow run won't be able to contact the API
         self._assert_orion_settings_are_compatible()
 
-        # Python won't let us use self._k8s.config.ConfigException, it seems
         from kubernetes.config import ConfigException
 
         # Try to load Kubernetes configuration within a cluster first. If that doesn't
         # work, try to load the configuration from the local environment, allowing
         # any further ConfigExceptions to bubble up.
         try:
-            self._k8s.config.incluster_config.load_incluster_config()
+            kubernetes.config.incluster_config.load_incluster_config()
         except ConfigException:
-            self._k8s.config.load_kube_config()
+            kubernetes.config.load_kube_config()
 
         manifest = self.build_job(flow_run)
         job_name = await run_sync_in_worker_thread(self._create_job, flow_run, manifest)
@@ -179,25 +181,6 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         # Monitor the job
         return await run_sync_in_worker_thread(self._watch_job, job_name)
-
-    @property
-    def _k8s(self) -> ModuleType("kubernetes"):
-        """
-        Delayed import of `kubernetes` allowing configuration of the flow runner without
-        the extra installed and improves `prefect` import times.
-        """
-        global kubernetes
-
-        if kubernetes is None:
-            try:
-                import kubernetes
-            except ImportError as exc:
-                raise RuntimeError(
-                    "Using the `KubernetesFlowRunner` requires `kubernetes` to be "
-                    "installed."
-                ) from exc
-
-        return kubernetes
 
     @contextmanager
     def get_batch_client(self) -> Generator["BatchV1Api", None, None]:
@@ -229,7 +212,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except self._k8s.client.ApiException:
+            except kubernetes.ApiException:
                 self.logger.error(
                     f"Flow run job {job_id!r} was removed.", exc_info=True
                 )
@@ -240,7 +223,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
-        watch = self._k8s.watch.Watch()
+        watch = kubernetes.watch.Watch()
         self.logger.info(f"Starting watch for pod to start. Job: {job_name}")
         with self.get_client() as client:
             for event in watch.stream(
@@ -280,7 +263,7 @@ class KubernetesFlowRunner(UniversalFlowRunner):
 
         # Wait for job to complete
         self.logger.info(f"Starting watch for job completion: {job_name}")
-        watch = self._k8s.watch.Watch()
+        watch = kubernetes.watch.Watch()
         with self.get_batch_client() as batch_client:
             for event in watch.stream(
                 func=batch_client.list_namespaced_job,
