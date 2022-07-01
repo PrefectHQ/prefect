@@ -1,4 +1,5 @@
 import json
+import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
 from uuid import UUID, uuid4
@@ -30,7 +31,7 @@ class TestAPICompatibility:
         y: int = 1
         z: int = 2
 
-    def test_registration_checksums(self):
+    def test_registration(self):
         assert (
             lookup_type(Block, self.MyRegisteredBlock.__dispatch_key__())
             is self.MyRegisteredBlock
@@ -41,10 +42,7 @@ class TestAPICompatibility:
             is self.MyOtherRegisteredBlock
         )
 
-        with pytest.raises(
-            KeyError, match="No class found in registry for dispatch key"
-        ):
-            lookup_type(Block, self.MyBlock.__dispatch_key__())
+        assert lookup_type(Block, self.MyBlock.__dispatch_key__()) is self.MyBlock
 
     def test_create_api_block_schema(self, block_type_x):
         block_schema = self.MyRegisteredBlock._to_block_schema(
@@ -274,23 +272,36 @@ class TestAPICompatibility:
             "secret_fields": [],
         }
 
-    def test_block_classes_with_same_fields_but_different_comments_same_checksum(self):
-        class A(Block):
-            "This is A block"
+    @pytest.fixture
+    def OriginalBlock(self):
+        class Original(Block):
+            "This is the original block"
             x: str = Field(..., description="This is x field")
             y: str
             z: str
 
-        class B(Block):
-            "This is B block"
+        return Original
+
+    @pytest.fixture
+    def CloneBlock(self):
+        # Ignore warning of duplicate registration
+        warnings.filterwarnings("ignore", category=UserWarning)
+
+        class Original(Block):
+            "This is the clone block"
             x: str
             y: str
             z: str
 
-        # Rename so that two classes have same name
-        B.__name__ = "A"
+        return Original
 
-        assert A._calculate_schema_checksum() == B._calculate_schema_checksum()
+    def test_block_classes_with_same_fields_but_different_comments_same_checksum(
+        self, OriginalBlock, CloneBlock
+    ):
+        assert (
+            OriginalBlock._calculate_schema_checksum()
+            == CloneBlock._calculate_schema_checksum()
+        )
 
     def test_create_api_block_with_arguments(self, block_type_x):
         with pytest.raises(ValueError, match="(No name provided)"):
@@ -871,7 +882,6 @@ class TestSaveBlock:
         class NewBlock(Block):
             a: str
             b: str
-            c: int
 
         return NewBlock
 
@@ -891,7 +901,7 @@ class TestSaveBlock:
         return OuterBlock
 
     async def test_save_block(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar", c=1)
+        new_block = NewBlock(a="foo", b="bar")
         new_block_name = "my-block"
         await new_block.save(new_block_name)
 
@@ -911,7 +921,7 @@ class TestSaveBlock:
         assert loaded_new_block == new_block
 
     async def test_save_anonymous_block(self, NewBlock):
-        new_anon_block = NewBlock(a="foo", b="bar", c=1)
+        new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
 
         assert new_anon_block._block_document_name is not None
@@ -936,7 +946,7 @@ class TestSaveBlock:
         assert loaded_new_anon_block == new_anon_block
 
     async def test_save_throws_on_mismatched_kwargs(self, NewBlock):
-        new_block = NewBlock(a="foo", b="bar", c=1)
+        new_block = NewBlock(a="foo", b="bar")
         with pytest.raises(
             ValueError,
             match="You're attempting to save a block document without a name.",
